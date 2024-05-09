@@ -129,7 +129,7 @@ function double_kerr_alt(t, p, phi, z)
 }
 ```
 
-Which also involves complex numbers
+Which also involves complex numbers. This is clearly intractable by hand, so its time to dig into the theory of automating this
 
 # Dual numbers
 
@@ -170,7 +170,7 @@ Substitute in a = x, b = the derivative of x = 1:
     = x^3 + 3x^2 ε
 ```
 
-We can read off the real part as x^3, which unsurprisingly is the result of applying ^3 to x, and the derivative 3x^2, which matches with what we'd expect from differentiating x^3. One other thing to note is that unlike imaginary numbers, the non-real part of a dual number cannot influence the real part in any way
+We can read off the real part as `x^3`, which unsurprisingly is the result of applying `^3` to `x`, and the derivative `3x^2`, which matches with what we'd expect from differentiating `x^3`. One other thing to note is that unlike imaginary numbers, the non-real part of a dual number cannot influence the real part in any way
 
 Here's a table of basic operations:
 
@@ -208,11 +208,11 @@ As a sidebar, while these derivatives are derived fairly straightforwardly, they
 |  (a + bε)^(c + dε)  |  a^c + ((a^(c-1))  cb  + (a^(c-1)) a log(a) d) ε |
 | atan2(a + bε, c + dε) | ((bc - ad) / hypot(c, a)) / hypot(c, a) |
 
-Note that these expressions should be implemented exactly as written
+Note that these expressions should be implemented exactly as written, because the order of floating point operations can matter
 
 # Code
 
-Here we'll be implementing forward differentiation, in C++. Forward differentiation is the systematic process of taking our variables, and replacing them with the appropriate dual. Code wise the representation is pretty straightforward:
+Less theory, more code (in C++). Code wise the representation of a dual number is pretty straightforward:
 
 ```c++
 namespace dual_type
@@ -277,7 +277,7 @@ namespace dual_type {
     inline
     dual<T> lambert_w0(const dual<T>& d1)
     {
-        return dual_v<T>(lambert_w0(d1.real), d1.derivative * lambert_w0(d1.real) / (d1.real * lambert_w0(d1.real) + d1.real));
+        return dual<T>(lambert_w0(d1.real), d1.derivative * lambert_w0(d1.real) / (d1.real * lambert_w0(d1.real) + d1.real));
     }
     
     //etc
@@ -304,7 +304,7 @@ int main()
 }
 ```
 
-In general, a dual(value, 1) means to differentiate with respect to that value, and a dual(value, 0) means to treat that value as a constant
+In general, a `dual(value, 1)` means to differentiate with respect to that value, and a `dual(value, 0)` means to treat that value as a constant
 
 # Complications
 
