@@ -46,13 +46,13 @@ function double_kerr_alt(t, p, phi, z)
 {
     var i = CMath.i;
 
-	$cfg.R.$default = 4;
-	$cfg.M.$default = 0.3;
-	$cfg.q.$default = 0.2;
-	
-	var R = $cfg.R;
-	var M = $cfg.M;
-	var q = $cfg.q;
+    $cfg.R.$default = 4;
+    $cfg.M.$default = 0.3;
+    $cfg.q.$default = 0.2;
+    
+    var R = $cfg.R;
+    var M = $cfg.M;
+    var q = $cfg.q;
 
     var sigma = CMath.sqrt(M*M - q*q * (1 - (4 * M * M * (R * R - 4 * M * M + 4 * q * q)) / CMath.pow(R * (R + 2 * M) + 4 * q * q, 2)));
 
@@ -61,7 +61,7 @@ function double_kerr_alt(t, p, phi, z)
 
     var r3 = CMath.sqrt(p*p + CMath.pow(z + R/2 - sigma, 2));
     var r4 = CMath.sqrt(p*p + CMath.pow(z + R/2 + sigma, 2));
-	
+    
     var littled = 2 * M * q * (R * R - 4 * M * M + 4 * q * q) / (R * (R + 2 * M) + 4 * q * q);
 
     var pp = 2 * (M*M - q*q) - (R + 2 * M) * sigma + M * R + i * (q * (R - 2 * sigma) + littled);
@@ -148,7 +148,7 @@ expand:
     = a^3 + 3a^2b ε + 3ab^2 ε^2 + b^3 ε^3 -> 
     
 set all terms of ε^2 and higher to 0:
-    = a^3 + 3a^2bε
+    = a^3 + 3a^2b ε
     
 Substitute in a = x, b = the derivative of x = 1:
     = x^3 + 3x^2 ε
@@ -597,10 +597,6 @@ int main() {
     //as_dual now contains the derivative. The correct answer is {10, 9}
 }
 ```
-
-///[[TODO: INSERT ANGRY WAKKA]]
-
-(More code is available on [godbolt](https://godbolt.org/z/x8cTMnvda))
 
 Phew. This avoids a lot of the mistakes I made when first writing a type of this kind, namely that your expression tree can contain multiple types in it. Its important to appreciate here that with some more work, what we've actually created is a simple functional programming language within C++, which can be used to do some very interesting things
 
