@@ -321,7 +321,7 @@ dual<T> min(const dual<T>& v1, const dual<T>& v2) {
 }
 ```
 
-This similarly suffers from a similar issue as %, though more severely. The issue is that in any function which branches, at the branch point there will exist a discontinuity, as max is not a smooth function. How severe this is for your particular problem varies. If you need smooth derivatives, you could define a transition bound between the two, or otherwise rework your max as some kind of soft, smoothed max
+This similarly suffers from a similar issue as %, though more severely. The issue is that in any function which branches (or is a non smooth piecewise function), at the branch point there will exist a discontinuity, as min is not a smooth function. How severe this is for your particular problem varies. If you need smooth derivatives, you could define a transition bound between the two, or otherwise rework your max as some kind of soft, smoothed min
 
 If you run into this problem, you're probably already aware that these functions are not smooth - differentiating them via dual numbers like this doesn't introduce any new problems, but it does mean that automatic differentiation isn't quite a plug and play process if you're differentiating code outside of your control
 
@@ -343,7 +343,7 @@ for the x direction, and
 
 for the y direction. This isn't surprising so far. This is an operation that involves independently differentiating your function twice - is there a way to do better?
 
-Answer: Sort of. Lets branch out our dual number system a bit, and introduce two new `ε` variables, called `εx` and `εy`
+Answer: Yes. Lets branch out our dual number system a bit, and introduce two new `ε` variables, called `εx` and `εy`
 
 These two new variables have the following properties
 
@@ -357,7 +357,7 @@ With this new definition, we can now differentiate in two directions simultaneou
 
 `f(a + bεx, c + dεy) with a = x, b = x', c = y, d = y'`
 
-The reason this works is because εx and εy are treated completely separately, and it is equivalent to doing the differentiation twice. The main advantage with this method is that you only evaluate the real part of your equation once, instead of twice - the disadvantage is that its a lot more complicated to implement
+The reason this works is because εx and εy are treated completely separately, and it is equivalent to doing the differentiation twice. The main advantage with this method is that you only evaluate the real part of your equation once, instead of twice - the disadvantage is that its more complicated to implement
 
 ## 3. Higher derivatives?
 
@@ -409,7 +409,7 @@ I rate this: Oof/23
 
 In forwards differentiaton, we start at the roots of a tree, and may build towards several results from those roots. In reverse differentiation, we start at the end with those results, and walk up the tree towards our roots
 
-Backwards differentiation works quite differently. We start off by setting a concrete value for our *end* derivative at the output, and then start differentiating backwards. With forward mode differentiation, at each step we carry forwards concrete values for all the derivatives, eg
+Reverse differentiation works quite differently. We start off by setting a concrete value for our *end* derivative at the output, and then start differentiating backwards. With forward mode differentiation, at each step we carry forwards concrete values for all the derivatives, eg
 
 `a + bex + cey + dez`
 
@@ -470,9 +470,9 @@ Sum: Left branch, right branch
 
 The main complexity here is how to handle nodes with multiple inputs, that is to say v3 = v1 + v2, which has two input variables and two derivatives associated with it: dv3/dv1, and dv3/dv2. The idea is to simply sum them, which gives the correct answer
 
-In backwards differentiation, the expectation is that we've already done one forward pass over the graph when building it, so that the value of eg cos(v3) is a concrete number. This means that at each step through our graph, no matter how many variables we're differentiating against, we only have a singular value that we're propagating (instead of N values in forwards differentiation), right up until we hit the roots of our graph. In theory we have to evaluate the graph multiple times if we have multiple outputs, which can result in it being less efficient than forward differentiation when there are lots of outputs
+In reverse differentiation, the expectation is that we've already done one forward pass over the graph when building it, so that the value of eg cos(v3) is a concrete number. This means that at each step through our graph, no matter how many variables we're differentiating against, we only have a singular value that we're propagating (instead of N values in forwards differentiation), right up until we hit the roots of our graph. In theory we have to evaluate the graph multiple times if we have multiple outputs, which can result in it being less efficient than forward differentiation when there are lots of outputs
 
-For arbitrary unstructured problems, some mix of forwards and backwards differentiation is most important. This article is secretly the ground work for teaching people about general relativity, where forward differentiation is generally most efficient (you always have more outputs than inputs)
+For arbitrary unstructured problems, some mix of forwards and backwards differentiation is most important. This article is secretly the ground work for teaching people about general relativity, where forward differentiation is generally most efficient (you *always* have more outputs than inputs)
 
 ## 6. Post hoc differentiation
 
