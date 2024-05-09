@@ -7,6 +7,22 @@ categories: C++
 
 To cut down on clickbait, the exception is the lack of an overloadable ternary operator in C++
 
+# What is automatic differentiation anyway?
+
+The basic premise for what we're trying to do today is to take an arbitrary function that does some maths on one or more inputs, and returns one or more results. We then want to differentiate that function with respect to one of its inputs. That is to say, given something like:
+
+```c++
+float my_func(float x);
+```
+
+We want to get the derivative with respect to x. This function could be a more complicated, eg:
+
+```c++
+std::array<float, 6> my_func(float x, float y, float cst);
+```
+
+and we may want to get the derivatives of any of the outputs with respect to any of the inputs 
+
 # Differentiation revisited
 
 If you're willing to dredge up some maths, you might remember that differentiation is the processing of taking a function
@@ -37,7 +53,7 @@ As a brief refresher for everyone who isn't a maths nerd, there are a lot of sim
 | f(g(x)) | f'(g(x)) g'(x) | (aka the chain rule) |
 | f(x) g(x) | f(x) g'(x) + f'(x) g(x) | (aka the product rule) |
 
-For every particular kind of operation, there's a specific rule for differentiating it. You might remember that the general rule for differentiating things of the form `ax^n` is `nax^(n-1)`, or that `sin(x)` -> `cos(x)`. If you have `f(x) + g(x)`, you can simply add the derivatives together, to get `f'(x) + g'(x)`. Great!
+For every particular kind of operation, there's a specific rule for differentiating it. You might remember that the general rule for differentiating things of the form `ax^n` is `nax^(n-1)`, or that `sin(x)` -> `cos(x)`. Or if you have `f(x) + g(x)`, you can simply add the derivatives together, to get `f'(x) + g'(x)`. Great!
 
 Differentiation is a very mechanistic process. While simple equations are easy enough to do by hand, a recent strain of self inflicted brain damage compelled me to differentiate this:
 
@@ -185,7 +201,7 @@ Here's a table of basic operations:
 
 ## Numerical Accuracy
 
-As a sidebar, while these are the straightforward derivatives, they can suffer from numerical accuracy problems. [Herbie](https://herbie.uwplse.org/) is a tremendously cool tool that can be used to automatically produce more accurate results that I use all the time, and people should be more aware of it. Here are some notable ones:
+As a sidebar, while these derivatives are derived fairly straightforwardly, they can suffer from numerical accuracy problems. [Herbie](https://herbie.uwplse.org/) is a tremendously cool tool that can be used to automatically produce more accurate results that I use all the time, and people should be more aware of it. Here are some notable ones:
 
 | Operation | Result |
 |  (a + bε) / (c + dε) |  a/c + (b - a \* d / c) / c ε |
@@ -194,9 +210,9 @@ As a sidebar, while these are the straightforward derivatives, they can suffer f
 
 Note that these expressions should be implemented exactly as written
 
-# Its code time
+# Code
 
-Here we'll be implementing forward differentiation, in C++. Forward differentiation is the labelled above process - we take all instances of our variables, and replace them with the equivalent dual. Code wise the representation is pretty straightforward
+Here we'll be implementing forward differentiation, in C++. Forward differentiation is the systematic process of taking our variables, and replacing them with the appropriate dual. Code wise the representation is pretty straightforward:
 
 ```c++
 namespace dual_type
@@ -283,10 +299,12 @@ int main()
     float my_val = some_function(2.f);
     
     //differentiate
-    dual my_dual = some_function(dual(2.f, 1.f));
+    dual<float> my_dual = some_function(dual<float>(2.f, 1.f));
     //my_dual.real is 10, my_dual.derivative is 9
 }
 ```
+
+In general, a dual(value, 1) means to differentiate with respect to that value, and a dual(value, 0) means to treat that value as a constant
 
 # Complications
 
@@ -600,11 +618,11 @@ int main() {
 
 Phew. This avoids a lot of the mistakes I made when first writing a type of this kind, namely that your expression tree can contain multiple types in it. Its important to appreciate here that with some more work, what we've actually created is a simple functional programming language within C++, which can be used to do some very interesting things
 
-## C++ makes this pretty easy, with one exception: Where's my overloadable ternary operator?
+### If we could overload the ternary operator, this would be a lot better
 
 This kind of basic functional language can be used to implement lots of things, including entire simulations of general relativity, opening up the door to all kinds of neat things. Eventually you'll want side effects down the line, but you can get very far without them
 
-The one very annoying thing is that C++ does not let you write this, in any form:
+The one very annoying thing is that C++ does not let you write this in a standard way, in any form:
 
 ```c++
 value<T> my_value_1 = 0;
@@ -624,7 +642,7 @@ T select(T a, T b, U c) {
 }
 ```
 
-Which, despite what I would consider to be a slightly suspect definition, forms a basis for building eagerly evaluated branches with a result that could be embedded in a tree easily (or used on SIMD operations). C++ could very much do with an overloadable `std::select` that is a customisation point (or an expression based `if` like Rust). Toolkits and libraries which operate on ASTs run into this in particular - as there's no universally agreed on spelling for this function. Moreso, while the standard library imposes constraints on what types work in what functions, many functions rely on being able to apply true branches to your types - which means that they can never work with these AST types. Annoying!
+Which, despite what I would consider to be a slightly suspect definition, forms a basis for building eagerly evaluated branches with a result that could be embedded in a tree easily (or used on SIMD operations). C++ could very much do with an overloadable `std::select` that is a customisation point (or an expression based `if` like Rust). Toolkits and libraries which operate on ASTs run into this frequently - as there's no universally agreed on spelling for this function. Moreso, while the standard library imposes constraints on what types work in what functions, many functions rely on being able to apply true branches to your types - which means that they can never work with these AST types. Annoying!
 
 # The End
 
