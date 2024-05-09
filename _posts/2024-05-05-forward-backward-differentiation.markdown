@@ -37,9 +37,9 @@ As a brief refresher for everyone who isn't a maths nerd, there are a lot of sim
 | f(g(x)) | f'(g(x)) g'(x) | (aka the chain rule) |
 | f(x) g(x) | f(x) g'(x) + f'(x) g(x) | (aka the product rule) |
 
-For a particular kind of operation, there's a particular rule. From maths lessons, you might remember that the general rule for differentiating things of the form `ax^n` is `nax^(n-1)`, or that `sin(x)` -> `cos(x)`. If you have `f(x) + g(x)`, you can simply add the derivatives together, to get `f'(x) + g'(x)`. Great!
+For every particular kind of operation, there's a specific rule for differentiating it. You might remember that the general rule for differentiating things of the form `ax^n` is `nax^(n-1)`, or that `sin(x)` -> `cos(x)`. If you have `f(x) + g(x)`, you can simply add the derivatives together, to get `f'(x) + g'(x)`. Great!
 
-In general, differentiation is a very mechanistic process, and there's a fixed set of rules for how to differentiate things. While simple equations are easy enough to do by hand, a recent strain of self inflicted brain damage compelled me to differentiate this:
+Differentiation is a very mechanistic process. While simple equations are easy enough to do by hand, a recent strain of self inflicted brain damage compelled me to differentiate this:
 
 ```c++
 function double_kerr_alt(t, p, phi, z)
@@ -113,7 +113,7 @@ function double_kerr_alt(t, p, phi, z)
 }
 ```
 
-Which involves complex numbers
+Which also involves complex numbers
 
 # Dual numbers
 
@@ -125,17 +125,17 @@ Complex numbers exist in the form `a + bi` with a and b being real numbers, and 
 
 `ε != 0, and ε^2 = 0`
 
-In a regular number system this is clearly silly, but this system is called the dual numbers. Operations on dual numbers still obey all the other usual rules of maths, such as the following:
+In a regular number system this is clearly silly, but this system is called the dual numbers. Operations on dual numbers still obey all the other usual rules of maths that you'd expect from real numbers (and 2d vectors), such as the following:
 
 ```
-1. (a + bε) + (c + dε) = (a + c) + (b + d)ε
-2. (a + bε) - (c + dε) = (a - c) + (b - d)ε
-3. (a + bε) * (c + dε) = ac + bdε^2 + adε + bcε (then group the terms and apply ε^2 = 0) = ac + (ad + bc)ε
-4. (a + bε)^2 = a^2 + 2abε + bε^2 = a^2 + 2ab
-5. (a + bε)^n = a^n + n a^(n-1) bε + (n choose 2) a^(n-2) b^2 ε^2 ... (all higher powers of ε are set to 0) = a^n + n a^(n-1) bε
+(a + bε) + (c + dε) = (a + c) + (b + d)ε
+(a + bε) - (c + dε) = (a - c) + (b - d)ε
+(a + bε) * (c + dε) = ac + bdε^2 + adε + bcε (then group the terms and apply ε^2 = 0) = ac + (ad + bc)ε
+(a + bε)^2 = a^2 + 2abε + bε^2 = a^2 + 2ab
+(a + bε)^n = a^n + n a^(n-1) bε + (n choose 2) a^(n-2) b^2 ε^2 ... (all higher powers of ε are set to 0) = a^n + n a^(n-1) bε
 ```
 
-Dual numbers have the key property that if you construct a dual number `f(x) + f'(x)ε`, the `ε` term is *always* the derivative of the real term no matter what series of operations you run it through. This makes them extremely useful for differentiating equations
+ Dual numbers have the key property that if you construct a dual number `f(x) + f'(x)ε`, the `ε` term is *always* the derivative of the real term no matter what series of operations you run it through. This makes them extremely useful for differentiating equations
 
 For example, if we want to know the derivative of `x^3`, we write
 
@@ -185,14 +185,14 @@ Here's a table of basic operations:
 
 ## Numerical Accuracy
 
-As a sidebar, while these are the straightforward derivatives, they can suffer from numerical accuracy problems. [Herbie](https://herbie.uwplse.org/) is a tremendously cool tool that can be used to automatically produce more accurate results. Here are some notable ones:
+As a sidebar, while these are the straightforward derivatives, they can suffer from numerical accuracy problems. [Herbie](https://herbie.uwplse.org/) is a tremendously cool tool that can be used to automatically produce more accurate results that I use all the time, and people should be more aware of it. Here are some notable ones:
 
 | Operation | Result |
 |  (a + bε) / (c + dε) |  a/c + (b - a \* d / c) / c ε |
 |  (a + bε)^(c + dε)  |  a^c + ((a^(c-1))  cb  + (a^(c-1)) a log(a) d) ε |
 | atan2(a + bε, c + dε) | ((bc - ad) / hypot(c, a)) / hypot(c, a) |
 
-Note that these expressions should be implemented exactly as writtenp
+Note that these expressions should be implemented exactly as written
 
 # Its code time
 
@@ -305,7 +305,11 @@ There are two useful ways to look at the derivative of the modulo function
 1. The derivative of x % n is x', except for where x % n == 0 where it is undefined
 2. The derivative of x % n is x'
 
-Which one is more useful is up to you, but I tend to go for the second. I mainly use this differentiator in general relativity, and this is the only useful definition there
+Which one is more useful is up to the problem you're trying to solve, but I tend to go for the second. I mainly use this differentiator in general relativity, and this can be a useful definition there
+
+It might seem incorrect on the face of it, but consider polar coordinates - if you have a coordinate (r, theta), the derivative is usefully defined everywhere as (dr, dtheta). Polar coordinates are inherently periodic in the angular coordinate, which is to say that theta -> theta % 2 PI, but we can still correctly assign a derivative dr, dtheta at the coordinate (r, 0) or (r, 2pi), or (r, 4pi)
+
+Defining precisely what we mean by derivatives here is slightly beyond me, but I suspect that the kind of object we're talking about is different. Coordinate systems in GR must be smooth, which means that theta actually has the range `[-inf, +inf]`, and we fold the coordinate in on itself by 'identifying' `theta` with `theta + 2PI`, thus forming some kind of folded smooth topological nightmare. More discussions around this kind of coordinate system fun are reserved for the future - when weirdly enough it becomes a key issue in correctly rendering time travel
 
 ## 1.2 How do I handle branches, and piecewise functions?
 
@@ -387,7 +391,7 @@ The answer is: yes. It turns out that its very straightforward: to get a 3rd der
 
 ## 4. Complex numbers
 
-There's very little information about this online, but there's nothing special about implementing complex numbers with dual numbers. You can simply do:
+There's very little information about this online, but there's nothing special about mixing complex numbers with dual numbers. You can simply do:
 
 `complex<dual<float>> my_complex_dual`
 
@@ -403,7 +407,7 @@ Do be aware in the first case, and this will crop up later: the standard library
 
 `reinterpret_cast<T(&)[2]>(z)[0] and reinterpret_cast<T(&)[2]>(z)[1]`
 
-I rate this: Oof/23
+I rate this: Oof/c++23
 
 ## 5. Reverse/backwards automatic differentiation
 
@@ -476,7 +480,7 @@ For arbitrary unstructured problems, some mix of forwards and backwards differen
 
 ## 6. Post hoc differentiation
 
-For backwards differentiation, its necessary to build a tree of your expressions, that can be re-evaluated at a later date. Additionally, if you want to run forwards differentiation multiple times, this is also very useful. This article is also secretly laying the groundwork for future articles where having an AST of your function will be very useful
+For backwards differentiation, its necessary to build a tree of your expressions, that can be re-evaluated at a later date. Additionally, if you want to run forwards differentiation multiple times, this is also very useful. The resulting AST can also then be used to generate code, which can be very useful for high performance differentiation
 
 Writing a good implementation of this kind of type is beyond the scope of this article, but the basic gist is that you have something that looks like this:
 
@@ -602,7 +606,7 @@ Phew. This avoids a lot of the mistakes I made when first writing a type of this
 
 ## C++ makes this pretty easy, with one exception: Where's my overloadable ternary operator?
 
-This kind of basic functional language can be used to implement lots of things, including entire simulations of general relativity, opening up the door to all kinds of neat things. Eventually you'll want side effects down the line, but you can get very far without it
+This kind of basic functional language can be used to implement lots of things, including entire simulations of general relativity, opening up the door to all kinds of neat things. Eventually you'll want side effects down the line, but you can get very far without them
 
 The one very annoying thing is that C++ does not let you write this, in any form:
 
@@ -624,11 +628,13 @@ T select(T a, T b, U c) {
 }
 ```
 
-Which, despite what I would consider to be a slightly suspect definition, forms a basis for building eagerly evaluated branches with a result that could be embedded in a tree easily (or used on SIMD operations). C++ could very much do with an overloadable `std::select` that is a customisation point (or an expression based `if` like Rust). Toolkits and libraries which operate on ast's run into this in particular - as there's no universally agreed on spelling for this function. Moreso, while the standard library imposes constraints on what types work in what functions, many functions unnecessarily rely on being able to apply true branches to your types - which means that they can never work with these AST types. Annoying!
+Which, despite what I would consider to be a slightly suspect definition, forms a basis for building eagerly evaluated branches with a result that could be embedded in a tree easily (or used on SIMD operations). C++ could very much do with an overloadable `std::select` that is a customisation point (or an expression based `if` like Rust). Toolkits and libraries which operate on ASTs run into this in particular - as there's no universally agreed on spelling for this function. Moreso, while the standard library imposes constraints on what types work in what functions, many functions rely on being able to apply true branches to your types - which means that they can never work with these AST types. Annoying!
 
-That's the end of this article, may ye go forth and differentiate
+# The End
 
-### Footnote: What's the deal with lambert_w0?
+That's it for this article, hopefully this is a useful reference for dealing with automatic differentiation in C++. Next up we'll see how this kind of differentiable programming is useful for rendering black holes, and generating high performance code that runs on the GPU!
+
+## Footnote: What's the deal with you and lambert_w0?
 
 This function was a gigantic pain to find a viable implementation for when I needed it, so here it is in full. It'll likely crop up in a future article, when we're knee deep in general relativity together
 
