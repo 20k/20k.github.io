@@ -192,7 +192,7 @@ As a sidebar, while these are the straightforward derivatives, they can suffer f
 |  (a + bε)^(c + dε)  |  a^c + ((a^(c-1))  cb  + (a^(c-1)) a log(a) d) ε |
 | atan2(a + bε, c + dε) | ((bc - ad) / hypot(c, a)) / hypot(c, a) |
 
-Note that these expressions should be implemented exactly as written. This probably doesn't affect your work, but it can come up
+Note that these expressions should be implemented exactly as writtenp
 
 # Its code time
 
@@ -214,7 +214,7 @@ namespace dual_type
 }
 ```
 
-Implementing the operators that we need is allso straightforward:
+Implementing the operators that we need is also straightforward:
 
 ```c++
 //...within struct dual, use the hidden friend idiom
@@ -274,17 +274,17 @@ At this point, we have the pretty basic skeleton of a classic value replacement 
 template<typename T>
 T some_function(const T& in)
 {
-    return in * in + in * 2 + 5;
+    return 2 * in * in + in;
 }
 
 int main()
 {
-    //gives 40
-    float my_val = some_function(5.f);
+    //gives 10
+    float my_val = some_function(2.f);
     
     //differentiate
-    dual my_dual = some_function(dual(5.f, 1.f));
-    //my_dual.real is 40, my_dual.derivative is 12
+    dual my_dual = some_function(dual(2.f, 1.f));
+    //my_dual.real is 10, my_dual.derivative is 9
 }
 ```
 
