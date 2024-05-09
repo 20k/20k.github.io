@@ -31,6 +31,9 @@ markdown: kramdown
 theme: minima
 plugins:
   - jekyll-feed
+  
+kramdown:
+  parse_block_html: true
 
 # Exclude from processing.
 # The following items will not be processed, by default.
