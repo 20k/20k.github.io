@@ -518,47 +518,72 @@ namespace op {
         TAN,
         
         LAMBERT_W0,
-    }
+        //etc
+    };
+}
+
+template<typename Func, typename... Ts>
+auto change_variant_type(Func&& f, std::variant<Ts...> in)
+{
+    return std::variant<decltype(f(Ts()))...>();
 }
 
 struct value_base
 {
-    std::variant<double, float, _Float16, int> concrete;
+    std::variant<double, float, int> concrete;
     std::vector<value_base> args;
     op::type type = op::NONE;
     std::string name; //so that variables can be identified later. Clunky!
-    
-    template<typename As, typename U>
-    As replay_as(U&& handle_value) {
+
+    template<typename Tf, typename U>
+    auto replay_impl(Tf&& type_factory, U&& handle_value) -> decltype(change_variant_type(type_factory, concrete))
+    {
         if(type == op::type::VALUE)
             return handle_value(*this);
-            
+
         using namespace std; //necessary for lookup
 
-        if(args.size() == 0)
-        {
-            if(type == op::UMINUS)
-                return std::visit([](auto&& in){return As(-in);}, concrete);
-        }
-        
+        using result_t = decltype(change_variant_type(type_factory, concrete));
+
         if(args.size() == 1)
         {
-            As r1 = args[0].replay_as<As>(std::forward<U>(handle_value));
-        
-            if(type == op::SIN)
-                return std::sin(r1);
+            auto c1 = args[0].replay_impl(type_factory, handle_value);
+
+            return std::visit([&](auto&& v1)
+            {
+                if(type == op::UMINUS)
+                    return result_t(-v1);
+
+                if(type == op::SIN)
+                    return result_t(sin(v1));
+
+                 assert(false);
+            }, c1);
         }
-        
+
         if(args.size() == 2)
         {
-            As r1 = args[0].replay_as<As>(std::forward<U>(handle_value));
-            As r2 = args[1].replay_as<As>(std::forward<U>(handle_value));
-        
-            if(type == op::PLUS)
-                return r1 + r2;
+            auto c1 = args[0].replay_impl(type_factory, handle_value);
+            auto c2 = args[1].replay_impl(type_factory, handle_value);
+
+            return std::visit([&](auto&& v1, auto&& v2) {
+                if constexpr(std::is_same_v<decltype(v1), decltype(v2)>)
+                {
+                    if(type == op::PLUS)
+                        return result_t(v1 + v2);
+
+                    if(type == op::MULTIPLY)
+                        return result_t(v1 * v2);
+                }
+
+                assert(false);
+                return result_t();
+            }, c1, c2);
         }
+
+        assert(false);
     }
-}
+};
 
 template<typename T>
 struct value : value_base {
@@ -566,33 +591,43 @@ struct value : value_base {
         value_base::type = op::VALUE;
         value_base::concrete = T{};
     }
-    
+
     value(T t) {
         value_base::type = op::VALUE;
         value_base::concrete = t;
     }
-    
+
     friend value<T> operator+(const value<T>& v1, const value<T>& v2) {
         value<T> result;
         result.type = op::PLUS;
         result.args = {v1, v2};
         return result;
     }
-    
+
     friend value<T> operator*(const value<T>& v1, const value<T>& v2) {
         value<T> result;
         result.type = op::MULTIPLY;
         result.args = {v1, v2};
         return result;
     }
-}
+    
+    /*more operators, functions etc*/
+
+    template<typename Tf, typename U>
+    auto replay(Tf&& type_factory, U&& handle_value) -> decltype(type_factory(T()))
+    {
+        using result_t = decltype(type_factory(T()));
+
+        return std::get<result_t>(replay_impl(type_factory, handle_value));
+    }
+};
 
 template<typename T>
 T my_func(const T& x)
 {
     T v1 = x;
     T v2 = 2;
-    
+
     return v1 * v1 * v2 + v1;
 }
 
@@ -602,19 +637,28 @@ int main() {
 
     value<float> result = my_func(x);
 
-    dual<float> as_dual = result.replay_as<dual<float>>([](const value_base& base)
+    dual<float> as_dual = result.replay([](auto&& in)
     {
-        //differentiate with respect to x
+        return dual(in);
+    },
+    [](const value_base& base)
+    {
         if(base.name == "x")
             return dual(std::get<float>(base.concrete), 1.f);
-        //any other variable or constant is treated as a constant
         else
             return dual(std::get<float>(base.concrete), 0.f);
     });
-    
-    //as_dual now contains the derivative. The correct answer is {10, 9}
+
+    //our function is x * x * 2 + x
+    //our real part is therefore 2*2*2 + 2 = 10
+    //our derivative is D(2x^2 + x), which gives 4x + 1
+    //which gives 9
+    std::cout << as_dual.real << " " << as_dual.derivative << std::endl;
 }
+
 ```
+
+[code](https://godbolt.org/z/99cvxqWqT)
 
 Phew. This avoids a lot of the mistakes I made when first writing a type of this kind, namely that your expression tree can contain multiple types in it. Its important to appreciate here that with some more work, what we've actually created is a simple functional programming language within C++, which can be used to do some very interesting things
 
