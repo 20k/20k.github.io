@@ -32,7 +32,7 @@ markdown: kramdown
 plugins:
   - jekyll-feed
   - jekyll-remote-theme
-  
+
 kramdown:
   parse_block_html: true
   syntax_highlighter: rouge
@@ -44,7 +44,13 @@ toc:
     h_min: 1
     h_max: 3
 
+color_scheme: dark
+
 remote_theme: https://github.com/sighingnow/jekyll-gitbook
+#theme: just-the-docs
+
+# For copy button on code
+enable_copy_code_button: false
 
 # Exclude from processing.
 # The following items will not be processed, by default.

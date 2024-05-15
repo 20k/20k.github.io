@@ -312,7 +312,7 @@ namespace dual_type {
 
 At this point, we have the pretty basic skeleton of a classic value replacement type in C++, which you can use like this:
 
-```
+```c++
 template<typename T>
 T some_function(const T& in)
 {
