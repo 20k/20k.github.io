@@ -15,17 +15,17 @@ The basic premise for what we're trying to do today is to take an arbitrary func
 float my_func(float x);
 ```
 
-We want to get the derivative with respect to x. This function could be a more complicated, eg:
+You want to get the derivative with respect to x. This function could be a more complicated, eg:
 
 ```c++
 std::array<float, 6> my_func(float x, float y, float cst);
 ```
 
-and we may want to get the derivatives of any of the outputs with respect to any of the inputs 
+and you may want to get the derivatives of any of the outputs with respect to any of the inputs 
 
 # Differentiation revisited
 
-If you're willing to dredge up some maths, you might remember that differentiation is the processing of taking a function
+If you're willing to dredge up some maths, you might remember that differentiation is the process of taking a function
 
 ```c++
 y = f(x)
@@ -38,6 +38,8 @@ dy/dx = f'(x)
 ```
 
 ![Derivatives](/assets/p1_src.png)
+
+Taking the slope of line which is tangent to a point on a function gives you the rate of change
 
 As a brief refresher for everyone who isn't a maths nerd, there are a lot of simple functions that we can differentiate by hand, like so
 
@@ -133,6 +135,24 @@ function double_kerr_alt(t, p, phi, z)
 
 Which also involves complex numbers. This is slightly tricky to do by hand, so automating it is helpful
 
+## Brief aside: Numerical derivatives
+
+While today we're looking at analytic derivatives, before I dig into automatic differentiation it may be worth evaluating whether or not your problem is solvable via numerical derivatives. Briefly:
+
+`f'(x) ~= (f(x+h) - f(x)) / h`
+
+This is pretty straightforward to deduce by looking at a function on a graph
+
+![Line Slope](/assets/p3_src.png)
+
+Where calculating the slope of the line recovers the above formula
+
+In practice you very rarely use this specific definition of numerical derivatives as it is unstable, and you use a centered derivative, such as
+
+`f'(x) ~= (f(x + h) - f(x - h)) / 2h`
+
+Which gives much more stable results. Numerical differentiation will be the subject of future articles
+
 # Dual numbers
 
 The foundation for automatic differentiation is often started at a concept called dual numbers. As an analogy, if you remember your complex maths, you might remember that
@@ -143,7 +163,7 @@ Complex numbers exist in the form `a + bi` with a and b being real numbers, and 
 
 ![Imaginary numbers on a graph](/assets/p2_src.png)
 
-Dual numbers are similar, except instead of `i` we have `ε`, and the rule that `ε` follows is:
+Dual numbers are similar, except instead of `i` you have `ε`, and the rule that `ε` follows is:
 
 `ε != 0, and ε^2 = 0`
 
@@ -159,7 +179,7 @@ In a regular number system this is clearly silly, but this system is called the 
 
  Dual numbers have the key property that if you construct a dual number `f(x) + f'(x)ε`, the `ε` term is *always* the derivative of the real term no matter what series of operations you run it through. This makes them extremely useful for differentiating equations
 
-For example, if we want to know the derivative of `x^3`, we write
+For example, if you want to know the derivative of `x^3`, you write
 
 ```
 f(x) = x^3
@@ -176,7 +196,7 @@ Substitute in a = x, b = the derivative of x = 1:
     = x^3 + 3x^2 ε
 ```
 
-We can read off the real part as `x^3`, which unsurprisingly is the result of applying `^3` to `x`, and the derivative `3x^2`, which matches with what we'd expect from differentiating `x^3`. One other thing to note is that unlike imaginary numbers, the non-real part of a dual number cannot influence the real part in any way
+You can read off the real part as `x^3`, which unsurprisingly is the result of applying `^3` to `x`, and the derivative `3x^2`, which matches with what you'd expect from differentiating `x^3`. One other thing to note is that unlike imaginary numbers, the non-real part of a dual number cannot influence the real part in any way
 
 Here's a table of basic operations:
 
@@ -236,7 +256,7 @@ namespace dual_type
 }
 ```
 
-Implementing the operators that we need is also straightforward:
+Implementing the operators that you need is also straightforward:
 
 ```c++
 //...within struct dual, use the hidden friend idiom
@@ -271,7 +291,7 @@ friend bool operator<(const dual<T>& v1, const dual<T>& v2) {
 ```c++
 namespace dual_type {
     //relies on adl
-    //unfortunately, because C++ std::sin and friends aren't constexpr until c++26, we can't make this constexpr *yet*
+    //unfortunately, because C++ std::sin and friends aren't constexpr until c++26, you can't make this constexpr *yet*
     template<typename T>
     inline
     dual<T> sin(const dual<T>& in)
@@ -290,7 +310,7 @@ namespace dual_type {
 }
 ```
 
-At this point, we have the pretty basic skeleton of a classic value replacement type in C++, which we can use like this:
+At this point, we have the pretty basic skeleton of a classic value replacement type in C++, which you can use like this:
 
 ```
 template<typename T>
@@ -320,7 +340,8 @@ Lets look at some things we've left off so far
 2. Mixed derivatives
 3. Higher order derivatives
 4. Complex numbers
-5. Backwards differentiation
+5. Backwards/reverse differentiation
+6. Post hoc differentiation
 
 ## 1.1 What's the derivative of a modulus?
 
@@ -331,9 +352,9 @@ There are two useful ways to look at the derivative of the modulo function
 
 Which one is more useful is up to the problem you're trying to solve, but I tend to go for the second. I mainly use this differentiator in general relativity, and this can be a useful definition there
 
-It might seem incorrect on the face of it, but consider polar coordinates - if you have a coordinate (r, theta), the derivative is usefully defined everywhere as (dr, dtheta). Polar coordinates are inherently periodic in the angular coordinate, which is to say that theta -> theta % 2 PI, but we can still correctly assign a derivative dr, dtheta at the coordinate (r, 0) or (r, 2pi), or (r, 4pi)
+It might seem incorrect on the face of it, but consider polar coordinates - if you have a coordinate (r, theta), the derivative is usefully defined everywhere as (dr, dtheta). Polar coordinates are inherently periodic in the angular coordinate, which is to say that theta -> theta % 2 PI, but you can still correctly assign a derivative dr, dtheta at the coordinate (r, 0) or (r, 2pi), or (r, 4pi)
 
-Defining precisely what we mean by derivatives here is slightly beyond me, but I suspect that the kind of object we're talking about is different. Coordinate systems in GR must be smooth, which means that theta actually has the range `[-inf, +inf]`, and we fold the coordinate in on itself by 'identifying' `theta` with `theta + 2PI`, thus forming some kind of folded smooth topological nightmare. More discussions around this kind of coordinate system fun are reserved for the future - when weirdly enough it becomes a key issue in correctly rendering time travel
+Defining precisely what I mean by derivatives here is slightly beyond me, but I suspect that the kind of object we're talking about is different. Coordinate systems in GR must be smooth, which means that theta actually has the range `[-inf, +inf]`, and you fold the coordinate in on itself by 'identifying' `theta` with `theta + 2PI`, thus forming some kind of folded smooth topological nightmare. More discussions around this kind of coordinate system fun are reserved for the future - when weirdly enough it becomes a key issue in correctly rendering time travel
 
 ## 1.2 How do I handle branches, and piecewise functions?
 
@@ -355,7 +376,7 @@ If you run into this problem, you're probably already aware that these functions
 
 ## 2. Mixed derivatives?
 
-Lets imagine we have a function f(x, y), and we want to differentiate this with dual numbers. The traditional way to do this is to say
+Lets imagine you have a function f(x, y), and you want to differentiate this with dual numbers. The traditional way to do this is to say
 
 `f(x, y) dx`
 
@@ -407,9 +428,9 @@ To differentiate our derivative, clearly we do
 
 `f'(c + dε)`
 
-to get `f''(x)`. Neat, but can we do this all at once?
+to get `f''(x)`. Neat, but can you do this all at once?
 
-The answer is: yes. It turns out that its very straightforward: to get a 3rd derivative, we simply change our initial rule. Instead of `ε^2 = 0`, we set `ε^3 (and higher) = 0`, and end up with a higher order dual number of the form
+The answer is: yes. It turns out that its very straightforward: to get a 3rd derivative, you simply change the initial rule. Instead of `ε^2 = 0`, you set `ε^3 (and higher) = 0`, and end up with a higher order dual number of the form
 
 `a + bε + cε^2, aka f(x) + f'(x) ε + f''(x) ε^2`
 
@@ -435,13 +456,13 @@ I rate this: Oof/c++23
 
 ## 5. Reverse/backwards automatic differentiation
 
-In forwards differentiaton, we start at the roots of a tree, and may build towards several results from those roots. In reverse differentiation, we start at the end with those results, and walk up the tree towards our roots
+In forwards differentiaton, you start at the roots of a tree, and may build towards several results from those roots. In reverse differentiation, we start at the end with those results, and walk up the tree towards our roots
 
-Reverse differentiation works quite differently. We start off by setting a concrete value for our *end* derivative at the output, and then start differentiating backwards. With forward mode differentiation, at each step we carry forwards concrete values for all the derivatives, eg
+Reverse differentiation works quite differently. You start off by setting a concrete value for our *end* derivative at the output, and then start differentiating backwards. With forward mode differentiation, at each step you carry forwards concrete values for all the derivatives, eg
 
 `a + bex + cey + dez`
 
-Which means 4 calculations are being done in parallel. With reverse mode differentiation, as we walk up the graph, only one value is calculated - which is the the derivatives of the functions with respect to each other
+Which means 4 calculations are being done in parallel. With reverse mode differentiation, as you walk up the graph, only one value is calculated - which is the the derivatives of the functions with respect to each other
 
 For example, given the sequence of statements, representing the function y = f(x), aka sin(x + x^2)
 
@@ -453,7 +474,7 @@ v4 = sin(v3)
 y = v4
 ```
 
-We already know how to differentiate this with forward mode differentiation - set x to a + be. With reverse mode differentiation, we are propagating a *concrete* value backwards. This means that if we only have one output, and a tonne of input variables, we only have to evaluate the whole tree once
+We already know how to differentiate this with forward mode differentiation - set x to a + be. With reverse mode differentiation, you are propagating a *concrete* value backwards. This means that if you only have one output, and a tonne of input variables, you only have to evaluate the whole tree once
 
 To put it differently, lets differentiate the series of statements here
 
@@ -466,7 +487,7 @@ dv4/dv3 = cos(v3) (differentiate v4 = sin(v3) with respect to v3)
 dy/dv4 = 1 (differentiate y = v4 with respect to v4)
 ```
 
-What we're looking for is to solve for dy/dx. So to do that in forward mode, we start multiplying up from the root:
+What we're looking for is to solve for dy/dx. So to do that in forward mode, you start multiplying up from the root:
 
 ```
 dv2/dx = dv1/dx * dv2/dv1 = 2 * v1 = 2 * x
@@ -477,7 +498,7 @@ dy/dx = dy/dv4 * dv4/dx = 1 * cos(x + x*x) * (2x + 1)
 
 So therefore, dy/dx = `cos(x + x*x) * (2x + 1)`, which is the correct answer. So far this is nothing new, although its a different way of looking at forward differentiation compared to dual numbers
 
-To do this backwards, we simply reverse the process with the goal of finding dy/dx. Note that the way that we go upwards is dictated by the tree structure we have implicitly built here
+To do this backwards, we simply reverse the process with the goal of finding dy/dx. Note that the way that you go upwards is dictated by the tree structure we have implicitly built here
 
 ```
 dy/dv4 = 1 (y = v4)
@@ -498,7 +519,7 @@ Sum: Left branch, right branch
 
 The main complexity here is how to handle nodes with multiple inputs, that is to say v3 = v1 + v2, which has two input variables and two derivatives associated with it: dv3/dv1, and dv3/dv2. The idea is to simply sum them, which gives the correct answer
 
-In reverse differentiation, the expectation is that we've already done one forward pass over the graph when building it, so that the value of eg cos(v3) is a concrete number. This means that at each step through our graph, no matter how many variables we're differentiating against, we only have a singular value that we're propagating (instead of N values in forwards differentiation), right up until we hit the roots of our graph. In theory we have to evaluate the graph multiple times if we have multiple outputs, which can result in it being less efficient than forward differentiation when there are lots of outputs
+In reverse differentiation, the expectation is that you've already done one forward pass over the graph when building it, so that the value of eg cos(v3) is a concrete number. This means that at each step through our graph, no matter how many variables you're differentiating against, you only have a singular value that you're propagating (instead of N values in forwards differentiation), right up until you hit the roots of our graph. In theory you have to evaluate the graph multiple times if you have multiple outputs, which can result in it being less efficient than forward differentiation when there are lots of outputs
 
 For arbitrary unstructured problems, some mix of forwards and backwards differentiation is most important. This article is secretly the ground work for teaching people about general relativity, where forward differentiation is generally most efficient (you *always* have more outputs than inputs)
 
