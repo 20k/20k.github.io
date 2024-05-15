@@ -28,12 +28,23 @@ github_username:  20k
 
 markdown: kramdown
 # Build settings
-theme: minima
+#theme: minima
 plugins:
   - jekyll-feed
+  - jekyll-remote-theme
   
 kramdown:
   parse_block_html: true
+  syntax_highlighter: rouge
+  
+syntax_highlighter_style: github
+  
+toc:
+    enabled: true
+    h_min: 1
+    h_max: 3
+
+remote_theme: https://github.com/sighingnow/jekyll-gitbook
 
 # Exclude from processing.
 # The following items will not be processed, by default.
