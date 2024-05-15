@@ -37,6 +37,8 @@ And differentiating it to get its derivative - the derivative being the rate of 
 dy/dx = f'(x)
 ```
 
+![Derivatives](/assets/p1_src.png)
+
 As a brief refresher for everyone who isn't a maths nerd, there are a lot of simple functions that we can differentiate by hand, like so
 
 | Function (ie we set f(x) to this) | Derivative with respect to x | Note
@@ -129,7 +131,7 @@ function double_kerr_alt(t, p, phi, z)
 }
 ```
 
-Which also involves complex numbers. This is clearly intractable by hand, so its time to dig into the theory of automating this
+Which also involves complex numbers. This is slightly tricky to do by hand, so automating it is helpful
 
 # Dual numbers
 
@@ -137,7 +139,11 @@ The foundation for automatic differentiation is often started at a concept calle
 
 `i = sqrt(-1), and i^2 = -1`
 
-Complex numbers exist in the form `a + bi` with a and b being real numbers, and i is your imaginary unit. Dual numbers are similar, except instead of `i` we have `ε`, and the rule that `ε` follows is:
+Complex numbers exist in the form `a + bi` with a and b being real numbers, and `i` is the imaginary unit
+
+![Imaginary numbers on a graph](/assets/p2_src.png)
+
+Dual numbers are similar, except instead of `i` we have `ε`, and the rule that `ε` follows is:
 
 `ε != 0, and ε^2 = 0`
 
