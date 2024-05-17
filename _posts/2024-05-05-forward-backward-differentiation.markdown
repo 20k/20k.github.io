@@ -455,11 +455,11 @@ I rate this: Oof/c++23
 
 ## 5. Post hoc differentiation
 
-Its often necessary to build a tree of your expressions, that can be re-evaluated at a later date - eg for reverse differentiation[^1], or if you want to run forwards differentiation multiple times. The resulting AST can also then be used to generate code, which is very useful for high performance differentiation
+Its often necessary to build a tree of your expressions, that can be re-evaluated at a later date - eg for reverse differentiation[^1], or if you want to run forwards differentiation multiple times. The resulting AST can also then be used to generate code, which is very useful for high performance differentiation. In practice, its very rare that I ever use dual numbers directly on concrete values, but instead output the AST and derivatives of that AST as code - because the resulting code gets evaluated billions of times
 
 ### Code
 
-The basic gist is that you have something that looks like this:
+The basic gist for building a node base AST type here is something that looks like this:
 
 ```c++
 namespace op {
@@ -619,7 +619,7 @@ int main() {
 
 [code](https://godbolt.org/z/99cvxqWqT)
 
-Phew. The idea here is that each node in your AST contains a type (either a literal value, or a placeholder), and a series of arguments which themselves can be of any type. Its key to note that the external type `T` of a `value<T>` here is not used when replaying the contents of the tree, other than to get the final concrete result type. When replaying a statement, the stored `std::variant<double, float, int>` is transformed by the `type_factory` function to a `std::variant<dual<double>, dual<float>, dual<int>>`, and handle_value is used to determine how values contained within value_base are promoted to your wrapping type (here, dual)
+Phew. The idea here is that each node in your AST contains a type (either a literal value, or a placeholder), and a series of arguments which themselves can be of any type. Its key to note that the external type `T` of a `value<T>` here is not used when replaying the contents of the tree, other than to get the final concrete result type. When replaying a statement, the stored `std::variant<double, float, int>` is transformed in a fashion determined by the `type_factory` function to a `std::variant<dual<double>, dual<float>, dual<int>>`, and handle_value is used to determine how values contained within value_base are promoted to your wrapping type (here, dual)
 
 There are some tweaks that could be made here (handle_value taking a value_base instead of a T is a bit suspect, and I suspect this needs a liberal dollop of std::forward), but the basic structure should be decent to hang improvements off of
 
@@ -708,7 +708,7 @@ That's it for this article, hopefully this is a useful reference for dealing wit
 
     Reverse differentiation works quite differently. You start off by setting a concrete value for our *end* derivative at the output, and then start differentiating backwards. With forward mode differentiation, at each step you carry forwards concrete values for all the derivatives, eg
 
-    `a + bex + cey + dez`
+    `a + bεx + cεy + dεz`
 
     Which means 4 calculations are being done in parallel. With reverse mode differentiation, as you walk up the graph, only one value is calculated - which is the the derivatives of the functions with respect to each other
 
