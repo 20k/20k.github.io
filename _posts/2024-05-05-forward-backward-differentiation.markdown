@@ -619,7 +619,7 @@ int main() {
 
 [code](https://godbolt.org/z/99cvxqWqT)
 
-Phew. The idea here is that each node in your AST contains a type (either a literal value, or a placeholder), and a series of arguments which themselves can be of any type. Its key to note that the external type `T` of a `value<T>` here is *only* used for type safety and to prevent implicit conversions, and nothing else. When replaying a statement, the stored `std::variant<double, float, int>` is transformed by the `type_factory` function to a `std::variant<dual<double>, dual<float>, dual<int>>`, and handle_value is used to determine how values contained within value_base are promoted to your wrapping type (here, dual)
+Phew. The idea here is that each node in your AST contains a type (either a literal value, or a placeholder), and a series of arguments which themselves can be of any type. Its key to note that the external type `T` of a `value<T>` here is not used when replaying the contents of the tree, other than to get the final concrete result type. When replaying a statement, the stored `std::variant<double, float, int>` is transformed by the `type_factory` function to a `std::variant<dual<double>, dual<float>, dual<int>>`, and handle_value is used to determine how values contained within value_base are promoted to your wrapping type (here, dual)
 
 There are some tweaks that could be made here (handle_value taking a value_base instead of a T is a bit suspect, and I suspect this needs a liberal dollop of std::forward), but the basic structure should be decent to hang improvements off of
 
