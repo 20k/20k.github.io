@@ -342,7 +342,7 @@ Lets look at some things we've left off so far
 4. Complex numbers
 5. Post hoc differentiation
 
-## 1.1 What's the derivative of a modulus?
+## 1.1 What's the derivative of the modulo operator?
 
 There are two useful ways to look at the derivative of the modulo function
 
