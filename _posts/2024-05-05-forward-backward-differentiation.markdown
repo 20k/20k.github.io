@@ -447,7 +447,7 @@ Though this works great, its a bit more convoluted as your dual type needs to no
 
 ### Sidebar: std::complex is completely unusable
 
-Do be aware in the first case, and this will crop up later: the standard library for C++ makes no guarantees about how std::complex is implemented internally, and what operations your type should provide to compile. [https://en.cppreference.com/w/cpp/numeric/complex](see here) - the behaviour is unspecified, and possibly even undefined. In general, std::complex is something you should strictly avoid anyway, as its specification is complete madness. For example, until C++26 the only way to access the real or imaginary parts by reference is:
+Do be aware in the first case: the standard library for C++ makes no guarantees about how std::complex is implemented internally, and what operations your type should provide to compile. [https://en.cppreference.com/w/cpp/numeric/complex](see here) - the behaviour is unspecified, and possibly even undefined. In general, std::complex is something you should strictly avoid anyway, as its specification is complete madness. For example, until C++26 the only way to access the real or imaginary parts by reference is:
 
 `reinterpret_cast<T(&)[2]>(z)[0] and reinterpret_cast<T(&)[2]>(z)[1]`
 
@@ -621,13 +621,13 @@ int main() {
 
 Phew. The idea here is that each node in your AST contains a type (either a literal value, or a placeholder), and a series of arguments which themselves can be of any type. Its key to note that the external type `T` of a `value<T>` here is *only* used for type safety and to prevent implicit conversions, and nothing else. When replaying a statement, the stored `std::variant<double, float, int>` is transformed by the `type_factory` function to a `std::variant<dual<double>, dual<float>, dual<int>>`, and handle_value is used to determine how values contained within value_base are promoted to your wrapping type (here, dual)
 
-There are some tweaks that could be made here (handle_value taking a value_base instead of a T is a bit suspect), but the basic structure should be decent to hang improvements off of!
+There are some tweaks that could be made here (handle_value taking a value_base instead of a T is a bit suspect, and I suspect this needs a liberal dollop of std::forward), but the basic structure should be decent to hang improvements off of
 
 This avoids a lot of the mistakes I made when first writing a type of this kind, namely that your expression tree can contain multiple types in it, and that the type `T` is ignored. Its important to appreciate here that with some more work, what we've actually created is a simple functional programming language within C++, which can be used to do some very interesting things. Combining this with dual numbers will be extremely foundational for future articles, when I trick everyone into learning general relativity
 
 ### If we could overload the ternary operator, this would be a lot better
 
-This kind of basic functional language can be used to implement lots of things, including entire simulations of general relativity, opening up the door to all kinds of neat things. Eventually you'll want side effects down the line, but you can get very far without them
+This kind of basic functional language can be used to implement lots of things, including entire simulations of general relativity, opening up the door to all kinds of neat things when we eventually port this to generate code for the GPU. Eventually you'll want side effects down the line, but you can get very far without them
 
 The one very annoying thing is that C++ does not let you write this in a standard way, in any form:
 
@@ -653,7 +653,7 @@ Which, despite what I would consider to be a slightly suspect definition, forms 
 
 # The End
 
-That's it for this article, hopefully this is a useful reference for dealing with automatic differentiation in C++. Next up we'll see how this kind of differentiable programming is useful for rendering black holes, and generating high performance code that runs on the GPU!
+That's it for this article, hopefully this is a useful reference for dealing with automatic differentiation in C++ in a concrete fashion. Next up we'll see how this kind of differentiable programming is useful for rendering black holes, and generating high performance code that runs on the GPU!
 
 [^lambert]:
     ## lambert_w0?
