@@ -15,13 +15,13 @@ The basic premise for what we're trying to do today is to take an arbitrary func
 float my_func(float x);
 ```
 
-You want to get the derivative with respect to x. This function could be a more complicated, eg:
+We want to get the derivative with respect to x. This function could be a more complicated, eg:
 
 ```c++
 std::array<float, 6> my_func(float x, float y, float cst);
 ```
 
-and you may want to get the derivatives of any of the outputs with respect to any of the inputs 
+and we may want to get the derivatives of any of the outputs with respect to any of the inputs 
 
 # Differentiation revisited
 
@@ -60,6 +60,8 @@ As a brief refresher for everyone who isn't a maths nerd, there are a lot of sim
 For every particular kind of operation, there's a specific rule for differentiating it. You might remember that the general rule for differentiating things of the form `ax^n` is `nax^(n-1)`, or that `sin(x)` -> `cos(x)`. Or if you have `f(x) + g(x)`, you can simply add the derivatives together, to get `f'(x) + g'(x)`. Great!
 
 Differentiation is a very mechanistic process. While simple equations are easy enough to do by hand, a recent strain of self inflicted brain damage compelled me to differentiate this:
+
+<img style="float: right;" src="/assets/wakka.png" alt="I'm pretty sure computers were a mistake">
 
 ```c++
 function double_kerr_alt(t, p, phi, z)
@@ -133,25 +135,9 @@ function double_kerr_alt(t, p, phi, z)
 }
 ```
 
-Which also involves complex numbers. This is slightly tricky to do by hand, so automating it is helpful
+(sometimes I think computers were mistake)
 
-## Brief aside: Numerical derivatives
-
-While today we're looking at analytic derivatives, before I dig into automatic differentiation it may be worth evaluating whether or not your problem is solvable via numerical derivatives. Briefly:
-
-`f'(x) ~= (f(x+h) - f(x)) / h`
-
-This is pretty straightforward to deduce by looking at a function on a graph
-
-![Line Slope](/assets/p3_src.png)
-
-Where calculating the slope of the line recovers the above formula
-
-In practice you very rarely use this specific definition of numerical derivatives as it is unstable, and you use a centered derivative, such as
-
-`f'(x) ~= (f(x + h) - f(x - h)) / 2h`
-
-Which gives much more stable results. Numerical differentiation will be the subject of future articles
+This also involves differentiating complex numbers. This is slightly tricky to do by hand, so automating it is helpful. Today we're looking at automatic differentiation, but numerical differentiation[^numerical] is also a very widely used technique
 
 # Dual numbers
 
@@ -220,7 +206,7 @@ Here's a table of basic operations:
 | acos(a + bε) | acos(a) - (b / sqrt(1 - a^2)) ε |
 | atan(a + bε) | atan(a) - (b / (1 + a^2)) ε |
 | atan2(a + bε, c + dε) | atan2(a, c) + ((bc - ad) / (c^2 + a^2)) ε |
-| w0(a + bε) [lamberts w0] | w0(a) + (b w0(a) / (a w0(a) + a)) ε |
+| w0(a + bε) [lamberts w0[^lambert]] | w0(a) + (b w0(a) / (a w0(a) + a)) ε |
 | a % b | it depends |
 | a < b | a < b (ignore the derivatives when evaluating conditionals) |
 | max(a, b) | people will argue about this a lot |
@@ -232,13 +218,15 @@ As a sidebar, while these derivatives are derived fairly straightforwardly, they
 | Operation | Result |
 |  (a + bε) / (c + dε) |  a/c + (b - a \* d / c) / c ε |
 |  (a + bε)^(c + dε)  |  a^c + ((a^(c-1))  cb  + (a^(c-1)) a log(a) d) ε |
-| atan2(a + bε, c + dε) | ((bc - ad) / hypot(c, a)) / hypot(c, a) |
+| atan2(a + bε, c + dε) | atan2(a, c) + ((bc - ad) / hypot(c, a)) / hypot(c, a) ε |
 
 Note that these expressions should be implemented exactly as written, because the order of floating point operations can matter
 
 # Code
 
-Less theory, more code (in C++). Code wise the representation of a dual number is pretty straightforward:
+## struct dual
+
+Some problems I find intractable in the abstract, so lets go through the skeleton of a concrete implementation of dual numbers. Code wise the representation of a dual number is pretty straightforward:
 
 ```c++
 namespace dual_type
@@ -255,6 +243,8 @@ namespace dual_type
     };
 }
 ```
+
+## `operator` overloading
 
 Implementing the operators that you need is also straightforward:
 
@@ -288,6 +278,8 @@ friend bool operator<(const dual<T>& v1, const dual<T>& v2) {
 //etc etc
 ```
 
+## Free functions
+
 ```c++
 namespace dual_type {
     //relies on adl
@@ -299,16 +291,24 @@ namespace dual_type {
         return dual<T>(sin(in.real), in.derivative * cos(in.real));
     }
     
+    template<typename T> 
+    inline
+    dual<T> atan2(const dual<T>& v1, const dual<T>& v2) {
+        return dual(atan2(v1.real, v2.real), (v1.derivative * v2.real - v1.real * v2.derivative) / (v2.real * v2.real + v1.real * v1.real));
+    }
+    
     template<typename T>
     inline
-    dual<T> lambert_w0(const dual<T>& d1)
+    dual<T> lambert_w0(const dual<T>& v1)
     {
-        return dual<T>(lambert_w0(d1.real), d1.derivative * lambert_w0(d1.real) / (d1.real * lambert_w0(d1.real) + d1.real));
+        return dual<T>(lambert_w0(v1.real), v1.derivative * lambert_w0(v1.real) / (v1.real * lambert_w0(v1.real) + v1.real));
     }
     
     //etc
 }
 ```
+
+## Example
 
 At this point, we have the pretty basic skeleton of a classic value replacement type in C++, which you can use like this:
 
@@ -340,8 +340,7 @@ Lets look at some things we've left off so far
 2. Mixed derivatives
 3. Higher order derivatives
 4. Complex numbers
-5. Backwards/reverse differentiation
-6. Post hoc differentiation
+5. Post hoc differentiation
 
 ## 1.1 What's the derivative of a modulus?
 
@@ -454,80 +453,13 @@ Do be aware in the first case, and this will crop up later: the standard library
 
 I rate this: Oof/c++23
 
-## 5. Reverse/backwards automatic differentiation
+## 5. Post hoc differentiation
 
-In forwards differentiaton, you start at the roots of a tree, and may build towards several results from those roots. In reverse differentiation, we start at the end with those results, and walk up the tree towards our roots
+Its often necessary to build a tree of your expressions, that can be re-evaluated at a later date - eg for reverse differentiation[^1], or if you want to run forwards differentiation multiple times. The resulting AST can also then be used to generate code, which is very useful for high performance differentiation
 
-Reverse differentiation works quite differently. You start off by setting a concrete value for our *end* derivative at the output, and then start differentiating backwards. With forward mode differentiation, at each step you carry forwards concrete values for all the derivatives, eg
+### Code
 
-`a + bex + cey + dez`
-
-Which means 4 calculations are being done in parallel. With reverse mode differentiation, as you walk up the graph, only one value is calculated - which is the the derivatives of the functions with respect to each other
-
-For example, given the sequence of statements, representing the function y = f(x), aka sin(x + x^2)
-
-```
-v1 = x
-v2 = v1 * v1
-v3 = v1 + v2
-v4 = sin(v3)
-y = v4
-```
-
-We already know how to differentiate this with forward mode differentiation - set x to a + be. With reverse mode differentiation, you are propagating a *concrete* value backwards. This means that if you only have one output, and a tonne of input variables, you only have to evaluate the whole tree once
-
-To put it differently, lets differentiate the series of statements here
-
-```
-dv1/dx = 1 dx (differentiate v1 = x with respect to x)
-dv2/dv1 = 2 * v1 (differentiate v2 = v1 * v1 with respect to v1)
-dv3/dv1 = 1 (differentiate v3 = v1 + v2 with respect to v1)
-dv3/dv2 = 1 (differentiate v3 = v1 + v2 with respect to v2)
-dv4/dv3 = cos(v3) (differentiate v4 = sin(v3) with respect to v3)
-dy/dv4 = 1 (differentiate y = v4 with respect to v4)
-```
-
-What we're looking for is to solve for dy/dx. So to do that in forward mode, you start multiplying up from the root:
-
-```
-dv2/dx = dv1/dx * dv2/dv1 = 2 * v1 = 2 * x
-dv3/dx = (dv3/dv2) * (dv2/dx) + (dv3/dv1) * (dv1/dx) = 1 * (2 * x) + (1 * 1) = x + 1
-dv4/dx = (dv4/dv3) * dv3/dx = cos(v3) * (x + 1) = cos(v1 + v2) * (2x + 1) = cos(x + x*x) * (2x + 1)
-dy/dx = dy/dv4 * dv4/dx = 1 * cos(x + x*x) * (2x + 1)
-```
-
-So therefore, dy/dx = `cos(x + x*x) * (2x + 1)`, which is the correct answer. So far this is nothing new, although its a different way of looking at forward differentiation compared to dual numbers
-
-To do this backwards, we simply reverse the process with the goal of finding dy/dx. Note that the way that you go upwards is dictated by the tree structure we have implicitly built here
-
-```
-dy/dv4 = 1 (y = v4)
-dy/dv3 = dy/dv4 * dv4/dv3 = 1 * cos(v3) (v4 = sin(v3))
-
-dy/dv2 = dy/dv3 * dv3/dv2 = cos(v3) * 1 (branch 1 of dv3)
-dy/dv1 = dy/dv2 * dv2/dv1 = cos(v3) * 2 * v1 = 2 cos(v3) * x (branch 1 of dv3)
-dy/dx = dy/dv1 * dv1/dx = 1 * 2 x cos(v3) (branch 1 of dv3)
-
-dy/dv1 = dy/dv3 * dv3/dv1 = cos(v3) * 1 (branch 2 of dv3)
-dy/dx = dy/dv1 * dv1/dx = cos(v3) (branch 2 of dv3)
-
-Sum: Left branch, right branch
-= cos(v3) + 2 x cos(v3)
-= cos(v3) * (1 + 2x)
-= cos(x + x^2) * (1 + 2x)
-```
-
-The main complexity here is how to handle nodes with multiple inputs, that is to say v3 = v1 + v2, which has two input variables and two derivatives associated with it: dv3/dv1, and dv3/dv2. The idea is to simply sum them, which gives the correct answer
-
-In reverse differentiation, the expectation is that you've already done one forward pass over the graph when building it, so that the value of eg cos(v3) is a concrete number. This means that at each step through our graph, no matter how many variables you're differentiating against, you only have a singular value that you're propagating (instead of N values in forwards differentiation), right up until you hit the roots of our graph. In theory you have to evaluate the graph multiple times if you have multiple outputs, which can result in it being less efficient than forward differentiation when there are lots of outputs
-
-For arbitrary unstructured problems, some mix of forwards and backwards differentiation is most important. This article is secretly the ground work for teaching people about general relativity, where forward differentiation is generally most efficient (you *always* have more outputs than inputs)
-
-## 6. Post hoc differentiation
-
-For backwards differentiation, its necessary to build a tree of your expressions, that can be re-evaluated at a later date. Additionally, if you want to run forwards differentiation multiple times, this is also very useful. The resulting AST can also then be used to generate code, which can be very useful for high performance differentiation
-
-Writing a good implementation of this kind of type is beyond the scope of this article, but the basic gist is that you have something that looks like this:
+The basic gist is that you have something that looks like this:
 
 ```c++
 namespace op {
@@ -687,7 +619,11 @@ int main() {
 
 [code](https://godbolt.org/z/99cvxqWqT)
 
-Phew. This avoids a lot of the mistakes I made when first writing a type of this kind, namely that your expression tree can contain multiple types in it. Its important to appreciate here that with some more work, what we've actually created is a simple functional programming language within C++, which can be used to do some very interesting things
+Phew. The idea here is that each node in your AST contains a type (either a literal value, or a placeholder), and a series of arguments which themselves can be of any type. Its key to note that the external type `T` of a `value<T>` here is *only* used for type safety and to prevent implicit conversions, and nothing else. When replaying a statement, the stored `std::variant<double, float, int>` is transformed by the `type_factory` function to a `std::variant<dual<double>, dual<float>, dual<int>>`, and handle_value is used to determine how values contained within value_base are promoted to your wrapping type (here, dual)
+
+There are some tweaks that could be made here (handle_value taking a value_base instead of a T is a bit suspect), but the basic structure should be decent to hang improvements off of!
+
+This avoids a lot of the mistakes I made when first writing a type of this kind, namely that your expression tree can contain multiple types in it, and that the type `T` is ignored. Its important to appreciate here that with some more work, what we've actually created is a simple functional programming language within C++, which can be used to do some very interesting things. Combining this with dual numbers will be extremely foundational for future articles, when I trick everyone into learning general relativity
 
 ### If we could overload the ternary operator, this would be a lot better
 
@@ -719,31 +655,118 @@ Which, despite what I would consider to be a slightly suspect definition, forms 
 
 That's it for this article, hopefully this is a useful reference for dealing with automatic differentiation in C++. Next up we'll see how this kind of differentiable programming is useful for rendering black holes, and generating high performance code that runs on the GPU!
 
-## Footnote: What's the deal with you and lambert_w0?
+[^lambert]:
+    ## lambert_w0?
 
-This function was a gigantic pain to find a viable implementation for when I needed it, so here it is in full. It'll likely crop up in a future article, when we're knee deep in general relativity together
+    This function was a gigantic pain to find a viable implementation for when I needed it, so here it is in full. It'll likely crop up in a future article, when we're knee deep in general relativity together
 
-```c++
-template<typename T, int Iterations = 2>
-inline
-T lambert_w0(T x)
-{
-    if(x < -(1 / M_E))
-        x = -(1 / M_E);
-
-    T current = 0;
-
-    for(int i=0; i < Iterations; i++)
+    ```c++
+    template<typename T, int Iterations = 2>
+    inline
+    T lambert_w0(T x)
     {
-        T cexp = std::exp(current);
+        if(x < -(1 / M_E))
+            x = -(1 / M_E);
 
-        T denom = cexp * (current + 1) - ((current + 2) * (current * cexp - x) / (2 * current + 2));
+        T current = 0;
 
-        T next = current - ((current * cexp - x) / denom);
+        for(int i=0; i < Iterations; i++)
+        {
+            T cexp = std::exp(current);
+            T denom = cexp * (current + 1) - ((current + 2) * (current * cexp - x) / (2 * current + 2));
 
-        current = next;
+            current = current - ((current * cexp - x) / denom);
+        }
+
+        return current;
     }
+    ```
 
-    return current;
-}
-```
+[^numerical]:
+    ## Sidebar: Numerical derivatives
+
+    While today we've been looking at analytic derivatives, it may be worth evaluating whether or not your problem is solvable via numerical derivatives. Briefly:
+
+    `f'(x) ~= (f(x+h) - f(x)) / h`
+
+    This is pretty straightforward to deduce by looking at a function on a graph
+
+    ![Line Slope](/assets/p3_src.png)
+
+    Where calculating the slope of the line recovers the above formula
+
+    In practice you very rarely use this specific definition of numerical derivatives as it is unstable, and you use a centered derivative, such as
+
+    `f'(x) ~= (f(x + h) - f(x - h)) / 2h`
+
+    Which gives much more stable results. This can be directly applied to a function to differentiate it, without the complexity of implementing automatic differentiation. Numerical differentiation will be the subject of future articles
+
+[^1]:
+    ## Sidebar: Reverse/backwards automatic differentiation
+
+    While the main topic of this article is forward differentiation, reverse differentiation is worth a mention too. In forwards differentiaton, you start at the roots of a tree, and may build towards several results from those roots. In reverse differentiation, we start at the end with those results, and walk up the tree towards our roots
+
+    Reverse differentiation works quite differently. You start off by setting a concrete value for our *end* derivative at the output, and then start differentiating backwards. With forward mode differentiation, at each step you carry forwards concrete values for all the derivatives, eg
+
+    `a + bex + cey + dez`
+
+    Which means 4 calculations are being done in parallel. With reverse mode differentiation, as you walk up the graph, only one value is calculated - which is the the derivatives of the functions with respect to each other
+
+    For example, given the sequence of statements, representing the function y = f(x), aka sin(x + x^2)
+
+    ```
+    v1 = x
+    v2 = v1 * v1
+    v3 = v1 + v2
+    v4 = sin(v3)
+    y = v4
+    ```
+
+    We already know how to differentiate this with forward mode differentiation - set x to a + be. With reverse mode differentiation, you are propagating a *concrete* value backwards. This means that if you only have one output, and a tonne of input variables, you only have to evaluate the whole tree once
+
+    To put it differently, lets differentiate the series of statements here
+
+    ```
+    dv1/dx = 1 dx (differentiate v1 = x with respect to x)
+    dv2/dv1 = 2 * v1 (differentiate v2 = v1 * v1 with respect to v1)
+    dv3/dv1 = 1 (differentiate v3 = v1 + v2 with respect to v1)
+    dv3/dv2 = 1 (differentiate v3 = v1 + v2 with respect to v2)
+    dv4/dv3 = cos(v3) (differentiate v4 = sin(v3) with respect to v3)
+    dy/dv4 = 1 (differentiate y = v4 with respect to v4)
+    ```
+
+    What we're looking for is to solve for dy/dx. So to do that in forward mode, you start multiplying up from the root:
+
+    ```
+    dv2/dx = dv1/dx * dv2/dv1 = 2 * v1 = 2 * x
+    dv3/dx = (dv3/dv2) * (dv2/dx) + (dv3/dv1) * (dv1/dx) = 1 * (2 * x) + (1 * 1) = x + 1
+    dv4/dx = (dv4/dv3) * dv3/dx = cos(v3) * (x + 1) = cos(v1 + v2) * (2x + 1) = cos(x + x*x) * (2x + 1)
+    dy/dx = dy/dv4 * dv4/dx = 1 * cos(x + x*x) * (2x + 1)
+    ```
+
+    So therefore, dy/dx = `cos(x + x*x) * (2x + 1)`, which is the correct answer. So far this is nothing new, although its a different way of looking at forward differentiation compared to dual numbers
+
+    To do this backwards, we simply reverse the process with the goal of finding dy/dx. Note that the way that you go upwards is dictated by the tree structure we have implicitly built here
+
+    ```
+    dy/dv4 = 1 (y = v4)
+    dy/dv3 = dy/dv4 * dv4/dv3 = 1 * cos(v3) (v4 = sin(v3))
+
+    dy/dv2 = dy/dv3 * dv3/dv2 = cos(v3) * 1 (branch 1 of dv3)
+    dy/dv1 = dy/dv2 * dv2/dv1 = cos(v3) * 2 * v1 = 2 cos(v3) * x (branch 1 of dv3)
+    dy/dx = dy/dv1 * dv1/dx = 1 * 2 x cos(v3) (branch 1 of dv3)
+
+    dy/dv1 = dy/dv3 * dv3/dv1 = cos(v3) * 1 (branch 2 of dv3)
+    dy/dx = dy/dv1 * dv1/dx = cos(v3) (branch 2 of dv3)
+
+    Sum: Left branch, right branch
+    = cos(v3) + 2 x cos(v3)
+    = cos(v3) * (1 + 2x)
+    = cos(x + x^2) * (1 + 2x)
+    ```
+
+    The main complexity here is how to handle nodes with multiple inputs, that is to say v3 = v1 + v2, which has two input variables and two derivatives associated with it: dv3/dv1, and dv3/dv2. The idea is to simply sum them, which gives the correct answer
+
+    In reverse differentiation, the expectation is that you've already done one forward pass over the graph when building it, so that the value of eg cos(v3) is a concrete number. This means that at each step through our graph, no matter how many variables you're differentiating against, you only have a singular value that you're propagating (instead of N values in forwards differentiation), right up until you hit the roots of our graph. In theory you have to evaluate the graph multiple times if you have multiple outputs, which can result in it being less efficient than forward differentiation when there are lots of outputs
+
+    For arbitrary unstructured problems, some mix of forwards and backwards differentiation is most important. This article is secretly the ground work for teaching people about general relativity, where forward differentiation is generally most efficient (you *always* have more outputs than inputs)
