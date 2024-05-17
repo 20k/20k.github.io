@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Automatic differentiation and dual numbers in C++ are pretty neat, with a single exception"
-date:   2024-05-5 08:17:23 +0000
+date:   2024-05-18 00:35:23 +0000
 categories: C++
 ---
 
