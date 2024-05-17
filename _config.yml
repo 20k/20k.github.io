@@ -35,6 +35,8 @@ kramdown:
 plugins:
   - jekyll-feed
   - jekyll-remote-theme
+  
+future: true
 
 kramdown:
   parse_block_html: true
