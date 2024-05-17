@@ -342,7 +342,7 @@ Lets look at some things we've left off so far
 4. Complex numbers
 5. Post hoc differentiation
 
-## 1.1 What's the derivative of the modulo operator?
+## 1.1 The operator%
 
 There are two useful ways to look at the derivative of the modulo function
 
@@ -355,7 +355,7 @@ It might seem incorrect on the face of it, but consider polar coordinates - if y
 
 Defining precisely what I mean by derivatives here is slightly beyond me, but I suspect that the kind of object we're talking about is different. Coordinate systems in GR must be smooth, which means that theta actually has the range `[-inf, +inf]`, and you fold the coordinate in on itself by 'identifying' `theta` with `theta + 2PI`, thus forming some kind of folded smooth topological nightmare. More discussions around this kind of coordinate system fun are reserved for the future - when weirdly enough it becomes a key issue in correctly rendering time travel
 
-## 1.2 How do I handle branches, and piecewise functions?
+## 1.2 Branches and piecewise functions
 
 Its common to implement branches, min, and max, as something like the following
 
@@ -373,7 +373,7 @@ This similarly suffers from a similar issue as %, though more severely. The issu
 
 If you run into this problem, you're probably already aware that these functions are not smooth - differentiating them via dual numbers like this doesn't introduce any new problems, but it does mean that automatic differentiation isn't quite a plug and play process if you're differentiating code outside of your control
 
-## 2. Mixed derivatives?
+## 2. Mixed derivatives
 
 Lets imagine you have a function f(x, y), and you want to differentiate this with dual numbers. The traditional way to do this is to say
 
@@ -407,7 +407,7 @@ With this new definition, we can now differentiate in two directions simultaneou
 
 The reason this works is because εx and εy are treated completely separately, and it is equivalent to doing the differentiation twice. The main advantage with this method is that you only evaluate the real part of your equation once, instead of twice - the disadvantage is that its more complicated to implement
 
-## 3. Higher derivatives?
+## 3. Higher derivatives
 
 Given that dual numbers give us the power to automatically differentiate things, the obvious approach for higher order derivatives is to use dual numbers on the dual numbers that we already have, to differentiate our derivatives. Less confusingly, what we're trying to say is that if we want to differentiate
 
