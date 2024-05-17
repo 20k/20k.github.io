@@ -182,7 +182,7 @@ Substitute in a = x, b = the derivative of x = 1:
     = x^3 + 3x^2 ε
 ```
 
-You can read off the real part as `x^3`, which unsurprisingly is the result of applying `^3` to `x`, and the derivative `3x^2`, which matches with what you'd expect from differentiating `x^3`. One other thing to note is that unlike imaginary numbers, the non-real part of a dual number cannot influence the real part in any way
+You can read off the real part as `x^3`, which unsurprisingly is the result of applying `^3` to `x`, and the derivative from the dual part: `3x^2`, which matches with what you'd expect from differentiating `x^3`. One other thing to note is that unlike imaginary numbers, the non-real part of a dual number cannot influence the real part in any way
 
 Here's a table of basic operations:
 
