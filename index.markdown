@@ -4,3 +4,5 @@
 
 layout: home
 ---
+
+There'll be content here as soon as i figure out how the internet works
