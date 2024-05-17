@@ -52,7 +52,7 @@
   background: #f3eacb;
 }
 .book.color-theme-2 .book-body {
-  color: #ffffff;
+  color: #dddddd;
   background: #1f1f1f;
 }
 .book.color-theme-2 .book-body .page-wrapper .page-inner section {
@@ -128,7 +128,7 @@
   background-color: #fbeecb;
 }
 .book.color-theme-2 .book-body .page-wrapper .page-inner section.normal {
-  color: #ffffff;
+  color: #dddddd;
 }
 .book.color-theme-2 .book-body .page-wrapper .page-inner section.normal a {
   color: #3eb1d0;
@@ -139,7 +139,7 @@
 .book.color-theme-2 .book-body .page-wrapper .page-inner section.normal h4,
 .book.color-theme-2 .book-body .page-wrapper .page-inner section.normal h5,
 .book.color-theme-2 .book-body .page-wrapper .page-inner section.normal h6 {
-  color: #fffffa;
+  color: #dddddd;
 }
 .book.color-theme-2 .book-body .page-wrapper .page-inner section.normal h1,
 .book.color-theme-2 .book-body .page-wrapper .page-inner section.normal h2 {
@@ -156,7 +156,7 @@
 }
 .book.color-theme-2 .book-body .page-wrapper .page-inner section.normal pre,
 .book.color-theme-2 .book-body .page-wrapper .page-inner section.normal code {
-  color: #9dbed8;
+  color: #dddddd;
   background: #282a39;
   border-color: #282a39;
 }
@@ -168,7 +168,7 @@
   border-color: #3b3f54;
 }
 .book.color-theme-2 .book-body .page-wrapper .page-inner section.normal table tr {
-  color: #b6c2d2;
+  color: #dddddd;
   background-color: #282a39;
   border-color: #3b3f54;
 }
@@ -201,7 +201,7 @@
   background: none;
 }
 .book.color-theme-2 .book-header h1 {
-  color: #ffffff;
+  color: #bdcadb;
 }
 .book.color-theme-1 .book-body .navigation {
   color: #afa790;

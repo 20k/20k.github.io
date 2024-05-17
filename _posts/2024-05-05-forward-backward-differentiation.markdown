@@ -346,8 +346,8 @@ Lets look at some things we've left off so far
 
 There are two useful ways to look at the derivative of the modulo function
 
-1. The derivative of x % n is x', except for where x % n == 0 where it is undefined
-2. The derivative of x % n is x'
+1. The derivative of `x % n` is `x'`, except for where `x % n == 0` where it is undefined
+2. The derivative of `x % n` is `x'`
 
 Which one is more useful is up to the problem you're trying to solve, but I tend to go for the second. I mainly use this differentiator in general relativity, and this can be a useful definition there
 
@@ -369,7 +369,7 @@ dual<T> min(const dual<T>& v1, const dual<T>& v2) {
 }
 ```
 
-This similarly suffers from a similar issue as %, though more severely. The issue is that in any function which branches (or is a non smooth piecewise function), at the branch point there will exist a discontinuity, as min is not a smooth function. How severe this is for your particular problem varies. If you need smooth derivatives, you could define a transition bound between the two, or otherwise rework your max as some kind of soft, smoothed min
+This similarly suffers from a similar issue as %, though more severely. The issue is that in any function which branches (or is a non smooth piecewise function), at the branch point there will exist a discontinuity, as min is not a smooth function. How severe this is for your particular problem varies. If you need smooth derivatives, you could define a transition bound between the two, or otherwise rework your min as some kind of soft, smoothed min
 
 If you run into this problem, you're probably already aware that these functions are not smooth - differentiating them via dual numbers like this doesn't introduce any new problems, but it does mean that automatic differentiation isn't quite a plug and play process if you're differentiating code outside of your control
 
