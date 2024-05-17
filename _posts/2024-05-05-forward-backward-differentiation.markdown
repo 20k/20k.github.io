@@ -153,13 +153,13 @@ Dual numbers are similar, except instead of `i` you have `ε`, and the rule that
 
 `ε != 0, and ε^2 = 0`
 
-In a regular number system this is clearly silly, but this system is called the dual numbers. Operations on dual numbers still obey all the other usual rules of maths that you'd expect from real numbers (and 2d vectors), such as the following:
+This slightly odd definition forms a system called the dual numbers. Operations on dual numbers still obey all the other usual rules of maths that you'd expect from real numbers (and 2d vectors), such as the following:
 
 ```
 (a + bε) + (c + dε) = (a + c) + (b + d)ε
 (a + bε) - (c + dε) = (a - c) + (b - d)ε
 (a + bε) * (c + dε) = ac + bdε^2 + adε + bcε (then group the terms and apply ε^2 = 0) = ac + (ad + bc)ε
-(a + bε)^2 = a^2 + 2abε + bε^2 = a^2 + 2ab
+(a + bε)^2 = a^2 + 2abε + bε^2 = a^2 + 2abε
 (a + bε)^n = a^n + n a^(n-1) bε + (n choose 2) a^(n-2) b^2 ε^2 ... (all higher powers of ε are set to 0) = a^n + n a^(n-1) bε
 ```
 
@@ -653,7 +653,7 @@ Which, despite what I would consider to be a slightly suspect definition, forms 
 
 # The End
 
-That's it for this article, hopefully this is a useful reference for dealing with automatic differentiation in C++ in a concrete fashion. Next up we'll see how this kind of differentiable programming is useful for rendering black holes, and generating high performance code that runs on the GPU!
+That's it for this article, hopefully this is a useful reference for dealing with automatic differentiation in C++ in a concrete fashion. Next up we'll see how this kind of differentiable programming is useful for rendering black holes, and generating high performance code that runs on the GPU! For an example of this in practice, check out my [free tool](https://www.github.com/20k/geodesic_raytracing) for rendering general relativistic objects in realtime on the GPU
 
 [^lambert]:
     ## lambert_w0?
@@ -704,7 +704,7 @@ That's it for this article, hopefully this is a useful reference for dealing wit
 [^1]:
     ## Sidebar: Reverse/backwards automatic differentiation
 
-    While the main topic of this article is forward differentiation, reverse differentiation is worth a mention too. In forwards differentiaton, you start at the roots of a tree, and may build towards several results from those roots. In reverse differentiation, we start at the end with those results, and walk up the tree towards our roots
+    While the main topic of this article is forward differentiation, reverse differentiation is worth a mention too. In forwards differentiation, you start at the roots of a tree, and may build towards several results from those roots. In reverse differentiation, we start at the end with those results, and walk up the tree towards our roots
 
     Reverse differentiation works quite differently. You start off by setting a concrete value for our *end* derivative at the output, and then start differentiating backwards. With forward mode differentiation, at each step you carry forwards concrete values for all the derivatives, eg
 
@@ -712,61 +712,6 @@ That's it for this article, hopefully this is a useful reference for dealing wit
 
     Which means 4 calculations are being done in parallel. With reverse mode differentiation, as you walk up the graph, only one value is calculated - which is the the derivatives of the functions with respect to each other
 
-    For example, given the sequence of statements, representing the function y = f(x), aka sin(x + x^2)
+    In reverse differentiation, the expectation is that you've already done one forward pass over the graph when building it, so that you're dealing with a tree of concrete values. This means that at each node in our graph, no matter how many variables you're differentiating against, you only have a singular value that you're propagating (instead of N values in forwards differentiation), right up until you hit the roots of our graph. The tradeoff is that you have to evaluate the graph multiple times if you have multiple outputs, which can result in it being less efficient than forward differentiation when there are lots of outputs
 
-    ```
-    v1 = x
-    v2 = v1 * v1
-    v3 = v1 + v2
-    v4 = sin(v3)
-    y = v4
-    ```
-
-    We already know how to differentiate this with forward mode differentiation - set x to a + be. With reverse mode differentiation, you are propagating a *concrete* value backwards. This means that if you only have one output, and a tonne of input variables, you only have to evaluate the whole tree once
-
-    To put it differently, lets differentiate the series of statements here
-
-    ```
-    dv1/dx = 1 dx (differentiate v1 = x with respect to x)
-    dv2/dv1 = 2 * v1 (differentiate v2 = v1 * v1 with respect to v1)
-    dv3/dv1 = 1 (differentiate v3 = v1 + v2 with respect to v1)
-    dv3/dv2 = 1 (differentiate v3 = v1 + v2 with respect to v2)
-    dv4/dv3 = cos(v3) (differentiate v4 = sin(v3) with respect to v3)
-    dy/dv4 = 1 (differentiate y = v4 with respect to v4)
-    ```
-
-    What we're looking for is to solve for dy/dx. So to do that in forward mode, you start multiplying up from the root:
-
-    ```
-    dv2/dx = dv1/dx * dv2/dv1 = 2 * v1 = 2 * x
-    dv3/dx = (dv3/dv2) * (dv2/dx) + (dv3/dv1) * (dv1/dx) = 1 * (2 * x) + (1 * 1) = x + 1
-    dv4/dx = (dv4/dv3) * dv3/dx = cos(v3) * (x + 1) = cos(v1 + v2) * (2x + 1) = cos(x + x*x) * (2x + 1)
-    dy/dx = dy/dv4 * dv4/dx = 1 * cos(x + x*x) * (2x + 1)
-    ```
-
-    So therefore, dy/dx = `cos(x + x*x) * (2x + 1)`, which is the correct answer. So far this is nothing new, although its a different way of looking at forward differentiation compared to dual numbers
-
-    To do this backwards, we simply reverse the process with the goal of finding dy/dx. Note that the way that you go upwards is dictated by the tree structure we have implicitly built here
-
-    ```
-    dy/dv4 = 1 (y = v4)
-    dy/dv3 = dy/dv4 * dv4/dv3 = 1 * cos(v3) (v4 = sin(v3))
-
-    dy/dv2 = dy/dv3 * dv3/dv2 = cos(v3) * 1 (branch 1 of dv3)
-    dy/dv1 = dy/dv2 * dv2/dv1 = cos(v3) * 2 * v1 = 2 cos(v3) * x (branch 1 of dv3)
-    dy/dx = dy/dv1 * dv1/dx = 1 * 2 x cos(v3) (branch 1 of dv3)
-
-    dy/dv1 = dy/dv3 * dv3/dv1 = cos(v3) * 1 (branch 2 of dv3)
-    dy/dx = dy/dv1 * dv1/dx = cos(v3) (branch 2 of dv3)
-
-    Sum: Left branch, right branch
-    = cos(v3) + 2 x cos(v3)
-    = cos(v3) * (1 + 2x)
-    = cos(x + x^2) * (1 + 2x)
-    ```
-
-    The main complexity here is how to handle nodes with multiple inputs, that is to say v3 = v1 + v2, which has two input variables and two derivatives associated with it: dv3/dv1, and dv3/dv2. The idea is to simply sum them, which gives the correct answer
-
-    In reverse differentiation, the expectation is that you've already done one forward pass over the graph when building it, so that the value of eg cos(v3) is a concrete number. This means that at each step through our graph, no matter how many variables you're differentiating against, you only have a singular value that you're propagating (instead of N values in forwards differentiation), right up until you hit the roots of our graph. In theory you have to evaluate the graph multiple times if you have multiple outputs, which can result in it being less efficient than forward differentiation when there are lots of outputs
-
-    For arbitrary unstructured problems, some mix of forwards and backwards differentiation is most important. This article is secretly the ground work for teaching people about general relativity, where forward differentiation is generally most efficient (you *always* have more outputs than inputs)
+    For arbitrary unstructured problems, some mix of forwards and backwards differentiation is likely the most efficient, as the specific efficiencies are dependent on the structure of your graph. This article is secretly the ground work for teaching people about general relativity, where forward differentiation is generally most efficient (you *always* have more outputs than inputs), so a more in depth discussion of backwards differentiation is intentionally left out - check out [this](https://rufflewind.com/2016-12-30/reverse-mode-automatic-differentiation) article for an interesting in depth dive complete with code
