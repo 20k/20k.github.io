@@ -40,7 +40,7 @@ kramdown:
   parse_block_html: true
   syntax_highlighter: rouge
   
-syntax_highlighter_style: github
+syntax_highlighter_style: github2
   
 toc:
     enabled: true
