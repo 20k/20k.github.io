@@ -137,7 +137,7 @@ function double_kerr_alt(t, p, phi, z)
 
 (sometimes I think technology was a mistake)
 
-This also involves differentiating complex numbers. This is slightly tricky to do by hand, so automating it is helpful. Today we're looking at automatic differentiation, but numerical differentiation[^numerical] is also a very widely used technique
+Which also involves differentiating complex numbers. This is slightly tricky to do by hand, so automating it is helpful. Today we're looking at automatic differentiation, but numerical differentiation[^numerical] is also a very widely used technique
 
 # Dual numbers
 
