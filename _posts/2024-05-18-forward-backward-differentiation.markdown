@@ -445,9 +445,9 @@ And you'll be able to get the derivatives of the real and imaginary components a
 
 Though this works great, its a bit more convoluted as your dual type needs to now be aware of operations that are generally only applied to complex numbers, like conjugation. Unfortunately, std::complex has very unfortunate behaviour in the former case, so if your complex type is std::complex, stick to the latter
 
-### Sidebar: std::complex is completely unusable
+### Sidebar: std::complex is completely unusable here
 
-Do be aware in the first case: the standard library for C++ makes no guarantees about how std::complex is implemented internally, and what operations your type should provide to compile. [https://en.cppreference.com/w/cpp/numeric/complex](see here) - the behaviour is unspecified, and possibly even undefined. In general, std::complex is something you should strictly avoid anyway, as its specification is complete madness. For example, until C++26 the only way to access the real or imaginary parts by reference is:
+Do be aware in the first case: C++ does not usefully allow custom types (or ints) to be plugged into std::complex: the [result of doing so is unspecified and may not compile](https://en.cppreference.com/w/cpp/numeric/complex) - and is possibly even undefined depending on the type. Even if `std::complex<your_type>` compiles, there's no guarantee that functions like `std::sqrt` will compile (or work). This isn't just a theoretical issue, as `std::sqrt` will unfortunately not compile in practice for types like `value<T>` that are discussed later. In general, `std::complex` is something you should strictly avoid anyway, as its specification is complete madness. For example, until C++26 the only way to access the real or imaginary parts by reference is:
 
 `reinterpret_cast<T(&)[2]>(z)[0] and reinterpret_cast<T(&)[2]>(z)[1]`
 
