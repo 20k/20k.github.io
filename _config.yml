@@ -42,6 +42,8 @@ kramdown:
   parse_block_html: true
   syntax_highlighter: rouge
   
+mathjax: true
+  
 syntax_highlighter_style: github2
   
 toc:
