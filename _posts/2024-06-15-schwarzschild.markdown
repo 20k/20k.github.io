@@ -246,7 +246,232 @@ for(int mu = 0; mu < 4, mu++)
 
 Phew. This loop may look horrendously inefficient, but there are some symmetries here that reduce the computational complexity, notably that $\Gamma^\mu_{\alpha\beta} = \Gamma^\mu_{\beta\alpha}$. Additionally, in many metrics most of $\Gamma$'s components are 0, which helps too
 
-So: to integrate a geodesic, we start off with an appropriate position, $x^\mu$, an appropriate velocity, $v^\mu$, and calculate our acceleration via the geodesic equation. We then integrate this. During the process of this, we'll need a metric tensor $g_{\mu\nu}$ and the partial derivatives of it, which is a bit of a pain
+So: to integrate a geodesic, we start off with an appropriate position, $x^\mu$, an appropriate velocity, $v^\mu$, and calculate our acceleration via the geodesic equation. We then integrate this. During the process of this, we'll need a metric tensor $g_{\mu\nu}$ and the partial derivatives of it
+
+We're getting close to being able to integrate our equations now. We just need three more things:
+
+1. A real metric tensor
+2. An initial position $x^\mu$, which will be our camera position
+3. An initial velocity, which is a lot more complex
+
+## A real metric tensor
+
+There are many different black holes, and many different ways of representing each of them. Today we're going to pick the simplest kind: the schwarzschild black hole
+
+A metric tensor fundamentally defines the curvature of spacetime - and it is the central object of general relativity. It also generally implicitly defines a coordinate system associated with it. The metric tensor is often expressed in a form called the "line element", which reads like this:
+
+$$ ds^2 = -d\tau^2 = -(1-\frac{r_s}{r}) dt^2 + (1-\frac{r_s}{r})^{-1} dr^2 + r^2 d\Omega^2 $$
+
+This is the wikipedia definition[^wikipedia] [^signconventions], where $d\Omega^2 = d\theta^2 + sin^2(\theta) d\phi^2$, and $r_s$ is the schwarzschild radius - that is twice the 'mass'[^blackholesdonthavemass] $M$ in geometric units of $c=g=1$
+
+This isn't very clear, so lets examine it. The $d$ terms on the right hand side (eg $dt$) represent infinitesimals. $ds^2$ represents the square of the length of this curve - note that $ds^2$ can be 0 or negative, and is called the spacetime interval. When your displacement $(dt, dr, dtheta, dphi)$ is timelike, $ds^2$ is also the (negative) proper time squared ($d\tau^2$). The fact that this $ds^2$ and the $ds$ we picked for our parameterisation are the same is not a total coincidence - for timelike curves, we pick $ds_{parameterisation} = d\tau$. In reality, $ds$ refers to the general concept of arc length, the length of a curve, which is why the notation is re-used
+
+The sign[^signconventions] of $ds^2$ defines what kind of geodesic we have. If we plug a velocity $(dt, dr, d\theta, d\phi)^\mu = v^\mu$ in here, and calculate the metric at our position $(t, r, \theta, \phi)^\mu = x^\mu$, then:
+
+1. If $ds^2 > 0$, our curve is spacelike
+2. If $ds^2 == 0$, our curve is lightlike
+3. If $ds^2 < 0$, our curve is timelike
+
+note that when a curve is lightlike, no proper time $d\tau$ ever elapses along our curve, as $d\tau = 0$
+
+The line element can also be thought of as an expanded out form of when you apply your metric tensor to an infinitesimal displacement, $g(du, du)$. When $du = (dt, dr, d\theta, d\phi)$, we recover our line element
+
+This means that we can read the matrix $g_{\mu\nu}$ directly off from the line element. If we have the line element
+
+$ds^2 = k_1 da^2 + k_2 dadb + k_3 db^2$ etc, we get the metric tensor:
+
+|.|a|b|
+|-|-|-|
+|a|$k_1$|$\frac{1}{2}k_2$|
+|b|$\frac{1}{2}k_2$| $k_3$|
+
+Note that all offdiagonal terms are multiplied by 1/2. The schwarzschild metric is diagonal, so we get
+
+|.|t|r|$\theta$|$\phi$|
+|-|-|-|-|-|
+|t|$-(1-\frac{r_s}{r})$|0|0|0|
+|r|0|$(1-\frac{r_s}{r})^{-1}$|0|0
+|$\theta$|0|0|$r^2$|0|
+|$\phi$|0|0|0|$r^2 sin^2(\theta)$|
+
+As a 4x4 matrix. Note that this matrix is a function of the coordinate system, and it must be recalculated at a specific point in space where you want to apply it. If we want to raise or lower the velocity of our geodesic, we must calculate the metric tensor *at* the position where the velocity vector is
+
+Vectors, and tensorial objects, and scalar functions are generally associated with a point in spacetime, which is their origin in a sense, more formally they are tangent vectors - tangent to the 'manifold' that is spacetime. Their origin is where you must calculate the metric tensor (and other tensors) to be able to do operations on them
+
+## Numerical differentiation vs automatic differentiation
+
+Now that we have our metric tensor, we need to take its derivatives. There are two easy way to calculate the derivatives: numerical differentiation, and automatic differentiation. A recent post I made recently covered AD, and I would recommend using it. However here, we will approximately define the derivatives for space savings. Remember that the metric tensor is calculated at a coordinate, and is a function of the coordinate system. Lets make this explicit, by defining $g_{\mu\nu}$ as $g_{\mu\nu}(t, r, \theta, \phi)$
+
+$$g_{\mu\nu,t} = \partial_t g_{\mu\nu} == \frac{(g_{\mu\nu}(t + h, r, \theta, \phi) - g_{\mu\nu}(t - h, r, \theta, \phi))}{2h} $$
+
+This is a simple centered derivative to calculate the derivative in the first coordinate direction, often called $\partial_0$, which is equivalent to $\partial_t$ in schwarzschild
+
+# A brief pause to review
+
+So far we have:
+
+1. Defined the paths that lightrays take as likelight geodesics. These have a position $x^\mu$, and a velocity $v^\mu$. We know these are geodesics where $g_{\mu\nu} v^\mu v^\nu = 0$
+
+2. Found out how to read a metric tensor $g_{\mu\nu}$ from a line element
+
+3. Understood how to plug numbers into the geodesic equation, to get our acceleration
+
+It might surprise you to learn that this is the simple part of what we're trying to do, in general. For the purposes of trying to keep things terse today, we're going to use some pre-baked initial conditions, instead of calculating them ourselves
+
+# Initial conditions
+
+Initial conditions in this corner of general relativity are not a good, fun time. This is where we get into the less well understood corners of general relativity, and where mistakes tend to be made
+
+This article is not the correct one for a long discussion of initial conditions - that'll be next time, likely when you all conveniently go on holiday
+
+## What are we trying to get out of our initial conditions?
+
+In this phase, what we're trying to do is construct an initial direction $v\mu$ that our lightray travels towards - a geodesic velocity. In a regular, flat, 3d simulation, its very easy - we define a plane in front of our camera, and construct a ray, from the camera's origin, through a pixel on that plane. If a pixel has a position $p={x-width/2, y-height/2, d}$ on that plane, then the ray's direction in 3d space is $d=norm(p-o)$
+
+The question then becomes: how do we translate our ray direction $d$ in 3d space, to a valid geodesic velocity in 4d spacetime? The answer is: tetrads
+
+# Tetrads, in short
+
+https://www2.mpia-hd.mpg.de/homes/tmueller/pdfs/catalogue_2014-05-21.pdf
+
+Tetrads, also known as frame fields, or vielbein, are a field of four 4-vectors, that are orthogonal to each other. These make up the "frame of reference" of an observer, and are used to translate between what one observer sees and experiences, and the wider universe that we're simulating
+
+General relativity demands that spacetime is quite literally locally flat from the perspective of any observer. And yet, we can observe that spacetime is clearly curved - planets go round the sun, and black holes exist. Translating from an observers locally flat spacetime, to that curved spacetime, is done via the tetrads. It fundamentally relates the view of an observer, to the wider universe - or to another observer
+
+Each tetrad is labelled with a latin index $i$, as such: $e_i$. Each one of these tetrads $e_i$ has 4 components, and so they are spelt $e^\mu_i$ in the literature
+
+General relativity demands that spacetime is locally flat from the perspective of an observer, no matter where they are or what they're doing. The technical definition of locally flat is the minkowski metric, $\eta_{\mu\nu}$, which is always in cartesian coordinates, no matter the coordinate system of our metric tensor $g_{\mu\nu}$:
+
+| |t|x|y|z
+|-|-|-|-|-
+|t|-1|0|0|0
+|x|0|1|0|0
+|y|0|0|1|0
+|z|0|0|0|1
+
+Say we have a quantity like a light ray, which we define as such:
+
+$$v_{flat}^\mu = (1, d_0, d_1, d_2)$$
+
+Where $|d| = 1$. Note that $\eta_{\mu\nu} v^\mu_{flat} v^\nu_{flat} = 0$, which makes this a lightlike geodesic in our minkowski spacetime, as we discussed earlier[^typesofgeodesics]
+
+Each tetrad defines a series of basis vectors which we can use to transform from our minkowski spacetime, to our curved spacetime, as follows
+
+$$v^\mu_{curved} = e^\mu_i v^i_{flat}$$
+
+If the direction $d$ points through a pixel in our local plane, we now have a way to construct the initial velocity of our geodesic. One key thing to note is that we almost always trace lightlike geodesics *backwards* in time, which we can accomplish by negating the time component of our lightray, and getting $v_{flat}^\mu = (-1, d_0, d_1, d_2)$
+
+## That's all well and good, but how do I calculate my tetrads?
+
+Luckily, a lot of metric tensors have precalculated tetrads, and we can simply read them off of this page here https://arxiv.org/pdf/0904.4184. For schwarszchild:
+
+$e^0_0 = 1/sqrt(1-rs/r) \\$
+$e^1_1 = sqrt(1-rs/r) \\$
+$e^2_2 = 1/r \\$
+$e^3_3 = 1/(r sin(\theta))$
+
+Note that these are not unique, and represent a particular kind of observer in this spacetime. While there *is* a unique natural choice, it has no special meaning, and we'll get to this soon. Also note that this paper refers to the upper indices of the tetrads by their coordinate basis, ie $\partial_t$ means the 0th component of the tetrad $e_t$, which is $e_0$ for us. A vector may in general be written $a \partial_t + b\partial_x + c\partial_y + d\partial_z$ assuming a coordinate system $(t, x, y, z)$, and the paper linked above follows this convention for specifying the tetrad components
+
+# The complete procedure
+
+Step 1: We calculate our metric tensor $g_{\mu\nu}$ at our starting coordinate, our camera position. It is a 4x4 matrix, defined generally by a line element. Our cameras position is in schwarzschild coordinates: t, r, $\theta$, $\phi$, and this is the origin of our geodesics
+
+Step 2: We calculate our tetrad basis vectors, $e^\mu_i$
+
+Step 3: We then construct an initial geodesic velocity in locally flat spacetime. To do this, we pick a cartesian direction $v^k$ with $|v|$ = 1, the direction through a pixel on our screen, where the camera is at the origin
+
+Step 4: We then use this tetrad to construct a geodesic velocity in our curved spacetime, by doing $v_{curved}^\mu = e^\mu_i v^i$, and flip the sign of $e_0$ for light rays so that we trace backwards in time
+
+Step 5: Once we have a position, and velocity, we plug these into the geodesic equation, and integrate
+
+Step 6: Once we have run a certain number of iterations, or our coordinate radius r > some constant, or r < the event horizon, we terminate the simulation and render
+
+Step 7: Then we go outside and talk to our friends and family, who are probably getting worried
+
+# This is actually simpler in code
+
+## Step 1: The metric tensor
+
+First up, we need a tensor type. Libraries like eigen allow you to implement this kind of thing easily. For the code in this article, I'm going to assume you're using a vector library that supports N dimensional matrices. This article comes with an accompanying implementation, which will implement this by hand
+
+To calculate the metric tensor, we grab it in matrix form, reading off the components of the line element
+
+```c++
+tensor<float, 4, 4> schwarzschild_metric(const tensor<float, 4>& position) {
+    float rs = 1;
+
+    float r = position[1];
+    float theta = position[2];
+
+    return {-(1-rs/r), 0,          0,   0,
+            0,         1/(1-rs/r), 0,   0,
+            0          0,          r*r, 0,
+            0          0, 0,            r*r * sin(theta)*sin(theta)};
+}
+```
+
+## Step 2: Calculate our tetrads
+
+```c++
+
+struct tetrad
+{
+    std::array<tensor<float, 4>, 4> v;
+};
+
+tetrad calculate_schwarzschild_tetrad(const tensor<float, 4>& position) {
+    float rs = 1;
+    float r = position[1];
+    float theta = position[2];
+
+    tensor<float, 4> et = {1/sqrt(1 - rs/r), 0, 0, 0};
+    tensor<float, 4> er = {0, sqrt(1 - rs/r), 0, 0};
+    tensor<float, 4> etheta = {0, 0, 1/r, 0};
+    tensor<float, 4> ephi = {0, 0, 0, 1/(r * sin(theta))};
+
+    return {et, er, etha, ephi};
+}
+```
+
+## Step 3: calculating our pixel direciton in flat spacetime
+
+```c++
+tensor<float, 3> get_ray_through_pixel(int sx, int sy, int screen_width, int screen_height, float fov_degrees) {
+    float fov_rad = (fov_degrees / 360.f) * 2 * M_PI;
+    float f_stop = (width/2) / tan(fov_rad/2);
+
+    tensor<float, 3> pixel_direction = {cx - width/2, cy - height/2, f_stop};
+    //pixel_direction = rot_quat(pixel_direction, camera_quat); //if you have quaternions, or some rotation library, rotate your pixel direction here by your cameras rotation
+
+    return pixel_direction.norm();
+}
+```
+
+## Step 4: Get our initial geodesic, by constructing its velocity from the tetrads
+
+```c++
+struct geodesic
+{
+    tensor<float, 4> position;
+    tensor<float, 4> velocity;
+};
+
+geodesic make_lightlike_geodesic(const tensor<float, 4>& position, const tensor<float, 3>& direction, const tetrad& tetrads) {
+    float fov_rad = (fov_degrees / 360.f) * 2 * M_PI;
+    float f_stop = (width/2) / tan(fov_rad/2);
+
+    geodesic g;
+    g.position = position;
+    g.velocity = tetrads.v[0] * -1 //Flipped time component, we're tracing backwards in time
+               + tetrads.v[1] * pixel_direction[0]
+               + tetrads.v[2] * pixel_direction[1]
+               + tetrads.v[3] * pixel_direction[2];
+
+    return g;
+}
+```
+
+## Step 5: Integrate the geodesic equation
 
 ```c++
 //function to numerically differentiate an arbitrary function that takes a position, and a direction
@@ -302,7 +527,7 @@ tensor<float, 4, 4> calculate_christoff2(const tensor<float, 4>& position, auto&
     return Gamma;
 }
 
-tensor<float, 4> calculate_acceleration(const tensor<float, 4>& X, const tensor<float, 4>& v, auto&& get_metric) {
+tensor<float, 4> calculate_acceleration_of(const tensor<float, 4>& X, const tensor<float, 4>& v, auto&& get_metric) {
     tensor<float, 4, 4, 4> christoff2 = calculate_christoff2(X, get_metric);
 
     tensor<float, 4> acceleration;
@@ -321,195 +546,59 @@ tensor<float, 4> calculate_acceleration(const tensor<float, 4>& X, const tensor<
 
     return acceleration;
 }
-```
 
-Now, if we simply plug in a metric tensor, a position, and a velocity, we can integrate our equation. That means we now need only three more things
-
-1. A metric tensor
-2. An initial position $x^\mu$, which will be our camera position
-3. An initial velocity
-
-## A real metric tensor
-
-There are many different black holes, and many different ways of representing each of them. Today we're going to pick the simplest kind: the schwarzschild black hole
-
-A metric tensor fundamentally defines the curvature of spacetime - and it is the central object of general relativity. It also generally implicitly defines a coordinate system associated with it. The metric tensor is often expressed in a form called the "line element", which reads like this:
-
-$$ ds^2 = -d\tau^2 = -(1-\frac{r_s}{r}) dt^2 + (1-\frac{r_s}{r})^{-1} dr^2 + r^2 d\Omega^2 $$
-
-This is the wikipedia definition[^wikipedia] [^signconventions], where $d\Omega^2 = d\theta^2 + sin^2(\theta) d\phi^2$, and $r_s$ is the schwarzschild radius - that is twice the 'mass'[^blackholesdonthavemass] $M$ in geometric units of $c=g=1$
-
-This isn't very clear, so lets examine it. The $d$ terms on the right hand side (eg $dt$) represent infinitesimals. $ds^2$ represents the square of the length of this curve - note that $ds^2$ can be 0 or negative, and is called the spacetime interval. When your displacement $(dt, dr, dtheta, dphi)$ is timelike, $ds^2$ is also the proper time squared ($d\tau^2$). The fact that this $ds^2$ and the $ds$ we picked for our parameterisation are the same is not a total coincidence - for timelike curves, we pick $ds_{parameterisation} = d\tau$. In reality, $ds$ refers to the general concept of arc length, the length of a curve, which is why the notation is re-used
-
-The sign[^signconventions] of $ds^2$ defines what kind of geodesic we have
-
-1. If $ds^2 > 0$, our curve is spacelike
-2. If $ds^2 == 0$, our curve is lightlike
-3. If $ds^2 < 0$, our curve is timelike
-
-note that when a curve is lightlike, no proper time $d\tau$ ever elapses along our curve, as $d\tau = 0$
-
-The line element can also be thought of as an expanded out form of when you apply your metric tensor to an infinitesimal displacement, $g(du, du)$. When $du = (t, r, \theta, \phi)$, we recover our line element
-
-This means that we can read the matrix $g_{\mu\nu}$ directly off from the line element. If we have the line element
-
-$ds^2 = k_1 da^2 + k_2 dadb + k_3 db^2$ etc, we get the metric tensor:
-
-|.|a|b|
-|-|-|-|
-|a|$k_1$|$\frac{1}{2}k_2$|
-|b|$\frac{1}{2}k_2$| $k_3$|
-
-Note that all offdiagonal terms are multiplied by 1/2. The schwarzschild metric is diagonal, so we get
-
-|.|t|r|$\theta$|$\phi$|
-|-|-|-|-|-|
-|t|$-(1-\frac{r_s}{r})$|0|0|0|
-|r|0|$(1-\frac{r_s}{r})^{-1}$|0|0
-|$\theta$|0|0|$r^2$|0|
-|$\phi$|0|0|0|$r^2 sin^2(\theta)$|
-
-As a 4x4 matrix. Note that this matrix is a function of the coordinate system, and it must be recalculated at a specific point in space where you want to apply it. If we want to raise or lower the velocity of our geodesic, we must calculate the metric tensor *at* the position where the velocity vector is
-
-Vectors, and tensorial objects, and scalar functions are generally associated with a point in spacetime, which is their origin in a sense, more formally they are tangent vectors - tangent to the 'manifold' that is spacetime. Their origin is where you must calculate the metric tensor (and other tensors) to be able to do operations on them
-
-## Numerical differentiation vs automatic differentiation
-
-Now that we have our metric tensor, we need to take its derivatives. There are two easy way to calculate the derivatives: numerical differentiation, and automatic differentiation. A recent post I made recently covered AD, and I would recommend using it. However here, we will approximately define the derivatives for space savings. Remember that the metric tensor is calculated at a coordinate, and is a function of the coordinate system. Lets make this explicit, by defining $g_{\mu\nu}$ as $g_{\mu\nu}(t, r, \theta, \phi)$
-
-$$g_{\mu\nu,t} = \partial_t g_{\mu\nu} == \frac{(g_{\mu\nu}(t + h, r, \theta, \phi) - g_{\mu\nu}(t - h, r, \theta, \phi))}{2h} $$
-
-This is a simple centered derivative to calculate the derivative in the first coordinate direction, often called $\partial_0$, which is equivalent to $\partial_t$ in schwarzschild
-
-# A brief pause to review
-
-So far we have:
-
-1. Defined the paths that lightrays take as likelight geodesics. These have a position $x^\mu$, and a velocity $v^\mu$. We know these are geodesics where $g_{\mu\nu} v^\mu v^\nu = 0$
-
-2. Found out how to read a metric tensor $g_{\mu\nu}$ from a line element
-
-3. Understood how to plug numbers into the geodesic equation, to get our acceleration
-
-This is the simple part of what we're trying to do. For the purposes of simplicity today, we're going to use some pre-baked initial conditions, instead of calculating them ourselves
-
-# Initial conditions
-
-Initial conditions in this corner of general relativity are not a good, fun time. This is where we get into the less well understood corners of general relativity, and where mistakes tend to be made
-
-This article is not the correct one for a long discussion of initial conditions - that'll be next, likely when you all conveniently go on holiday, so for today we're going to go for the short version
-
-# Tetrads, very briefly
-
-https://www2.mpia-hd.mpg.de/homes/tmueller/pdfs/catalogue_2014-05-21.pdf
-
-Tetrads, also known as frame fields, or vielbein, are a field of four 4-vectors, that are orthogonal to each other. They are not unique - and at any point in spacetime we can have a fairly arbitrary combination of 4-vectors - within some constraints. These make up the frame of reference of an observer, and are used to translate between what one observer sees and experiences, and the wider universe that we're simulating
-
-Each tetrad is labelled with a latin index $i$, as such: $e_i$. Each one of these tetrads $e_i$ has 4 components, and so they are spelt $e^\mu_i$ in the literature
-
-General relativity demands that spacetime is locally flat from the perspective of an observer, no matter where they are or what they're doing. The technical definition of locally flat is the minkowski metric, $\eta_{\mu\nu}$, which is always in cartesian coordinates, no matter the coordinate system of our metric tensor $g_{\mu\nu}$:
-
-| |t|x|y|z
-|-|-|-|-|-
-|t|-1|0|0|0
-|x|0|1|0|0
-|y|0|0|1|0
-|z|0|0|0|1
-
-Say we have a quantity like a light ray, which we define as such:
-
-$v_{flat}^\mu = (1, d_0, d_1, d_2)$, where $|d| = 1$
-
-Note that $\eta_{\mu\nu} v^\mu_{flat} v^\nu_{flat} = 0$, which makes this a lightlike geodesic in our minkowski spacetime
-
-Each tetrad defines a series of basis vectors which we can use to transform from our minkowski spacetime, to our curved spacetime, as follows
-
-$$v^\mu_{curved} = e^\mu_i v^i_{flat}$$
-
-Ie
-
-$$v^\mu_{curved} = \sum_{i=0}^3 e^\mu_i v^i_{flat} $$
-
-If the direction $d$ points through a pixel in our local plane, we now have a way to construct the initial velocity of our geodesic. One key thing to note is that we almost always trace lightlike geodesics *backwards* in time, which we can accomplish by negating the timelike tetrad basis vector, here $e_0$
-
-This may be clearer in code, and we'll get to it. Future versions of this article will discuss all of this further in excruciating detail, and this is intended as a skim to get us up and ready to go
-
-# The complete procedure
-
-Step 1: We calculate our metric tensor $g_{\mu\nu}$ at our starting coordinate, our camera position. It is a 4x4 matrix, defined generally by a line element. Our cameras position is in schwarzschild coordinates: t, r, $\theta$, $\phi$, and this is the origin of our geodesics
-
-Step 2: We calculate our tetrad basis vectors, $e^\mu_i$
-
-Step 3: We then construct an initial geodesic velocity in locally flat spacetime. To do this, we pick a cartesian direction $v^k$ with $|v|$ = 1, the direction through a pixel on our screen, where the camera is at the origin
-
-Step 4: We then use this tetrad to construct a geodesic velocity in our curved spacetime, by doing $v_{curved}^\mu = e^\mu_i v^i$, and flip the sign of $e_0$ for light rays so that we trace backwards in time
-
-Step 5: Once we have a position, and velocity, we plug these into the geodesic equation, and integrate
-
-Step 6: Once we have run a certain number of iterations, or our coordinate radius r > some constant, or r < the event horizon, we terminate the simulation and render
-
-Step 7: Then we go outside and talk to our friends and family, who are probably getting worried
-
-# This is actually simpler in code
-
-## Step 1: The metric tensor
-
-First up, we need a tensor type. We'll be dealing with $x*y*z$ tensors, so we're going to go through the slightly painful step of defining a multidimensional type up front. Unfortunately, std::mdarray hasn't been voted in yet, and std::mdspan isn't widely supported, so we're going to have to Roll Our Own, which is going to be a common theme in this tutorial series
-
-```c++
-template<typename T, size_t size, size_t... sizes>
-struct md_array_impl
-{
-    using type = std::array<typename md_array_impl<T, sizes...>::type, size>;
-};
-
-template<typename T, size_t size>
-struct md_array_impl<T, size>
-{
-    using type = std::array<T, size>;
-};
-
-template<typename T, size_t... sizes>
-using md_array = typename md_array_impl<T, sizes...>::type;
-
-template<typename T, typename Next>
-constexpr
-auto& index_md_array(T& arr, Next v)
-{
-    assert(v < (Next)arr.size());
-
-    return arr[v];
+tensor<float, 4> calculate_schwarzschild_acceleration(const tensor<float, 4>& X, const tensor<float, 4>& v) {
+    return calculate_acceleration_of(X, v, schwarzschild_metric);
 }
 
-template<typename T, typename Next, typename... Rest>
-constexpr
-auto& index_md_array(T& arr, Next v, Rest... r)
-{
-    assert(v < (Next)arr.size());
+struct integration_result {
+    enum hit_type {
+        ESCAPED,
+        EVENT_HORIZON,
+        UNFINISHED
+    };
 
-    return index_md_array(arr[v], r...);
+    hit_type type = UNFINISHED;
+    geodesic g;
 }
 
-//strictly NxM
-template<typename T, int... N>
-struct tensor
-{
-    md_array<T, N...> v = {};
+integration_result integrate(geodesic& g) {
+    integration_result result;
 
-    template<typename... V>
-    T& operator[](V... vals)
-    {
-        return index_md_array(backing, vals...);
+    float dt = 0.1f;
+    float rs = 1;
+    float start_time = g.position[0];
+
+    for(int i=0; i < 1024; i++)
+        tensor<float, 4> acceleration = calculate_schwarzschild_acceleration(g.position, g.velocity);
+
+        g.velocity += acceleration * dt;
+        g.position += g.velocity * dt;
+
+        float radius = g.position[1];
+
+        if(radius > 100) {
+            //ray escaped
+            result.g = g;
+            result.type = integration_result::ESCAPED;
+
+            return result;
+        }
+
+        if(radius <= rs + 0.0001f || g.position[0] > start_time + 1000) {
+            //ray has very likely hit the event horizon
+            result.g = g;
+            result.type = integration_result::EVENT_HORIZON;
+
+            return result;
+        }
     }
 
-    template<typename... V>
-    const T& operator[](V... vals) const
-    {
-        return index_md_array(backing, vals...);
-    }
+    result.g = g;
+    return result;
 }
-
 ```
+
 
 
 ### Spacelike, and timelike coordinates
