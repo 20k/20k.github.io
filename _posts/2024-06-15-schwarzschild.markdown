@@ -1,14 +1,20 @@
 ---
 layout: post
-title:  "General relativity for dummies: Rendering the schwarzschild black hole, in C++"
+title:  "Implementing General Relativity: Rendering the schwarzschild black hole, in C++"
 date:   2025-05-18 00:35:23 +0000
 categories: C++
 ---
 
-Black holes are pretty cool. Rendering them is a bit of a pain, and a lot of information is left to the dark arts. More than that, a significant proportion of information available on the internet is simply wrong, and most visualisations of black holes are significantly incorrect in one form or other. Today we're going to focus on two things
+General relativity is pretty cool - doing anything practical with it is a bit of a pain, and a lot of information is left to the dark arts. More than that, a significant proportion of information available on the internet is unfortunately incorrect, and many visualisations of black holes specifically are significantly incorrect in one form or other - even ones produced by physicists! Today we're going to focus on two things:
 
-1. A very pragmatic understanding of general relativity. This is the journymans toolkit approach
-2. Integrating the equations of motion, and basic initial conditions
+1. Giving you a practical crash course in the theory of general relativity
+2. Turning this into code that actually does useful things
+
+This tutorial series is not going to be a rigorous introduction to the theory general relativity. There's a lot of that floating around - what we're really missing is how to translate all that theory into action
+
+By the end of this infinitely long tutorial series, you will smash a black hole into a neutron star, without a supercomputer, in just a few minutes flat [^pleasehireme]
+
+[^pleasehireme]: If someone hired me to do this full time I'd be very happy
 
 Lets get into it
 
@@ -20,41 +26,67 @@ There are 3 parts to any simulation
 2. The evolution equations
 3. Termination
 
-A lot of relativity articles tend to focus on the theory in isolation, so we're going to be focusing heavily on the entire pipeline of simulating this from start to end
+We're going to be focusing heavily on the entire pipeline of simulating this from start to end, with complete examples so that nothing gets left in the gaps
 
-Step 1 will be left until last, and is not the focus of this article. Step 2 requires us to solve something called the geodesic equation, and to be able understand it we'll need some mathematical background
+Step 1 will be left until last, and is not the focus of this article. Step 2 requires us to solve something called the geodesic equation, and to be able understand it we'll need some background
+
+# General background
+
+First up: what exactly *is* general relativity?
+
+General relativity describes spacetime. In normal 3d space, we measure distances with a ruler. Everyone agrees how far apart two objects are in space, and we might call this distance a space interval. In 4d spacetime, this is no longer true: the only distance we can measure that everyone agrees on is something called the space*time* interval, called $ds^2$. Our concept of distance now fundamentally involves time, and time is placed on equal footing to space
+
+Take two positions in 3d space, $A = (x_1, y_1, z_1)$, and $B = (x_2, y_2, z_2)$. The distance in 3d space between them squared is $(x_2 - x_1)^2 + (y_2 - y_1)^2 + (z_2 - z_1)^2$. Now, lets examine the (special) relativistic equivalent: We have two positions in 4d space, $A = (t_1, x_1, y_1, z_1)$, and $B = (t_2, x_2, y_2, z_2)$. The 'distance', or spacetime interval between them squared is $(-(t_2-t_1)^2 + (x_2 - x_1)^2 + (y_2 - y_1)^2 + (z_2 - z_1)^2)$. The reason why we use the squared here, is because this squared distance can be positive, 0, or negative, each with their own significance
+
+This is special relativity. In special relativity, spacetime is flat, but it fundamentally involves time as a core component of the way we describe the universe
+
+In general relativity, spacetime is no longer flat, and may curve arbitrarily. Instead of applying a simple subtraction of the two vectors followed by negating the time component, we describe their relation instead by a 2d matrix: $g_{\mu\nu}$, aka the metric tensor. This matrix has a few constraints associated with it, and it gives rise to the einstein field equations[^ialwaysthought], which are the equations of general relativity
+
+Locally, general relativity is special relativity[^thoughnotquite]: that is to say, special relativity is a perfectly valid description of the universe in general relativity, at any specific point. This is a more complicated way of saying that spacetime is always locally flat
+
+[^ialwaysthought]:
+    For years as a child, I thought they were called field equations because you might need to deploy them in an emergency. You know, in the *field*
+
+[^thoughnotquite]:
+    While it is literally true that general relativity is locally special relativity, in practice special relativity and general relativity are *very* different theories. General relativity is more the study coordinate free manifolds and tensors, whereas special relativity tends to use more accessible maths in specific and understandable coordinate systems
+
+    This is to say, general relativity has its own way of expressing special relativity, with its own notation and descriptions, which isn't what you'd use if you were just working with special relativity. It is often difficult to find the general relativistic version of special relativistic features
 
 # Mathematical background
 
 ## Tensor index notation
 
-General relativity is particularly obtuse to get into, because it uses its own specific convention, which are not used that widely anywhere else. Its often ambiguous, and unclear, so lets spend a bit demystifying this first
+General relativity is particularly obtuse to get into, because it uses its own specific conventions, which are not used that widely anywhere else. Its often ambiguous, and unclear, so lets spend a bit demystifying this first
 
-There are two fundamental concepts we need to clear up first:
+In general relativity, there's one key idea compared to everyday maths you might be familiar with, that we need to get a handle on first before we go anywhere else today:
 
 ### Contravariance, and covariance
 
-In everyday maths, a vector is just a vector. We express this as something like $v = 1x + 2y + 3z$, where $x$ $y$ and $z$ are our coordinate system basis vectors[^basisvectors]. When dealing with vectors, its not uncommon to index the vector's components by a variable/index:
+In everyday maths, a vector is just a vector. We informally express this as something like $v = 1x + 2y + 3z$, where $x$ $y$ and $z$ are our coordinate system basis vectors[^basisvectors]. When dealing with vectors, its not uncommon to index the vector's components by a variable/index:
 
-$$ s = \sum_{k=0}^2 v_k $$
+[^basisvectors]:
+    Basis vectors are the direction vectors of our coordinate system that we use to build our own vectors on top of. When you have a vector $(1, 2, 3)$, its generally implicit in the definition that each of these components refers to a different direction in your coordinate system, where the direction is dependent on your basis vectors. Normally your basis vectors are something like $(1,0,0)$, $(0,1,0)$, $(0,0,1)$ for x, y, and z - but in theory they could be anything - as long as they're 'linearly independent'. All that means is that we aren't repeating ourselves with our basis vectors, and they truly represent different directions
 
-This is an example of how we'd express summing the components of a vector
+$$ \sum_{k=0}^2 v_k == v_0 + v_1 + v_2$$
 
-General relativistic notation extends this further. Indices can be
+This is an example of how we'd express summing the components of a vector. Tensor index notation takes this notation one step further. Indices can be:
 
-1. Contravariant (raised):
+1. Contravariant[^variance] (raised):
 
 $$ V^\mu $$
 
-2. Covariant (lowered)
+2. Covariant[^variance] (lowered)
 
 $$ V_\mu $$
 
-Additionally, objects such as matrices can have more than one index, and the indices can have any "valence" (up/down-ness).
+[^variance]:
+    Contravariant vectors are so called because when your coordinate system changes, they scale *against* the axis. Eg if you have a position 0.1 in meters, and your coordinate system changes to kilometers, you have 0.1/1000 km. Covariant vectors change *with* the axis
 
-$ A^{\mu\nu} $,  $ A^\mu_{\;\;\nu} $, $ A_\mu^{\;\;\nu} $, and $ A_{\mu\nu} $ are all different representations of the same object. The first is the contravariant form, the middle two have mixed indices, and the last one is the covariant form, all of the tensor $A$
+    Invariance is something that does not change with a change in the coordinate system, eg scalar values
 
-We can add more dimensions to our objects as well, eg: $ \Gamma^\mu_{\;\;\nu\sigma} $, more commonly written $ \Gamma^\mu_{\nu\sigma} $, and is a 4x4x4 object in this article. These objects are all referred to as "tensors", a term which has lost all mathematical meaning. In its strict definition, a tensor is an object that transforms in a particular fashion in a coordinate change: in practice, everyone calls everything a tensor, unless its relevant for it not to be
+Additionally, objects such as matrices can have more than one index, and the indices can have any "valence" (up/down-ness). For example, $A^{\mu\nu} $,  $ A^\mu_{\;\;\nu} $, $ A_\mu^{\;\;\nu} $, and $ A_{\mu\nu} $ are all different representations of the same object. The first is the contravariant form, the middle two have mixed indices, and the last one is the covariant form, all of the tensor $A$
+
+We can add more dimensions to our objects as well, eg: $ \Gamma^\mu_{\;\;\nu\sigma} $[^oftenwritten] is a 4x4x4 object in this article. These objects are all referred to as "tensors", a term which has lost all mathematical meaning. In its strict definition, a tensor is an object that transforms in a particular fashion in a coordinate change: in practice, everyone calls everything a tensor, unless its relevant for it not to be
 
 Here, we will refer to anything which takes an index as being a tensor, unless it is relevant. The other important class of objects are scalars, which are just values
 
@@ -62,13 +94,13 @@ One thing to note: Tensors and scalars are generally functions of the coordinate
 
 ### Changing the valence of an index: raising and lowering indices
 
-The most important object in general relativity, that we'll introduce here is the metric tensor. The metric tensor is a 4x4 symmetric matrix, which is normally spelt $ g_{\mu\nu} $. Because it is symmetric, $ g_{\mu\nu} =  g_{\nu\mu} $, and has 10 independent components. This is the covariant form of the metric tensor. The metric tensor is also often thought of as a function taking two vector arguments, $g(u,v)$, and performs the same function as the euclidian dot product. That is to say, where in 3 dimensions you might say $a = dot(v, u)$, in general relativity you might say $a = g(v, u)$
+The most important object in general relativity, that we'll introduce here is the metric tensor. The metric tensor is a 4x4 symmetric matrix, which is normally spelt $ g_{\mu\nu} $. Because it is symmetric, $ g_{\mu\nu} =  g_{\nu\mu} $, and as a result only has 10 independent components. This is the covariant form of the metric tensor. The metric tensor is also often thought of as a function taking two vector arguments, $g(u,v)$, and performs the same function as the euclidian dot product. That is to say, where in 3 dimensions you might say $a = dot(v, u)$, in general relativity you might say $a = g(v, u)$
 
 For the metric tensor, and the metric tensor *only*, the contravariant form of the metric tensor is calculated as such:
 
 $$ g^{\mu\nu} = (g_{\mu\nu})^{-1} $$
 
-That is to say, the regular 4x4 matrix inverse of treating $g$ as a matrix. This is generally never true of any other object, and $  A^{\mu\nu} = (A_{\mu\nu})^{-1} $ is likely a mistake
+That is to say, the regular 4x4 matrix inverse of treating $g$ as a matrix. This is generally never true of any other object[^CHANGETOFOOTNOTE]/*, and $  A^{\mu\nu} = (A_{\mu\nu})^{-1} $ is likely a mistake*/
 
 The metric tensor is responsible for many things, and general relativity is in part the study of this fundamental object. To raise an index, we do it as such:
 
@@ -123,9 +155,7 @@ tensor<float, 4> example(const tensor<value, 4, 4, 4>& christoff2, const tensor<
 }
 ```
 
-Here, $\nu$ and $\sigma$ are 'dummy' indices (ie they are repeated), and $\mu$ is a 'free' index (not repeated). The size of the resulting tensor is equal to the number of free indices. One more key rule is that only indices of opposite valence sum: eg an up index *always* sums with a down index, and you do not sum two indices of the same valence - though this almost never crops up
-
-See this [^indices] footnote for more examples
+Here, $\nu$ and $\sigma$ are 'dummy' indices (ie they are repeated), and $\mu$ is a 'free' index (not repeated). The size of the resulting tensor is equal to the number of free indices. One more key rule is that only indices of opposite valence sum: eg an up index *always* sums with a down index, and you do not sum two indices of the same valence - though this almost never crops up. See this [^indices] footnote for more examples
 
 The last thing we need to learn now is how to raise and lower the indices of a multidimensional object, eg $ A^{\mu\nu} $. As a rule (which seems a bit arbitrary), we set the dummy index to the index we wish to raise and lower, and set the free index to the new relabeled index. Eg to lower the first index, we sum over it, and set the second index of the metric tensor to our new index name
 
@@ -151,19 +181,17 @@ If like me you've hit this point and are feeling a bit tired, don't worry. These
 
 ## Geodesics: the basics
 
-What we're trying to accomplish here in this article is basic raytracing. In a normal, 3d raytracer, we construct a ray with a start position $x^i$, and a velocity $v^i == dx^i/dt$, where dt is in general, time. If what we're raytracing doesn't involve anything funky, rays travel in straight lines, and its universal to simply consider that rays have a *direction* instead of a velocity. When this is true, $dt$ (the 'parameterisation') becomes pretty arbitrary, and we no longer care about the exact magnitude of $v^\mu$
+What we're trying to accomplish here in this article is basic raytracing. In a normal, 3d raytracer, we construct a ray with a start position $x^i$, and a velocity $v^i == dx^i/ds$, where ds is a parameter that is often time. If we're raytracing simple 3d graphics, rays travel in straight lines, and its universal to simply consider that rays have a *direction* instead of a velocity - ignoring the parameter. When this is true, $ds$ becomes pretty arbitrary, and we no longer care about the exact magnitude of $v^\mu$
 
-To find a point on a ray when rays move in straight lines, we can simply do $x_2^\mu = x^\mu + v^\mu * dt$, where $dt$ may either be time, or just an arbitrary length
+To find a point on a ray when rays move in straight lines, we can simply do $x_2^\mu = x^\mu + v^\mu * ds$, where $ds$ may either be time, or just an arbitrary length
 
-Lets imagine that our rays do not move in straight lines, and that at every point in space, an acceleration $a^\mu$ is applied to our ray. To calculate $a^\mu$, we may need to know the values of both $x^\mu$ and $v^\mu$ at each point
-
-To find the points on our ray in the general case, we must therefore integrate. That is to say, we need to solve the following equations for $x$
+Lets imagine that our rays do not move in straight lines, and that at every point in space, an acceleration $a^\mu$ is applied to our ray. To find the points on our ray in the general case, we must therefore integrate. That is to say, we need to solve the following equations for $x$
 
 $$dx^\mu/dt = v^\mu \\
 dv^\mu/dt = a^\mu\\
 $$
 
-Where $a^\mu$ gives our acceleration. In newtonian dynamics, $a^\mu$ might be the acceleration given by all the other bodies in our simulation applying a force to us (which we will label with the index ${s}$):
+In newtonian dynamics, $a^\mu$ might be the acceleration given by all the other bodies in our simulation applying a force to us (which we will label with the index ${s}$):
 
 $$a^\mu = (-G \sum_{k=0, k != s}^n \frac{m_k}{|x_s - x_k|^3} (x_s - x_k))^\mu$$
 
@@ -175,35 +203,33 @@ $$a^\mu = -\Gamma^\mu_{\alpha\beta} v^\alpha v^\beta$$
 
 Where $\Gamma^\mu_{\alpha\beta}$ is derived from the metric tensor, and is implicitly a function of $x^\mu$. This is called the geodesic equation, and describes the motion of GR's notion of rays, which are called geodesics
 
-In general relativity, the motion of all objects, lightrays, and additionally measuring distances are described by geodesics. On earth, if you move in a straight line you'll end up going in a circle: geodesics are the more mathematical version of this concept. The only physically accurate way to get from point A, to point B, or relate them in any fashion in the general case, is via a geodesic
+In general relativity, the motion of all objects and lightrays are described by geodesics. Physics distances are also measured using geodesics. On earth, if you move in a straight line you'll end up going in a circle: geodesics are the more mathematical version of this concept. The only physically accurate way to get from point A, to point B, or relate them in any fashion in the general case, is via a geodesic
+
+## Timelike, lightlike, and spacelike geodesics
 
 There are three kinds of geodesics:
 
-1. Spacelike
-2. Timelike
-3. Lightlike
+1. Timelike: these are paths which can be travelled by an observer (or particle) with mass (even if very minimal)
+2. Lightlike: these are paths which can only be travelled by light[^masslessparticles]
+3. Spacelike: these geodesics are a bit more complicated to interpret, and we will ignore them
 
-Timelike geodesics represent the path that objects with rest mass follow, and lightlike geodesics represent the path that objects without *rest* mass follow (ie light). We will be ignoring spacelike geodesics entirely, but they represent spacetime distances that can't be travelled by an observer or light, and are causally disconnected from us. Note that it does not matter what the mass of an object is, only that it has mass at rest[^massissortofignored]
-
-We'd like to render our black hole by firing light rays around and finding out what our spacetime looks like, so what we're looking for in this article is lightlike geodesics
+We'd like to render our black hole by firing light rays around and finding out what our spacetime looks like, so what we're looking for in this article is lightlike geodesics. If you'd like to trace the path of a particle - you need timelike geodesics
 
 ## Geodesics: the less basics
 
-A geodesic has two properties: a position $x^\mu$, and a velocity. In normal every day life, velocity is defined as the rate of change of position with respect to time. In general relativity, we have several concepts of time that we could use
+A geodesic has two properties: a position $x^\mu$, and a velocity $v^\mu$. In normal every day life, velocity is defined as the rate of change of position with respect to time. In general relativity, we have several concepts of time that we could use
 
 1. The concept of time given to us by our coordinate system, which is completely arbitrary and has no meaning
 2. The concept of time as experienced by an observer (including particles)
-3. A even more completely arbitrary concept of time that has no meaning
+3. An even more completely arbitrary concept of time that has no meaning
 
 No observer can move at the speed of light, so 2. is right out for lightlike geodesics, though works well for timelike geodesics. 1. Is dependent on our coordinate system and is hard to apply generally (not every coordinate system has a time coordinate), so in general we will always be using 3 for light.
 
 This makes our velocity: $v^\mu = dx^\mu/ds$. $ds$ is known as an affine parameter, and represents a fairly arbitrary parameterisation[^whatsaparameterisation] of our curve/geodesic
 
-One other fun fact is that the velocity of a geodesic is always tangent to the curve that that geodesic traces out. This defines what it means for something to be a geodesic, that it is in a sense parallel to itself. In fact, transporting the velocity of a geodesic along the curve defined by the geodesic, is one way to derive the geodesic equation (autoparallel transport)
-
 ## Integrating the geodesic equation
 
-We're finally going to solve one of our major components now: We've already briefly seen the geodesic equation, which looks like this:
+We're  going to solve one of our major components now: We've already briefly seen the geodesic equation, which looks like this:
 
 $$ a^\mu = -\Gamma^\mu_{\alpha\beta} v^\alpha v^\beta $$
 
@@ -215,14 +241,13 @@ Note that:
 
 $$ g_{\mu\nu,\sigma} == \partial_\sigma g_{\mu\nu} $$
 
-Aka, taking the partial derivatives in the direction $\sigma$, as defined by our coordinate system. This equation is likely to stretch our earlier understanding of how to sum things, so lets write this out manually:
+Aka, taking the partial derivatives in the direction $\sigma$, as defined by our coordinate system. This equation is likely to stretch our earlier understanding of how to sum things, so we'll write it out manually:
 
-$$ \Gamma^\mu_{\alpha\beta} = \frac{1}{2} \sum_{\sigma=0}^3 g^{\mu\sigma} (\partial_\beta g_{\sigma\alpha} + \partial_\alpha g_{\sigma\beta} - \partial_\sigma g_{\alpha\beta})$$
+$$ \Gamma^\mu_{\alpha\beta} = \frac{1}{2} \sum_{\sigma=0}^3 g^{\mu\sigma} (\partial_\beta g_{\sigma\alpha} + \partial_\alpha g_{\sigma\beta} - \partial_\sigma g_{\alpha\beta})$$[^bearinmind] /*FOOTNOTEBear in mind that we're just multiplying scalar values together here, so we can do all the sums individually. That is to say, $ \Gamma^\mu_{\alpha\beta} = \frac{1}{2} g^{\mu\sigma} (g_{\sigma\alpha,\beta} + g_{\sigma\beta,\alpha} - g_{\alpha\beta,\sigma}) $ == $ \frac{1}{2} g^{\mu\sigma} g_{\sigma\alpha,\beta} + \frac{1}{2} g^{\mu\sigma}g_{\sigma\beta,\alpha} - \frac{1}{2} g^{\mu\sigma}g_{\alpha\beta,\sigma} $*/
 
 or
 
 ```c++
-
 tensor<float, 4, 4, 4> Gamma;
 
 for(int mu = 0; mu < 4, mu++)
@@ -244,11 +269,11 @@ for(int mu = 0; mu < 4, mu++)
 }
 ```
 
-Phew. This loop may look horrendously inefficient, but there are some symmetries here that reduce the computational complexity, notably that $\Gamma^\mu_{\alpha\beta} = \Gamma^\mu_{\beta\alpha}$. Additionally, in many metrics most of $\Gamma$'s components are 0, which helps too
+Phew. This loop may look horrendously inefficient, and it is. GR is not cheap to render in the general case. There are some symmetries here that reduce the computational complexity, notably that $\Gamma^\mu_{\alpha\beta} = \Gamma^\mu_{\beta\alpha}$. Additionally, in many metrics most of $\Gamma$'s components are 0, which helps too
 
 So: to integrate a geodesic, we start off with an appropriate position, $x^\mu$, an appropriate velocity, $v^\mu$, and calculate our acceleration via the geodesic equation. We then integrate this. During the process of this, we'll need a metric tensor $g_{\mu\nu}$ and the partial derivatives of it
 
-We're getting close to being able to integrate our equations now. We just need three more things:
+We're getting close to being able to integrate our equations now. We now need three more things:
 
 1. A real metric tensor
 2. An initial position $x^\mu$, which will be our camera position
@@ -256,15 +281,15 @@ We're getting close to being able to integrate our equations now. We just need t
 
 ## A real metric tensor
 
-There are many different black holes, and many different ways of representing each of them. Today we're going to pick the simplest kind: the schwarzschild black hole
+There are many different black holes, and many different ways of representing each of them. Today we're going to pick the simplest kind: the schwarzschild black hole. Its important to note, schwarzschild black holes are just one kind of black hole, in a whole field of different kinds of black holes. The classic schwarzschild metric is also only one representation of the schwarzschild black hole - there are other coordinate systems for it that are radically different metric tensors
 
-A metric tensor fundamentally defines the curvature of spacetime - and it is the central object of general relativity. It also generally implicitly defines a coordinate system associated with it. The metric tensor is often expressed in a form called the "line element", which reads like this:
+A metric tensor fundamentally defines the curvature of spacetime - and it is the central object of general relativity. It also implicitly expects you to be using a certain coordinate system, though the coordinates can be anything. The metric tensor is often expressed in a form called the "line element", which reads like this:
 
 $$ ds^2 = -d\tau^2 = -(1-\frac{r_s}{r}) dt^2 + (1-\frac{r_s}{r})^{-1} dr^2 + r^2 d\Omega^2 $$
 
 This is the wikipedia definition[^wikipedia] [^signconventions], where $d\Omega^2 = d\theta^2 + sin^2(\theta) d\phi^2$, and $r_s$ is the schwarzschild radius - that is twice the 'mass'[^blackholesdonthavemass] $M$ in geometric units of $c=g=1$
 
-This isn't very clear, so lets examine it. The $d$ terms on the right hand side (eg $dt$) represent infinitesimals. $ds^2$ represents the square of the length of this curve - note that $ds^2$ can be 0 or negative, and is called the spacetime interval. When your displacement $(dt, dr, dtheta, dphi)$ is timelike, $ds^2$ is also the (negative) proper time squared ($d\tau^2$). The fact that this $ds^2$ and the $ds$ we picked for our parameterisation are the same is not a total coincidence - for timelike curves, we pick $ds_{parameterisation} = d\tau$. In reality, $ds$ refers to the general concept of arc length, the length of a curve, which is why the notation is re-used
+This isn't very clear, so lets examine it. The $d$ terms on the right hand side (eg $dt$) represent infinitesimals. $ds^2$ is called the spacetime interval: note that it can be negative, or 0. When your displacement $(dt, dr, dtheta, dphi)$ is timelike, $ds^2 > 0$, and $ds^2$ is also the (negative) proper time[^propertime] squared $d\tau^2$. The fact that this $ds^2$ and the $ds$ we picked for our parameterisation are the same is not a total coincidence - for timelike curves, we pick $ds_{parameterisation} = d\tau$. In reality, $ds$ refers to the general concept of arc length, which is why the notation is re-used
 
 The sign[^signconventions] of $ds^2$ defines what kind of geodesic we have. If we plug a velocity $(dt, dr, d\theta, d\phi)^\mu = v^\mu$ in here, and calculate the metric at our position $(t, r, \theta, \phi)^\mu = x^\mu$, then:
 
@@ -274,11 +299,9 @@ The sign[^signconventions] of $ds^2$ defines what kind of geodesic we have. If w
 
 note that when a curve is lightlike, no proper time $d\tau$ ever elapses along our curve, as $d\tau = 0$
 
-The line element can also be thought of as an expanded out form of when you apply your metric tensor to an infinitesimal displacement, $g(du, du)$. When $du = (dt, dr, d\theta, d\phi)$, we recover our line element
+We can read the matrix $g_{\mu\nu}$ directly off from the line element[^thisiswhy]/*The line element can also be thought of as an expanded out form of when you apply your metric tensor to an infinitesimal displacement, $g(du, du)$. When $du = (dt, dr, d\theta, d\phi)$, we recover our line element. */. If we have the line element
 
-This means that we can read the matrix $g_{\mu\nu}$ directly off from the line element. If we have the line element
-
-$ds^2 = k_1 da^2 + k_2 dadb + k_3 db^2$ etc, we get the metric tensor:
+$$ds^2 = k_1 da^2 + k_2 dadb + k_3 db^2$$ etc, we get the metric tensor:
 
 |.|a|b|
 |-|-|-|
@@ -294,9 +317,7 @@ Note that all offdiagonal terms are multiplied by 1/2. The schwarzschild metric 
 |$\theta$|0|0|$r^2$|0|
 |$\phi$|0|0|0|$r^2 sin^2(\theta)$|
 
-As a 4x4 matrix. Note that this matrix is a function of the coordinate system, and it must be recalculated at a specific point in space where you want to apply it. If we want to raise or lower the velocity of our geodesic, we must calculate the metric tensor *at* the position where the velocity vector is
-
-Vectors, and tensorial objects, and scalar functions are generally associated with a point in spacetime, which is their origin in a sense, more formally they are tangent vectors - tangent to the 'manifold' that is spacetime. Their origin is where you must calculate the metric tensor (and other tensors) to be able to do operations on them
+As a 4x4 matrix. Note that this matrix is a function of the coordinate system, and it must be recalculated at a specific point in space where you want to apply it. If we want to raise or lower the velocity of our geodesic, we must calculate the metric tensor *at* the position where the velocity vector is[^theyaretangentvectors]/*Tensors and scalar functions are generally associated with a point in spacetime, which is their origin in a sense, more formally they are tangent vectors - tangent to the 'manifold' that is spacetime. Their origin is where you must calculate the metric tensor (and other tensors) to be able to do operations on them*/
 
 ## Numerical differentiation vs automatic differentiation
 
@@ -316,29 +337,27 @@ So far we have:
 
 3. Understood how to plug numbers into the geodesic equation, to get our acceleration
 
-It might surprise you to learn that this is the simple part of what we're trying to do, in general. For the purposes of trying to keep things terse today, we're going to use some pre-baked initial conditions, instead of calculating them ourselves
+It might surprise you to learn that this is the simple part of what we're trying to do, in general. For the purposes of trying to minimise the sheer information overload today before we get up and running with our first black hole, we're going to use some pre-baked initial conditions, instead of calculating them ourselves
 
 # Initial conditions
 
-Initial conditions in this corner of general relativity are not a good, fun time. This is where we get into the less well understood corners of general relativity, and where mistakes tend to be made
-
-This article is not the correct one for a long discussion of initial conditions - that'll be next time, likely when you all conveniently go on holiday
+Initial conditions in this corner of general relativity are not a good, fun time. This is where we get into the less well understood corners of general relativity, and where mistakes tend to be made. We're going to condense a much longer future discussion of initial conditions into the next article in this series - likely when you all conveniently go on holiday
 
 ## What are we trying to get out of our initial conditions?
 
-In this phase, what we're trying to do is construct an initial direction $v\mu$ that our lightray travels towards - a geodesic velocity. In a regular, flat, 3d simulation, its very easy - we define a plane in front of our camera, and construct a ray, from the camera's origin, through a pixel on that plane. If a pixel has a position $p={x-width/2, y-height/2, d}$ on that plane, then the ray's direction in 3d space is $d=norm(p-o)$
+In this phase, what we're trying to do is construct an initial direction $v^\mu$ that our lightray travels towards - a geodesic velocity. In a regular, flat, 3d simulation, its very easy - we define a plane in front of our camera, and construct a ray, from the camera's origin, through a pixel on that plane. If a pixel has a position $p=(x-width/2, y-height/2, d)$ on that plane, then the ray's direction in 3d space is $d=norm(p-o)$
 
 The question then becomes: how do we translate our ray direction $d$ in 3d space, to a valid geodesic velocity in 4d spacetime? The answer is: tetrads
 
-# Tetrads, in short
+# Tetrads are my own personal nightmare, and soon they will be yours
 
 https://www2.mpia-hd.mpg.de/homes/tmueller/pdfs/catalogue_2014-05-21.pdf
 
-Tetrads, also known as frame fields, or vielbein, are a field of four 4-vectors, that are orthogonal to each other. These make up the "frame of reference" of an observer, and are used to translate between what one observer sees and experiences, and the wider universe that we're simulating
+Tetrads, also known as frame fields, or vielbein, are a field of four 4-vectors, that are orthonormal (ie perpendicular, and unit lengthed, with respect to the metric tensor). These make up the "frame of reference" of an observer, and are used to translate between what one observer sees and experiences, and the wider universe that we're describing
 
-General relativity demands that spacetime is quite literally locally flat from the perspective of any observer. And yet, we can observe that spacetime is clearly curved - planets go round the sun, and black holes exist. Translating from an observers locally flat spacetime, to that curved spacetime, is done via the tetrads. It fundamentally relates the view of an observer, to the wider universe - or to another observer
+General relativity demands that spacetime is very much locally flat from the perspective of any observer. And yet, we can observe that spacetime is clearly curved - planets go round the sun, and black holes exist. Translating from an observers locally flat spacetime, to that curved spacetime, is done via our tetrads. These are the objects that define the disconnect between "my space is locally flat" and "my friends space is clearly curved", and how you translate observations between the two
 
-Each tetrad is labelled with a latin index $i$, as such: $e_i$. Each one of these tetrads $e_i$ has 4 components, and so they are spelt $e^\mu_i$ in the literature
+A tetrad consists of 4 orthonormal basis vectors, that form the basis of our spacetime. Each tetrad vector is labelled with a latin index $i$, as such: $e_i$. Each one of these tetrad vectors $e_i$ has 4 components, and so they are spelt $e^\mu_i$ in the literature. This makes up a 4x4 matrix when treated as column vectors, and the inverse (which is a matrix inverse $(e^\mu_i)^{-1}$) is spelt $e_\mu^i$. If this seems very confusing, you are absolutely correct horse
 
 General relativity demands that spacetime is locally flat from the perspective of an observer, no matter where they are or what they're doing. The technical definition of locally flat is the minkowski metric, $\eta_{\mu\nu}$, which is always in cartesian coordinates, no matter the coordinate system of our metric tensor $g_{\mu\nu}$:
 
@@ -359,18 +378,20 @@ Each tetrad defines a series of basis vectors which we can use to transform from
 
 $$v^\mu_{curved} = e^\mu_i v^i_{flat}$$
 
+$$v^i_{flat} = e_\mu^i v^\mu_{curved}$$
+
 If the direction $d$ points through a pixel in our local plane, we now have a way to construct the initial velocity of our geodesic. One key thing to note is that we almost always trace lightlike geodesics *backwards* in time, which we can accomplish by negating the time component of our lightray, and getting $v_{flat}^\mu = (-1, d_0, d_1, d_2)$
 
 ## That's all well and good, but how do I calculate my tetrads?
 
 Luckily, a lot of metric tensors have precalculated tetrads, and we can simply read them off of this page here https://arxiv.org/pdf/0904.4184. For schwarszchild:
 
-$e^0_0 = 1/sqrt(1-rs/r) \\$
-$e^1_1 = sqrt(1-rs/r) \\$
+$e^0_0 = 1/\sqrt{1-r_s/r} \\$
+$e^1_1 = \sqrt{1-r_s/r} \\$
 $e^2_2 = 1/r \\$
 $e^3_3 = 1/(r sin(\theta))$
 
-Note that these are not unique, and represent a particular kind of observer in this spacetime. While there *is* a unique natural choice, it has no special meaning, and we'll get to this soon. Also note that this paper refers to the upper indices of the tetrads by their coordinate basis, ie $\partial_t$ means the 0th component of the tetrad $e_t$, which is $e_0$ for us. A vector may in general be written $a \partial_t + b\partial_x + c\partial_y + d\partial_z$ assuming a coordinate system $(t, x, y, z)$, and the paper linked above follows this convention for specifying the tetrad components
+Note that these are not unique, and represent a specific kind of observer in this spacetime. While there *is* a unique 'natural' choice, it has no special meaning, and we'll get to this soon. Also note that this paper refers to the upper indices of the tetrads by their coordinate basis, ie $\partial_t$ means the 0th component of the tetrad $e_t$, which is $e_0$ for us. A vector may in general be written $a \partial_t + b\partial_x + c\partial_y + d\partial_z$ assuming a coordinate system $(t, x, y, z)$, and the paper linked above follows this convention for specifying the tetrad components
 
 # The complete procedure
 
@@ -471,7 +492,7 @@ geodesic make_lightlike_geodesic(const tensor<float, 4>& position, const tensor<
 }
 ```
 
-## Step 5: Integrate the geodesic equation
+## Step 5 + 6: Integrate the geodesic equation
 
 ```c++
 //function to numerically differentiate an arbitrary function that takes a position, and a direction
@@ -599,36 +620,6 @@ integration_result integrate(geodesic& g) {
 }
 ```
 
+## Step 7: Going outside
 
-
-### Spacelike, and timelike coordinates
-
-## The 'default' tetrad
-
-Lets calculate *a*  tetrad
-
-## Arbitrary tetrads
-
-Lets calculate a specific-ish tetrad
-
-## Parallel transport
-
-Oh dear
-
-# Evolution Equations
-
-## Integrating the equations
-
-Verlet integration. Hamiltonians
-
-### Coordinate time
-
-# Finishing up
-
-Redshift
-
-The lorentz factor
-
-# Hang on, where's the black hole?
-
-## Metric tensors
+This was never an option
