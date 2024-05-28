@@ -196,7 +196,7 @@ tensor<float, 2> angle_to_tex(const tensor<float, 2>& angle)
 {
     float pi = std::numbers::pi_v<float>;
 
-    float thetaf = fmod(angle[0], 2 * pi);
+    float thetaf = std::fmod(angle[0], 2 * pi);
     float phif = angle[1];
 
     if(thetaf >= pi)
@@ -205,9 +205,9 @@ tensor<float, 2> angle_to_tex(const tensor<float, 2>& angle)
         thetaf -= pi;
     }
 
-    phif = fmod(phif, 2 * pi);
+    phif = std::fmod(phif, 2 * pi);
 
-    float sxf = (phif) / (2 * pi);
+    float sxf = phif / (2 * pi);
     float syf = thetaf / pi;
 
     sxf += 0.5f;
