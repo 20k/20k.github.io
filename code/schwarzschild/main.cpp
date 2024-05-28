@@ -153,7 +153,6 @@ struct integration_result {
     };
 
     hit_type type = UNFINISHED;
-    geodesic g;
 };
 
 integration_result integrate(geodesic& g, bool debug) {
@@ -173,7 +172,6 @@ integration_result integrate(geodesic& g, bool debug) {
 
         if(radius > 10) {
             //ray escaped
-            result.g = g;
             result.type = integration_result::ESCAPED;
 
             return result;
@@ -181,14 +179,12 @@ integration_result integrate(geodesic& g, bool debug) {
 
         if(radius <= rs + 0.0001f || g.position[0] > start_time + 1000) {
             //ray has very likely hit the event horizon
-            result.g = g;
             result.type = integration_result::EVENT_HORIZON;
 
             return result;
         }
     }
 
-    result.g = g;
     return result;
 }
 
