@@ -4,6 +4,7 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
 #include <thread>
+#include <vector>
 
 metric<float, 4, 4> schwarzschild_metric(const tensor<float, 4>& position) {
     float rs = 1;
@@ -188,9 +189,25 @@ integration_result integrate(geodesic& g) {
     return result;
 }
 
-tensor<float, 3> render_pixel(int x, int y)
+tensor<float, 3> render_pixel(int x, int y, int screen_width, int screen_height)
 {
-    return {1, 1, 1};
+    tensor<float, 3> ray_direction = get_ray_through_pixel(x, y, screen_width, screen_height, 90);
+
+    tensor<float, 3> camera_position_cart = {0, 0, -5};
+    float r = camera_position_cart.length();
+
+    tensor<float, 4> camera_position = {0, r, std::acos(camera_position_cart[2]/r), std::atan2(camera_position_cart[1], camera_position_cart[0])};
+
+    tetrad tetrads = calculate_schwarzschild_tetrad(camera_position);
+
+    geodesic my_geodesic = make_lightlike_geodesic(camera_position, ray_direction, tetrads);
+
+    integration_result result = integrate(my_geodesic);
+
+    if(result.type == integration_result::EVENT_HORIZON || result.type == integration_result::UNFINISHED)
+        return {0,0,0};
+    else
+        return {1,1,1};
 }
 
 int main()
@@ -216,23 +233,32 @@ int main()
         }
     }
 
-    int threads = std::thread::hardware_concurrency();
+    int thread_count = std::thread::hardware_concurrency();
+    std::vector<std::jthread> threads;
 
-    for(int t=0; t < threads; t++)
+    for(int t=0; t < thread_count; t++)
     {
-        while(1)
+        threads.emplace_back([&]()
         {
-            int work_size = 1024;
-            int start_pixel = assigned_work.fetch_add(work_size);
-
-            if(start_pixel >= max_work)
-                break;
-
-            for(int idx = start_pixel; idx < start_pixel + work_size && idx < max_work; idx++)
+            while(1)
             {
-                result[idx] = render_pixel(work[idx][0], work[idx][1]);
+                int work_size = 1024;
+                int start_pixel = assigned_work.fetch_add(work_size);
+
+                if(start_pixel >= max_work)
+                    break;
+
+                for(int idx = start_pixel; idx < start_pixel + work_size && idx < max_work; idx++)
+                {
+                    result[idx] = render_pixel(work[idx][0], work[idx][1], screen_width, screen_height);
+                }
             }
-        }
+        });
+    }
+
+    for(auto& i : threads)
+    {
+        i.join();
     }
 
     sf::Image img;
