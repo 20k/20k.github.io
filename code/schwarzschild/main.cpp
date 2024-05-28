@@ -221,7 +221,7 @@ tensor<float, 3> render_pixel(int x, int y, int screen_width, int screen_height,
 
     float pi = std::numbers::pi_v<float>;
 
-    tensor<float, 4> camera_position = {0, 3, pi/2, -pi/2};
+    tensor<float, 4> camera_position = {0, 5, pi/2, -pi/2};
 
     tetrad tetrads = calculate_schwarzschild_tetrad(camera_position);
 
