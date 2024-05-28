@@ -70,7 +70,7 @@ auto diff(auto&& func, const tensor<float, 4>& position, int direction) {
     auto p_up = position;
     auto p_lo = position;
 
-    float h = 0.001f;
+    float h = 0.00001f;
 
     p_up[direction] += h;
     p_lo[direction] -= h;
@@ -108,7 +108,7 @@ tensor<float, 4, 4, 4> calculate_christoff2(const tensor<float, 4>& position, au
 
                 for(int sigma = 0; sigma < 4; sigma++)
                 {
-                    sum += metric_inverse[mu, sigma] * (metric_diff[be, sigma, al] + metric_diff[al, sigma, be] - metric_diff[sigma, al, be]);
+                    sum += 0.5f * metric_inverse[mu, sigma] * (metric_diff[be, sigma, al] + metric_diff[al, sigma, be] - metric_diff[sigma, al, be]);
                 }
 
                 Gamma[mu, al, be] = sum;
@@ -159,15 +159,15 @@ struct integration_result {
 integration_result integrate(geodesic& g, bool debug) {
     integration_result result;
 
-    float dt = 0.0005f;
+    float dt = 0.005f;
     float rs = 1;
     float start_time = g.position[0];
 
-    for(int i=0; i < 10000; i++) {
+    for(int i=0; i < 100000; i++) {
         tensor<float, 4> acceleration = calculate_schwarzschild_acceleration(g.position, g.velocity);
 
-        g.position += g.velocity * dt;
         g.velocity += acceleration * dt;
+        g.position += g.velocity * dt;
 
         float radius = g.position[1];
 
@@ -231,7 +231,7 @@ tensor<float, 3> render_pixel(int x, int y, int screen_width, int screen_height,
 
     geodesic my_geodesic = make_lightlike_geodesic(camera_position, modified_ray, tetrads);
 
-    integration_result result = integrate(my_geodesic, x == 200 && y == 150);
+    integration_result result = integrate(my_geodesic, x == 300 && y == 150);
 
     if(result.type == integration_result::EVENT_HORIZON || result.type == integration_result::UNFINISHED)
         return {0,0,0};
