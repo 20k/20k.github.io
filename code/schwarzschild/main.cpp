@@ -247,17 +247,8 @@ tensor<float, 3> render_pixel(int x, int y, int screen_width, int screen_height,
     }
 }
 
-int main()
+std::vector<tensor<float, 3>> get_pixels(int screen_width, int screen_height, const sf::Image& background)
 {
-    int screen_width = 400;
-    int screen_height = 300;
-
-    sf::VideoMode mode(screen_width, screen_height);
-    sf::RenderWindow win(mode, "I am a black hole");
-
-    sf::Image background;
-    background.loadFromFile("nasa.png");
-
     std::vector<tensor<float, 3>> result;
     result.resize(screen_width*screen_height);
 
@@ -303,6 +294,22 @@ int main()
         i.join();
     }
 
+    return result;
+}
+
+int main()
+{
+    int screen_width = 400;
+    int screen_height = 300;
+
+    sf::VideoMode mode(screen_width, screen_height);
+    sf::RenderWindow win(mode, "I am a black hole");
+
+    sf::Image background;
+    background.loadFromFile("nasa.png");
+
+    std::vector<tensor<float, 3>> result = get_pixels(screen_width, screen_height, background);
+
     sf::Image img;
     img.create(screen_width, screen_height);
 
@@ -339,6 +346,8 @@ int main()
         win.draw(sprite);
 
         win.display();
+
+        sf::sleep(sf::milliseconds(1));
     }
 
     return 0;
