@@ -16,7 +16,7 @@ metric<float, 4, 4> schwarzschild_metric(const tensor<float, 4>& position) {
     m[0, 0] = -(1-rs/r);
     m[1, 1] = 1/(1-rs/r);
     m[2, 2] = r*r;
-    m[3, 3] = r*r * sin(theta)*sin(theta);
+    m[3, 3] = r*r * std::sin(theta)*std::sin(theta);
 
     return m;
 }
@@ -73,7 +73,10 @@ auto diff(auto&& func, const tensor<float, 4>& position, int direction) {
     float h = 0.001f;
 
     p_up[direction] += h;
-    p_lo[direction] += h;
+    p_lo[direction] -= h;
+
+    auto up = func(p_up);
+    auto lo = func(p_lo);
 
     return (func(p_up) - func(p_lo)) / (2 * h);
 }
@@ -153,14 +156,14 @@ struct integration_result {
     geodesic g;
 };
 
-integration_result integrate(geodesic& g) {
+integration_result integrate(geodesic& g, bool debug) {
     integration_result result;
 
-    float dt = 0.1f;
+    float dt = 0.05f;
     float rs = 1;
     float start_time = g.position[0];
 
-    for(int i=0; i < 1024; i++) {
+    for(int i=0; i < 10000; i++) {
         tensor<float, 4> acceleration = calculate_schwarzschild_acceleration(g.position, g.velocity);
 
         g.velocity += acceleration * dt;
@@ -168,7 +171,7 @@ integration_result integrate(geodesic& g) {
 
         float radius = g.position[1];
 
-        if(radius > 100) {
+        if(radius > 20) {
             //ray escaped
             result.g = g;
             result.type = integration_result::ESCAPED;
@@ -193,16 +196,19 @@ tensor<float, 3> render_pixel(int x, int y, int screen_width, int screen_height)
 {
     tensor<float, 3> ray_direction = get_ray_through_pixel(x, y, screen_width, screen_height, 90);
 
-    tensor<float, 3> camera_position_cart = {0, 0, -5};
-    float r = camera_position_cart.length();
+    float pi = std::numbers::pi_v<float>;
 
-    tensor<float, 4> camera_position = {0, r, std::acos(camera_position_cart[2]/r), std::atan2(camera_position_cart[1], camera_position_cart[0])};
+    tensor<float, 4> camera_position = {0, 5, pi/2, -pi/2};
 
     tetrad tetrads = calculate_schwarzschild_tetrad(camera_position);
 
-    geodesic my_geodesic = make_lightlike_geodesic(camera_position, ray_direction, tetrads);
+    //so, the tetrad vectors give us a basis, that points in the direction t, r, theta, and phi, because schwarzschild is diagonal
+    //we'd like the ray to point towards the black hole: this means we make +z point towards -r, +y point towards +theta, and +x point towards +phi
+    tensor<float, 3> modified_ray = {-ray_direction[2], ray_direction[1], ray_direction[0]};
 
-    integration_result result = integrate(my_geodesic);
+    geodesic my_geodesic = make_lightlike_geodesic(camera_position, modified_ray, tetrads);
+
+    integration_result result = integrate(my_geodesic, x == 200 && y == 150);
 
     if(result.type == integration_result::EVENT_HORIZON || result.type == integration_result::UNFINISHED)
         return {0,0,0};
@@ -212,8 +218,8 @@ tensor<float, 3> render_pixel(int x, int y, int screen_width, int screen_height)
 
 int main()
 {
-    int screen_width = 800;
-    int screen_height = 600;
+    int screen_width = 400;
+    int screen_height = 300;
 
     sf::VideoMode mode(screen_width, screen_height);
     sf::RenderWindow win(mode, "I am a black hole");
@@ -242,7 +248,7 @@ int main()
         {
             while(1)
             {
-                int work_size = 1024;
+                int work_size = 2048;
                 int start_pixel = assigned_work.fetch_add(work_size);
 
                 if(start_pixel >= max_work)
@@ -250,7 +256,9 @@ int main()
 
                 for(int idx = start_pixel; idx < start_pixel + work_size && idx < max_work; idx++)
                 {
-                    result[idx] = render_pixel(work[idx][0], work[idx][1], screen_width, screen_height);
+                    tensor<int, 2> pixel = work[idx];
+
+                    result[pixel[1] * screen_width + pixel[0]] = render_pixel(pixel[0], pixel[1], screen_width, screen_height);
                 }
             }
         });
