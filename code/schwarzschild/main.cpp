@@ -159,19 +159,19 @@ struct integration_result {
 integration_result integrate(geodesic& g, bool debug) {
     integration_result result;
 
-    float dt = 0.05f;
+    float dt = 0.0005f;
     float rs = 1;
     float start_time = g.position[0];
 
     for(int i=0; i < 10000; i++) {
         tensor<float, 4> acceleration = calculate_schwarzschild_acceleration(g.position, g.velocity);
 
-        g.velocity += acceleration * dt;
         g.position += g.velocity * dt;
+        g.velocity += acceleration * dt;
 
         float radius = g.position[1];
 
-        if(radius > 20) {
+        if(radius > 10) {
             //ray escaped
             result.g = g;
             result.type = integration_result::ESCAPED;
@@ -192,13 +192,36 @@ integration_result integrate(geodesic& g, bool debug) {
     return result;
 }
 
-tensor<float, 3> render_pixel(int x, int y, int screen_width, int screen_height)
+tensor<float, 2> angle_to_tex(const tensor<float, 2>& angle)
+{
+    float pi = std::numbers::pi_v<float>;
+
+    float thetaf = fmod(angle[0], 2 * pi);
+    float phif = angle[1];
+
+    if(thetaf >= pi)
+    {
+        phif += pi;
+        thetaf -= pi;
+    }
+
+    phif = fmod(phif, 2 * pi);
+
+    float sxf = (phif) / (2 * pi);
+    float syf = thetaf / pi;
+
+    sxf += 0.5f;
+
+    return {sxf, syf};
+}
+
+tensor<float, 3> render_pixel(int x, int y, int screen_width, int screen_height, const sf::Image& background)
 {
     tensor<float, 3> ray_direction = get_ray_through_pixel(x, y, screen_width, screen_height, 90);
 
     float pi = std::numbers::pi_v<float>;
 
-    tensor<float, 4> camera_position = {0, 5, pi/2, -pi/2};
+    tensor<float, 4> camera_position = {0, 3, pi/2, -pi/2};
 
     tetrad tetrads = calculate_schwarzschild_tetrad(camera_position);
 
@@ -213,7 +236,19 @@ tensor<float, 3> render_pixel(int x, int y, int screen_width, int screen_height)
     if(result.type == integration_result::EVENT_HORIZON || result.type == integration_result::UNFINISHED)
         return {0,0,0};
     else
-        return {1,1,1};
+    {
+        float theta = my_geodesic.position[2];
+        float phi = my_geodesic.position[3];
+
+        tensor<float, 2> texture_coordinate = angle_to_tex({theta, phi});
+
+        int tx = (int)(texture_coordinate[0] * background.getSize().x) % background.getSize().x;
+        int ty = (int)(texture_coordinate[1] * background.getSize().y) % background.getSize().y;
+
+        auto icol = background.getPixel(tx, ty);
+
+        return {icol.r/255.f, icol.g/255.f, icol.b/255.f};;
+    }
 }
 
 int main()
@@ -223,6 +258,9 @@ int main()
 
     sf::VideoMode mode(screen_width, screen_height);
     sf::RenderWindow win(mode, "I am a black hole");
+
+    sf::Image background;
+    background.loadFromFile("nasa.png");
 
     std::vector<tensor<float, 3>> result;
     result.resize(screen_width*screen_height);
@@ -258,7 +296,7 @@ int main()
                 {
                     tensor<int, 2> pixel = work[idx];
 
-                    result[pixel[1] * screen_width + pixel[0]] = render_pixel(pixel[0], pixel[1], screen_width, screen_height);
+                    result[pixel[1] * screen_width + pixel[0]] = render_pixel(pixel[0], pixel[1], screen_width, screen_height, background);
                 }
             }
         });
