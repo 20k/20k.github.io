@@ -27,7 +27,7 @@ The end goal here is to end up with this:
 
 ![Black hole](/assets/schwarzs.png)
 
-First up, a black hole isn't a physical thing you can touch, and the schwarzschild black hole isn't made of anything tangible. It exists purely gravitationally - its a stable, self supporting gravitational field. It is made up of spacetime being curved, and nothing else. The schwarzschild black hole is in the class of objects known as a "vaccum solution", which is to say that there is no matter or what you might call mass[^blackholemass] present whatsoever
+First up, a black hole isn't a physical thing you can touch, and the schwarzschild black hole isn't made of anything tangible. It exists purely gravitationally - its a stable, self supporting gravitational field. It is made up of spacetime being curved, and nothing else. The schwarzschild black hole is in the class of objects known as a "vacuum solution", which is to say that there is no matter or what you might call mass[^blackholemass] present whatsoever
 
 What we actually see in this picture is purely as a result of spacetime being curved, bending the path of anything that travels through it. We create light rays at the camera, trace them around our curved spacetime according to the equations of general relativity, and then render the background according to where our rays of light end up. Some rays of light get trapped at the event horizon, resulting in the black 'shadow' of the black hole
 
