@@ -80,7 +80,7 @@ This is an example of how we'd express summing the components of a vector. Tenso
 
 Additionally, objects such as matrices can have more than one index, and the indices can have any "valence" (up/down-ness). For example, $A^{\mu\nu} $,  $ A^\mu_{\;\;\nu} $, $ A_\mu^{\;\;\nu} $, and $ A_{\mu\nu} $ are all different representations of the same object $A$. The first is the contravariant form, the middle two have mixed indices, and the last one is the covariant form
 
-We can add more dimensions to our objects as well, eg: $ \Gamma^\mu_{\;\;\nu\sigma} $[^oftenwritten] is a 4x4x4 object in this article. These objects are all referred to as "tensors", a term which has lost virtually all meaning in computer science. In its strict definition, a tensor is an object that transforms in a particular fashion in a coordinate change: in practice, everyone calls everything a tensor, unless its relevant for it not to be. Here, we will refer to anything which takes an index as being a tensor, unless it is relevant. The other important class of objects are scalars, which are just values
+We can add more dimensions to our objects as well, eg: $ \Gamma^\mu_{\;\;\nu\sigma} $[^oftenwritten] is a 4x4x4 object in this article. These objects are all referred to as "tensors", a term which has lost virtually all meaning in computer science, and is struggling in physics as well. In its strict definition, a tensor is an object that transforms in a particular fashion in a coordinate change: in practice, everyone calls everything a tensor, unless its relevant for it not to be. Here, we will refer to anything which takes an index as being a tensor, unless it is relevant. The other important class of objects are scalars, which are just values
 
 [^oftenwritten]: This example object is generally written slightly more compactly, as $ \Gamma^\mu_{\nu\sigma} $, and is known as "christoffel symbols of the second kind". In the literature, the notation can be slightly ambiguous as to which specific index in an object is raised or lowered, and you have to deduce it from context
 
@@ -104,7 +104,7 @@ The metric tensor is responsible for many things, and one of its responsibilitie
 
 $$ v^\mu = g^{\mu\nu} v_\nu $$
 
-And lowering an index is performed like this
+And lowering an index is performed like this:
 
 $$ v_\mu = g_{\mu\nu} v^\nu $$
 
@@ -152,11 +152,13 @@ tensor<float, 4> example(const tensor<value, 4, 4, 4>& christoff2, const tensor<
 }
 ```
 
-Here, $\nu$ and $\sigma$ are 'dummy' indices (ie they are repeated), and $\mu$ is a 'free' index (not repeated). Each dummy index is summed only with itself, and form the bounds for our $\sum_{}$'s
+Here, $\nu$ and $\sigma$ are 'dummy' indices (ie they are repeated), and $\mu$ is a 'free' index (not repeated). Each dummy index is summed only with itself, and they form the bounds for our $\sum_{}$'s
 
 The size of the resulting tensor is equal to the number of free indices. One more key rule is that only indices of opposite valence sum: eg an up index *always* sums with a down index, and you do not sum two indices of the same valence - though this almost never crops up. Jump to the indices footnote for more examples
 
-The last thing we need to learn now is how to raise and lower the indices of a multidimensional object using the metric tensor, eg $ A^{\mu\nu} $. As a rule, we set the dummy index to the index we wish to raise and lower in our object, and set the free index to the new relabeled index, in the metric. Eg to lower the first index, we sum over it, and set the second index of the metric tensor to our new index name
+The last thing we need to learn now is how to raise and lower the indices of a multidimensional object using the metric tensor, eg $ A^{\mu\nu} $. To do this, you set a dummy index to the slot we wish to change the valence of. Then, the metric tensor gets the dummy index as well in one slot, and the free index in the other. The contravariant form of the metric tensor is used to raise indices, and the covariant form is used to lower them
+
+Eg to lower the first index, we sum over it, and set the second index of the covariant metric tensor to our new index name
 
 $$ \Gamma_{\mu\nu\sigma} = g_{\mu\gamma} \Gamma^{\gamma}_{\;\;\nu\sigma} $$
 
@@ -229,19 +231,19 @@ We'd like to render our black hole by firing light rays around and finding out w
 
 ## Geodesics: the less basics
 
-A geodesic has two properties: a position $x^\mu$, and a velocity $v^\mu$. In normal every day life, velocity is defined as the rate of change of position with respect to some parameter, normally time. In general relativity, we have several concepts of time that we could use
+A geodesic has two properties: a position $x^\mu$, and a velocity $v^\mu$. Velocity is defined as the rate of change of position $dx^\mu$ with respect to some parameter $ds$, giving $\frac{dx^\mu}{ds}$. We have a choice of several parameters we could use:
 
-1. The concept of time given to us by our coordinate system, which is completely arbitrary and has no meaning
+1. The concept of time given to us by our coordinate system, which is completely arbitrary and has no meaning, often called $dt$
 2. The concept of time as experienced by an observer (including particles), called proper time, $d\tau$
-3. An even more completely arbitrary concept of time that has no meaning
+3. A fairly arbitrary concept of 'time' that has no meaning, called $ds$, that represents how far we're moving along our curve
 
-No observer can move at the speed of light, so 2. is [right out](https://www.youtube.com/watch?v=xOrgLj9lOwk) for lightlike geodesics, though works well for timelike geodesics. 1. Is dependent on our coordinate system and is hard to apply generally (not every coordinate system has a time coordinate), so in general we will always be using 3 for light.
+No observer can move at the speed of light, so [~~5~~](https://www.youtube.com/watch?v=xOrgLj9lOwk) 2. is right out for lightlike geodesics, though works well for timelike geodesics. 1. Is dependent on our coordinate system and is hard to apply generally (not every coordinate system has a time coordinate), and we have to modify our geodesic equationas well - so in general we will always be using 3 for light
 
-This makes our velocity: $v^\mu = \frac{dx^\mu}{ds}$. $ds$ is known as an affine parameter, and represents a parameterisation of our curve/geodesic. The geodesic equation that we will see below is adapted for this parameterisation
+This makes our velocity: $v^\mu = \frac{dx^\mu}{ds}$ - which we already knew, but now we know what $ds$ means - which in this case is not all that much. The specific $ds$ we use is known as the affine parameter, and represents a parameterisation of our curve/geodesic. The geodesic equation that we will see below is adapted for this parameterisation
 
 ## Integrating the geodesic equation
 
-We're  going to solve one of our major components now: We've already briefly seen the geodesic equation[^wikigeodesic], which looks like this:
+We're going to solve one of our major components now: We've already briefly seen the geodesic equation[^wikigeodesic], which looks like this:
 
 $$ a^\mu = -\Gamma^\mu_{\alpha\beta} v^\alpha v^\beta $$
 
@@ -309,9 +311,9 @@ This is the wikipedia definition[^wikipedia], where $d\Omega^2 = d\theta^2 + sin
 
     Note: There are two sign conventions in general relativity, [+,-,-,-], and [-,+,+,+]. Wikipedia tends to use a mix - in that article, it uses the former. This tutorial series exclusively uses the latter, which is why our metric's sign is flipped vs wikipedia
 
-    In the +--- convention which we do not use, the signs for spacelike, and timelike geodesics are flipped when classifying them them with the spacetime interval $ds^2$
+    In the [+,-,-,-] convention which we do not use, the signs for spacelike, and timelike geodesics are flipped when classifying them them with the spacetime interval $ds^2$
 
-Lets examine this in more detail. The $d$ terms on the right hand side (eg $dt$) represent infinitesimals. $ds^2$ is called the spacetime interval: note that it can be negative, or 0. When your displacement $(dt, dr, dtheta, dphi)$ is timelike, $ds^2 < 0$[^wikipedia], and $ds^2$ is also the (negative) proper time[^propertime] squared $d\tau^2$. The fact that this $ds^2$ and the $ds$ we picked for our parameterisation are the same is not a total coincidence - for timelike curves, we pick $ds_{parameterisation} = d\tau$. In reality, $ds$ refers to the general concept of arc length, which is why the notation is re-used
+Lets examine this in more detail. The $d$ terms on the right hand side (eg $dt$) represent infinitesimals. $ds^2$ is called the spacetime interval: note that it can be negative, or 0. The fact that this $ds^2$ and the $ds$ we picked for our parameterisation are the same is not a total coincidence - for timelike curves, we generally pick $ds_{parameterisation} = d\tau$. In reality, $ds$ refers to the general concept of arc length, which is why the notation is re-used
 
 [^propertime]: This is the time experienced by an observer. Its our own concept of the passage of time, and is only defined for timelike geodesics
 
@@ -321,7 +323,9 @@ The sign[^wikipedia] of $ds^2$ defines what kind of geodesic we have. If we plug
 2. If $ds^2 == 0$, our curve is lightlike, and is the path light takes
 3. If $ds^2 < 0$, our curve is timelike, and is the path an observer takes
 
-Note that there are alternate definitions[^altdef]
+Note that there are alternate definitions[^altdef]. Doubly note that $d\tau$ only takes on a value if $ds^2 <= 0$ - but it is only actually valid due to how it is derived if $ds^2 < 0$. This is a more mathematical way of saying that only a timelike curve - the path that an observer takes - has a definition of proper time. This makes sense, because proper time is the time experienced by an observer
+
+$ds^2$ is *invariant*. No matter who plugs in their own values for some $v^\mu$ into our line element, if its the same object, even though different observers might disagree on the values of $v^\mu$, everyone will agree on $ds^2$
 
 [^altdef]:
     Its also common to use the following definitions for timelike and spacelike geodesics in terms of the spacetime interval
@@ -403,7 +407,7 @@ General relativity demands that spacetime is locally flat from the perspective o
 
 Tetrads are basis vectors, for pushing vectors from an observers locally flat space, to our curved spacetime. Each tetrad vector is labelled with a latin index $i$, and are given by $e_i$. Each one of these tetrad vectors $e_i$ has 4 components, and so they are spelt $e^\mu_i$ in the literature with stacked indices. This makes up a 4x4 matrix when treated as column vectors, and the inverse (which is a matrix inverse $(e^\mu_i)^{-1}$) is spelt $e_\mu^i$. If this seems needlessly extremely confusing, you are absolutely [correct horse](https://www.youtube.com/watch?v=b3_lVSrPB6w). Some papers[^here] use $\theta_\mu^i$ to denote the inverse
 
-Note that when dealing with tetrads, vectors and tetrad indices with latin indices $i,j,k$ refer to 'local' quantities in your flat spacetime, and greek indices $\mu,\nu,\sigma$ refer to quantities in your coordinate space
+Note that when dealing with tetrads, latin indices $i,j,k$ refer to 'local' quantities in your flat spacetime, and greek indices $\mu,\nu,\sigma$ refer to quantities in your coordinate space
 
 [^here]: [Catalogue of spacetimes](https://www2.mpia-hd.mpg.de/homes/tmueller/pdfs/catalogue_2014-05-21.pdf) 1.4.19
 
@@ -451,7 +455,7 @@ Note that these are not unique, and represent a specific kind of observer in thi
 
 [^exampletetrad]:  See [Catalogue of Spacetimes](https://www2.mpia-hd.mpg.de/homes/tmueller/pdfs/catalogue_2014-05-21.pdf) 1.4.21 for the direct example for diagonal metrics. In general, you can calculate this tetrad via gram schmidt orthonormalisation
 
-[^notethat]: Do note that while it is true that the natural tetrad doesn't inherently have any special meaning, it is common for the metrics to be constructed such that the natural tetrad *does* have special meaning, and the coordinate system often describes a particular kind of observer. In schwarzschild, this tetrad defines a stationary observer, as the metric was made to do this in these coordinates
+[^notethat]: Do note that while it is true that the natural tetrad doesn't inherently have any special meaning, it is common for the metrics to be constructed such that the natural tetrad *does* have special meaning, and the coordinate system often describes a particular kind of observer. In schwarzschild, this tetrad defines a stationary observer, as the metric was made to do this in these coordinates. This is also why you cannot cross the event horizon in schwarzschild coordinates - no stationary observer can exist within a black hole
 
 # The complete procedure
 
@@ -463,7 +467,7 @@ Step 3: We then construct an initial ray direction in locally flat spacetime. To
 
 Step 4: We then use this tetrad to construct a geodesic velocity in our curved spacetime, by doing $v_{curved}^\mu = e^\mu_i v^i_{flat}$
 
-Step 5: Once we have a position, and velocity, we plug these into the geodesic equation, and integrate
+Step 5: Once we have a position, and velocity, we plug these into the geodesic equation, and integrate, recalculating the metric tensor as we go
 
 Step 6: Once we have run a certain number of iterations, or our coordinate radius r > some constant, or r < the event horizon, we terminate the simulation and render
 
@@ -695,7 +699,7 @@ Success, mostly!
 
 ![Black hole](/assets/e1success.png)
 
-Debugging these simulations is a big pain. If you have a camera position of $(0, 5, pi/2, pi/2)$ and use an fov of $90^o$, you'll end up with the above picture for $r_s = 1$. The code accompanying this article can be found on the [blog's repository](https://github.com/20k/blog/code/schwarzschild/), with the main file [here](https://github.com/20k/blog/code/schwarzschild/main.cpp). Its only dependencies are SFML, and a tensor implementation (so checkout with submodules). I would recommend compiling with `-O3 -ffast-math -NDEBUG`
+Debugging these simulations is a big pain. If you have a camera position of $(0, 5, pi/2, -pi/2)$ and use an fov of $90^o$, you'll end up with the above picture for $r_s = 1$. The code accompanying this article can be found on the [blog's repository](https://github.com/20k/blog/code/schwarzschild/), with the main file [here](https://github.com/20k/blog/code/schwarzschild/main.cpp). Its only dependencies are SFML, and a tensor implementation (so checkout with submodules). I would recommend compiling with `-O3 -ffast-math -NDEBUG`
 
 The first thing you might notice when putting all this together, is that it is excruciatingly slow to render a black hole, even with multiple threads. This problem is embarrassingly parallel, so next time round, we'll be porting the whole thing to the gpu - as well as building ourselves a custom high performance GPU programming language to use
 
@@ -791,7 +795,7 @@ One other fun thing is that derivatives are often juggled like they are variable
 
 $$(\partial_k + 2) A_{ij} = \partial_k A_{ij} + 2A_{ij}$$
 
-## Further reading
+# Further reading
 
 [A GPU raytracer](https://arxiv.org/pdf/1601.02063.pdf)
 
