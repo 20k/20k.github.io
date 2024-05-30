@@ -309,7 +309,7 @@ int main()
     sf::RenderWindow win(mode, "I am a black hole");
 
     sf::Image background;
-    background.loadFromFile("nasa.png");
+    background.loadFromFile("../common/nasa.png");
 
     std::vector<tensor<float, 3>> result = get_pixels(screen_width, screen_height, background);
 

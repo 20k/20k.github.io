@@ -5,18 +5,36 @@ date:   2025-05-18 00:35:23 +0000
 categories: C++
 ---
 
-General relativity is pretty cool - doing anything practical with it is a bit of a pain, and a lot of information is left to the dark arts. More than that, a significant proportion of information available on the internet is unfortunately incorrect, and many visualisations of black holes specifically are incorrect in one way or another - even ones produced by physicists! Today we're going to focus on two things:
+General relativity is pretty cool. Doing anything practical with it is a bit of a pain, and a lot of information is left to the dark arts. More than that, a significant proportion of information available on the internet is unfortunately incorrect, and many visualisations of black holes are wrong in one way or another - even ones produced by physicists! We're going to focus on two things:
 
 1. Giving you a practical crash course in the theory of general relativity
 2. Turning this into code that actually does useful things
 
 This tutorial series is not going to be a rigorous introduction to the theory of general relativity. There's a lot of that floating around - what we're really missing is how to translate all that theory into action
 
-By the end of this infinitely long tutorial series, you will smash a black hole into a neutron star, without a supercomputer, in just a few minutes flat [^pleasehireme]
+By the end of this infinitely long tutorial series, you will smash black holes and neutron stars together, without a supercomputer, in just a few minutes flat [^pleasehireme]
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/AKSHXiBGPpw?si=z3AAMvbCAP02Pw8p" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 [^pleasehireme]: If someone hired me to do this full time I'd be very happy
 
-Lets get into it
+Our first step along this journey is the classic starting point: The schwarzschild black hole
+
+# What are we actually simulating?
+
+The end goal here is to end up with this:
+
+![Black hole](/assets/schwarzs.png)
+
+First up, a black hole isn't a physical thing you can touch, and the schwarzschild black hole isn't made of anything tangible. It exists purely gravitationally - its a stable, self supporting gravitational field. It is made up of spacetime being curved, and nothing else. The schwarzschild black hole is in the class of objects known as a "vaccum solution", which is to say that there is no matter or what you might call mass[^blackholemass] present whatsoever
+
+What we actually see in this picture is purely as a result of spacetime being curved, bending the path of anything that travels through it. We create light rays at the camera, trace them around our curved spacetime according to the equations of general relativity, and then render the background according to where our rays of light end up. Some rays of light get trapped at the event horizon, resulting in the black 'shadow' of the black hole
+
+![Raytracing](/assets/blograys.png)
+
+There's a reason I got into programming and not art
+
+[^blackholemass]: Black holes have no mass, in a relativistic stress-energy-tensor sense. This might be confusing, because A: Everyone talks about the mass of a black hole, and B: stuff clearly orbits a black hole. What black holes actually have is a mass equivalent parameter, which is often called $M$, and the effect that a black hole has on spacetime is equivalent to a mass-ive body with that mass. This effect is often referred to as mass, but is *not* the same thing as the everyday concept of mass, which is called 'matter'. This level of pedantry is necessary in the future, when we will begin to struggle what we mean by mass. In the general case, there is no single definition for the mass of a black hole, and in some cases it is undefineable
 
 # Breaking down a simulation
 
@@ -26,36 +44,36 @@ There are 3 parts to any simulation
 2. The evolution equations
 3. Termination
 
-We're going to be focusing heavily on the entire pipeline of simulating this from start to end, with complete examples so that nothing gets left in the gaps
+We're going to be focusing on the pipeline of simulating this from start to end, with complete examples so that nothing gets left in the gaps
 
-Step 1 will be left until last, and is not the focus of this article. Step 2 requires us to solve something called the geodesic equation, and to be able understand it we'll need some background
+Step 1 will be left until last, and is not the focus of this article. Step 2 requires us to solve something called the geodesic equation: which is the equations of motion for a ray of light (and objects in general) in general relativity. To be able understand it we'll need some background
 
 # Mathematical background
 
 ## Tensor index notation
 
-General relativity uses its own specific conventions for a lot of maths that is somewhat dense at first glance, though very handy once you get used to it. Lets spend a bit demystifying this, because understanding how to translate this new notation into familiar concepts is important
+General relativity uses its own specific conventions for a lot of maths that is somewhat dense at first glance, though very expressive once you get used to it. This is the very first thing we need to demystify, because understanding how to translate this new notation into familiar concepts is at the core of being able to interpret equations
 
 In general relativity, there's one key idea compared to maths you might be more familiar with, that we need to get a handle on first before we go anywhere else today:
 
 ### Contravariance, and covariance
 
-In everyday maths, a vector is just a vector. We informally express this as something like $v = 1x + 2y + 3z$, where $x$ $y$ and $z$ are our coordinate system basis vectors[^basisvectors]. When dealing with vectors, its not uncommon to index the vector's components by a variable/index:
+In everyday maths, a vector is just a vector. We informally express this as something like $v = 1x + 2y + 3z$, where $x$ $y$ and $z$ are our coordinate system basis vectors[^basisvectors]. When dealing with vectors, its not uncommon to index the vector's components by a variable/index as a shorthand:
 
 [^basisvectors]:
     Basis vectors are the direction vectors of our coordinate system that we use to build our own vectors on top of. When you have a vector $(1, 2, 3)$, its generally implicit in the definition that each of these components refers to a different direction in your coordinate system, where the direction is dependent on your basis vectors. Normally your basis vectors are something like $(1,0,0)$, $(0,1,0)$, $(0,0,1)$ for x, y, and z - but in theory they could be anything - as long as they're 'linearly independent'. All that means is that we aren't repeating ourselves with our basis vectors, and they truly represent different directions
 
 $$ \sum_{k=0}^2 v_k == v_0 + v_1 + v_2$$
 
-This is an example of how we'd express summing the components of a vector. Tensor index notation takes this notation one step further. Indices can be:
+This is an example of how we'd express summing the components of a vector. Tensor index notation takes this notation one step further, by giving the vertical positioning of the index (here $_k$ ) additional meaning. In general relativity, $v_k$, and $v^k$ mean two different things. So, from now on, indices can be:
 
 1. Contravariant[^variance] (raised):
 
-$$ V^\mu $$
+$$ v^\mu $$
 
 2. Covariant[^variance] (lowered)
 
-$$ V_\mu $$
+$$ v_\mu $$
 
 [^variance]:
     Contravariant vectors are so called because when your coordinate system changes, they scale *against* the axis. Eg if you have a position 0.1 in meters, and your coordinate system changes to kilometers, you have 0.1/1000 km. Covariant vectors change *with* the axis. Invariance is something that does not change with a change in the coordinate system, eg scalar values
@@ -63,19 +81,19 @@ $$ V_\mu $$
     A good mnemonic for remembering which is an up index, and which is a down index, is that up indices are contravariant, and down indices are covariant. But seriously, you just have to remember it
 
 
-Additionally, objects such as matrices can have more than one index, and the indices can have any "valence" (up/down-ness). For example, $A^{\mu\nu} $,  $ A^\mu_{\;\;\nu} $, $ A_\mu^{\;\;\nu} $, and $ A_{\mu\nu} $ are all different representations of the same tensor $A$. The first is the contravariant form, the middle two have mixed indices, and the last one is the covariant form
+Additionally, objects such as matrices can have more than one index, and the indices can have any "valence" (up/down-ness). For example, $A^{\mu\nu} $,  $ A^\mu_{\;\;\nu} $, $ A_\mu^{\;\;\nu} $, and $ A_{\mu\nu} $ are all different representations of the same object $A$. The first is the contravariant form, the middle two have mixed indices, and the last one is the covariant form
 
-We can add more dimensions to our objects as well, eg: $ \Gamma^\mu_{\;\;\nu\sigma} $[^oftenwritten] is a 4x4x4 object in this article. These objects are all referred to as "tensors", a term which has lost all mathematical meaning. In its strict definition, a tensor is an object that transforms in a particular fashion in a coordinate change: in practice, everyone calls everything a tensor, unless its relevant for it not to be
+We can add more dimensions to our objects as well, eg: $ \Gamma^\mu_{\;\;\nu\sigma} $[^oftenwritten] is a 4x4x4 object in this article. These objects are all referred to as "tensors", a term which has lost virtually all meaning in computer science. In its strict definition, a tensor is an object that transforms in a particular fashion in a coordinate change: in practice, everyone calls everything a tensor, unless its relevant for it not to be. Here, we will refer to anything which takes an index as being a tensor, unless it is relevant. The other important class of objects are scalars, which are just values
 
-[^oftenwritten]: This example object is generally written slightly more compactly, as $ \Gamma^\mu_{\nu\sigma} $, and is known as "christoffel symbols of the second kind". They crop up a lot
+[^oftenwritten]: This example object is generally written slightly more compactly, as $ \Gamma^\mu_{\nu\sigma} $, and is known as "christoffel symbols of the second kind". They crop up a lot. In the literature, the notation is often slightly ambiguous as to which specific index is raised or lowered, and you have to deduce it from context
 
-Here, we will refer to anything which takes an index as being a tensor, unless it is relevant. The other important class of objects are scalars, which are just values
-
-One thing to note: Tensors and scalars are generally functions of the coordinate system, and vary from point to point in our spacetime. While we write $A_{\mu\nu}$, what we really *mean* is $A_{\mu\nu}(x, y, z, w)$ - the coordinates are just left implicit
+One thing to note: Tensors and scalars are generally functions of the coordinate system, and vary from point to point in our spacetime. While we write $A_{\mu\nu}$, what we really *mean* is $A_{\mu\nu}(x, y, z, w)$ - its really a function that returns a 4x4 matrix, when we feed coordinates into it
 
 ### Changing the valence of an index: raising and lowering indices
 
-The most important object in general relativity, that we'll introduce here is the metric tensor. The metric tensor is a 4x4 symmetric matrix, which is normally spelt $ g_{\mu\nu} $. Because it is symmetric, $ g_{\mu\nu} =  g_{\nu\mu} $, and as a result only has 10 independent components. This is the covariant form of the metric tensor. The metric tensor is also often thought of as a function taking two vector arguments, $g(u,v)$, and performs the same function as the euclidian dot product. That is to say, where in 3 dimensions you might say $a = dot(v, u)$, in general relativity you might say $a = g(v, u)$
+The most important object in general relativity that I'll introduce here is the metric tensor, normally spelt $g_{\mu\nu}$, and is generally given in its covariant form (see the section about spacetime at the end for a more detailed discussion). This object defines spacetime - how it curves, and how things move, and virtually everything in general relativity involves the metric tensor in some form or other
+
+The metric tensor is a 4x4 symmetric matrix. Because it is symmetric, $ g_{\mu\nu} =  g_{\nu\mu} $, and as a result only has 10 independent components. The metric tensor is also often thought of as a function taking two arguments, $g(u,v)$, and performs the same function as the euclidian dot product. That is to say, where in 3 dimensions you might say $a = dot(v, u)$, in general relativity you might say $a = g(v, u)$
 
 For the metric tensor, and the metric tensor *only*, the contravariant form of the metric tensor is calculated as such:
 
@@ -85,7 +103,7 @@ That is to say, the regular 4x4 matrix inverse of treating $g$ as a matrix[^only
 
 [^onlythemetrictensor]: This is generally never true of any other object, and $  A^{\mu\nu} = (A_{\mu\nu})^{-1} $ is likely a mistake
 
-The metric tensor is responsible for many things, and general relativity is in part the study of this fundamental object. To raise an index, we do it as such:
+The metric tensor is responsible for many things, and one of its responsibilities is raising and lowering indices. To raise an index, we do it as such:
 
 $$ v^\mu = g^{\mu\nu} v_\nu $$
 
@@ -137,9 +155,11 @@ tensor<float, 4> example(const tensor<value, 4, 4, 4>& christoff2, const tensor<
 }
 ```
 
-Here, $\nu$ and $\sigma$ are 'dummy' indices (ie they are repeated), and $\mu$ is a 'free' index (not repeated). The size of the resulting tensor is equal to the number of free indices. One more key rule is that only indices of opposite valence sum: eg an up index *always* sums with a down index, and you do not sum two indices of the same valence - though this almost never crops up. See this [^indices] footnote for more examples
+Here, $\nu$ and $\sigma$ are 'dummy' indices (ie they are repeated), and $\mu$ is a 'free' index (not repeated). Each dummy index is summed only with itself, and form the bounds for our $\sum_{}$'s
 
-The last thing we need to learn now is how to raise and lower the indices of a multidimensional object, eg $ A^{\mu\nu} $. As a rule (which seems a bit arbitrary), we set the dummy index to the index we wish to raise and lower, and set the free index to the new relabeled index. Eg to lower the first index, we sum over it, and set the second index of the metric tensor to our new index name
+The size of the resulting tensor is equal to the number of free indices. One more key rule is that only indices of opposite valence sum: eg an up index *always* sums with a down index, and you do not sum two indices of the same valence - though this almost never crops up. Jump to the indices footnote for more examples
+
+The last thing we need to learn now is how to raise and lower the indices of a multidimensional object using the metric tensor, eg $ A^{\mu\nu} $. As a rule, we set the dummy index to the index we wish to raise and lower in our object, and set the free index to the new relabeled index, in the metric. Eg to lower the first index, we sum over it, and set the second index of the metric tensor to our new index name
 
 $$ \Gamma_{\mu\nu\sigma} = g_{\mu\gamma} \Gamma^{\gamma}_{\;\;\nu\sigma} $$
 
@@ -151,7 +171,7 @@ Here's another example:
 
 $$\Gamma^{\mu\nu}_{\;\;\;\sigma} = g^{\nu\gamma} \Gamma^\mu_{\;\;\gamma\sigma}$$
 
-More examples are provided here [^indices2]
+More examples are provided in the indices footnote
 
 At the top, we considered the metric tensor as a function taking two arguments, $g(u,v)$. One helpful way to look at covariant and contravariant indices is as partial function applications of the metric tensor:
 
@@ -160,6 +180,8 @@ $$ u_\mu v^\mu == u^\mu v_\mu == g_{\mu\nu} u^\nu v^\mu == g^{\mu\nu} u_\nu v_\m
 That is to say, we can treat applying the metric tensor to $v^\mu$ to get $v_\mu$ like currying
 
 If like me you've hit this point and are feeling a bit tired, don't worry. These are rules we can refer back to whenever we need them, and the footnotes will contain lots of examples. Here's a picture of my cat for making it this far:
+
+![wesley](/assets/wesleysmaller.png)
 
 ## Raytracing as differential equations, in 3d
 
@@ -408,23 +430,25 @@ First up, we need a tensor type. Libraries like eigen allow you to implement thi
 To calculate the metric tensor, we grab it in matrix form, reading off the components of the line element
 
 ```c++
-tensor<float, 4, 4> schwarzschild_metric(const tensor<float, 4>& position) {
+metric<float, 4, 4> schwarzschild_metric(const tensor<float, 4>& position) {
     float rs = 1;
 
     float r = position[1];
     float theta = position[2];
 
-    return {-(1-rs/r), 0,          0,   0,
-            0,         1/(1-rs/r), 0,   0,
-            0          0,          r*r, 0,
-            0          0, 0,            r*r * sin(theta)*sin(theta)};
+    metric<float, 4, 4> m;
+    m[0, 0] = -(1-rs/r);
+    m[1, 1] = 1/(1-rs/r);
+    m[2, 2] = r*r;
+    m[3, 3] = r*r * std::sin(theta)*std::sin(theta);
+
+    return m;
 }
 ```
 
 ## Step 2: Calculate our tetrads
 
 ```c++
-
 struct tetrad
 {
     std::array<tensor<float, 4>, 4> v;
@@ -435,12 +459,12 @@ tetrad calculate_schwarzschild_tetrad(const tensor<float, 4>& position) {
     float r = position[1];
     float theta = position[2];
 
-    tensor<float, 4> et = {1/sqrt(1 - rs/r), 0, 0, 0};
-    tensor<float, 4> er = {0, sqrt(1 - rs/r), 0, 0};
+    tensor<float, 4> et = {1/std::sqrt(1 - rs/r), 0, 0, 0};
+    tensor<float, 4> er = {0, std::sqrt(1 - rs/r), 0, 0};
     tensor<float, 4> etheta = {0, 0, 1/r, 0};
-    tensor<float, 4> ephi = {0, 0, 0, 1/(r * sin(theta))};
+    tensor<float, 4> ephi = {0, 0, 0, 1/(r * std::sin(theta))};
 
-    return {et, er, etha, ephi};
+    return {et, er, etheta, ephi};
 }
 ```
 
@@ -448,10 +472,10 @@ tetrad calculate_schwarzschild_tetrad(const tensor<float, 4>& position) {
 
 ```c++
 tensor<float, 3> get_ray_through_pixel(int sx, int sy, int screen_width, int screen_height, float fov_degrees) {
-    float fov_rad = (fov_degrees / 360.f) * 2 * M_PI;
-    float f_stop = (width/2) / tan(fov_rad/2);
+    float fov_rad = (fov_degrees / 360.f) * 2 * std::numbers::pi_v<float>;
+    float f_stop = (screen_width/2) / tan(fov_rad/2);
 
-    tensor<float, 3> pixel_direction = {cx - width/2, cy - height/2, f_stop};
+    tensor<float, 3> pixel_direction = {(float)(sx - screen_width/2), (float)(sy - screen_height/2), f_stop};
     //pixel_direction = rot_quat(pixel_direction, camera_quat); //if you have quaternions, or some rotation library, rotate your pixel direction here by your cameras rotation
 
     return pixel_direction.norm();
@@ -471,13 +495,15 @@ geodesic make_lightlike_geodesic(const tensor<float, 4>& position, const tensor<
     geodesic g;
     g.position = position;
     g.velocity = tetrads.v[0] * -1 //Flipped time component, we're tracing backwards in time
-               + tetrads.v[1] * pixel_direction[0]
-               + tetrads.v[2] * pixel_direction[1]
-               + tetrads.v[3] * pixel_direction[2];
+               + tetrads.v[1] * direction[0]
+               + tetrads.v[2] * direction[1]
+               + tetrads.v[3] * direction[2];
 
     return g;
 }
 ```
+
+One thing to note: if we directly plug our ray direction into make_lightlike_geodesic, it may not point where we want it to. Ideally we'd like our z direction to point towards the black hole, our +y direction to be up, and +x to be right. To convert our ray from get_ray_through_pixel, we therefore need to plug in the modified direction {-dir[2], dir[1], dir[0]}
 
 ## Step 5 + 6: Integrate the geodesic equation
 
@@ -487,21 +513,25 @@ auto diff(auto&& func, const tensor<float, 4>& position, int direction) {
     auto p_up = position;
     auto p_lo = position;
 
-    float h = 0.001f;
+    float h = 0.00001f;
 
     p_up[direction] += h;
-    p_lo[direction] += h;
+    p_lo[direction] -= h;
+
+    auto up = func(p_up);
+    auto lo = func(p_lo);
 
     return (func(p_up) - func(p_lo)) / (2 * h);
 }
 
-tensor<float, 4, 4> calculate_christoff2(const tensor<float, 4>& position, auto&& get_metric) {
-    tensor<float, 4, 4> metric = get_metric(position);
-    tensor<float, 4, 4> metric_inverse = metric.invert();
+//get the christoffel symbols that we need for the geodesic equation
+tensor<float, 4, 4, 4> calculate_christoff2(const tensor<float, 4>& position, auto&& get_metric) {
+    metric<float, 4, 4> metric = get_metric(position);
+    inverse_metric<float, 4, 4> metric_inverse = metric.invert();
     tensor<float, 4, 4, 4> metric_diff; ///uses the index signature, diGjk
 
     for(int i=0; i < 4; i++) {
-        tensor<float, 4, 4> differentiated = diff(get_metric, i);
+        auto differentiated = diff(get_metric, position, i);
 
         for(int j=0; j < 4; j++) {
             for(int k=0; k < 4; k++) {
@@ -512,7 +542,7 @@ tensor<float, 4, 4> calculate_christoff2(const tensor<float, 4>& position, auto&
 
     tensor<float, 4, 4, 4> Gamma;
 
-    for(int mu = 0; mu < 4, mu++)
+    for(int mu = 0; mu < 4; mu++)
     {
         for(int al = 0; al < 4; al++)
         {
@@ -522,7 +552,7 @@ tensor<float, 4, 4> calculate_christoff2(const tensor<float, 4>& position, auto&
 
                 for(int sigma = 0; sigma < 4; sigma++)
                 {
-                    sum += metric_inverse[mu, sigma] * (metric_diff[be, sigma, al] + metric_diff[al, sigma, be] - metric_diff[sigma, al, be]);
+                    sum += 0.5f * metric_inverse[mu, sigma] * (metric_diff[be, sigma, al] + metric_diff[al, sigma, be] - metric_diff[sigma, al, be]);
                 }
 
                 Gamma[mu, al, be] = sum;
@@ -535,6 +565,7 @@ tensor<float, 4, 4> calculate_christoff2(const tensor<float, 4>& position, auto&
     return Gamma;
 }
 
+//use the geodesic equation to get our acceleration
 tensor<float, 4> calculate_acceleration_of(const tensor<float, 4>& X, const tensor<float, 4>& v, auto&& get_metric) {
     tensor<float, 4, 4, 4> christoff2 = calculate_christoff2(X, get_metric);
 
@@ -545,7 +576,7 @@ tensor<float, 4> calculate_acceleration_of(const tensor<float, 4>& X, const tens
 
         for(int al = 0; al < 4; al++) {
             for(int be = 0; be < 4; be++) {
-                sum += -christoff2[mu, al, be] * v[al] * v[be]
+                sum += -christoff2[mu, al, be] * v[al] * v[be];
             }
         }
 
@@ -567,27 +598,27 @@ struct integration_result {
     };
 
     hit_type type = UNFINISHED;
-    geodesic g;
-}
+};
 
-integration_result integrate(geodesic& g) {
+//this integrates a geodesic, until it either escapes our small universe or hits the event horizon
+integration_result integrate(geodesic& g, bool debug) {
     integration_result result;
 
-    float dt = 0.1f;
+    float dt = 0.005f;
     float rs = 1;
     float start_time = g.position[0];
 
-    for(int i=0; i < 1024; i++)
+    for(int i=0; i < 100000; i++) {
         tensor<float, 4> acceleration = calculate_schwarzschild_acceleration(g.position, g.velocity);
 
+        //this is leapfrog integration
         g.velocity += acceleration * dt;
         g.position += g.velocity * dt;
 
         float radius = g.position[1];
 
-        if(radius > 100) {
+        if(radius > 10) {
             //ray escaped
-            result.g = g;
             result.type = integration_result::ESCAPED;
 
             return result;
@@ -595,14 +626,12 @@ integration_result integrate(geodesic& g) {
 
         if(radius <= rs + 0.0001f || g.position[0] > start_time + 1000) {
             //ray has very likely hit the event horizon
-            result.g = g;
             result.type = integration_result::EVENT_HORIZON;
 
             return result;
         }
     }
 
-    result.g = g;
     return result;
 }
 ```
@@ -610,3 +639,80 @@ integration_result integrate(geodesic& g) {
 ## Step 7: Going outside
 
 This was never an option
+
+# The end
+
+Success!
+
+![Black hole](/assets/e1success.png)
+
+The first thing you might notice when putting all this together, is that it is excruciatingly slow to render a black hole, even with multiple threads. This problem is embarrassingly parallel, so next time round, we'll be porting the whole thing to the gpu - as well as building ourselves a custom high performance GPU programming langauge to use
+
+The second thing you might notice is those very ugly polar singularities. This can be alleviated by lowering your timestep near the poles, or by exploiting the spherical symmetry of the metric to move rays into a plane where there is no polar singularity
+
+# Footnote: What is spacetime?
+
+In general relativity, objects move through something called 'spacetime'. Instead of having 3 coordinates, and a time coordinate, we have a single unified coordinate $(a, b, c, d)$, where all 4 elements are on equal footing. It might be tempting to ask if this isn't similar to describing an objects position as $(t, x, y, z)$ in newtonian mechanics, but there are two key differences here
+
+1. There is in general no coordinate $t$ that strictly represents time
+2. Spatial distances can no longer be measured consistently, and the only invariant distance is one that fundamentally involves the fourth coordinate called the 'spacetime interval'
+
+Say we have two positions $p_0 = (t_0, x_0, y_0, z_0)$ and $p_1 = (t_1, x_1, y_1, z_1)$, and we'd like to define the distance between them. In newtonian mechanics, we have $d^2 = (x_1 - x_0)^2 + (y_1 - y_0)^2 + (z_1 - z_0)^2$, and we assume that we're measuring at a point in time when $t_1 == t_0$
+
+In general relativity, this distance is no longer invariant unfortunately, and changes from observer to observer. The only thing we can measure consistently is something called the spacetime interval $ds^2$. In flat spacetime (called minkowski), this looks like this:
+
+$$ds^2 = -(t_1 - t_0)^2 + (x_1 - x_0)^2 + (y_1 - y_0)^2 + (z_1 - z_0)^2$$
+
+Here we do have a time coordinate, $t$. Working with minkowski spacetime is special relativity
+
+In general relativity, the above distance equation is generalised, and looks more like this: If $v = p_1 - p_0$, then
+
+$$ds^2 = A v_0^2 + B v_0 v_1 + C v_0 v_2 + D v_0 v_3 + E v_1^2 + F v_1 v_2 + G v_1 v_3 + H v_2^2 + I v_2 v_3 + J v_3^2$$
+
+This is a lot less fun to work with. The coefficients make up a symmetric 4x4 matrix called the metric tensor, and generalises special relativity to curved spacetime with this new invariant spacetime interval. Importantly, general relativity has no fixed coordinate system like cartesian, and no time coordinate to work with: its very difficult to say anything useful given a vector in a random coordinate system
+
+Here are some of the less fun consequences of moving from special to general relativity
+
+1. There is no universal coordinate system. Each coordinate system is only valid for a patch of spacetime, and these patches are stitched together as necessary to traverse the spacetime
+2. Space is not necessarily simply connected, eg wormholes
+3. None of the coordinates have to represent time and are entirely arbitrary
+4. The coordinate system may be periodic
+5. Space as a bulk has no concept of saying which direction is *forwards* in time. In general time is defined as the directions that an observer can move in that spacetime
+6. Time travel is explicitly permitted, and shows up literally everywhere. What direction is forwards in time when the causal structure of spacetime itself forms a loop? Good question
+
+# Footnote: Indices
+
+I am a pattern matcher by nature, so here's a bunch of examples
+
+$$ \begin{aligned}
+&\partial_\mu \beta^\mu &&= \partial_0 \beta^0 + \partial_1 \beta^1 + \partial_2 \beta^2 + \partial_3 \beta^3 \\
+\\
+&A_{ij} \partial_m \beta^m &&= A_{ij}(\partial_0 \beta^0 + \partial_1 \beta^1 + \partial_2 \beta^2 + \partial_3 \beta^3)\\
+\\
+&\Gamma^m \partial_m \beta^i &&= \Gamma^0 \partial_0 \beta^i + \Gamma^1 \partial_1 \beta^i + \Gamma^2 \partial_2 \beta^i + \Gamma^3 \partial_3 \beta^i \\
+\\
+&A_{im} A^m_{\;\;j} &&= A_{i0} A^0_{\;\;j} + A_{i1} A^1_{\;\;j} + A_{i2} A^2_{\;\;j} + A_{i3} A^3_{\;\;j} = B_{ij}\\
+\\
+&\gamma^{mn} D_m A_{ni} - \frac{3}{2} A^m_{\;\;i} \frac{\partial_m \chi}{\chi} &&= \sum_{m=0}^3 \sum_{n=0}^3 \gamma^{mn} D_mA_{ni} - \frac{3}{2\chi} \sum_{m=0}^3 A^m_{\;\;i} \partial_m \chi \\
+\\
+&A^{im} (3\alpha \frac{\partial_m \chi}{\chi} + 2\partial_m \alpha) &&= \sum_{m=0}^3 A^{im} (3\alpha \frac{\partial_m \chi}{\chi} + 2\partial_m \alpha) = \frac{3 \alpha}{\chi}\sum_{m=0}^3 A^{im} \partial_m \chi + 2 \sum_{m=0}^3 \partial_m \alpha \\
+\end{aligned}
+$$
+
+Edge cases for raising and lowering, we *can* raise inside a derivative
+
+$$\partial_{\mu} \beta^{\nu} = g^{k\nu} \partial_{\mu} \beta_k$$
+
+And here I introduce some of the slightly more obscure notation
+
+$$ \begin{aligned}
+\partial^\mu \beta_\nu &= g^{\mu k} \partial_k \beta_\nu \\
+\\
+D^\mu \beta_\nu &= g^{\mu k} D_k \beta_\nu \\
+\\
+A_{ij,}^{\;\;\;\;k} &= \partial^k A_{ij} = g^{mk} \partial_m A_{ij}\\
+\end{aligned}$$
+
+One other fun thing is that derivatives are often juggled like they are variables, so keep an eye out for that
+
+$$(\partial_k + 2) A_{ij} = \partial_k A_{ij} + 2A_{ij}$$
