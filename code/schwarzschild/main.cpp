@@ -1,10 +1,11 @@
-#include <iostream>
-#include <vec/tensor.hpp>
+#include "../common/vec/tensor.hpp"
 #include <numbers>
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
 #include <thread>
 #include <vector>
+#include <cmath>
+#include <algorithm>
 
 metric<float, 4, 4> schwarzschild_metric(const tensor<float, 4>& position) {
     float rs = 1;
