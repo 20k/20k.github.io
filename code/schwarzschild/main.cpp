@@ -81,6 +81,7 @@ auto diff(auto&& func, const tensor<float, 4>& position, int direction) {
     return (func(p_up) - func(p_lo)) / (2 * h);
 }
 
+//get the christoffel symbols that we need for the geodesic equation
 tensor<float, 4, 4, 4> calculate_christoff2(const tensor<float, 4>& position, auto&& get_metric) {
     metric<float, 4, 4> metric = get_metric(position);
     inverse_metric<float, 4, 4> metric_inverse = metric.invert();
@@ -121,6 +122,7 @@ tensor<float, 4, 4, 4> calculate_christoff2(const tensor<float, 4>& position, au
     return Gamma;
 }
 
+//use the geodesic equation to get our acceleration
 tensor<float, 4> calculate_acceleration_of(const tensor<float, 4>& X, const tensor<float, 4>& v, auto&& get_metric) {
     tensor<float, 4, 4, 4> christoff2 = calculate_christoff2(X, get_metric);
 
@@ -155,6 +157,7 @@ struct integration_result {
     hit_type type = UNFINISHED;
 };
 
+//this integrates a geodesic, until it either escapes our small universe or hits the event horizon
 integration_result integrate(geodesic& g, bool debug) {
     integration_result result;
 
@@ -299,8 +302,8 @@ std::vector<tensor<float, 3>> get_pixels(int screen_width, int screen_height, co
 
 int main()
 {
-    int screen_width = 400;
-    int screen_height = 300;
+    int screen_width = 1000;
+    int screen_height = 800;
 
     sf::VideoMode mode(screen_width, screen_height);
     sf::RenderWindow win(mode, "I am a black hole");
