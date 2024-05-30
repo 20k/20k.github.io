@@ -521,6 +521,7 @@ tetrad calculate_schwarzschild_tetrad(const tensor<float, 4>& position) {
 ```c++
 tensor<float, 3> get_ray_through_pixel(int sx, int sy, int screen_width, int screen_height, float fov_degrees) {
     float fov_rad = (fov_degrees / 360.f) * 2 * std::numbers::pi_v<float>;
+    //use trig to calculate the distance from our origin, to the plane
     float f_stop = (screen_width/2) / tan(fov_rad/2);
 
     tensor<float, 3> pixel_direction = {(float)(sx - screen_width/2), (float)(sy - screen_height/2), f_stop};

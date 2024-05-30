@@ -62,6 +62,26 @@
     color: #000000;
 }
 
+.book.color-theme-2 .k {
+    color: #358ce9;
+}
+
+.book.color-theme-2 .mf {
+    color: #358ce9;
+}
+
+.book.color-theme-2 .mi {
+    color: #d7c905;
+}
+
+.book.color-theme-2 .kt {
+    color: #358ce9;
+}
+
+.book.color-theme-2 .o {
+    color: #dddddd;
+}
+
 .page-inner {
     max-width: {{ site.page_width | default: '800px' }};
 }
