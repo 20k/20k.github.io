@@ -7,6 +7,7 @@
 #include <cmath>
 #include <algorithm>
 
+//https://www2.mpia-hd.mpg.de/homes/tmueller/pdfs/catalogue_2014-05-21.pdf 2.2.1
 metric<float, 4, 4> schwarzschild_metric(const tensor<float, 4>& position) {
     float rs = 1;
 
@@ -27,6 +28,7 @@ struct tetrad
     std::array<tensor<float, 4>, 4> v;
 };
 
+//https://www2.mpia-hd.mpg.de/homes/tmueller/pdfs/catalogue_2014-05-21.pdf 2.2.6
 tetrad calculate_schwarzschild_tetrad(const tensor<float, 4>& position) {
     float rs = 1;
     float r = position[1];
@@ -83,6 +85,7 @@ auto diff(auto&& func, const tensor<float, 4>& position, int direction) {
 }
 
 //get the christoffel symbols that we need for the geodesic equation
+////https://www2.mpia-hd.mpg.de/homes/tmueller/pdfs/catalogue_2014-05-21.pdf you can check that this function returns the correct results, against 2.2.2a
 tensor<float, 4, 4, 4> calculate_christoff2(const tensor<float, 4>& position, auto&& get_metric) {
     metric<float, 4, 4> metric = get_metric(position);
     inverse_metric<float, 4, 4> metric_inverse = metric.invert();

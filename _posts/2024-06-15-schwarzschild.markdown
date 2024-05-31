@@ -85,7 +85,7 @@ One thing to note: Tensors and scalars are generally functions of the coordinate
 
 ### Raising and lowering indices
 
-The most important object in general relativity is the metric tensor, spelt $g_{\mu\nu}$, and is generally given in its covariant form. This object defines spacetime - how it curves, how we measure lengths and angles - and virtually everything in general relativity involves the metric tensor in some form or other
+The most important object in general relativity is the metric tensor, spelt $g_{\mu\nu}$, and it is generally given in its covariant form. This object defines spacetime - how it curves, how we measure lengths and angles - and virtually everything in general relativity involves the metric tensor in some form or other
 
 The metric tensor is a 4x4 symmetric matrix. Because it is symmetric, $ g_{\mu\nu} =  g_{\nu\mu} $, and as a result only has 10 independent components. The metric tensor is also often thought of as a function taking two arguments, $g(u,v)$, and performs the same role as the euclidian dot product. That is to say, where in 3 dimensions you might say $a = dot(v, u)$, in general relativity you might say $a = g(v, u)$
 
@@ -93,7 +93,7 @@ For the metric tensor, and the metric tensor *only*, the contravariant form of t
 
 $$ g^{\mu\nu} = (g_{\mu\nu})^{-1} $$
 
-That is to say, the regular 4x4 matrix inverse of treating $g$ as a matrix[^onlythemetrictensor]
+Ie, the regular 4x4 matrix inverse of treating $g$ as a matrix[^onlythemetrictensor]
 
 [^onlythemetrictensor]: This is generally never true of any other object, and $  A^{\mu\nu} = (A_{\mu\nu})^{-1} $ is likely a mistake
 
@@ -160,7 +160,7 @@ The size of the resulting tensor is equal to the number of free indices. One mor
 
 #### Raising and lowering multidimensional objects
 
-The last thing we need to learn now is how to raise and lower the indices of a multidimensional object, eg $ A^{\mu\nu} $. To do this, you set a dummy index to the slot we wish to change the valence of - lets say the second, giving $A^{\mu i}$. Then, the metric tensor gets the dummy index in one slot giving $g_{i ?}$, and the original free index in the other slot giving $g_{i\nu}$, with the full expression then being $g_{i\nu} A^{\mu i} = A^{\mu}_{\;\;\nu}$. The contravariant form of the metric tensor is used to raise indices, and the covariant form is used to lower them
+The last thing we need to learn now is how to raise and lower the indices of a multidimensional object, eg $ A^{\mu\nu} $. To do this, you set a dummy index to the slot we wish to change the valence of - lets say the second, giving $A^{\mu i}$. Then, the metric tensor gets the dummy index in one slot giving $g_{i ?}$, and the original free index in the other slot giving $g_{i\nu}$. The full expression is then: $g_{i\nu} A^{\mu i} = A^{\mu}_{\;\;\nu}$. The contravariant form of the metric tensor is used to raise indices, and the covariant form is used to lower them
 
 More examples are provided in the indices footnote
 
@@ -219,7 +219,7 @@ The metric tensor defines which one of these categories a geodesic falls into, d
 2. Lightlike: $g_{\mu\nu} v^\mu v^\nu = 0$
 3. Spacelike: $g_{\mu\nu} v^\mu v^\nu > 0$
 
-Note that there are alternate definitions[^altdef]. Geodesics cannot change their type, so a timelike geodesic is timelike everywhere
+Note that there are alternate definitions[^altdef]. Geodesics cannot change their type, so a timelike geodesic is timelike everywhere along the curve it traces out
 
 [^altdef]:
     Its also common to use the following definitions for timelike and spacelike geodesics in terms of the spacetime interval
@@ -297,7 +297,7 @@ for(int mu = 0; mu < 4, mu++)
 }
 ```
 
-Phew. This loop may look quite slow to calculate, and it is. GR is not cheap to render in the general case. There are some symmetries here that reduce the computational complexity, notably that $\Gamma^\mu_{\alpha\beta} = \Gamma^\mu_{\beta\alpha}$. Additionally, in many metrics most of $\Gamma$'s components are 0, which helps too
+Phew. This loop may look quite slow to calculate, and it is. GR is not cheap to render in the general case. There are some symmetries here that reduce the computational complexity, notably that $\Gamma^\mu_{\alpha\beta} = \Gamma^\mu_{\beta\alpha}$, $g_{\mu\nu} = g_{\nu\mu}$, and $g^{\mu\nu} = g^{\nu\mu}$. Additionally, in many metrics most of $\Gamma$'s components are 0, which helps too
 
 So: to integrate a geodesic, we start off with an appropriate position, $x^\mu$, an appropriate velocity, $v^\mu$, and calculate our acceleration via the geodesic equation. We then integrate this. During the process of this, we'll need a metric tensor $g_{\mu\nu}$ and the partial derivatives of it
 
@@ -399,7 +399,7 @@ In this phase, what we're trying to do is construct an initial geodesic velocity
 
 The question then becomes: how do we translate that ray direction $d$ in 3d space, to a valid geodesic velocity in 4d spacetime? The answer is: tetrads
 
-## Tetrads are my own personal nightmare, and soon they will be yours
+## Tetrads are the 10th circle of hell
 
 Tetrads, also known as frame fields, or vielbein, are a field of four 4-vectors, that are orthonormal (ie perpendicular, and unit lengthed, with respect to the metric tensor). These make up the "frame of reference" of an observer, and are used to translate between what one observer sees and experiences, and the wider universe that we're describing
 
@@ -463,7 +463,7 @@ Note that these are not unique, and represent a specific kind of observer in thi
 
 # The complete procedure
 
-Step 1: We calculate our metric tensor $g_{\mu\nu}$ at our starting coordinate, our camera position. It is a 4x4 matrix, defined generally by our line element. Our cameras position is in schwarzschild coordinates: $(t, r, \theta, \phi)$, and this is the starting position $x^\mu$ of our geodesics
+Step 1: We calculate our metric tensor $g_{\mu\nu}$ at our starting coordinate: our camera position. It is a 4x4 matrix, defined generally by our line element. Our cameras position is in schwarzschild coordinates: $(t, r, \theta, \phi)$, and this is the starting position $x^\mu$ of our geodesics
 
 Step 2: We calculate our tetrad basis vectors, $e^\mu_i$, which currently we find from a paper
 
@@ -473,7 +473,7 @@ Step 4: We then use this tetrad to construct a geodesic velocity in our curved s
 
 Step 5: Once we have a position, and velocity, we plug these into the geodesic equation, and integrate, recalculating the metric tensor as we go
 
-Step 6: Once we have run a certain number of iterations, or our coordinate radius r > some constant, or r < the event horizon, we terminate the simulation and render
+Step 6: Once we have run a certain number of iterations, or our coordinate radius r > some constant, or r ~< the event horizon, we terminate the simulation and render
 
 Step 7: Then we go outside and talk to our friends and family, who are probably getting worried
 
@@ -486,6 +486,7 @@ First up, we need a tensor type. Libraries like eigen allow you to implement thi
 To calculate the metric tensor, we grab it in matrix form, reading off the components from the line element
 
 ```c++
+//https://www2.mpia-hd.mpg.de/homes/tmueller/pdfs/catalogue_2014-05-21.pdf 2.2.1
 metric<float, 4, 4> schwarzschild_metric(const tensor<float, 4>& position) {
     float rs = 1;
 
@@ -510,6 +511,7 @@ struct tetrad
     std::array<tensor<float, 4>, 4> v;
 };
 
+//https://www2.mpia-hd.mpg.de/homes/tmueller/pdfs/catalogue_2014-05-21.pdf 2.2.6
 tetrad calculate_schwarzschild_tetrad(const tensor<float, 4>& position) {
     float rs = 1;
     float r = position[1];
