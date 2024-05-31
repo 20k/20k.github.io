@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Implementing General Relativity: Rendering the Schwarzschild black hole, in C++"
-date:   2024-05-31 17:39:00 +0000
+date:   2024-05-31 16:39:00 +0000
 categories: C++
 ---
 
