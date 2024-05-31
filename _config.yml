@@ -49,7 +49,7 @@ syntax_highlighter_style: github2
 toc:
     enabled: true
     h_min: 1
-    h_max: 3
+    h_max: 4
 
 color_scheme: dark
 
