@@ -56,7 +56,7 @@ General relativity uses its own specific conventions for a lot of maths that is 
 
 ### Contravariance, and covariance
 
-In everyday maths, a vector is just a vector. We informally express this as something like $v = 1x + 2y + 3z$, where $x$ $y$ and $z$ are our coordinate system basis vectors[^basisvectors]. When dealing with vectors, its common to index the vector's components by a variable/index as a shorthand:
+In everyday maths, a vector is just a vector. We informally express this as something like $v = (1,2,3)$ or $v = 1x + 2y + 3z$, where $x$ $y$ and $z$ are our coordinate system basis vectors[^basisvectors]. When dealing with vectors, its common to index the vector's components by an index as a shorthand:
 
 [^basisvectors]:
     Basis vectors are the direction vectors of our coordinate system that we use to build our own vectors on top of. When you have a vector $(1, 2, 3)$, its generally implicit in the definition that each of these components refers to a different direction in your coordinate system, where the direction is dependent on your basis vectors. Normally your basis vectors are something like $(1,0,0)$, $(0,1,0)$, $(0,0,1)$ for x, y, and z - but in theory they could be anything - as long as they're 'linearly independent'. All that means is that we aren't repeating ourselves with our basis vectors, and they truly represent different directions
@@ -75,7 +75,7 @@ This is an example of how we'd express summing the components of a vector. Tenso
     A good mnemonic for remembering which is an up index, and which is a down index, is that up indices are contravariant, and down indices are covariant. But seriously, you just have to remember it
 
 
-Instead of running from 0-2 in 3d space, indices run over 0-3 in general relativity, as all objects are 4 dimensional. Additionally, objects such as matrices have more than one index, and the indices can have any "valence" (up/down-ness). For example, $A^{\mu\nu} $,  $ A^\mu_{\;\;\nu} $, $ A_\mu^{\;\;\nu} $, and $ A_{\mu\nu} $ are all different representations of the same object $A$. The first is the contravariant form, the middle two have mixed indices, and the last one is the covariant form
+Instead of running from 0-2 in 3d space, indices run over 0-3 in general relativity, as most objects are 4 dimensional. Additionally, objects such as matrices have more than one index, and the indices can have any "valence" (up/down-ness). For example, $A^{\mu\nu} $,  $ A^\mu_{\;\;\nu} $, $ A_\mu^{\;\;\nu} $, and $ A_{\mu\nu} $ are all different representations of the same object $A$. The first is the contravariant form, the middle two have mixed indices, and the last one is the covariant form
 
 We can add more dimensions to our objects as well, eg: $ \Gamma^\mu_{\;\;\nu\sigma} $[^oftenwritten] is a 4x4x4 object in this article. These objects are all referred to as "tensors", a term which has lost virtually all meaning in computer science, and is struggling in physics as well. In its strict definition, a tensor is an object that transforms in a particular fashion in a coordinate change: in practice, everyone calls everything a tensor, unless its relevant for it not to be. Here, we will refer to anything which takes an index as being a tensor, unless it is relevant. The other important class of objects are scalars, which are just values
 
@@ -85,9 +85,9 @@ One thing to note: Tensors and scalars are generally functions of the coordinate
 
 ### Raising and lowering indices
 
-The most important object in general relativity is the metric tensor, spelt $g_{\mu\nu}$, and is generally given in its covariant form (see the section about spacetime at the end for a more detailed discussion). This object defines spacetime - how it curves, how we measure lengths and angles - and virtually everything in general relativity involves the metric tensor in some form or other
+The most important object in general relativity is the metric tensor, spelt $g_{\mu\nu}$, and is generally given in its covariant form. This object defines spacetime - how it curves, how we measure lengths and angles - and virtually everything in general relativity involves the metric tensor in some form or other
 
-The metric tensor is a 4x4 symmetric matrix. Because it is symmetric, $ g_{\mu\nu} =  g_{\nu\mu} $, and as a result only has 10 independent components. The metric tensor is also often thought of as a function taking two arguments, $g(u,v)$, and performs the same function as the euclidian dot product. That is to say, where in 3 dimensions you might say $a = dot(v, u)$, in general relativity you might say $a = g(v, u)$
+The metric tensor is a 4x4 symmetric matrix. Because it is symmetric, $ g_{\mu\nu} =  g_{\nu\mu} $, and as a result only has 10 independent components. The metric tensor is also often thought of as a function taking two arguments, $g(u,v)$, and performs the same role as the euclidian dot product. That is to say, where in 3 dimensions you might say $a = dot(v, u)$, in general relativity you might say $a = g(v, u)$
 
 For the metric tensor, and the metric tensor *only*, the contravariant form of the metric tensor is calculated as such:
 
@@ -160,9 +160,7 @@ The size of the resulting tensor is equal to the number of free indices. One mor
 
 #### Raising and lowering multidimensional objects
 
-The last thing we need to learn now is how to raise and lower the indices of a multidimensional object, eg $ A^{\mu\nu} $. To do this, you set a dummy index to the slot we wish to change the valence of. Then, the metric tensor gets the dummy index as well in one slot, and the free index in the other slot. The contravariant form of the metric tensor is used to raise indices, and the covariant form is used to lower them
-
-Eg take the object $A^{\mu\nu}$. If we want to lower the second index, we set the second slot to a dummy index, which we'll call $\sigma$, to get $A^{\mu\sigma}$. As we're lowering an index, we need our covariant metric tensor $g_{\mu\nu}$. Then, we get our metric tensor, and in one slot put the dummy index $\sigma$ to get $g_{\sigma?}$, and in the other slot put the old free index we replaced earlier, to get $g_{\sigma\nu}$. Putting this all together gives us $g_{\sigma\nu} A^{\mu\sigma} = A^{\mu}_{\;\;\nu}$
+The last thing we need to learn now is how to raise and lower the indices of a multidimensional object, eg $ A^{\mu\nu} $. To do this, you set a dummy index to the slot we wish to change the valence of - lets say the second, giving $A^{\mu i}$. Then, the metric tensor gets the dummy index in one slot giving $g_{i ?}$, and the original free index in the other slot giving $g_{i\nu}$, with the full expression then being $g_{i\nu} A^{\mu i} = A^{\mu}_{\;\;\nu}$. The contravariant form of the metric tensor is used to raise indices, and the covariant form is used to lower them
 
 More examples are provided in the indices footnote
 
@@ -183,9 +181,9 @@ $$\begin{align}
 \end{align}
 $$
 
-In newtonian dynamics, $a^\mu$ might be the acceleration given by all the other bodies in our simulation applying a force to us (which we will label with the index ${s}$):[^newton]
+In newtonian dynamics, $a^\mu$ might be the acceleration given by all the other bodies in our simulation applying a force to us (which we will label with the index ${m}$):[^newton]
 
-$$a^\mu = (-G \sum_{k=0, k != s}^n \frac{m_k}{|x_s - x_k|^3} (x_s - x_k))^\mu$$
+$$a^\mu = (-G \sum_{k=0, k != m}^n \frac{m_k}{|x_m - x_k|^3} (x_m - x_k))^\mu$$
 
 [^newton]: [Newtonian gravity](https://en.wikipedia.org/wiki/Newton%27s_law_of_universal_gravitation#Vector_form)
 
@@ -221,7 +219,7 @@ The metric tensor defines which one of these categories a geodesic falls into, d
 2. Lightlike: $g_{\mu\nu} v^\mu v^\nu = 0$
 3. Spacelike: $g_{\mu\nu} v^\mu v^\nu > 0$
 
-Note that there are alternate definitions[^altdef]
+Note that there are alternate definitions[^altdef]. Geodesics cannot change their type, so a timelike geodesic is timelike everywhere
 
 [^altdef]:
     Its also common to use the following definitions for timelike and spacelike geodesics in terms of the spacetime interval
@@ -241,7 +239,7 @@ A geodesic has two properties: a position $x^\mu$, and a velocity $v^\mu$. Veloc
 2. The concept of time as experienced by an observer (including particles), called proper time, $d\tau$
 3. A fairly arbitrary parameter called $ds$, that simply represents how far we're moving along our curve
 
-No observer can move at the speed of light, so 2. is [right out](https://www.youtube.com/watch?v=xOrgLj9lOwk) for lightlike geodesics, though works well for timelike geodesics. 1. Is dependent on our coordinate system and is hard to apply generally (not every coordinate system has a time coordinate), and we have to modify our geodesic equation as well - so in general we will always be using 3 for light
+No observer can move at the speed of light, so 2. is [right out](https://www.youtube.com/watch?v=xOrgLj9lOwk) for lightlike geodesics, though works well for timelike geodesics. 1. Is dependent on our coordinate system and is hard to apply generally (not every coordinate system has a time coordinate), and we have to modify our geodesic equation as well. So in general, we will always be using 3 for light
 
 This makes our velocity: $v^\mu = \frac{dx^\mu}{ds}$ - which we already knew, but now we know what $ds$ means - which in this case is not all that much. The specific $ds$ we get from case 3. is known as an affine parameter, and represents a parameterisation of our curve/geodesic. The geodesic equation that we have already seen is adapted for this parameterisation[^adapted]
 
@@ -259,7 +257,7 @@ We're going to solve one of our major components now: We've already briefly seen
 
 $$ a^\mu = -\Gamma^\mu_{\alpha\beta} v^\alpha v^\beta $$
 
-Where more formally, our acceleration $ a^\mu == \frac{d^2x^\mu}{ds^2} $, $v^\mu = \frac{dx^\mu}{ds}$, and
+Where more formally, our acceleration $ a^\mu = \frac{d^2x^\mu}{ds^2} $, $v^\mu = \frac{dx^\mu}{ds}$, and
 
 $$ \Gamma^\mu_{\alpha\beta} = \frac{1}{2} g^{\mu\sigma} (g_{\sigma\alpha,\beta} + g_{\sigma\beta,\alpha} - g_{\alpha\beta,\sigma}) $$
 
@@ -269,7 +267,7 @@ is how we calculate $\Gamma^\mu_{\alpha\beta}$, an object known by the catchy na
 
 $$ g_{\mu\nu,\sigma} == \partial_\sigma g_{\mu\nu} $$
 
-Aka, taking the partial derivatives in the direction $\sigma$, as defined by our coordinate system. This equation is likely to stretch our earlier understanding of how to sum things, so we'll write it out manually[^bearinmind]:
+Ie, taking the partial derivatives in the direction $\sigma$, as defined by our coordinate system. This equation is likely to stretch our earlier understanding of how to sum things, so we'll write it out manually[^bearinmind]:
 
 $$ \Gamma^\mu_{\alpha\beta} = \frac{1}{2} \sum_{\sigma=0}^3 g^{\mu\sigma} (\partial_\beta g_{\sigma\alpha} + \partial_\alpha g_{\sigma\beta} - \partial_\sigma g_{\alpha\beta})$$
 
@@ -311,13 +309,11 @@ We're getting close to being able to integrate our equations now. We now need th
 
 # A real metric tensor
 
-There are many different black holes, and many different ways of representing each of them. Today we're going to pick the simplest kind: the schwarzschild black hole. Its important to note, schwarzschild black holes are just one kind of black hole, in a whole field of different kinds of black holes. The classic schwarzschild metric is also only one representation of the schwarzschild black hole - there are other coordinate systems for it that are radically different, and have correspondingly different metric tensors
-
-A metric tensor fundamentally defines the curvature of spacetime - and it is the central object of general relativity. It also implicitly expects you to be using a certain coordinate system, though the coordinates can be anything. The metric tensor is often expressed in a form called the "line element", which reads like this for schwarzschild:
+There are many different black holes, and many different ways of representing each of them. Today we're going to pick the simplest kind: the schwarzschild black hole - a black hole with only a mass parameter, and no charge or spin. A spacetime like schwarzschild is defined by its metric tensor, and this is often expressed in a form called the "line element":
 
 $$ ds^2 = -d\tau^2 = -(1-\frac{r_s}{r}) dt^2 + (1-\frac{r_s}{r})^{-1} dr^2 + r^2 d\Omega^2 $$
 
-This is the wikipedia definition[^wikipedia], where $d\Omega^2 = d\theta^2 + sin^2(\theta) d\phi^2$, and $r_s$ is the schwarzschild radius - that is twice the 'mass'[^blackholemass] $M$ in geometric units of $c=g=1$
+This is the wikipedia definition[^wikipedia], where $d\Omega^2 = d\theta^2 + sin^2(\theta) d\phi^2$, and $r_s$ is the schwarzschild radius - that is twice the 'mass'[^blackholemass] $M$ in geometric units of $c=g=1$. This equation completely defines the schwarzschild spacetime, and the black hole within it
 
 [^wikipedia]: [Schwarzschild Metric](https://en.wikipedia.org/wiki/Schwarzschild_metric#Formulation)
 
@@ -365,11 +361,11 @@ Being triply clear, this means that eg $g_{00} == k_1$, and $g_{20} == \frac{1}{
 |$\theta$|0|0|$r^2$|0|
 |$\phi$|0|0|0|$r^2 sin^2(\theta)$|
 
-Remember that this matrix is a function of the coordinate system, and it must be recalculated at a specific point in space where you want to use it. If we want to raise or lower the velocity of our geodesic, we must calculate the metric tensor *at* the position where the velocity vector is, ie $x^\mu$[^theyaretangentvectors]
+Remember that this matrix is a function of the coordinate system, and it must be recalculated at a specific point in space where you want to use it. If you want to raise or lower the velocity of a geodesic, you must calculate the metric tensor *at* the position where the velocity vector is, ie $x^\mu$[^theyaretangentvectors]
 
 [^theyaretangentvectors]: Tensors and scalar functions are generally associated with a point in spacetime, which is their origin in a sense. More formally they are tangent vectors - tangent to the 'manifold' that is spacetime. Their origin is where you must calculate the metric tensor (and other tensors) to be able to do operations on them
 
-While we can evaluate whether or not a geodesic is timelike, or lightlike by using the line element, you can also directly use the metric tensor we just constructed, as such
+While you can evaluate whether or not a geodesic is timelike, or lightlike by using the line element, you can also directly use the metric tensor in its matrix form, as such
 
 $$ds^2 = -d\tau^2 = g_{\mu\nu} v^\mu v^\nu$$
 
@@ -391,7 +387,7 @@ So far we have:
 
 3. Understood how to plug numbers into the geodesic equation, to get our acceleration
 
-It might surprise you to learn that this is the simple part of what we're trying to do, in general. For the purposes of trying to minimise the sheer information overload today before we get up and running with our first black hole, we're going to use some pre-baked initial conditions, instead of calculating them ourselves
+It might surprise you to learn that this is the simple part of what we're trying to do, in general. For the purposes of trying to minimise the sheer information overload today before we get up and running with our first black hole, I'm going to present some pre-baked initial conditions, instead of calculating them the long way round
 
 # Initial conditions
 
@@ -399,9 +395,9 @@ Initial conditions in this corner of general relativity are not a good, fun time
 
 ## What are we trying to get out of our initial conditions?
 
-In this phase, what we're trying to do is construct an initial geodesic velocity $v^\mu$ that represents where our lightray is going. In a regular, flat, 3d simulation, its very easy - we define a plane in front of our camera, and construct a ray, from the camera's origin, through a pixel on that plane. If a pixel has a position $p=(x-width/2, y-height/2, f)$ (f being the planes distance from the camera) on that plane, then the ray's direction in 3d space is $d=norm(p)$
+In this phase, what we're trying to do is construct an initial geodesic velocity $v^\mu$ that represents where our lightray is going. In a regular, flat, 3d simulation, its very easy - you define a plane in front of the camera, and construct a ray, from the camera's origin, through a pixel on that plane. If a pixel has a position $p=(x-width/2, y-height/2, f)$ (f being the planes distance from the camera) on that plane, then the ray's direction in 3d space is $d=norm(p)$
 
-The question then becomes: how do we translate our ray direction $d$ in 3d space, to a valid geodesic velocity in 4d spacetime? The answer is: tetrads
+The question then becomes: how do we translate that ray direction $d$ in 3d space, to a valid geodesic velocity in 4d spacetime? The answer is: tetrads
 
 ## Tetrads are my own personal nightmare, and soon they will be yours
 
@@ -425,6 +421,8 @@ The technical definition of locally flat is the minkowski metric, $\eta_{ij}$, w
 |x|0|1|0|0
 |y|0|0|1|0
 |z|0|0|0|1
+
+Or as a line element, $ds^2 = -d\tau^2 = -dt^2 + dx^2 + dy^2 + dz^2$
 
 Here we want to make a light ray, which is defined as such:
 
@@ -562,7 +560,7 @@ geodesic make_lightlike_geodesic(const tensor<float, 4>& position, const tensor<
 }
 ```
 
-One thing to note: if we directly plug our ray direction into `make_lightlike_geodesic` from `get_ray_through_pixel`, it may not point where we want it to. Ideally we'd like our z direction to point towards the black hole, our +y direction to be up, and +x to be right. To convert our ray from get_ray_through_pixel to this convention, we therefore need to plug in the modified direction {-dir[2], dir[1], dir[0]} when we plug it into `make_lightlike_geodesic`
+One thing to note: if we directly plug our ray direction into `make_lightlike_geodesic` from `get_ray_through_pixel`, it may not point where we want it to. Ideally we'd like our z direction to point towards the black hole, our +y direction to be up, and +x to be right. To convert our ray from `get_ray_through_pixel` to this convention, we therefore need to plug in the modified direction {-dir[2], dir[1], dir[0]} when we plug it into `make_lightlike_geodesic`
 
 ## Step 5 + 6: Integrate the geodesic equation
 
@@ -711,7 +709,7 @@ The first thing you might notice when putting all this together, is that it is e
 
 The second thing you might notice is those classic very ugly polar singularities. This can be alleviated by lowering the timestep near the poles, or by exploiting the spherical symmetry of the metric to move rays into a plane where there is no polar singularity
 
-That's the end of this article though, and we'll be moving on to greener pastures. Do note, this is the most general form of integrator for general relativity, and what we've built can handle *any* spacetime. You should be able to take a fresh metric tensor, and a set of tetrads from this[^this] paper, and implement it now. I'd recommend 2.17.1, as we will be revisiting kerr in a future article and you can check your workings
+That's the end of this article though, and we'll be moving on to greener pastures. Do note, this is the most general form of integrator for general relativity, and what we've built can handle *any* spacetime. You should be able to take a fresh metric tensor, and a set of tetrads from this[^this] paper, and simply replace the ones we've coded in. I'd recommend 2.17.1, as we will be revisiting kerr in a future article and you can check your workings
 
 As always, I've implemented all of this in a free tool called the [Relativity Workshop](https://github.com/20k/geodesic_raytracing), which you can use to fly around black holes and a lot more in realtime
 
@@ -794,10 +792,10 @@ That is to say, we can treat applying the metric tensor to $u^\mu$ to get $u_\mu
 
 [A GPU raytracer](https://arxiv.org/pdf/1601.02063.pdf)
 
-[A CPU raytracer](https://arxiv.org/pdf/1511.06025.pdf), which was a primary source when I started learning
+[A CPU raytracer](https://arxiv.org/pdf/1511.06025.pdf), which was a primary source when I started learning, and an extremely valuable reference. Note it uses the opposite metric signature convention, so some translating has to be done
 
 [Tetrads](https://arxiv.org/pdf/0704.0986.pdf)
 
-[Tetrads, tetrads, and more tetrads](https://arxiv.org/pdf/1908.10757)
+[The tetrad goldmine](https://arxiv.org/pdf/1908.10757)
 
 If you need any help, or you get stuck, please feel free to send me a message or email me, I'm always happy to help!
