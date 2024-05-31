@@ -190,6 +190,10 @@ $$a^\mu = (-G \sum_{k=0, k != m}^n \frac{m_k}{|x_m - x_k|^3} (x_m - x_k))^\mu$$
 
 And in straight line raytracing, $a^\mu=0$, allowing us to directly integrate the equations
 
+![artiste](/assets/integration.png)
+
+Here, each $x$ is a point along the integrated curve, $v$ is a velocity multiplied by our timestep (which is the segment length in euler integration), and the purple checkmarks $a^\mu$ are where we evaluate the acceleration
+
 # Geodesics
 
 ## Geodesics: the basics
@@ -366,7 +370,7 @@ Remember that this matrix is a function of the coordinate system, and it must be
 
 [^theyaretangentvectors]: Tensors and scalar functions are generally associated with a point in spacetime, which is their origin in a sense. More formally they are tangent vectors - tangent to the 'manifold' that is spacetime. Their origin is where you must calculate the metric tensor (and other tensors) to be able to do operations on them
 
-While you can evaluate whether or not a geodesic is timelike, or lightlike by using the line element, you can also directly use the metric tensor in its matrix form, as such
+While you can evaluate whether or not a geodesic is timelike, or lightlike by using the line element - you can also directly use the metric tensor in its matrix form, as such:
 
 $$ds^2 = -d\tau^2 = g_{\mu\nu} v^\mu v^\nu$$
 
@@ -456,7 +460,7 @@ e^3_3 &= \frac{1}{r sin(\theta)}
 \end{align}
 $$
 
-Note that these are not unique, and represent a specific kind of observer in this spacetime, here, a stationary one. While there *is* a unique 'natural'[^exampletetrad] choice, it doesn't inherently have any special meaning[^notethat]. Also note that this paper refers to the upper indices of the tetrads by their coordinate basis, ie $\partial_t$ means the 0th component of the tetrad $e_t$, which is $e_0$ for us. A vector may in general be written $a \partial_t + b\partial_x + c\partial_y + d\partial_z$ assuming a coordinate system $(t, x, y, z)$, and the paper linked above follows this convention for specifying the tetrad vectors
+Note that these are not unique, and represent a specific kind of observer in this spacetime, here, a stationary one. While there *is* a unique 'natural'[^exampletetrad] choice, it doesn't inherently have any special meaning[^notethat]. Also note that this paper refers to the upper indices of the tetrads by their coordinate basis, ie $\partial_t$ means the 0th component of the tetrad $e_t$, which is $e_0^0$ for us. A vector may in general be written $a \partial_t + b\partial_x + c\partial_y + d\partial_z$ assuming a coordinate system $(t, x, y, z)$, and the paper linked above follows this convention for specifying the tetrad vectors
 
 [^exampletetrad]:  See [Catalogue of Spacetimes](https://www2.mpia-hd.mpg.de/homes/tmueller/pdfs/catalogue_2014-05-21.pdf) 1.4.21 for the direct example for diagonal metrics. In general, you can calculate this tetrad via gram schmidt orthonormalisation, treating the metric tensor as column vectors
 
@@ -714,7 +718,7 @@ The second thing you might notice is those classic very ugly polar singularities
 
 That's the end of this article though, and we'll be moving on to greener pastures. Do note, this is the most general form of integrator for general relativity, and what we've built can handle *any* spacetime. You should be able to take a fresh metric tensor, and a set of tetrads from this[^this] paper, and simply replace the ones we've coded in. I'd recommend 2.17.1, as we will be revisiting kerr in a future article and you can check your workings
 
-As always, I've implemented all of this in a free tool called the [Relativity Workshop](https://github.com/20k/geodesic_raytracing), which you can use to fly around black holes and a lot more in realtime
+As always, I've implemented all of this in a free tool called the [Relativity Workshop](https://github.com/20k/geodesic_raytracing), which you can use to fly around black holes and a lot more in realtime. If anyone needs a physics guy to do cool physics stuff, that'd also be pretty neat
 
 [^this]: [Catalogue of Spacetimes](https://www2.mpia-hd.mpg.de/homes/tmueller/pdfs/catalogue_2014-05-21.pdf)
 
