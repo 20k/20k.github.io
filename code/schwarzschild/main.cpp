@@ -254,6 +254,7 @@ tensor<float, 3> render_pixel(int x, int y, int screen_width, int screen_height,
     }
 }
 
+//this spawns a bunch of threads, and roughly load balances pixels between them. Pixels can take very different times to simulate
 std::vector<tensor<float, 3>> get_pixels(int screen_width, int screen_height, const sf::Image& background)
 {
     std::vector<tensor<float, 3>> result;
