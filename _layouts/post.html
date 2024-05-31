@@ -2,7 +2,21 @@
 <html lang="en" >
     <head>
 
-        {%- include head.html -%}
+    {%- include head.html -%}
+    <script>
+    MathJax = {
+      tex: {
+        inlineMath: [['$', '$'], ['\\(', '\\)']]
+      },
+      svg: {
+        fontCache: 'global'
+      }
+    };
+    </script>
+
+    <script type="text/javascript" id="MathJax-script" async
+      src="https://d3eoax9i5htok0.cloudfront.net/mathjax/latest/MathJax.js?config=TeX-AMS-MML_HTMLorMML">
+    </script>
 
         {% if page.previous %}
             <link rel="prev" href="{{site.baseurl}}{{page.previous.url}}" />
