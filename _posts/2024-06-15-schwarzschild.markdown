@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Implementing General Relativity: Rendering the Schwarzschild black hole, in C++"
-date:   2025-05-19 00:35:23 +0000
+date:   2024-05-31 17:39:00 +0000
 categories: C++
 ---
 
@@ -74,14 +74,15 @@ This is an example of how we'd express summing the components of a vector. Tenso
 
     A good mnemonic for remembering which is an up index, and which is a down index, is that up indices are contravariant, and down indices are covariant. But seriously, you just have to remember it
 
+Objects such as matrices have more than one index, and the indices can have any "valence" (up/down-ness). For example, $A^{\mu\nu} $,  $ A^\mu_{\;\;\nu} $, $ A_\mu^{\;\;\nu} $, and $ A_{\mu\nu} $ are all different representations of the same object $A$. The first is the contravariant form, the middle two have mixed indices, and the last one is the covariant form. We can add more dimensions to our objects too: eg: $ \Gamma^\mu_{\;\;\nu\sigma} $[^oftenwritten] is a 4x4x4 object here. Here I will call all of these objects 'tensors'[^tensors]
 
-Instead of running from 0-2 in 3d space, indices run over 0-3 in general relativity, as most objects are 4 dimensional. Additionally, objects such as matrices have more than one index, and the indices can have any "valence" (up/down-ness). For example, $A^{\mu\nu} $,  $ A^\mu_{\;\;\nu} $, $ A_\mu^{\;\;\nu} $, and $ A_{\mu\nu} $ are all different representations of the same object $A$. The first is the contravariant form, the middle two have mixed indices, and the last one is the covariant form
-
-We can add more dimensions to our objects as well, eg: $ \Gamma^\mu_{\;\;\nu\sigma} $[^oftenwritten] is a 4x4x4 object in this article. These objects are all referred to as "tensors", a term which has lost virtually all meaning in computer science, and is struggling in physics as well. In its strict definition, a tensor is an object that transforms in a particular fashion in a coordinate change: in practice, everyone calls everything a tensor, unless its relevant for it not to be. Here, we will refer to anything which takes an index as being a tensor, unless it is relevant. The other important class of objects are scalars, which are just values
+The [physical interpretation](https://physics.stackexchange.com/questions/776498/physical-intuition-of-raising-and-lowering-indices-in-gr) of this, and what it really means for an index to be contravariant or covariant is difficult to interpret unfortunately, so this section is going to feel very arbitrary. This is one of those things you'll just have to roll with, until you're a lot deeper into the maths
 
 [^oftenwritten]: This example object is generally written slightly more compactly, as $ \Gamma^\mu_{\nu\sigma} $, and is known as "christoffel symbols of the second kind". In the literature, the notation can be slightly ambiguous as to which specific index in an object is raised or lowered, and you have to deduce it from context
 
-One thing to note: Tensors and scalars are generally functions of the coordinate system, and vary from point to point in our spacetime. While we write $A_{\mu\nu}$, what we really *mean* is $A_{\mu\nu}(x, y, z, w)$ - its secretly a function that returns a 4x4 matrix, when we feed coordinates into it
+One thing to note: Tensors and scalars (objects without indices) are generally functions of the coordinate system, and vary from point to point in our spacetime. While we write $A_{\mu\nu}$, what we really *mean* is $A_{\mu\nu}(x, y, z, w)$ - its secretly a function that returns a 4x4 matrix, when we feed coordinates into it
+
+[^tensors]: These objects are often all referred to as "tensors", a term which has lost virtually all meaning in computer science, and is struggling in physics as well. In its strict definition, a tensor is an object that transforms in a particular fashion in a coordinate change: in practice, everyone calls everything a tensor, unless its relevant for it not to be. Here, we will refer to anything which takes an index as being a tensor, unless it is relevant. The other important class of objects are scalars, which are just values
 
 ### Raising and lowering indices
 
@@ -764,16 +765,18 @@ Remember that the metric tensor is always symmetric, so we could also write this
 
 $$ \Gamma_{\mu\nu\sigma} = g_{\gamma\mu} \Gamma^{\gamma}_{\;\;\nu\sigma} $$
 
-Raising inside a derivative is also just fine:
+When reading partial derivatives with raise indices, be careful: The expression $\partial_{\mu} \beta^{\nu}$ probably doesn't mean this:
 
-$$\partial_{\mu} \beta^{\nu} = g^{k\nu} \partial_{\mu} \beta_k$$
+$$\partial_{\mu} \beta^{\nu} = g^{k\nu} (\partial_{\mu} \beta_k)$$
 
-And here I introduce some of the slightly more obscure notation
+But instead
+
+$$\partial_{\mu} \beta^{\nu} = \partial_{\mu} (g^{k\nu} \beta_k)$$
+
+Here I introduce some of the slightly more obscure notation
 
 $$ \begin{aligned}
 \partial^\mu \beta_\nu &= g^{\mu k} \partial_k \beta_\nu \\
-\\
-D^\mu \beta_\nu &= g^{\mu k} D_k \beta_\nu \\
 \\
 A_{ij,}^{\;\;\;\;k} &= \partial^k A_{ij} = g^{mk} \partial_m A_{ij}\\
 \end{aligned}$$
