@@ -162,7 +162,7 @@ struct integration_result {
 };
 
 //this integrates a geodesic, until it either escapes our small universe or hits the event horizon
-integration_result integrate(geodesic& g, bool debug) {
+integration_result integrate(geodesic& g) {
     integration_result result;
 
     float dt = 0.005f;
@@ -234,7 +234,7 @@ tensor<float, 3> render_pixel(int x, int y, int screen_width, int screen_height,
 
     geodesic my_geodesic = make_lightlike_geodesic(camera_position, modified_ray, tetrads);
 
-    integration_result result = integrate(my_geodesic, x == 300 && y == 150);
+    integration_result result = integrate(my_geodesic);
 
     if(result.type == integration_result::EVENT_HORIZON || result.type == integration_result::UNFINISHED)
         return {0,0,0};
