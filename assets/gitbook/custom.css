@@ -23,7 +23,6 @@
 
 @media (max-width: 1240px) {
     .book-body .body-inner {
-        position: absolute;
         margin-top: 50px;
         min-height: calc(100% - 50px)
     }
@@ -92,25 +91,25 @@
 
 /* scrollbar */
 ::-webkit-scrollbar {
-    width: 5px;
-    height: 5px;
+    width: 10px;
+    height: 10px;
 }
 
 ::-webkit-scrollbar-track-piece {
     /* background-color: rgba(125, 125, 125, 0.2); */
-    -webkit-border-radius: 6px;
+    -webkit-border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:vertical {
-    height: 5px;
+    height: 10px;
     background-color: rgba(7, 17, 27, .2);
-    -webkit-border-radius: 6px;
+    -webkit-border-radius: 10px;
 }
 
 ::-webkit-scrollbar-thumb:horizontal {
-    width: 5px;
+    width: 10px;
     background-color: rgba(125, 125, 125, 0.2);
-    -webkit-border-radius: 6px;
+    -webkit-border-radius: 10px;
 }
 
 /* Style for search page on mobile screens */
