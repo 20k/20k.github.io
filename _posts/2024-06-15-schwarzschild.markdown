@@ -799,6 +799,8 @@ That is to say, we can treat applying the metric tensor to $u^\mu$ to get $u_\mu
 
 # Further reading
 
+[A good article by a friend on geodesics in the hamiltonian formalism](https://michaelmoroz.github.io/TracingGeodesics/)
+
 [A GPU raytracer](https://arxiv.org/pdf/1601.02063.pdf)
 
 [A CPU raytracer](https://arxiv.org/pdf/1511.06025.pdf), which was a primary source when I started learning, and an extremely valuable reference. Note it uses the opposite metric signature convention, so some translating has to be done
