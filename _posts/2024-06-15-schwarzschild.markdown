@@ -710,7 +710,7 @@ Success, mostly!
 
 ![Black hole](/assets/e1success.PNG)
 
-Debugging these simulations is a big pain. If you have a camera position of $(0, 5, pi/2, -pi/2)$ and use an fov of $90^o$, you'll end up with the above picture for $r_s = 1$. The code accompanying this article can be found on the [blog's repository](https://github.com/20k/blog/code/schwarzschild/), with the main file [here](https://github.com/20k/blog/code/schwarzschild/main.cpp). Its only dependencies are SFML, and a tensor implementation (so checkout with submodules). I would recommend compiling with `-O3 -ffast-math -NDEBUG`
+Debugging these simulations is a big pain. If you have a camera position of $(0, 5, pi/2, -pi/2)$ and use an fov of $90^o$, you'll end up with the above picture for $r_s = 1$. The code accompanying this article can be found on the [blog's repository](https://github.com/20k/20k.github.io/tree/master/code/schwarzschild), with the main file [here](https://github.com/20k/20k.github.io/blob/master/code/schwarzschild/main.cpp). Its only dependencies are SFML, and a tensor implementation (so checkout with submodules). I would recommend compiling with `-O3 -ffast-math -NDEBUG`
 
 The first thing you might notice when putting all this together, is that it is excruciatingly slow to render a black hole, even with multiple threads. This problem is embarrassingly parallel, so next time round, we'll be porting the whole thing to the gpu - as well as building ourselves a custom high performance GPU programming language to use
 
