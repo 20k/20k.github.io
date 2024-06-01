@@ -56,8 +56,9 @@
 }
 
 .book .book-body .book-header  {
-    background: #00000000;
-    padding-right: 50px;
+    background: #ffffff;
+    padding-right: 20px;
+    background-clip: content-box;
 }
 
 .book.color-theme-2 .k {
