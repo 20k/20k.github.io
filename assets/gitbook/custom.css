@@ -2,7 +2,7 @@
 ---
 
 .book-body {
-    overflow-y: scroll;
+    overflow-y: hidden;
 }
 
 .book-body .book-header {
@@ -25,6 +25,9 @@
     .book-body .body-inner {
         margin-top: 50px;
         min-height: calc(100% - 50px)
+    }
+    .book-body {
+        overflow-y: scroll;
     }
 }
 
