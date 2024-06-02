@@ -50,6 +50,7 @@ toc:
     h_max: 4
 
 color_scheme: dark
+future: true
 
 remote_theme: https://github.com/sighingnow/jekyll-gitbook
 #theme: just-the-docs
