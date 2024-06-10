@@ -637,12 +637,9 @@ namespace value_impl
 
             value<T> operator[](const value<int>& index)
             {
-                value<T> val;
-                val.abstract_value = name;
-
                 value<T> op;
                 op.type = op::BRACKET;
-                op.args = {val, index};
+                op.args = {name, index};
 
                 return op;
             }

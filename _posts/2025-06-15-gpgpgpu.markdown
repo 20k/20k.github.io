@@ -1621,18 +1621,15 @@ There's been quite a few things omitted here that you may want to address if you
 
 The details of this segment don't really fit neatly in anywhere else
 
-## buffer<T> operator[]
+## `buffer<T>::operator[]`
 
 ```c++
 struct buffer {
     value<T> operator[](const value<int>& index)
     {
-        value<T> val;
-        val.abstract_value = name;
-
         value<T> op;
         op.type = op::BRACKET;
-        op.args = {val, index};
+        op.args = {name, index};
 
         return op;
     }
@@ -1642,12 +1639,12 @@ struct buffer {
 ### Code Generation
 
 ```c++
-//v1[v2]
+    //v1[v2]
     if(v.type == op::BRACKET)
         return "(" + value_to_string(v.args.at(0)) + "[" + value_to_string(v.args.at(1)) + "])";
 ```
 
-## buffer_mut<T> operator[]
+## `buffer_mut<T>::operator[]`
 
 ```c++
 template<typename T>
@@ -1661,7 +1658,7 @@ struct buffer_mut : buffer<T> {
 }
 ```
 
-## literal<T>::get()
+## `literal<T>::get()`
 
 ```c++
 template<typename T>
@@ -1675,7 +1672,7 @@ struct literal {
 };
 ```
 
-## read_only_image<N>::read()
+## `read_only_image<N>::read()`
 
 This function is a bit of a pain. In OpenCL, an image read always returns a vector of 4 components. We have a bit of a formalism mismatch here, our tensors aren't really equivalent to OpenCLs vectors - they aren't a single object, but a collection of 4 completely unrelated variables grouped in a tensor. Eg where opencl has:
 
@@ -1789,7 +1786,7 @@ The code generation side is simpler:
 
 Note that `type_to_suffix` is not the same set of suffixes that we use for literals. We have: `f` for `float`, `i` for int, `ui` for unsigned int, and `h` for half
 
-## write_only_image<N>::write()
+## `write_only_image<N>::write()`
 
 ```c++
 template<int N>
