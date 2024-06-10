@@ -1526,11 +1526,11 @@ The implementation is now done. Its time to ~~take more cat pictures~~ examine h
 
 1. Both programs without any ieee non compliant transforms applied, nor constant propagation
 2. Trig[^notan] functions and sqrt set to use the native gpu functions[^sincostan]: `native_sin` + `native_sqrt`
-3. Native trig, + native divisions
-4. Native divisions only
+3. native + native_divide
+4. native_divide only
 5. `-cl-fast-relaxed-math`
-6. native trig + `-cl-fast-relaxed-math`
-7. native trig + native division + `-cl-fast-relaxed-math`
+6. native + `-cl-fast-relaxed-math`
+7. native + native_divide + `-cl-fast-relaxed-math`
 
 [^notan]: Tan was excluded, as it gives a black screen in the handwritten version
 
@@ -1599,7 +1599,7 @@ One major downside is that we're still heavily relying on the compiler to do com
 
 [^over9000]: Some of our chunkiest kernels in the future will have over 100 arguments, making this slightly tedious to do by hand
 
-## Source code comparison
+## Source code
 
 One of the things that I think has worked out fairly well is that the code we write for the GPU really isn't all that different to the code we wrote initially for the CPU, whereas the OpenCL version necessarily has to change a lot. You may find it interesting to compare for yourself:
 
@@ -1608,6 +1608,8 @@ One of the things that I think has worked out fairly well is that the code we wr
 [Our single source](https://github.com/20k/20k.github.io/tree/master/code/gpgpgpu/schwarzschild_single_source.hpp)
 
 [Regular OpenCL](https://github.com/20k/20k.github.io/tree/master/code/gpgpgpu/hand_written.cl)
+
+[Full single source project](https://github.com/20k/20k.github.io/tree/master/code/gpgpgpu)
 
 # The end
 
