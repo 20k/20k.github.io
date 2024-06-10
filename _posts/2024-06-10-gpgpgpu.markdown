@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Building a fast single source GPUPU language, in C++"
-date:   2025-05-31 16:39:00 +0000
+date:   2024-06-10 23:39:00 +0000
 categories: C++
 ---
 
