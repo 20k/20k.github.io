@@ -33,11 +33,11 @@ Its worth examining what our alternatives here are:
 | SYCL | Single source | Lower performance |
 | webgl/webgpu | very good portability | Bad performance, serious limitations make it unusable for us, wgsl |
 
-We're looking for a cross platform, cross vendor solution, which leaves Vulkan, OpenCL, and perhaps SYCL. Vulkan is increasingly a viable GPGPU solution for the future[^politik] (and SPIR-V is a tempting compilation target, which may be a future article), but is still missing features here and there, so the somewhat venerable OpenCL is the 'best' option of a limited selection bunch
+We're looking for a cross platform, cross vendor solution, which leaves Vulkan, OpenCL, and perhaps SYCL. Vulkan is increasingly a viable GPGPU solution for the future[^politik], but is still missing features here and there, so the somewhat venerable OpenCL is the 'best' option out of a limited selection
 
 [^politik]: This footnote was originally a long, slightly unprofessional rant about graphics vendors' behaviour in the GPU space. Suffice to say that Khronos and Vulkan have an uphill battle in reaching this goal
 
-The biggest issue for any choice here is that shader languages are, by and large, pretty unsuited for what we're trying to do. Vulkan is often written in GLSL, and OpenCL is a restricted variant of C99 (though some version of C++ on OpenCL does exist), both of which are very challenging languages[^written] for trying to build a complex project in
+The biggest issue for any choice here is that shader languages are, by and large, pretty unsuited for what we're trying to do. Vulkan is often written in GLSL, and OpenCL is a restricted variant of C99 (though some version of C++ on OpenCL does exist), both of which are very challenging languages[^written] for trying to build a complex project in. I'd like to use OpenCL as a backend in this article here, and generate all of our kernels programmatically. If you'd like to follow along with source, you can find the code [here](https://github.com/20k/20k.github.io/tree/master/code/gpgpgpu)
 
 [^written]: I have written a lot of OpenCL in my life, including a much more advanced GR raytracer in OpenCL - and it is not maintainable in the long term. C lacks any kind of good higher level abstractions, and on the GPU you're borderline banned from using structs or even the limited abstractions C does provide for performance reasons. OpenCL/C also bans a lot of useful macro functionality as well, complicating many traditional techniques
 
@@ -72,7 +72,7 @@ void copy_buffer(buffer<float> in, buffer_mut<float> out) {
 }
 ```
 
-and be able to run something like `std::string my_kernel = kernel_to_string(copy_buffer)` to produce a kernel that is equivalent to our original OpenCL version
+in C++, and be able to run something like `std::string my_kernel = kernel_to_string(copy_buffer)` to produce a kernel that is equivalent to our original OpenCL version
 
 To start off, we're going to leverage the `value` type written in the [automatic differentiation](https://20k.github.io/c++/2024/05/18/forward-backward-differentiation.html) segment of this article series, and work on the bodies of these functions first. To recap, a `value` is a type that forms a tree of expressions, which we can evaluate at a later date:
 
@@ -87,7 +87,7 @@ To achieve our goals of building a high performance GPGPU language, we need the 
 
 1. A way to turn a value into a string
 2. Control flow, and side effects
-3. The ability to declare kernels in C++, that gets translated to an equivalent declaration on the GPU
+3. The ability to declare kernels in C++, that are translated to an equivalent declaration on the GPU
 4. Mutability
 5. Deterministic Optimisations
 
@@ -95,7 +95,7 @@ The purpose of this article is not to present a detailed analysis of a particula
 
 # Value to string
 
-[Previously](https://20k.github.io/c++/2024/05/18/forward-backward-differentiation.html), we designed a simple `value` type together - this is a tree. Each node is either a value, or an operation. First up, we need to extend this class to hold an abstract value, in the form of a `std::string abstract_value` member, holding something like `"x"` or `"v1"` - giving us a data layout that looks like this:
+[Previously](https://20k.github.io/c++/2024/05/18/forward-backward-differentiation.html), we designed a simple `value` type together - this is a tree. Each node is either a value, or an operation. First up, we need to extend this class to hold an abstract value, in the form of a `std::string abstract_value` member, holding something like `"x"` or `"v1"`. This gives us a data layout that looks like this:
 
 ```c++
 struct value_base {
@@ -106,7 +106,7 @@ struct value_base {
     std::string abstract_value; //if we are a named value, like eg a variable, instead of a concrete value
 };
 
-//just a strongly typed tag type
+//Enforces strongly typed arithmetic operations
 template<typename T>
 struct value<T> : value_base {
 
@@ -205,7 +205,7 @@ std::string value_to_string(const value_base& v) {
 };
 ```
 
-Making sure you have a consistent bracketing scheme is important here, eg correctly bracketing negative values (-123.f). With the advent of widespread support for std::to_chars, we can finally turn arbitrary literals into the shortest, roundtrippable floating point representation, which makes our lives a lot easier
+Making sure you have a consistent bracketing scheme is important here, eg correctly bracketing negative values `(-123.f)` to make sure we correctly implement the order of operations. With the advent of widespread support for std::to_chars, we can also finally turn arbitrary literals into the shortest, roundtrippable floating point representation, which makes this segment a lot simpler
 
 With all of this, we can now manipulate expressions with symbols in, like so
 
@@ -250,52 +250,46 @@ struct execution_context_base {
 struct execution_context : execution_context_base {
     int id = 0;
 
-    void add(const value_base& in) override
-    {
+    void add(const value_base& in) override {
         to_execute.push_back(in);
     }
 
-    int next_id() override
-    {
+    int next_id() override {
         return id++;
     }
 };
 ```
 
-This stores a linear[^linearseq] sequence of commands to execute. To generate our final string, we'll simply iterate over the list to_execute, and generate code sequentially. Once we do this, we'll have generated our full program. The reason why we define a `_base` type, is because you may have your own strategy for how you want to build to_execute, or you might want to stuff extra data into this struct
+This stores a linear[^linearseq] sequence of commands to execute. To generate our final string, we'll simply iterate over the list `to_execute`, and generate code sequentially via `value_to_string`. Once we do this, we'll have generated our full program. The reason why we define a `_base` type, is because you may have your own strategy for how you want to build `to_execute`, or you might want to stuff extra data into this struct
 
 [^linearseq]: Though clearly, if you can prove that the statements don't affect each other (which is pretty simple in our language), you can reorder statements. Doing that in a way that improves performance is above my paygrade[^zero] currently
 
 [^zero]: That'd be £0. I was seriously ill for a number of years, and this tutorial series is hopefully my way into doing physics research
 
-One thing to note here, is that I've leaned towards making this global (per-thread). I'm generally against global state, but each kernel only ever needs to access one execution context - unless we want to generate functions without our kernels (which is straightforwardly modelled as a stack). In practice, making it global this simplifies a lot of code tremendously, and I haven't run into any negatives yet
+One thing to note here, is that I've leaned towards making this global (per-thread). I'm generally against global state, but each kernel only ever needs to access one execution context - unless we want to generate functions without our kernels - which is straightforwardly modelled as a stack. In practice, making it global this simplifies a lot of code tremendously, and I haven't run into any negatives yet
 
 To implement this, looks like this:
 
 ```c++
-std::vector<execution_context_base*>& context_stack()
-{
+std::vector<execution_context_base*>& context_stack() {
     static thread_local std::vector<execution_context_base*> ctx;
     return ctx;
 }
 
 template<typename T>
-T& push_context()
-{
+T& push_context()  {
     T* ptr = new T();
     context_stack().push_back(ptr);
     return *ptr;
 }
 
-void pop_context()
-{
+void pop_context() {
     auto ptr = context_stack().back();
     delete ptr;
     context_stack().pop_back();
 }
 
-execution_context_base& get_context()
-{
+execution_context_base& get_context() {
     return *context_stack().back();
 }
 ```
@@ -318,13 +312,11 @@ The best way I've found is to use a struct, which is defined like this
 ```c++
 template<typename T>
 struct mut : T {
-    const T& as_constant() const
-    {
+    const T& as_constant() const {
         return *this;
     }
 
-    void set_from_constant(const T& in)
-    {
+    void set_from_constant(const T& in) {
         static_cast<T&>(*this) = in;
     }
 }
@@ -336,7 +328,7 @@ which we can use like `mut<valuef> some_value`, or `tensor<mut<valuef>, 4> some_
 
 ## Feature Wishlist
 
-Its time to define and implement all the impure parts of the language, like control flow, assignment, declarations, and everything else. We need to support the following features that fall under the category of 'side effect':[^name]
+Its time to define and implement all the impure parts of the language: control flow, assignment, declarations, and everything else. We need to support the following features that fall under the category of 'side effect':[^name]
 
 [^name]: There might be a better name than side effect here. Its anything which can't really be easily expressed as an expression, statement management perhaps? Impurity? I'd be interested to know if there's a better term
 
