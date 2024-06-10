@@ -340,7 +340,7 @@ Its time to define and implement all the impure parts of the language: control f
 6. Return
 7. Break
 
-This segment is a mixture of reference material, and implementation. You'll likely get the gist of how this works fairly quickly, in which case you can probably skip to kernel declaration
+This segment is a mixture of reference material, and implementation. You'll likely get the gist of how this works fairly quickly, in which case you can skip to [kernel declaration](https://20k.github.io/c++/2024/06/10/gpgpgpu.html#kernel-declaration)
 
 ## Branches
 
