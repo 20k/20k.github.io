@@ -1035,7 +1035,7 @@ struct write_only_image : image<N> {
 
 ## Argument processing
 
-Each function argument maps to an `input`, defined in the next section. We deduce some basic information (constness, is it a pointer, whats the type) about the argument based on its type, and stuff that into our `input``
+Each function argument maps to an `input`, defined in the next section. We deduce some basic information (constness, is it a pointer, whats the type) about the argument based on its type, and stuff that into our `input`
 
 Argument names are dynamically generated - and are set while iterating over the types
 
@@ -1528,9 +1528,7 @@ The implementation is now done. Its time to ~~take more cat pictures~~ examine h
 
 We'll also compare with, and without the programmatic transforms applied, which includes the IEEE non compliant ones. A hand written version of the OpenCL implementation using native_divide is difficult to do by hand with any kind of fairness - to represent how I might actually write this code, divisions within the hot loop were transformed
 
-Click [here](https://github.com/20k/20k.github.io/tree/master/code/gpgpgpu/schwarzschild_single_source.hpp) for the single source code, [here](/code/gpgpgpu/hand_written.cl) for the hand written OpenCL version, and [here](https://github.com/20k/20k.github.io/blob/master/code/schwarzschild/main.cpp) for the original CPU code we wrote last time round
-
-All times are in ms/frame, and were loosely eyeballed within 1-2ms
+Click [here](https://github.com/20k/20k.github.io/tree/master/code/gpgpgpu/schwarzschild_single_source.hpp) for the single source code, [here](/code/gpgpgpu/hand_written.cl) for the hand written OpenCL version, and [here](https://github.com/20k/20k.github.io/blob/master/code/schwarzschild/main.cpp) for the original CPU code we wrote last time round. All times are in ms/frame, and were loosely eyeballed within 1-2ms
 
 | .                      | Standard | Native    | Native + native_divide | native_divide only | Relaxed | Native + Relaxed |  Native + native_divide + Relaxed |
 | Generated              | 185      | 164[^nana]| 155                    | 178                | 72      | 48 | 48 |
@@ -1566,7 +1564,7 @@ So, the results we get here are essentially what I expected. The differences bet
 
 The real benefit for us in this technique comes down to the fact that by applying a deterministic, easy and very justifiable set of basic optimisations, we're able to cut our runtime by more than 50%, and approach the same speed of the native + relaxed case, without turning on `-cl-fast-relaxed-math`, or friends. In the scientific-computing-super-rigor case (no native functions, no relaxed math), we're able to get a 2.5x performance increase while not altering our result whatsoever, as the eliminated expressions correspond only to expressions that can't be eliminated due to nan propagation (and signed zeros). The thing is, while we could[^intheory] turn off nan/nonfinite/zero handling in OpenCL - we actively still *do* want nan handling (see this[^nana] footnote for a practical example), we just don't want it within our expressions
 
-Now we have a way to handle this kind of thing correctly, while sacrificing neither performance nor reproducability
+Now we have a way to handle this kind of thing correctly, while sacrificing neither performance nor reproducibility
 
 [^intheory]: `-cl-finite-math-only` and `-cl-no-signed-zeros` can be used in conjunction to allow the transforms we use on the AST to be performed
 
