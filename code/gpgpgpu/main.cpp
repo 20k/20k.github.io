@@ -165,7 +165,8 @@ int main() {
 
     //#define HAND_WRITTEN
     #ifdef HAND_WRITTEN
-    cl_kernel kern = build_program_and_get_kernel(cl, source2, "hand_raytracer", "-cl-fast-relaxed-math");
+    //-cl-fast-relaxed-math for the fast flag
+    cl_kernel kern = build_program_and_get_kernel(cl, source2, "hand_raytracer", "");
     #endif // HAND_WRITTEN
 
     while(win.isOpen())
@@ -227,29 +228,4 @@ int main() {
     }
 
     return 0;
-
-    #if 0
-    value<float> x = 2;
-    x.name = "x";
-
-    value<float> result = my_func(x);
-
-    dual<float> as_dual = result.replay([]<typename T>(const T& in)
-    {
-        return dual<T>(in);
-    },
-    [](const value_base& base)
-    {
-        if(base.name == "x")
-            return dual<float>(std::get<float>(base.concrete), 1.f);
-        else
-            return dual<float>(std::get<float>(base.concrete), 0.f);
-    });
-
-    //our function is 2x^2 + 2
-    //our real part is therefore 10
-    //our derivative is D(2x^2 + x), which gives 4x + 1
-    //which gives 9
-    std::cout << as_dual.real << " " << as_dual.dual << std::endl;
-    #endif
 }
