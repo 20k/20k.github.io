@@ -1,0 +1,153 @@
+---
+layout: post
+title:  "Implementing General Relativity: What's inside a black hole?"
+date:   2025-05-18 00:35:23 +0000
+categories: C++
+---
+
+Hello! If you're like me, you've often wondered what it would be like to fall into a black hole, and what's on the inside. In this article, we're going to examine in a lot of detail how exactly to simulate your trip into a black hole, and then we'll numerically disprove several common myths
+
+The scope of this article is as follows:
+
+1. We're going to examine the role of coordinate systems in general relativity
+2. Then we'll upgrade to a black hole which lets us cross the event horizon
+3. We're going to learn how to calculate initial conditions for *any* metric tensor, regardless of whether or not someone's helpfully done the maths for us
+4. You're going to understand how to take an observer, and 'boost' it by modifying its velocity and frame of reference
+5. Then we'll learn how to follow the path that an observer takes as it moves around spacetime - and in our case, into whatever lies inside a black hole
+6. After this, we'll upgrade to a much more exciting, spinning black hole, and take lots of pretty screenshots
+
+We're starting to get into things that people haven't really simulated before, and this is an area where many (most?) simulations are incorrect
+
+# Myths
+
+This article will examine several things that people often state are true in general relativity, and we'll reference this list when we're able to disprove each item
+
+1. As you fall into a black hole, the universe turns into a point behind you, and winks out of existence
+2. It takes forever to fall into a black hole
+3. When you cross the event horizon of a black hole, you see the universe age infinitely
+
+# Coordinate systems
+
+In the first episode on rendering the schwarzschild black hole, I presented you with this:
+
+$$ ds^2 = -d\tau^2 = -(1-\frac{r_s}{r}) dt^2 + (1-\frac{r_s}{r})^{-1} dr^2 + r^2 d\Omega^2 $$
+
+And called it the metric tensor for a schwarzschild black hole. This was a white lie - this is, in the more technical sense, *a* representation of the schwarzschild black hole, in a particular coordinate system known as schwarzschild coordinates. Here's another representation:
+
+$$ ds^2 = -(1-rs/r) dv^2 + 2 dvdr + r^2 d\Omega^2 $$
+
+Known as eddington-finkelstein coordinates. And another:
+
+$$ ds^2 = -d\tau^2 + rs/r dp^2 + r^2 d\Omega^2 $$
+
+Known as Lemaître coordiantes
+
+The schwarzschild metric is an abstract object, which we can express in different coordinate systems. All of the above metrics describe the same fundamental object, but in different coordinates. These different coordinate systems may describe different parts of the spacetime, may have some special properties, or might be totally abstract - but there isn't a difference in what they represent
+
+Generally, we pick different coordinate systems because A: we have to pick one to do calculations in, and B: often a specific coordinate system has a useful property. For example, schwarzschild coordinates, the one we used, has an artificial coordinate singularity at the event horizon, which makes it useless for what we're trying to do. #2 is schwarzschild in eddington-finkelstein coordinates, and is usable for describing geodesics which are travelling forwards in time to the black hole (or equivalently, geodesics that are travelling away from the black hole backwards in time). Because of the simplicity, we're going to use eddington finkelstein coordinates, for the first segment of a this article
+
+# Tetrads
+
+Back in ye olde schwarzschild in schwarzschild coordinates days, we learnt briefly about the role of tetrads, as objects that can be used to take a local quantity, and transform into a quantity in our coordinate system (and vice versa). These objects fundamentally relate the viewpoints of two different observers, and the first thing we need to learn is how to calculate and manipulate them. We're going to take a second crack at them now
+
+As we've run into before: spacetime is locally flat. The technical definition of locally flat is the minkowski metric tensor $\eta_{\mu\nu}$: this is a diagonal matrix, that looks like this:
+
+|t|x|y|z|
+|-|-|-|-|
+|-1| | | |
+| |1| | |
+| | |1| |
+| | | |1|
+
+What we'd like to do, is define how to translate from our metric tensor $g_{\mu\nu}$, to our diagonal matrix $\eta_{\mu\nu}$ -we know from general relativity that the metric must be diagonalisable (as space is locally flat)
+
+This is done via the standard relation:
+
+///TODO: CHECK THE ^T DEBACLE
+$$D = P^{-1} A P$$
+
+Where $D$ is our diagonal matrix, $A$ is our matrix to diagonalise, and $P$ is the diagonalising matrix. Put in our terminology
+
+$$\eta = e^{-1} g e$$
+
+The matrix $e$, treated as column vectors, makes up our tetrad vectors. On top of this, we can solve for $e$ and get a valid set of tetrad vectors for any metric tensor, by solving this equation
+
+Solving this is an eigenvalue problem, as $e$ *also* makes up the eigenvectors of the metric (and technically, $\eta_{\mu\nu}$ is the eigenvalues)
+
+# Relativistic gram-schmidt
+
+The most straightforward algorithm for doing this is called gram-schmidt orthonormalisation, and with a minor extension we can use this for solving our GR eigenvalue problem. Gram-schmidt is an algorithm for taking a series of vectors and making them orthonormal to each other. Here we take a series of coordinate vectors, and make them orthonormal with respect to the metric tensor from each other
+
+We're going to start off with the basic algorithm, and then we'll make it robust against the horrors of GR
+
+Lets start off with our 4 coordinate directions, which we hope are linearly independent:
+
+```c++
+t4f v0 = {1, 0, 0, 0};
+t4f v1 = {0, 1, 0, 0};
+t4f v2 = {0, 0, 1, 0};
+t4f v3 = {0, 0, 0, 1};
+```
+
+Note that, taking the column vectors of the metric $g_{\mu\nu}$, and raising them with the metric tensor to get $v^k$ (contravariant), produces exactly the same vectors we're starting off with here
+
+We have to pick a vector to start our orthonormalisation from, so we pick the first vector $v_0$ arbitrarily, and now start up our algorithm:
+
+```c++
+tetrads tet = gram_schmidt(v0, v1, v2, v3, get_metric());
+```
+
+Relativistic gram schmidt itself looks like this:
+
+```c++
+valuef dot(t4f u, t4f v, m44f m) {
+    t4f lowered = m.lower(u);
+
+    return dot(lowered, v);
+}
+
+t4f gram_project(t4f u, t4f v, m44f m) {
+    valuef top = dot_metric(u, v, metric);
+    valuef bottom = dot_metric(u, u, metric);
+
+    return (top / bottom) * u;
+}
+
+t4f normalise(t4f in, m44f m)
+{
+    valuef d = dot_metric(in, in, big_metric);
+
+    return in / sqrt(fabs(d));
+}
+
+struct tetrad ]
+    std::array<t4f, 4> tetrvads;
+}
+
+tetrad gram_schmidt(t4f v0, t4f v1, t4f v2, t4f v3, m44f m)
+{
+    float4 u0 = v0;
+
+    float4 u1 = v1;
+    u1 = u1 - gram_project(u0, u1, m);
+
+    float4 u2 = v2;
+    u2 = u2 - gram_project(u0, u2, m);
+    u2 = u2 - gram_project(u1, u2, m);
+
+    float4 u3 = v3;
+    u3 = u3 - gram_project(u0, u3, m);
+    u3 = u3 - gram_project(u1, u3, m);
+    u3 = u3 - gram_project(u2, u3, m);
+
+    u0 = normalise(u0, m);
+    u1 = normalise(u1, m);
+    u2 = normalise(u2, m);
+    u3 = normalise(u3, m);
+
+    return {u0, u1, u2, u3}
+};
+```
+
+We now have our tetrads
+
