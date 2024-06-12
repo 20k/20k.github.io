@@ -5,18 +5,18 @@ date:   2025-05-18 00:35:23 +0000
 categories: C++
 ---
 
-Hello! If you're like me, you've often wondered what it would be like to fall into a black hole, and what's on the inside. In this article, we're going to examine in a lot of detail how exactly to simulate your trip into a black hole, and then we'll numerically disprove several common myths
+Hello! Today we're going to do something really cool: Throw ourselves into a black hole and find out what happens. To do this, we need to upgrade our understanding of initial conditions in general relativity via tetrads, and we're also going to learn what parallel transport is
 
 The scope of this article is as follows:
 
-1. We're going to examine the role of coordinate systems in general relativity
-2. Then we'll upgrade to a black hole which lets us cross the event horizon
-3. We're going to learn how to calculate initial conditions for *any* metric tensor, regardless of whether or not someone's helpfully done the maths for us
-4. You're going to understand how to take an observer, and 'boost' it by modifying its velocity and frame of reference
+1. First we examine the role of coordinate systems in general relativity
+2. Then we'll upgrade to a black hole metric which lets us cross the event horizon
+3. After this, we'll learn how to calculate initial conditions for *any* metric tensor, instead of using pre-baked initial conditions
+4. You're going to understand how to take a frame of reference, and 'boost' it to represent a moving observer
 5. Then we'll learn how to follow the path that an observer takes as it moves around spacetime - and in our case, into whatever lies inside a black hole
 6. After this, we'll upgrade to a much more exciting, spinning black hole, and take lots of pretty screenshots
 
-We're starting to get into things that people haven't really simulated before, and this is an area where many (most?) simulations are incorrect
+This will all be on the GPU, so it'll run reasonably fast. We're starting to get into things that people haven't really simulated before, and this is an area where many simulations are incorrect
 
 # Myths
 
@@ -32,47 +32,52 @@ In the first episode on rendering the schwarzschild black hole, I presented you 
 
 $$ ds^2 = -d\tau^2 = -(1-\frac{r_s}{r}) dt^2 + (1-\frac{r_s}{r})^{-1} dr^2 + r^2 d\Omega^2 $$
 
+where $d\Omega^2 = d\theta^2 + sin^2(\theta) d\phi^2$
+
 And called it the metric tensor for a schwarzschild black hole. This was a white lie - this is, in the more technical sense, *a* representation of the schwarzschild black hole, in a particular coordinate system known as schwarzschild coordinates. Here's another representation:
 
 $$ ds^2 = -(1-rs/r) dv^2 + 2 dvdr + r^2 d\Omega^2 $$
 
-Known as eddington-finkelstein coordinates. And another:
+In eddington-finkelstein coordinates. And another:
 
 $$ ds^2 = -d\tau^2 + rs/r dp^2 + r^2 d\Omega^2 $$
 
-Known as Lemaître coordiantes
+In Lemaître coordinates. Note that the $d\tau$ is not proper time, its just a reuse of notation because in one specific circumstance it is proper time
 
 The schwarzschild metric is an abstract object, which we can express in different coordinate systems. All of the above metrics describe the same fundamental object, but in different coordinates. These different coordinate systems may describe different parts of the spacetime, may have some special properties, or might be totally abstract - but there isn't a difference in what they represent
 
-Generally, we pick different coordinate systems because A: we have to pick one to do calculations in, and B: often a specific coordinate system has a useful property. For example, schwarzschild coordinates, the one we used, has an artificial coordinate singularity at the event horizon, which makes it useless for what we're trying to do. #2 is schwarzschild in eddington-finkelstein coordinates, and is usable for describing geodesics which are travelling forwards in time to the black hole (or equivalently, geodesics that are travelling away from the black hole backwards in time). Because of the simplicity, we're going to use eddington finkelstein coordinates, for the first segment of a this article
+Different coordinate systems may have different properties. For example, schwarzschild coordinates - the one we used previously- has an artificial coordinate singularity at the event horizon, which makes it useless for what we're trying to do. #2 is schwarzschild in eddington-finkelstein coordinates, and is usable for describing geodesics which are travelling forwards in time into the black hole (or equivalently, geodesics that are travelling out of the black hole backwards in time). Because of the simplicity - we're going to use eddington finkelstein coordinates in the beginning
 
 # Tetrads
 
-Back in ye olde schwarzschild in schwarzschild coordinates days, we learnt briefly about the role of tetrads, as objects that can be used to take a local quantity, and transform into a quantity in our coordinate system (and vice versa). These objects fundamentally relate the viewpoints of two different observers, and the first thing we need to learn is how to calculate and manipulate them. We're going to take a second crack at them now
+Back in ye olde schwarzschild in schwarzschild coordinates days, we learnt briefly about the role of tetrads, as objects that can be used to take a local quantity, and transform into a quantity in our coordinate system (and vice versa). These objects also fundamentally relate the viewpoints of two different observers, and the first thing we need to learn is how to calculate and manipulate them. We're going to take a second crack at them now
 
 As we've run into before: spacetime is locally flat. The technical definition of locally flat is the minkowski metric tensor $\eta_{\mu\nu}$: this is a diagonal matrix, that looks like this:
 
-|t|x|y|z|
-|-|-|-|-|
-|-1| | | |
-| |1| | |
-| | |1| |
-| | | |1|
+| |t|x|y|z|
+|-|-|-|-|-|
+|t|-1| | | |
+|x| |1| | |
+|y| | |1| |
+|z| | | |1|
 
-What we'd like to do, is define how to translate from our metric tensor $g_{\mu\nu}$, to our diagonal matrix $\eta_{\mu\nu}$ -we know from general relativity that the metric must be diagonalisable (as space is locally flat)
+What we'd like to do, is define how to translate from our metric tensor $g_{\mu\nu}$, to our diagonal matrix $\eta_{\mu\nu}$ -we know from general relativity that the metric must be diagonalisable to produce the minkowski metric (as space is locally flat)
 
 This is done via the standard relation:
 
-///TODO: CHECK THE ^T DEBACLE
 $$D = P^{-1} A P$$
 
-Where $D$ is our diagonal matrix, $A$ is our matrix to diagonalise, and $P$ is the diagonalising matrix. Put in our terminology
+Where $D$ is our diagonal matrix, $A$ is our matrix to diagonalise, and $P$ is the diagonalising matrix. Put in our terminology[^wheresthet]
 
-$$\eta = e^{-1} g e$$
+$$\eta = e^{T} g e$$
 
-The matrix $e$, treated as column vectors, makes up our tetrad vectors. On top of this, we can solve for $e$ and get a valid set of tetrad vectors for any metric tensor, by solving this equation
+[^wheresthet]: Because the metric tensor is symmetric, the $^{-1}$ becomes a $^T$
 
-Solving this is an eigenvalue problem, as $e$ *also* makes up the eigenvectors of the metric (and technically, $\eta_{\mu\nu}$ is the eigenvalues)
+The matrix $e$, treated as column vectors, makes up our tetrad vectors. On top of this, we can solve for $e$ and get 'a' valid set of tetrad vectors for any metric tensor, by solving this equation. Tetrads are not unique, so we're just solving for the view for some arbitrary observer, that's dependent on the specific form of the metric
+
+Solving this is an eigenvalue problem, as $e$ also makes up the eigenvectors of the metric (and technically, $\eta_{\mu\nu}$ is the eigenvalues)
+
+One important thing to get back to. Remember that vectors can be timelike ($ds^2 < 0$), or spacelike ($ds^2 > 0$). We have one timelike tetrad vector: which is always $e_0$, and 3 spacelike tetrad vectors, which are $e_k$
 
 # Relativistic gram-schmidt
 
@@ -83,10 +88,10 @@ We're going to start off with the basic algorithm, and then we'll make it robust
 Lets start off with our 4 coordinate directions, which we hope are linearly independent:
 
 ```c++
-t4f v0 = {1, 0, 0, 0};
-t4f v1 = {0, 1, 0, 0};
-t4f v2 = {0, 0, 1, 0};
-t4f v3 = {0, 0, 0, 1};
+std::array<t4f, 4> vecs = { {1, 0, 0, 0},
+                            {0, 1, 0, 0},
+                            {0, 0, 1, 0},
+                            {0, 0, 0, 1} };
 ```
 
 Note that, taking the column vectors of the metric $g_{\mu\nu}$, and raising them with the metric tensor to get $v^k$ (contravariant), produces exactly the same vectors we're starting off with here
@@ -94,7 +99,8 @@ Note that, taking the column vectors of the metric $g_{\mu\nu}$, and raising the
 We have to pick a vector to start our orthonormalisation from, so we pick the first vector $v_0$ arbitrarily, and now start up our algorithm:
 
 ```c++
-tetrads tet = gram_schmidt(v0, v1, v2, v3, get_metric());
+m44f metric = get_metric();
+tetrads tet = gram_schmidt(vecs[0], vecs[1], vecs[2], vecs[3], metric);
 ```
 
 Relativistic gram schmidt itself looks like this:
@@ -107,15 +113,15 @@ valuef dot(t4f u, t4f v, m44f m) {
 }
 
 t4f gram_project(t4f u, t4f v, m44f m) {
-    valuef top = dot_metric(u, v, metric);
-    valuef bottom = dot_metric(u, u, metric);
+    valuef top = dot_metric(u, v, m);
+    valuef bottom = dot_metric(u, u, m);
 
     return (top / bottom) * u;
 }
 
 t4f normalise(t4f in, m44f m)
 {
-    valuef d = dot_metric(in, in, big_metric);
+    valuef d = dot_metric(in, in, m);
 
     return in / sqrt(fabs(d));
 }
@@ -151,3 +157,34 @@ tetrad gram_schmidt(t4f v0, t4f v1, t4f v2, t4f v3, m44f m)
 
 We now have our tetrads
 
+### Of course, it isn't remotely that simple
+
+There are a few assumptions that we've made here
+
+1. That the first vector we picked doesn't have a length of 0, ie it isn't null ($ds^2 = 0$)
+
+2. The first vector we picked is *timelike*. In general, we always demand that our first tetrad $e_0$ is a timelike vector, and there's no guarantee that $(1, 0, 0, 0)$ points in a timewards direction
+
+### Selecting the first vector
+
+```c++
+std::array<t4f, 4> vecs = { {1, 0, 0, 0},
+                            {0, 1, 0, 0},
+                            {0, 0, 1, 0},
+                            {0, 0, 0, 1} };
+
+std::array<valuef, 4> lengths;
+
+for(int i=0; i < 4; i++{
+    lengths[i] = metric.dot(vecs[i], vecs[i]);
+}
+
+valuei first_nonzero_vector = 0;
+
+valuei idx = declare_mut_e(valuei(0));
+
+for_e(idx < 4, assign_b(idx, idx+1), [&] {
+
+});
+
+```
