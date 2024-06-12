@@ -14,7 +14,8 @@ The scope of this article is as follows:
 3. After this, we'll learn how to calculate initial conditions for *any* metric tensor, instead of using pre-baked initial conditions
 4. You're going to understand how to take a frame of reference, and 'boost' it to represent a moving observer
 5. Then we'll learn how to follow the path that an observer takes as it moves around spacetime - and in our case, into whatever lies inside a black hole
-6. After this, we'll upgrade to a much more exciting, spinning black hole, and take lots of pretty screenshots
+6. After this, we'll upgrade to a much more exciting, spinning black hole
+7. There will be at least one cat photo in this article
 
 This will all be on the GPU, so it'll run reasonably fast. We're starting to get into things that people haven't really simulated before, and this is an area where many simulations are incorrect
 
