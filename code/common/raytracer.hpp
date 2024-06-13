@@ -357,9 +357,7 @@ void build_initial_tetrads(execution_context& ectx, literal<tensor<float, 4>> ca
 
     m44f metric = GetMetric(camera_position.get());
 
-    //tetrad tetrads = gram_schmidt(v0, v1, v2, v3, metric);
-
-    tetrad tetrads = calculate_schwarzschild_tetrad(camera_position.get());
+    tetrad tetrads = gram_schmidt(v0, v1, v2, v3, metric);
 
     as_ref(e0_out[0]) = tetrads.v[0];
     as_ref(e1_out[0]) = tetrads.v[1];
