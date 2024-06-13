@@ -86,7 +86,7 @@ int main()
 
     float pi = std::numbers::pi_v<float>;
 
-    cl_float4 camera_pos = {0, 5, pi/2, -pi/2};
+    cl_float4 camera_pos = {0, 7, pi/2, -pi/2};
     cl::buffer gpu_camera_pos(ctx);
     gpu_camera_pos.alloc(sizeof(cl_float4));
 
@@ -148,7 +148,6 @@ int main()
             args.push_back(tetrads[2]);
             args.push_back(tetrads[3]);
             args.push_back(gpu_camera_pos);
-
 
             trace_kern.set_args(args);
 

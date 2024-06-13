@@ -620,6 +620,11 @@ namespace value_impl
             return "(" + type + ")(" + value_to_string(v.args.at(1)) + ")";
         }
 
+        if(v.type == op::SIDE_EFFECT)
+        {
+            return v.abstract_value;
+        }
+
         #ifdef NATIVE_DIVIDE
         if(v.type == op::DIVIDE)
         {
@@ -1010,7 +1015,7 @@ namespace value_impl
 
         auto is_semicolon_terminated = [](op::type t)
         {
-            return t == op::ASSIGN || t == op::DECLARE || t == op::RETURN || t == op::BREAK || t == op::IMAGE_READ || t == op::IMAGE_WRITE;
+            return t == op::ASSIGN || t == op::DECLARE || t == op::RETURN || t == op::BREAK || t == op::IMAGE_READ || t == op::IMAGE_WRITE || t == op::SIDE_EFFECT;
         };
 
         int indentation = 1;

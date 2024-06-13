@@ -66,6 +66,7 @@ namespace value_impl
             BLOCK_START,
             BLOCK_END,
             ASSIGN,
+            SIDE_EFFECT,
 
             IMAGE_READ,
             IMAGE_WRITE,

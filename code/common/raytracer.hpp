@@ -171,7 +171,7 @@ v2f angle_to_tex(const v2f& angle)
 std::pair<valuei, tensor<valuef, 4>> integrate(geodesic& g, auto&& get_metric) {
     using namespace single_source;
 
-    mut<valuei> result = declare_mut_e(valuei(2));
+    mut<valuei> result = declare_mut_e(valuei(0));
 
     mut_v4f position = declare_mut_e(g.position);
     mut_v4f velocity = declare_mut_e(g.velocity);
@@ -211,7 +211,7 @@ std::pair<valuei, tensor<valuef, 4>> integrate(geodesic& g, auto&& get_metric) {
         //we could do better than this by upgrading the tensor library
         if_e(!isfinite(position[0]) || !isfinite(position[1]) || !isfinite(position[2]) || !isfinite(position[3]), [&]
         {
-            as_ref(result) = valuei(1);
+            //as_ref(result) = valuei(1);
             break_e();
         });
     });
@@ -219,21 +219,23 @@ std::pair<valuei, tensor<valuef, 4>> integrate(geodesic& g, auto&& get_metric) {
     return {result, position.as<valuef>()};
 }
 
-//tensor<valuef, 3> render_pixel(valuei x, valuei y, valuei screen_width, valuei screen_height, const read_only_image<2>& background, valuei background_width, valuei background_height)
-
 v3f render_pixel(v2i screen_position, v2i screen_size, const read_only_image<2>& background, v2i background_size, const tetrad& tetrads, v4f start_position, auto&& get_metric)
 {
     using namespace single_source;
 
     v3f ray_direction = get_ray_through_pixel(screen_position, screen_size, 90);
 
-    float pi = std::numbers::pi_v<float>;
-
     //so, the tetrad vectors give us a basis, that points in the direction t, r, theta, and phi, because schwarzschild is diagonal
     //we'd like the ray to point towards the black hole: this means we make +z point towards -r, +y point towards +theta, and +x point towards +phi
     v3f modified_ray = {-ray_direction[2], ray_direction[1], ray_direction[0]};
 
     geodesic my_geodesic = make_lightlike_geodesic(start_position, modified_ray, tetrads);
+
+    /*value_base se;
+    se.type = value_impl::op::SIDE_EFFECT;
+    se.abstract_value = "printf(\"%f\\n\"," + value_to_string(my_geodesic.velocity.z()) + ")";
+
+    value_impl::get_context().add(se);*/
 
     auto [result, position] = integrate(my_geodesic, get_metric);
 
@@ -250,7 +252,7 @@ v3f render_pixel(v2i screen_position, v2i screen_size, const read_only_image<2>&
     mut_v3f colour = declare_mut_e(col.xyz());
 
     if_e(result == 2 || result == 1, [&] {
-        as_ref(colour) = (tensor<valuef, 3>){0,0,0};
+        as_ref(colour) = (tensor<valuef, 3>){0,1,0};
     });
 
     return colour.as<valuef>();
@@ -337,7 +339,7 @@ tetrad gram_schmidt(v4f v0, v4f v1, v4f v2, v4f v3, m44f m)
     u3 = normalise(u3, m);
 
     return {u0, u1, u2, u3};
-};
+}
 
 template<auto GetMetric>
 void build_initial_tetrads(execution_context& ectx, literal<tensor<float, 4>> camera_position,
@@ -355,12 +357,14 @@ void build_initial_tetrads(execution_context& ectx, literal<tensor<float, 4>> ca
 
     m44f metric = GetMetric(camera_position.get());
 
-    tetrad tetrads = gram_schmidt(v0, v1, v2, v3, metric);
+    //tetrad tetrads = gram_schmidt(v0, v1, v2, v3, metric);
+
+    tetrad tetrads = calculate_schwarzschild_tetrad(camera_position.get());
 
     as_ref(e0_out[0]) = tetrads.v[0];
-    as_ref(e0_out[1]) = tetrads.v[1];
-    as_ref(e0_out[2]) = tetrads.v[2];
-    as_ref(e0_out[3]) = tetrads.v[3];
+    as_ref(e1_out[0]) = tetrads.v[1];
+    as_ref(e2_out[0]) = tetrads.v[2];
+    as_ref(e3_out[0]) = tetrads.v[3];
 }
 
 #endif // SCHWARZSCHILD_SINGLE_SOURCE_HPP_INCLUDED
