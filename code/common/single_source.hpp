@@ -631,17 +631,64 @@ namespace value_impl
 
     namespace single_source {
         template<typename T>
+        inline
+        value<T> build_type(const value_base& name, const T& tag)
+        {
+            value<T> ret;
+            ret.set_from_base(name);
+            return ret;
+        }
+
+        template<typename T, int N>
+        inline
+        tensor<value<T>, N> build_type(const value_base& name, const tensor<T, N>& tag)
+        {
+            tensor<value<T>, N> ret;
+
+            for(int i=0; i < N; i++)
+            {
+                ret[i].type = op::DOT;
+                ret[i].args = {name, "s" + std::to_string(i)};
+            }
+
+            return ret;
+        }
+
+        template<typename T>
+        inline
+        mut<value<T>> apply_mutability(const value<T>& in)
+        {
+            mut<value<T>> ret;
+            ret.set_from_constant(in);
+            return ret;
+        }
+
+        template<typename T, int N>
+        inline
+        tensor<mut<value<T>>, N> apply_mutability(const tensor<value<T>, N>& in)
+        {
+            tensor<mut<value<T>>, N> ret;
+
+            for(int i=0; i < N; i++)
+            {
+                ret[i] = apply_mutability(in[i]);
+            }
+
+            return ret;
+        }
+
+        template<typename T>
         struct buffer {
             std::string name;
             using value_type = T;
 
-            value<T> operator[](const value<int>& index)
+            auto operator[](const value<int>& index)
             {
-                value<T> op;
+                value_base op;
                 op.type = op::BRACKET;
                 op.args = {name, index};
 
-                return op;
+                return build_type(op, T());
             }
         };
 
@@ -650,11 +697,9 @@ namespace value_impl
             std::string name;
             using value_type = T;
 
-            mut<value<T>> operator[](const value<int>& index)
+            auto operator[](const value<int>& index)
             {
-                mut<value<T>> res;
-                res.set_from_constant(buffer<T>::operator[](index));
-                return res;
+                return apply_mutability(buffer<T>::operator[](index));
             }
         };
 
@@ -663,11 +708,9 @@ namespace value_impl
             std::string name;
             using value_type = T;
 
-            value<T> get()
+            auto get()
             {
-                value<T> val;
-                val.abstract_value = name;
-                return val;
+                return build_type(name, T());
             }
         };
 

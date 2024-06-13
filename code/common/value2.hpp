@@ -186,6 +186,11 @@ namespace value_impl
             value_base::concrete = t;
         }
 
+        void set_from_base(const value_base& in)
+        {
+            static_cast<value_base&>(*this) = in;
+        }
+
         friend value<T> operator%(const value<T>& v1, const value<T>& v2) {
             PROPAGATE_INFIX(v1, v2, %);
 

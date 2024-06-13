@@ -7,45 +7,39 @@
 using valuef = value<float>;
 using valuei = value<int>;
 
-//https://www2.mpia-hd.mpg.de/homes/tmueller/pdfs/catalogue_2014-05-21.pdf 2.2.1
-metric<valuef, 4, 4> schwarzschild_metric(const tensor<valuef, 4>& position) {
-    valuef rs = 1;
-    valuef r = position[1];
-    valuef theta = position[2];
+using v2f = tensor<valuef, 2>;
+using v3f = tensor<valuef, 3>;
+using v4f = tensor<valuef, 4>;
+using v2i = tensor<valuei, 2>;
+using v3i = tensor<valuei, 3>;
 
-    metric<valuef, 4, 4> m;
-    m[0, 0] = -(1-rs/r);
-    m[1, 1] = 1/(1-rs/r);
-    m[2, 2] = r*r;
-    m[3, 3] = r*r * sin(theta)*sin(theta);
-
-    return m;
-}
+using mut_v4f = tensor<mut<valuef>, 4>;
+using mut_v3f = tensor<mut<valuef>, 3>;
 
 struct tetrad
 {
-    std::array<tensor<valuef, 4>, 4> v;
+    std::array<v4f, 4> v;
 };
 
 //https://www2.mpia-hd.mpg.de/homes/tmueller/pdfs/catalogue_2014-05-21.pdf 2.2.6
-tetrad calculate_schwarzschild_tetrad(const tensor<valuef, 4>& position) {
+tetrad calculate_schwarzschild_tetrad(const v4f& position) {
     valuef rs = 1;
     valuef r = position[1];
     valuef theta = position[2];
 
-    tensor<valuef, 4> et = {1/sqrt(1 - rs/r), 0, 0, 0};
-    tensor<valuef, 4> er = {0, sqrt(1 - rs/r), 0, 0};
-    tensor<valuef, 4> etheta = {0, 0, 1/r, 0};
-    tensor<valuef, 4> ephi = {0, 0, 0, 1/(r * sin(theta))};
+    v4f et = {1/sqrt(1 - rs/r), 0, 0, 0};
+    v4f er = {0, sqrt(1 - rs/r), 0, 0};
+    v4f etheta = {0, 0, 1/r, 0};
+    v4f ephi = {0, 0, 0, 1/(r * sin(theta))};
 
     return {et, er, etheta, ephi};
 }
 
-tensor<valuef, 3> get_ray_through_pixel(valuei sx, valuei sy, valuei screen_width, valuei screen_height, float fov_degrees) {
+v3f get_ray_through_pixel(v2i screen_position, v2i screen_size, float fov_degrees) {
     float fov_rad = (fov_degrees / 360.f) * 2 * std::numbers::pi_v<float>;
-    valuef f_stop = (screen_width/2).to<float>() / tan(fov_rad/2);
+    valuef f_stop = (screen_size.x()/2).to<float>() / tan(fov_rad/2);
 
-    tensor<valuef, 3> pixel_direction = {(sx - screen_width/2).to<float>(), (sy - screen_height/2).to<float>(), f_stop};
+    v3f pixel_direction = {(screen_position.x() - screen_size.x()/2).to<float>(), (screen_position.y() - screen_size.y()/2).to<float>(), f_stop};
     //pixel_direction = rot_quat(pixel_direction, camera_quat); //if you have quaternions, or some rotation library, rotate your pixel direction here by your cameras rotation
 
     return pixel_direction.norm();
@@ -53,11 +47,11 @@ tensor<valuef, 3> get_ray_through_pixel(valuei sx, valuei sy, valuei screen_widt
 
 struct geodesic
 {
-    tensor<valuef, 4> position;
-    tensor<valuef, 4> velocity;
+    v4f position;
+    v4f velocity;
 };
 
-geodesic make_lightlike_geodesic(const tensor<valuef, 4>& position, const tensor<valuef, 3>& direction, const tetrad& tetrads) {
+geodesic make_lightlike_geodesic(const v4f& position, const v3f& direction, const tetrad& tetrads) {
     geodesic g;
     g.position = position;
     g.velocity = tetrads.v[0] * -1 //Flipped time component, we're tracing backwards in time
@@ -68,7 +62,7 @@ geodesic make_lightlike_geodesic(const tensor<valuef, 4>& position, const tensor
     return g;
 }
 
-auto diff(auto&& func, const tensor<valuef, 4>& position, int direction) {
+auto diff(auto&& func, const v4f& position, int direction) {
     auto p_up = position;
     auto p_lo = position;
 
@@ -85,7 +79,7 @@ auto diff(auto&& func, const tensor<valuef, 4>& position, int direction) {
 
 //get the christoffel symbols that we need for the geodesic equation
 ////https://www2.mpia-hd.mpg.de/homes/tmueller/pdfs/catalogue_2014-05-21.pdf you can check that this function returns the correct results, against 2.2.2a
-tensor<valuef, 4, 4, 4> calculate_christoff2(const tensor<valuef, 4>& position, auto&& get_metric) {
+tensor<valuef, 4, 4, 4> calculate_christoff2(const v4f& position, auto&& get_metric) {
     metric<valuef, 4, 4> metric = get_metric(position);
     inverse_metric<valuef, 4, 4> metric_inverse = metric.invert();
 
@@ -127,10 +121,10 @@ tensor<valuef, 4, 4, 4> calculate_christoff2(const tensor<valuef, 4>& position, 
 }
 
 //use the geodesic equation to get our acceleration
-tensor<valuef, 4> calculate_acceleration_of(const tensor<valuef, 4>& X, const tensor<valuef, 4>& v, auto&& get_metric) {
+v4f calculate_acceleration_of(const tensor<valuef, 4>& X, const tensor<valuef, 4>& v, auto&& get_metric) {
     tensor<valuef, 4, 4, 4> christoff2 = calculate_christoff2(X, get_metric);
 
-    tensor<valuef, 4> acceleration;
+    v4f acceleration;
 
     for(int mu = 0; mu < 4; mu++) {
         valuef sum = 0;
@@ -147,11 +141,7 @@ tensor<valuef, 4> calculate_acceleration_of(const tensor<valuef, 4>& X, const te
     return acceleration;
 }
 
-tensor<valuef, 4> calculate_schwarzschild_acceleration(const tensor<valuef, 4>& X, const tensor<valuef, 4>& v) {
-    return calculate_acceleration_of(X, v, schwarzschild_metric);
-}
-
-tensor<valuef, 2> angle_to_tex(const tensor<valuef, 2>& angle)
+v2f angle_to_tex(const v2f& angle)
 {
     using namespace single_source;
 
@@ -177,13 +167,13 @@ tensor<valuef, 2> angle_to_tex(const tensor<valuef, 2>& angle)
 }
 
 //this integrates a geodesic, until it either escapes our small universe or hits the event horizon
-std::pair<valuei, tensor<valuef, 4>> integrate(geodesic& g) {
+std::pair<valuei, tensor<valuef, 4>> integrate(geodesic& g, auto&& get_metric) {
     using namespace single_source;
 
     mut<valuei> result = declare_mut_e(valuei(2));
 
-    tensor<mut<valuef>, 4> position = declare_mut_e(g.position);
-    tensor<mut<valuef>, 4> velocity = declare_mut_e(g.velocity);
+    mut_v4f position = declare_mut_e(g.position);
+    mut_v4f velocity = declare_mut_e(g.velocity);
 
     float dt = 0.005f;
     float rs = 1;
@@ -195,10 +185,10 @@ std::pair<valuei, tensor<valuef, 4>> integrate(geodesic& g) {
 
     for_e(idx < 1024 * 1024, assign_b(idx, idx + 1), [&]
     {
-        tensor<valuef, 4> cposition = declare_e(position);
-        tensor<valuef, 4> cvelocity = declare_e(velocity);
+        v4f cposition = declare_e(position);
+        v4f cvelocity = declare_e(velocity);
 
-        tensor<valuef, 4> acceleration = calculate_schwarzschild_acceleration(cposition, cvelocity);
+        v4f acceleration = calculate_acceleration_of(cposition, cvelocity, get_metric);
 
         as_ref(velocity) = cvelocity + acceleration * dt;
         as_ref(position) = cposition + velocity.as<valuef>() * dt;
@@ -228,37 +218,35 @@ std::pair<valuei, tensor<valuef, 4>> integrate(geodesic& g) {
     return {result, position.as<valuef>()};
 }
 
-tensor<valuef, 3> render_pixel(valuei x, valuei y, valuei screen_width, valuei screen_height, const read_only_image<2>& background, valuei background_width, valuei background_height)
+//tensor<valuef, 3> render_pixel(valuei x, valuei y, valuei screen_width, valuei screen_height, const read_only_image<2>& background, valuei background_width, valuei background_height)
+
+v3f render_pixel(v2i screen_position, v2i screen_size, const read_only_image<2>& background, v2i background_size, const tetrad& tetrads, v4f start_position, auto&& get_metric)
 {
     using namespace single_source;
 
-    tensor<valuef, 3> ray_direction = get_ray_through_pixel(x, y, screen_width, screen_height, 90);
+    v3f ray_direction = get_ray_through_pixel(screen_position, screen_size, 90);
 
     float pi = std::numbers::pi_v<float>;
 
-    tensor<valuef, 4> camera_position = {0, 5, pi/2, -pi/2};
-
-    tetrad tetrads = calculate_schwarzschild_tetrad(camera_position);
-
     //so, the tetrad vectors give us a basis, that points in the direction t, r, theta, and phi, because schwarzschild is diagonal
     //we'd like the ray to point towards the black hole: this means we make +z point towards -r, +y point towards +theta, and +x point towards +phi
-    tensor<valuef, 3> modified_ray = {-ray_direction[2], ray_direction[1], ray_direction[0]};
+    v3f modified_ray = {-ray_direction[2], ray_direction[1], ray_direction[0]};
 
-    geodesic my_geodesic = make_lightlike_geodesic(camera_position, modified_ray, tetrads);
+    geodesic my_geodesic = make_lightlike_geodesic(start_position, modified_ray, tetrads);
 
-    auto [result, position] = integrate(my_geodesic);
+    auto [result, position] = integrate(my_geodesic, get_metric);
 
     valuef theta = position[2];
     valuef phi = position[3];
 
-    tensor<valuef, 2> texture_coordinate = angle_to_tex({theta, phi});
+    v2f texture_coordinate = angle_to_tex({theta, phi});
 
-    valuei tx = (texture_coordinate[0] * background_width.to<float>() + background_width.to<float>()).to<int>() % background_width;
-    valuei ty = (texture_coordinate[1] * background_height.to<float>() + background_height.to<float>()).to<int>() % background_height;
+    valuei tx = (texture_coordinate[0] * background_size.x().to<float>() + background_size.x().to<float>()).to<int>() % background_size.x();
+    valuei ty = (texture_coordinate[1] * background_size.y().to<float>() + background_size.y().to<float>()).to<int>() % background_size.y();
 
-    tensor<valuef, 4> col = background.read<float, 4>({tx, ty});
+    v4f col = background.read<float, 4>({tx, ty});
 
-    tensor<mut<valuef>, 3> colour = declare_mut_e(col.xyz());
+    mut_v3f colour = declare_mut_e(col.xyz());
 
     if_e(result == 2 || result == 1, [&] {
         as_ref(colour) = (tensor<valuef, 3>){0,0,0};
@@ -267,8 +255,13 @@ tensor<valuef, 3> render_pixel(valuei x, valuei y, valuei screen_width, valuei s
     return colour.as<valuef>();
 }
 
-
-void opencl_raytrace(execution_context& ectx, literal<int> screen_width, literal<int> screen_height, read_only_image<2> background, write_only_image<2> screen, literal<int> background_width, literal<int> background_height)
+template<auto GetMetric>
+void opencl_raytrace(execution_context& ectx, literal<int> screen_width, literal<int> screen_height,
+                     read_only_image<2> background, write_only_image<2> screen,
+                     literal<int> background_width, literal<int> background_height,
+                     buffer<tensor<float, 4>> e0, buffer<tensor<float, 4>> e1, buffer<tensor<float, 4>> e2, buffer<tensor<float, 4>> e3,
+                     buffer<tensor<float, 4>> position
+                     )
 {
     using namespace single_source;
 
@@ -287,10 +280,16 @@ void opencl_raytrace(execution_context& ectx, literal<int> screen_width, literal
         return_e();
     });
 
-    tensor<valuef, 3> colour = render_pixel(x, y, screen_width.get(), screen_height.get(), background, background_width.get(), background_height.get());
+    v2i screen_pos = {x, y};
+    v2i screen_size = {screen_width.get(), screen_height.get()};
+    v2i background_size = {background_width.get(), background_height.get()};
+
+    tetrad tetrads = {e0[0], e1[0], e2[0], e3[0]};
+
+    v3f colour = render_pixel(screen_pos, screen_size, background, background_size, tetrads, position[0], GetMetric);
 
     //the tensor library does actually support .x() etc, but I'm trying to keep the requirements for whatever you use yourself minimal
-    tensor<valuef, 4> crgba = {colour[0], colour[1], colour[2], 1.f};
+    v4f crgba = {colour[0], colour[1], colour[2], 1.f};
 
     screen.write(ectx, {x,y}, crgba);
 }
