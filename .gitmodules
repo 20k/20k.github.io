@@ -1,3 +1,6 @@
 [submodule "code/common/vec"]
 	path = code/common/vec
 	url = git@github.com:20k/funvectormaths.git
+[submodule "code/common/toolkit"]
+	path = code/common/toolkit
+	url = https://github.com/20k/toolkit
