@@ -346,11 +346,21 @@ void build_initial_tetrads(execution_context& ectx, literal<tensor<float, 4>> ca
 {
     using namespace single_source;
 
-    valuei idx = value_impl::get_global_id(0);
+    as_ref(position_out[0]) = camera_position.get();
 
-    pin(idx);
+    v4f v0 = {1, 0, 0, 0};
+    v4f v1 = {0, 1, 0, 0};
+    v4f v2 = {0, 0, 1, 0};
+    v4f v3 = {0, 0, 0, 1};
 
+    m44f metric = GetMetric(camera_position.get());
 
+    tetrad tetrads = gram_schmidt(v0, v1, v2, v3, metric);
+
+    as_ref(e0_out[0]) = tetrads.v[0];
+    as_ref(e0_out[1]) = tetrads.v[1];
+    as_ref(e0_out[2]) = tetrads.v[2];
+    as_ref(e0_out[3]) = tetrads.v[3];
 }
 
 #endif // SCHWARZSCHILD_SINGLE_SOURCE_HPP_INCLUDED

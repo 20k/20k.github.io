@@ -689,13 +689,14 @@ namespace value_impl
                 op.type = op::BRACKET;
                 op.args = {name, index};
 
+                std::cout << "INDEXING " << value_to_string(op) << " name " << name << std::endl;
+
                 return build_type(op, T());
             }
         };
 
         template<typename T>
         struct buffer_mut : buffer<T> {
-            std::string name;
             using value_type = T;
 
             auto operator[](const value<int>& index)
