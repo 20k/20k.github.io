@@ -409,6 +409,7 @@ namespace value_impl
             #endif // NATIVE_OPS
             {FMOD, "fmod"},
             {ISFINITE, "isfinite"},
+            {FABS, "fabs"},
 
             {GET_GLOBAL_ID, "get_global_id"},
         };

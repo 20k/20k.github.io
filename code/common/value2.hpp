@@ -50,6 +50,7 @@ namespace value_impl
             DOT,
             FMOD,
             ISFINITE,
+            FABS,
 
             GET_GLOBAL_ID,
 
@@ -640,6 +641,19 @@ namespace value_impl
 
     template<typename T>
     inline
+    value<T> tan(const value<T>& v1)
+    {
+        using std::tan;
+        PROPAGATE1(v1, tan);
+
+        value<T> ret;
+        ret.type = op::TAN;
+        ret.args = {v1};
+        return ret;
+    }
+
+    template<typename T>
+    inline
     value<T> sqrt(const value<T>& v1)
     {
         using std::sqrt;
@@ -660,6 +674,19 @@ namespace value_impl
         value<T> ret;
         ret.type = op::FMOD;
         ret.args = {v1, v2};
+        return ret;
+    }
+
+    template<typename T>
+    inline
+    value<T> fabs(const value<T>& v1)
+    {
+        using std::fabs;
+        PROPAGATE1(v1, fabs);
+
+        value<T> ret;
+        ret.type = op::FABS;
+        ret.args = {v1};
         return ret;
     }
 

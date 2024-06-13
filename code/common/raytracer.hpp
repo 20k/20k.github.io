@@ -12,6 +12,7 @@ using v3f = tensor<valuef, 3>;
 using v4f = tensor<valuef, 4>;
 using v2i = tensor<valuei, 2>;
 using v3i = tensor<valuei, 3>;
+using m44f = metric<valuef, 4, 4>;
 
 using mut_v4f = tensor<mut<valuef>, 4>;
 using mut_v3f = tensor<mut<valuef>, 3>;
@@ -292,6 +293,64 @@ void opencl_raytrace(execution_context& ectx, literal<int> screen_width, literal
     v4f crgba = {colour[0], colour[1], colour[2], 1.f};
 
     screen.write(ectx, {x,y}, crgba);
+}
+
+valuef dot(v4f u, v4f v, m44f m) {
+    v4f lowered = m.lower(u);
+
+    return dot(lowered, v);
+}
+
+v4f gram_project(v4f u, v4f v, m44f m) {
+    valuef top = dot_metric(u, v, m);
+    valuef bottom = dot_metric(u, u, m);
+
+    return (top / bottom) * u;
+}
+
+v4f normalise(v4f in, m44f m)
+{
+    valuef d = dot_metric(in, in, m);
+
+    return in / sqrt(fabs(d));
+}
+
+tetrad gram_schmidt(v4f v0, v4f v1, v4f v2, v4f v3, m44f m)
+{
+    v4f u0 = v0;
+
+    v4f u1 = v1;
+    u1 = u1 - gram_project(u0, u1, m);
+
+    v4f u2 = v2;
+    u2 = u2 - gram_project(u0, u2, m);
+    u2 = u2 - gram_project(u1, u2, m);
+
+    v4f u3 = v3;
+    u3 = u3 - gram_project(u0, u3, m);
+    u3 = u3 - gram_project(u1, u3, m);
+    u3 = u3 - gram_project(u2, u3, m);
+
+    u0 = normalise(u0, m);
+    u1 = normalise(u1, m);
+    u2 = normalise(u2, m);
+    u3 = normalise(u3, m);
+
+    return {u0, u1, u2, u3};
+};
+
+template<auto GetMetric>
+void build_initial_tetrads(execution_context& ectx, literal<tensor<float, 4>> camera_position,
+                           buffer_mut<tensor<float, 4>> position_out,
+                           buffer_mut<tensor<float, 4>> e0_out, buffer_mut<tensor<float, 4>> e1_out, buffer_mut<tensor<float, 4>> e2_out, buffer_mut<tensor<float, 4>> e3_out)
+{
+    using namespace single_source;
+
+    valuei idx = value_impl::get_global_id(0);
+
+    pin(idx);
+
+
 }
 
 #endif // SCHWARZSCHILD_SINGLE_SOURCE_HPP_INCLUDED
