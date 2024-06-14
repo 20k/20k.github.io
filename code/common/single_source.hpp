@@ -371,8 +371,8 @@ namespace value_impl
 
     std::string value_to_string(const value_base& v);
 
-    #define NATIVE_OPS
-    #define NATIVE_DIVIDE
+    //#define NATIVE_OPS
+    //#define NATIVE_DIVIDE
 
     ///handles function calls, and infix operators
     std::string function_call_or_infix(const value_base& v)

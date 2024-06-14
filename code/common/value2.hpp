@@ -136,6 +136,17 @@ namespace value_impl
             return type == op::VALUE && abstract_value.size() == 0;
         }
 
+        bool is_floating_point_type() const
+        {
+            bool is_float = false;
+
+            std::visit([&]<typename T>(const T& in){
+                is_float = std::is_floating_point_v<T>;
+            }, concrete);
+
+            return is_float;
+        }
+
         template<typename Tf, typename U>
         auto replay_impl(Tf&& type_factory, U&& handle_value) -> decltype(change_variant_type(type_factory, concrete))
         {
@@ -206,6 +217,32 @@ namespace value_impl
     template<typename U>
     inline
     std::optional<value_base> replay_constant(const value_base& v1, U&& func);
+
+    inline
+    value_base optimise(const value_base& in);
+
+    #define DECL_VALUE_FUNC1(func, name) \
+    inline \
+    value_base name(const value_base& v1) {\
+        return optimise(make_op<value_base>(op::func, {v1}));\
+    }\
+
+    #define DECL_VALUE_FUNC2(func, name) \
+    inline \
+    value_base name(const value_base& v1, const value_base& v2) {\
+        return optimise(make_op<value_base>(op::func, {v1, v2}));\
+    }\
+
+    DECL_VALUE_FUNC1(SIN, sin);
+    DECL_VALUE_FUNC1(COS, cos);
+    DECL_VALUE_FUNC1(TAN, tan);
+    DECL_VALUE_FUNC1(SQRT, sqrt);
+    DECL_VALUE_FUNC1(FABS, fabs);
+    DECL_VALUE_FUNC1(ISFINITE, isfinite);
+    DECL_VALUE_FUNC2(FMOD, fmod);
+    DECL_VALUE_FUNC1(SIGN, sign);
+    DECL_VALUE_FUNC1(FLOOR, floor);
+    DECL_VALUE_FUNC1(CEIL, ceil);
 
 
     #define PROPAGATE_BASE2(vop, func) if(in.type == op::vop) { \
@@ -292,39 +329,67 @@ namespace value_impl
 
             if(equivalent(in.args[0], in.args[0].make_constant_of_type(0.f)))
                 return -in.args[1];
+
+            value_base v1 = in.args[0];
+            value_base v2 = in.args[1];
+
+            if(v1.type == op::MULTIPLY && v2.type == op::MULTIPLY)
+            {
+                if(equivalent(v1.args[0], v1.args[1]) && equivalent(v2.args[0], v2.args[1]) && v1.args[0].type == op::PLUS && v2.args[0].type == op::MINUS)
+                {
+                    if(equivalent(v1.args[0].args[0], v2.args[0].args[0]) && equivalent(v1.args[0].args[1], v2.args[0].args[1]))
+                    {
+                        return v1.args[0].args[0].make_constant_of_type(4) * (v1.args[0].args[0] * v1.args[0].args[1]);
+                    }
+                }
+            }
+        }
+
+        //the problem with this is it tends to elmininate common subexpressions
+        if(in.type == op::UMINUS)
+        {
+            /*if(in.args[0].type == op::MINUS)
+                return in.args[0].args[1] - in.args[0].args[0];
+
+            if(in.args[0].type == op::DIVIDE)
+            {
+                if(in.args[0].args[0].is_concrete_type())
+                    return (-in.args[0].args[0]) / in.args[0].args[1];
+            }
+
+            if(in.args[0].type == op::MULTIPLY)
+            {
+                if(in.args[0].args[0].is_concrete_type())
+                    return (-in.args[0].args[0]) * in.args[0].args[1];
+
+                if(in.args[0].args[1].is_concrete_type())
+                    return in.args[0].args[0] * (-in.args[0].args[1]);
+            }*/
+
+            if(in.args[0].type == op::UMINUS)
+                return in.args[0].args[0];
         }
 
         if(in.type == op::DIVIDE)
         {
             if(equivalent(in.args[0], in.args[0].make_constant_of_type(0.f)))
                 return in.args[0].make_constant_of_type(0.f);
+
+            if(equivalent(in.args[0], in.args[1]))
+                return in.args[0].make_constant_of_type(1.f);
+
+            if(equivalent(in.args[1], in.args[1].make_constant_of_type(1.f)))
+                return in.args[0];
+
+            if(in.args[1].is_concrete_type() && in.args[1].is_floating_point_type())
+                return in.args[1] * (in.args[1].make_constant_of_type(1.f)/in.args[2]);
+
+            //if(v2.is_concrete_type() && std::is_floating_point_v<T>)
+            //    return v1 * (1/v2);
         }
 
         return in;
     }
-
-    #define DECL_VALUE_FUNC1(func, name) \
-    inline \
-    value_base name(const value_base& v1) {\
-        return optimise(make_op<value_base>(op::func, {v1}));\
-    }\
-
-    #define DECL_VALUE_FUNC2(func, name) \
-    inline \
-    value_base name(const value_base& v1, const value_base& v2) {\
-        return optimise(make_op<value_base>(op::func, {v1, v2}));\
-    }\
-
-    DECL_VALUE_FUNC1(SIN, sin);
-    DECL_VALUE_FUNC1(COS, cos);
-    DECL_VALUE_FUNC1(TAN, tan);
-    DECL_VALUE_FUNC1(SQRT, sqrt);
-    DECL_VALUE_FUNC1(FABS, fabs);
-    DECL_VALUE_FUNC1(ISFINITE, isfinite);
-    DECL_VALUE_FUNC2(FMOD, fmod);
-    DECL_VALUE_FUNC1(SIGN, sign);
-    DECL_VALUE_FUNC1(FLOOR, floor);
-    DECL_VALUE_FUNC1(CEIL, ceil);
 
     template<typename T, typename U>
     inline
@@ -378,6 +443,10 @@ namespace value_impl
     #define PROPAGATE2(x, y, op)
     #define PROPAGATE1(x, op)
     #endif
+
+    template<typename T>
+    inline
+    value<T> from_base(const value_base& b);
 
     template<typename T>
     struct value : value_base {
@@ -463,7 +532,7 @@ namespace value_impl
             value<T> result;
             result.type = op::MINUS;
             result.args = {v1, v2};
-            return result;
+            return from_base<T>(optimise(result));
         }
 
         friend value<T> operator/(const value<T>& v1, const value<T>& v2) {
@@ -501,7 +570,7 @@ namespace value_impl
             value<T> result;
             result.type = op::UMINUS;
             result.args = {v1};
-            return result;
+            return from_base<T>(optimise(result));
         }
 
 
@@ -586,6 +655,15 @@ namespace value_impl
             return std::get<result_t>(replay_impl(type_factory, handle_value));
         }
     };
+
+    template<typename T>
+    inline
+    value<T> from_base(const value_base& b)
+    {
+        value<T> ret;
+        ret.set_from_base(b);
+        return ret;
+    }
 
     template<typename T, typename U>
     struct mutable_proxy
