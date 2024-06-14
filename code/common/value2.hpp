@@ -280,11 +280,11 @@ namespace value_impl
 
 
     #define PROPAGATE_BASE2(vop, func) if(in.type == op::vop) { \
-        out = replay_constant(in.args[0], in.args[1], [&]<typename T>(const T& p1, const T& p2){return func(p1, p2);});\
+        out = replay_constant(in.args[0], in.args[1], func);\
     }
 
     #define PROPAGATE_BASE1(vop, func) if(in.type == op::vop) { \
-        out = replay_constant(in.args[0], [&](auto&& p1){return func(p1);});\
+        out = replay_constant(in.args[0], func);\
     }
 
     std::string value_to_string(const value_base& v);
