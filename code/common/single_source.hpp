@@ -48,6 +48,15 @@ namespace value_impl
             });
         }
 
+        template<typename T, int N>
+        void pin(tensor<T, N>& inout)
+        {
+            for(int i=0; i < N; i++)
+            {
+                pin(inout[i]);
+            }
+        }
+
         virtual ~execution_context_base(){}
     };
 

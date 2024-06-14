@@ -436,7 +436,7 @@ namespace value_impl
                 return in.args[0];
 
             if(in.args[1].is_concrete_type() && in.args[1].is_floating_point_type())
-                return in.args[1] * (in.args[1].make_constant_of_type(1.f)/in.args[2]);
+                return in.args[0] * (in.args[1].make_constant_of_type(1.f)/in.args[1]);
 
             if(in.args[1].type == op::DIVIDE)
                 return in.args[0] * (in.args[1].args[1] / in.args[1].args[0]);
