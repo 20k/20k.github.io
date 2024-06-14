@@ -316,6 +316,19 @@ namespace value_impl
             PROPAGATE_BASE2(DIVIDE, op_divide);
             PROPAGATE_BASE1(UMINUS, op_unary_minus);
 
+            PROPAGATE_BASE1(SIN, usin);
+            PROPAGATE_BASE1(COS, ucos);
+            PROPAGATE_BASE1(TAN, utan);
+            PROPAGATE_BASE1(SQRT, usqrt);
+            PROPAGATE_BASE1(FABS, ufabs);
+            PROPAGATE_BASE1(ISFINITE, uisfinite);
+            PROPAGATE_BASE2(FMOD, ufmod);
+            PROPAGATE_BASE2(MOD, ufmod);
+            PROPAGATE_BASE1(SIGN, usign);
+            PROPAGATE_BASE1(FLOOR, ufloor);
+            PROPAGATE_BASE1(CEIL, uceil);
+            PROPAGATE_BASE1(INVERSE_SQRT, uinverse_sqrt);
+
             if(out)
                 return out.value();
         }
@@ -525,8 +538,6 @@ namespace value_impl
         }
 
         friend value<T> operator%(const value<T>& v1, const value<T>& v2) {
-            PROPAGATE2(v1, v2, ufmod);
-
             value<T> result;
             result.type = op::MOD;
             result.args = {v1, v2};
@@ -534,16 +545,6 @@ namespace value_impl
         }
 
         friend value<T> operator+(const value<T>& v1, const value<T>& v2) {
-            PROPAGATE2(v1, v2, op_plus);
-
-            #ifdef OPTIMISE_VALUE
-            if(equivalent(v1, value<T>(0)))
-                return v2;
-
-            if(equivalent(v2, value<T>(0)))
-                return v1;
-            #endif
-
             value<T> result;
             result.type = op::PLUS;
             result.args = {v1, v2};
@@ -551,22 +552,6 @@ namespace value_impl
         }
 
         friend value<T> operator*(const value<T>& v1, const value<T>& v2) {
-            PROPAGATE2(v1, v2, op_multiply);
-
-            #ifdef OPTIMISE_VALUE
-            if(equivalent(v1, value<T>(0)))
-                return (T)0;
-
-            if(equivalent(v2, value<T>(0)))
-                return (T)0;
-
-            if(equivalent(v1, value<T>(1)))
-                return v2;
-
-            if(equivalent(v2, value<T>(1)))
-                return v1;
-            #endif
-
             value<T> result;
             result.type = op::MULTIPLY;
             result.args = {v1, v2};
@@ -574,20 +559,6 @@ namespace value_impl
         }
 
         friend value<T> operator-(const value<T>& v1, const value<T>& v2) {
-            PROPAGATE2(v1, v2, op_minus);
-
-            #ifdef OPTIMISE_VALUE
-            if(equivalent(v1, v2))
-                return (T)0;
-
-            if(equivalent(v2, value<T>(0)))
-                return v1;
-
-            ///this is a performance negative, for some reason
-            if(equivalent(v1, value<T>(0)))
-                return -v2;
-            #endif
-
             value<T> result;
             result.type = op::MINUS;
             result.args = {v1, v2};
@@ -595,22 +566,6 @@ namespace value_impl
         }
 
         friend value<T> operator/(const value<T>& v1, const value<T>& v2) {
-            PROPAGATE2(v1, v2, op_divide);
-
-            #ifdef OPTIMISE_VALUE
-            if(equivalent(v1, value<T>(0)))
-                return (T)0;
-
-            if(equivalent(v2, value<T>(1)))
-                return v1;
-
-            if(equivalent(v1, v2))
-                return (T)1;
-
-            if(v2.is_concrete_type() && std::is_floating_point_v<T>)
-                return v1 * (1/v2);
-            #endif
-
             value<T> result;
             result.type = op::DIVIDE;
             result.args = {v1, v2};
@@ -619,13 +574,6 @@ namespace value_impl
 
 
         friend value<T> operator-(const value<T>& v1) {
-            PROPAGATE1(v1, op_unary_minus);
-
-            #ifdef OPTIMISE_VALUE
-            if(equivalent(v1, value<T>(0)))
-                return v1;
-            #endif
-
             value<T> result;
             result.type = op::UMINUS;
             result.args = {v1};
@@ -1013,121 +961,99 @@ namespace value_impl
     inline
     value<T> sin(const value<T>& v1)
     {
-        PROPAGATE1(v1, usin);
-
         value<T> ret;
         ret.type = op::SIN;
         ret.args = {v1};
-        return ret;
+        return from_base<T>(optimise(ret));
     }
 
     template<typename T>
     inline
     value<T> cos(const value<T>& v1)
     {
-        PROPAGATE1(v1, ucos);
-
         value<T> ret;
         ret.type = op::COS;
         ret.args = {v1};
-        return ret;
+        return from_base<T>(optimise(ret));
     }
 
     template<typename T>
     inline
     value<T> tan(const value<T>& v1)
     {
-        PROPAGATE1(v1, utan);
-
         value<T> ret;
         ret.type = op::TAN;
         ret.args = {v1};
-        return ret;
+        return from_base<T>(optimise(ret));
     }
 
     template<typename T>
     inline
     value<T> sqrt(const value<T>& v1)
     {
-        PROPAGATE1(v1, usqrt);
-
         value<T> ret;
         ret.type = op::SQRT;
         ret.args = {v1};
-        return ret;
+        return from_base<T>(optimise(ret));
     }
 
     template<typename T>
     inline
     value<T> inverse_sqrt(const value<T>& v1)
     {
-        PROPAGATE1(v1, uinverse_sqrt);
-
         value<T> ret;
         ret.type = op::INVERSE_SQRT;
         ret.args = {v1};
-        return ret;
+        return from_base<T>(optimise(ret));
     }
 
     template<typename T>
     value<T> fmod(const value<T>& v1, const value<T>& v2)
     {
-        PROPAGATE2(v1, v2, ufmod);
-
         value<T> ret;
         ret.type = op::FMOD;
         ret.args = {v1, v2};
-        return ret;
+        return from_base<T>(optimise(ret));
     }
 
     template<typename T>
     inline
     value<T> fabs(const value<T>& v1)
     {
-        PROPAGATE1(v1, ufabs);
-
         value<T> ret;
         ret.type = op::FABS;
         ret.args = {v1};
-        return ret;
+        return from_base<T>(optimise(ret));
     }
 
     template<typename T>
     value<int> isfinite(const value<T>& v1)
     {
-        PROPAGATE1(v1, uisfinite);
-
         value<int> ret;
         ret.type = op::ISFINITE;
         ret.args = {v1};
-        return ret;
+        return from_base<int>(optimise(ret));
     }
 
     template<typename T>
     inline
     value<T> sign(const value<T>& v1)
     {
-        PROPAGATE1(v1, usign);
-
-        return make_op(op::SIGN, {v1});
+        return from_base<T>(optimise(make_op(op::SIGN, {v1})));
     }
 
     template<typename T>
     inline
     value<T> floor(const value<T>& v1)
     {
-        PROPAGATE1(v1, ufloor);
-
-        return make_op(op::FLOOR, {v1});
+        return from_base<T>(optimise(make_op(op::FLOOR, {v1})));
     }
 
     template<typename T>
     inline
     value<T> ceil(const value<T>& v1)
     {
-        PROPAGATE1(v1, uceil);
-
-        return make_op(op::CEIL, {v1});
+        return from_base<T>(optimise(make_op(op::CEIL, {v1})));
     }
 
     template<typename T>
