@@ -975,13 +975,19 @@ namespace value_impl
         }, v1, v2);
     }
 
-    template<typename T>
     inline
-    value_base declare_b(const std::string& name, const value<T>& rhs)
+    value_base declare_b(const std::string& name, const value_base& rhs)
     {
-        value_base type = name_type(T());
+        value_base type;
 
-        value<T> v;
+        value_base v;
+
+        std::visit([&]<typename T>(const T&)
+        {
+            v.concrete = T();
+            type = name_type(T());
+        }, rhs.concrete);
+
         v.type = op::DECLARE;
         v.args = {type, name, rhs};
 
@@ -1212,6 +1218,9 @@ namespace value_impl
 
         else if constexpr(std::is_same_v<T, tensor<float16, 2>>)
             return "half2";
+
+        else if constexpr(std::is_same_v<T, bool>)
+            return "bool";
 
         else
         {

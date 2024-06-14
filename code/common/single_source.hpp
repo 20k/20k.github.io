@@ -107,6 +107,25 @@ namespace value_impl
         return *context_stack().back();
     }
 
+    inline
+    value_base declare_e(execution_context_base& ectx, const std::string& name, const value_base& rhs)
+    {
+        ectx.add(declare_b(name, rhs));
+
+        value_base named;
+        named.type = op::VALUE;
+        named.abstract_value = name;
+        named.concrete = rhs.concrete;
+
+        return named;
+    }
+
+    inline
+    value_base declare_e(execution_context_base& ectx, const value_base& rhs)
+    {
+        return declare_e(get_context(), "decl_" + std::to_string(get_context().next_id()), rhs);
+    }
+
     template<typename T>
     inline
     value<T> declare_e(execution_context_base& ectx, const std::string& name, const value<T>& rhs)
@@ -244,6 +263,12 @@ namespace value_impl
 
     namespace single_source
     {
+        inline
+        value_base declare_e(const value_base& rhs)
+        {
+            return declare_e(get_context(), rhs);
+        }
+
         template<typename T>
         inline
         value<T> declare_e(const std::string& name, const value<T>& rhs)
@@ -650,6 +675,14 @@ namespace value_impl
     namespace single_source {
         template<typename T>
         inline
+        T get_interior_type(const T&){return T();}
+
+        template<typename T, int... N>
+        inline
+        T get_interior_type(const tensor<T, N...>&){return T();}
+
+        template<typename T>
+        inline
         value<T> build_type(const value_base& name, const T& tag)
         {
             value<T> ret;
@@ -705,6 +738,7 @@ namespace value_impl
                 value_base op;
                 op.type = op::BRACKET;
                 op.args = {name, index};
+                op.concrete = get_interior_type(T());
 
                 return build_type(op, T());
             }
@@ -1003,6 +1037,185 @@ namespace value_impl
         std::apply(func, std::tuple_cat(a1, args));
     }
 
+
+    inline
+    void substitute(const value_base& what, const value_base& with, value_base& modify)
+    {
+        if(equivalent(what, modify))
+        {
+            modify = with;
+            return;
+        }
+
+        for(int i=0; i < (int)modify.args.size(); i++)
+        {
+            substitute(what, with, modify.args[i]);
+        }
+    }
+
+    inline
+    bool expression_present_in(const value_base& expression, const value_base& in)
+    {
+        if(equivalent(expression, in))
+            return true;
+
+        for(int i=0; i < (int)in.args.size(); i++)
+        {
+            if(expression_present_in(expression, in.args[i]))
+                return true;
+        }
+
+        return false;
+    }
+
+    ///issue is that we're peeking throuhg expressions which should not be peeked through, ie operator.
+    inline
+    void build_common_subexpressions_between(const value_base& v1, const value_base& v2, std::vector<value_base>& out)
+    {
+        auto invalid_type = [](op::type t) {
+            return t == op::VALUE || t == op::DOT || t == op::BRACKET ||
+            t == op::FOR || t == op::IF || t == op::BREAK || t == op::WHILE ||
+            t == op::RETURN || t == op::BLOCK_START || t == op::BLOCK_END ||
+            t == op::ASSIGN || t == op::SIDE_EFFECT || t == op::IMAGE_READ || t == op::IMAGE_WRITE || t == op::CAST;
+        };
+
+        if(invalid_type(v1.type))
+            return;
+
+        if(v1.type != op::DECLARE)
+        {
+            if(expression_present_in(v1, v2))
+            {
+                for(auto& j : out)
+                {
+                    if(equivalent(v1, j))
+                        return;
+                }
+
+                out.push_back(v1);
+                return;
+            }
+        }
+
+        int start = 0;
+
+        if(v1.type == op::DECLARE)
+            start = 2;
+
+        for(int i=start; i < (int)v1.args.size(); i++)
+        {
+            if(invalid_type(v1.args[i].type))
+                continue;
+
+            if(expression_present_in(v1.args[i], v2))
+            {
+                bool already_found = false;
+
+                for(auto& j : out)
+                {
+                    if(equivalent(v1.args[i], j))
+                    {
+                        already_found = true;
+                        break;
+                    }
+                }
+
+                if(!already_found)
+                    out.push_back(v1.args[i]);
+            }
+            else
+            {
+                build_common_subexpressions_between(v1.args[i], v2, out);
+            }
+        }
+    }
+
+    ///so we want to go top down in our tree, and for each node, check all the other expressions to see
+    ///if they contain that same expression
+    ///if they do, we want to declare a new variable, and then yank us out
+
+    inline
+    std::vector<value_base> expression_eliminate(execution_context_base& ectx, const std::vector<value_base>& in)
+    {
+        std::vector<value_base> current_expression_list = in;
+
+        std::vector<value_base> ret;
+
+        for(int i=0; i < (int)current_expression_list.size(); i++)
+        {
+            std::vector<value_base> exprs;
+
+            for(int j=i+1; j < (int)current_expression_list.size(); j++)
+            {
+                build_common_subexpressions_between(current_expression_list[i], current_expression_list[j], exprs);
+            }
+
+            ///so, at i, its safe to common expression to a declaration just before i
+
+            for(int kk=0; kk < (int)exprs.size(); kk++)
+            {
+                std::string name = "d" + std::to_string(ectx.next_id());
+
+                value_base decl = value_impl::declare_b(name, exprs[kk]);
+
+                value_base var = name;
+                var.concrete = decl.concrete;
+
+                current_expression_list.insert(current_expression_list.begin() + i + kk, decl);
+
+                for(int jj = i + kk + 1; jj < current_expression_list.size(); jj++)
+                {
+                    substitute(exprs[kk], var, current_expression_list[jj]);
+                }
+            }
+
+            i += exprs.size();
+
+            ///so need to be mindful of the following pattern
+            ///float v1 = whatever;
+            ///float v2 = whatever * v1;
+            ///float v3 = whatever * v1;
+            ///if we pull out an expr involving v1, then we have to be careful with where we declare it
+            ///i mean hey, inherently v1 can't contain a reference to itself in a declaration (unlike mutability), so we know if we pull out a common subexpression
+            ///involving it where it can be placed
+        }
+
+        return current_expression_list;
+
+        /*std::vector<value_base> ret = in;
+        std::vector<value_base> exprs;
+        std::vector<value_base> decls;
+
+        for(int i=0; i < (int)in.size(); i++)
+        {
+            for(int j=i+1; j < (int)in.size(); j++)
+            {
+                build_common_subexpressions_between(in[i], in[j], exprs);
+            }
+        }
+
+        for(auto& e : exprs)
+        {
+            std::string name = "d" + std::to_string(ectx.next_id());
+
+            value_base decl = value_impl::declare_b(name, e);
+
+            std::cout <<" Fdecl " << value_to_string(decl) << std::endl;
+
+            value_base var = name;
+            var.concrete = decl.concrete;
+
+            decls.push_back(decl);
+
+            for(auto& kk : ret)
+            {
+                substitute(e, var, kk);
+            }
+        }
+
+        return {ret, decls};*/
+    }
+
     std::string generate_kernel_string(function_context& kctx, const std::string& kernel_name)
     {
         execution_context_base& ctx = get_context();
@@ -1028,26 +1241,85 @@ namespace value_impl
             return t == op::ASSIGN || t == op::DECLARE || t == op::RETURN || t == op::BREAK || t == op::IMAGE_READ || t == op::IMAGE_WRITE || t == op::SIDE_EFFECT;
         };
 
+        /*
+        std::vector<std::vector<value>> blocks;
+        blocks.emplace_back();
+
+        for(auto& v : ctx.sequenced)
+        {
+            bool is_bad = dual_types::get_description(v.type).introduces_block;
+
+            is_bad = is_bad || dual_types::get_description(v.type).reordering_hazard;
+
+            if(!(v.type == dual_types::ops::ASSIGN && v.args.at(0).is_memory_access()))
+            {
+                v.recurse_arguments([&](const value& in)
+                {
+                    if(in.is_mutable)
+                        is_bad = true;
+                });
+            }
+
+            ///control flow constructs are in their own dedicated segment
+            if(is_bad)
+            {
+                blocks.emplace_back();
+                blocks.back().push_back(v);
+                blocks.emplace_back();
+                continue;
+            }
+
+            blocks.back().push_back(v);
+        }*/
+
+        std::vector<std::vector<value_base>> blocks;
+        blocks.emplace_back();
+
+        for(auto& v : ctx.to_execute)
+        {
+            auto introduces_block = [](op::type t) {
+                return t == op::BLOCK_START || t == op::BLOCK_END || t == op::IF || t == op::WHILE || t == op::FOR || t == op::BREAK || t == op::RETURN || t == op::SIDE_EFFECT ||
+                       t == op::BRACKET || t == op::ASSIGN;
+            };
+
+            if(introduces_block(v.type))
+            {
+                blocks.emplace_back();
+            }
+
+            blocks.back().push_back(v);
+
+            if(introduces_block(v.type))
+            {
+                blocks.emplace_back();
+            }
+        }
+
         int indentation = 1;
 
         int bid = 0;
 
-        for(const value_base& v : ctx.to_execute)
+        for(auto& block : blocks)
         {
-            if(v.type == op::BLOCK_END)
-                indentation--;
+            auto next_block = expression_eliminate(get_context(), block);
 
-            std::string prefix(indentation * 4, ' ');
+            for(const value_base& v : next_block)
+            {
+                if(v.type == op::BLOCK_END)
+                    indentation--;
 
-            base += prefix + "//" + std::to_string(bid) + "\n";
+                std::string prefix(indentation * 4, ' ');
 
-            if(is_semicolon_terminated(v.type))
-                base += prefix + value_to_string(v) + ";\n";
-            else
-                base += prefix + value_to_string(v) + "\n";
+                base += prefix + "//" + std::to_string(bid) + "\n";
 
-            if(v.type == op::BLOCK_START)
-                indentation++;
+                if(is_semicolon_terminated(v.type))
+                    base += prefix + value_to_string(v) + ";\n";
+                else
+                    base += prefix + value_to_string(v) + "\n";
+
+                if(v.type == op::BLOCK_START)
+                    indentation++;
+            }
 
             bid++;
         }

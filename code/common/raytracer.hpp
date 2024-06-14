@@ -220,6 +220,8 @@ std::pair<valuei, tensor<valuef, 4>> integrate(geodesic& g, auto&& get_metric) {
 
         v4f acceleration = calculate_acceleration_of(cposition, cvelocity, get_metric);
 
+        pin(acceleration);
+
         as_ref(velocity) = cvelocity + acceleration * dt;
         as_ref(position) = cposition + velocity.as<valuef>() * dt;
 
