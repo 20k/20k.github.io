@@ -407,6 +407,7 @@ namespace value_impl
 
     #define NATIVE_OPS
     #define NATIVE_DIVIDE
+    //#define NATIVE_RECIP
 
     ///handles function calls, and infix operators
     std::string function_call_or_infix(const value_base& v)
@@ -435,11 +436,13 @@ namespace value_impl
             {COS, "native_cos"},
             {TAN, "native_tan"},
             {SQRT, "native_sqrt"},
+            {INVERSE_SQRT, "native_rsqrt"},
             #else
             {SIN, "sin"},
             {COS, "cos"},
             {TAN, "tan"},
             {SQRT, "sqrt"},
+            {INVERSE_SQRT, "rsqrt"},
             #endif // NATIVE_OPS
             {FMOD, "fmod"},
             {ISFINITE, "isfinite"},
@@ -661,6 +664,14 @@ namespace value_impl
         {
             return v.abstract_value;
         }
+
+        #ifdef NATIVE_RECIP
+        if(v.type == op::DIVIDE)
+        {
+            if(equivalent(v.args[0], v.args[0].make_constant_of_type(1.f)))
+                return "native_recip(" + value_to_string(v.args.at(1)) + ")";
+        }
+        #endif
 
         #ifdef NATIVE_DIVIDE
         if(v.type == op::DIVIDE)

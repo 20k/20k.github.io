@@ -47,6 +47,7 @@ namespace value_impl
             COS,
             TAN,
 
+            INVERSE_SQRT,
             SQRT,
             DOT,
             FMOD,
@@ -277,6 +278,7 @@ namespace value_impl
     DECL_VALUE_FUNC1(SIGN, sign, stdmath::usign);
     DECL_VALUE_FUNC1(FLOOR, floor, stdmath::ufloor);
     DECL_VALUE_FUNC1(CEIL, ceil, stdmath::uceil);
+    DECL_VALUE_FUNC1(INVERSE_SQRT, inverse_sqrt, stdmath::uinverse_sqrt);
 
 
     #define PROPAGATE_BASE2(vop, func) if(in.type == op::vop) { \
@@ -440,6 +442,9 @@ namespace value_impl
 
             if(in.args[1].type == op::DIVIDE)
                 return in.args[0] * (in.args[1].args[1] / in.args[1].args[0]);
+
+            if(in.args[1].type == op::SQRT)
+                return in.args[0] * inverse_sqrt(in.args[1].args[0]);
         }
 
         return in;
@@ -1048,6 +1053,18 @@ namespace value_impl
 
         value<T> ret;
         ret.type = op::SQRT;
+        ret.args = {v1};
+        return ret;
+    }
+
+    template<typename T>
+    inline
+    value<T> inverse_sqrt(const value<T>& v1)
+    {
+        PROPAGATE1(v1, uinverse_sqrt);
+
+        value<T> ret;
+        ret.type = op::INVERSE_SQRT;
         ret.args = {v1};
         return ret;
     }

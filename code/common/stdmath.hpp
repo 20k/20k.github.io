@@ -122,6 +122,11 @@ namespace stdmath
         else
             return sqrt(in);
     };
+
+    auto uinverse_sqrt = []<typename T>(const T& in)
+    {
+        return 1/usqrt(in);
+    };
 }
 
 #endif // STDMATH_HPP_INCLUDED
