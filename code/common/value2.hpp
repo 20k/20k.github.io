@@ -317,6 +317,28 @@ namespace value_impl
 
             if(equivalent(in.args[1], in.args[1].make_constant_of_type(-1.f)))
                 return -in.args[0];
+
+            if(in.args[1].type == op::DIVIDE)
+            {
+                //std::cout << value_to_string(in.args[0]) << " " << value_to_string(in.args[1]) << std::endl;
+
+                if(equivalent(in.args[0], in.args[1].args[1]))
+                    return in.args[1].args[0];
+
+                if(equivalent(-in.args[0], in.args[1].args[1]) || equivalent(in.args[0], -in.args[1].args[1]))
+                    return -in.args[1].args[0];
+
+                //std::cout << "No op\n";
+            }
+
+            if(in.args[0].type == op::DIVIDE)
+            {
+                if(equivalent(in.args[1], in.args[0].args[1]))
+                    return in.args[0].args[0];
+
+                if(equivalent(-in.args[1], in.args[0].args[1]) || equivalent(in.args[1], -in.args[0].args[1]))
+                    return -in.args[0].args[0];
+            }
         }
 
         if(in.type == op::MINUS)
@@ -384,8 +406,8 @@ namespace value_impl
             if(in.args[1].is_concrete_type() && in.args[1].is_floating_point_type())
                 return in.args[1] * (in.args[1].make_constant_of_type(1.f)/in.args[2]);
 
-            //if(v2.is_concrete_type() && std::is_floating_point_v<T>)
-            //    return v1 * (1/v2);
+            if(in.args[1].type == op::DIVIDE)
+                return in.args[0] * (in.args[1].args[1] / in.args[1].args[0]);
         }
 
         return in;
@@ -471,7 +493,7 @@ namespace value_impl
             value<T> result;
             result.type = op::MOD;
             result.args = {v1, v2};
-            return result;
+            return from_base<T>(optimise(result));
         }
 
         friend value<T> operator+(const value<T>& v1, const value<T>& v2) {
@@ -488,7 +510,7 @@ namespace value_impl
             value<T> result;
             result.type = op::PLUS;
             result.args = {v1, v2};
-            return result;
+            return from_base<T>(optimise(result));
         }
 
         friend value<T> operator*(const value<T>& v1, const value<T>& v2) {
@@ -511,7 +533,7 @@ namespace value_impl
             value<T> result;
             result.type = op::MULTIPLY;
             result.args = {v1, v2};
-            return result;
+            return from_base<T>(optimise(result));
         }
 
         friend value<T> operator-(const value<T>& v1, const value<T>& v2) {
@@ -555,7 +577,7 @@ namespace value_impl
             value<T> result;
             result.type = op::DIVIDE;
             result.args = {v1, v2};
-            return result;
+            return from_base<T>(optimise(result));
         }
 
 
