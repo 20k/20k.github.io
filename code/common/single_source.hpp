@@ -410,6 +410,9 @@ namespace value_impl
             {FMOD, "fmod"},
             {ISFINITE, "isfinite"},
             {FABS, "fabs"},
+            {SIGN, "sign"},
+            {FLOOR, "floor"},
+            {CEIL, "ceil"},
 
             {GET_GLOBAL_ID, "get_global_id"},
         };

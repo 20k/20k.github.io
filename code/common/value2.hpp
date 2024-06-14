@@ -51,6 +51,9 @@ namespace value_impl
             FMOD,
             ISFINITE,
             FABS,
+            SIGN,
+            FLOOR,
+            CEIL,
 
             GET_GLOBAL_ID,
 
@@ -84,6 +87,18 @@ namespace value_impl
 
     using supported_types = std::variant<double, float, float16, int, bool>;
 
+    struct value_base;
+
+    template<typename T>
+    inline
+    T make_op(op::type t, const std::vector<value_base>& args)
+    {
+        T ret;
+        ret.type = t;
+        ret.args = args;
+        return ret;
+    }
+
     struct value_base
     {
         supported_types concrete;
@@ -94,6 +109,10 @@ namespace value_impl
 
         value_base(){}
         value_base(const std::string& str) : abstract_value(str){type = op::VALUE;}
+        template<typename T>
+        explicit value_base(const T& in) : concrete(in) {
+            type = op::VALUE;
+        }
 
         bool is_concrete_type() const
         {
@@ -148,7 +167,70 @@ namespace value_impl
 
             assert(false);
         }
+
+        #define BASE_OPERATOR2(name, type) friend value_base name(const value_base& v1, const value_base& v2) {return make_op<value_base>(type, {v1, v2});}
+        #define BASE_OPERATOR1(name, type) friend value_base name(const value_base& v1) {return make_op<value_base>(type, {v1});}
+
+        BASE_OPERATOR2(operator%, op::MOD);
+        BASE_OPERATOR2(operator+, op::PLUS);
+        BASE_OPERATOR2(operator-, op::MINUS);
+        BASE_OPERATOR2(operator*, op::MULTIPLY);
+        BASE_OPERATOR2(operator/, op::DIVIDE);
+        BASE_OPERATOR1(operator-, op::UMINUS);
     };
+
+    #define DECL_VALUE_FUNC1(func, name) \
+    inline \
+    value_base name(const value_base& v1) {\
+        return make_op<value_base>(op::func, {v1});\
+    }\
+
+    #define DECL_VALUE_FUNC2(func, name) \
+    inline \
+    value_base name(const value_base& v1, const value_base& v2) {\
+        return make_op<value_base>(op::func, {v1, v2});\
+    }\
+
+    DECL_VALUE_FUNC1(SIN, sin);
+    DECL_VALUE_FUNC1(COS, cos);
+    DECL_VALUE_FUNC1(TAN, tan);
+    DECL_VALUE_FUNC1(SQRT, sqrt);
+    DECL_VALUE_FUNC1(FABS, fabs);
+    DECL_VALUE_FUNC1(ISFINITE, isfinite);
+    DECL_VALUE_FUNC2(FMOD, fmod);
+    DECL_VALUE_FUNC1(SIGN, sign);
+    DECL_VALUE_FUNC1(FLOOR, floor);
+    DECL_VALUE_FUNC1(CEIL, ceil);
+
+    template<typename T, typename U>
+    inline
+    T replay_value_base(const value_base& v, U&& handle_value)
+    {
+        ///returns a dual<value_base>(whatever)
+        if(v.type == op::type::VALUE)
+            return handle_value(v);
+
+        #define REPLAY1(func, name) if(v.type == op::func) return name(replay_value_base<T>(v.args[0], handle_value));
+        #define REPLAY2(func, name) if(v.type == op::func) return name(replay_value_base<T>(v.args[0], handle_value), \
+                                                                        replay_value_base<T>(v.args[1], handle_value));
+
+        REPLAY1(SIN, sin);
+        REPLAY1(COS, cos);
+        REPLAY1(TAN, tan);
+        REPLAY1(SQRT, sqrt);
+        REPLAY1(FABS, fabs);
+        REPLAY1(ISFINITE, isfinite);
+        REPLAY2(FMOD, fmod);
+
+        REPLAY2(PLUS, operator+);
+        REPLAY2(MINUS, operator-);
+        REPLAY2(MULTIPLY, operator*);
+        REPLAY2(DIVIDE, operator/);
+        REPLAY1(UMINUS, operator-);
+        REPLAY2(MOD, operator%);
+
+        assert(false);
+    }
 
     template<typename T>
     struct value;
@@ -701,6 +783,57 @@ namespace value_impl
         ret.type = op::ISFINITE;
         ret.args = {v1};
         return ret;
+    }
+
+    template<typename T>
+    inline
+    T sign(T in)
+    {
+        if(in == T(-0.0))
+            return T(-0.0);
+
+        if(in == T(0.0))
+            return T(0.0);
+
+        if(in > 0)
+            return 1;
+
+        if(in < 0)
+            return -1;
+
+        if(std::isnan(in))
+            return 0;
+
+        throw std::runtime_error("Bad sign function");
+    }
+
+    template<typename T>
+    inline
+    value<T> sign(const value<T>& v1)
+    {
+        PROPAGATE1(v1, sign);
+
+        return make_op(op::SIGN, {v1});
+    }
+
+    template<typename T>
+    inline
+    value<T> floor(const value<T>& v1)
+    {
+        using std::floor;
+        PROPAGATE1(v1, floor);
+
+        return make_op(op::FLOOR, {v1});
+    }
+
+    template<typename T>
+    inline
+    value<T> ceil(const value<T>& v1)
+    {
+        using std::ceil;
+        PROPAGATE1(v1, ceil);
+
+        return make_op(op::CEIL, {v1});
     }
 
     template<typename T>

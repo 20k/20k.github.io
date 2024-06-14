@@ -2,6 +2,7 @@
 #define SCHWARZSCHILD_SINGLE_SOURCE_HPP_INCLUDED
 
 #include "../common/vec/tensor.hpp"
+#include "../common/vec/dual.hpp"
 #include "single_source.hpp"
 
 using valuef = value<float>;
@@ -16,6 +17,9 @@ using m44f = metric<valuef, 4, 4>;
 
 using mut_v4f = tensor<mut<valuef>, 4>;
 using mut_v3f = tensor<mut<valuef>, 3>;
+
+template<typename T>
+using dual = dual_types::dual_v<T>;
 
 struct tetrad
 {
@@ -64,18 +68,42 @@ geodesic make_lightlike_geodesic(const v4f& position, const v3f& direction, cons
 }
 
 auto diff(auto&& func, const v4f& position, int direction) {
-    auto p_up = position;
-    auto p_lo = position;
+    m44f metric = func(position);
 
-    float h = 0.00001f;
+    tensor<valuef, 4, 4> differentiated;
 
-    p_up[direction] += h;
-    p_lo[direction] -= h;
+    for(int i=0; i < 4; i++)
+    {
+        for(int j=0; j < 4; j++)
+        {
+            dual<value_base> as_dual = replay_value_base<dual<value_base>>(metric[i, j], [&](const value_base& in)
+            {
+                value_base one;
+                one.type = value_impl::op::VALUE;
 
-    auto up = func(p_up);
-    auto lo = func(p_lo);
+                value_base zero;
+                zero.type = value_impl::op::VALUE;
 
-    return (func(p_up) - func(p_lo)) * (1/(2 * h));
+                std::visit([&]<typename T>(const T& conc)
+                {
+                    one.concrete = (T)1;
+                    zero.concrete = (T)0;
+                }, in.concrete);
+
+                if(equivalent(in, position[direction]))
+                    return dual<value_base>(in, one);
+                else
+                    return dual<value_base>(in, zero);
+            });
+
+            valuef out;
+            out.set_from_base(as_dual.dual);
+
+            differentiated[i, j] = out;
+        }
+    }
+
+    return differentiated;
 }
 
 //get the christoffel symbols that we need for the geodesic equation
