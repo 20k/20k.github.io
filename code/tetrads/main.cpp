@@ -81,7 +81,7 @@ int main()
     cl::kernel tetrad_kern(tetrad_p, "tetrad");
 
     cl::program trace_p(ctx, kernel, false);
-    trace_p.build(ctx, "");
+    trace_p.build(ctx, "-cl-fast-relaxed-math");
     cl::kernel trace_kern(trace_p, "raytrace");
 
     float pi = std::numbers::pi_v<float>;

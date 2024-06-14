@@ -405,8 +405,8 @@ namespace value_impl
 
     std::string value_to_string(const value_base& v);
 
-    //#define NATIVE_OPS
-    //#define NATIVE_DIVIDE
+    #define NATIVE_OPS
+    #define NATIVE_DIVIDE
 
     ///handles function calls, and infix operators
     std::string function_call_or_infix(const value_base& v)
@@ -1241,37 +1241,6 @@ namespace value_impl
             return t == op::ASSIGN || t == op::DECLARE || t == op::RETURN || t == op::BREAK || t == op::IMAGE_READ || t == op::IMAGE_WRITE || t == op::SIDE_EFFECT;
         };
 
-        /*
-        std::vector<std::vector<value>> blocks;
-        blocks.emplace_back();
-
-        for(auto& v : ctx.sequenced)
-        {
-            bool is_bad = dual_types::get_description(v.type).introduces_block;
-
-            is_bad = is_bad || dual_types::get_description(v.type).reordering_hazard;
-
-            if(!(v.type == dual_types::ops::ASSIGN && v.args.at(0).is_memory_access()))
-            {
-                v.recurse_arguments([&](const value& in)
-                {
-                    if(in.is_mutable)
-                        is_bad = true;
-                });
-            }
-
-            ///control flow constructs are in their own dedicated segment
-            if(is_bad)
-            {
-                blocks.emplace_back();
-                blocks.back().push_back(v);
-                blocks.emplace_back();
-                continue;
-            }
-
-            blocks.back().push_back(v);
-        }*/
-
         std::vector<std::vector<value_base>> blocks;
         blocks.emplace_back();
 
@@ -1301,7 +1270,12 @@ namespace value_impl
 
         for(auto& block : blocks)
         {
+            #define ELIMINATE_SUBEXPRESSIONS
+            #ifdef ELIMINATE_SUBEXPRESSIONS
             auto next_block = expression_eliminate(get_context(), block);
+            #else
+            auto next_block = block;
+            #endif
 
             for(const value_base& v : next_block)
             {
