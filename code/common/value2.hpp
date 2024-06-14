@@ -100,6 +100,39 @@ namespace value_impl
         return ret;
     }
 
+    template<typename T, typename U>
+    inline
+    T make_op_with_type_function(op::type t, T v1, U&& func)
+    {
+        T ret;
+        ret.type = t;
+        ret.args = {v1};
+
+        std::visit([&]<typename A>(const A&){
+            ret.concrete = decltype(func(A()))();
+        }, v1.concrete);
+
+        return ret;
+    }
+
+    template<typename T, typename U>
+    inline
+    T make_op_with_type_function(op::type t, T v1, T v2, U&& func)
+    {
+        T ret;
+        ret.type = t;
+        ret.args = {v1, v2};
+
+        std::visit([&]<typename A, typename B>(const A&, const B&){
+            if constexpr(std::is_invocable_v<U, A, B>) {
+                ret.concrete = decltype(func(A(), B()))();
+            }
+
+        }, v1.concrete, v2.concrete);
+
+        return ret;
+    }
+
     inline
     value_base optimise(const value_base& in);
 
@@ -197,15 +230,15 @@ namespace value_impl
             assert(false);
         }
 
-        #define BASE_OPERATOR2(name, type) friend value_base name(const value_base& v1, const value_base& v2) {return optimise(make_op<value_base>(type, {v1, v2}));}
-        #define BASE_OPERATOR1(name, type) friend value_base name(const value_base& v1) {return optimise(make_op<value_base>(type, {v1}));}
+        #define BASE_OPERATOR2(name, type, func) friend value_base name(const value_base& v1, const value_base& v2) {return optimise(make_op_with_type_function<value_base>(type, v1, v2, func));}
+        #define BASE_OPERATOR1(name, type, func) friend value_base name(const value_base& v1) {return optimise(make_op_with_type_function<value_base>(type, v1, func));}
 
-        BASE_OPERATOR2(operator%, op::MOD);
-        BASE_OPERATOR2(operator+, op::PLUS);
-        BASE_OPERATOR2(operator-, op::MINUS);
-        BASE_OPERATOR2(operator*, op::MULTIPLY);
-        BASE_OPERATOR2(operator/, op::DIVIDE);
-        BASE_OPERATOR1(operator-, op::UMINUS);
+        BASE_OPERATOR2(operator%, op::MOD, stdmath::ufmod);
+        BASE_OPERATOR2(operator+, op::PLUS, stdmath::op_plus);
+        BASE_OPERATOR2(operator-, op::MINUS, stdmath::op_minus);
+        BASE_OPERATOR2(operator*, op::MULTIPLY, stdmath::op_multiply);
+        BASE_OPERATOR2(operator/, op::DIVIDE, stdmath::op_divide);
+        BASE_OPERATOR1(operator-, op::UMINUS, stdmath::op_unary_minus);
     };
 
     inline
@@ -222,28 +255,28 @@ namespace value_impl
     inline
     value_base optimise(const value_base& in);
 
-    #define DECL_VALUE_FUNC1(func, name) \
+    #define DECL_VALUE_FUNC1(type, name, func) \
     inline \
     value_base name(const value_base& v1) {\
-        return optimise(make_op<value_base>(op::func, {v1}));\
+        return optimise(make_op_with_type_function<value_base>(op::type, v1, func));\
     }\
 
-    #define DECL_VALUE_FUNC2(func, name) \
+    #define DECL_VALUE_FUNC2(type, name, func) \
     inline \
     value_base name(const value_base& v1, const value_base& v2) {\
-        return optimise(make_op<value_base>(op::func, {v1, v2}));\
+        return optimise(make_op_with_type_function<value_base>(op::type, v1, v2, func));\
     }\
 
-    DECL_VALUE_FUNC1(SIN, sin);
-    DECL_VALUE_FUNC1(COS, cos);
-    DECL_VALUE_FUNC1(TAN, tan);
-    DECL_VALUE_FUNC1(SQRT, sqrt);
-    DECL_VALUE_FUNC1(FABS, fabs);
-    DECL_VALUE_FUNC1(ISFINITE, isfinite);
-    DECL_VALUE_FUNC2(FMOD, fmod);
-    DECL_VALUE_FUNC1(SIGN, sign);
-    DECL_VALUE_FUNC1(FLOOR, floor);
-    DECL_VALUE_FUNC1(CEIL, ceil);
+    DECL_VALUE_FUNC1(SIN, sin, stdmath::usin);
+    DECL_VALUE_FUNC1(COS, cos, stdmath::ucos);
+    DECL_VALUE_FUNC1(TAN, tan, stdmath::utan);
+    DECL_VALUE_FUNC1(SQRT, sqrt, stdmath::usqrt);
+    DECL_VALUE_FUNC1(FABS, fabs, stdmath::ufabs);
+    DECL_VALUE_FUNC1(ISFINITE, isfinite, stdmath::uisfinite);
+    DECL_VALUE_FUNC2(FMOD, fmod, stdmath::ufmod);
+    DECL_VALUE_FUNC1(SIGN, sign, stdmath::usign);
+    DECL_VALUE_FUNC1(FLOOR, floor, stdmath::ufloor);
+    DECL_VALUE_FUNC1(CEIL, ceil, stdmath::uceil);
 
 
     #define PROPAGATE_BASE2(vop, func) if(in.type == op::vop) { \

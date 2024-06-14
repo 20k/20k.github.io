@@ -57,15 +57,15 @@ namespace stdmath
             return T(0.0);
 
         if(in > 0)
-            return 1;
+            return T(1);
 
         if(in < 0)
-            return -1;
+            return T(-1);
 
         using std::isnan;
 
         if(isnan(in))
-            return 0;
+            return T(0);
 
         throw std::runtime_error("Bad sign function");
     };
