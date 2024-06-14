@@ -74,7 +74,7 @@ int main()
 
     std::string tetrad_calc = value_impl::make_function(build_initial_tetrads<schwarzschild_metric>, "tetrad");
 
-    std::cout << tetrad_calc << std::endl;
+    //std::cout << tetrad_calc << std::endl;
 
     cl::program tetrad_p(ctx, tetrad_calc, false);
     tetrad_p.build(ctx, "");

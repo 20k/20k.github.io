@@ -68,6 +68,8 @@ geodesic make_lightlike_geodesic(const v4f& position, const v3f& direction, cons
 }
 
 auto diff(auto&& func, const v4f& position, int direction) {
+    #define ANALYTIC_DERIVATIVES
+    #ifdef ANALYTIC_DERIVATIVES
     m44f metric = func(position);
 
     tensor<valuef, 4, 4> differentiated;
@@ -104,6 +106,20 @@ auto diff(auto&& func, const v4f& position, int direction) {
     }
 
     return differentiated;
+    #else
+    auto p_up = position;
+    auto p_lo = position;
+
+    float h = 0.00001f;
+
+    p_up[direction] += h;
+    p_lo[direction] -= h;
+
+    auto up = func(p_up);
+    auto lo = func(p_lo);
+
+    return (func(p_up) - func(p_lo)) * (1/(2 * h));
+    #endif // ANALYTIC
 }
 
 //get the christoffel symbols that we need for the geodesic equation

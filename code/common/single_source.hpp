@@ -697,8 +697,6 @@ namespace value_impl
                 op.type = op::BRACKET;
                 op.args = {name, index};
 
-                std::cout << "INDEXING " << value_to_string(op) << " name " << name << std::endl;
-
                 return build_type(op, T());
             }
         };

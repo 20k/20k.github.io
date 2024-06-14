@@ -99,6 +99,9 @@ namespace value_impl
         return ret;
     }
 
+    inline
+    value_base optimise(const value_base& in);
+
     struct value_base
     {
         supported_types concrete;
@@ -112,6 +115,20 @@ namespace value_impl
         template<typename T>
         explicit value_base(const T& in) : concrete(in) {
             type = op::VALUE;
+        }
+
+        template<typename T>
+        value_base make_constant_of_type(const T& in) const
+        {
+            value_base out;
+            out.type = op::VALUE;
+
+            std::visit([&]<typename U>(const U& real)
+            {
+                out.concrete = U(in);
+            }, concrete);
+
+            return out;
         }
 
         bool is_concrete_type() const
@@ -168,8 +185,8 @@ namespace value_impl
             assert(false);
         }
 
-        #define BASE_OPERATOR2(name, type) friend value_base name(const value_base& v1, const value_base& v2) {return make_op<value_base>(type, {v1, v2});}
-        #define BASE_OPERATOR1(name, type) friend value_base name(const value_base& v1) {return make_op<value_base>(type, {v1});}
+        #define BASE_OPERATOR2(name, type) friend value_base name(const value_base& v1, const value_base& v2) {return optimise(make_op<value_base>(type, {v1, v2}));}
+        #define BASE_OPERATOR1(name, type) friend value_base name(const value_base& v1) {return optimise(make_op<value_base>(type, {v1}));}
 
         BASE_OPERATOR2(operator%, op::MOD);
         BASE_OPERATOR2(operator+, op::PLUS);
@@ -179,16 +196,123 @@ namespace value_impl
         BASE_OPERATOR1(operator-, op::UMINUS);
     };
 
+    inline
+    bool equivalent(const value_base& v1, const value_base& v2);
+
+    template<typename U>
+    inline
+    std::optional<value_base> replay_constant(const value_base& v1, const value_base& v2, U&& func);
+
+    template<typename U>
+    inline
+    std::optional<value_base> replay_constant(const value_base& v1, U&& func);
+
+
+    #define PROPAGATE_BASE2(vop, func) if(in.type == op::vop) { \
+        out = replay_constant(in.args[0], in.args[1], [&](auto&& p1, auto&& p2){return sfunc(p1, p2);});\
+    }
+
+    #define PROPAGATE_BASE_INFIX(vop, func) if(in.type == op::vop) { \
+        out = replay_constant(in.args[0], in.args[1], [&](auto&& p1, auto&& p2){return p1 func p2;});\
+    }
+
+    #define PROPAGATE_BASE1(vop, func) if(in.type == op::vop) { \
+        out = replay_constant(in.args[0], [&](auto&& p1){return func(p1);});\
+    }
+
+    std::string value_to_string(const value_base& v);
+
+    inline
+    value_base optimise(const value_base& in)
+    {
+        ///do constant propagation here
+
+        bool all_constant = true;
+
+        for(const auto& i : in.args)
+        {
+            if(!i.is_concrete_type())
+                all_constant = false;
+        }
+
+        if(all_constant)
+        {
+            std::optional<value_base> out;
+
+            PROPAGATE_BASE_INFIX(PLUS, +);
+            PROPAGATE_BASE_INFIX(MINUS, -);
+            PROPAGATE_BASE_INFIX(MULTIPLY, *);
+            PROPAGATE_BASE_INFIX(DIVIDE, /);
+            PROPAGATE_BASE1(UMINUS, -);
+
+            if(out)
+                return out.value();
+        }
+
+        if(in.type == op::PLUS)
+        {
+            if(equivalent(in.args[0], in.args[0].make_constant_of_type(0.f)))
+               return in.args[1];
+
+            if(equivalent(in.args[1], in.args[1].make_constant_of_type(0.f)))
+               return in.args[0];
+        }
+
+        if(in.type == op::MULTIPLY)
+        {
+            value_base zero0 = in.args[0].make_constant_of_type(0.f);
+            value_base zero1 = in.args[1].make_constant_of_type(0.f);
+
+            if(equivalent(in.args[0], zero0))
+                return zero0;
+
+            if(equivalent(in.args[1], zero1))
+                return zero1;
+
+            if(equivalent(in.args[0], in.args[0].make_constant_of_type(1.f)))
+                return in.args[1];
+
+            if(equivalent(in.args[1], in.args[1].make_constant_of_type(1.f)))
+                return in.args[0];
+
+            if(equivalent(in.args[0], in.args[0].make_constant_of_type(-1.f)))
+                return -in.args[1];
+
+            if(equivalent(in.args[1], in.args[1].make_constant_of_type(-1.f)))
+                return -in.args[0];
+        }
+
+        if(in.type == op::MINUS)
+        {
+            if(equivalent(in.args[0], in.args[1]))
+                return in.args[0].make_constant_of_type(0.f);
+
+            if(equivalent(in.args[1], in.args[1].make_constant_of_type(0.f)))
+                return in.args[0];
+
+            if(equivalent(in.args[0], in.args[0].make_constant_of_type(0.f)))
+                return -in.args[1];
+        }
+
+        if(in.type == op::DIVIDE)
+        {
+            if(equivalent(in.args[0], in.args[0].make_constant_of_type(0.f)))
+                return in.args[0].make_constant_of_type(0.f);
+        }
+
+        return in;
+    }
+
     #define DECL_VALUE_FUNC1(func, name) \
     inline \
     value_base name(const value_base& v1) {\
-        return make_op<value_base>(op::func, {v1});\
+        return optimise(make_op<value_base>(op::func, {v1}));\
     }\
 
     #define DECL_VALUE_FUNC2(func, name) \
     inline \
     value_base name(const value_base& v1, const value_base& v2) {\
-        return make_op<value_base>(op::func, {v1, v2});\
+        return optimise(make_op<value_base>(op::func, {v1, v2}));\
     }\
 
     DECL_VALUE_FUNC1(SIN, sin);
@@ -242,9 +366,6 @@ namespace value_impl
     template<typename T, typename U>
     inline
     auto replay_constant(const value<T>& v1, U&& func) -> std::optional<value<std::remove_reference_t<decltype(func(T()))>>>;
-
-    inline
-    bool equivalent(const value_base& v1, const value_base& v2);
 
     #define OPTIMISE_VALUE
 
@@ -549,6 +670,7 @@ namespace value_impl
     }
 
     template<typename T, typename U>
+    inline
     auto replay_constant(const value<T>& v1, const value<T>& v2, U&& func) -> std::optional<value<std::remove_reference_t<decltype(func(T(), T()))>>>
     {
         if(!v1.is_concrete_type() || !v2.is_concrete_type())
@@ -564,6 +686,7 @@ namespace value_impl
     }
 
     template<typename T, typename U>
+    inline
     auto replay_constant(const value<T>& v1, U&& func) -> std::optional<value<std::remove_reference_t<decltype(func(T()))>>>
     {
         if(!v1.is_concrete_type())
@@ -573,6 +696,49 @@ namespace value_impl
             return std::nullopt;
 
         return func(std::get<T>(v1.concrete));
+    }
+
+    template<typename U>
+    inline
+    std::optional<value_base> replay_constant(const value_base& v1, const value_base& v2, U&& func)
+    {
+        if(!v1.is_concrete_type() || !v2.is_concrete_type())
+            return std::nullopt;
+
+        if(v1.concrete.index() != v2.concrete.index())
+            return std::nullopt;
+
+        std::optional<value_base> out;
+
+        std::visit([&](auto&& i1, auto&& i2) {
+            value_base b;
+            b.type = op::VALUE;
+            b.concrete = func(i1, i2);
+
+            out = b;
+        }, v1.concrete, v2.concrete);
+
+        return out;
+    }
+
+    template<typename U>
+    inline
+    std::optional<value_base> replay_constant(const value_base& v1, U&& func)
+    {
+        if(!v1.is_concrete_type())
+            return std::nullopt;
+
+        std::optional<value_base> out;
+
+        std::visit([&](auto&& i1) {
+            value_base b;
+            b.type = op::VALUE;
+            b.concrete = func(i1);
+
+            out = b;
+        }, v1.concrete);
+
+        return out;
     }
 
     template<typename T>
