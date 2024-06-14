@@ -4,6 +4,7 @@
 #include <string>
 #include <variant>
 #include <vector>
+#include "stdmath.hpp"
 #include "../common/vec/tensor.hpp"
 
 #ifndef __clang__
@@ -246,11 +247,7 @@ namespace value_impl
 
 
     #define PROPAGATE_BASE2(vop, func) if(in.type == op::vop) { \
-        out = replay_constant(in.args[0], in.args[1], [&](auto&& p1, auto&& p2){return sfunc(p1, p2);});\
-    }
-
-    #define PROPAGATE_BASE_INFIX(vop, func) if(in.type == op::vop) { \
-        out = replay_constant(in.args[0], in.args[1], [&](auto&& p1, auto&& p2){return p1 func p2;});\
+        out = replay_constant(in.args[0], in.args[1], [&]<typename T>(const T& p1, const T& p2){return func(p1, p2);});\
     }
 
     #define PROPAGATE_BASE1(vop, func) if(in.type == op::vop) { \
@@ -262,6 +259,8 @@ namespace value_impl
     inline
     value_base optimise(const value_base& in)
     {
+        using namespace stdmath;
+
         ///do constant propagation here
 
         bool all_constant = true;
@@ -276,11 +275,11 @@ namespace value_impl
         {
             std::optional<value_base> out;
 
-            PROPAGATE_BASE_INFIX(PLUS, +);
-            PROPAGATE_BASE_INFIX(MINUS, -);
-            PROPAGATE_BASE_INFIX(MULTIPLY, *);
-            PROPAGATE_BASE_INFIX(DIVIDE, /);
-            PROPAGATE_BASE1(UMINUS, -);
+            PROPAGATE_BASE2(PLUS, op_plus);
+            PROPAGATE_BASE2(MINUS, op_minus);
+            PROPAGATE_BASE2(MULTIPLY, op_multiply);
+            PROPAGATE_BASE2(DIVIDE, op_divide);
+            PROPAGATE_BASE1(UMINUS, op_unary_minus);
 
             if(out)
                 return out.value();
@@ -421,24 +420,26 @@ namespace value_impl
         if(v.type == op::type::VALUE)
             return handle_value(v);
 
+        using namespace stdmath;
+
         #define REPLAY1(func, name) if(v.type == op::func) return name(replay_value_base<T>(v.args[0], handle_value));
         #define REPLAY2(func, name) if(v.type == op::func) return name(replay_value_base<T>(v.args[0], handle_value), \
                                                                         replay_value_base<T>(v.args[1], handle_value));
 
-        REPLAY1(SIN, sin);
-        REPLAY1(COS, cos);
-        REPLAY1(TAN, tan);
-        REPLAY1(SQRT, sqrt);
-        REPLAY1(FABS, fabs);
-        REPLAY1(ISFINITE, isfinite);
-        REPLAY2(FMOD, fmod);
+        REPLAY1(SIN, usin);
+        REPLAY1(COS, ucos);
+        REPLAY1(TAN, utan);
+        REPLAY1(SQRT, usqrt);
+        REPLAY1(FABS, ufabs);
+        REPLAY1(ISFINITE, uisfinite);
+        REPLAY2(FMOD, ufmod);
 
-        REPLAY2(PLUS, operator+);
-        REPLAY2(MINUS, operator-);
-        REPLAY2(MULTIPLY, operator*);
-        REPLAY2(DIVIDE, operator/);
-        REPLAY1(UMINUS, operator-);
-        REPLAY2(MOD, operator%);
+        REPLAY2(PLUS, op_plus);
+        REPLAY2(MINUS, op_minus);
+        REPLAY2(MULTIPLY, op_multiply);
+        REPLAY2(DIVIDE, op_divide);
+        REPLAY1(UMINUS, op_unary_minus);
+        REPLAY2(MOD, ufmod);
 
         assert(false);
     }
@@ -457,11 +458,9 @@ namespace value_impl
     #define OPTIMISE_VALUE
 
     #ifdef OPTIMISE_VALUE
-    #define PROPAGATE_INFIX(x, y, op) if(auto it = replay_constant(x, y, [](const T& a, const T& b){return a op b;})){return it.value();}
-    #define PROPAGATE2(x, y, op) if(auto it = replay_constant(x, y, [](const T& a, const T& b){return op(a,b);})){return it.value();}
-    #define PROPAGATE1(x, op)  if(auto it = replay_constant(x, [](const T& a){return op(a);})){return it.value();}
+    #define PROPAGATE2(x, y, op) if(auto it = replay_constant(x, y, [](const T& a, const T& b){using namespace stdmath; return op(a,b);})){return it.value();}
+    #define PROPAGATE1(x, op)  if(auto it = replay_constant(x, [](const T& a){using namespace stdmath; return op(a);})){return it.value();}
     #else
-    #define PROPAGATE_INFIX(x, y, op)
     #define PROPAGATE2(x, y, op)
     #define PROPAGATE1(x, op)
     #endif
@@ -488,7 +487,7 @@ namespace value_impl
         }
 
         friend value<T> operator%(const value<T>& v1, const value<T>& v2) {
-            PROPAGATE_INFIX(v1, v2, %);
+            PROPAGATE2(v1, v2, ufmod);
 
             value<T> result;
             result.type = op::MOD;
@@ -497,7 +496,7 @@ namespace value_impl
         }
 
         friend value<T> operator+(const value<T>& v1, const value<T>& v2) {
-            PROPAGATE_INFIX(v1, v2, +);
+            PROPAGATE2(v1, v2, op_plus);
 
             #ifdef OPTIMISE_VALUE
             if(equivalent(v1, value<T>(0)))
@@ -514,7 +513,7 @@ namespace value_impl
         }
 
         friend value<T> operator*(const value<T>& v1, const value<T>& v2) {
-            PROPAGATE_INFIX(v1, v2, *);
+            PROPAGATE2(v1, v2, op_multiply);
 
             #ifdef OPTIMISE_VALUE
             if(equivalent(v1, value<T>(0)))
@@ -537,7 +536,7 @@ namespace value_impl
         }
 
         friend value<T> operator-(const value<T>& v1, const value<T>& v2) {
-            PROPAGATE_INFIX(v1, v2, -);
+            PROPAGATE2(v1, v2, op_minus);
 
             #ifdef OPTIMISE_VALUE
             if(equivalent(v1, v2))
@@ -558,7 +557,7 @@ namespace value_impl
         }
 
         friend value<T> operator/(const value<T>& v1, const value<T>& v2) {
-            PROPAGATE_INFIX(v1, v2, /);
+            PROPAGATE2(v1, v2, op_divide);
 
             #ifdef OPTIMISE_VALUE
             if(equivalent(v1, value<T>(0)))
@@ -582,7 +581,7 @@ namespace value_impl
 
 
         friend value<T> operator-(const value<T>& v1) {
-            PROPAGATE1(v1, -);
+            PROPAGATE1(v1, op_unary_minus);
 
             #ifdef OPTIMISE_VALUE
             if(equivalent(v1, value<T>(0)))
@@ -811,11 +810,15 @@ namespace value_impl
         std::optional<value_base> out;
 
         std::visit([&](auto&& i1, auto&& i2) {
-            value_base b;
-            b.type = op::VALUE;
-            b.concrete = func(i1, i2);
+            if constexpr(std::is_same_v<decltype(i1), decltype(i2)>)
+            {
+                value_base b;
+                b.type = op::VALUE;
+                b.concrete = func(i1, i2);
 
-            out = b;
+                out = b;
+            }
+
         }, v1.concrete, v2.concrete);
 
         return out;
@@ -966,8 +969,7 @@ namespace value_impl
     inline
     value<T> sin(const value<T>& v1)
     {
-        using std::sin;
-        PROPAGATE1(v1, sin);
+        PROPAGATE1(v1, usin);
 
         value<T> ret;
         ret.type = op::SIN;
@@ -979,8 +981,7 @@ namespace value_impl
     inline
     value<T> cos(const value<T>& v1)
     {
-        using std::cos;
-        PROPAGATE1(v1, cos);
+        PROPAGATE1(v1, ucos);
 
         value<T> ret;
         ret.type = op::COS;
@@ -992,8 +993,7 @@ namespace value_impl
     inline
     value<T> tan(const value<T>& v1)
     {
-        using std::tan;
-        PROPAGATE1(v1, tan);
+        PROPAGATE1(v1, utan);
 
         value<T> ret;
         ret.type = op::TAN;
@@ -1005,8 +1005,7 @@ namespace value_impl
     inline
     value<T> sqrt(const value<T>& v1)
     {
-        using std::sqrt;
-        PROPAGATE1(v1, sqrt);
+        PROPAGATE1(v1, usqrt);
 
         value<T> ret;
         ret.type = op::SQRT;
@@ -1017,8 +1016,7 @@ namespace value_impl
     template<typename T>
     value<T> fmod(const value<T>& v1, const value<T>& v2)
     {
-        using std::fmod;
-        PROPAGATE2(v1, v2, fmod);
+        PROPAGATE2(v1, v2, ufmod);
 
         value<T> ret;
         ret.type = op::FMOD;
@@ -1030,8 +1028,7 @@ namespace value_impl
     inline
     value<T> fabs(const value<T>& v1)
     {
-        using std::fabs;
-        PROPAGATE1(v1, fabs);
+        PROPAGATE1(v1, ufabs);
 
         value<T> ret;
         ret.type = op::FABS;
@@ -1042,8 +1039,7 @@ namespace value_impl
     template<typename T>
     value<int> isfinite(const value<T>& v1)
     {
-        using std::isfinite;
-        PROPAGATE1(v1, (int)isfinite);
+        PROPAGATE1(v1, uisfinite);
 
         value<int> ret;
         ret.type = op::ISFINITE;
@@ -1053,31 +1049,9 @@ namespace value_impl
 
     template<typename T>
     inline
-    T sign(T in)
-    {
-        if(in == T(-0.0))
-            return T(-0.0);
-
-        if(in == T(0.0))
-            return T(0.0);
-
-        if(in > 0)
-            return 1;
-
-        if(in < 0)
-            return -1;
-
-        if(std::isnan(in))
-            return 0;
-
-        throw std::runtime_error("Bad sign function");
-    }
-
-    template<typename T>
-    inline
     value<T> sign(const value<T>& v1)
     {
-        PROPAGATE1(v1, sign);
+        PROPAGATE1(v1, usign);
 
         return make_op(op::SIGN, {v1});
     }
@@ -1086,8 +1060,7 @@ namespace value_impl
     inline
     value<T> floor(const value<T>& v1)
     {
-        using std::floor;
-        PROPAGATE1(v1, floor);
+        PROPAGATE1(v1, ufloor);
 
         return make_op(op::FLOOR, {v1});
     }
@@ -1096,8 +1069,7 @@ namespace value_impl
     inline
     value<T> ceil(const value<T>& v1)
     {
-        using std::ceil;
-        PROPAGATE1(v1, ceil);
+        PROPAGATE1(v1, uceil);
 
         return make_op(op::CEIL, {v1});
     }
