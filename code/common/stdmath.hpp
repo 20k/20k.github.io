@@ -127,6 +127,12 @@ namespace stdmath
     {
         return 1/usqrt(in);
     };
+
+    template<typename U>
+    auto ucast = []<typename T>(const T& in)
+    {
+        return (U)in;
+    };
 }
 
 #endif // STDMATH_HPP_INCLUDED

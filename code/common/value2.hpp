@@ -306,6 +306,26 @@ namespace value_impl
                 all_constant = false;
         }
 
+        if(in.type == op::CAST)
+        {
+            if(in.args[1].is_concrete_type())
+            {
+                std::optional<value_base> out;
+
+                std::visit([&]<typename U, typename T>(const U& unused, const T& in)
+                {
+                    value_base cvt;
+                    cvt.type = op::VALUE;
+                    cvt.concrete = ucast<U>(in);
+
+                    out = cvt;
+                }, in.concrete, in.args[1].concrete);
+
+                if(out.has_value())
+                    return out.value();
+            }
+        }
+
         if(all_constant)
         {
             std::optional<value_base> out;
@@ -643,15 +663,13 @@ namespace value_impl
         template<typename U>
         value<U> to()
         {
-            PROPAGATE1(*this, (U));
-
             value_base out_type = name_type(U());
 
             value<U> ret;
             ret.type = op::CAST;
             ret.args = {out_type, *this};
 
-            return ret;
+            return from_base<U>(optimise(ret));
         }
 
         template<typename Tf, typename U>
