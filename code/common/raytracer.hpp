@@ -80,28 +80,13 @@ auto diff(auto&& func, const v4f& position, int direction) {
         {
             dual<value_base> as_dual = replay_value_base<dual<value_base>>(metric[i, j], [&](const value_base& in)
             {
-                value_base one;
-                one.type = value_impl::op::VALUE;
-
-                value_base zero;
-                zero.type = value_impl::op::VALUE;
-
-                std::visit([&]<typename T>(const T& conc)
-                {
-                    one.concrete = (T)1;
-                    zero.concrete = (T)0;
-                }, in.concrete);
-
                 if(equivalent(in, position[direction]))
-                    return dual<value_base>(in, one);
+                    return dual<value_base>(in, in.make_constant_of_type(1.f));
                 else
-                    return dual<value_base>(in, zero);
+                    return dual<value_base>(in, in.make_constant_of_type(0.f));
             });
 
-            valuef out;
-            out.set_from_base(as_dual.dual);
-
-            differentiated[i, j] = out;
+            differentiated[i, j].set_from_base(as_dual.dual);
         }
     }
 
