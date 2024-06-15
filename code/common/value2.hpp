@@ -23,6 +23,14 @@ namespace value_impl
     inline
     std::string name_type(T tag);
 
+    template<typename T>
+    inline
+    T get_interior_type(const T&){return T();}
+
+    template<typename T, int... N>
+    inline
+    T get_interior_type(const tensor<T, N...>&){return T();}
+
     namespace op {
         enum type {
             NONE,
@@ -68,6 +76,7 @@ namespace value_impl
             WHILE,
             RETURN,
             DECLARE,
+            DECLARE_ARRAY,
             BLOCK_START,
             BLOCK_END,
             ASSIGN,
@@ -961,6 +970,33 @@ namespace value_impl
 
         v.type = op::DECLARE;
         v.args = {type, name, rhs};
+
+        return v;
+    }
+
+    template<typename T>
+    inline
+    value_base declare_array_b(const std::string& name, int array_size, const std::vector<value_base>& rhs)
+    {
+        value_base type;
+
+        value_base size;
+        size.type = op::VALUE;
+        size.concrete = (int)rhs.size();
+
+        value_base varray_size;
+        varray_size.type = op::VALUE;
+        varray_size.concrete = array_size;
+
+        value_base v;
+        v.type = op::DECLARE_ARRAY;
+        v.args = {name_type(T()), name, varray_size, size};
+        v.concrete = get_interior_type(T());
+
+        for(const auto& i : rhs)
+        {
+            v.args.push_back(i);
+        }
 
         return v;
     }

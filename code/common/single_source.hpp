@@ -120,6 +120,7 @@ namespace value_impl
         return named;
     }
 
+
     inline
     value_base declare_e(execution_context_base& ectx, const value_base& rhs)
     {
@@ -515,6 +516,31 @@ namespace value_impl
                 return value_to_string(v.args.at(0)) + " " + value_to_string(v.args.at(1));
         }
 
+        if(v.type == op::DECLARE_ARRAY) {
+
+            std::string arr = "[" + value_to_string(v.args.at(2)) + "]";
+
+            std::string lhs = value_to_string(v.args.at(0)) + " " + value_to_string(v.args.at(1)) + arr + " = ";
+
+            std::string rhs = "{";
+
+            int num = std::get<int>(v.args.at(3).concrete);
+
+            for(int i=0; i < num; i++)
+            {
+                std::string str = value_to_string(v.args.at(4 + i));
+
+                rhs += str + ",";
+            }
+
+            if(rhs.back() == ',')
+                rhs.pop_back();
+
+            rhs += "}";
+
+            return lhs + rhs;
+        }
+
         if(v.type == op::BLOCK_START)
             return "{";
 
@@ -684,14 +710,6 @@ namespace value_impl
     }
 
     namespace single_source {
-        template<typename T>
-        inline
-        T get_interior_type(const T&){return T();}
-
-        template<typename T, int... N>
-        inline
-        T get_interior_type(const tensor<T, N...>&){return T();}
-
         template<typename T>
         inline
         value<T> build_type(const value_base& name, const T& tag)
@@ -865,6 +883,34 @@ namespace value_impl
                 return write(get_context(), pos, val);
             }
         };
+    }
+
+    template<typename T>
+    inline
+    single_source::buffer<T> declare_array_e(execution_context_base& ectx, const std::string& name, int size, const std::vector<value_base>& rhs)
+    {
+        ectx.add(declare_array_b<T>(name, size, rhs));
+
+        single_source::buffer<T> out;
+        out.name = name;
+
+        return out;
+    }
+
+    template<typename T>
+    inline
+    single_source::buffer<T> declare_array_e(execution_context_base& ectx, int size, const std::vector<value_base>& rhs)
+    {
+        return declare_array_e<T>(ectx, "arr_" + std::to_string(get_context().next_id()), size, rhs);
+    }
+
+    namespace single_source {
+        template<typename T>
+        inline
+        buffer<T> declare_array_e(int size, const std::vector<value_base>& rhs)
+        {
+            return declare_array_e<T>(get_context(), size, rhs);
+        }
     }
 
     template<typename T>
@@ -1249,7 +1295,7 @@ namespace value_impl
 
         auto is_semicolon_terminated = [](op::type t)
         {
-            return t == op::ASSIGN || t == op::DECLARE || t == op::RETURN || t == op::BREAK || t == op::IMAGE_READ || t == op::IMAGE_WRITE || t == op::SIDE_EFFECT;
+            return t == op::ASSIGN || t == op::DECLARE || t == op::DECLARE_ARRAY || t == op::RETURN || t == op::BREAK || t == op::IMAGE_READ || t == op::IMAGE_WRITE || t == op::SIDE_EFFECT;
         };
 
         std::vector<std::vector<value_base>> blocks;

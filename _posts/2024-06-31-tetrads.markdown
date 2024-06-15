@@ -184,6 +184,8 @@ valuei first_nonzero_vector = 0;
 
 valuei idx = declare_mut_e(valuei(0));
 
+buffer<valuef> arr = declare_array_e(valuei(0), 4);
+
 for_e(idx < 4, assign_b(idx, idx+1), [&] {
 
 });
