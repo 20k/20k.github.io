@@ -350,24 +350,37 @@ v4f normalise(v4f in, m44f m)
 
 tetrad gram_schmidt(v4f v0, v4f v1, v4f v2, v4f v3, m44f m)
 {
+    using namespace single_source;
+
     v4f u0 = v0;
 
     v4f u1 = v1;
     u1 = u1 - gram_project(u0, u1, m);
+    pin(u1);
 
     v4f u2 = v2;
     u2 = u2 - gram_project(u0, u2, m);
+    pin(u2);
     u2 = u2 - gram_project(u1, u2, m);
+    pin(u2);
 
     v4f u3 = v3;
     u3 = u3 - gram_project(u0, u3, m);
+    pin(u3);
     u3 = u3 - gram_project(u1, u3, m);
+    pin(u3);
     u3 = u3 - gram_project(u2, u3, m);
+    pin(u3);
 
     u0 = normalise(u0, m);
     u1 = normalise(u1, m);
     u2 = normalise(u2, m);
     u3 = normalise(u3, m);
+
+    pin(u0);
+    pin(u1);
+    pin(u2);
+    pin(u3);
 
     return {u0, u1, u2, u3};
 }
@@ -457,16 +470,6 @@ void build_initial_tetrads(execution_context& ectx, literal<tensor<float, 4>> ca
     v4f v2 = {0, 0, 1, 0};
     v4f v3 = {0, 0, 0, 1};
 
-    /*float4 ri1 = (float4)(1, 0, 0, 0);
-    float4 ri2 = (float4)(0, 1, 0, 0);
-    float4 ri3 = (float4)(0, 0, 1, 0);
-    float4 ri4 = (float4)(0, 0, 0, 1);
-
-    float4 i1 = lower_index_generic(ri1, big_metric);
-    float4 i2 = lower_index_generic(ri2, big_metric);
-    float4 i3 = lower_index_generic(ri3, big_metric);
-    float4 i4 = lower_index_generic(ri4, big_metric);*/
-
     m44f metric = GetMetric(camera_position.get());
 
     v4f lv0 = metric.lower(v0);
@@ -504,87 +507,30 @@ void build_initial_tetrads(execution_context& ectx, literal<tensor<float, 4>> ca
 
     swap(as_array[0], as_array[first_nonzero]);
 
-    v4f iv0 = as_constant(as_array[0]);
-    v4f iv1 = as_constant(as_array[1]);
-    v4f iv2 = as_constant(as_array[2]);
-    v4f iv3 = as_constant(as_array[3]);
-
-    pin(iv0);
-    pin(iv1);
-    pin(iv2);
-    pin(iv3);
+    v4f iv0 = declare_e(as_array[0]);
+    v4f iv1 = declare_e(as_array[1]);
+    v4f iv2 = declare_e(as_array[2]);
+    v4f iv3 = declare_e(as_array[3]);
 
     tetrad tetrads = gram_schmidt(iv0, iv1, iv2, iv3, metric);
 
-    swap(as_array[0], as_array[first_nonzero]);
+    single_source::buffer_mut<tensor<float, 4>> tetrad_array = declare_mut_array_e<tensor<float, 4>>(4, {});
 
-    m44f minkowski = get_local_minkowski(tetrads, metric);
+    as_ref(tetrad_array[0]) = tetrads.v[0];
+    as_ref(tetrad_array[1]) = tetrads.v[1];
+    as_ref(tetrad_array[2]) = tetrads.v[2];
+    as_ref(tetrad_array[3]) = tetrads.v[3];
 
-    as_ref(e0_out[0]) = tetrads.v[0];
-    as_ref(e1_out[0]) = tetrads.v[1];
-    as_ref(e2_out[0]) = tetrads.v[2];
-    as_ref(e3_out[0]) = tetrads.v[3];
+    swap(tetrad_array[0], tetrad_array[first_nonzero]);
 
-    /*
-    ///all of the below is to fix misner
-    float4 as_array[4] = {ri1, ri2, ri3, ri4};
-    float lengths[4] = {dot(ri1, i1), dot(ri2, i2), dot(ri3, i3), dot(ri4, i4)};
+    valuei timelike_coordinate = calculate_which_coordinate_is_timelike(tetrads, metric);
 
-    int indices[4] = {0, 1, 2, 3};
+    swap(tetrad_array[0], tetrad_array[timelike_coordinate]);
 
-    int first_nonzero = -1;
-
-    float eps = 0.00001f;
-
-    for(int i=0; i < 4; i++)
-    {
-        if(!approx_equal(lengths[i], 0.f, eps))
-        {
-            first_nonzero = i;
-            break;
-        }
-    }
-
-    if(first_nonzero == -1)
-    {
-        printf("Frame basis could not be calculated\n");
-        first_nonzero = 0; ///can't exactly throw an exception now
-    }
-
-    if(first_nonzero != 0)
-    {
-        SWAP(as_array[0], as_array[first_nonzero], float4);
-        SWAP(indices[0], indices[first_nonzero], int);
-    }
-
-    struct orthonormal_basis result = orthonormalise4_metric(as_array[0], as_array[1], as_array[2], as_array[3], big_metric);
-
-    float4 result_as_array[4] = {result.v1, result.v2, result.v3, result.v4};
-
-    float4 sorted_result[4] = {};
-
-    for(int i=0; i < 4; i++)
-    {
-        int old_index = indices[i];
-
-        sorted_result[old_index] = result_as_array[i];
-    }
-
-    int which_index_is_timelike = calculate_which_coordinate_is_timelike(sorted_result[0], sorted_result[1], sorted_result[2], sorted_result[3], big_metric);
-
-    if(which_index_is_timelike > 0)
-    {
-        SWAP(sorted_result[0], sorted_result[which_index_is_timelike], float4);
-    }
-
-    struct frame_basis result2;
-    result2.v1 = sorted_result[0];
-    result2.v2 = sorted_result[1];
-    result2.v3 = sorted_result[2];
-    result2.v4 = sorted_result[3];
-    result2.timelike_coordinate = which_index_is_timelike == -1 ? 0 : which_index_is_timelike;
-
-    return result2;*/
+    as_ref(e0_out[0]) = tetrad_array[0];
+    as_ref(e1_out[0]) = tetrad_array[1];
+    as_ref(e2_out[0]) = tetrad_array[2];
+    as_ref(e3_out[0]) = tetrad_array[3];
 }
 
 #endif // SCHWARZSCHILD_SINGLE_SOURCE_HPP_INCLUDED

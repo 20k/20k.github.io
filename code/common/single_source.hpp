@@ -477,7 +477,7 @@ namespace value_impl
             {GET_GLOBAL_ID, "get_global_id"},
         };
 
-        std::set<op::type> infix{PLUS, MINUS, MULTIPLY, DIVIDE, MOD, LT, LTE, EQ, GT, GTE, NEQ, LOR};
+        std::set<op::type> infix{PLUS, MINUS, MULTIPLY, DIVIDE, MOD, LT, LTE, EQ, GT, GTE, NEQ, LOR, LAND};
 
         //generate (arg[0] op arg[1]) as a string
         if(infix.count(v.type)) {
