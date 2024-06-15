@@ -904,12 +904,30 @@ namespace value_impl
         return declare_array_e<T>(ectx, "arr_" + std::to_string(get_context().next_id()), size, rhs);
     }
 
+    template<typename T>
+    inline
+    single_source::buffer_mut<T> declare_mut_array_e(execution_context_base& ectx, int size, const std::vector<value_base>& rhs)
+    {
+        auto lbuf = declare_array_e<T>(ectx, size, rhs);
+
+        single_source::buffer_mut<T> out;
+        out.name = lbuf.name;
+        return out;
+    }
+
     namespace single_source {
         template<typename T>
         inline
         buffer<T> declare_array_e(int size, const std::vector<value_base>& rhs)
         {
             return declare_array_e<T>(get_context(), size, rhs);
+        }
+
+        template<typename T>
+        inline
+        buffer_mut<T> declare_mut_array_e(int size, const std::vector<value_base>& rhs)
+        {
+            return declare_mut_array_e<T>(get_context(), size, rhs);
         }
     }
 

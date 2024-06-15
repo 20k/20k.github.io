@@ -325,8 +325,6 @@ void opencl_raytrace(execution_context& ectx, literal<int> screen_width, literal
     //the tensor library does actually support .x() etc, but I'm trying to keep the requirements for whatever you use yourself minimal
     v4f crgba = {colour[0], colour[1], colour[2], 1.f};
 
-    declare_array_e<float>(4, {});
-
     screen.write(ectx, {x,y}, crgba);
 }
 
