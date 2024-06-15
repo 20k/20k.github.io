@@ -50,6 +50,7 @@ namespace value_impl
             NEQ,
             NOT,
             LOR,
+            LAND,
 
             SIN,
             COS,
@@ -662,6 +663,13 @@ namespace value_impl
             return result;
         }
 
+        friend value<bool> operator&&(const value<T>& v1, const value<T>& v2) {
+            value<bool> result;
+            result.type = op::LAND;
+            result.args = {v1, v2};
+            return result;
+        }
+
         friend value<bool> operator!(const value<T>& v1) {
             value<bool> result;
             result.type = op::NOT;
@@ -930,6 +938,17 @@ namespace value_impl
         return result;
     }
 
+    template<typename T>
+    inline
+    value_base assign_b(const mut<value<T>>& v1, const mut<value<T>>& v2)
+    {
+        value_base result;
+        result.type = op::ASSIGN;
+        result.args = {v1, v2};
+
+        return result;
+    }
+
     template<typename T, int... N>
     inline
     tensor<value_base, N...> assign_b(const mut<tensor<T, N...>>& v1, const tensor<T, N...>& v2)
@@ -950,6 +969,16 @@ namespace value_impl
     tensor<value_base, N...> assign_b(const tensor<mut<T>, N...>& v1, const tensor<T, N...>& v2)
     {
         return tensor_for_each_nary([&](const mut<T>& v1, const T& v2)
+        {
+            return assign_b(v1, v2);
+        }, v1, v2);
+    }
+
+    template<typename T, int... N>
+    inline
+    tensor<value_base, N...> assign_b(const tensor<mut<T>, N...>& v1, const tensor<mut<T>, N...>& v2)
+    {
+        return tensor_for_each_nary([&](const mut<T>& v1, const mut<T>& v2)
         {
             return assign_b(v1, v2);
         }, v1, v2);

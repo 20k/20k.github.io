@@ -207,6 +207,13 @@ namespace value_impl
         return e.add(assign_b(v1, v2));
     }
 
+    template<typename T, int... N>
+    inline
+    void assign_e(execution_context_base& e, const tensor<mut<T>, N...>& v1, const tensor<mut<T>, N...>& v2)
+    {
+        return e.add(assign_b(v1, v2));
+    }
+
     template<typename T>
     inline
     void if_e(execution_context_base& ectx, const value<bool>& condition, T&& then)
@@ -307,7 +314,21 @@ namespace value_impl
 
         template<typename T>
         inline
+        mut<value<T>> declare_mut_e(const std::string& name, const mut<value<T>>& rhs)
+        {
+            return declare_mut_e(get_context(), name, rhs);
+        }
+
+        template<typename T>
+        inline
         mut<value<T>> declare_mut_e(const value<T>& rhs)
+        {
+            return declare_mut_e(get_context(), rhs);
+        }
+
+        template<typename T>
+        inline
+        mut<value<T>> declare_mut_e(const mut<value<T>>& rhs)
         {
             return declare_mut_e(get_context(), rhs);
         }
@@ -431,6 +452,7 @@ namespace value_impl
             {NEQ, "!="},
             {NOT, "!"},
             {LOR, "||"},
+            {LAND, "&&"},
 
             #ifdef NATIVE_OPS
             {SIN, "native_sin"},
@@ -1390,6 +1412,8 @@ namespace value_impl
         pop_context();
         return str;
     }
+
+    using namespace single_source;
 }
 
 using execution_context = value_impl::execution_context;
