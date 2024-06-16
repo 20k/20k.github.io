@@ -457,20 +457,20 @@ valuei calculate_which_coordinate_is_timelike(const tetrad& tetrads, const m44f&
 
 
 template<auto GetMetric>
-void build_initial_tetrads(execution_context& ectx, literal<v4f> camera_position,
+void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
                            buffer_mut<v4f> position_out,
                            buffer_mut<v4f> e0_out, buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out)
 {
     using namespace single_source;
 
-    as_ref(position_out[0]) = camera_position.get();
+    as_ref(position_out[0]) = position.get();
 
     v4f v0 = {1, 0, 0, 0};
     v4f v1 = {0, 1, 0, 0};
     v4f v2 = {0, 0, 1, 0};
     v4f v3 = {0, 0, 0, 1};
 
-    m44f metric = GetMetric(camera_position.get());
+    m44f metric = GetMetric(position.get());
 
     //these are actually the column vectors of the metric tensor
     v4f lv0 = metric.lower(v0);

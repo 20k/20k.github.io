@@ -78,7 +78,7 @@ Solving this is an eigenvalue problem, as $e$ also makes up the eigenvectors of 
 
 One important thing to get back to. Remember that vectors can be timelike ($ds^2 < 0$), or spacelike ($ds^2 > 0$). We have one timelike tetrad vector: which is always $e_0$, and 3 spacelike tetrad vectors, which are $e_k$
 
-# Relativistic gram-schmidt
+## Relativistic gram-schmidt
 
 The most straightforward algorithm for doing this is called gram-schmidt orthonormalisation, and with a minor extension we can use this for solving our GR eigenvalue problem. Gram-schmidt is an algorithm for taking a series of vectors and making them orthonormal to each other. Here we take a series of coordinate vectors, and make them orthonormal with respect to the metric tensor from each other
 
@@ -326,20 +326,20 @@ Now finally, we use the timelike coordinate to swap the tetrad component out, an
 
 ```c++
 template<auto GetMetric>
-void build_initial_tetrads(execution_context& ectx, literal<v4f> camera_position,
+void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
                            buffer_mut<v4f> position_out,
                            buffer_mut<v4f> e0_out, buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out)
 {
     using namespace single_source;
 
-    as_ref(position_out[0]) = camera_position.get();
+    as_ref(position_out[0]) = position.get();
 
     v4f v0 = {1, 0, 0, 0};
     v4f v1 = {0, 1, 0, 0};
     v4f v2 = {0, 0, 1, 0};
     v4f v3 = {0, 0, 0, 1};
 
-    m44f metric = GetMetric(camera_position.get());
+    m44f metric = GetMetric(position.get());
 
     //these are actually the column vectors of the metric tensor
     v4f lv0 = metric.lower(v0);
@@ -398,3 +398,232 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> camera_position
 
 While it may seem odd to do this on a GPU with only one thread, this procedure is exactly the same as what we'll need in the future for working with particle systems, so we may as well GPUify this
 
+## Following an inertial observer
+
+So, now we have a position: our camera, and an initial tetrad: The one we calculating from the above position. The question is, how do we follow the movements of our observer in a physically accurate way? Today we're going to be dealing with strictly inertial observers that don't accelerate, and we're additionally not going to imbue our observers with any velocity - this means that they strictly will fall directly towards the black hole
+
+The $e_0$ component of our tetrads is timelike - more than that it also represents the velocity of the observer that that tetrad is made for. That is to say, if we have
+
+$$e_0 = (1, 0, 0, 0)$$
+
+We are dealing with an observer who's velocity is $v^\mu = (1, 0, 0, 0)$. The first thing we need to do is to build a geodesic from our initial observers starting location, and our initial observers velocity. Lets call these $x^{\mu}$ and $v^{\mu}$
+
+Luckily for us, the geodesic equation for lightrays, and timelike geodesics, is exactly the same, which means we do not need a new procedure to integrate our timelike geodesic. We're going to need to save[^alternate] the positions and velocities of our geodesic as we trace it, so we will need a slightly different integration scheme
+
+[^alternate]: An alternative approach would be to step the timelike geodesics forwards as we advance forwards in proper time, but its super useful to have the whole history available to us. It also allows us to disconnect the parallel transport process, from the timelike geodesic tracing, which makes things cleaner
+
+```c++
+template<auto GetMetric>
+void trace_geodesic(equation_context& ctx, buffer<v4f> start_position, buffer<v4f> start_velocity, buffer_mut<v4f> positions_out, buffer_mut<v4f> velocity_out, buffer_mut<valuei> written_steps, literal<valuei> max_steps)
+{
+    using namespace single_source;
+
+    m44f metric = GetMetric(g.position);
+
+    mut<valuei> result = declare_mut_e(valuei(0));
+
+    mut_v4f position = declare_mut_e(start_position[0]);
+    mut_v4f velocity = declare_mut_e(start_velocity[0]);
+
+    //for a timelike geodesic, dt is proper time
+    float dt = 0.005f;
+    valuef start_time = start_position[0][0];
+    pin(start_time);
+
+    mut<valuei> idx = declare_mut_e("i", valuei(0));
+
+    for_e(idx < 1024 * 1024, assign_b(idx, idx + 1), [&]
+    {
+        v4f cposition = declare_e(position);
+        v4f cvelocity = declare_e(velocity);
+
+        v4f acceleration = calculate_acceleration_of(cposition, cvelocity, get_metric);
+
+        pin(acceleration);
+
+        as_ref(velocity) = cvelocity + acceleration * dt;
+        as_ref(position) = cposition + velocity.as<valuef>() * dt;
+
+        valuef radius = position[1];
+
+        value<bool> is_broken = !isfinite(position[0]) || !isfinite(position[1]) || !isfinite(position[2]) || !isfinite(position[3]) ||
+                                !isfinite(velocity[0]) || !isfinite(velocity[1]) || !isfinite(velocity[2]) || !isfinite(velocity[3]) ;
+
+        if_e(radius > 10 || position[0] > start_time + 1000 || fabs(velocity[0]) >= 10 || is_broken, [&] {
+            break_e();
+        });
+
+        as_ref(positions_out[idx]) = position;
+        as_ref(velocities_out[idx]) = velocity;
+    });
+
+    as_ref(written_steps[0]) = idx.as_constant();
+}
+```
+
+This procedure is very similar to our regular raytracing, but we're writing all the positions and velocities out to a buffer. The termination condition is different now as well, we're guessing that when the velocity of a geodesic becomes very high, we're approaching a singularity[^rsmall]. This modification must also be applied to our light rays for them to correctly terminate
+
+[^rsmall]: We could use `r < 0.000001f` or similar, but this will not work for where we're going with kerr
+
+We've now traced through the history of a timelike geodesic, and saved the positions and velocities so that we can examine the path that our observer takes through our spacetime. What we'd like to do now, is at a specific point along this timelike geodesic representing our observer, find out what that observer would see. The way to do this, is by parallel transporting the tetrads, and use them as a basis for our observer
+
+## Parallel Transport
+
+The way that parallel transport works is as following: If you imagine a geodesic as a curve, and take a vector tangent to that curve, that vector remains tangent to the curve at every point along it. A vector which does this is said to be "parallel transported". This is true for every vector - you can imagine the geodesic equation as the process of parallel transporting the velocity vector itself along the geodesic - this is in fact one definition of a geodesic (autoparallel transport)
+
+Todo: Picture of parallel transport
+
+To parallel transport something is when the *covariant* derivative of a vector vanishes along a curve. We haven't gotten around to covariant derivatives yet, but they're the general relativistic coordinate free generalisation of partial derivatives. For more information, see [this](https://physics.stackexchange.com/questions/524242/parallel-transport-of-a-vector) link, and [here](https://en.wikipedia.org/wiki/Covariant_derivative#Covariant_derivative_by_field_type) for how to calculate covariant derivatives
+
+For us, given a timelike geodesic parameterised by proper time, with a position $x^{\mu}$ and velocity $v^\mu = \frac{dx}{d\tau}$, the parallel transport equation for a vector $A^\mu$ is this:
+
+$$\frac{dA^\alpha}{d\tau} = -v^\sigma \Gamma^\alpha_{\;\;\beta\sigma} A^\beta$$
+
+In code:
+
+```c++
+v4f parallel_transport_get_change(v4f tangent_vector, v4f geodesic_velocity, const tensor<valuef, 4, 4, 4>& christoff2)
+{
+    v4f dAdt = {};
+
+    for(int a=0; a < 4; a++)
+    {
+        float sum = 0;
+
+        for(int b=0; b < 4; b++)
+        {
+            for(int s=0; s < 4; s++)
+            {
+                sum += christoffel[a,b,s] * tangent_vector[b] * geodesic_velocity[s];
+            }
+        }
+
+        dAdt[a] = -sum;
+    }
+
+    return dAdt;
+}
+```
+
+At this point, we just need to integrate this along our curve, and produce our parallel transported tetrads. We're going to build another kernel for this:
+
+```c++
+//note: we already know the value of e0, as its the geodesic velocity
+template<auto GetMetric>
+void parallel_transport_tetrads(buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3, buffer<v4f> positions, buffer<v4f> velocities, buffer<valuei> counts,
+buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out)
+{
+    //its important that this dt is the same dt as the one that we used in trace_geodesic, as we're dealing with the same parameterisation. If you use a variable timestep, you need to write this into a buffer
+    float dt = 0.005f;
+
+    valuei count = declare_e(counts[0].get());
+    valuei i = declare_mut_e(valuei(0));
+
+    buffer_mut<v4f> e1_current = declare_mut_e(e1[0]);
+    buffer_mut<v4f> e2_current = declare_mut_e(e2[0]);
+    buffer_mut<v4f> e3_current = declare_mut_e(e3[0]);
+
+    for_e(i < count, assign_b(i, i+1), [&] {
+        as_ref(e1_out[i]) = e1_current;
+        as_ref(e2_out[i]) = e2_current;
+        as_ref(e3_out[i]) = e3_current;
+
+        v4f current_position = positions[i];
+        v4f current_velocity = velocities[i];
+
+        tensor<valuef, 4, 4, 4> christoff2 = calculate_christoff2(current_position, GetMetric);
+
+        pin(christoff2);
+
+        v4f e1_cst = declare_e(e1_current);
+        v4f e2_cst = declare_e(e2_current);
+        v4f e3_cst = declare_e(e3_current);
+
+        v4f e1_change = parallel_transport_get_change(e1_cst, current_velocity, christoff2);
+        v4f e2_change = parallel_transport_get_change(e2_cst, current_velocity, christoff2);
+        v4f e3_change = parallel_transport_get_change(e3_cst, current_velocity, christoff2);
+
+        as_ref(e1_current) = e1_current + e1_change * dt;
+        as_ref(e2_current) = e2_current + e2_change * dt;
+        as_ref(e3_current) = e3_current + e3_change * dt;
+    });
+
+    if_e(count == 0, []{
+        break_e();
+    });
+
+    as_ref(e1_out[count-1]) = e1_current;
+    as_ref(e2_out[count-1]) = e2_current;
+    as_ref(e3_out[count-1]) = e3_current;
+}
+```
+
+Phew. This is a pretty simple 1st order integrator that parallel transports the $e_{1,2,3}$ components of our tetrad, and writes them out to a buffer
+
+## Interpolation
+
+The very last thing for us to do now, is to actually construct our initial conditions. If you remember, we need a position, and a set of tetrads, and that's it for starting up our raytracing. We now have a buffer of positions, and a buffer of parallel transported tetrads - and that's all we're going to need to produce our starting point
+
+```c++
+void interpolate(buffer<v4f> positions, buffer<v4f> e0s, buffer<v4f> e1s, buffer<v4f> e2s, buffer<v4f> e3s, buffer<valuei> counts,
+literal<valuef> desired_proper_time,
+buffer_mut<v4f> position_out, buffer_mut<v4f> e0_out, buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out)
+{
+    //it is again important that this timestep matches the one from parallel transported tetrads
+    float dt = 0.005f;
+
+    valuei i = declare_mut_e(valuei(0));
+
+    mut<valuef> elapsed_time = declare_mut_e(valuef(0));
+
+    //fallback if we pick proper time < earliest time
+    as_ref(position_out[0]) = positions[0];
+    as_ref(e0_out[0]) = e0s[0];
+    as_ref(e1_out[0]) = e1s[0];
+    as_ref(e2_out[0]) = e2s[0];
+    as_ref(e3_out[0]) = e3s[0];
+
+    valuei size = declare_e(counts[0]);
+
+    if_e(size == 0, [&] {
+        return_e();
+    });
+
+    for_e(i < size, assign_b(i, i+1), [&] {
+        if_e(elapsed_time >= desired_proper_time.get() && elapsed_time <= desired_proper_time.get() + dt, [&]{
+            valuef frac = (elapsed_time - desired_proper_time) / dt;
+
+            as_ref(position_out[0]) = mix(positions[i], positions[i+1], frac);
+            as_ref(e0_out[0]) = mix(e0s[i], e0s[i+1], frac);
+            as_ref(e1_out[0]) = mix(e1s[i], e1s[i+1], frac);
+            as_ref(e2_out[0]) = mix(e2s[i], e2s[i+1], frac);
+            as_ref(e3_out[0]) = mix(e3s[i], e3s[i+1], frac);
+
+            return_e();
+        });
+
+        as_ref(elapsed_time) = elapsed_time + dt;
+    });
+
+    //fallback for if we pick proper time > latest proper time
+    as_ref(position_out[0]) = positions[0];
+    as_ref(e0_out[0]) = e0s[size-1];
+    as_ref(e1_out[0]) = e1s[size];
+    as_ref(e2_out[0]) = e2s[size];
+    as_ref(e3_out[0]) = e3s[size];
+}
+```
+
+This searches for the correct proper time, and interpolates our tetrads and starting position based on whatever proper time we're looking for. Its worth noting that with our timestep being linear, we could do this a lot more directly, but you're likely going to have a dynamic timestep
+
+# Reviewing the complete procedure
+
+1. Calculate your tetrads at any point
+2. Ensure that $e_0$ is timelike
+3. Trace the timelike $e_0$ forwards, as it represents our observer
+4. Parallel transport the other vectors $e_1$ $e_2$ $e_3$ forwards along the geodesic that we define in step 3.
+5. Calculate our final tetrad and position, by interpolating along that geodesic
+6. Raytrace using that tetrad and position[^kernel] as our initial conditions, in the usual fashion
+7. ?? profit
+
+[^kernel]: For this article, we've changed the kernel we use to take a tetrad from a buffer
