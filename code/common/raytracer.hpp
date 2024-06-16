@@ -479,7 +479,6 @@ void build_initial_tetrads(execution_context& ectx, literal<tensor<float, 4>> ca
 
     array_mut<tensor<float, 4>> as_array = declare_mut_array_e<tensor<float, 4>>(4, {});
     array_mut<float> lengths = declare_mut_array_e<float>(4, {});
-    array_mut<int> indices = declare_mut_array_e<int>(4, {valuei(0), valuei(1), valuei(2), valuei(3)});
 
     as_ref(as_array[0]) = v0;
     as_ref(as_array[1]) = v1;
