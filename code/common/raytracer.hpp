@@ -26,20 +26,6 @@ struct tetrad
     std::array<v4f, 4> v;
 };
 
-//https://www2.mpia-hd.mpg.de/homes/tmueller/pdfs/catalogue_2014-05-21.pdf 2.2.6
-tetrad calculate_schwarzschild_tetrad(const v4f& position) {
-    valuef rs = 1;
-    valuef r = position[1];
-    valuef theta = position[2];
-
-    v4f et = {1/sqrt(1 - rs/r), 0, 0, 0};
-    v4f er = {0, sqrt(1 - rs/r), 0, 0};
-    v4f etheta = {0, 0, 1/r, 0};
-    v4f ephi = {0, 0, 0, 1/(r * sin(theta))};
-
-    return {et, er, etheta, ephi};
-}
-
 v3f get_ray_through_pixel(v2i screen_position, v2i screen_size, float fov_degrees) {
     float fov_rad = (fov_degrees / 360.f) * 2 * std::numbers::pi_v<float>;
     valuef f_stop = (screen_size.x()/2).to<float>() / tan(fov_rad/2);
@@ -294,8 +280,7 @@ void opencl_raytrace(execution_context& ectx, literal<valuei> screen_width, lite
                      read_only_image<2> background, write_only_image<2> screen,
                      literal<valuei> background_width, literal<valuei> background_height,
                      buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
-                     buffer<v4f> position
-                     )
+                     buffer<v4f> position)
 {
     using namespace single_source;
 

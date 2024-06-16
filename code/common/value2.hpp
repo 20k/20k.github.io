@@ -4,7 +4,7 @@
 #include <string>
 #include <variant>
 #include <vector>
-#include "stdmath.hpp".
+#include "stdmath.hpp"
 #include "../common/vec/tensor.hpp"
 
 #ifndef __clang__

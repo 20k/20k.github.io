@@ -15,15 +15,7 @@ The scope of this article is as follows:
 4. Then we'll learn how to follow the path that an observer takes as it moves around spacetime - and in our case, into whatever lies inside a black hole
 5. There will be at least one cat photo in this article
 
-This will all be on the GPU, so it'll run reasonably fast. We're starting to get into things that people haven't really simulated before, and this is an area where many simulations are incorrect
-
-# Myths
-
-This article will examine several things that people often state are true in general relativity, and we'll reference this list when we're able to disprove each item
-
-1. As you fall into a black hole, the universe turns into a point behind you, and winks out of existence
-2. It takes forever to fall into a black hole
-3. When you cross the event horizon of a black hole, you see the universe age infinitely
+This will all be on the GPU, so it'll run reasonably fast. We're starting to get into things that people haven't really simulated extensively, and this is an area where many simulations are incorrect
 
 # Coordinate systems
 
@@ -608,9 +600,9 @@ buffer_mut<v4f> position_out, buffer_mut<v4f> e0_out, buffer_mut<v4f> e1_out, bu
     //fallback for if we pick proper time > latest proper time
     as_ref(position_out[0]) = positions[0];
     as_ref(e0_out[0]) = e0s[size-1];
-    as_ref(e1_out[0]) = e1s[size];
-    as_ref(e2_out[0]) = e2s[size];
-    as_ref(e3_out[0]) = e3s[size];
+    as_ref(e1_out[0]) = e1s[size-1];
+    as_ref(e2_out[0]) = e2s[size-1];
+    as_ref(e3_out[0]) = e3s[size-1];
 }
 ```
 
@@ -624,6 +616,10 @@ This searches for the correct proper time, and interpolates our tetrads and star
 4. Parallel transport the other vectors $e_1$ $e_2$ $e_3$ forwards along the geodesic that we define in step 3.
 5. Calculate our final tetrad and position, by interpolating along that geodesic
 6. Raytrace using that tetrad and position[^kernel] as our initial conditions, in the usual fashion
-7. ?? profit
 
 [^kernel]: For this article, we've changed the kernel we use to take a tetrad from a buffer
+
+# Results
+
+First up, lets examine some results for schwarzschild. We know that the event horizon in schwarzschild is not traversible, and so any observer attempting to cross the event horizon will hit a coordinate singularity. This isn't a real singularity, but its worth examining
+
