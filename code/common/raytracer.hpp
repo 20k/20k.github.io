@@ -290,11 +290,11 @@ v3f render_pixel(v2i screen_position, v2i screen_size, const read_only_image<2>&
 }
 
 template<auto GetMetric>
-void opencl_raytrace(execution_context& ectx, literal<int> screen_width, literal<int> screen_height,
+void opencl_raytrace(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
                      read_only_image<2> background, write_only_image<2> screen,
-                     literal<int> background_width, literal<int> background_height,
-                     buffer<tensor<float, 4>> e0, buffer<tensor<float, 4>> e1, buffer<tensor<float, 4>> e2, buffer<tensor<float, 4>> e3,
-                     buffer<tensor<float, 4>> position
+                     literal<valuei> background_width, literal<valuei> background_height,
+                     buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
+                     buffer<v4f> position
                      )
 {
     using namespace single_source;
@@ -457,9 +457,9 @@ valuei calculate_which_coordinate_is_timelike(const tetrad& tetrads, const m44f&
 
 
 template<auto GetMetric>
-void build_initial_tetrads(execution_context& ectx, literal<tensor<float, 4>> camera_position,
-                           buffer_mut<tensor<float, 4>> position_out,
-                           buffer_mut<tensor<float, 4>> e0_out, buffer_mut<tensor<float, 4>> e1_out, buffer_mut<tensor<float, 4>> e2_out, buffer_mut<tensor<float, 4>> e3_out)
+void build_initial_tetrads(execution_context& ectx, literal<v4f> camera_position,
+                           buffer_mut<v4f> position_out,
+                           buffer_mut<v4f> e0_out, buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out)
 {
     using namespace single_source;
 
