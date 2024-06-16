@@ -156,7 +156,7 @@ tetrad gram_schmidt(t4f v0, t4f v1, t4f v2, t4f v3, m44f m)
 };
 ```
 
-We now have our tetrads
+We now have our tetrads. If you're confused what's going on here, so am I and I need to more rigorously revisit this portion of the article, because how I derived this is a mystery to me
 
 ### Of course, it isn't remotely that simple
 
@@ -168,26 +168,43 @@ There are a few assumptions that we've made here
 
 ### Selecting the first vector
 
+Picking the first vector is fairly straightforward: we need to loop over our vectors, and find one who's length is not 0. Remember that in general relativity, the length of a vector is determined by
+
+$$g_{\mu\nu} v^\mu v^nu = ds^2$$
+
 ```c++
-std::array<t4f, 4> vecs = { {1, 0, 0, 0},
-                            {0, 1, 0, 0},
-                            {0, 0, 1, 0},
-                            {0, 0, 0, 1} };
+v4f v0 = {1, 0, 0, 0};
+v4f v1 = {0, 1, 0, 0};
+v4f v2 = {0, 0, 1, 0};
+v4f v3 = {0, 0, 0, 1};
 
-std::array<valuef, 4> lengths;
+m44f metric = GetMetric(camera_position.get());
 
-for(int i=0; i < 4; i++{
-    lengths[i] = metric.dot(vecs[i], vecs[i]);
-}
+v4f lv0 = metric.lower(v0);
+v4f lv1 = metric.lower(v1);
+v4f lv2 = metric.lower(v2);
+v4f lv3 = metric.lower(v3);
 
-valuei first_nonzero_vector = 0;
+//this declares an array gpuside, like. We end up with float4 as_array[4] = {v0, v1, v2, v3};
+array_mut<v4f> as_array = declare_mut_array_e<v4f>(4, {v0, v1, v2, v3});
+array_mut<valuef> lengths = declare_mut_array_e<valuef>(4, {dot(v0, lv0), dot(v1, lv1), dot(v2, lv2), dot(v3, lv3)});
 
-valuei idx = declare_mut_e(valuei(0));
+mut<valuei> first_nonzero = declare_mut_e(valuei(0));
 
-buffer<valuef> arr = declare_array_e(valuei(0), 4);
+for_e(first_nonzero < 4, assign_b(first_nonzero, first_nonzero+1), [&] {
+    auto approx_eq = [](const valuef& v1, const valuef& v2) {
+        valuef bound = 0.0001f;
 
-for_e(idx < 4, assign_b(idx, idx+1), [&] {
+        return v1 >= v2 - bound && v1 < v2 + bound;
+    };
 
+    if_e(!approx_eq(lengths[first_nonzero], valuef(0.f)), [&] {
+            break_e();
+    });
 });
 
+swap(as_array[0], as_array[first_nonzero]);
+
+tetrad tetrads = gram_schmidt(iv0, iv1, iv2, iv3, metric);
 ```
+
