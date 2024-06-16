@@ -9,15 +9,11 @@ Hello! Today we're going to do something really cool: Throw ourselves into a bla
 
 The scope of this article is as follows:
 
-Todo: I think the scope of this article needs to be reduced. Eliminate lorentz boosts, and fps style camera controls, and save them for kerr
-
 1. First we examine the role of coordinate systems in general relativity
 2. Then we'll upgrade to a black hole metric which lets us cross the event horizon
 3. After this, we'll learn how to calculate initial conditions for *any* metric tensor, instead of using pre-baked initial conditions
-4. You're going to understand how to take a frame of reference, and 'boost' it to represent a moving observer
-5. Then we'll learn how to follow the path that an observer takes as it moves around spacetime - and in our case, into whatever lies inside a black hole
-6. After this, we'll upgrade to a much more exciting, spinning black hole
-7. There will be at least one cat photo in this article
+4. Then we'll learn how to follow the path that an observer takes as it moves around spacetime - and in our case, into whatever lies inside a black hole
+5. There will be at least one cat photo in this article
 
 This will all be on the GPU, so it'll run reasonably fast. We're starting to get into things that people haven't really simulated before, and this is an area where many simulations are incorrect
 
@@ -402,66 +398,3 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> camera_position
 
 While it may seem odd to do this on a GPU with only one thread, this procedure is exactly the same as what we'll need in the future for working with particle systems, so we may as well GPUify this
 
-## Implementing FPS style camera controls
-
-Doing this correctly is heavily tied to tetrad vectors, and so we're going to address this topic here. Half the point of these articles is to end up with cool screenshots, and we'll need camera controls to be able to look around as we enter a black hole
-
-Lets imagine that we want to the camera to point down +Z, our rightwards direction to be +X, and up to be +Y. In this view, we want our camera's to rotate around the Y axis to provide standard camera controls, followed by rotating around the X axis to provide up and down. We can implement camera rotation straightforwardly in our minkowski coordinate system (see the commented out `rot_quat` from previous articles) by rotating our rays direction when we set it up:
-
-```c++
-v3f get_ray_through_pixel(v2i screen_position, v2i screen_size, float fov_degrees, quatv camera_rotation) {
-    float fov_rad = (fov_degrees / 360.f) * 2 * std::numbers::pi_v<float>;
-    valuef f_stop = (screen_size.x()/2).to<float>() / tan(fov_rad/2);
-
-    v3f pixel_direction = {(screen_position.x() - screen_size.x()/2).to<float>(), (screen_position.y() - screen_size.y()/2).to<float>(), f_stop};
-    pixel_direction = rot_quat(pixel_direction, camera_rotation); //new!
-
-    return pixel_direction.norm();
-}
-```
-
-Using standard quaternion[^quat] rotations
-
-[^quat]: If you don't know what a quaternion is, this isn't the right article for that explanation, but they're a 4 component tool used for handling rotations. You could also use a rotation matrix if you'd like, there's nothing special about what we're doing here
-
-In the past we've manually swapped around the ray components like such, to make them point at the black hole, with the a priori knowledge that the first spatial tetrad vector $e_1$ points away from the black hole, $e_2$ points upwards, and $e_3$ points perpendicular to those two vectors 'right'wards
-
-```c++
-v3f modified_ray = {-ray_direction[2], ray_direction[1], ray_direction[0]};
-```
-
-The issue here is, that these tetrads always point at the black hole. Imagine a schwarzschild black hole. It looks like this:
-
-Todo: Picture:
-
-If we calculate our tetrad vectors at various points, we'll have basis systems which look like this:
-
-Todo: Picture 2:
-
-For simplicity, we set this up on purpose in the first pass of our schwarzschild black hole, so that we could see it
-
-Todo: Video of pointing at black hole
-
-This is great for certain applications, but it isn't really how a user expects their camera controls to work. We're going to need to be able to construct tetrad vectors that point in a *specific* direction, rather than arbitrarily, which is going to involve some complexity. At the moment our minkowski coordinate system looks like this:
-
-$$(t, ?, ?, ?)$$
-
-Where we have not a clue which direction the tetrad vectors are pointing in. What we're really asking for is for is the spatial part of our tetrad coordinate vectors to point all in the same direction, in some hypothetical cartesian[^technically] coordinate system that overlays our regular coordinate system
-
-[^technically]: Technically we don't actually need cartesian coordiantes, we just need any consistent coordinate system that is convertible to our coordinate system (here, polar coordinates). We will use this fact to manage rays with $r < 0$
-
-## Creating a consistent tetrad basis
-
-First off, we need to pick a concrete coordinate system that we'll use for well behaved metrics, for the camera's position. While, when we do anything useful on the GPU, we'll be using the  metric's native coordinate system, if we want to implement useful camera controls we need to actually have a concrete coordinate system. We will pick polar coordinates[^cartesian], as its sufficiently general to cover most use cases
-
-[^cartesian]: If you're thinking, why not cartesian? Its because r can be < 0 in polar, and we have no way to express that in cartesian. I made this mistake and it was a huge pain
-
-```c++
-v3f cx = (v3f){1, 0, 0};
-v3f cy = (v3f){0, 1, 0};
-v3f cz = (v3f){0, 0, 1};
-```
-
-This is defined with respect to our *global* coordinate system, not in our local minkowski space. Now, our global coordinate system isn't cartesian, so we need to convert these vectors to our underlying coordinate system. Here, polar, but we'll do a more general transform. Its worth noting that not every coordinate system will support this conversion simply, so we're only going to be able to set up camera controls for coordinate systems that can be constructed from cartesian coordiantes. Luckily, this is most coordinate systems, so we can support a broad class here
-
-### Cut for simplicity
