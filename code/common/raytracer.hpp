@@ -477,9 +477,9 @@ void build_initial_tetrads(execution_context& ectx, literal<tensor<float, 4>> ca
     v4f lv2 = metric.lower(v2);
     v4f lv3 = metric.lower(v3);
 
-    single_source::buffer_mut<tensor<float, 4>> as_array = declare_mut_array_e<tensor<float, 4>>(4, {});
-    single_source::buffer_mut<float> lengths = declare_mut_array_e<float>(4, {});
-    single_source::buffer_mut<int> indices = declare_mut_array_e<int>(4, {valuei(0), valuei(1), valuei(2), valuei(3)});
+    array_mut<tensor<float, 4>> as_array = declare_mut_array_e<tensor<float, 4>>(4, {});
+    array_mut<float> lengths = declare_mut_array_e<float>(4, {});
+    array_mut<int> indices = declare_mut_array_e<int>(4, {valuei(0), valuei(1), valuei(2), valuei(3)});
 
     as_ref(as_array[0]) = v0;
     as_ref(as_array[1]) = v1;
@@ -514,7 +514,7 @@ void build_initial_tetrads(execution_context& ectx, literal<tensor<float, 4>> ca
 
     tetrad tetrads = gram_schmidt(iv0, iv1, iv2, iv3, metric);
 
-    single_source::buffer_mut<tensor<float, 4>> tetrad_array = declare_mut_array_e<tensor<float, 4>>(4, {});
+    array_mut<tensor<float, 4>> tetrad_array = declare_mut_array_e<tensor<float, 4>>(4, {});
 
     as_ref(tetrad_array[0]) = tetrads.v[0];
     as_ref(tetrad_array[1]) = tetrads.v[1];

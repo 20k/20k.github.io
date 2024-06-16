@@ -780,6 +780,29 @@ namespace value_impl
         }
 
         template<typename T>
+        struct array {
+            std::string name;
+
+            auto operator[](const value<int>& index)
+            {
+                value_base op;
+                op.type = op::BRACKET;
+                op.args = {name, index};
+                op.concrete = get_interior_type(T());
+
+                return build_type(op, T());
+            }
+        };
+
+        template<typename T>
+        struct array_mut : array<T> {
+            auto operator[](const value<int>& index)
+            {
+                return apply_mutability(array<T>::operator[](index));
+            }
+        };
+
+        template<typename T>
         struct buffer {
             std::string name;
             using value_type = T;
@@ -909,11 +932,11 @@ namespace value_impl
 
     template<typename T>
     inline
-    single_source::buffer<T> declare_array_e(execution_context_base& ectx, const std::string& name, int size, const std::vector<value_base>& rhs)
+    single_source::array<T> declare_array_e(execution_context_base& ectx, const std::string& name, int size, const std::vector<value_base>& rhs)
     {
         ectx.add(declare_array_b<T>(name, size, rhs));
 
-        single_source::buffer<T> out;
+        single_source::array<T> out;
         out.name = name;
 
         return out;
@@ -921,18 +944,18 @@ namespace value_impl
 
     template<typename T>
     inline
-    single_source::buffer<T> declare_array_e(execution_context_base& ectx, int size, const std::vector<value_base>& rhs)
+    single_source::array<T> declare_array_e(execution_context_base& ectx, int size, const std::vector<value_base>& rhs)
     {
         return declare_array_e<T>(ectx, "arr_" + std::to_string(get_context().next_id()), size, rhs);
     }
 
     template<typename T>
     inline
-    single_source::buffer_mut<T> declare_mut_array_e(execution_context_base& ectx, int size, const std::vector<value_base>& rhs)
+    single_source::array_mut<T> declare_mut_array_e(execution_context_base& ectx, int size, const std::vector<value_base>& rhs)
     {
         auto lbuf = declare_array_e<T>(ectx, size, rhs);
 
-        single_source::buffer_mut<T> out;
+        single_source::array_mut<T> out;
         out.name = lbuf.name;
         return out;
     }
@@ -940,14 +963,14 @@ namespace value_impl
     namespace single_source {
         template<typename T>
         inline
-        buffer<T> declare_array_e(int size, const std::vector<value_base>& rhs)
+        array<T> declare_array_e(int size, const std::vector<value_base>& rhs)
         {
             return declare_array_e<T>(get_context(), size, rhs);
         }
 
         template<typename T>
         inline
-        buffer_mut<T> declare_mut_array_e(int size, const std::vector<value_base>& rhs)
+        array_mut<T> declare_mut_array_e(int size, const std::vector<value_base>& rhs)
         {
             return declare_mut_array_e<T>(get_context(), size, rhs);
         }
