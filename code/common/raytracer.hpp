@@ -477,18 +477,8 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> camera_position
     v4f lv2 = metric.lower(v2);
     v4f lv3 = metric.lower(v3);
 
-    array_mut<v4f> as_array = declare_mut_array_e<v4f>(4, {});
-    array_mut<valuef> lengths = declare_mut_array_e<valuef>(4, {});
-
-    as_ref(as_array[0]) = v0;
-    as_ref(as_array[1]) = v1;
-    as_ref(as_array[2]) = v2;
-    as_ref(as_array[3]) = v3;
-
-    as_ref(lengths[0]) = dot(v0, lv0);
-    as_ref(lengths[1]) = dot(v1, lv1);
-    as_ref(lengths[2]) = dot(v2, lv2);
-    as_ref(lengths[3]) = dot(v3, lv3);
+    array_mut<v4f> as_array = declare_mut_array_e<v4f>(4, {v0, v1, v2, v3});
+    array_mut<valuef> lengths = declare_mut_array_e<valuef>(4, {dot(v0, lv0), dot(v1, lv1), dot(v2, lv2), dot(v3, lv3)});
 
     mut<valuei> first_nonzero = declare_mut_e(valuei(0));
 

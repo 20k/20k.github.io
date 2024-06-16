@@ -960,26 +960,36 @@ namespace value_impl
 
     template<typename T>
     inline
-    single_source::array<T> declare_array_e(execution_context_base& ectx, const std::string& name, int size, const std::vector<value_base>& rhs)
+    single_source::array<T> declare_array_e(execution_context_base& ectx, const std::string& name, int size, const std::vector<T>& rhs)
     {
-        ectx.add(declare_array_b<T>(name, size, rhs));
+        ectx.add(declare_array_b<T>(name, size, {}));
+
+        assert(rhs.size() <= size);
 
         single_source::array<T> out;
         out.name = name;
+
+        for(int i=0; i < rhs.size(); i++)
+        {
+            single_source::array_mut<T> temp;
+            temp.name = name;
+
+            assign_e(ectx, temp[i], rhs[i]);
+        }
 
         return out;
     }
 
     template<typename T>
     inline
-    single_source::array<T> declare_array_e(execution_context_base& ectx, int size, const std::vector<value_base>& rhs)
+    single_source::array<T> declare_array_e(execution_context_base& ectx, int size, const std::vector<T>& rhs)
     {
         return declare_array_e<T>(ectx, "arr_" + std::to_string(get_context().next_id()), size, rhs);
     }
 
     template<typename T>
     inline
-    single_source::array_mut<T> declare_mut_array_e(execution_context_base& ectx, int size, const std::vector<value_base>& rhs)
+    single_source::array_mut<T> declare_mut_array_e(execution_context_base& ectx, int size, const std::vector<T>& rhs)
     {
         auto lbuf = declare_array_e<T>(ectx, size, rhs);
 
@@ -991,14 +1001,14 @@ namespace value_impl
     namespace single_source {
         template<typename T>
         inline
-        array<T> declare_array_e(int size, const std::vector<value_base>& rhs)
+        array<T> declare_array_e(int size, const std::vector<T>& rhs)
         {
             return declare_array_e<T>(get_context(), size, rhs);
         }
 
         template<typename T>
         inline
-        array_mut<T> declare_mut_array_e(int size, const std::vector<value_base>& rhs)
+        array_mut<T> declare_mut_array_e(int size, const std::vector<T>& rhs)
         {
             return declare_mut_array_e<T>(get_context(), size, rhs);
         }
