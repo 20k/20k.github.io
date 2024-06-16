@@ -4,7 +4,7 @@
 #include <string>
 #include <variant>
 #include <vector>
-#include "stdmath.hpp"
+#include "stdmath.hpp".
 #include "../common/vec/tensor.hpp"
 
 #ifndef __clang__
@@ -22,14 +22,6 @@ namespace value_impl
     template<typename T>
     inline
     std::string name_type(T tag);
-
-    template<typename T>
-    inline
-    T get_interior_type(const T&){return T();}
-
-    template<typename T, int... N>
-    inline
-    T get_interior_type(const tensor<T, N...>&){return T();}
 
     namespace op {
         enum type {
@@ -700,6 +692,23 @@ namespace value_impl
 
     template<typename T>
     inline
+    T get_interior_type(const T&){return T();}
+
+    template<typename T, int... N>
+    inline
+    T get_interior_type(const tensor<T, N...>&){return T();}
+
+    template<typename T>
+    inline
+    T get_interior_type(const value<T>&){return T();}
+
+    template<typename T, int... N>
+    inline
+    T get_interior_type(const tensor<value<T>, N...>&){return T();}
+
+
+    template<typename T>
+    inline
     value<T> from_base(const value_base& b)
     {
         value<T> ret;
@@ -1168,6 +1177,33 @@ namespace value_impl
             return "char";
 
         else if constexpr(std::is_same_v<T, unsigned char>)
+            return "unsigned char";
+
+        else if constexpr(std::is_same_v<T, value<float>>)
+            return "float";
+
+        else if constexpr(std::is_same_v<T, value<double>>)
+            return "double";
+
+        else if constexpr(std::is_same_v<T, value<float16>>)
+            return "half";
+
+        else if constexpr(std::is_same_v<T, value<int>>)
+            return "int";
+
+        else if constexpr(std::is_same_v<T, value<short>>)
+            return "short";
+
+        else if constexpr(std::is_same_v<T, value<unsigned int>>)
+            return "unsigned int";
+
+        else if constexpr(std::is_same_v<T, value<unsigned short>>)
+            return "unsigned short";
+
+        else if constexpr(std::is_same_v<T, value<char>>)
+            return "char";
+
+        else if constexpr(std::is_same_v<T, value<unsigned char>>)
             return "unsigned char";
 
         else if constexpr(std::is_same_v<T, std::monostate>)

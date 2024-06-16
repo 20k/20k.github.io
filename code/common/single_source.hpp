@@ -732,6 +732,10 @@ namespace value_impl
     }
 
     namespace single_source {
+        struct declare_t{};
+
+        static constexpr declare_t declare;
+
         template<typename T>
         inline
         value<T> build_type(const value_base& name, const T& tag)
@@ -741,9 +745,33 @@ namespace value_impl
             return ret;
         }
 
+        template<typename T>
+        inline
+        value<T> build_type(const value_base& name, const value<T>& tag)
+        {
+            value<T> ret;
+            ret.set_from_base(name);
+            return ret;
+        }
+
         template<typename T, int N>
         inline
         tensor<value<T>, N> build_type(const value_base& name, const tensor<T, N>& tag)
+        {
+            tensor<value<T>, N> ret;
+
+            for(int i=0; i < N; i++)
+            {
+                ret[i].type = op::DOT;
+                ret[i].args = {name, "s" + std::to_string(i)};
+            }
+
+            return ret;
+        }
+
+        template<typename T, int N>
+        inline
+        tensor<value<T>, N> build_type(const value_base& name, const tensor<value<T>, N>& tag)
         {
             tensor<value<T>, N> ret;
 
