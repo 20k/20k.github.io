@@ -9,6 +9,8 @@ Hello! Today we're going to do something really cool: Throw ourselves into a bla
 
 The scope of this article is as follows:
 
+Todo: I think the scope of this article needs to be reduced. Eliminate lorentz boosts, and fps style camera controls, and save them for kerr
+
 1. First we examine the role of coordinate systems in general relativity
 2. Then we'll upgrade to a black hole metric which lets us cross the event horizon
 3. After this, we'll learn how to calculate initial conditions for *any* metric tensor, instead of using pre-baked initial conditions
@@ -208,3 +210,258 @@ swap(as_array[0], as_array[first_nonzero]);
 tetrad tetrads = gram_schmidt(iv0, iv1, iv2, iv3, metric);
 ```
 
+### Picking the timelike vector, and putting it in slot 0
+
+We know from our diagonalisation procedure, that:
+
+$$\eta = e^{T} g e$$
+
+$\eta$ here isn't necessarily exactly the minkowski tensor. We're solving an eigenvalue/vector problem, and the sign of each component corresponds to whether or not each coordinate at a point is timelike, or spacelike. If we use the above relation with the tetrads we get to calculate the minkowski metric, we may instead end up with this
+
+| |?|t|?|?|
+|-|-|-|-|-|
+|?|1| | | |
+|t| |-1| | |
+|?| | |1| |
+|?| | | |1|
+
+Or this:
+
+| |?|?|t|?|
+|-|-|-|-|-|
+|?|1| | | |
+|?| |1| | |
+|t| | |-1| |
+|?| | | |1|
+
+
+Or this!
+
+| |?|?|?|t|
+|-|-|-|-|-|
+|?|1| | | |
+|?| |1| | |
+|?| | |1| |
+|t| | | |-1|
+
+
+The reason why we list the coordinates as $?$'s is because while they correspond to cartesian coordinate directions, the specifics of which direction (x, y, or z) they are is inherently arbitrary[^arbitrary]
+
+[^arbitrary]: We will be doing some tricks when we implement fps camera controls to assign some physical meaning to these directions shortly
+What we would like to do is demand that the 0'th tetrad is timelike, as this is an extremely common requirement in the literature, and simplifies our lives tremendously when dealing with tetrads if we know that $e_0$ is timelike
+
+There are two ways equivalent ways of doing this
+
+### Way the first
+
+Calculate the minkowski metric, and find the timelike coordinate by looking for the $-1$ component
+
+### Way the second
+
+Calculate $ds^2_i$ via $g_{\mu\nu} e^{\mu}_i e^{\nu}_i$, and find the component with the value of $-1$
+
+### These are literally the same thing
+
+We haven't seen an explicit expression for how to do this the first way whereas previous articles contain plenty of the second, so we'll pick the first
+
+```c++
+m44f get_local_minkowski(const tetrad& tetrads, const m44f& met)
+{
+    m44f minkowski;
+
+    tensor<valuef, 4, 4> m;
+
+    for(int i=0; i < 4; i++)
+    {
+        m[0, i] = tetrads.v[0][i];
+        m[1, i] = tetrads.v[1][i];
+        m[2, i] = tetrads.v[2][i];
+        m[3, i] = tetrads.v[3][i];
+    }
+
+    for(int a=0; a < 4; a++)
+    {
+        for(int b=0; b < 4; b++)
+        {
+            valuef sum = 0;
+
+            for(int mu=0; mu < 4; mu++)
+            {
+                for(int v=0; v < 4; v++)
+                {
+                    sum += met[mu, v] * m[a, mu] * m[b, v];
+                }
+            }
+
+            minkowski[a, b] = sum;
+        }
+    }
+
+    return minkowski;
+}
+
+//calculates the minkowski metric, and looks across the diagonal looking for the largest negative value
+valuei calculate_which_coordinate_is_timelike(const tetrad& tetrads, const m44f& met)
+{
+    m44f minkowski = get_local_minkowski(tetrads, met);
+
+    using namespace single_source;
+
+    mut<valuei> lowest_index = declare_mut_e(valuei(0));
+    mut<valuef> lowest_value = declare_mut_e(valuef(0));
+
+    for(int i=0; i < 4; i++)
+    {
+        if_e(minkowski[i, i] < lowest_value, [&] {
+            as_ref(lowest_index) = valuei(i);
+            as_ref(lowest_value) = minkowski[i, i];
+        });
+    }
+
+    return lowest_index;
+}
+```
+
+While the tetrads we get here provide a clean signature of 1's and -1's due to being strictly orthonormalised, we may have tetrads which are derived from numerical sources - where inaccuracy will lead to them being much less nice to work with. For this reason, we look for the largest negative value[^note]
+
+[^note]: Note, when you work with parallel transported (we'll get around to this) tetrad vectors, the signature never changes
+
+Now finally, we use the timelike coordinate to swap the tetrad component out, and end up with our final tetrads again. The complete procedure is therefore this:
+
+```c++
+template<auto GetMetric>
+void build_initial_tetrads(execution_context& ectx, literal<v4f> camera_position,
+                           buffer_mut<v4f> position_out,
+                           buffer_mut<v4f> e0_out, buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out)
+{
+    using namespace single_source;
+
+    as_ref(position_out[0]) = camera_position.get();
+
+    v4f v0 = {1, 0, 0, 0};
+    v4f v1 = {0, 1, 0, 0};
+    v4f v2 = {0, 0, 1, 0};
+    v4f v3 = {0, 0, 0, 1};
+
+    m44f metric = GetMetric(camera_position.get());
+
+    //these are actually the column vectors of the metric tensor
+    v4f lv0 = metric.lower(v0);
+    v4f lv1 = metric.lower(v1);
+    v4f lv2 = metric.lower(v2);
+    v4f lv3 = metric.lower(v3);
+
+    array_mut<v4f> as_array = declare_mut_array_e<v4f>(4, {v0, v1, v2, v3});
+    //we're in theory doing v_mu v^mu, but because only one component of v0 is nonzero, and the lower components are actually
+    //the column vectors of the metric tensor, dot(v0, lv0) is actually metric[0,0], dot(v1, lv1) is metric[1,1] etc
+    //this method therefore fails if the metric has no nonzero diagonal components
+    array_mut<valuef> lengths = declare_mut_array_e<valuef>(4, {dot(v0, lv0), dot(v1, lv1), dot(v2, lv2), dot(v3, lv3)});
+
+    mut<valuei> first_nonzero = declare_mut_e(valuei(0));
+
+    for_e(first_nonzero < 4, assign_b(first_nonzero, first_nonzero+1), [&] {
+        auto approx_eq = [](const valuef& v1, const valuef& v2) {
+            valuef bound = 0.0001f;
+
+            return v1 >= v2 - bound && v1 < v2 + bound;
+        };
+
+        if_e(!approx_eq(lengths[first_nonzero], valuef(0.f)), [&] {
+             break_e();
+        });
+    });
+
+    swap(as_array[0], as_array[first_nonzero]);
+
+    v4f iv0 = declare_e(as_array[0]);
+    v4f iv1 = declare_e(as_array[1]);
+    v4f iv2 = declare_e(as_array[2]);
+    v4f iv3 = declare_e(as_array[3]);
+
+    tetrad tetrads = gram_schmidt(iv0, iv1, iv2, iv3, metric);
+
+    array_mut<v4f> tetrad_array = declare_mut_array_e<v4f>(4, {});
+
+    as_ref(tetrad_array[0]) = tetrads.v[0];
+    as_ref(tetrad_array[1]) = tetrads.v[1];
+    as_ref(tetrad_array[2]) = tetrads.v[2];
+    as_ref(tetrad_array[3]) = tetrads.v[3];
+
+    swap(tetrad_array[0], tetrad_array[first_nonzero]);
+
+    valuei timelike_coordinate = calculate_which_coordinate_is_timelike(tetrads, metric);
+
+    swap(tetrad_array[0], tetrad_array[timelike_coordinate]);
+
+    as_ref(e0_out[0]) = tetrad_array[0];
+    as_ref(e1_out[0]) = tetrad_array[1];
+    as_ref(e2_out[0]) = tetrad_array[2];
+    as_ref(e3_out[0]) = tetrad_array[3];
+}
+```
+
+While it may seem odd to do this on a GPU with only one thread, this procedure is exactly the same as what we'll need in the future for working with particle systems, so we may as well GPUify this
+
+## Implementing FPS style camera controls
+
+Doing this correctly is heavily tied to tetrad vectors, and so we're going to address this topic here. Half the point of these articles is to end up with cool screenshots, and we'll need camera controls to be able to look around as we enter a black hole
+
+Lets imagine that we want to the camera to point down +Z, our rightwards direction to be +X, and up to be +Y. In this view, we want our camera's to rotate around the Y axis to provide standard camera controls, followed by rotating around the X axis to provide up and down. We can implement camera rotation straightforwardly in our minkowski coordinate system (see the commented out `rot_quat` from previous articles) by rotating our rays direction when we set it up:
+
+```c++
+v3f get_ray_through_pixel(v2i screen_position, v2i screen_size, float fov_degrees, quatv camera_rotation) {
+    float fov_rad = (fov_degrees / 360.f) * 2 * std::numbers::pi_v<float>;
+    valuef f_stop = (screen_size.x()/2).to<float>() / tan(fov_rad/2);
+
+    v3f pixel_direction = {(screen_position.x() - screen_size.x()/2).to<float>(), (screen_position.y() - screen_size.y()/2).to<float>(), f_stop};
+    pixel_direction = rot_quat(pixel_direction, camera_rotation); //new!
+
+    return pixel_direction.norm();
+}
+```
+
+Using standard quaternion[^quat] rotations
+
+[^quat]: If you don't know what a quaternion is, this isn't the right article for that explanation, but they're a 4 component tool used for handling rotations. You could also use a rotation matrix if you'd like, there's nothing special about what we're doing here
+
+In the past we've manually swapped around the ray components like such, to make them point at the black hole, with the a priori knowledge that the first spatial tetrad vector $e_1$ points away from the black hole, $e_2$ points upwards, and $e_3$ points perpendicular to those two vectors 'right'wards
+
+```c++
+v3f modified_ray = {-ray_direction[2], ray_direction[1], ray_direction[0]};
+```
+
+The issue here is, that these tetrads always point at the black hole. Imagine a schwarzschild black hole. It looks like this:
+
+Todo: Picture:
+
+If we calculate our tetrad vectors at various points, we'll have basis systems which look like this:
+
+Todo: Picture 2:
+
+For simplicity, we set this up on purpose in the first pass of our schwarzschild black hole, so that we could see it
+
+Todo: Video of pointing at black hole
+
+This is great for certain applications, but it isn't really how a user expects their camera controls to work. We're going to need to be able to construct tetrad vectors that point in a *specific* direction, rather than arbitrarily, which is going to involve some complexity. At the moment our minkowski coordinate system looks like this:
+
+$$(t, ?, ?, ?)$$
+
+Where we have not a clue which direction the tetrad vectors are pointing in. What we're really asking for is for is the spatial part of our tetrad coordinate vectors to point all in the same direction, in some hypothetical cartesian[^technically] coordinate system that overlays our regular coordinate system
+
+[^technically]: Technically we don't actually need cartesian coordiantes, we just need any consistent coordinate system that is convertible to our coordinate system (here, polar coordinates). We will use this fact to manage rays with $r < 0$
+
+## Creating a consistent tetrad basis
+
+First off, we need to pick a concrete coordinate system that we'll use for well behaved metrics, for the camera's position. While, when we do anything useful on the GPU, we'll be using the  metric's native coordinate system, if we want to implement useful camera controls we need to actually have a concrete coordinate system. We will pick polar coordinates[^cartesian], as its sufficiently general to cover most use cases
+
+[^cartesian]: If you're thinking, why not cartesian? Its because r can be < 0 in polar, and we have no way to express that in cartesian. I made this mistake and it was a huge pain
+
+```c++
+v3f cx = (v3f){1, 0, 0};
+v3f cy = (v3f){0, 1, 0};
+v3f cz = (v3f){0, 0, 1};
+```
+
+This is defined with respect to our *global* coordinate system, not in our local minkowski space. Now, our global coordinate system isn't cartesian, so we need to convert these vectors to our underlying coordinate system. Here, polar, but we'll do a more general transform. Its worth noting that not every coordinate system will support this conversion simply, so we're only going to be able to set up camera controls for coordinate systems that can be constructed from cartesian coordiantes. Luckily, this is most coordinate systems, so we can support a broad class here
+
+### Cut for simplicity
