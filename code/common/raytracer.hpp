@@ -480,7 +480,7 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> camera_position
 
     array_mut<v4f> as_array = declare_mut_array_e<v4f>(4, {v0, v1, v2, v3});
     //we're in theory doing v_mu v^mu, but because only one component of v0 is nonzero, and the lower components are actually
-    //the column vectors of the metric tensor, dot(v0, lv0) is actually metric[0,0], dot(v1, lv1) is metric[1,1]
+    //the column vectors of the metric tensor, dot(v0, lv0) is actually metric[0,0], dot(v1, lv1) is metric[1,1] etc
     //this method therefore fails if the metric has no nonzero diagonal components
     array_mut<valuef> lengths = declare_mut_array_e<valuef>(4, {dot(v0, lv0), dot(v1, lv1), dot(v2, lv2), dot(v3, lv3)});
 
