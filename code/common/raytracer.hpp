@@ -182,20 +182,26 @@ v2f angle_to_tex(const v2f& angle)
     return {sxf, syf};
 }
 
+value<bool> should_terminate(v4f start, v4f position, v4f velocity)
+{
+    value<bool> is_broken = !isfinite(position[0]) || !isfinite(position[1]) || !isfinite(position[2]) || !isfinite(position[3]) ||
+                            !isfinite(velocity[0]) || !isfinite(velocity[1]) || !isfinite(velocity[2]) || !isfinite(velocity[3]) ;
+
+    return position[1] > 10 || position[0] > start[0] + 1000 || fabs(velocity[0]) >= 10 || is_broken;
+}
+
 //this integrates a geodesic, until it either escapes our small universe or hits the event horizon
 std::pair<valuei, tensor<valuef, 4>> integrate(geodesic& g, auto&& get_metric) {
     using namespace single_source;
 
-    mut<valuei> result = declare_mut_e(valuei(0));
+    mut<valuei> result = declare_mut_e(valuei(1));
 
     mut_v4f position = declare_mut_e(g.position);
     mut_v4f velocity = declare_mut_e(g.velocity);
 
     float dt = 0.005f;
     float rs = 1;
-    valuef start_time = g.position[0];
-
-    pin(start_time);
+    v4f start = g.position;
 
     mut<valuei> idx = declare_mut_e("i", valuei(0));
 
@@ -219,14 +225,9 @@ std::pair<valuei, tensor<valuef, 4>> integrate(geodesic& g, auto&& get_metric) {
             break_e();
         });
 
-        if_e(radius <= rs + 0.0001f || position[0] > start_time + 1000, [&] {
-            //ray has very likely hit the event horizon
-            as_ref(result) = valuei(1);
-            break_e();
-        });
 
         //we could do better than this by upgrading the tensor library
-        if_e(!isfinite(position[0]) || !isfinite(position[1]) || !isfinite(position[2]) || !isfinite(position[3]), [&]
+        if_e(should_terminate(start, as_constant(position), as_constant(velocity)), [&]
         {
             //as_ref(result) = valuei(1);
             break_e();
@@ -268,8 +269,8 @@ v3f render_pixel(v2i screen_position, v2i screen_size, const read_only_image<2>&
 
     mut_v3f colour = declare_mut_e(col.xyz());
 
-    if_e(result == 2 || result == 1, [&] {
-        as_ref(colour) = (tensor<valuef, 3>){0,1,0};
+    if_e(result == 1, [&] {
+        as_ref(colour) = (tensor<valuef, 3>){0,0,0};
     });
 
     return colour.as<valuef>();
@@ -528,8 +529,8 @@ void trace_geodesic(execution_context& ectx,
 
     //for a timelike geodesic, dt is proper time
     float dt = 0.005f;
-    valuef start_time = start_position[0][0];
-    pin(start_time);
+    v4f start = start_position[0];
+    pin(start);
 
     mut<valuei> idx = declare_mut_e("i", valuei(0));
 
@@ -548,12 +549,7 @@ void trace_geodesic(execution_context& ectx,
         as_ref(velocity) = cvelocity + acceleration * dt;
         as_ref(position) = cposition + velocity.as<valuef>() * dt;
 
-        valuef radius = position[1];
-
-        value<bool> is_broken = !isfinite(position[0]) || !isfinite(position[1]) || !isfinite(position[2]) || !isfinite(position[3]) ||
-                                !isfinite(velocity[0]) || !isfinite(velocity[1]) || !isfinite(velocity[2]) || !isfinite(velocity[3]) ;
-
-        if_e(radius > 10 || position[0] > start_time + 1000 || fabs(velocity[0]) >= 10 || is_broken, [&] {
+        if_e(should_terminate(start, as_constant(position), as_constant(velocity)), [&] {
             break_e();
         });
     });
