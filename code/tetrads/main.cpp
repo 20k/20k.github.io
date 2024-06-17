@@ -224,6 +224,8 @@ int main()
             cqueue.exec(interpolate_kern, {1}, {1}, {});
         }
 
+        printf("Pos %f\n", final_camera_position.read<float>(cqueue)[1]);
+
         {
             screen.acquire(cqueue);
 

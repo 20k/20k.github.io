@@ -187,7 +187,7 @@ value<bool> should_terminate(v4f start, v4f position, v4f velocity)
     value<bool> is_broken = !isfinite(position[0]) || !isfinite(position[1]) || !isfinite(position[2]) || !isfinite(position[3]) ||
                             !isfinite(velocity[0]) || !isfinite(velocity[1]) || !isfinite(velocity[2]) || !isfinite(velocity[3]) ;
 
-    return position[1] > 10 || position[0] > start[0] + 1000 || fabs(velocity[0]) >= 10 || is_broken;
+    return position[1] > 10 || position[0] > start[0] + 1000 || fabs(velocity[0]) >= 10 || is_broken || position[1] < 0.1f;
 }
 
 //this integrates a geodesic, until it either escapes our small universe or hits the event horizon
@@ -245,7 +245,8 @@ v3f render_pixel(v2i screen_position, v2i screen_size, const read_only_image<2>&
 
     //so, the tetrad vectors give us a basis, that points in the direction t, r, theta, and phi, because schwarzschild is diagonal
     //we'd like the ray to point towards the black hole: this means we make +z point towards -r, +y point towards +theta, and +x point towards +phi
-    v3f modified_ray = {-ray_direction[2], ray_direction[1], ray_direction[0]};
+    v3f modified_ray = {ray_direction[2], ray_direction[1], ray_direction[0]};
+    //v3f modified_ray = {-ray_direction[2], ray_direction[1], ray_direction[0]};
 
     geodesic my_geodesic = make_lightlike_geodesic(start_position, modified_ray, tetrads);
 
@@ -512,6 +513,8 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
     as_ref(e3_out[0]) = tetrad_array[3];
 }
 
+#define TRACE_DT 0.005f
+
 template<auto GetMetric>
 void trace_geodesic(execution_context& ectx,
                     buffer<v4f> start_position, buffer<v4f> start_velocity,
@@ -528,7 +531,7 @@ void trace_geodesic(execution_context& ectx,
     mut_v4f velocity = declare_mut_e(start_velocity[0]);
 
     //for a timelike geodesic, dt is proper time
-    float dt = 0.005f;
+    float dt = TRACE_DT;
     v4f start = start_position[0];
     pin(start);
 
@@ -587,7 +590,7 @@ void parallel_transport_tetrads(execution_context& ectx, buffer<v4f> e1, buffer<
 {
     using namespace single_source;
     //its important that this dt is the same dt as the one that we used in trace_geodesic, as we're dealing with the same parameterisation. If you use a variable timestep, you need to write this into a buffer
-    float dt = 0.005f;
+    float dt = TRACE_DT;
 
     valuei count = declare_e(counts[0]);
     mut<valuei> i = declare_mut_e(valuei(0));
@@ -620,10 +623,6 @@ void parallel_transport_tetrads(execution_context& ectx, buffer<v4f> e1, buffer<
         as_ref(e2_current) = e2_cst + e2_change * dt;
         as_ref(e3_current) = e3_cst + e3_change * dt;
     });
-
-    if_e(count == 0, []{
-        return_e();
-    });
 }
 
 void interpolate(execution_context& ectx, buffer<v4f> positions, buffer<v4f> e0s, buffer<v4f> e1s, buffer<v4f> e2s, buffer<v4f> e3s, buffer<valuei> counts,
@@ -632,7 +631,7 @@ void interpolate(execution_context& ectx, buffer<v4f> positions, buffer<v4f> e0s
 {
     using namespace single_source;
     //it is again important that this timestep matches the one from parallel transported tetrads
-    float dt = 0.005f;
+    float dt = TRACE_DT;
 
     mut<valuef> elapsed_time = declare_mut_e(valuef(0));
 
