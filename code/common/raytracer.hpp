@@ -533,9 +533,7 @@ void trace_geodesic(execution_context& ectx,
 
     mut<valuei> idx = declare_mut_e("i", valuei(0));
 
-    as_ref(written_steps[0]) = valuei(0);
-
-    for_e(idx < 1024 * 1024, assign_b(idx, idx + 1), [&]
+    for_e(idx < 1024 * 1024 && idx < max_steps.get(), assign_b(idx, idx + 1), [&]
     {
         v4f cposition = declare_e(position);
         v4f cvelocity = declare_e(velocity);
@@ -587,7 +585,7 @@ v4f parallel_transport_get_change(v4f tangent_vector, v4f geodesic_velocity, con
 
 //note: we already know the value of e0, as its the geodesic velocity
 template<auto GetMetric>
-void parallel_transport_tetrads(buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
+void parallel_transport_tetrads(execution_context& ectx, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
                                 buffer<v4f> positions, buffer<v4f> velocities, buffer<valuei> counts,
                                 buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out)
 {
@@ -607,8 +605,8 @@ void parallel_transport_tetrads(buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
         as_ref(e2_out[i]) = e2_current;
         as_ref(e3_out[i]) = e3_current;
 
-        v4f current_position = positions[i];
-        v4f current_velocity = velocities[i];
+        v4f current_position = declare_e(positions[i]);
+        v4f current_velocity = declare_e(velocities[i]);
 
         tensor<valuef, 4, 4, 4> christoff2 = calculate_christoff2(current_position, GetMetric);
 
@@ -628,7 +626,7 @@ void parallel_transport_tetrads(buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
     });
 
     if_e(count == 0, []{
-        break_e();
+        return_e();
     });
 
     as_ref(e1_out[count-1]) = e1_current;
@@ -636,7 +634,7 @@ void parallel_transport_tetrads(buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
     as_ref(e3_out[count-1]) = e3_current;
 }
 
-void interpolate(buffer<v4f> positions, buffer<v4f> e0s, buffer<v4f> e1s, buffer<v4f> e2s, buffer<v4f> e3s, buffer<valuei> counts,
+void interpolate(execution_context& ectx, buffer<v4f> positions, buffer<v4f> e0s, buffer<v4f> e1s, buffer<v4f> e2s, buffer<v4f> e3s, buffer<valuei> counts,
                  literal<valuef> desired_proper_time,
                  buffer_mut<v4f> position_out, buffer_mut<v4f> e0_out, buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out)
 {

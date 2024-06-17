@@ -56,6 +56,13 @@ cl::image load_background(cl::context ctx, cl::command_queue cqueue)
     return img;
 }
 
+cl::kernel make_kernel(cl::context& ctx, const std::string& str, const std::string& name, const std::string& options)
+{
+    cl::program prog(ctx, str, false);
+    prog.build(ctx, options);
+    return cl::kernel(prog, name);
+}
+
 int main()
 {
     int screen_width = 1000;
@@ -76,13 +83,23 @@ int main()
 
     std::cout << tetrad_calc << std::endl;
 
-    cl::program tetrad_p(ctx, tetrad_calc, false);
-    tetrad_p.build(ctx, "");
-    cl::kernel tetrad_kern(tetrad_p, "tetrad");
+    std::string geodesic_src = value_impl::make_function(trace_geodesic<schwarzschild_metric>, "trace_geodesic");
 
-    cl::program trace_p(ctx, kernel, false);
-    trace_p.build(ctx, "-cl-fast-relaxed-math");
-    cl::kernel trace_kern(trace_p, "raytrace");
+    std::cout << geodesic_src << std::endl;
+
+    std::string transport_src = value_impl::make_function(parallel_transport_tetrads<schwarzschild_metric>, "transport");
+
+    std::cout << transport_src << std::endl;
+
+    std::string interpolate_src = value_impl::make_function(interpolate, "interpolate");
+
+    std::cout << interpolate_src << std::endl;
+
+    cl::kernel tetrad_kern = make_kernel(ctx, tetrad_calc, "tetrad", "");
+    cl::kernel trace_kern = make_kernel(ctx, kernel, "raytrace", "-cl-fast-relaxed-math");
+    cl::kernel geodesic_kern = make_kernel(ctx, geodesic_src, "trace_geodesic", "");
+    cl::kernel transport_kern = make_kernel(ctx, transport_src, "transport", "");
+    cl::kernel interpolate_kern = make_kernel(ctx, interpolate_src, "interpolate", "");
 
     float pi = std::numbers::pi_v<float>;
 
@@ -108,6 +125,30 @@ int main()
     cl::gl_rendertexture screen(ctx);
     screen.create_from_texture(handle);
 
+    cl::buffer positions(ctx);
+    cl::buffer velocities(ctx);
+    cl::buffer steps(ctx);
+    int max_writes = 1024 * 1024;
+
+    positions.alloc(sizeof(cl_float4) * max_writes);
+    velocities.alloc(sizeof(cl_float4) * max_writes);
+    steps.alloc(sizeof(cl_int));
+
+    std::array<cl::buffer, 3> transported_tetrads{ctx, ctx, ctx};
+
+    for(auto& e : transported_tetrads)
+        e.alloc(sizeof(cl_float4) * max_writes);
+
+    std::array<cl::buffer, 4> final_tetrads{ctx, ctx, ctx, ctx};
+
+    for(auto& e : final_tetrads)
+        e.alloc(sizeof(cl_float4));
+
+    cl::buffer final_camera_position(ctx);
+    final_camera_position.alloc(sizeof(cl_float4));
+
+    float desired_proper_time = 0.f;
+
     while(win.isOpen())
     {
         sf::Event evt;
@@ -117,6 +158,8 @@ int main()
             if(evt.type == sf::Event::Closed)
                 win.close();
         }
+
+        desired_proper_time += 0.1f;
 
         sf::Clock clk;
 
@@ -135,6 +178,48 @@ int main()
         }
 
         {
+            cl::args args;
+            args.push_back(gpu_camera_pos);
+            args.push_back(tetrads[0]);
+            args.push_back(positions);
+            args.push_back(velocities);
+            args.push_back(steps);
+            args.push_back(max_writes);
+
+            geodesic_kern.set_args(args);
+
+            cqueue.exec(geodesic_kern, {1}, {1}, {});
+        }
+
+        {
+            cl::args args;
+            args.push_back(tetrads[1], tetrads[2], tetrads[3]);
+            args.push_back(positions, velocities);
+            args.push_back(steps);
+            args.push_back(transported_tetrads[0], transported_tetrads[1], transported_tetrads[2]);
+
+            transport_kern.set_args(args);
+
+            cqueue.exec(transport_kern, {1}, {1}, {});
+        }
+
+        {
+            //float desired_proper_time = 10.f;
+
+            cl::args args;
+            args.push_back(positions);
+            args.push_back(velocities, transported_tetrads[0], transported_tetrads[1], transported_tetrads[2]);
+            args.push_back(steps);
+            args.push_back(desired_proper_time);
+            args.push_back(final_camera_position);
+            args.push_back(final_tetrads[0], final_tetrads[1], final_tetrads[2], final_tetrads[3]);
+
+            interpolate_kern.set_args(args);
+
+            cqueue.exec(interpolate_kern, {1}, {1}, {});
+        }
+
+        {
             screen.acquire(cqueue);
 
             cl::args args;
@@ -143,11 +228,11 @@ int main()
             args.push_back(screen);
             args.push_back(background_width);
             args.push_back(background_height);
-            args.push_back(tetrads[0]);
-            args.push_back(tetrads[1]);
-            args.push_back(tetrads[2]);
-            args.push_back(tetrads[3]);
-            args.push_back(gpu_camera_pos);
+            args.push_back(final_tetrads[0]);
+            args.push_back(final_tetrads[1]);
+            args.push_back(final_tetrads[2]);
+            args.push_back(final_tetrads[3]);
+            args.push_back(final_camera_position);
 
             trace_kern.set_args(args);
 
