@@ -11,8 +11,13 @@ metric<valuef, 4, 4> schwarzschild_metric(const tensor<valuef, 4>& position) {
     valuef theta = position[2];
 
     metric<valuef, 4, 4> m;
+    /*m[0, 0] = -(1-rs/r);
+    m[1, 1] = 1/(1-rs/r);*/
+
     m[0, 0] = -(1-rs/r);
-    m[1, 1] = 1/(1-rs/r);
+    m[1, 0] = 1;
+    m[0, 1] = 1;
+
     m[2, 2] = r*r;
     m[3, 3] = r*r * sin(theta)*sin(theta);
 
@@ -128,7 +133,7 @@ int main()
     cl::buffer positions(ctx);
     cl::buffer velocities(ctx);
     cl::buffer steps(ctx);
-    int max_writes = 1024 * 1024;
+    int max_writes = 1024 * 10;
 
     positions.alloc(sizeof(cl_float4) * max_writes);
     velocities.alloc(sizeof(cl_float4) * max_writes);
@@ -147,7 +152,7 @@ int main()
     cl::buffer final_camera_position(ctx);
     final_camera_position.alloc(sizeof(cl_float4));
 
-    float desired_proper_time = 0.f;
+    float desired_proper_time = 20.f;
 
     while(win.isOpen())
     {

@@ -205,7 +205,7 @@ std::pair<valuei, tensor<valuef, 4>> integrate(geodesic& g, auto&& get_metric) {
 
     mut<valuei> idx = declare_mut_e("i", valuei(0));
 
-    for_e(idx < 1024 * 1024, assign_b(idx, idx + 1), [&]
+    for_e(idx < 1024 * 10, assign_b(idx, idx + 1), [&]
     {
         v4f cposition = declare_e(position);
         v4f cvelocity = declare_e(velocity);
