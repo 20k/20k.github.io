@@ -1138,14 +1138,14 @@ namespace value_impl
     inline
     value<T> floor(const value<T>& v1)
     {
-        return from_base<T>(optimise(make_op(op::FLOOR, {v1})));
+        return from_base<T>(optimise(make_op<value<T>>(op::FLOOR, {v1})));
     }
 
     template<typename T>
     inline
     value<T> ceil(const value<T>& v1)
     {
-        return from_base<T>(optimise(make_op(op::CEIL, {v1})));
+        return from_base<T>(optimise(make_op<value<T>>(op::CEIL, {v1})));
     }
 
     template<typename T>

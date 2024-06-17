@@ -535,6 +535,9 @@ void trace_geodesic(execution_context& ectx,
 
     for_e(idx < 1024 * 1024 && idx < max_steps.get(), assign_b(idx, idx + 1), [&]
     {
+        as_ref(positions_out[idx]) = position;
+        as_ref(velocity_out[idx]) = velocity;
+
         v4f cposition = declare_e(position);
         v4f cvelocity = declare_e(velocity);
 
@@ -553,12 +556,9 @@ void trace_geodesic(execution_context& ectx,
         if_e(radius > 10 || position[0] > start_time + 1000 || fabs(velocity[0]) >= 10 || is_broken, [&] {
             break_e();
         });
-
-        as_ref(positions_out[idx]) = position;
-        as_ref(velocity_out[idx]) = velocity;
     });
 
-    as_ref(written_steps[0]) = idx.as_constant();
+    as_ref(written_steps[0]) = idx.as_constant() + 1;
 }
 
 v4f parallel_transport_get_change(v4f tangent_vector, v4f geodesic_velocity, const tensor<valuef, 4, 4, 4>& christoff2)
@@ -628,10 +628,6 @@ void parallel_transport_tetrads(execution_context& ectx, buffer<v4f> e1, buffer<
     if_e(count == 0, []{
         return_e();
     });
-
-    as_ref(e1_out[count-1]) = e1_current;
-    as_ref(e2_out[count-1]) = e2_current;
-    as_ref(e3_out[count-1]) = e3_current;
 }
 
 void interpolate(execution_context& ectx, buffer<v4f> positions, buffer<v4f> e0s, buffer<v4f> e1s, buffer<v4f> e2s, buffer<v4f> e3s, buffer<valuei> counts,
@@ -644,6 +640,13 @@ void interpolate(execution_context& ectx, buffer<v4f> positions, buffer<v4f> e0s
 
     mut<valuef> elapsed_time = declare_mut_e(valuef(0));
 
+    valuei size = declare_e(counts[0]);
+
+    //somethings gone horribly wrong somewhere
+    if_e(size == 0, [&] {
+        return_e();
+    });
+
     //fallback if we pick proper time < earliest time
     as_ref(position_out[0]) = positions[0];
     as_ref(e0_out[0]) = e0s[0];
@@ -651,15 +654,13 @@ void interpolate(execution_context& ectx, buffer<v4f> positions, buffer<v4f> e0s
     as_ref(e2_out[0]) = e2s[0];
     as_ref(e3_out[0]) = e3s[0];
 
-    valuei size = declare_e(counts[0]);
-
-    if_e(size == 0, [&] {
+    if_e(desired_proper_time.get() <= 0, [&]{
         return_e();
     });
 
     mut<valuei> i = declare_mut_e(valuei(0));
 
-    for_e(i < size, assign_b(i, i+1), [&] {
+    for_e(i < (size - 1), assign_b(i, i+1), [&] {
         if_e(elapsed_time >= desired_proper_time.get() && elapsed_time <= desired_proper_time.get() + dt, [&]{
             valuef frac = (elapsed_time - desired_proper_time.get()) / dt;
 
@@ -676,7 +677,7 @@ void interpolate(execution_context& ectx, buffer<v4f> positions, buffer<v4f> e0s
     });
 
     //fallback for if we pick proper time > latest proper time
-    as_ref(position_out[0]) = positions[0];
+    as_ref(position_out[0]) = positions[size-1];
     as_ref(e0_out[0]) = e0s[size-1];
     as_ref(e1_out[0]) = e1s[size-1];
     as_ref(e2_out[0]) = e2s[size-1];
