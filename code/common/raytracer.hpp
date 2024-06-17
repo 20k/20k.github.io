@@ -511,4 +511,129 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
     as_ref(e3_out[0]) = tetrad_array[3];
 }
 
+template<auto GetMetric>
+void trace_geodesic(execution_context& ectx,
+                    buffer<v4f> start_position, buffer<v4f> start_velocity,
+                    buffer_mut<v4f> positions_out, buffer_mut<v4f> velocity_out,
+                    buffer_mut<valuei> written_steps, literal<valuei> max_steps)
+{
+    using namespace single_source;
+
+    m44f metric = GetMetric(start_position[0]);
+
+    mut<valuei> result = declare_mut_e(valuei(0));
+
+    mut_v4f position = declare_mut_e(start_position[0]);
+    mut_v4f velocity = declare_mut_e(start_velocity[0]);
+
+    //for a timelike geodesic, dt is proper time
+    float dt = 0.005f;
+    valuef start_time = start_position[0][0];
+    pin(start_time);
+
+    mut<valuei> idx = declare_mut_e("i", valuei(0));
+
+    as_ref(written_steps[0]) = valuei(0);
+
+    for_e(idx < 1024 * 1024, assign_b(idx, idx + 1), [&]
+    {
+        v4f cposition = declare_e(position);
+        v4f cvelocity = declare_e(velocity);
+
+        v4f acceleration = calculate_acceleration_of(cposition, cvelocity, GetMetric);
+
+        pin(acceleration);
+
+        as_ref(velocity) = cvelocity + acceleration * dt;
+        as_ref(position) = cposition + velocity.as<valuef>() * dt;
+
+        valuef radius = position[1];
+
+        value<bool> is_broken = !isfinite(position[0]) || !isfinite(position[1]) || !isfinite(position[2]) || !isfinite(position[3]) ||
+                                !isfinite(velocity[0]) || !isfinite(velocity[1]) || !isfinite(velocity[2]) || !isfinite(velocity[3]) ;
+
+        if_e(radius > 10 || position[0] > start_time + 1000 || fabs(velocity[0]) >= 10 || is_broken, [&] {
+            break_e();
+        });
+
+        as_ref(positions_out[idx]) = position;
+        as_ref(velocity_out[idx]) = velocity;
+    });
+
+    as_ref(written_steps[0]) = idx.as_constant();
+}
+
+v4f parallel_transport_get_change(v4f tangent_vector, v4f geodesic_velocity, const tensor<valuef, 4, 4, 4>& christoff2)
+{
+    v4f dAdt = {};
+
+    for(int a=0; a < 4; a++)
+    {
+        valuef sum = 0;
+
+        for(int b=0; b < 4; b++)
+        {
+            for(int s=0; s < 4; s++)
+            {
+                sum += christoff2[a,b,s] * tangent_vector[b] * geodesic_velocity[s];
+            }
+        }
+
+        dAdt[a] = -sum;
+    }
+
+    return dAdt;
+}
+
+//note: we already know the value of e0, as its the geodesic velocity
+template<auto GetMetric>
+void parallel_transport_tetrads(buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
+                                buffer<v4f> positions, buffer<v4f> velocities, buffer<valuei> counts,
+                                buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out)
+{
+    using namespace single_source;
+    //its important that this dt is the same dt as the one that we used in trace_geodesic, as we're dealing with the same parameterisation. If you use a variable timestep, you need to write this into a buffer
+    float dt = 0.005f;
+
+    valuei count = declare_e(counts[0]);
+    mut<valuei> i = declare_mut_e(valuei(0));
+
+    mut_v4f e1_current = declare_mut_e(e1[0]);
+    mut_v4f e2_current = declare_mut_e(e2[0]);
+    mut_v4f e3_current = declare_mut_e(e3[0]);
+
+    for_e(i < count, assign_b(i, i+1), [&] {
+        as_ref(e1_out[i]) = e1_current;
+        as_ref(e2_out[i]) = e2_current;
+        as_ref(e3_out[i]) = e3_current;
+
+        v4f current_position = positions[i];
+        v4f current_velocity = velocities[i];
+
+        tensor<valuef, 4, 4, 4> christoff2 = calculate_christoff2(current_position, GetMetric);
+
+        pin(christoff2);
+
+        v4f e1_cst = declare_e(e1_current);
+        v4f e2_cst = declare_e(e2_current);
+        v4f e3_cst = declare_e(e3_current);
+
+        v4f e1_change = parallel_transport_get_change(e1_cst, current_velocity, christoff2);
+        v4f e2_change = parallel_transport_get_change(e2_cst, current_velocity, christoff2);
+        v4f e3_change = parallel_transport_get_change(e3_cst, current_velocity, christoff2);
+
+        as_ref(e1_current) = e1_cst + e1_change * dt;
+        as_ref(e2_current) = e2_cst + e2_change * dt;
+        as_ref(e3_current) = e3_cst + e3_change * dt;
+    });
+
+    if_e(count == 0, []{
+        break_e();
+    });
+
+    as_ref(e1_out[count-1]) = e1_current;
+    as_ref(e2_out[count-1]) = e2_current;
+    as_ref(e3_out[count-1]) = e3_current;
+}
+
 #endif // SCHWARZSCHILD_SINGLE_SOURCE_HPP_INCLUDED
