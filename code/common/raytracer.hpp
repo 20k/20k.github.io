@@ -636,4 +636,53 @@ void parallel_transport_tetrads(buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
     as_ref(e3_out[count-1]) = e3_current;
 }
 
+void interpolate(buffer<v4f> positions, buffer<v4f> e0s, buffer<v4f> e1s, buffer<v4f> e2s, buffer<v4f> e3s, buffer<valuei> counts,
+                 literal<valuef> desired_proper_time,
+                 buffer_mut<v4f> position_out, buffer_mut<v4f> e0_out, buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out)
+{
+    using namespace single_source;
+    //it is again important that this timestep matches the one from parallel transported tetrads
+    float dt = 0.005f;
+
+    mut<valuef> elapsed_time = declare_mut_e(valuef(0));
+
+    //fallback if we pick proper time < earliest time
+    as_ref(position_out[0]) = positions[0];
+    as_ref(e0_out[0]) = e0s[0];
+    as_ref(e1_out[0]) = e1s[0];
+    as_ref(e2_out[0]) = e2s[0];
+    as_ref(e3_out[0]) = e3s[0];
+
+    valuei size = declare_e(counts[0]);
+
+    if_e(size == 0, [&] {
+        return_e();
+    });
+
+    mut<valuei> i = declare_mut_e(valuei(0));
+
+    for_e(i < size, assign_b(i, i+1), [&] {
+        if_e(elapsed_time >= desired_proper_time.get() && elapsed_time <= desired_proper_time.get() + dt, [&]{
+            valuef frac = (elapsed_time - desired_proper_time.get()) / dt;
+
+            as_ref(position_out[0]) = mix(positions[i], positions[i+1], frac);
+            as_ref(e0_out[0]) = mix(e0s[i], e0s[i+1], frac);
+            as_ref(e1_out[0]) = mix(e1s[i], e1s[i+1], frac);
+            as_ref(e2_out[0]) = mix(e2s[i], e2s[i+1], frac);
+            as_ref(e3_out[0]) = mix(e3s[i], e3s[i+1], frac);
+
+            return_e();
+        });
+
+        as_ref(elapsed_time) = elapsed_time + dt;
+    });
+
+    //fallback for if we pick proper time > latest proper time
+    as_ref(position_out[0]) = positions[0];
+    as_ref(e0_out[0]) = e0s[size-1];
+    as_ref(e1_out[0]) = e1s[size-1];
+    as_ref(e2_out[0]) = e2s[size-1];
+    as_ref(e3_out[0]) = e3s[size-1];
+}
+
 #endif // SCHWARZSCHILD_SINGLE_SOURCE_HPP_INCLUDED
