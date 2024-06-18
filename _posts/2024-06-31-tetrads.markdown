@@ -9,7 +9,7 @@ Hello! Today we're going to do something really cool: Throw ourselves into a bla
 
 The scope of this article is as follows:
 
-1. First we examine the role of coordinate systems in general relativity
+1. First we'll examine the role of coordinate systems in general relativity
 2. Then we'll upgrade to a black hole metric which lets us cross the event horizon
 3. After this, we'll learn how to calculate initial conditions for *any* metric tensor, instead of using pre-baked initial conditions
 4. Then we'll learn how to follow the path that an observer takes as it moves around spacetime - and in our case, into whatever lies inside a black hole
@@ -19,7 +19,7 @@ This will all be on the GPU, so it'll run reasonably fast. We're starting to get
 
 # Coordinate systems
 
-In the first episode on rendering the schwarzschild black hole, I presented you with this:
+In the first article on rendering the schwarzschild black hole, I presented you with this:
 
 $$ ds^2 = -d\tau^2 = -(1-\frac{r_s}{r}) dt^2 + (1-\frac{r_s}{r})^{-1} dr^2 + r^2 d\Omega^2 $$
 
@@ -31,21 +31,25 @@ and called it the metric tensor for a schwarzschild black hole. This was a white
 
 $$ ds^2 = -(1-\frac{r_s}{r}) dv^2 + 2 dvdr + r^2 d\Omega^2 $$
 
-In ingoing Eddington-Finkelstein coordinates[^eddington]. And another:
+in ingoing Eddington-Finkelstein coordinates[^eddington]. And another:
 
 [^eddington]: See [here](https://en.wikipedia.org/wiki/Eddington%E2%80%93Finkelstein_coordinates#Metric), be aware of the sign convention issues: this wikipedia page uses [+,-,-,-], we use [-,+,+,+]
 
 $$ ds^2 = -d\tau^2 + \frac{r_s}{r} dp^2 + r^2 d\Omega^2 $$
 
-In Lemaître coordinates[^lemaitre]. Note that the $d\tau$ is not proper time, its just a reuse of notation because in one specific circumstance it is proper time
+in Lemaître coordinates[^lemaitre]. Note that the $d\tau$ is not proper time, its just a reuse of notation because in one specific circumstance it is proper time
 
 [^lemaitre]: See [here](https://en.wikipedia.org/wiki/Lema%C3%AEtre_coordinates#Metric). Note the sign convention issues: this wikipedia page uses [+,-,-,-], we use [-,+,+,+]
 
-The schwarzschild metric is an abstract object, which we can express in different coordinate systems. All of the above metrics describe the same fundamental object, but in different coordinates. These different coordinate systems may describe different parts of the spacetime, may have some special properties, or might be totally abstract - but there isn't a difference in what they represent
+The schwarzschild metric is an abstract object, which we can express in different coordinate systems - all of the above metrics describe the same fundamental object: a non spinning, uncharged black hole. These different coordinate systems may describe different parts of the spacetime or may have some useful mathematical properties - but there isn't a difference in what they represent
 
-Different coordinate systems may have different properties. For example, schwarzschild coordinates - the one we used previously- has an artificial coordinate singularity at the event horizon, which makes it useless for what we're trying to do. Eddington-Finkelstein coordinates are useful for describing geodesics which are travelling forwards in time into the black hole (or equivalently, geodesics that are travelling out of the black hole backwards in time). Because of the simplicity - we're going to use eddington finkelstein coordinates today
+Different coordinate systems often tend to only describe certain kinds of paths throuhg a spacetime. For example, schwarzschild coordinates - the one we've used previously - have an artificial coordinate singularity at the event horizon, which means it can't be used to describe the motion of something that crosses the event horizon. Eddington-Finkelstein coordinates are useful for describing geodesics which are travelling forwards in time into the black hole (or equivalently, geodesics that are travelling out of the black hole backwards in time), but are singular in the opposite direction. [Kruskals-Szekeres](https://en.wikipedia.org/wiki/Kruskal%E2%80%93Szekeres_coordinates) is the maximal[^maximal] extension of the schwarzschild spacetime and can describe everything - though it is fairly numerically unstable. Because of the simplicity, and stability - we're going to use eddington finkelstein coordinates today, as it covers everything we want
+
+[^maximal]: A maximal extension means that all geodesics can be extended indefinitely with no coordinate singularities, though there are still genuine gravitational singularities where geodesics terminate
 
 # Coordinate transforms
+
+If you're wondering how exactly you interconvert these different metric tensors in different coordinate systems, this segment is for you. Otherwise skip to tetrads
 
 Coordinate transforms can be done very straightforwardly. Imagine we have a coordinate system, which is $(t, r, \theta, \phi)$. We'd like to convert this to, say, $(t, x, y, z)$. Given the schwarzschild metric, we need to substitute all the coordinates and their derivatives for the cartesian equivalents. So first up, here's inverse of the coordinate transform
 
@@ -98,7 +102,7 @@ As we've run into before: spacetime is locally flat. The technical definition of
 |y| | |1| |
 |z| | | |1|
 
-What we'd like to do, is define how to translate from our metric tensor $g_{\mu\nu}$, to our diagonal matrix $\eta_{\mu\nu}$ - we know from general relativity that the metric must be locally[^localdiag] diagonalisable to produce the minkowski metric (as space is locally flat, and flat = minkowski)
+What we'd like to do, is mathematically define how to translate from our metric tensor $g_{\mu\nu}$, to our diagonal matrix $\eta_{\mu\nu}$ via our tetrads $e$ - and then calculate $e$. We know from general relativity that the metric must be locally[^localdiag] diagonalisable to produce the minkowski metric (as space is locally flat, and flat = minkowski)
 
 [^localdiag]: This transformation is only valid at a point, we cannot in general find a global diagonalisation of the metric. If we could, our spacetime would be trivially flat
 
@@ -116,17 +120,19 @@ The metric tensor is symmetric, so the $^{-1}$ becomes a $^T$. The matrix $e$, t
 
 [^arbitrary]: Metrics and their coordinate systems are often constructed very non arbitrarily however (because we're trying to get physical meaning out of them), and even though in general its technically arbitrary - this procedure will often yield a specific kind of observer if you're working with an analytic metric tensor. In schwarzschild, it is a stationary observer
 
-Solving this is an eigenvalue/vector problem, as $e$ makes up the eigenvectors of the metric (and $\eta_{\mu\nu}$ is the eigenvalues). In general relativity, one of these vectors will always have an eigenvalue of $-1$, the timelike vector, and the other three will have an eigenvalue of $1$, the spacelike vectors
+Solving this is an eigenvalue/vector problem, as $e$ makes up the eigenvectors of the metric (and $\eta_{\mu\nu}$ is the eigenvalues). In general relativity, one of these vectors will always have an eigenvalue of $-1$ - the timelike vector - and the other three will have an eigenvalue of $1$ - the spacelike vectors
 
-## Relativistic gram-schmidt
+If you have no idea what eigenvalues and eigenvectors are, its not especially important - just know that we're appying an algorithm to solve a pretty well known class of problem
 
-The most straightforward algorithm for doing this is called [Gram-Schmidt Orthonormalisation](https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process#The_Gram%E2%80%93Schmidt_process)[^technically], and we can use this for solving our eigenvalue problem.  Gram-schmidt is an algorithm for taking a series of vectors and making them orthonormal to each other - which incidentally solves our eigenvector problem. Here we take a series of coordinate vectors, and make them orthonormal with respect to the metric tensor from each other, which produces our eigenvectors - and so our tetrads
+## Relativistic Gram-Schmidt
+
+The most straightforward algorithm for doing this is called [Gram-Schmidt Orthonormalisation](https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process#The_Gram%E2%80%93Schmidt_process)[^technically], and we can use this for solving our eigenvalue problem.  Gram-Schmidt is an algorithm for taking a series of vectors and making them orthonormal to each other with respect to an inner product - which incidentally solves our eigenvector problem. Here we take a series of coordinate vectors, and make them orthonormal with respect to the metric tensor from each other, which produces our eigenvectors - and so our tetrads
 
 [^technically]: Technically we're using the modified version for numerical stability reasons. If you go for a read through how this works, remember that we're in an inner product space with our inner product defined by $g(u,v)$, so we can directly apply this algorithm
 
 We're going to start off with the basic algorithm for calculating tetrads/eigenvectors, and then we'll make it robust against the practical complexities of general relativity so you can use this a bit more generally
 
-Lets start off with our 4 coordinate directions $v^\mu_i$, which we hope are linearly independent. $i$ is our specific vector:
+Lets start off with our 4 coordinate directions $v^\mu_i$, which we hope are [linearly independent](https://en.wikipedia.org/wiki/Linear_independence). $_i$ is our specific vector:
 
 ```c++
 std::array<v4f, 4> vecs = { {1, 0, 0, 0},
@@ -138,6 +144,8 @@ std::array<v4f, 4> vecs = { {1, 0, 0, 0},
 Note that, taking the column vectors of the metric $g_{\mu\nu}$, and raising them with the metric tensor to get $v_i^\mu$ (contravariant), produces this identity matrix definitionally
 
 We have to pick a vector to start our orthonormalisation from, so we pick the first vector $v_0^\mu$ arbitrarily, and now start up our algorithm:
+
+TODO: I NEED GRAM-SCHMIDT IN EQUATIONS
 
 ```c++
 m44f metric = GetMetric(position.get());
@@ -315,7 +323,7 @@ The reason why we list the coordinates as ?'s, is because while they correspond 
 
 What we would like to do is demand that the 0'th tetrad is timelike, as this is an extremely common requirement in the literature, and it simplifies our lives tremendously when dealing with tetrads if we know that $e_0$ is timelike. Doing this means that we know that in locally flat coordinates, we have the coordinate system $(t, d_1, d_2, d_3)$, which lets us construct valid geodesics straightforwardly
 
-There are two ways equivalent ways of doing this
+There are two ways equivalent ways of doing this:
 
 #### Way the first
 
@@ -323,7 +331,7 @@ Calculate the minkowski metric, and find the timelike coordinate by looking for 
 
 #### Way the second
 
-Calculate $ds^2_i$ via $g_{\mu\nu} e^{\mu}_i e^{\nu}_i$, and find the component with the value of $-1$
+Calculate $ ds_{i}^{2} = g_{\mu\nu} e_i^{\mu} e_i^{\nu} $, and find the component where $ds_i^2 = -1$
 
 ### These are the same thing
 
@@ -386,11 +394,11 @@ valuei calculate_which_coordinate_is_timelike(const tetrad& tetrads, const m44f&
 }
 ```
 
-While the tetrads we get here provide a clean signature of 1's and -1's due to being strictly orthonormalised, we may have tetrads which are derived from numerical sources - where inaccuracy will lead to them being much less nice to work with. For this reason, we look for the largest negative value[^note], as this is most likely to be the timelike tetrad
+While the tetrads we get here provide a clean signature of 1's and -1's due to being strictly orthonormalised, we may have tetrads which are derived from numerical sources - where inaccuracy will lead to them being much less nice to work with. For this reason, we look for the largest negative value[^note], as this is most likely to be the timelike vector
 
 [^note]: Note, when you work with parallel transported (we'll get around to this) tetrad vectors, the signature never changes
 
-Now finally, we use the timelike coordinate to put the timelike tetrad in the 0th place, and end up with our final tetrads - for real this time[^wellsortof]. The complete procedure is therefore this:
+Now finally, we use the timelike coordinate to put the timelike tetrad vector in the 0th place, and end up with our final tetrads - for real this time[^wellsortof]. The complete procedure is therefore this:
 
 [^wellsortof]: Welll... at least for this article, when you want to implement fps style camera controls, its going to get yet more complicated
 
@@ -475,7 +483,7 @@ While it may seem odd to do this on a GPU with only one thread, this procedure i
 
 ## Following an inertial observer
 
-So, now we have a position: our camera, and an initial tetrad. The question is, how do we follow the movements of our observer in a physically accurate way? Today we're going to be dealing with strictly inertial observers that don't accelerate, and we're additionally not going to imbue our observers with any velocity - this means that they strictly will fall directly towards the black hole
+So, now we have a position (our camera), and an initial tetrad. The question is, how do we follow the movements of our observer in a physically accurate way? Today we're going to be dealing with strictly inertial observers that don't accelerate, and we're additionally not going to imbue our observers with any velocity - this means that they strictly will fall directly towards the black hole
 
 The $e_0^\mu$ component of our tetrads is now always timelike - and more than that it is also (conveniently) TODO: REFERENCE the velocity of the observer that that tetrad represents. That is to say, if we have:
 
@@ -554,9 +562,13 @@ Parallel transport is the process of taking a vector, and moving it along a curv
 
 ![paralleltransport](/assets/paralleltransport.png)
 
-A vector which is moved along a curve in this fashion is said to be "parallel transported". This is doable for every vector - you can imagine the geodesic equation as the process of parallel transporting the velocity vector itself along the geodesic - this is in fact one definition of a geodesic (autoparallel transport). Note that, if we have sufficient knowledge of the start and end coordinates (the basis vectors, ie the tetrads), we can actually directly parallel transport something from the start to the end without any knowledge of the intervening path. More generally, parallel transport is path independent:
+A vector which is moved along a curve in this fashion is said to be "parallel transported". This is doable for any vector[^geodesics]. Note that, if we have sufficient knowledge of the start and end coordinates (the basis vectors, ie the tetrads), we can actually directly parallel transport something from the start to the end without any knowledge of the intervening path. More generally, parallel transport is path independent:
 
-![paralleltransportagain](/assets/paralleltransport3)
+[^geodesics]: You can imagine the geodesic equation as the process of parallel transporting the velocity vector itself along the geodesic - this is in fact one definition of a geodesic (autoparallel transport)
+
+![paralleltransportagain](/assets/paralleltransport3.png)
+
+I truly am an artist
 
 As long as the final position and velocity of the geodesic are the same[^andactually], we'll end up with exactly the same result
 
@@ -768,13 +780,13 @@ In this article, we've looked at purely inertial observers, with whatever veloci
 1. How to set up proper camera controls
 2. How to set up observers with an initial velocity
 
-On top of this, we're going to set up a good variable timestep finally, which will fix a lot of the visual issues, and increase performance significantly. This will let us take a trip through kerr, the interstellar wormhole, and a general examination of a few other metrics in passing. It'll be an article where we tie up a lot of the loose ends we've left straggling around so far
+On top of this, we're going to set up a good variable timestep finally, which will fix a lot of the visual issues, and increase performance significantly. This will let us take a trip through kerr, the interstellar wormhole, and go for a general examination of a few other metrics in passing. It'll be an article where we tie up a lot of the loose ends we've left straggling around so far
 
 # What's next?
 
 These kinds of simulations are a bottomless pit, and we've barely scratched the surface of the kinds of things we can simulate here - after the next article we'll have cleared the simple stuff, and we'll finally (!) get started on numerical relativity - so we can smash some black holes together
 
-There's going to be an absolutely massive amount to write up, hooray! I'm considering starting a patreon for all of this at some point (and I'd love to go into research!), as unfortunately I'm very poor after many many years of illness - but I'll see how it goes. Anyway, here's that cat I promised
+There's going to be an absolutely massive amount to write up, hooray! I'm considering starting a patreon for all of this at some point (and hopefully end up as a PhD student!) - unfortunately I'm very poor after many many years of illness - but I'll see how it goes. Anyway, here's that cat I promised
 
 ![bag](/assets/krittykrat.jpg)
 
