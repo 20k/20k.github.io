@@ -568,9 +568,9 @@ A vector which is moved along a curve in this fashion is said to be "parallel tr
 
 ![paralleltransportagain](/assets/paralleltransport3.png)
 
-I truly am an artist
+I truly am an artiste
 
-As long as the final position and velocity of the geodesic are the same[^andactually], we'll end up with exactly the same result
+As long as the final position and velocity of the geodesic are the same[^andactually], we'll end up with exactly the same result. Note that general relativity is torsion free - vectors do not spin around a geodesic
 
 [^andactually]: We can formalise this: If we have a set of tetrads at one position, and we parallel transport that set of tetrads along a geodesic somewhere else, we end up with a way of expressing a general transformation from vectors at point one, to point two. This forms a coordinate dependent lorentz transform, and is extremely useful. We only ever actually need to transport the tetrad vectors, and then we get everything else for free
 
@@ -764,6 +764,8 @@ metric<valuef, 4, 4> metric(const tensor<valuef, 4>& position) {
     return m;
 }
 ```
+
+Todo:
 
 From the front:
 

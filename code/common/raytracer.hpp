@@ -26,12 +26,12 @@ struct tetrad
     std::array<v4f, 4> v;
 };
 
-v3f get_ray_through_pixel(v2i screen_position, v2i screen_size, float fov_degrees) {
+v3f get_ray_through_pixel(v2i screen_position, v2i screen_size, float fov_degrees, v4f camera_quat) {
     float fov_rad = (fov_degrees / 360.f) * 2 * std::numbers::pi_v<float>;
     valuef f_stop = (screen_size.x()/2).to<float>() / tan(fov_rad/2);
 
     v3f pixel_direction = {(screen_position.x() - screen_size.x()/2).to<float>(), (screen_position.y() - screen_size.y()/2).to<float>(), f_stop};
-    //pixel_direction = rot_quat(pixel_direction, camera_quat); //if you have quaternions, or some rotation library, rotate your pixel direction here by your cameras rotation
+    pixel_direction = rot_quat(pixel_direction, camera_quat); //if you have quaternions, or some rotation library, rotate your pixel direction here by your cameras rotation
 
     return pixel_direction.norm();
 }
@@ -234,11 +234,11 @@ std::pair<valuei, tensor<valuef, 4>> integrate(geodesic& g, auto&& get_metric) {
     return {result, position.as<valuef>()};
 }
 
-v3f render_pixel(v2i screen_position, v2i screen_size, const read_only_image<2>& background, v2i background_size, const tetrad& tetrads, v4f start_position, auto&& get_metric)
+v3f render_pixel(v2i screen_position, v2i screen_size, const read_only_image<2>& background, v2i background_size, const tetrad& tetrads, v4f start_position, v4f camera_quat, auto&& get_metric)
 {
     using namespace single_source;
 
-    v3f ray_direction = get_ray_through_pixel(screen_position, screen_size, 90);
+    v3f ray_direction = get_ray_through_pixel(screen_position, screen_size, 90, camera_quat);
 
     //so, the tetrad vectors give us a basis, that points in the direction t, r, theta, and phi, because schwarzschild is diagonal
     //we'd like the ray to point towards the black hole: this means we make +z point towards -r, +y point towards +theta, and +x point towards +phi
@@ -279,7 +279,7 @@ void opencl_raytrace(execution_context& ectx, literal<valuei> screen_width, lite
                      read_only_image<2> background, write_only_image<2> screen,
                      literal<valuei> background_width, literal<valuei> background_height,
                      buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
-                     buffer<v4f> position)
+                     buffer<v4f> position, literal<v4f> camera_quat)
 {
     using namespace single_source;
 
@@ -304,7 +304,7 @@ void opencl_raytrace(execution_context& ectx, literal<valuei> screen_width, lite
 
     tetrad tetrads = {e0[0], e1[0], e2[0], e3[0]};
 
-    v3f colour = render_pixel(screen_pos, screen_size, background, background_size, tetrads, position[0], GetMetric);
+    v3f colour = render_pixel(screen_pos, screen_size, background, background_size, tetrads, position[0], camera_quat.get(), GetMetric);
 
     //the tensor library does actually support .x() etc, but I'm trying to keep the requirements for whatever you use yourself minimal
     v4f crgba = {colour[0], colour[1], colour[2], 1.f};

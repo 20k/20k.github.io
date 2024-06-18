@@ -3,6 +3,44 @@
 #include "../common/raytracer.hpp"
 #include "../common/toolkit/opencl.hpp"
 #include <SFML/Graphics.hpp>
+#include <vec/vec.hpp>
+
+struct camera
+{
+    quat rot;
+
+    camera()
+    {
+        rot.load_from_axis_angle({1, 0, 0, -M_PI/2});
+    }
+
+    void rotate(vec2f mouse_delta)
+    {
+        quat local_camera_quat = rot;
+
+        if(mouse_delta.x() != 0)
+        {
+            quat q;
+            q.load_from_axis_angle((vec4f){0, 0, -1, mouse_delta.x()});
+
+            local_camera_quat = q * local_camera_quat;
+        }
+
+        {
+            vec3f right = rot_quat((vec3f){1, 0, 0}, local_camera_quat);
+
+            if(mouse_delta.y() != 0)
+            {
+                quat q;
+                q.load_from_axis_angle({right.x(), right.y(), right.z(), mouse_delta.y()});
+
+                local_camera_quat = q * local_camera_quat;
+            }
+        }
+
+        rot = local_camera_quat;
+    }
+};
 
 //https://www2.mpia-hd.mpg.de/homes/tmueller/pdfs/catalogue_2014-05-21.pdf 2.2.1
 metric<valuef, 4, 4> schwarzschild_metric(const tensor<valuef, 4>& position) {
@@ -70,8 +108,8 @@ cl::kernel make_kernel(cl::context& ctx, const std::string& str, const std::stri
 
 int main()
 {
-    int screen_width = 1000;
-    int screen_height = 800;
+    int screen_width = 1920;
+    int screen_height = 1080;
 
     sf::VideoMode mode(screen_width, screen_height);
     sf::RenderWindow win(mode, "I am a black hole");
@@ -154,6 +192,10 @@ int main()
 
     float desired_proper_time = 0.f;
 
+    camera cam;
+
+    sf::Keyboard key;
+
     while(win.isOpen())
     {
         sf::Event evt;
@@ -165,6 +207,16 @@ int main()
         }
 
         desired_proper_time += 0.1f;
+
+        if(key.isKeyPressed(sf::Keyboard::D))
+            cam.rotate({0.1f, 0.f});
+        if(key.isKeyPressed(sf::Keyboard::A))
+            cam.rotate({-0.1f, 0.f});
+
+        if(key.isKeyPressed(sf::Keyboard::S))
+            cam.rotate({0.f, 0.1f});
+        if(key.isKeyPressed(sf::Keyboard::W))
+            cam.rotate({0.f, -0.1f});
 
         sf::Clock clk;
 
@@ -227,6 +279,8 @@ int main()
         printf("Pos %f\n", final_camera_position.read<float>(cqueue)[1]);
 
         {
+            cl_float4 q = {cam.rot.q.v[0], cam.rot.q.v[1], cam.rot.q.v[2], cam.rot.q.v[3]};
+
             screen.acquire(cqueue);
 
             cl::args args;
@@ -240,6 +294,7 @@ int main()
             args.push_back(final_tetrads[2]);
             args.push_back(final_tetrads[3]);
             args.push_back(final_camera_position);
+            args.push_back(q);
 
             trace_kern.set_args(args);
 
