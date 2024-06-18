@@ -225,11 +225,8 @@ std::pair<valuei, tensor<valuef, 4>> integrate(geodesic& g, auto&& get_metric) {
             break_e();
         });
 
-
         //we could do better than this by upgrading the tensor library
-        if_e(should_terminate(start, as_constant(position), as_constant(velocity)), [&]
-        {
-            //as_ref(result) = valuei(1);
+        if_e(should_terminate(start, as_constant(position), as_constant(velocity)), [&] {
             break_e();
         });
     });
@@ -245,8 +242,8 @@ v3f render_pixel(v2i screen_position, v2i screen_size, const read_only_image<2>&
 
     //so, the tetrad vectors give us a basis, that points in the direction t, r, theta, and phi, because schwarzschild is diagonal
     //we'd like the ray to point towards the black hole: this means we make +z point towards -r, +y point towards +theta, and +x point towards +phi
-    v3f modified_ray = {ray_direction[2], ray_direction[1], ray_direction[0]};
-    //v3f modified_ray = {-ray_direction[2], ray_direction[1], ray_direction[0]};
+    //v3f modified_ray = {ray_direction[1], ray_direction[2], ray_direction[0]};
+    v3f modified_ray = {-ray_direction[2], ray_direction[1], ray_direction[0]};
 
     geodesic my_geodesic = make_lightlike_geodesic(start_position, modified_ray, tetrads);
 
@@ -343,20 +340,20 @@ tetrad gram_schmidt(v4f v0, v4f v1, v4f v2, v4f v3, m44f m)
 
     v4f u1 = v1;
     u1 = u1 - gram_project(u0, u1, m);
+
     pin(u1);
 
     v4f u2 = v2;
     u2 = u2 - gram_project(u0, u2, m);
-    pin(u2);
     u2 = u2 - gram_project(u1, u2, m);
+
     pin(u2);
 
     v4f u3 = v3;
     u3 = u3 - gram_project(u0, u3, m);
-    pin(u3);
     u3 = u3 - gram_project(u1, u3, m);
-    pin(u3);
     u3 = u3 - gram_project(u2, u3, m);
+
     pin(u3);
 
     u0 = normalise(u0, m);
@@ -492,6 +489,8 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
     v4f iv2 = declare_e(as_array[2]);
     v4f iv3 = declare_e(as_array[3]);
 
+    pin(metric);
+
     tetrad tetrads = gram_schmidt(iv0, iv1, iv2, iv3, metric);
 
     array_mut<v4f> tetrad_array = declare_mut_array_e<v4f>(4, {});
@@ -532,8 +531,7 @@ void trace_geodesic(execution_context& ectx,
 
     //for a timelike geodesic, dt is proper time
     float dt = TRACE_DT;
-    v4f start = start_position[0];
-    pin(start);
+    v4f start = declare_e(start_position[0]);
 
     mut<valuei> idx = declare_mut_e("i", valuei(0));
 
@@ -630,10 +628,6 @@ void interpolate(execution_context& ectx, buffer<v4f> positions, buffer<v4f> e0s
                  buffer_mut<v4f> position_out, buffer_mut<v4f> e0_out, buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out)
 {
     using namespace single_source;
-    //it is again important that this timestep matches the one from parallel transported tetrads
-    float dt = TRACE_DT;
-
-    mut<valuef> elapsed_time = declare_mut_e(valuef(0));
 
     valuei size = declare_e(counts[0]);
 
@@ -642,14 +636,18 @@ void interpolate(execution_context& ectx, buffer<v4f> positions, buffer<v4f> e0s
         return_e();
     });
 
-    //fallback if we pick proper time < earliest time
-    as_ref(position_out[0]) = positions[0];
-    as_ref(e0_out[0]) = e0s[0];
-    as_ref(e1_out[0]) = e1s[0];
-    as_ref(e2_out[0]) = e2s[0];
-    as_ref(e3_out[0]) = e3s[0];
+    //it is again important that this timestep matches the one from parallel transported tetrads
+    float dt = TRACE_DT;
 
+    mut<valuef> elapsed_time = declare_mut_e(valuef(0));
+
+    //fallback if we pick proper time < earliest time
     if_e(desired_proper_time.get() <= 0, [&]{
+        as_ref(position_out[0]) = positions[0];
+        as_ref(e0_out[0]) = e0s[0];
+        as_ref(e1_out[0]) = e1s[0];
+        as_ref(e2_out[0]) = e2s[0];
+        as_ref(e3_out[0]) = e3s[0];
         return_e();
     });
 

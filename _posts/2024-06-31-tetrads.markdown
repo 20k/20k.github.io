@@ -5,7 +5,7 @@ date:   2025-05-18 00:35:23 +0000
 categories: C++
 ---
 
-Hello! Today we're going to do something really cool: Throw ourselves into a black hole and find out what happens. To do this, we need to upgrade our understanding of initial conditions in general relativity via tetrads, and we're also going to learn what parallel transport is
+Hello! Today we're going to do something really cool: Throw ourselves into a black hole and find out what happens. We're going to upgrade our understanding of initial conditions via tetrads - so you can render any metric tensor - and we're also going to learn what parallel transport is
 
 The scope of this article is as follows:
 
@@ -25,23 +25,69 @@ $$ ds^2 = -d\tau^2 = -(1-\frac{r_s}{r}) dt^2 + (1-\frac{r_s}{r})^{-1} dr^2 + r^2
 
 where $d\Omega^2 = d\theta^2 + sin^2(\theta) d\phi^2$
 
-And called it the metric tensor for a schwarzschild black hole. This was a white lie - this is, in the more technical sense, *a* representation of the schwarzschild black hole, in a particular coordinate system known as schwarzschild coordinates. Here's another representation:
+and called it the metric tensor for a schwarzschild black hole. This was a white lie[^whitelie] - this is, in the more technical sense, *a* representation of the schwarzschild black hole, in a particular coordinate system known as schwarzschild coordinates. Here's another representation:
 
-$$ ds^2 = -(1-rs/r) dv^2 + 2 dvdr + r^2 d\Omega^2 $$
+[^whitelie]: It is very common however when referring to the schwarzschild black hole to mean in schwarzschild coordinates. Interestingly, it wasn't known at the outset that the different (but physically equivalent) black hole metrics that were discovered were all the same thing in different coordinate systems, and it was used as an argument against general relativity
 
-In eddington-finkelstein coordinates. And another:
+$$ ds^2 = -(1-\frac{r_s}{r}) dv^2 + 2 dvdr + r^2 d\Omega^2 $$
 
-$$ ds^2 = -d\tau^2 + rs/r dp^2 + r^2 d\Omega^2 $$
+In ingoing Eddington-Finkelstein coordinates[^eddington]. And another:
 
-In Lemaître coordinates. Note that the $d\tau$ is not proper time, its just a reuse of notation because in one specific circumstance it is proper time
+[^eddington]: See [here](https://en.wikipedia.org/wiki/Eddington%E2%80%93Finkelstein_coordinates#Metric), be aware of the sign convention issues: this wikipedia page uses [+,-,-,-], we use [-,+,+,+]
+
+$$ ds^2 = -d\tau^2 + \frac{r_s}{r} dp^2 + r^2 d\Omega^2 $$
+
+In Lemaître coordinates[^lemaitre]. Note that the $d\tau$ is not proper time, its just a reuse of notation because in one specific circumstance it is proper time
+
+[^lemaitre]: See [here](https://en.wikipedia.org/wiki/Lema%C3%AEtre_coordinates#Metric). Note the sign convention issues: this wikipedia page uses [+,-,-,-], we use [-,+,+,+]
 
 The schwarzschild metric is an abstract object, which we can express in different coordinate systems. All of the above metrics describe the same fundamental object, but in different coordinates. These different coordinate systems may describe different parts of the spacetime, may have some special properties, or might be totally abstract - but there isn't a difference in what they represent
 
-Different coordinate systems may have different properties. For example, schwarzschild coordinates - the one we used previously- has an artificial coordinate singularity at the event horizon, which makes it useless for what we're trying to do. #2 is schwarzschild in eddington-finkelstein coordinates, and is usable for describing geodesics which are travelling forwards in time into the black hole (or equivalently, geodesics that are travelling out of the black hole backwards in time). Because of the simplicity - we're going to use eddington finkelstein coordinates in the beginning
+Different coordinate systems may have different properties. For example, schwarzschild coordinates - the one we used previously- has an artificial coordinate singularity at the event horizon, which makes it useless for what we're trying to do. Eddington-Finkelstein coordinates are useful for describing geodesics which are travelling forwards in time into the black hole (or equivalently, geodesics that are travelling out of the black hole backwards in time). Because of the simplicity - we're going to use eddington finkelstein coordinates today
+
+# Coordinate transforms
+
+Coordinate transforms can be done very straightforwardly. Imagine we have a coordinate system, which is $(t, r, \theta, \phi)$. We'd like to convert this to, say, $(t, x, y, z)$. Given the schwarzschild metric, we need to substitute all the coordinates and their derivatives for the cartesian equivalents. So first up, here's inverse of the coordinate transform
+
+$$
+\begin{align}
+t &= t \\
+r &= \sqrt{x^2 + y^2 + z^2}\\
+\theta &= acos(\frac{z}{r})\\
+\phi &= atan2(y, x)
+\end{align}
+$$
+
+And then we need the inverse of the derivative of the coordinate transform, which we obtain by taking the total derivative:
+
+$$
+\begin{align}
+dt &= dt \\
+dr &= \frac{x dx + y dy + z dz}{\sqrt{x^2 + y^2 + z^2}} \\
+d\theta &= \frac{z dr}{r^2 \sqrt{1 - \frac{z^2}{r^2}}} - \frac{dz}{r \sqrt{1- \frac{z^2}{r^2}}} \\
+d\phi &= \frac{x dy - y dx}{x^2 + y^2}
+\end{align}
+$$
+
+Now, all we have to do is substitute the above into the line element for schwarzschild, which is:
+
+$$ ds^2 = -d\tau^2 = -(1-\frac{r_s}{r}) dt^2 + (1-\frac{r_s}{r})^{-1} dr^2 + r^2 d\theta^2 + r^2 sin^2(\theta) d\phi^2 $$
+
+Substituting this all through (which I am not going to do here) will give you the schwarzschild metric in cartesian coordinates. Note that this will not give you the usually given form of the schwarzschild metric in cartesian, as the transform is not the one we define here. This metric is also still singular at the event horizon, because the $t$ coordinate is the issue
+
+Note, the metric tensor is a tensor, and the definition of a tensor is that it changes under a coordinate transform in a specific straightforward way. Its not relevant to us currently, but see [here](https://en.wikipedia.org/wiki/Covariant_transformation) for more details if you'd like to understand this more generally
 
 # Tetrads
 
-Back in ye olde schwarzschild in schwarzschild coordinates days, we learnt briefly about the role of tetrads, as objects that can be used to take a local quantity, and transform into a quantity in our coordinate system (and vice versa). These objects also fundamentally relate the viewpoints of two different observers, and the first thing we need to learn is how to calculate and manipulate them. We're going to take a second crack at them now
+Back in the schwarzschild renderer article, we learnt briefly about the role of tetrads, as objects that can be used to take a vector in our locally flat spacetime, and transform it into a vector in our curvilinear coordinate system (and vice versa):
+
+$$v^\mu_{curved} = e^\mu_i v^i_{flat}$$
+
+$$v^i_{flat} = e_\mu^i v^\mu_{curved}$$
+
+where $e^i_\mu = (e_i^\mu)^{-1}$ (the matrix inverse of our tetrads as column vectors).
+
+The first thing we need to learn now is how to calculate them now, instead of hoping that someone else has done it for us
 
 As we've run into before: spacetime is locally flat. The technical definition of locally flat is the minkowski metric tensor $\eta_{\mu\nu}$: this is a diagonal matrix, that looks like this:
 
@@ -52,103 +98,118 @@ As we've run into before: spacetime is locally flat. The technical definition of
 |y| | |1| |
 |z| | | |1|
 
-What we'd like to do, is define how to translate from our metric tensor $g_{\mu\nu}$, to our diagonal matrix $\eta_{\mu\nu}$ -we know from general relativity that the metric must be diagonalisable to produce the minkowski metric (as space is locally flat)
+What we'd like to do, is define how to translate from our metric tensor $g_{\mu\nu}$, to our diagonal matrix $\eta_{\mu\nu}$ - we know from general relativity that the metric must be locally[^localdiag] diagonalisable to produce the minkowski metric (as space is locally flat, and flat = minkowski)
+
+[^localdiag]: This transformation is only valid at a point, we cannot in general find a global diagonalisation of the metric. If we could, our spacetime would be trivially flat
 
 This is done via the standard relation:
 
 $$D = P^{-1} A P$$
 
-Where $D$ is our diagonal matrix, $A$ is our matrix to diagonalise, and $P$ is the diagonalising matrix. Put in our terminology[^wheresthet]
+ Where $D$ is our diagonal matrix, $A$ is our matrix to diagonalise, and $P$ is the diagonalising matrix. Put in our terminology:
 
 $$\eta = e^{T} g e$$
 
-[^wheresthet]: Because the metric tensor is symmetric, the $^{-1}$ becomes a $^T$
+The metric tensor is symmetric, so the $^{-1}$ becomes a $^T$. The matrix $e$, treated as column vectors, makes up our tetrad vectors. We can solve[^prettycool] for $e$ and get 'a' valid set of tetrad vectors for any metric tensor. Tetrads are not unique, so we're just solving for the view for some arbitrary observer, that's dependent on the specific form of the metric[^arbitrary]
 
-The matrix $e$, treated as column vectors, makes up our tetrad vectors. On top of this, we can solve for $e$ and get 'a' valid set of tetrad vectors for any metric tensor, by solving this equation. Tetrads are not unique, so we're just solving for the view for some arbitrary observer, that's dependent on the specific form of the metric
+[^prettycool]: In my opinion, this equation is extremely cool as applied to general relativity. It guarantees that metrics are inherently always invertible, as they are always diagonalisable. It also heavily underpins the relationship between space being locally flat, how the metric tensor is constructed, and why the minkowski metric is always in cartesian coordinates - which is at the core of how we're able to do anything useful in a coordinate free theory. The fact that the tetrads are actually eigenvectors is also incredibly interesting - this step feels like the step that really ties together what general relativity actually *is*
 
-Solving this is an eigenvalue problem, as $e$ also makes up the eigenvectors of the metric (and technically, $\eta_{\mu\nu}$ is the eigenvalues)
+[^arbitrary]: Metrics and their coordinate systems are often constructed very non arbitrarily however (because we're trying to get physical meaning out of them), and even though in general its technically arbitrary - this procedure will often yield a specific kind of observer if you're working with an analytic metric tensor. In schwarzschild, it is a stationary observer
 
-One important thing to get back to. Remember that vectors can be timelike ($ds^2 < 0$), or spacelike ($ds^2 > 0$). We have one timelike tetrad vector: which is always $e_0$, and 3 spacelike tetrad vectors, which are $e_k$
+Solving this is an eigenvalue/vector problem, as $e$ makes up the eigenvectors of the metric (and $\eta_{\mu\nu}$ is the eigenvalues). In general relativity, one of these vectors will always have an eigenvalue of $-1$, the timelike vector, and the other three will have an eigenvalue of $1$, the spacelike vectors
 
 ## Relativistic gram-schmidt
 
-The most straightforward algorithm for doing this is called gram-schmidt orthonormalisation, and with a minor extension we can use this for solving our GR eigenvalue problem. Gram-schmidt is an algorithm for taking a series of vectors and making them orthonormal to each other. Here we take a series of coordinate vectors, and make them orthonormal with respect to the metric tensor from each other
+The most straightforward algorithm for doing this is called [Gram-Schmidt Orthonormalisation](https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process#The_Gram%E2%80%93Schmidt_process)[^technically], and we can use this for solving our eigenvalue problem.  Gram-schmidt is an algorithm for taking a series of vectors and making them orthonormal to each other - which incidentally solves our eigenvector problem. Here we take a series of coordinate vectors, and make them orthonormal with respect to the metric tensor from each other, which produces our eigenvectors - and so our tetrads
 
-We're going to start off with the basic algorithm, and then we'll make it robust against the horrors of GR
+[^technically]: Technically we're using the modified version for numerical stability reasons. If you go for a read through how this works, remember that we're in an inner product space with our inner product defined by $g(u,v)$, so we can directly apply this algorithm
 
-Lets start off with our 4 coordinate directions, which we hope are linearly independent:
+We're going to start off with the basic algorithm for calculating tetrads/eigenvectors, and then we'll make it robust against the practical complexities of general relativity so you can use this a bit more generally
+
+Lets start off with our 4 coordinate directions $v^\mu_i$, which we hope are linearly independent. $i$ is our specific vector:
 
 ```c++
-std::array<t4f, 4> vecs = { {1, 0, 0, 0},
+std::array<v4f, 4> vecs = { {1, 0, 0, 0},
                             {0, 1, 0, 0},
                             {0, 0, 1, 0},
                             {0, 0, 0, 1} };
 ```
 
-Note that, taking the column vectors of the metric $g_{\mu\nu}$, and raising them with the metric tensor to get $v^k$ (contravariant), produces exactly the same vectors we're starting off with here
+Note that, taking the column vectors of the metric $g_{\mu\nu}$, and raising them with the metric tensor to get $v_i^\mu$ (contravariant), produces this identity matrix definitionally
 
-We have to pick a vector to start our orthonormalisation from, so we pick the first vector $v_0$ arbitrarily, and now start up our algorithm:
+We have to pick a vector to start our orthonormalisation from, so we pick the first vector $v_0^\mu$ arbitrarily, and now start up our algorithm:
 
 ```c++
-m44f metric = get_metric();
+m44f metric = GetMetric(position.get());
 tetrads tet = gram_schmidt(vecs[0], vecs[1], vecs[2], vecs[3], metric);
 ```
 
 Relativistic gram schmidt itself looks like this:
 
 ```c++
-valuef dot(t4f u, t4f v, m44f m) {
-    t4f lowered = m.lower(u);
+valuef dot(v4f u, v4f v, m44f m) {
+    v4f lowered = m.lower(u);
 
     return dot(lowered, v);
 }
 
-t4f gram_project(t4f u, t4f v, m44f m) {
+v4f gram_project(v4f u, v4f v, m44f m) {
     valuef top = dot_metric(u, v, m);
     valuef bottom = dot_metric(u, u, m);
 
     return (top / bottom) * u;
 }
 
-t4f normalise(t4f in, m44f m)
+v4f normalise(v4f in, m44f m)
 {
     valuef d = dot_metric(in, in, m);
 
+    //d will be < 0 for timelike vectors
     return in / sqrt(fabs(d));
 }
 
-struct tetrad ]
-    std::array<t4f, 4> tetrvads;
-}
-
-tetrad gram_schmidt(t4f v0, t4f v1, t4f v2, t4f v3, m44f m)
+tetrad gram_schmidt(v4f v0, v4f v1, v4f v2, v4f v3, m44f m)
 {
-    float4 u0 = v0;
+    using namespace single_source;
 
-    float4 u1 = v1;
+    v4f u0 = v0;
+
+    v4f u1 = v1;
     u1 = u1 - gram_project(u0, u1, m);
 
-    float4 u2 = v2;
+    //the pin()'s here are solely to cut down on compile times, and you can ignore them
+    pin(u1);
+
+    v4f u2 = v2;
     u2 = u2 - gram_project(u0, u2, m);
     u2 = u2 - gram_project(u1, u2, m);
 
-    float4 u3 = v3;
+    pin(u2);
+
+    v4f u3 = v3;
     u3 = u3 - gram_project(u0, u3, m);
     u3 = u3 - gram_project(u1, u3, m);
     u3 = u3 - gram_project(u2, u3, m);
+
+    pin(u3);
 
     u0 = normalise(u0, m);
     u1 = normalise(u1, m);
     u2 = normalise(u2, m);
     u3 = normalise(u3, m);
 
-    return {u0, u1, u2, u3}
-};
+    pin(u0);
+    pin(u1);
+    pin(u2);
+    pin(u3);
+
+    return {u0, u1, u2, u3};
+}
 ```
 
-We now have our tetrads. If you're confused what's going on here, so am I and I need to more rigorously revisit this portion of the article, because how I derived this is a mystery to me
+We now have our tetrads
 
-### Of course, it isn't remotely that simple
+### Making this more robust
 
 There are a few assumptions that we've made here
 
@@ -160,7 +221,9 @@ There are a few assumptions that we've made here
 
 Picking the first vector is fairly straightforward: we need to loop over our vectors, and find one who's length is not 0. Remember that in general relativity, the length of a vector is determined by
 
-$$g_{\mu\nu} v^\mu v^nu = ds^2$$
+$$g_{\mu\nu} v^\mu v^\nu = v_\mu v^\mu = dot(v_\mu, v^\mu) = ds^2$$
+
+Where $dot$ is the usual euclidian dot product
 
 ```c++
 v4f v0 = {1, 0, 0, 0};
@@ -168,15 +231,18 @@ v4f v1 = {0, 1, 0, 0};
 v4f v2 = {0, 0, 1, 0};
 v4f v3 = {0, 0, 0, 1};
 
-m44f metric = GetMetric(camera_position.get());
+m44f metric = GetMetric(position.get());
 
+//these are actually the column vectors of the metric tensor
 v4f lv0 = metric.lower(v0);
 v4f lv1 = metric.lower(v1);
 v4f lv2 = metric.lower(v2);
 v4f lv3 = metric.lower(v3);
 
-//this declares an array gpuside, like. We end up with float4 as_array[4] = {v0, v1, v2, v3};
 array_mut<v4f> as_array = declare_mut_array_e<v4f>(4, {v0, v1, v2, v3});
+//we're in theory doing v_mu v^mu, but because only one component of v0 is nonzero, and the lower components are actually
+//the column vectors of the metric tensor, dot(v0, lv0) is actually metric[0,0], dot(v1, lv1) is metric[1,1] etc
+//this method therefore fails if the metric has no nonzero diagonal components
 array_mut<valuef> lengths = declare_mut_array_e<valuef>(4, {dot(v0, lv0), dot(v1, lv1), dot(v2, lv2), dot(v3, lv3)});
 
 mut<valuei> first_nonzero = declare_mut_e(valuei(0));
@@ -195,8 +261,18 @@ for_e(first_nonzero < 4, assign_b(first_nonzero, first_nonzero+1), [&] {
 
 swap(as_array[0], as_array[first_nonzero]);
 
+v4f iv0 = declare_e(as_array[0]);
+v4f iv1 = declare_e(as_array[1]);
+v4f iv2 = declare_e(as_array[2]);
+v4f iv3 = declare_e(as_array[3]);
+
+//cut down on compile times
+pin(metric);
+
 tetrad tetrads = gram_schmidt(iv0, iv1, iv2, iv3, metric);
 ```
+
+This picks the first vector which doesn't have a length of 0, and starts our orthonormalisation from there. You'll also likely want to swap these tetrads back into their original positions for consistency, which we will do in the full algorithm
 
 ### Picking the timelike vector, and putting it in slot 0
 
@@ -204,7 +280,7 @@ We know from our diagonalisation procedure, that:
 
 $$\eta = e^{T} g e$$
 
-$\eta$ here isn't necessarily exactly the minkowski tensor. We're solving an eigenvalue/vector problem, and the sign of each component corresponds to whether or not each coordinate at a point is timelike, or spacelike. If we use the above relation with the tetrads we get to calculate the minkowski metric, we may instead end up with this
+$\eta$ here isn't necessarily exactly the minkowski tensor. We're solving an eigenvalue/vector problem, and the sign of each component corresponds to whether or not each coordinate direction at a point is timelike, or spacelike. If we use the above relation with the tetrads we get to calculate the minkowski metric, we may instead end up with this
 
 | |?|t|?|?|
 |-|-|-|-|-|
@@ -233,22 +309,23 @@ Or this!
 |t| | | |-1|
 
 
-The reason why we list the coordinates as $?$'s is because while they correspond to cartesian coordinate directions, the specifics of which direction (x, y, or z) they are is inherently arbitrary[^arbitrary]
+The reason why we list the coordinates as ?'s, is because while they correspond to cartesian coordinate directions, the specifics of which direction (x, y, or z) they are is inherently arbitrary[^arbitrary]. We're only actually able to know which one of these is time because of the signature, we don't get any information out of this process otherwise
 
-[^arbitrary]: We will be doing some tricks when we implement fps camera controls to assign some physical meaning to these directions shortly
-What we would like to do is demand that the 0'th tetrad is timelike, as this is an extremely common requirement in the literature, and simplifies our lives tremendously when dealing with tetrads if we know that $e_0$ is timelike
+[^arbitrary]: We will be doing some tricks when we implement fps camera controls to assign some physical meaning to these directions, in fairly broad circumstances
+
+What we would like to do is demand that the 0'th tetrad is timelike, as this is an extremely common requirement in the literature, and it simplifies our lives tremendously when dealing with tetrads if we know that $e_0$ is timelike. Doing this means that we know that in locally flat coordinates, we have the coordinate system $(t, d_1, d_2, d_3)$, which lets us construct valid geodesics straightforwardly
 
 There are two ways equivalent ways of doing this
 
-### Way the first
+#### Way the first
 
 Calculate the minkowski metric, and find the timelike coordinate by looking for the $-1$ component
 
-### Way the second
+#### Way the second
 
 Calculate $ds^2_i$ via $g_{\mu\nu} e^{\mu}_i e^{\nu}_i$, and find the component with the value of $-1$
 
-### These are literally the same thing
+### These are the same thing
 
 We haven't seen an explicit expression for how to do this the first way whereas previous articles contain plenty of the second, so we'll pick the first
 
@@ -288,7 +365,6 @@ m44f get_local_minkowski(const tetrad& tetrads, const m44f& met)
     return minkowski;
 }
 
-//calculates the minkowski metric, and looks across the diagonal looking for the largest negative value
 valuei calculate_which_coordinate_is_timelike(const tetrad& tetrads, const m44f& met)
 {
     m44f minkowski = get_local_minkowski(tetrads, met);
@@ -310,11 +386,13 @@ valuei calculate_which_coordinate_is_timelike(const tetrad& tetrads, const m44f&
 }
 ```
 
-While the tetrads we get here provide a clean signature of 1's and -1's due to being strictly orthonormalised, we may have tetrads which are derived from numerical sources - where inaccuracy will lead to them being much less nice to work with. For this reason, we look for the largest negative value[^note]
+While the tetrads we get here provide a clean signature of 1's and -1's due to being strictly orthonormalised, we may have tetrads which are derived from numerical sources - where inaccuracy will lead to them being much less nice to work with. For this reason, we look for the largest negative value[^note], as this is most likely to be the timelike tetrad
 
 [^note]: Note, when you work with parallel transported (we'll get around to this) tetrad vectors, the signature never changes
 
-Now finally, we use the timelike coordinate to swap the tetrad component out, and end up with our final tetrads again. The complete procedure is therefore this:
+Now finally, we use the timelike coordinate to put the timelike tetrad in the 0th place, and end up with our final tetrads - for real this time[^wellsortof]. The complete procedure is therefore this:
+
+[^wellsortof]: Welll... at least for this article, when you want to implement fps style camera controls, its going to get yet more complicated
 
 ```c++
 template<auto GetMetric>
@@ -366,6 +444,8 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
     v4f iv2 = declare_e(as_array[2]);
     v4f iv3 = declare_e(as_array[3]);
 
+    pin(metric);
+
     tetrad tetrads = gram_schmidt(iv0, iv1, iv2, iv3, metric);
 
     array_mut<v4f> tetrad_array = declare_mut_array_e<v4f>(4, {});
@@ -375,10 +455,12 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
     as_ref(tetrad_array[2]) = tetrads.v[2];
     as_ref(tetrad_array[3]) = tetrads.v[3];
 
+    //undo the swap we made earlier to work around null vectors
     swap(tetrad_array[0], tetrad_array[first_nonzero]);
 
     valuei timelike_coordinate = calculate_which_coordinate_is_timelike(tetrads, metric);
 
+    //put the timelike vector in the 0th place
     swap(tetrad_array[0], tetrad_array[timelike_coordinate]);
 
     as_ref(e0_out[0]) = tetrad_array[0];
@@ -386,31 +468,45 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
     as_ref(e2_out[0]) = tetrad_array[2];
     as_ref(e3_out[0]) = tetrad_array[3];
 }
+
 ```
 
-While it may seem odd to do this on a GPU with only one thread, this procedure is exactly the same as what we'll need in the future for working with particle systems, so we may as well GPUify this
+While it may seem odd to do this on a GPU with only one thread, this procedure is identical to the one you'll need for working with particle systems, in which case parallelising it is very handy
 
 ## Following an inertial observer
 
-So, now we have a position: our camera, and an initial tetrad: The one we calculating from the above position. The question is, how do we follow the movements of our observer in a physically accurate way? Today we're going to be dealing with strictly inertial observers that don't accelerate, and we're additionally not going to imbue our observers with any velocity - this means that they strictly will fall directly towards the black hole
+So, now we have a position: our camera, and an initial tetrad. The question is, how do we follow the movements of our observer in a physically accurate way? Today we're going to be dealing with strictly inertial observers that don't accelerate, and we're additionally not going to imbue our observers with any velocity - this means that they strictly will fall directly towards the black hole
 
-The $e_0$ component of our tetrads is timelike - more than that it also represents the velocity of the observer that that tetrad is made for. That is to say, if we have
+The $e_0^\mu$ component of our tetrads is now always timelike - and more than that it is also (conveniently) TODO: REFERENCE the velocity of the observer that that tetrad represents. That is to say, if we have:
 
-$$e_0 = (1, 0, 0, 0)$$
+$$e_0^\mu = (1, 0, 0, 0)$$
 
-We are dealing with an observer who's velocity is $v^\mu = (1, 0, 0, 0)$. The first thing we need to do is to build a geodesic from our initial observers starting location, and our initial observers velocity. Lets call these $x^{\mu}$ and $v^{\mu}$
+We are dealing with an observer who's velocity is $v^\mu = (1, 0, 0, 0)$. The first thing we need to do is to build a geodesic from our initial observers starting location, and our initial observers velocity. Lets call these $x^{\mu}$ and $v^{\mu} = e_0^\mu$
 
-Luckily for us, the geodesic equation for lightrays, and timelike geodesics, is exactly the same, which means we do not need a new procedure to integrate our timelike geodesic. We're going to need to save[^alternate] the positions and velocities of our geodesic as we trace it, so we will need a slightly different integration scheme
+Luckily for us, the geodesic equation for lightrays (null geodesics), and timelike geodesics, is exactly the same, which means we do not need a new procedure to integrate our timelike geodesic. We're going to need to save[^alternate] the positions and velocities of our geodesic as we trace it, so we will need to modify our code a bit:
 
-[^alternate]: An alternative approach would be to step the timelike geodesics forwards as we advance forwards in proper time, but its super useful to have the whole history available to us. It also allows us to disconnect the parallel transport process, from the timelike geodesic tracing, which makes things cleaner
+[^alternate]: An alternative approach would be to step the timelike geodesics forwards as we advance forwards in proper time, but its super useful to have the whole history available to us
 
 ```c++
+value<bool> should_terminate(v4f start, v4f position, v4f velocity)
+{
+    value<bool> is_broken = !isfinite(position[0]) || !isfinite(position[1]) || !isfinite(position[2]) || !isfinite(position[3]) ||
+                            !isfinite(velocity[0]) || !isfinite(velocity[1]) || !isfinite(velocity[2]) || !isfinite(velocity[3]) ;
+
+    return position[1] > 10 || position[0] > start[0] + 1000 || fabs(velocity[0]) >= 10 || is_broken || position[1] < 0.1f;
+}
+
+#define TRACE_DT 0.005f
+
 template<auto GetMetric>
-void trace_geodesic(equation_context& ctx, buffer<v4f> start_position, buffer<v4f> start_velocity, buffer_mut<v4f> positions_out, buffer_mut<v4f> velocity_out, buffer_mut<valuei> written_steps, literal<valuei> max_steps)
+void trace_geodesic(execution_context& ectx,
+                    buffer<v4f> start_position, buffer<v4f> start_velocity,
+                    buffer_mut<v4f> positions_out, buffer_mut<v4f> velocity_out,
+                    buffer_mut<valuei> written_steps, literal<valuei> max_steps)
 {
     using namespace single_source;
 
-    m44f metric = GetMetric(g.position);
+    m44f metric = GetMetric(start_position[0]);
 
     mut<valuei> result = declare_mut_e(valuei(0));
 
@@ -418,54 +514,55 @@ void trace_geodesic(equation_context& ctx, buffer<v4f> start_position, buffer<v4
     mut_v4f velocity = declare_mut_e(start_velocity[0]);
 
     //for a timelike geodesic, dt is proper time
-    float dt = 0.005f;
-    valuef start_time = start_position[0][0];
-    pin(start_time);
+    float dt = TRACE_DT;
+    v4f start = declare_e(start_position[0]);
 
     mut<valuei> idx = declare_mut_e("i", valuei(0));
 
-    for_e(idx < 1024 * 1024, assign_b(idx, idx + 1), [&]
+    for_e(idx < 1024 * 1024 && idx < max_steps.get(), assign_b(idx, idx + 1), [&]
     {
+        as_ref(positions_out[idx]) = position;
+        as_ref(velocity_out[idx]) = velocity;
+
         v4f cposition = declare_e(position);
         v4f cvelocity = declare_e(velocity);
 
-        v4f acceleration = calculate_acceleration_of(cposition, cvelocity, get_metric);
+        v4f acceleration = calculate_acceleration_of(cposition, cvelocity, GetMetric);
 
+        //this pin exists because it enables some optimisations for us, but has no other function
         pin(acceleration);
 
         as_ref(velocity) = cvelocity + acceleration * dt;
         as_ref(position) = cposition + velocity.as<valuef>() * dt;
 
-        valuef radius = position[1];
-
-        value<bool> is_broken = !isfinite(position[0]) || !isfinite(position[1]) || !isfinite(position[2]) || !isfinite(position[3]) ||
-                                !isfinite(velocity[0]) || !isfinite(velocity[1]) || !isfinite(velocity[2]) || !isfinite(velocity[3]) ;
-
-        if_e(radius > 10 || position[0] > start_time + 1000 || fabs(velocity[0]) >= 10 || is_broken, [&] {
+        if_e(should_terminate(start, as_constant(position), as_constant(velocity)), [&] {
             break_e();
         });
-
-        as_ref(positions_out[idx]) = position;
-        as_ref(velocities_out[idx]) = velocity;
     });
 
-    as_ref(written_steps[0]) = idx.as_constant();
+    as_ref(written_steps[0]) = idx.as_constant() + 1;
 }
 ```
 
-This procedure is very similar to our regular raytracing, but we're writing all the positions and velocities out to a buffer. The termination condition is different now as well, we're guessing that when the velocity of a geodesic becomes very high, we're approaching a singularity[^rsmall]. This modification must also be applied to our light rays for them to correctly terminate
-
-[^rsmall]: We could use `r < 0.000001f` or similar, but this will not work for where we're going with kerr
+This procedure is very similar to our regular raytracing, but we're writing all the positions and velocities out to a buffer. The termination condition is different now as well, as we terminate when the velocity of the geodesic is very high, or is approaching the singularity
 
 We've now traced through the history of a timelike geodesic, and saved the positions and velocities so that we can examine the path that our observer takes through our spacetime. What we'd like to do now, is at a specific point along this timelike geodesic representing our observer, find out what that observer would see. The way to do this, is by parallel transporting the tetrads, and use them as a basis for our observer
 
 ## Parallel Transport
 
-The way that parallel transport works is as following: If you imagine a geodesic as a curve, and take a vector tangent to that curve, that vector remains tangent to the curve at every point along it. A vector which does this is said to be "parallel transported". This is true for every vector - you can imagine the geodesic equation as the process of parallel transporting the velocity vector itself along the geodesic - this is in fact one definition of a geodesic (autoparallel transport)
+Parallel transport is the process of taking a vector, and moving it along a curve. The way that parallel transport works is as following: If you imagine a geodesic as a curve, and take a vector tangent to that curve, that vector's definition relative to the curve stays constant
 
-Todo: Picture of parallel transport
+![paralleltransport](/assets/paralleltransport.png)
 
-To parallel transport something is when the *covariant* derivative of a vector vanishes along a curve. We haven't gotten around to covariant derivatives yet, but they're the general relativistic coordinate free generalisation of partial derivatives. For more information, see [this](https://physics.stackexchange.com/questions/524242/parallel-transport-of-a-vector) link, and [here](https://en.wikipedia.org/wiki/Covariant_derivative#Covariant_derivative_by_field_type) for how to calculate covariant derivatives
+A vector which is moved along a curve in this fashion is said to be "parallel transported". This is doable for every vector - you can imagine the geodesic equation as the process of parallel transporting the velocity vector itself along the geodesic - this is in fact one definition of a geodesic (autoparallel transport). Note that, if we have sufficient knowledge of the start and end coordinates (the basis vectors, ie the tetrads), we can actually directly parallel transport something from the start to the end without any knowledge of the intervening path. More generally, parallel transport is path independent:
+
+![paralleltransportagain](/assets/paralleltransport3)
+
+As long as the final position and velocity of the geodesic are the same[^andactually], we'll end up with exactly the same result
+
+[^andactually]: We can formalise this: If we have a set of tetrads at one position, and we parallel transport that set of tetrads along a geodesic somewhere else, we end up with a way of expressing a general transformation from vectors at point one, to point two. This forms a coordinate dependent lorentz transform, and is extremely useful. We only ever actually need to transport the tetrad vectors, and then we get everything else for free
+
+Parallel transport is defined as when the *covariant* derivative of a vector vanishes ($=0$) along a curve. We haven't gotten around to covariant derivatives yet, but they're the general relativistic coordinate free generalisation of partial derivatives. For more information, see [this](https://physics.stackexchange.com/questions/524242/parallel-transport-of-a-vector), and [here](https://en.wikipedia.org/wiki/Covariant_derivative#Covariant_derivative_by_field_type) for how to calculate covariant derivatives
 
 For us, given a timelike geodesic parameterised by proper time, with a position $x^{\mu}$ and velocity $v^\mu = \frac{dx}{d\tau}$, the parallel transport equation for a vector $A^\mu$ is this:
 
@@ -480,13 +577,13 @@ v4f parallel_transport_get_change(v4f tangent_vector, v4f geodesic_velocity, con
 
     for(int a=0; a < 4; a++)
     {
-        float sum = 0;
+        valuef sum = 0;
 
         for(int b=0; b < 4; b++)
         {
             for(int s=0; s < 4; s++)
             {
-                sum += christoffel[a,b,s] * tangent_vector[b] * geodesic_velocity[s];
+                sum += christoff2[a,b,s] * tangent_vector[b] * geodesic_velocity[s];
             }
         }
 
@@ -502,26 +599,28 @@ At this point, we just need to integrate this along our curve, and produce our p
 ```c++
 //note: we already know the value of e0, as its the geodesic velocity
 template<auto GetMetric>
-void parallel_transport_tetrads(buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3, buffer<v4f> positions, buffer<v4f> velocities, buffer<valuei> counts,
-buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out)
+void parallel_transport_tetrads(execution_context& ectx, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
+                                buffer<v4f> positions, buffer<v4f> velocities, buffer<valuei> counts,
+                                buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out)
 {
+    using namespace single_source;
     //its important that this dt is the same dt as the one that we used in trace_geodesic, as we're dealing with the same parameterisation. If you use a variable timestep, you need to write this into a buffer
-    float dt = 0.005f;
+    float dt = TRACE_DT;
 
-    valuei count = declare_e(counts[0].get());
-    valuei i = declare_mut_e(valuei(0));
+    valuei count = declare_e(counts[0]);
+    mut<valuei> i = declare_mut_e(valuei(0));
 
-    buffer_mut<v4f> e1_current = declare_mut_e(e1[0]);
-    buffer_mut<v4f> e2_current = declare_mut_e(e2[0]);
-    buffer_mut<v4f> e3_current = declare_mut_e(e3[0]);
+    mut_v4f e1_current = declare_mut_e(e1[0]);
+    mut_v4f e2_current = declare_mut_e(e2[0]);
+    mut_v4f e3_current = declare_mut_e(e3[0]);
 
     for_e(i < count, assign_b(i, i+1), [&] {
         as_ref(e1_out[i]) = e1_current;
         as_ref(e2_out[i]) = e2_current;
         as_ref(e3_out[i]) = e3_current;
 
-        v4f current_position = positions[i];
-        v4f current_velocity = velocities[i];
+        v4f current_position = declare_e(positions[i]);
+        v4f current_velocity = declare_e(velocities[i]);
 
         tensor<valuef, 4, 4, 4> christoff2 = calculate_christoff2(current_position, GetMetric);
 
@@ -535,56 +634,62 @@ buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out)
         v4f e2_change = parallel_transport_get_change(e2_cst, current_velocity, christoff2);
         v4f e3_change = parallel_transport_get_change(e3_cst, current_velocity, christoff2);
 
-        as_ref(e1_current) = e1_current + e1_change * dt;
-        as_ref(e2_current) = e2_current + e2_change * dt;
-        as_ref(e3_current) = e3_current + e3_change * dt;
+        as_ref(e1_current) = e1_cst + e1_change * dt;
+        as_ref(e2_current) = e2_cst + e2_change * dt;
+        as_ref(e3_current) = e3_cst + e3_change * dt;
     });
-
-    if_e(count == 0, []{
-        break_e();
-    });
-
-    as_ref(e1_out[count-1]) = e1_current;
-    as_ref(e2_out[count-1]) = e2_current;
-    as_ref(e3_out[count-1]) = e3_current;
 }
 ```
 
-Phew. This is a pretty simple 1st order integrator that parallel transports the $e_{1,2,3}$ components of our tetrad, and writes them out to a buffer
+Phew. This function is a bit intentionally non compact to maximise visibillity as to what's going on. This is a pretty simple 1st order integrator that parallel transports the $e_{1,2,3}$ components of our tetrad, and writes them out to a buffer
+
+You could split this up into 3 separate kernels, as the parallel transport process is fully independent for each vector. However, because we also know that these vectors are meant to be orthonormal - you could also use that fact to correct numerical integration errors here with the same gram-schmidt process as earlier, its up to you
 
 ## Interpolation
 
-The very last thing for us to do now, is to actually construct our initial conditions. If you remember, we need a position, and a set of tetrads, and that's it for starting up our raytracing. We now have a buffer of positions, and a buffer of parallel transported tetrads - and that's all we're going to need to produce our starting point
+The very last thing for us to do now is to actually construct our initial conditions. If you remember, we need a position, and a set of tetrads, and that's it for starting up our raytracing. We now have a buffer of positions, and a buffer of parallel transported tetrads - and that's all we're going to need to produce our starting point
 
 ```c++
-void interpolate(buffer<v4f> positions, buffer<v4f> e0s, buffer<v4f> e1s, buffer<v4f> e2s, buffer<v4f> e3s, buffer<valuei> counts,
-literal<valuef> desired_proper_time,
-buffer_mut<v4f> position_out, buffer_mut<v4f> e0_out, buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out)
+void interpolate(execution_context& ectx, buffer<v4f> positions, buffer<v4f> e0s, buffer<v4f> e1s, buffer<v4f> e2s, buffer<v4f> e3s, buffer<valuei> counts,
+                 literal<valuef> desired_proper_time,
+                 buffer_mut<v4f> position_out, buffer_mut<v4f> e0_out, buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out)
 {
-    //it is again important that this timestep matches the one from parallel transported tetrads
-    float dt = 0.005f;
-
-    valuei i = declare_mut_e(valuei(0));
-
-    mut<valuef> elapsed_time = declare_mut_e(valuef(0));
-
-    //fallback if we pick proper time < earliest time
-    as_ref(position_out[0]) = positions[0];
-    as_ref(e0_out[0]) = e0s[0];
-    as_ref(e1_out[0]) = e1s[0];
-    as_ref(e2_out[0]) = e2s[0];
-    as_ref(e3_out[0]) = e3s[0];
+    using namespace single_source;
 
     valuei size = declare_e(counts[0]);
 
+    //somethings gone horribly wrong somewhere
     if_e(size == 0, [&] {
         return_e();
     });
 
-    for_e(i < size, assign_b(i, i+1), [&] {
-        if_e(elapsed_time >= desired_proper_time.get() && elapsed_time <= desired_proper_time.get() + dt, [&]{
-            valuef frac = (elapsed_time - desired_proper_time) / dt;
+    //it is again important that this timestep matches the one from parallel transported tetrads
+    float dt = TRACE_DT;
 
+    mut<valuef> elapsed_time = declare_mut_e(valuef(0));
+
+    //fallback if we pick proper time < earliest time
+    if_e(desired_proper_time.get() <= 0, [&]{
+        as_ref(position_out[0]) = positions[0];
+        as_ref(e0_out[0]) = e0s[0];
+        as_ref(e1_out[0]) = e1s[0];
+        as_ref(e2_out[0]) = e2s[0];
+        as_ref(e3_out[0]) = e3s[0];
+
+        return_e();
+    });
+
+    mut<valuei> i = declare_mut_e(valuei(0));
+
+    //we look through our list of tetrads, and calculate the proper time T at each position
+    for_e(i < (size - 1), assign_b(i, i+1), [&] {
+        //if the proper time we're looking for lies between the proper times of two of our line elements
+        if_e(elapsed_time >= desired_proper_time.get() && elapsed_time <= desired_proper_time.get() + dt, [&]{
+            //calculate the interpolation fraction
+            valuef frac = (elapsed_time - desired_proper_time.get()) / dt;
+
+            //interpolate positions and tetrads. This might seem odd because they're in arbitrary coordinates
+            //but when the ray segments are sufficiently small, this is actually a valid approximation
             as_ref(position_out[0]) = mix(positions[i], positions[i+1], frac);
             as_ref(e0_out[0]) = mix(e0s[i], e0s[i+1], frac);
             as_ref(e1_out[0]) = mix(e1s[i], e1s[i+1], frac);
@@ -598,7 +703,7 @@ buffer_mut<v4f> position_out, buffer_mut<v4f> e0_out, buffer_mut<v4f> e1_out, bu
     });
 
     //fallback for if we pick proper time > latest proper time
-    as_ref(position_out[0]) = positions[0];
+    as_ref(position_out[0]) = positions[size-1];
     as_ref(e0_out[0]) = e0s[size-1];
     as_ref(e1_out[0]) = e1s[size-1];
     as_ref(e2_out[0]) = e2s[size-1];
@@ -606,20 +711,71 @@ buffer_mut<v4f> position_out, buffer_mut<v4f> e0_out, buffer_mut<v4f> e1_out, bu
 }
 ```
 
-This searches for the correct proper time, and interpolates our tetrads and starting position based on whatever proper time we're looking for. Its worth noting that with our timestep being linear, we could do this a lot more directly, but you're likely going to have a dynamic timestep
+This searches for the correct proper time, and interpolates our tetrads and starting position based on whatever proper time we're looking for. Its worth noting that with our timestep being linear, we could do this a lot more directly, but you're likely going to have a dynamic timestep and we may as well show the full procedure here
 
 # Reviewing the complete procedure
 
-1. Calculate your tetrads at any point
-2. Ensure that $e_0$ is timelike
-3. Trace the timelike $e_0$ forwards, as it represents our observer
+1. Calculate your tetrads at a point
+2. Ensure that $e_0$, the first tetrad vector, is timelike
+3. Trace the timelike $e_0$ forwards, to calculate the path of our observer
 4. Parallel transport the other vectors $e_1$ $e_2$ $e_3$ forwards along the geodesic that we define in step 3.
-5. Calculate our final tetrad and position, by interpolating along that geodesic
+5. Calculate our final tetrad and position, by interpolating at the correct proper time along that geodesic
 6. Raytrace using that tetrad and position[^kernel] as our initial conditions, in the usual fashion
 
 [^kernel]: For this article, we've changed the kernel we use to take a tetrad from a buffer
 
 # Results
 
-First up, lets examine some results for schwarzschild. We know that the event horizon in schwarzschild is not traversible, and so any observer attempting to cross the event horizon will hit a coordinate singularity. This isn't a real singularity, but its worth examining
+First up, lets examine some results for schwarzschild, in schwarzschild coordinates. We know that the event horizon in schwarzschild is not traversible, and so any observer attempting to cross the event horizon will hit a coordinate singularity. This isn't a real singularity, but its worth examining anyway
+
+Todo: Video of hitting the event horizon
+
+The camera gets stuck on the event horizon, because the metric becomes singular. If you examine the rays, you'll notice that their time component blows up to infinity
+
+Next up, we'll look at schwarzschild in ingoing eddington-finkelstein coordinates. For reference, that looks like this:
+
+```c++
+metric<valuef, 4, 4> metric(const tensor<valuef, 4>& position) {
+    valuef rs = 1;
+    valuef r = position[1];
+    valuef theta = position[2];
+
+    metric<valuef, 4, 4> m;
+
+    m[0, 0] = -(1-rs/r);
+    m[1, 0] = 1;
+    m[0, 1] = 1;
+
+    m[2, 2] = r*r;
+    m[3, 3] = r*r * sin(theta)*sin(theta);
+
+    return m;
+}
+```
+
+From the front:
+
+Back:
+
+Right:
+
+We can see that the very common idea that the universe shrinks to a point is not true, which is pretty neat to be able to disprove, and is a frequent misconception
+
+# The end
+
+In this article, we've looked at purely inertial observers, with whatever velocity happens to fall out of the metric. Next time round, we're going to examine two more components of good initial conditions:
+
+1. How to set up proper camera controls
+2. How to set up observers with an initial velocity
+
+On top of this, we're going to set up a good variable timestep finally, which will fix a lot of the visual issues, and increase performance significantly. This will let us take a trip through kerr, the interstellar wormhole, and a general examination of a few other metrics in passing. It'll be an article where we tie up a lot of the loose ends we've left straggling around so far
+
+# What's next?
+
+These kinds of simulations are a bottomless pit, and we've barely scratched the surface of the kinds of things we can simulate here - after the next article we'll have cleared the simple stuff, and we'll finally (!) get started on numerical relativity - so we can smash some black holes together
+
+There's going to be an absolutely massive amount to write up, hooray! I'm considering starting a patreon for all of this at some point (and I'd love to go into research!), as unfortunately I'm very poor after many many years of illness - but I'll see how it goes. Anyway, here's that cat I promised
+
+![bag](/assets/krittykrat.jpg)
+
 

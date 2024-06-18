@@ -48,13 +48,13 @@ namespace value_impl
             });
         }
 
-        template<typename T, int N>
-        void pin(tensor<T, N>& inout)
+        template<typename T, int... N>
+        void pin(metric<T, N...>& inout)
         {
-            for(int i=0; i < N; i++)
+            inout.for_each([&](T& v)
             {
-                pin(inout[i]);
-            }
+                pin(v);
+            });
         }
 
         virtual ~execution_context_base(){}

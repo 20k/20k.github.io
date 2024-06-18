@@ -152,7 +152,7 @@ int main()
     cl::buffer final_camera_position(ctx);
     final_camera_position.alloc(sizeof(cl_float4));
 
-    float desired_proper_time = 20.f;
+    float desired_proper_time = 0.f;
 
     while(win.isOpen())
     {
