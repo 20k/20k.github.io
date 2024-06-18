@@ -740,7 +740,7 @@ This searches for the correct proper time, and interpolates our tetrads and star
 
 First up, lets examine some results for schwarzschild, in schwarzschild coordinates. We know that the event horizon in schwarzschild is not traversible, and so any observer attempting to cross the event horizon will hit a coordinate singularity. This isn't a real singularity, but its worth examining anyway
 
-Todo: Video of hitting the event horizon
+<iframe width="560" height="315" src="https://www.youtube.com/embed/_YtkoLdZlx0?si=fEKypfSydWcA6KOx" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 The camera gets stuck on the event horizon, because the metric becomes singular. If you examine the rays, you'll notice that their time component blows up to infinity
 
@@ -765,13 +765,17 @@ metric<valuef, 4, 4> metric(const tensor<valuef, 4>& position) {
 }
 ```
 
-Todo:
-
 From the front:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/V-XVhr-Od9Y?si=6z6AIKT4ijCwKOd9" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 Back:
 
-Right:
+<iframe width="560" height="315" src="https://www.youtube.com/embed/9RudKgn5zZM?si=czkhCaLkEtdTNz3j" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Side:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/xxBBmDu4gLA?si=W608G6xsf6trctNA" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 We can see that the very common idea that the universe shrinks to a point is not true, which is pretty neat to be able to disprove, and is a frequent misconception
 

@@ -31,7 +31,7 @@ v3f get_ray_through_pixel(v2i screen_position, v2i screen_size, float fov_degree
     valuef f_stop = (screen_size.x()/2).to<float>() / tan(fov_rad/2);
 
     v3f pixel_direction = {(screen_position.x() - screen_size.x()/2).to<float>(), (screen_position.y() - screen_size.y()/2).to<float>(), f_stop};
-    pixel_direction = rot_quat(pixel_direction, camera_quat); //if you have quaternions, or some rotation library, rotate your pixel direction here by your cameras rotation
+    //pixel_direction = rot_quat(pixel_direction, camera_quat); //if you have quaternions, or some rotation library, rotate your pixel direction here by your cameras rotation
 
     return pixel_direction.norm();
 }
