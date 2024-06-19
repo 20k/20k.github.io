@@ -19,6 +19,8 @@ This will all be on the GPU, so it'll run reasonably fast. We're starting to get
 
 As always, code is available [here](https://github.com/20k/20k.github.io/tree/master/code/tetrads), and you may want to read the [previous](https://20k.github.io/c++/2024/05/31/schwarzschild.html) article in this series first
 
+![schwarzschild](/assets/filler_schwarzs.png)
+
 # Coordinate systems
 
 In the first article on rendering the schwarzschild black hole, I presented you with this:
@@ -117,6 +119,10 @@ $$D = P^{-1} A P$$
  Where $D$ is our diagonal matrix, $A$ is our matrix to diagonalise, and $P$ is the diagonalising matrix. Put in our terminology[^reffy]:
 
 $$\eta = e^{T} g e$$
+
+Or equivalently:
+
+$$\eta_{ab} = g_{\mu\nu} e^\mu_a e^\nu_b$$
 
 [^reffy]: [https://arxiv.org/pdf/1908.10757](https://arxiv.org/pdf/1908.10757) 2.6
 
