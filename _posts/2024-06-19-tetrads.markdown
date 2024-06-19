@@ -196,7 +196,7 @@ m44f metric = GetMetric(position.get());
 tetrads tet = gram_schmidt(vecs[0], vecs[1], vecs[2], vecs[3], metric);
 ```
 
-Relativistic gram schmidt itself looks like this:
+Relativistic Gram-Schmidt itself looks like this:
 
 ```c++
 valuef dot(v4f u, v4f v, m44f m) {
@@ -703,7 +703,7 @@ void parallel_transport_tetrads(execution_context& ectx, buffer<v4f> e1, buffer<
 
 Phew. This function is a bit intentionally non compact to maximise visibillity as to what's going on. This is a simple 1st order integrator that parallel transports the $e_{1,2,3}$ components of our tetrad, and writes them out to a buffer
 
-You could split this up into 3 separate kernels, as the parallel transport process is fully independent for each vector. However, because we also know that these vectors are meant to be orthonormal - you could also use that fact to correct numerical integration errors here with the same gram-schmidt process as earlier
+You could split this up into 3 separate kernels, as the parallel transport process is fully independent for each vector. However, because we also know that these vectors are meant to be orthonormal - you could also use that fact to correct numerical integration errors here with the same Gram-Schmidt process as earlier
 
 # Interpolation
 
