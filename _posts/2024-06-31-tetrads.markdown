@@ -519,7 +519,7 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
 
 While it may seem odd to do this on a GPU with only one thread, this procedure is identical to the one you'll need for working with particle systems, in which case parallelising it is very handy
 
-## Following an inertial observer
+# Following an inertial observer
 
 So, now we have a position (our camera), and an initial tetrad. The question is: how do we follow the movements of our observer in a physically accurate way? Today we're going to be dealing with strictly inertial observers that don't accelerate, and we're additionally not going to imbue our observers with any velocity - this means that they strictly will fall directly towards the black hole
 
@@ -598,7 +598,7 @@ We've now traced through the history of a timelike geodesic, and saved the posit
 
 The way to do this, is by parallel transporting the tetrads, and using them as a basis for our observer
 
-## Parallel Transport
+# Parallel Transport
 
 Parallel transport is the process of taking a vector, and moving it along a curve. The way that parallel transport works is as following: If you imagine a geodesic as a curve, and take a vector tangent to that curve, that vector's definition relative to the curve stays constant
 
@@ -699,7 +699,7 @@ Phew. This function is a bit intentionally non compact to maximise visibillity a
 
 You could split this up into 3 separate kernels, as the parallel transport process is fully independent for each vector. However, because we also know that these vectors are meant to be orthonormal - you could also use that fact to correct numerical integration errors here with the same gram-schmidt process as earlier
 
-## Interpolation
+# Interpolation
 
 The very last thing for us to do now is to actually construct our initial conditions. If you remember, we need a position, and a set of tetrads, and that's it for starting up our raytracing. We now have a buffer of positions, and a buffer of parallel transported tetrads - and that's all we're going to need to produce our starting point
 
