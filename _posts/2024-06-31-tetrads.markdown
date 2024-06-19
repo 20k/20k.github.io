@@ -259,7 +259,7 @@ tetrad gram_schmidt(v4f v0, v4f v1, v4f v2, v4f v3, m44f m)
 }
 ```
 
-We now have our tetrads
+and after this, we now have our tetrads
 
 ### Making this more robust
 
