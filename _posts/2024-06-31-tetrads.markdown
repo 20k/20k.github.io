@@ -815,6 +815,8 @@ metric<valuef, 4, 4> metric(const tensor<valuef, 4>& position) {
 }
 ```
 
+These videos approach the singularity to around 10% of the schwarzschild radius ($r=0.1$)
+
 From the front:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/V-XVhr-Od9Y?si=6z6AIKT4ijCwKOd9" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
