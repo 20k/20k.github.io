@@ -17,6 +17,8 @@ The scope of this article is as follows:
 
 This will all be on the GPU, so it'll run reasonably fast. We're starting to get into things that people haven't really simulated extensively, and this is an area where many simulations are incorrect
 
+As always, code is available here TODO
+
 # Coordinate systems
 
 In the first article on rendering the schwarzschild black hole, I presented you with this:
@@ -775,6 +777,8 @@ This searches for the correct proper time, and interpolates our tetrads and star
 [^kernel]: For this article, we've changed the kernel we use to take a tetrad from a buffer
 
 # Results
+
+Code for this article is available here: TODO
 
 First up, lets examine some results for schwarzschild, in schwarzschild coordinates. We know that the event horizon in schwarzschild is not traversible, and so any observer attempting to cross the event horizon will hit a coordinate singularity. This isn't a real singularity, but its worth examining anyway
 
