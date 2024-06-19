@@ -17,7 +17,7 @@ The scope of this article is as follows:
 
 This will all be on the GPU, so it'll run reasonably fast. We're starting to get into things that people haven't really simulated extensively, and this is an area where many simulations are incorrect
 
-As always, code is available [here](https://github.com/20k/20k.github.io/tree/master/code/tetrads)
+As always, code is available [here](https://github.com/20k/20k.github.io/tree/master/code/tetrads), and you may want to read the [previous](https://20k.github.io/c++/2024/05/31/schwarzschild.html) article in this series first
 
 # Coordinate systems
 
@@ -79,7 +79,7 @@ Now, all we have to do is substitute the above into the line element for schwarz
 
 $$ ds^2 = -d\tau^2 = -(1-\frac{r_s}{r}) dt^2 + (1-\frac{r_s}{r})^{-1} dr^2 + r^2 d\theta^2 + r^2 sin^2(\theta) d\phi^2 $$
 
-Substituting this all through (which I am not going to do here) will give you the schwarzschild metric in cartesian coordinates. Note that this will not give you the usually given form of the schwarzschild metric in cartesian, as the transform is not the one we define here. This metric is also still singular at the event horizon, because the $t$ coordinate is the issue
+Substituting this all through (which I am not going to do here) will give you the schwarzschild metric in cartesian coordinates. Note that this will not give you the usually given form of the schwarzschild metric in cartesian, as the transform is not the one we define here
 
 Note, the metric tensor is a tensor, and the definition of a tensor is that it changes under a coordinate transform in a specific straightforward way. Its not relevant to us currently, but see [here](https://en.wikipedia.org/wiki/Covariant_transformation) for more details if you'd like to understand this more generally
 
@@ -93,7 +93,7 @@ $$v^i_{flat} = e_\mu^i v^\mu_{curved}$$
 
 where $e^i_\mu = (e_i^\mu)^{-1}$ (the matrix inverse of our tetrads as column vectors).
 
-The first thing we need to learn is how to calculate them, instead of hoping that someone else has done it for us
+The first thing we need to learn is how to calculate them, instead of hoping that someone else has done it for us as we've done previously
 
 ## Calculating tetrads
 
@@ -158,8 +158,8 @@ For our purposes, the (modified) Gram-Schmidt algorithm looks like this:
 $$
 \begin{align}
 \\
-proj_{u^\mu}(v^\mu) &= \frac{g_{\mu\nu} v^\mu u^\nu}{g_{\alpha\beta} u^\alpha u^\beta} = \frac{v^\mu u_\nu}{u^\alpha u_\alpha} \\
-normalise(u^\mu) &= \frac{u^\mu}{g_{\alpha\beta} u^\alpha u^\beta} = \frac{u^\mu}{u^\alpha u_\alpha}\\
+proj_{u^\mu}(v^\mu) &= \frac{g_{\mu\nu} v^\mu u^\nu}{g_{\alpha\beta} u^\alpha u^\beta} \equiv \frac{v^\mu u_\nu}{u^\alpha u_\alpha} \\
+normalise(u^\mu) &= \frac{u^\mu}{g_{\alpha\beta} u^\alpha u^\beta} \equiv \frac{u^\mu}{u^\alpha u_\alpha}\\
 \\
 u_0 &= v_0\\
 u_1 &= v_1 - proj_{u_0}(v_1) \\
@@ -171,10 +171,10 @@ u_3 &= v_3 - proj_{u_0}(v_3) \\
 u_3 &= u_3 - proj_{u_1}(u_3) \\
 u_3 &= u_3 - proj_{u_2}(u_3) \\
 \\
-u_0^\mu &= normalise(u_0^\mu)\\
-u_1^\mu &= normalise(u_1^\mu)\\
-u_2^\mu &= normalise(u_2^\mu)\\
-u_3^\mu &= normalise(u_3^\mu)\\
+u_0 &= normalise(u_0)\\
+u_1 &= normalise(u_1)\\
+u_2 &= normalise(u_2)\\
+u_3 &= normalise(u_3)\\
 \end{align}
 $$
 
@@ -326,7 +326,7 @@ We know from our diagonalisation procedure, that:
 
 $$\eta = e^{T} g e$$
 
-$\eta$ here isn't necessarily exactly the minkowski tensor. We're solving an eigenvalue/vector problem, and the sign of each component corresponds to whether or not each coordinate direction at a point is timelike, or spacelike. If we use the above relation with the tetrads we get to calculate the minkowski metric, we may instead end up with this
+$\eta$ here isn't necessarily exactly the minkowski tensor. We're solving an eigenvalue/vector problem, and the sign of each diagonal component (ie, eigenvalue) corresponds to whether each coordinate direction at a point is timelike, or spacelike - and may not be null. If we use the above relation with the tetrads we get to calculate the minkowski metric, we may instead end up with this
 
 | |?|t|?|?|
 |-|-|-|-|-|
@@ -521,7 +521,7 @@ While it may seem odd to do this on a GPU with only one thread, this procedure i
 
 ## Following an inertial observer
 
-So, now we have a position (our camera), and an initial tetrad. The question is, how do we follow the movements of our observer in a physically accurate way? Today we're going to be dealing with strictly inertial observers that don't accelerate, and we're additionally not going to imbue our observers with any velocity - this means that they strictly will fall directly towards the black hole
+So, now we have a position (our camera), and an initial tetrad. The question is: how do we follow the movements of our observer in a physically accurate way? Today we're going to be dealing with strictly inertial observers that don't accelerate, and we're additionally not going to imbue our observers with any velocity - this means that they strictly will fall directly towards the black hole
 
 The $e_0^\mu$ component of our tetrads is now always timelike - and more than that it is also (conveniently)[^suspicious] the velocity of the observer that that tetrad represents. That is to say, if we have:
 
@@ -529,9 +529,9 @@ The $e_0^\mu$ component of our tetrads is now always timelike - and more than th
 
 $$e_0^\mu = (1, 0, 0, 0)$$
 
-We are dealing with an observer who's velocity is $v^\mu = (1, 0, 0, 0)$. The first thing we need to do is to build a geodesic from our initial observers starting location, and our initial observers velocity. Lets call these $x^{\mu}$ and $v^{\mu} = e_0^\mu$
+We are dealing with an observer who's velocity is $v^\mu = (1, 0, 0, 0)$. The first thing we need to do is to build a geodesic from our observers initial location and velocity - and then we'll follow this geodesic along to find out where our observer ends up. Lets call these $x^{\mu}$ and $v^{\mu} = e_0^\mu$
 
-Luckily for us, the geodesic equation for lightrays (null geodesics), and timelike geodesics, is exactly the same, which means we do not need a new equation to integrate our timelike geodesic. We're going to need to save[^alternate] the positions and velocities of our geodesic as we trace it, so we will need to modify our code a bit:
+Luckily for us, the geodesic equation for lightrays (null geodesics), and timelike geodesics, is exactly the same, which means we do not need a new equation to integrate our timelike geodesic. We're going to need to save[^alternate] the positions and velocities of our geodesic as we trace it, so we have to modify our code a bit:
 
 [^alternate]: An alternative approach would be to step the timelike geodesics forwards as we advance forwards in proper time, but its super useful to have the whole history available to us
 
@@ -594,7 +594,9 @@ void trace_geodesic(execution_context& ectx,
 
 This procedure is very similar to our regular raytracing, but we're writing all the positions and velocities out to a buffer. The termination condition is different now as well, as we terminate when the velocity of the geodesic is very high, or is approaching the singularity
 
-We've now traced through the history of a timelike geodesic, and saved the positions and velocities so that we can examine the path that our observer takes through our spacetime. What we'd like to do now, is at a specific point along this timelike geodesic representing our observer, find out what that observer would see. The way to do this, is by parallel transporting the tetrads, and use them as a basis for our observer
+We've now traced through the history of a timelike geodesic, and saved the positions and velocities so that we can examine the path that our observer takes through our spacetime. What we'd like to do now, is at a specific point along this timelike geodesic representing our observer, find out what that observer would see
+
+The way to do this, is by parallel transporting the tetrads, and using them as a basis for our observer
 
 ## Parallel Transport
 
@@ -608,7 +610,7 @@ A vector which is moved along a curve in this fashion is said to be "parallel tr
 
 ![paralleltransportagain](/assets/paralleltransport3.png)
 
-I truly am an artiste
+I truly am an artist
 
 As long as the final position and velocity of the geodesic are the same[^andactually], we'll end up with exactly the same result. Note that general relativity is torsion free - vectors do not spin around a geodesic
 
@@ -646,7 +648,7 @@ v4f parallel_transport_get_change(v4f tangent_vector, v4f geodesic_velocity, con
 }
 ```
 
-At this point, we just need to integrate this along our curve, and produce our parallel transported tetrads. We're going to build another kernel for this:
+At this point, we just need to integrate this equation along our curve, and this produces our parallel transported tetrads. We're going to build another kernel for this:
 
 ```c++
 //note: we already know the value of e0, as its the geodesic velocity
@@ -695,7 +697,7 @@ void parallel_transport_tetrads(execution_context& ectx, buffer<v4f> e1, buffer<
 
 Phew. This function is a bit intentionally non compact to maximise visibillity as to what's going on. This is a pretty simple 1st order integrator that parallel transports the $e_{1,2,3}$ components of our tetrad, and writes them out to a buffer
 
-You could split this up into 3 separate kernels, as the parallel transport process is fully independent for each vector. However, because we also know that these vectors are meant to be orthonormal - you could also use that fact to correct numerical integration errors here with the same gram-schmidt process as earlier, its up to you
+You could split this up into 3 separate kernels, as the parallel transport process is fully independent for each vector. However, because we also know that these vectors are meant to be orthonormal - you could also use that fact to correct numerical integration errors here with the same gram-schmidt process as earlier
 
 ## Interpolation
 
@@ -784,7 +786,7 @@ First up, lets examine some results for schwarzschild, in schwarzschild coordina
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/_YtkoLdZlx0?si=fEKypfSydWcA6KOx" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-The camera gets stuck on the event horizon, because the metric becomes singular. If you examine the rays, you'll notice that their time component blows up to infinity - which causes the camera to jitter a bit as everything becomes singular
+The camera gets stuck on the event horizon, because the metric becomes singular. If you examine the rays, you'll notice that their time component blows up to infinity - which causes the camera to jitter a bit as everything - and this is a technical term - explodes
 
 Next up, we'll look at schwarzschild in ingoing eddington-finkelstein coordinates. For reference, that looks like this:
 
@@ -838,7 +840,7 @@ On top of this, we're going to set up a good variable timestep finally, which wi
 
 These kinds of simulations are a bottomless pit, and we've barely scratched the surface of the kinds of things we can simulate here - after the next article we'll have cleared the simple stuff, and we'll finally (!) get started on numerical relativity - so we can smash some black holes together
 
-There's going to be an absolutely massive amount to write up, hooray! I'm considering starting a patreon for all of this at some point (and hopefully end up as a PhD student!) - unfortunately I'm very poor after many many years of illness - but I'll see how it goes. Anyway, here's that cat I promised
+There's going to be an absolutely massive amount to write up, hooray! I'm considering starting a patreon for all of this at some point (and hopefully end up as a PhD student!). I'm unfortunately very poor after many many years of illness - but I'll see how it goes. Anyway, here's that cat I promised:
 
 ![bag](/assets/krittykrat.jpg)
 
