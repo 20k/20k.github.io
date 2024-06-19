@@ -602,7 +602,7 @@ This procedure is very similar to our regular raytracing, but we're writing all 
 
 We've now traced through the history of a timelike geodesic, and saved the positions and velocities so that we can examine the path that our observer takes through our spacetime. What we'd like to do now, is at a specific point along this timelike geodesic representing our observer, find out what that observer would see
 
-The way to do this, is by parallel transporting the tetrads, and using them as a basis for our observer
+The way to do this is by parallel transporting the tetrads, and using them as a basis for our observer
 
 # Parallel Transport
 
@@ -610,13 +610,13 @@ Parallel transport is the process of taking a vector, and moving it along a curv
 
 ![paralleltransport](/assets/paralleltransport.png)
 
-A vector which is moved along a curve in this fashion is said to be "parallel transported". This is doable for any vector[^geodesics]. Note that, if we have sufficient knowledge of the start and end coordinates (the basis vectors, ie the tetrads), we can actually directly parallel transport something from the start to the end without any knowledge of the intervening path. More generally, parallel transport is path independent:
+A vector which is moved along a curve in this fashion is said to be "parallel transported". This is doable for any vector[^geodesics]. Note that if we have sufficient knowledge of the start and end points (specifically: we have both sets of tetrads), we can actually directly parallel transport something from the start to the end without any knowledge of the intervening path. On of this, parallel transport is path independent:
 
 [^geodesics]: You can imagine the geodesic equation as the process of parallel transporting the velocity vector itself along the geodesic - this is in fact one definition of a geodesic (autoparallel transport)
 
 ![paralleltransportagain](/assets/paralleltransport3.png)
 
-I truly am an artist
+$^{art}$
 
 As long as the final position and velocity of the geodesic are the same[^andactually], we'll end up with exactly the same result. Note that general relativity is torsion free - vectors do not spin around a geodesic
 
