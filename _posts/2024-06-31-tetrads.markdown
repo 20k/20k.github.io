@@ -17,7 +17,7 @@ The scope of this article is as follows:
 
 This will all be on the GPU, so it'll run reasonably fast. We're starting to get into things that people haven't really simulated extensively, and this is an area where many simulations are incorrect
 
-As always, code is available here TODO
+As always, code is available [here](https://github.com/20k/20k.github.io/tree/master/code/tetrads)
 
 # Coordinate systems
 
@@ -778,7 +778,7 @@ This searches for the correct proper time, and interpolates our tetrads and star
 
 # Results
 
-Code for this article is available here: TODO
+Code for this article is available [here](https://github.com/20k/20k.github.io/tree/master/code/tetrads)
 
 First up, lets examine some results for schwarzschild, in schwarzschild coordinates. We know that the event horizon in schwarzschild is not traversible, and so any observer attempting to cross the event horizon will hit a coordinate singularity. This isn't a real singularity, but its worth examining anyway
 
