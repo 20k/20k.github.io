@@ -83,7 +83,7 @@ $$ ds^2 = -d\tau^2 = -(1-\frac{r_s}{r}) dt^2 + (1-\frac{r_s}{r})^{-1} dr^2 + r^2
 
 Substituting this all through (which I am not going to do here) will give you the schwarzschild metric in cartesian coordinates. Note that this will not give you the usually given form of the schwarzschild metric in cartesian, as the transform is not the one we define here
 
-Note, the metric tensor is a tensor, and the definition of a tensor is that it changes under a coordinate transform in a specific straightforward way. Its not relevant to us currently, but see [here](https://en.wikipedia.org/wiki/Covariant_transformation) for more details if you'd like to understand this more generally
+Note: the metric tensor is a tensor, and the definition of a tensor is that it changes under a coordinate transform in a specific straightforward way. Its not relevant to us currently, but see [here](https://en.wikipedia.org/wiki/Covariant_transformation) for more details if you'd like to understand this more generally
 
 # Tetrads
 
@@ -93,7 +93,7 @@ $$v^\mu_{curved} = e^\mu_i v^i_{flat}$$
 
 $$v^i_{flat} = e_\mu^i v^\mu_{curved}$$
 
-where $e^i_\mu = (e_i^\mu)^{-1}$ (the matrix inverse of our tetrads as column vectors).
+where $e^i_\mu = (e_i^\mu)^{-1}$ (the matrix inverse of our tetrads as column vectors)
 
 The first thing we need to learn is how to calculate them, instead of hoping that someone else has done it for us as we've done previously
 
@@ -138,11 +138,11 @@ If you have no idea what eigenvalues and eigenvectors are, its not especially im
 
 ## Relativistic Gram-Schmidt
 
-The most straightforward algorithm for doing this is called [Gram-Schmidt Orthonormalisation](https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process#The_Gram%E2%80%93Schmidt_process)[^technically], and we can use this for solving our eigenvalue problem.  Gram-Schmidt is an algorithm for taking a series of vectors and making them orthonormal to each other with respect to an inner product - which incidentally[^incidental] solves our eigenvector problem. Here we take a series of coordinate vectors, and make them orthonormal with respect to the metric tensor from each other, which produces our eigenvectors - and so our tetrads
+The most straightforward algorithm for solving for our eigenvectors is called [Gram-Schmidt Orthonormalisation](https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process#The_Gram%E2%80%93Schmidt_process)[^technically].  Gram-Schmidt is an algorithm for taking a series of vectors and making them orthonormal to each other with respect to an inner product - which incidentally[^incidental] solves our eigenvector problem. Here we take a series of coordinate vectors, and make them orthonormal with respect to the metric tensor from each other, which produces our eigenvectors - and so our tetrads
 
 [^incidental]: I'm sure there are likely very good and deep mathematical reasons for this, if you know why/how orthonormalisation and eigenvectors are the same thing, I'd love to know
 
-[^technically]: Technically we're using the modified version for numerical stability reasons. If you go for a read through how this works, remember that we're in an inner product space with our inner product defined by $g(u,v)$, so we can directly apply this algorithm
+[^technically]: Technically we're using the modified version for numerical stability reasons
 
 We're going to start off with the basic algorithm for calculating tetrads/eigenvectors, and then we'll make it robust against the practical complexities of general relativity so you can use this a bit more generally
 
@@ -332,7 +332,7 @@ We know from our diagonalisation procedure, that:
 
 $$\eta = e^{T} g e$$
 
-$\eta$ here isn't necessarily exactly the minkowski tensor. We're solving an eigenvalue/vector problem, and the sign of each diagonal component (ie, eigenvalue) corresponds to whether each coordinate direction at a point is timelike, or spacelike - and may not be null. If we use the above relation with the tetrads we get to calculate the minkowski metric, we may instead end up with this
+$\eta$ here isn't necessarily exactly the minkowski tensor. We're solving an eigenvalue/vector problem, and the sign of each diagonal component (ie an eigenvalue) of $\eta$ corresponds to whether each coordinate direction at a point is timelike, or spacelike. If we use the above relation after calculating our tetrads via Gram-Schmidt, we may get this:
 
 | |?|t|?|?|
 |-|-|-|-|-|
@@ -365,9 +365,9 @@ The reason why we list the coordinates as ?'s, is because while they correspond 
 
 [^arbitrary]: We will be doing some tricks when we implement fps camera controls to assign some physical meaning to these directions, in fairly broad circumstances
 
-What we would like to do is demand that the 0'th tetrad is timelike, as this is an extremely common requirement in the literature, and it simplifies our lives tremendously when dealing with tetrads if we know that $e_0$ is timelike. Doing this means that we know that in locally flat coordinates, we have the coordinate system $(t, d_1, d_2, d_3)$, which lets us construct valid geodesics straightforwardly
+What we would like to do is demand that the 0'th tetrad is timelike, as this is an extremely common requirement in the literature, and it simplifies our lives tremendously when dealing with tetrads if we know that $e_0$ is timelike. Doing this means that we know that in locally flat (minkowski) coordinates, we have the coordinate system $(t, d_1, d_2, d_3)$ - which lets us construct valid geodesics straightforwardly
 
-There are two ways equivalent ways of doing this:
+There are two equivalent ways of doing this:
 
 #### Way the first
 
@@ -440,7 +440,7 @@ valuei calculate_which_coordinate_is_timelike(const tetrad& tetrads, const m44f&
 
 While the tetrads we get here provide a clean signature of 1's and -1's due to being strictly orthonormalised, we may have tetrads which are derived from numerical sources - where inaccuracy will lead to them being much less nice to work with. For this reason, we look for the largest negative value[^note], as this is most likely to be the timelike vector
 
-[^note]: Note, when you work with parallel transported (we'll get around to this) tetrad vectors, the signature never changes
+[^note]: Note: when you work with parallel transported (we'll get around to this) tetrad vectors, the signature never changes
 
 Now finally, we use the timelike coordinate to put the timelike tetrad vector in the 0th place, and end up with our final tetrads - for real this time[^wellsortof]. The complete procedure is therefore this:
 
@@ -537,7 +537,7 @@ $$e_0^\mu = (1, 0, 0, 0)$$
 
 We are dealing with an observer who's velocity is $v^\mu = (1, 0, 0, 0)$. The first thing we need to do is to build a geodesic from our observers initial location and velocity - and then we'll follow this geodesic along to find out where our observer ends up. Lets call these $x^{\mu}$ and $v^{\mu} = e_0^\mu$
 
-Luckily for us, the geodesic equation for lightrays (null geodesics), and timelike geodesics, is exactly the same, which means we do not need a new equation to integrate our timelike geodesic. We're going to need to save[^alternate] the positions and velocities of our geodesic as we trace it, so we have to modify our code a bit:
+Luckily for us, the geodesic equation for lightrays (null geodesics), and timelike geodesics, is exactly the same - which means we do not need a new equation to integrate our timelike geodesic. We're going to need to save[^alternate] the positions and velocities of our geodesic as we trace it, so we have to modify our code a bit:
 
 [^alternate]: An alternative approach would be to step the timelike geodesics forwards as we advance forwards in proper time, but its super useful to have the whole history available to us
 
@@ -622,7 +622,7 @@ As long as the final position and velocity of the geodesic are the same[^andactu
 
 [^andactually]: We can formalise this: If we have a set of tetrads at one position, and we parallel transport that set of tetrads along a geodesic somewhere else, we end up with a way of expressing a general transformation from vectors at point one, to point two. This forms a coordinate dependent lorentz transform, and is extremely useful. We only ever actually need to transport the tetrad vectors, and then we get everything else for free
 
-Parallel transport is defined as when the *covariant* derivative of a vector vanishes ($=0$) along a curve. We haven't gotten around to covariant derivatives yet, but they're the general relativistic coordinate free generalisation of partial derivatives. For more information, see [this](https://physics.stackexchange.com/questions/524242/parallel-transport-of-a-vector), and [here](https://en.wikipedia.org/wiki/Covariant_derivative#Covariant_derivative_by_field_type) for how to calculate covariant derivatives
+Parallel transport is defined as when the *covariant* derivative of a vector vanishes ($=0$) along a curve. We haven't gotten around to covariant derivatives yet, but they're the general relativistic coordinate free generalisation of partial derivatives. For more information, see [this](https://physics.stackexchange.com/questions/524242/parallel-transport-of-a-vector) for parallel transport, and [here](https://en.wikipedia.org/wiki/Covariant_derivative#Covariant_derivative_by_field_type) for how to calculate covariant derivatives
 
 For us, given a timelike geodesic parameterised by proper time, with a position $x^{\mu}$ and velocity $v^\mu = \frac{dx}{d\tau}$, the parallel transport equation for a vector $A^\mu$ is this:
 
@@ -701,13 +701,13 @@ void parallel_transport_tetrads(execution_context& ectx, buffer<v4f> e1, buffer<
 }
 ```
 
-Phew. This function is a bit intentionally non compact to maximise visibillity as to what's going on. This is a pretty simple 1st order integrator that parallel transports the $e_{1,2,3}$ components of our tetrad, and writes them out to a buffer
+Phew. This function is a bit intentionally non compact to maximise visibillity as to what's going on. This is a simple 1st order integrator that parallel transports the $e_{1,2,3}$ components of our tetrad, and writes them out to a buffer
 
 You could split this up into 3 separate kernels, as the parallel transport process is fully independent for each vector. However, because we also know that these vectors are meant to be orthonormal - you could also use that fact to correct numerical integration errors here with the same gram-schmidt process as earlier
 
 # Interpolation
 
-The very last thing for us to do now is to actually construct our initial conditions. If you remember, we need a position, and a set of tetrads, and that's it for starting up our raytracing. We now have a buffer of positions, and a buffer of parallel transported tetrads - and that's all we're going to need to produce our starting point
+The very last thing for us to do now is to actually construct our initial conditions. If you remember, we need a position, and a set of tetrads, and that's it for starting up our raytracing. We now have a buffer of positions, and a buffer of parallel transported tetrads - and that's all we're going to need to produce our initial conditions
 
 ```c++
 void interpolate(execution_context& ectx, buffer<v4f> positions, buffer<v4f> e0s, buffer<v4f> e1s, buffer<v4f> e2s, buffer<v4f> e3s, buffer<valuei> counts,
@@ -790,7 +790,7 @@ Code for this article is available [here](https://github.com/20k/20k.github.io/t
 
 First up, lets examine some results for schwarzschild, in schwarzschild coordinates. We know that the event horizon in schwarzschild is not traversible, and so any observer attempting to cross the event horizon will hit a coordinate singularity. This isn't a real singularity, but its worth examining anyway
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/_YtkoLdZlx0?si=fEKypfSydWcA6KOx" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/Og6IndtyouM?si=jP-_4TNWll_zPycv" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 The camera gets stuck on the event horizon, because the metric becomes singular. If you examine the rays, you'll notice that their time component blows up to infinity - which causes the camera to jitter a bit as everything - and this is a technical term - explodes
 
@@ -826,6 +826,8 @@ Back:
 Side:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/xxBBmDu4gLA?si=W608G6xsf6trctNA" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+(Please note that the side view suffers from inaccuracy, and shouldn't cut off with such a hard boudary - we'll fix this next time. The tetrads become fairly degenerate near the singularity, at r=0.1)
 
 We can see that the very common idea that the universe shrinks to a point is not true, which is pretty neat to be able to disprove, and is a frequent misconception
 
