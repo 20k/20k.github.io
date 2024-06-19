@@ -171,7 +171,7 @@ int main()
     cl::buffer positions(ctx);
     cl::buffer velocities(ctx);
     cl::buffer steps(ctx);
-    int max_writes = 1024 * 10;
+    int max_writes = 1024 * 1024 * 10;
 
     positions.alloc(sizeof(cl_float4) * max_writes);
     velocities.alloc(sizeof(cl_float4) * max_writes);

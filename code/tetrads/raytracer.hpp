@@ -382,12 +382,6 @@ m44f get_local_minkowski(const tetrad& tetrads, const m44f& met)
 {
     m44f minkowski;
 
-    ///a * 4 + mu
-    /*float m[16] = {e0_hi.x, e0_hi.y, e0_hi.z, e0_hi.w,
-                   e1_hi.x, e1_hi.y, e1_hi.z, e1_hi.w,
-                   e2_hi.x, e2_hi.y, e2_hi.z, e2_hi.w,
-                   e3_hi.x, e3_hi.y, e3_hi.z, e3_hi.w};*/
-
     tensor<valuef, 4, 4> m;
 
     for(int i=0; i < 4; i++)
