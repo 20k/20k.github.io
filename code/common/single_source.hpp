@@ -1,7 +1,7 @@
 #ifndef SINGLE_SOURCE_HPP_INCLUDED
 #define SINGLE_SOURCE_HPP_INCLUDED
 
-#include "value2.hpp"
+#include "../common/value2.hpp"
 #include <string>
 #include <vector>
 #include <cmath>

@@ -1,6 +1,6 @@
 #include <iostream>
 #include "../common/single_source.hpp"
-#include "../common/raytracer.hpp"
+#include "raytracer.hpp"
 #include "../common/toolkit/opencl.hpp"
 #include <SFML/Graphics.hpp>
 #include <vec/vec.hpp>
