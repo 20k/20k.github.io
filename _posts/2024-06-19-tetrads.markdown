@@ -19,19 +19,19 @@ This will all be on the GPU, so it'll run reasonably fast. We're starting to get
 
 As always, code is available [here](https://github.com/20k/20k.github.io/tree/master/code/tetrads), and you may want to read the [previous](https://20k.github.io/c++/2024/05/31/schwarzschild.html) article in this series first
 
-![schwarzschild](/assets/filler_schwarzs.png)
+![Schwarzschild](/assets/filler_schwarzs.png)
 
 # Coordinate systems
 
-In the first article on rendering the schwarzschild black hole, I presented you with this:
+In the first article on rendering the Schwarzschild black hole, I presented you with this:
 
 $$ ds^2 = -d\tau^2 = -(1-\frac{r_s}{r}) dt^2 + (1-\frac{r_s}{r})^{-1} dr^2 + r^2 d\Omega^2 $$
 
 where $d\Omega^2 = d\theta^2 + sin^2(\theta) d\phi^2$
 
-and called it the metric tensor for a schwarzschild black hole. This was a white lie[^whitelie] - this is, in the more technical sense, *a* representation of the schwarzschild black hole, in a particular coordinate system known as schwarzschild coordinates. Here's another representation:
+and called it the metric tensor for a Schwarzschild black hole. This was a white lie[^whitelie] - this is, in the more technical sense, *a* representation of the Schwarzschild black hole, in a particular coordinate system known as Schwarzschild coordinates. Here's another representation:
 
-[^whitelie]: It is very common however when referring to the schwarzschild black hole to mean in schwarzschild coordinates. Interestingly, it wasn't known at the outset that the different (but physically equivalent) black hole metrics that were discovered were all the same thing in different coordinate systems, and it was used as an argument against general relativity
+[^whitelie]: It is very common however when referring to the Schwarzschild black hole to mean in Schwarzschild coordinates. Interestingly, it wasn't known at the outset that the different (but physically equivalent) black hole metrics that were discovered were all the same thing in different coordinate systems, and it was used as an argument against general relativity
 
 $$ ds^2 = -(1-\frac{r_s}{r}) dv^2 + 2 dvdr + r^2 d\Omega^2 $$
 
@@ -45,9 +45,9 @@ in Lemaître coordinates[^lemaitre]. Note that the $d\tau$ is not proper time, i
 
 [^lemaitre]: See [here](https://en.wikipedia.org/wiki/Lema%C3%AEtre_coordinates#Metric). Note the sign convention issues: this wikipedia page uses [+,-,-,-], we use [-,+,+,+]
 
-The schwarzschild black hole is an abstract object, which we can express in different coordinate systems - all of the above metrics describe the same fundamental object: a non spinning, uncharged black hole. These different coordinate systems may describe different parts of the spacetime or may have some useful mathematical properties - but there isn't a difference in what they represent
+The Schwarzschild black hole is an abstract object, which we can express in different coordinate systems - all of the above metrics describe the same fundamental object: a non spinning, uncharged black hole. These different coordinate systems may describe different parts of the spacetime or may have some useful mathematical properties - but there isn't a difference in what they represent
 
-Different coordinate systems often tend to only describe certain kinds of paths through a spacetime. For example, schwarzschild coordinates - the one we've used previously - have an artificial coordinate singularity at the event horizon, which means it can't be used to describe the motion of something that crosses the event horizon. Eddington-Finkelstein coordinates are useful for describing geodesics which are travelling forwards in time into the black hole (or equivalently, geodesics that are travelling out of the black hole backwards in time), but are singular in the opposite direction. [Kruskals-Szekeres](https://en.wikipedia.org/wiki/Kruskal%E2%80%93Szekeres_coordinates) is the maximal[^maximal] extension of the schwarzschild spacetime and can describe everything - though it is fairly numerically unstable. Because of the simplicity, and stability - we're going to use ingoing eddington finkelstein coordinates today, as it covers everything we want
+Different coordinate systems often tend to only describe certain kinds of paths through a spacetime. For example, Schwarzschild coordinates - the one we've used previously - have an artificial coordinate singularity at the event horizon, which means it can't be used to describe the motion of something that crosses the event horizon. Eddington-Finkelstein coordinates are useful for describing geodesics which are travelling forwards in time into the black hole (or equivalently, geodesics that are travelling out of the black hole backwards in time), but are singular in the opposite direction. [Kruskals-Szekeres](https://en.wikipedia.org/wiki/Kruskal%E2%80%93Szekeres_coordinates) is the maximal[^maximal] extension of the Schwarzschild spacetime and can describe everything - though it is fairly numerically unstable. Because of the simplicity, and stability - we're going to use ingoing eddington finkelstein coordinates today, as it covers everything we want
 
 [^maximal]: A maximal extension means that all geodesics can be extended indefinitely with no coordinate singularities, though there are still genuine gravitational singularities where geodesics terminate
 
@@ -55,7 +55,7 @@ Different coordinate systems often tend to only describe certain kinds of paths 
 
 If you're wondering how exactly you interconvert these different metric tensors in different coordinate systems, this segment is for you. Otherwise skip onwards
 
-Coordinate transforms can be done very straightforwardly. Imagine we have a coordinate system, which is $(t, r, \theta, \phi)$. We'd like to convert this to, say, $(t, x, y, z)$. Given the schwarzschild metric, we need to substitute all the coordinates and their derivatives for the cartesian equivalents. So first up, here's inverse of the coordinate transform
+Coordinate transforms can be done very straightforwardly. Imagine we have a coordinate system, which is $(t, r, \theta, \phi)$. We'd like to convert this to, say, $(t, x, y, z)$. Given the Schwarzschild metric, we need to substitute all the coordinates and their derivatives for the cartesian equivalents. So first up, here's inverse of the coordinate transform
 
 $$
 \begin{align}
@@ -77,17 +77,17 @@ d\phi &= \frac{x dy - y dx}{x^2 + y^2}
 \end{align}
 $$
 
-Now, all we have to do is substitute the above into the line element for schwarzschild, which is:
+Now, all we have to do is substitute the above into the line element for Schwarzschild, which is:
 
 $$ ds^2 = -d\tau^2 = -(1-\frac{r_s}{r}) dt^2 + (1-\frac{r_s}{r})^{-1} dr^2 + r^2 d\theta^2 + r^2 sin^2(\theta) d\phi^2 $$
 
-Substituting this all through (which I am not going to do here) will give you the schwarzschild metric in cartesian coordinates. Note that this will not give you the usually given form of the schwarzschild metric in cartesian, as the transform is not the one we define here
+Substituting this all through (which I am not going to do here) will give you the Schwarzschild metric in cartesian coordinates. Note that this will not give you the usually given form of the Schwarzschild metric in cartesian, as the transform is not the one we define here
 
 Note: the metric tensor is a tensor, and the definition of a tensor is that it changes under a coordinate transform in a specific straightforward way. Its not relevant to us currently, but see [here](https://en.wikipedia.org/wiki/Covariant_transformation) for more details if you'd like to understand this more generally
 
 # Tetrads
 
-Back in the schwarzschild renderer article, we learnt briefly about the role of tetrads, as objects that can be used to take a vector in our locally flat spacetime, and transform it into a vector in our curvilinear coordinate system (and vice versa):
+Back in the Schwarzschild renderer article, we learnt briefly about the role of tetrads, as objects that can be used to take a vector in our locally flat spacetime, and transform it into a vector in our curvilinear coordinate system (and vice versa):
 
 $$v^\mu_{curved} = e^\mu_i v^i_{flat}$$
 
@@ -130,7 +130,7 @@ The metric tensor is symmetric, so the $^{-1}$ becomes a $^T$. The matrix $e$, t
 
 [^prettycool]: In my opinion, this equation is extremely cool as applied to general relativity. It guarantees that metrics are inherently always invertible, as they are always diagonalisable. It also heavily underpins the relationship between space being locally flat, how the metric tensor is constructed, and why the minkowski metric is always in cartesian coordinates - which is at the core of how we're able to do anything useful in a coordinate free theory. The fact that the tetrads are actually eigenvectors is also incredibly interesting - this step feels like the step that really ties together what general relativity actually *is*
 
-[^arbitrary]: Metrics and their coordinate systems are often constructed very non arbitrarily however (because we're trying to get physical meaning out of them), and even though in general its technically arbitrary - this procedure will often yield a specific kind of observer if you're working with an analytic metric tensor. In schwarzschild, it is a stationary (but accelerating) observer
+[^arbitrary]: Metrics and their coordinate systems are often constructed very non arbitrarily however (because we're trying to get physical meaning out of them), and even though in general its technically arbitrary - this procedure will often yield a specific kind of observer if you're working with an analytic metric tensor. In Schwarzschild, it is a stationary (but accelerating) observer
 
 Solving this is an eigenvalue/vector problem, as $e$ makes up the eigenvectors of the metric (and $\eta_{\mu\nu}$ is the eigenvalues). In general relativity, one of these vectors will always have an eigenvalue of $-1$ - the timelike vector - and the other three will have an eigenvalue of $1$ - the spacelike vectors
 
@@ -788,13 +788,13 @@ This searches for the correct proper time (the distance along our curve), and in
 
 Code for this article is available [here](https://github.com/20k/20k.github.io/tree/master/code/tetrads)
 
-First up, lets examine some results for schwarzschild, in schwarzschild coordinates. We know that the event horizon in schwarzschild is not traversible, and so any observer attempting to cross the event horizon will hit a coordinate singularity. This isn't a real singularity, but its worth examining anyway
+First up, lets examine some results for Schwarzschild, in Schwarzschild coordinates. We know that the event horizon in Schwarzschild is not traversible, and so any observer attempting to cross the event horizon will hit a coordinate singularity. This isn't a real singularity, but its worth examining anyway
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/Og6IndtyouM?si=jP-_4TNWll_zPycv" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 The camera gets stuck on the event horizon, because the metric becomes singular. If you examine the rays, you'll notice that their time component blows up to infinity - which causes the camera to jitter a bit as everything - and this is a technical term - explodes
 
-Next up, we'll look at schwarzschild in ingoing eddington-finkelstein coordinates. For reference, that looks like this:
+Next up, we'll look at Schwarzschild in ingoing eddington-finkelstein coordinates. For reference, that looks like this:
 
 ```c++
 metric<valuef, 4, 4> metric(const tensor<valuef, 4>& position) {
@@ -815,7 +815,7 @@ metric<valuef, 4, 4> metric(const tensor<valuef, 4>& position) {
 }
 ```
 
-These videos approach the singularity to around 10% of the schwarzschild radius ($r=0.1$)
+These videos approach the singularity to around 10% of the Schwarzschild radius ($r=0.1$)
 
 From the front:
 
