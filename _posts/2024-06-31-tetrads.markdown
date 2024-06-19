@@ -616,7 +616,7 @@ A vector which is moved along a curve in this fashion is said to be "parallel tr
 
 ![paralleltransportagain](/assets/paralleltransport3.png)
 
-$^{art}$
+I truly am an artist
 
 As long as the final position and velocity of the geodesic are the same[^andactually], we'll end up with exactly the same result. Note that general relativity is torsion free - vectors do not spin around a geodesic
 
@@ -771,7 +771,7 @@ void interpolate(execution_context& ectx, buffer<v4f> positions, buffer<v4f> e0s
 }
 ```
 
-This searches for the correct proper time, and interpolates our tetrads and starting position based on whatever proper time we're looking for. Its worth noting that with our timestep being linear, we could do this a lot more directly, but you're likely going to have a dynamic timestep and we may as well show the full procedure here
+This searches for the correct proper time (the distance along our curve), and interpolates our tetrads and starting position based on whatever proper time we're looking for. Its worth noting that with our timestep being linear, we could do this a lot more directly, but you're likely going to have a dynamic timestep and we may as well show the full procedure here
 
 # Reviewing the complete procedure
 
