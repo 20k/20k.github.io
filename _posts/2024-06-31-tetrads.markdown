@@ -41,15 +41,15 @@ in Lemaître coordinates[^lemaitre]. Note that the $d\tau$ is not proper time, i
 
 [^lemaitre]: See [here](https://en.wikipedia.org/wiki/Lema%C3%AEtre_coordinates#Metric). Note the sign convention issues: this wikipedia page uses [+,-,-,-], we use [-,+,+,+]
 
-The schwarzschild metric is an abstract object, which we can express in different coordinate systems - all of the above metrics describe the same fundamental object: a non spinning, uncharged black hole. These different coordinate systems may describe different parts of the spacetime or may have some useful mathematical properties - but there isn't a difference in what they represent
+The schwarzschild black hole is an abstract object, which we can express in different coordinate systems - all of the above metrics describe the same fundamental object: a non spinning, uncharged black hole. These different coordinate systems may describe different parts of the spacetime or may have some useful mathematical properties - but there isn't a difference in what they represent
 
-Different coordinate systems often tend to only describe certain kinds of paths throuhg a spacetime. For example, schwarzschild coordinates - the one we've used previously - have an artificial coordinate singularity at the event horizon, which means it can't be used to describe the motion of something that crosses the event horizon. Eddington-Finkelstein coordinates are useful for describing geodesics which are travelling forwards in time into the black hole (or equivalently, geodesics that are travelling out of the black hole backwards in time), but are singular in the opposite direction. [Kruskals-Szekeres](https://en.wikipedia.org/wiki/Kruskal%E2%80%93Szekeres_coordinates) is the maximal[^maximal] extension of the schwarzschild spacetime and can describe everything - though it is fairly numerically unstable. Because of the simplicity, and stability - we're going to use eddington finkelstein coordinates today, as it covers everything we want
+Different coordinate systems often tend to only describe certain kinds of paths through a spacetime. For example, schwarzschild coordinates - the one we've used previously - have an artificial coordinate singularity at the event horizon, which means it can't be used to describe the motion of something that crosses the event horizon. Eddington-Finkelstein coordinates are useful for describing geodesics which are travelling forwards in time into the black hole (or equivalently, geodesics that are travelling out of the black hole backwards in time), but are singular in the opposite direction. [Kruskals-Szekeres](https://en.wikipedia.org/wiki/Kruskal%E2%80%93Szekeres_coordinates) is the maximal[^maximal] extension of the schwarzschild spacetime and can describe everything - though it is fairly numerically unstable. Because of the simplicity, and stability - we're going to use ingoing eddington finkelstein coordinates today, as it covers everything we want
 
 [^maximal]: A maximal extension means that all geodesics can be extended indefinitely with no coordinate singularities, though there are still genuine gravitational singularities where geodesics terminate
 
 # Coordinate transforms
 
-If you're wondering how exactly you interconvert these different metric tensors in different coordinate systems, this segment is for you. Otherwise skip to tetrads
+If you're wondering how exactly you interconvert these different metric tensors in different coordinate systems, this segment is for you. Otherwise skip onwards
 
 Coordinate transforms can be done very straightforwardly. Imagine we have a coordinate system, which is $(t, r, \theta, \phi)$. We'd like to convert this to, say, $(t, x, y, z)$. Given the schwarzschild metric, we need to substitute all the coordinates and their derivatives for the cartesian equivalents. So first up, here's inverse of the coordinate transform
 
@@ -91,7 +91,9 @@ $$v^i_{flat} = e_\mu^i v^\mu_{curved}$$
 
 where $e^i_\mu = (e_i^\mu)^{-1}$ (the matrix inverse of our tetrads as column vectors).
 
-The first thing we need to learn now is how to calculate them now, instead of hoping that someone else has done it for us
+The first thing we need to learn is how to calculate them, instead of hoping that someone else has done it for us
+
+## Calculating tetrads
 
 As we've run into before: spacetime is locally flat. The technical definition of locally flat is the minkowski metric tensor $\eta_{\mu\nu}$: this is a diagonal matrix, that looks like this:
 
@@ -110,15 +112,17 @@ This is done via the standard relation:
 
 $$D = P^{-1} A P$$
 
- Where $D$ is our diagonal matrix, $A$ is our matrix to diagonalise, and $P$ is the diagonalising matrix. Put in our terminology:
+ Where $D$ is our diagonal matrix, $A$ is our matrix to diagonalise, and $P$ is the diagonalising matrix. Put in our terminology[^reffy]:
 
 $$\eta = e^{T} g e$$
+
+[^reffy]: https://arxiv.org/pdf/1908.10757 2.6
 
 The metric tensor is symmetric, so the $^{-1}$ becomes a $^T$. The matrix $e$, treated as column vectors, makes up our tetrad vectors. We can solve[^prettycool] for $e$ and get 'a' valid set of tetrad vectors for any metric tensor. Tetrads are not unique, so we're just solving for the view for some arbitrary observer, that's dependent on the specific form of the metric[^arbitrary]
 
 [^prettycool]: In my opinion, this equation is extremely cool as applied to general relativity. It guarantees that metrics are inherently always invertible, as they are always diagonalisable. It also heavily underpins the relationship between space being locally flat, how the metric tensor is constructed, and why the minkowski metric is always in cartesian coordinates - which is at the core of how we're able to do anything useful in a coordinate free theory. The fact that the tetrads are actually eigenvectors is also incredibly interesting - this step feels like the step that really ties together what general relativity actually *is*
 
-[^arbitrary]: Metrics and their coordinate systems are often constructed very non arbitrarily however (because we're trying to get physical meaning out of them), and even though in general its technically arbitrary - this procedure will often yield a specific kind of observer if you're working with an analytic metric tensor. In schwarzschild, it is a stationary observer
+[^arbitrary]: Metrics and their coordinate systems are often constructed very non arbitrarily however (because we're trying to get physical meaning out of them), and even though in general its technically arbitrary - this procedure will often yield a specific kind of observer if you're working with an analytic metric tensor. In schwarzschild, it is a stationary (but accelerating) observer
 
 Solving this is an eigenvalue/vector problem, as $e$ makes up the eigenvectors of the metric (and $\eta_{\mu\nu}$ is the eigenvalues). In general relativity, one of these vectors will always have an eigenvalue of $-1$ - the timelike vector - and the other three will have an eigenvalue of $1$ - the spacelike vectors
 
@@ -126,7 +130,9 @@ If you have no idea what eigenvalues and eigenvectors are, its not especially im
 
 ## Relativistic Gram-Schmidt
 
-The most straightforward algorithm for doing this is called [Gram-Schmidt Orthonormalisation](https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process#The_Gram%E2%80%93Schmidt_process)[^technically], and we can use this for solving our eigenvalue problem.  Gram-Schmidt is an algorithm for taking a series of vectors and making them orthonormal to each other with respect to an inner product - which incidentally solves our eigenvector problem. Here we take a series of coordinate vectors, and make them orthonormal with respect to the metric tensor from each other, which produces our eigenvectors - and so our tetrads
+The most straightforward algorithm for doing this is called [Gram-Schmidt Orthonormalisation](https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process#The_Gram%E2%80%93Schmidt_process)[^technically], and we can use this for solving our eigenvalue problem.  Gram-Schmidt is an algorithm for taking a series of vectors and making them orthonormal to each other with respect to an inner product - which incidentally[^incidental] solves our eigenvector problem. Here we take a series of coordinate vectors, and make them orthonormal with respect to the metric tensor from each other, which produces our eigenvectors - and so our tetrads
+
+[^incidental]: I'm sure there are likely very good and deep mathematical reasons for this, if you know why/how orthonormalisation and eigenvectors are the same thing, I'd love to know
 
 [^technically]: Technically we're using the modified version for numerical stability reasons. If you go for a read through how this works, remember that we're in an inner product space with our inner product defined by $g(u,v)$, so we can directly apply this algorithm
 
@@ -134,20 +140,50 @@ We're going to start off with the basic algorithm for calculating tetrads/eigenv
 
 Lets start off with our 4 coordinate directions $v^\mu_i$, which we hope are [linearly independent](https://en.wikipedia.org/wiki/Linear_independence). $_i$ is our specific vector:
 
+$$
+\begin{align}
+v_0 &= (1, 0, 0, 0)\\
+v_1 &= (0, 1, 0, 0)\\
+v_2 &= (0, 0, 1, 0)\\
+v_3 &= (0, 0, 0, 1)
+\end{align}
+$$
+
+Note that, taking the column vectors of the metric $g_{\mu\nu}$, and raising them with the metric tensor to get $v_i^\mu$ (contravariant), produces this identity matrix definitionally
+
+For our purposes, the (modified) Gram-Schmidt algorithm looks like this:
+
+$$
+\begin{align}
+\\
+proj_{u^\mu}(v^\mu) &= \frac{g_{\mu\nu} v^\mu u^\nu}{g_{\alpha\beta} u^\alpha u^\beta} = \frac{v^\mu u_\nu}{u^\alpha u_\alpha} \\
+normalise(u^\mu) &= \frac{u^\mu}{g_{\alpha\beta} u^\alpha u^\beta} = \frac{u^\mu}{u^\alpha u_\alpha}\\
+\\
+u_0 &= v_0\\
+u_1 &= v_1 - proj_{u_0}(v_1) \\
+\\
+u_2 &= v_2 - proj_{u_0}(v_2) \\
+u_2 &= u_2 - proj_{u_1}(u_2) \\
+\\
+u_3 &= v_3 - proj_{u_0}(v_3) \\
+u_3 &= u_3 - proj_{u_1}(u_3) \\
+u_3 &= u_3 - proj_{u_2}(u_3) \\
+\\
+u_0^\mu &= normalise(u_0^\mu)\\
+u_1^\mu &= normalise(u_1^\mu)\\
+u_2^\mu &= normalise(u_2^\mu)\\
+u_3^\mu &= normalise(u_3^\mu)\\
+\end{align}
+$$
+
+Our orthonormalised vectors are $u_i^\mu$. We have to pick a vector to start our orthonormalisation from, so we pick the first vector $v_0^\mu$ arbitrarily, and now start up our algorithm:
+
 ```c++
 std::array<v4f, 4> vecs = { {1, 0, 0, 0},
                             {0, 1, 0, 0},
                             {0, 0, 1, 0},
                             {0, 0, 0, 1} };
-```
 
-Note that, taking the column vectors of the metric $g_{\mu\nu}$, and raising them with the metric tensor to get $v_i^\mu$ (contravariant), produces this identity matrix definitionally
-
-We have to pick a vector to start our orthonormalisation from, so we pick the first vector $v_0^\mu$ arbitrarily, and now start up our algorithm:
-
-TODO: I NEED GRAM-SCHMIDT IN EQUATIONS
-
-```c++
 m44f metric = GetMetric(position.get());
 tetrads tet = gram_schmidt(vecs[0], vecs[1], vecs[2], vecs[3], metric);
 ```
@@ -485,13 +521,15 @@ While it may seem odd to do this on a GPU with only one thread, this procedure i
 
 So, now we have a position (our camera), and an initial tetrad. The question is, how do we follow the movements of our observer in a physically accurate way? Today we're going to be dealing with strictly inertial observers that don't accelerate, and we're additionally not going to imbue our observers with any velocity - this means that they strictly will fall directly towards the black hole
 
-The $e_0^\mu$ component of our tetrads is now always timelike - and more than that it is also (conveniently) TODO: REFERENCE the velocity of the observer that that tetrad represents. That is to say, if we have:
+The $e_0^\mu$ component of our tetrads is now always timelike - and more than that it is also (conveniently)[^suspicious] the velocity of the observer that that tetrad represents. That is to say, if we have:
+
+[^suspicious]: https://arxiv.org/pdf/1908.10757, see the section after eq 2.1, document page 6
 
 $$e_0^\mu = (1, 0, 0, 0)$$
 
 We are dealing with an observer who's velocity is $v^\mu = (1, 0, 0, 0)$. The first thing we need to do is to build a geodesic from our initial observers starting location, and our initial observers velocity. Lets call these $x^{\mu}$ and $v^{\mu} = e_0^\mu$
 
-Luckily for us, the geodesic equation for lightrays (null geodesics), and timelike geodesics, is exactly the same, which means we do not need a new procedure to integrate our timelike geodesic. We're going to need to save[^alternate] the positions and velocities of our geodesic as we trace it, so we will need to modify our code a bit:
+Luckily for us, the geodesic equation for lightrays (null geodesics), and timelike geodesics, is exactly the same, which means we do not need a new equation to integrate our timelike geodesic. We're going to need to save[^alternate] the positions and velocities of our geodesic as we trace it, so we will need to modify our code a bit:
 
 [^alternate]: An alternative approach would be to step the timelike geodesics forwards as we advance forwards in proper time, but its super useful to have the whole history available to us
 
@@ -742,7 +780,7 @@ First up, lets examine some results for schwarzschild, in schwarzschild coordina
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/_YtkoLdZlx0?si=fEKypfSydWcA6KOx" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-The camera gets stuck on the event horizon, because the metric becomes singular. If you examine the rays, you'll notice that their time component blows up to infinity
+The camera gets stuck on the event horizon, because the metric becomes singular. If you examine the rays, you'll notice that their time component blows up to infinity - which causes the camera to jitter a bit as everything becomes singular
 
 Next up, we'll look at schwarzschild in ingoing eddington-finkelstein coordinates. For reference, that looks like this:
 
@@ -778,6 +816,10 @@ Side:
 <iframe width="560" height="315" src="https://www.youtube.com/embed/xxBBmDu4gLA?si=W608G6xsf6trctNA" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 We can see that the very common idea that the universe shrinks to a point is not true, which is pretty neat to be able to disprove, and is a frequent misconception
+
+These videos are produced using the code from this article, and are a bit limited in terms of what they can show you as they're intended to be replicable. Particularly the side view suffers a bit, due to our slightly non ideal termination conditions - rays get cut off prematurely. Here's a better idea of what you can get with a bit of tweaking, at $r=0.1$:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/2uHaa2yFEqs?si=dwaFNH-bkY3nPun_" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 # The end
 
