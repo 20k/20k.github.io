@@ -827,7 +827,7 @@ Side:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/xxBBmDu4gLA?si=W608G6xsf6trctNA" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-(Please note that the side view suffers from inaccuracy, and shouldn't cut off with such a hard boudary - we'll fix this next time. The tetrads become fairly degenerate near the singularity, at r=0.1)
+(Please note that the side view suffers from inaccuracy, and shouldn't cut off with such a hard boudary - we'll fix this next time)
 
 We can see that the very common idea that the universe shrinks to a point is not true, which is pretty neat to be able to disprove, and is a frequent misconception
 
