@@ -118,7 +118,7 @@ $$D = P^{-1} A P$$
 
 $$\eta = e^{T} g e$$
 
-[^reffy]: https://arxiv.org/pdf/1908.10757 2.6
+[^reffy]: [https://arxiv.org/pdf/1908.10757](https://arxiv.org/pdf/1908.10757) 2.6
 
 The metric tensor is symmetric, so the $^{-1}$ becomes a $^T$. The matrix $e$, treated as column vectors, makes up our tetrad vectors. We can solve[^prettycool] for $e$ and get 'a' valid set of tetrad vectors for any metric tensor. Tetrads are not unique, so we're just solving for the view for some arbitrary observer, that's dependent on the specific form of the metric[^arbitrary]
 
@@ -525,7 +525,7 @@ So, now we have a position (our camera), and an initial tetrad. The question is:
 
 The $e_0^\mu$ component of our tetrads is now always timelike - and more than that it is also (conveniently)[^suspicious] the velocity of the observer that that tetrad represents. That is to say, if we have:
 
-[^suspicious]: https://arxiv.org/pdf/1908.10757, see the section after eq 2.1, document page 6
+[^suspicious]: [https://arxiv.org/pdf/1908.10757](https://arxiv.org/pdf/1908.10757), see the section after eq 2.1, document page 6
 
 $$e_0^\mu = (1, 0, 0, 0)$$
 
