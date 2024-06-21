@@ -243,6 +243,7 @@ int main()
             cqueue.exec(tetrad_kern, {1}, {1}, {});
         }
 
+        #ifdef PARALLEL_TRANSPORT
         {
             cl::args args;
             args.push_back(gpu_camera_pos);
@@ -286,6 +287,13 @@ int main()
         }
 
         printf("Pos %f\n", final_camera_position.read<float>(cqueue)[1]);
+        #else
+        cl::copy(cqueue, tetrads[0], final_tetrads[0]);
+        cl::copy(cqueue, tetrads[1], final_tetrads[1]);
+        cl::copy(cqueue, tetrads[2], final_tetrads[2]);
+        cl::copy(cqueue, tetrads[3], final_tetrads[3]);
+        cl::copy(cqueue, gpu_camera_pos, final_camera_position);
+        #endif
 
         {
             cl_float4 q = {cam.rot.q.v[0], cam.rot.q.v[1], cam.rot.q.v[2], cam.rot.q.v[3]};

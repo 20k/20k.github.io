@@ -187,7 +187,7 @@ value<bool> should_terminate(v4f start, v4f position, v4f velocity)
     value<bool> is_broken = !isfinite(position[0]) || !isfinite(position[1]) || !isfinite(position[2]) || !isfinite(position[3]) ||
                             !isfinite(velocity[0]) || !isfinite(velocity[1]) || !isfinite(velocity[2]) || !isfinite(velocity[3]) ;
 
-    return position[1] > 10 || position[0] > start[0] + 1000 || fabs(velocity[0]) >= 10 || is_broken || position[1] < 0.1f;
+    return fabs(position[1]) > 10 || position[0] > start[0] + 1000 || fabs(velocity[0]) >= 10 || is_broken;
 }
 
 //this integrates a geodesic, until it either escapes our small universe or hits the event horizon
@@ -199,13 +199,13 @@ std::pair<valuei, tensor<valuef, 4>> integrate(geodesic& g, auto&& get_metric) {
     mut_v4f position = declare_mut_e(g.position);
     mut_v4f velocity = declare_mut_e(g.velocity);
 
-    float dt = 0.005f;
+    float dt = 0.05f;
     float rs = 1;
     v4f start = g.position;
 
     mut<valuei> idx = declare_mut_e("i", valuei(0));
 
-    for_e(idx < 1024 * 10, assign_b(idx, idx + 1), [&]
+    for_e(idx < 1024 * 100, assign_b(idx, idx + 1), [&]
     {
         v4f cposition = declare_e(position);
         v4f cvelocity = declare_e(velocity);
@@ -219,7 +219,7 @@ std::pair<valuei, tensor<valuef, 4>> integrate(geodesic& g, auto&& get_metric) {
 
         valuef radius = position[1];
 
-        if_e(radius > 10, [&] {
+        if_e(fabs(radius) > 10, [&] {
             //ray escaped
             as_ref(result) = valuei(0);
             break_e();
