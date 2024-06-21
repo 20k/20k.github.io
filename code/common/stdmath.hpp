@@ -48,6 +48,31 @@ namespace stdmath
         return v1 / v2;
     };
 
+    auto op_lt = []<typename T>(const T& v1, const T& v2)
+    {
+        return v1 < v2;
+    };
+
+    auto op_lte = []<typename T>(const T& v1, const T& v2)
+    {
+        return v1 <= v2;
+    };
+
+    auto op_eq = []<typename T>(const T& v1, const T& v2)
+    {
+        return v1 == v2;
+    };
+
+    auto op_gt = []<typename T>(const T& v1, const T& v2)
+    {
+        return v1 > v2;
+    };
+
+    auto op_gte = []<typename T>(const T& v1, const T& v2)
+    {
+        return v1 >= v2;
+    };
+
     auto usign = []<typename T>(T in)
     {
         if(in == T(-0.0))

@@ -265,6 +265,12 @@ namespace value_impl
         BASE_OPERATOR2(operator*, op::MULTIPLY, stdmath::op_multiply);
         BASE_OPERATOR2(operator/, op::DIVIDE, stdmath::op_divide);
         BASE_OPERATOR1(operator-, op::UMINUS, stdmath::op_unary_minus);
+
+        BASE_OPERATOR2(operator<, op::LT, stdmath::op_lt);
+        BASE_OPERATOR2(operator<=, op::LTE, stdmath::op_lte);
+        BASE_OPERATOR2(operator==, op::EQ, stdmath::op_eq);
+        BASE_OPERATOR2(operator>, op::GT, stdmath::op_gt);
+        BASE_OPERATOR2(operator>=, op::GTE, stdmath::op_gte);
     };
 
     inline
@@ -555,6 +561,12 @@ namespace value_impl
         REPLAY1(UMINUS, op_unary_minus);
         REPLAY2(MOD, ufmod);
         REPLAY3(TERNARY, uternary);
+
+        REPLAY2(LT, op_lt);
+        REPLAY2(LTE, op_lte);
+        REPLAY2(EQ, op_eq);
+        REPLAY2(GT, op_gt);
+        REPLAY2(GTE, op_gte);
 
         assert(false);
     }
