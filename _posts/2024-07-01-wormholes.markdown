@@ -70,3 +70,44 @@ While the performance isn't too bad at ~70ms/frame, its definitely time to fix o
 
 # Dynamic Timestepping
 
+One of the simplest and most effective strategies for dynamic timestepping is to ensure that the distance a lightray moves is limited to some constant. The simplest version of this looks something like this:
+
+```c++
+valuef get_timestep(v4f position, v4f velocity)
+{
+    v4f avelocity = fabs(velocity);
+    return 0.01f/max(max(avelocity.x(), avelocity.y()), max(avelocity.z(), avelocity.w()));
+}
+```
+
+The works reasonably well, but it still gives a fairly low universal timestep, whereas we want to concentrate our timestepping more in areas that are likely to be a bit more visually interesting, ie near the object we're simulating in question. So something like this is a bit more interesting:
+
+```c++
+valuef get_timestep(v4f position, v4f velocity)
+{
+    v4f avelocity = fabs(velocity);
+    valuef normal_precision = 0.1f/max(max(avelocity.x(), avelocity.y()), max(avelocity.z(), avelocity.w()));
+
+    valuef high_precision = 0.02f/max(max(avelocity.x(), avelocity.y()), max(avelocity.z(), avelocity.w()));
+
+    return ternary(fabs(position[1]) < 3.f, high_precision, normal_precision);
+}
+```
+
+This assumes that `position[1]` is a radial coordinate, which is not always true - and you'll need a generic system for calculating the distance from your object in question for this to work - but its worth it for the extra performance
+
+## Watch out for your integrator!
+
+Be aware, not all integrators work with variable timesteps. For example, in this article we're using the leapfrog integrator:
+
+```c++
+        as_ref(velocity) = cvelocity + acceleration * dt;
+        as_ref(position) = cposition + velocity.as<valuef>() * dt;
+```
+
+Where the velocity is updated, and then the position is updated with that new velocity. This integrator does not work with a dynamic timestep, and so you must swap to a different scheme - like euler
+
+```c++
+        as_ref(position) = cposition + cvelocity * dt;
+        as_ref(velocity) = cvelocity + acceleration * dt;
+```

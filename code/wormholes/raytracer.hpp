@@ -193,8 +193,11 @@ value<bool> should_terminate(v4f start, v4f position, v4f velocity)
 valuef get_timestep(v4f position, v4f velocity)
 {
     v4f avelocity = fabs(velocity);
+    valuef normal_precision = 0.1f/max(max(avelocity.x(), avelocity.y()), max(avelocity.z(), avelocity.w()));
 
-    return 1.f/max(max(avelocity.x(), avelocity.y()), max(avelocity.z(), avelocity.w()));
+    valuef high_precision = 0.02f/max(max(avelocity.x(), avelocity.y()), max(avelocity.z(), avelocity.w()));
+
+    return ternary(fabs(position[1]) < 3.f, high_precision, normal_precision);
 }
 
 //this integrates a geodesic, until it either escapes our small universe or hits the event horizon
@@ -206,8 +209,6 @@ std::pair<valuei, tensor<valuef, 4>> integrate(geodesic& g, auto&& get_metric) {
     mut_v4f position = declare_mut_e(g.position);
     mut_v4f velocity = declare_mut_e(g.velocity);
 
-    //float dt = 0.005f;
-    float dt = 1.f;
     float rs = 1;
     v4f start = g.position;
 
@@ -222,8 +223,10 @@ std::pair<valuei, tensor<valuef, 4>> integrate(geodesic& g, auto&& get_metric) {
 
         pin(acceleration);
 
+        valuef dt = get_timestep(cposition, cvelocity);
+
+        as_ref(position) = cposition + cvelocity * dt;
         as_ref(velocity) = cvelocity + acceleration * dt;
-        as_ref(position) = cposition + velocity.as<valuef>() * dt;
 
         valuef radius = position[1];
 
