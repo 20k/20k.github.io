@@ -458,12 +458,14 @@ namespace value_impl
             {SIN, "native_sin"},
             {COS, "native_cos"},
             {TAN, "native_tan"},
+            {LOG, "native_log"},
             {SQRT, "native_sqrt"},
             {INVERSE_SQRT, "native_rsqrt"},
             #else
             {SIN, "sin"},
             {COS, "cos"},
             {TAN, "tan"},
+            {LOG, "log"},
             {SQRT, "sqrt"},
             {INVERSE_SQRT, "rsqrt"},
             #endif // NATIVE_OPS
@@ -473,6 +475,8 @@ namespace value_impl
             {SIGN, "sign"},
             {FLOOR, "floor"},
             {CEIL, "ceil"},
+            {ATAN, "atan"},
+            {ATAN2, "atan2"},
 
             {GET_GLOBAL_ID, "get_global_id"},
         };
@@ -727,6 +731,13 @@ namespace value_impl
             return "native_divide(" + value_to_string(v.args.at(0)) + "," + value_to_string(v.args.at(1)) + ")";
         }
         #endif
+
+        if(v.type == op::TERNARY)
+        {
+            ///our select is a ? b : c
+            ///opencl's select is c ? b : a
+            return "select(" + value_to_string(v.args.at(2)) + "," + value_to_string(v.args.at(1)) + "," + value_to_string(v.args.at(0)) + ")";
+        }
 
         return function_call_or_infix(v);
     }

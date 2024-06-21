@@ -47,6 +47,10 @@ namespace value_impl
             SIN,
             COS,
             TAN,
+            LOG,
+
+            ATAN,
+            ATAN2,
 
             INVERSE_SQRT,
             SQRT,
@@ -57,6 +61,7 @@ namespace value_impl
             SIGN,
             FLOOR,
             CEIL,
+            TERNARY,
 
             GET_GLOBAL_ID,
 
@@ -132,6 +137,24 @@ namespace value_impl
             }
 
         }, v1.concrete, v2.concrete);
+
+        return ret;
+    }
+
+    template<typename T, typename U>
+    inline
+    T make_op_with_type_function(op::type t, T v1, T v2, T v3, U&& func)
+    {
+        T ret;
+        ret.type = t;
+        ret.args = {v1, v2, v3};
+
+        std::visit([&]<typename A, typename B, typename C>(const A&, const B&, const C&){
+            if constexpr(std::is_invocable_v<U, A, B>) {
+                ret.concrete = decltype(func(A(), B(), C()))();
+            }
+
+        }, v1.concrete, v2.concrete, v3.concrete);
 
         return ret;
     }
@@ -270,10 +293,19 @@ namespace value_impl
         return optimise(make_op_with_type_function<value_base>(op::type, v1, v2, func));\
     }\
 
+    #define DECL_VALUE_FUNC3(type, name, func) \
+    inline \
+    value_base name(const value_base& v1, const value_base& v2, const value_base& v3) {\
+        return optimise(make_op_with_type_function<value_base>(op::type, v1, v2, v3, func));\
+    }\
+
     DECL_VALUE_FUNC1(SIN, sin, stdmath::usin);
     DECL_VALUE_FUNC1(COS, cos, stdmath::ucos);
     DECL_VALUE_FUNC1(TAN, tan, stdmath::utan);
+    DECL_VALUE_FUNC1(ATAN, atan, stdmath::uatan);
+    DECL_VALUE_FUNC2(ATAN2, atan2, stdmath::uatan2);
     DECL_VALUE_FUNC1(SQRT, sqrt, stdmath::usqrt);
+    DECL_VALUE_FUNC1(LOG, log, stdmath::ulog);
     DECL_VALUE_FUNC1(FABS, fabs, stdmath::ufabs);
     DECL_VALUE_FUNC1(ISFINITE, isfinite, stdmath::uisfinite);
     DECL_VALUE_FUNC2(FMOD, fmod, stdmath::ufmod);
@@ -281,7 +313,7 @@ namespace value_impl
     DECL_VALUE_FUNC1(FLOOR, floor, stdmath::ufloor);
     DECL_VALUE_FUNC1(CEIL, ceil, stdmath::uceil);
     DECL_VALUE_FUNC1(INVERSE_SQRT, inverse_sqrt, stdmath::uinverse_sqrt);
-
+    DECL_VALUE_FUNC3(TERNARY, ternary, stdmath::uternary);
 
     #define PROPAGATE_BASE2(vop, func) if(in.type == op::vop) { \
         out = replay_constant(in.args[0], in.args[1], func);\
@@ -341,6 +373,9 @@ namespace value_impl
             PROPAGATE_BASE1(SIN, usin);
             PROPAGATE_BASE1(COS, ucos);
             PROPAGATE_BASE1(TAN, utan);
+            PROPAGATE_BASE1(ATAN, uatan);
+            PROPAGATE_BASE2(ATAN2, uatan2);
+            PROPAGATE_BASE1(LOG, ulog);
             PROPAGATE_BASE1(SQRT, usqrt);
             PROPAGATE_BASE1(FABS, ufabs);
             PROPAGATE_BASE1(ISFINITE, uisfinite);
@@ -498,10 +533,16 @@ namespace value_impl
         #define REPLAY1(func, name) if(v.type == op::func) return name(replay_value_base<T>(v.args[0], handle_value));
         #define REPLAY2(func, name) if(v.type == op::func) return name(replay_value_base<T>(v.args[0], handle_value), \
                                                                         replay_value_base<T>(v.args[1], handle_value));
+        #define REPLAY3(func, name) if(v.type == op::func) return name(replay_value_base<T>(v.args[0], handle_value), \
+                                                                        replay_value_base<T>(v.args[1], handle_value),\
+                                                                        replay_value_base<T>(v.args[2], handle_value));
 
         REPLAY1(SIN, usin);
         REPLAY1(COS, ucos);
         REPLAY1(TAN, utan);
+        REPLAY1(ATAN, uatan);
+        REPLAY2(ATAN2, uatan2);
+        REPLAY1(LOG, ulog);
         REPLAY1(SQRT, usqrt);
         REPLAY1(FABS, ufabs);
         REPLAY1(ISFINITE, uisfinite);
@@ -513,6 +554,7 @@ namespace value_impl
         REPLAY2(DIVIDE, op_divide);
         REPLAY1(UMINUS, op_unary_minus);
         REPLAY2(MOD, ufmod);
+        REPLAY3(TERNARY, uternary);
 
         assert(false);
     }
@@ -705,7 +747,6 @@ namespace value_impl
     template<typename T, int... N>
     inline
     T get_interior_type(const tensor<value<T>, N...>&){return T();}
-
 
     template<typename T>
     inline
@@ -1081,6 +1122,36 @@ namespace value_impl
 
     template<typename T>
     inline
+    value<T> atan(const value<T>& v1)
+    {
+        value<T> ret;
+        ret.type = op::ATAN;
+        ret.args = {v1};
+        return from_base<T>(optimise(ret));
+    }
+
+    template<typename T>
+    inline
+    value<T> atan2(const value<T>& v1, const value<T>& v2)
+    {
+        value<T> ret;
+        ret.type = op::ATAN2;
+        ret.args = {v1, v2};
+        return from_base<T>(optimise(ret));
+    }
+
+    template<typename T>
+    inline
+    value<T> log(const value<T>& v1)
+    {
+        value<T> ret;
+        ret.type = op::LOG;
+        ret.args = {v1};
+        return from_base<T>(optimise(ret));
+    }
+
+    template<typename T>
+    inline
     value<T> sqrt(const value<T>& v1)
     {
         value<T> ret;
@@ -1146,6 +1217,13 @@ namespace value_impl
     value<T> ceil(const value<T>& v1)
     {
         return from_base<T>(optimise(make_op<value<T>>(op::CEIL, {v1})));
+    }
+
+    template<typename T>
+    inline
+    value<T> ternary(const value<bool>& condition, const value<T>& if_true, const value<T>& if_false)
+    {
+        return from_base<T>(optimise(make_op<value<T>>(op::TERNARY, {condition, if_true, if_false})));
     }
 
     template<typename T>

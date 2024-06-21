@@ -133,6 +133,44 @@ namespace stdmath
     {
         return (U)in;
     };
+
+    auto ulog = []<typename T>(const T& in)
+    {
+        using std::log;
+
+        if constexpr(std::is_integral_v<T>)
+            return log((float)in);
+        else
+            return log(in);
+    };
+
+    auto uternary = []<typename T, typename U>(const T& condition, const U& if_true, const U& if_false)
+    {
+        if constexpr(std::is_arithmetic_v<U>)
+            return condition ? if_true : if_false;
+        else
+            return ternary(condition, if_true, if_false);
+    };
+
+    auto uatan = []<typename T>(const T& in)
+    {
+        using std::atan;
+
+        if constexpr(std::is_integral_v<T>)
+            return atan((float)in);
+        else
+            return atan(in);
+    };
+
+    auto uatan2 = []<typename T>(const T& y, const T& x)
+    {
+        using std::atan2;
+
+        if constexpr(std::is_integral_v<T>)
+            return atan2((float)y, (float)x);
+        else
+            return atan2(y, x);
+    };
 }
 
 #endif // STDMATH_HPP_INCLUDED
