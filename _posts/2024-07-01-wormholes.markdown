@@ -44,8 +44,6 @@ metric<valuef, 4, 4> metric(const tensor<valuef, 4>& position) {
     valuef theta = position[2];
 
     metric<valuef, 4, 4> m;
-    /*m[0, 0] = -(1-rs/r);
-    m[1, 1] = 1/(1-rs/r);*/
 
     m[0, 0] = -(1-rs/r);
     m[1, 0] = 1;
@@ -57,3 +55,7 @@ metric<valuef, 4, 4> metric(const tensor<valuef, 4>& position) {
     return m;
 }
 ```
+
+With almost no changes to our code (other than updating our termination conditions, as $l$ can be $< 0$), we can immediately produce a rendering of this:
+
+![]
