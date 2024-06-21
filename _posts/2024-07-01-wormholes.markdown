@@ -70,7 +70,9 @@ While the performance isn't too bad at ~70ms/frame, its definitely time to fix o
 
 # Dynamic Timestepping
 
-One of the simplest and most effective strategies for dynamic timestepping is to ensure that the distance a lightray moves is limited to some constant. The simplest version of this looks something like this:
+One of the simplest and most effective strategies for dynamic timestepping is to ensure that the distance[^dist] a lightray moves is limited to some constant. The simplest version of this looks something like this:
+
+[^dist]: We're using manhatten coordinate distance. You could use more advanced schemes - and these would work well, but bear in mind that calculating the timestep has a cost in itself and can end up having a significant overhead
 
 ```c++
 valuef get_timestep(v4f position, v4f velocity)
@@ -85,16 +87,24 @@ The works reasonably well, but it still gives a fairly low universal timestep, w
 ```c++
 valuef get_timestep(v4f position, v4f velocity)
 {
-    v4f avelocity = fabs(velocity);
-    valuef normal_precision = 0.1f/max(max(avelocity.x(), avelocity.y()), max(avelocity.z(), avelocity.w()));
+    valuef divisor = max(max(avelocity.x(), avelocity.y()), max(avelocity.z(), avelocity.w()));
 
-    valuef high_precision = 0.02f/max(max(avelocity.x(), avelocity.y()), max(avelocity.z(), avelocity.w()));
+    v4f avelocity = fabs(velocity);
+    valuef normal_precision = 0.1f/divisor;
+
+    valuef high_precision = 0.02f/divisor;
 
     return ternary(fabs(position[1]) < 3.f, high_precision, normal_precision);
 }
 ```
 
 This assumes that `position[1]` is a radial coordinate, which is not always true - and you'll need a generic system for calculating the distance from your object in question for this to work - but its worth it for the extra performance
+
+With this in place, we get this result, which looks pretty great
+
+![wormhole2](/assets/wormhole_2.png)
+
+The singularities are barely noticable, and our performance is 60ms/frame @ 1080p
 
 ## Watch out for your integrator!
 
