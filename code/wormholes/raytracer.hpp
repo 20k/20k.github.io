@@ -190,6 +190,13 @@ value<bool> should_terminate(v4f start, v4f position, v4f velocity)
     return fabs(position[1]) > 10 || position[0] > start[0] + 1000 || fabs(velocity[0]) >= 10 || is_broken;
 }
 
+valuef get_timestep(v4f position, v4f velocity)
+{
+    v4f avelocity = fabs(velocity);
+
+    return 1.f/max(max(avelocity.x(), avelocity.y()), max(avelocity.z(), avelocity.w()));
+}
+
 //this integrates a geodesic, until it either escapes our small universe or hits the event horizon
 std::pair<valuei, tensor<valuef, 4>> integrate(geodesic& g, auto&& get_metric) {
     using namespace single_source;
@@ -199,7 +206,8 @@ std::pair<valuei, tensor<valuef, 4>> integrate(geodesic& g, auto&& get_metric) {
     mut_v4f position = declare_mut_e(g.position);
     mut_v4f velocity = declare_mut_e(g.velocity);
 
-    float dt = 0.05f;
+    //float dt = 0.005f;
+    float dt = 1.f;
     float rs = 1;
     v4f start = g.position;
 

@@ -42,7 +42,6 @@ struct camera
     }
 };
 
-//https://www2.mpia-hd.mpg.de/homes/tmueller/pdfs/catalogue_2014-05-21.pdf 2.2.1
 metric<valuef, 4, 4> get_metric(const tensor<valuef, 4>& position) {
     using namespace single_source;
 

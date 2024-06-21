@@ -52,6 +52,9 @@ namespace value_impl
             ATAN,
             ATAN2,
 
+            MIN,
+            MAX,
+
             INVERSE_SQRT,
             SQRT,
             DOT,
@@ -321,6 +324,9 @@ namespace value_impl
     DECL_VALUE_FUNC1(INVERSE_SQRT, inverse_sqrt, stdmath::uinverse_sqrt);
     DECL_VALUE_FUNC3(TERNARY, ternary, stdmath::uternary);
 
+    DECL_VALUE_FUNC2(MIN, min, stdmath::umin);
+    DECL_VALUE_FUNC2(MAX, max, stdmath::umax);
+
     #define PROPAGATE_BASE2(vop, func) if(in.type == op::vop) { \
         out = replay_constant(in.args[0], in.args[1], func);\
     }
@@ -391,6 +397,8 @@ namespace value_impl
             PROPAGATE_BASE1(FLOOR, ufloor);
             PROPAGATE_BASE1(CEIL, uceil);
             PROPAGATE_BASE1(INVERSE_SQRT, uinverse_sqrt);
+            PROPAGATE_BASE2(MIN, umin);
+            PROPAGATE_BASE2(MAX, umax);
 
             if(out)
                 return out.value();
@@ -567,6 +575,9 @@ namespace value_impl
         REPLAY2(EQ, op_eq);
         REPLAY2(GT, op_gt);
         REPLAY2(GTE, op_gte);
+
+        REPLAY2(MIN, umin);
+        REPLAY2(MAX, umax);
 
         assert(false);
     }
@@ -1236,6 +1247,20 @@ namespace value_impl
     value<T> ternary(const value<bool>& condition, const value<T>& if_true, const value<T>& if_false)
     {
         return from_base<T>(optimise(make_op<value<T>>(op::TERNARY, {condition, if_true, if_false})));
+    }
+
+    template<typename T>
+    inline
+    value<T> min(const value<T>& v1, const value<T>& v2)
+    {
+        return from_base<T>(optimise(make_op<value<T>>(op::MIN, {v1, v2})));
+    }
+
+    template<typename T>
+    inline
+    value<T> max(const value<T>& v1, const value<T>& v2)
+    {
+        return from_base<T>(optimise(make_op<value<T>>(op::MAX, {v1, v2})));
     }
 
     template<typename T>

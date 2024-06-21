@@ -477,6 +477,8 @@ namespace value_impl
             {CEIL, "ceil"},
             {ATAN, "atan"},
             {ATAN2, "atan2"},
+            {MIN, "min"},
+            {MAX, "max"},
 
             {GET_GLOBAL_ID, "get_global_id"},
         };

@@ -32,22 +32,28 @@ $$
 Note that there's a discontinuity in these equations at $|l|=a$ as given, so I swap (2) for a $<=$ instead. Using the raytracer we've produced, we can translate this to code:
 
 ```c++
-metric<valuef, 4, 4> metric(const tensor<valuef, 4>& position) {
+metric<valuef, 4, 4> get_metric(const tensor<valuef, 4>& position) {
+    using namespace single_source;
+
     valuef M = 0.01;
-    valuef a = 0.001;
     valuef p = 1;
+    valuef a = 0.001f;
 
     valuef l = position[1];
 
     valuef x = 2 * (fabs(l) - a) / (M_PI * M);
 
+    //the analytic differentiator I've got can't handle multiple statements, so this becomes a ternary
+    valuef r = ternary(fabs(l) <= a,
+                       p,
+                       p + M * (x * atan(x) - 0.5f * log(1 + x*x)));
+
+
     valuef theta = position[2];
 
     metric<valuef, 4, 4> m;
-
-    m[0, 0] = -(1-rs/r);
-    m[1, 0] = 1;
-    m[0, 1] = 1;
+    m[0, 0] = -1;
+    m[1, 1] = 1;
 
     m[2, 2] = r*r;
     m[3, 3] = r*r * sin(theta)*sin(theta);
@@ -58,4 +64,9 @@ metric<valuef, 4, 4> metric(const tensor<valuef, 4>& position) {
 
 With almost no changes to our code (other than updating our termination conditions, as $l$ can be $< 0$), we can immediately produce a rendering of this:
 
-![]
+![wormhole](/assets/wormhole_1.png)
+
+While the performance isn't too bad at ~70ms/frame, its definitely time to fix our timestepping - particularly to chop down on polar artifacts
+
+# Dynamic Timestepping
+

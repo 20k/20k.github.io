@@ -196,6 +196,20 @@ namespace stdmath
         else
             return atan2(y, x);
     };
+
+    auto umin = []<typename T>(const T& v1, const T& v2)
+    {
+        using std::min;
+
+        return min(v1, v2);
+    };
+
+    auto umax = []<typename T>(const T& v1, const T& v2)
+    {
+        using std::max;
+
+        return max(v1, v2);
+    };
 }
 
 #endif // STDMATH_HPP_INCLUDED
