@@ -5,13 +5,58 @@
 #include <SFML/Graphics.hpp>
 #include <vec/vec.hpp>
 
+tensor<float, 3> cartesian_to_spherical(const tensor<float, 3>& cartesian)
+{
+    float r = cartesian.length();
+    float theta = acos(cartesian[2] / r);
+    float phi = atan2(cartesian[1], cartesian[0]);
+
+    return {r, theta, phi};
+}
+
+tensor<float, 3> spherical_to_cartesian(const tensor<float, 3>& polar)
+{
+    float r = polar[0];
+    float theta = polar[1];
+    float phi = polar[2];
+
+    float x = r * sin(theta) * cos(phi);
+    float y = r * sin(theta) * sin(phi);
+    float z = r * cos(theta);
+
+    return {x, y, z};
+}
+
 struct camera
 {
+    tensor<float, 4> pos;
     quat rot;
 
     camera()
     {
+        float pi = std::numbers::pi_v<float>;
+
+        pos = {0, 7, pi/2, -pi/2};
         rot.load_from_axis_angle({1, 0, 0, -M_PI/2});
+    }
+
+    tensor<float, 4> get_position()
+    {
+        return pos;
+    }
+
+    void move(tensor<float, 3> direction)
+    {
+        tensor<float, 3> cart = spherical_to_cartesian(pos.yzw());
+        cart += direction;
+
+        auto spatial = cartesian_to_spherical(cart);
+
+        pos.y() = spatial.x();
+        pos.z() = spatial.y();
+        pos.w() = spatial.z();
+
+        pos.y() = clamp(pos.y(), -10.f, 10.f);
     }
 
     void rotate(vec2f mouse_delta)
@@ -152,9 +197,6 @@ int main()
     cl::kernel transport_kern = make_kernel(ctx, transport_src, "transport", "");
     cl::kernel interpolate_kern = make_kernel(ctx, interpolate_src, "interpolate", "");
 
-    float pi = std::numbers::pi_v<float>;
-
-    cl_float4 camera_pos = {0, 7, pi/2, -pi/2};
     cl::buffer gpu_camera_pos(ctx);
     gpu_camera_pos.alloc(sizeof(cl_float4));
 
@@ -216,21 +258,35 @@ int main()
 
         desired_proper_time += 0.1f;
 
-        if(key.isKeyPressed(sf::Keyboard::D))
+        if(key.isKeyPressed(sf::Keyboard::J))
             cam.rotate({0.1f, 0.f});
-        if(key.isKeyPressed(sf::Keyboard::A))
+        if(key.isKeyPressed(sf::Keyboard::L))
             cam.rotate({-0.1f, 0.f});
 
-        if(key.isKeyPressed(sf::Keyboard::S))
+        if(key.isKeyPressed(sf::Keyboard::I))
             cam.rotate({0.f, 0.1f});
-        if(key.isKeyPressed(sf::Keyboard::W))
+        if(key.isKeyPressed(sf::Keyboard::K))
             cam.rotate({0.f, -0.1f});
+
+        float kspeed = 0.1f;
+
+        if(key.isKeyPressed(sf::Keyboard::A))
+            cam.move({-kspeed, 0, 0});
+
+        if(key.isKeyPressed(sf::Keyboard::D))
+            cam.move({kspeed, 0, 0});
+
+        if(key.isKeyPressed(sf::Keyboard::W))
+            cam.move({0, kspeed, 0});
+
+        if(key.isKeyPressed(sf::Keyboard::S))
+            cam.move({0, -kspeed, 0});
 
         sf::Clock clk;
 
         {
             cl::args args;
-            args.push_back(camera_pos);
+            args.push_back(cam.get_position());
             args.push_back(gpu_camera_pos);
             args.push_back(tetrads[0]);
             args.push_back(tetrads[1]);

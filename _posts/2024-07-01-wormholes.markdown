@@ -90,8 +90,8 @@ valuef get_timestep(v4f position, v4f velocity)
     valuef divisor = max(max(avelocity.x(), avelocity.y()), max(avelocity.z(), avelocity.w()));
 
     v4f avelocity = fabs(velocity);
-    valuef normal_precision = 0.1f/divisor;
 
+    valuef normal_precision = 0.1f/divisor;
     valuef high_precision = 0.02f/divisor;
 
     return ternary(fabs(position[1]) < 3.f, high_precision, normal_precision);
@@ -108,7 +108,7 @@ The singularities are barely noticable, and our performance is 60ms/frame @ 1080
 
 ## Watch out for your integrator!
 
-Be aware, not all integrators work with variable timesteps. For example, in this article we're using the leapfrog integrator:
+Be aware, not all integrators work with variable timesteps. For example, in this article we've previously been using the leapfrog integrator:
 
 ```c++
         as_ref(velocity) = cvelocity + acceleration * dt;
@@ -121,3 +121,9 @@ Where the velocity is updated, and then the position is updated with that new ve
         as_ref(position) = cposition + cvelocity * dt;
         as_ref(velocity) = cvelocity + acceleration * dt;
 ```
+
+# Camera Controls
+
+At the moment, we're constructing a tetrad directly from the underlying metric. This works great, but results in a tetrad that - in polar - tends to point directly at our object. This leads to very unintuitive camera controls
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/L-sXQdiCkCY?si=4Hu52YdR1hoJZBUd" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>

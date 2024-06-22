@@ -192,9 +192,8 @@ value<bool> should_terminate(v4f start, v4f position, v4f velocity)
 
 valuef get_timestep(v4f position, v4f velocity)
 {
-    valuef divisor = max(max(avelocity.x(), avelocity.y()), max(avelocity.z(), avelocity.w()));
-
     v4f avelocity = fabs(velocity);
+    valuef divisor = max(max(avelocity.x(), avelocity.y()), max(avelocity.z(), avelocity.w()));
 
     valuef normal_precision = 0.1f/divisor;
     valuef high_precision = 0.02f/divisor;
