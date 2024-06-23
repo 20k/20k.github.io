@@ -1,6 +1,7 @@
 #include "accretion_disk.hpp"
 #include <cmath>
 #include <numbers>
+#include <vec/vec.hpp>
 
 double get_isco(double M, double a)
 {
@@ -31,10 +32,10 @@ accretion_disk make_for_kerr(float M, float a)
 
     double Msol_natural = Msol * cst_G / (cst_C*cst_C);
 
-    double M_star = M / (3 * Msol_natural);
+    double m_star = M / (3 * Msol_natural);
 
     ///sure why not
-    double Mdot_star = 0.01;
+    double mdot_star = 0.01;
 
     double a_star = a/M;
     double assq = pow(a_star, 2);
@@ -47,7 +48,7 @@ accretion_disk make_for_kerr(float M, float a)
     double x2 = 2 * cos(acos(a_star)/3 + pi/3);
     double x3 = -2 * cos(acos(a_star)/3);
 
-    double horizon = get_event_horizon();
+    double horizon = get_event_horizon(M, a);
 
     ///10 radii out??
     double outer_boundary = 2 * M * 10;
@@ -55,6 +56,9 @@ accretion_disk make_for_kerr(float M, float a)
     int region = 0;
 
     int max_steps = 0;
+
+    ///VISCOSITY
+    double alpha = 0.1;
 
     for(int steps = 0; steps < 100; steps++)
     {
@@ -68,6 +72,9 @@ accretion_disk make_for_kerr(float M, float a)
         double x0 = sqrt(isco/M);
         double F0 = 1 - 2 * a_star * pow(x0, -3) + assq * pow(x0, -4);
         double G0 = 1 - 2 * pow(x0, -2) + a_star * pow(x0, -3);
+        double C0 = 1 - 3 * pow(x0, -2) + 2 * assq * pow(x0, -3);
+        double D0 = 1 - 2 * pow(x0, -2) + assq * pow(a_star, -4);
+        double V0 = pow(D0, -1) * (1 + pow(x0, -4) * (assq - pow(x0, 2) * pow(F0, 2) * pow(G0, -2)) + 2 * pow(x, -6) * (a_star - x0 * F0 * pow(G0, -1)));
 
         double A = 1 + assq * pow(x, -4) + 2 * assq * pow(x, -6);
         double B = 1 + a_star * pow(x, -3);
@@ -90,7 +97,9 @@ accretion_disk make_for_kerr(float M, float a)
         double S = pow(A, 2) * pow(B, -2) * C * pow(D, -1) * R;
         double V = pow(D, -1) * (1 + pow(x, -4) * (assq - pow(x0, 2) * pow(F0, 2) * pow(G0, -2)) + 2 * pow(x, -6) * (a_star - x0 * F0 * pow(G0, -1)));
 
+        double Phi =Q + (0.02) * (pow(alpha, 9/8.) * pow(m_star, -3/8.) * pow(mdot_star, 1/4.) * pow(x, -1) * B * pow(C, -1/2.) * (pow(x0, 9/8.) * pow(C0, -5/8.) * G0 * pow(V0, 1/2.)));
 
+        double p_gas_p_rad = (5 * pow(10, -5)) * (pow(alpha, -1/4.) * pow(m_star, 7/4.) * pow(mdot_star, -2)) * pow(x, 21/4.) * pow(A, -5/2.) * pow(B, 9/2.) * D * pow(S, 5/4.) * pow(Phi, -2);
     }
 
     accretion_disk disk;
