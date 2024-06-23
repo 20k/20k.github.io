@@ -523,11 +523,19 @@ namespace value_impl
                 if constexpr(std::is_same_v<T, float>)
                     suffix = "f";
 
-                //to_string_s is implemented in terms of std::to_chars, but always ends with a "." for floating point numbers, as 1234f is invalid syntax in OpenCL
-                if(in < 0)
-                    return "(" + to_string_s(in) + suffix + ")";
+                if constexpr(std::is_arithmetic_v<T>)
+                {
+                    //to_string_s is implemented in terms of std::to_chars, but always ends with a "." for floating point numbers, as 1234f is invalid syntax in OpenCL
+                    if(in < 0)
+                        return "(" + to_string_s(in) + suffix + ")";
+                    else
+                        return to_string_s(in) + suffix;
+                }
                 else
+                {
                     return to_string_s(in) + suffix;
+                }
+
             }, v.concrete);
         }
 
