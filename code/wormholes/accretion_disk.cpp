@@ -91,7 +91,7 @@ accretion_disk make_accretion_disk_kerr(float M, float a)
         double G0 = 1 - 2 * cpow(x0, -2.) + a_star * cpow(x0, -3.);
         double C0 = 1 - 3 * cpow(x0, -2.) + 2 * assq * cpow(x0, -3.);
         double D0 = 1 - 2 * cpow(x0, -2.) + assq * cpow(x0, -4.);
-        double V0 = cpow(D0, -1.) * (1 + cpow(x0, -4.) * (assq - cpow(x0, 2.) * cpow(F0, 2.) * cpow(G0, -2.)) + 2 * cpow(x, -6.) * (a_star - x0 * F0 * cpow(G0, -1.)));
+        double V0 = cpow(D0, -1.) * (1 + cpow(x0, -4.) * (assq - cpow(x0, 2.) * cpow(F0, 2.) * cpow(G0, -2.)) + 2 * cpow(x0, -6.) * (a_star - x0 * F0 * cpow(G0, -1.)));
 
         double A = 1 + assq * cpow(x, -4.) + 2 * assq * cpow(x, -6.);
         double B = 1 + a_star * cpow(x, -3.);
@@ -99,13 +99,13 @@ accretion_disk make_accretion_disk_kerr(float M, float a)
         double D = 1 - 2 * cpow(x, -2.) + assq * cpow(x, -4.);
         double E = 1 + 4 * assq * cpow(x, -4.) - 4 * assq * cpow(x,-6.) + 3 * cpow(a_star, 4.) * cpow(x, -8.);
         double F = 1 - 2 * a_star * cpow(x, -3.) + assq * cpow(x, -4.);
-        double G = 1 - 2 * cpow(x, -2.) + a_star * cpow(x, -4.);
+        double G = 1 - 2 * cpow(x, -2.) + a_star * cpow(x, -3.);
         double H = 1 - 2 * cpow(x, -2.) + 2 * a_star * cpow(x, -2.) * cpow(x0, -1.) * cpow(F0, -1.) * G0;
         double I = A - 2 * a_star * cpow(x, -6.) * x0 * F0 * cpow(G0, -1.);
         double O = H * cpow(I, -1.);
-        double J = O - cpow(x, -2.) * cpow(I, -1.) * (1 - a_star * cpow(x0, -1.) * cpow(F0, -1.) * G0 + assq * cpow(x, -2.) * H * cpow(J, -1.) * (1 + 3 * cpow(x, -2.) - 3 * cpow(a_star, -1.) * cpow(x, -2.) * x0 * F0 * cpow(G0, -1.)));
+        double J = O - cpow(x, -2.) * cpow(I, -1.) * (1 - a_star * cpow(x0, -1.) * cpow(F0, -1.) * G0 + assq * cpow(x, -2.) * H * cpow(I, -1.) * (1 + 3 * cpow(x, -2.) - 3 * cpow(a_star, -1.) * cpow(x, -2.) * x0 * F0 * cpow(G0, -1.)));
         double K = fabs(A * J * cpow(1 - cpow(x, -4.) * cpow(A, 2.) * cpow(D, -1.) * cpow(x0 * F0 * cpow(G0, -1.) * O - 2 * a_star * cpow(x, -2.) * cpow(A, -1.), 2.), -1.));
-        double Q = B * cpow(C, -1/2.) * (1/x) * (x - x0 - 3/2. * a_star * log(x/x0)
+        double Q = B * cpow(C, -1/2.) * (1/x) * (x - x0 - (3/2.) * a_star * log(x/x0)
                                                 - (3 * cpow(x1 - a_star, 2.) / (x1 * (x1 - x2) * (x1 - x3))) * log((x - x1) / (x0 - x1))
                                                 - (3 * cpow(x2 - a_star, 2.) / (x2 * (x2 - x1) * (x2 - x3))) * log((x - x2) / (x0 - x2))
                                                 - (3 * cpow(x3 - a_star, 2.) / (x3 * (x3 - x1) * (x3 - x2))) * log((x - x3) / (x0 - x3))
