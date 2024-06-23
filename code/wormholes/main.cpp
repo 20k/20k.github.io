@@ -4,6 +4,7 @@
 #include "../common/toolkit/opencl.hpp"
 #include <SFML/Graphics.hpp>
 #include <vec/vec.hpp>
+#include "accretion_disk.hpp"
 
 tensor<float, 3> cartesian_to_spherical(const tensor<float, 3>& cartesian)
 {
@@ -161,11 +162,13 @@ cl::kernel make_kernel(cl::context& ctx, const std::string& str, const std::stri
 
 int main()
 {
+    accretion_disk accrete = make_accretion_disk_kerr(1.f, 0.1f);
+
     int screen_width = 1920;
     int screen_height = 1080;
 
     sf::VideoMode mode(screen_width, screen_height);
-    sf::RenderWindow win(mode, "I am a black hole", sf::Style::Fullscreen);
+    sf::RenderWindow win(mode, "I am a black hole");
 
     cl::context ctx;
 

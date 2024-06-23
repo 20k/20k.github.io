@@ -17,6 +17,6 @@ struct accretion_disk
     std::array<accretion_segment, 5> segments;
 };
 
-accretion_disk make_for_kerr(float M, float a);
+accretion_disk make_accretion_disk_kerr(float M, float a);
 
 #endif // ACCRETION_DISK_HPP_INCLUDED
