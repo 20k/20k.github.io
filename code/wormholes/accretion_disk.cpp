@@ -81,7 +81,7 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
     ///VISCOSITY
     double alpha = 0.1;
 
-    std::cout << "ISCO " << isco << " Start " << horizon << " Boundary " << outer_boundary << std::endl;
+    std::cout << "ISCO " << isco << " horizon " << horizon << " Boundary " << outer_boundary << " mass " << mass << std::endl;
 
     double x0 = sqrt(isco/mass);
     double F0 = 1 - 2 * a_star * cpow(x0, -3.) + assq * cpow(x0, -4.);
@@ -94,6 +94,8 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
     std::cout << "F0 " << F0 << std::endl;
 
+    std::cout << "X0 " << x0 << std::endl;
+
     for(int steps = 0; steps < max_steps; steps++)
     {
         double r = mix(horizon, outer_boundary, steps / (double)max_steps);
@@ -105,14 +107,25 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
         std::cout << "X " << x << std::endl;
 
-        double A = 1 + assq * cpow(x, -4.) + 2 * assq * cpow(x, -6.);
+        ///so, when r/m > 2, we're outside the event horizon
+        ///because rs = 2m
+
+
+        float x_pow_m2 = mass/r;
+        float x_pow_m4 = cpow(mass/r, 2.);
+
+        ///ok so, x_pow_m2 has a value of 1/2 at the event horizon
+        ///x_pow_m4 has a value of 1/4
+
+        double A = 1 + assq * x_pow_m4 + 2 * assq * cpow(x, -6.);
         double B = 1 + a_star * cpow(x, -3.);
-        double C = 1 - 3 * cpow(x, -2.) + 2 * assq * cpow(x, -3.);
-        double D = 1 - 2 * cpow(x, -2.) + assq * cpow(x, -4.);
-        double E = 1 + 4 * assq * cpow(x, -4.) - 4 * assq * cpow(x,-6.) + 3 * cpow(a_star, 4.) * cpow(x, -8.);
-        double F = 1 - 2 * a_star * cpow(x, -3.) + assq * cpow(x, -4.);
-        double G = 1 - 2 * cpow(x, -2.) + a_star * cpow(x, -3.);
-        double H = 1 - 2 * cpow(x, -2.) + 2 * a_star * cpow(x, -2.) * cpow(x0, -1.) * cpow(F0, -1.) * G0;
+        double C = 1 - 3 * x_pow_m2 + 2 * assq * cpow(x, -3.);
+        double D = 1 - 2 * (mass/r) + assq * cpow(x, -4.);
+        //double D = 1 - 2 * cpow(x, -2.) + assq * cpow(x, -4.);
+        double E = 1 + 4 * assq * x_pow_m4 - 4 * assq * cpow(x,-6.) + 3 * cpow(a_star, 4.) * cpow(x, -8.);
+        double F = 1 - 2 * a_star * cpow(x, -3.) + assq * x_pow_m4;
+        double G = 1 - 2 * x_pow_m2 + a_star * cpow(x, -3.);
+        double H = 1 - 2 * x_pow_m2 + 2 * a_star * cpow(x, -2.) * cpow(x0, -1.) * cpow(F0, -1.) * G0;
         double I = A - 2 * a_star * cpow(x, -6.) * x0 * F0 * cpow(G0, -1.);
         double O = H * cpow(I, -1.);
         double J = O - cpow(x, -2.) * cpow(I, -1.) * (1 - a_star * cpow(x0, -1.) * cpow(F0, -1.) * G0 + assq * cpow(x, -2.) * H * cpow(I, -1.) * (1 + 3 * cpow(x, -2.) - 3 * cpow(a_star, -1.) * cpow(x, -2.) * x0 * F0 * cpow(G0, -1.)));
@@ -132,8 +145,14 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
         double v_star_inner = (cpow(C0, -1.) * cpow(G0, 2.) * V - 1) + 7 * cpow(10., -3.) * cpow(alpha, 1/4.) * cpow(m_star, -3/4.) * cpow(mdot_star, 1/2.) * cpow(x0, -7/4.) * cpow(C0, -5/4.) * cpow(D0, -1.) * cpow(G0, 2.) * V;
 
+        //v_star_inner = fabs(v_star_inner);
+
         std::cout << "Test " << (1/(x*x*x*x)) * -x0*x0 * F0*F0 * 1/(G0*G0) << std::endl;
         std::cout << "Test2 " << 2 * cpow(x, -6.) * -x0 * F0 / G0 << std::endl;
+        std::cout << "D " << D << std::endl;
+
+        std::cout << "A " << A << " B " << B << " C " << C << " D " << D << " E " << E << std::endl;
+        std::cout << "V " << V << std::endl;
 
         //std::cout << "VTest " << cpow(D, -1.) << std::endl;
 
