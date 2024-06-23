@@ -3,7 +3,7 @@
 #include <numbers>
 #include <vec/vec.hpp>
 #include <iostream>
-
+#include <SFML/Graphics.hpp>
 
 constexpr double cpow(double a, double b)
 {
@@ -153,6 +153,8 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
     std::cout << "X0 " << x0 << std::endl;
 
+    std::vector<std::pair<double, double>> brightness;
+
     for(int steps = 0; steps < max_steps; steps++)
     {
         double r = mix(horizon, outer_boundary, steps / (double)max_steps);
@@ -162,7 +164,7 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
         double x = sqrt(r/mass);
 
-        std::cout << "X " << x << std::endl;
+        //std::cout << "X " << x << std::endl;
 
         ///so, when r/m > 2, we're outside the event horizon
         ///because rs = 2m
@@ -204,12 +206,12 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
         //v_star_inner = fabs(v_star_inner);
 
-        std::cout << "Test " << (1/(x*x*x*x)) * -x0*x0 * F0*F0 * 1/(G0*G0) << std::endl;
+        /*std::cout << "Test " << (1/(x*x*x*x)) * -x0*x0 * F0*F0 * 1/(G0*G0) << std::endl;
         std::cout << "Test2 " << 2 * cpow(x, -6.) * -x0 * F0 / G0 << std::endl;
         std::cout << "D " << D << std::endl;
 
         std::cout << "A " << A << " B " << B << " C " << C << " D " << D << " E " << E << std::endl;
-        std::cout << "V " << V << std::endl;
+        std::cout << "V " << V << std::endl;*/
 
         //std::cout << "VTest " << cpow(D, -1.) << std::endl;
 
@@ -242,19 +244,6 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
         if(region == 0)
         {
-            //std::cout << "Vs? " << v_star << " in " << v_star_inner << std::endl;
-            /*std::cout << "C " << C0 << " D " << D0 << " V " << V << " x " << x << std::endl;
-
-            std::cout << "assq " << assq << std::endl;
-
-            std::cout << "VP1 " << 1 + cpow(x, -4.) * (assq - cpow(x0, 2.) * cpow(F0, 2.) * cpow(G0, -2.)) << std::endl;
-            std::cout << "VP2 " << 2 * cpow(x, -6.) * (a_star - x0 * F0 * cpow(G0, -1.)) << std::endl;
-            std::cout << "D? " << cpow(D, -1.) << std::endl;
-            std::cout << "D " << D << std::endl;*/
-
-
-            //std::cout << "VSI " << v_star_inner << std::endl;
-
             //erg/cm^2 sec
             surface_flux = 2 * cpow(10., 18.) * (cpow(alpha, 4/3.) * cpow(m_star, -3.) * cpow(mdot_star, 5/3.)) * cpow(x, -26/3.) * cpow(x0, 4/3.) * cpow(D, -5/6.) * cpow(K, 4/3.) * cpow(F0, 4/3.) * cpow(G0, -4/3.) * cpow(v_star, -5/3.);
             surface_density = 1 * cpow(m_star, -1.) * mdot_star * cpow(x, -2.) * cpow(D, -1/2.) * cpow(v_star, -1.);
@@ -278,8 +267,77 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
             surface_density = 2 * cpow(10., 5.) * cpow(alpha, -4/5.) * cpow(m_star, -1/2.) * cpow(mdot_star, 7/10.) * cpow(x, -3/2.) * cpow(A, 1/10.) * cpow(B, -4/5.) * cpow(C, 1/2.) * cpow(D, -17/20.) * cpow(S, -1/20.) * cpow(Phi, 7/10.);
         }
 
+        if(!std::isnan(surface_flux))
+        {
+            brightness.push_back({r, surface_flux});
+        }
+
         //printf("At %i step %i r %f flux %f surface %f\n", region, steps, r / (2 * mass), surface_flux, surface_density);
     }
+
+    double max_bright = 0;
+    double min_bright = FLT_MAX;
+
+    for(auto& [a, b] : brightness)
+    {
+        max_bright = std::max(b, max_bright);
+        min_bright = std::min(b, min_bright);
+    }
+
+    for(auto& [a, b] : brightness)
+    {
+        #ifdef MAX_CONTRAST
+        b -= min_bright;
+        b /= (max_bright - min_bright);
+        #else
+        b /= max_bright;
+        #endif
+    }
+
+    sf::Image img;
+    img.create(1024, 1024);
+
+    for(int j=0; j < 1024; j++)
+    {
+        for(int i=0; i < 1024; i++)
+        {
+            int centre = 512;
+
+            float dj = (j - centre) / (float)centre;
+            float di = (i - centre) / (float)centre;
+
+            float rad = sqrt(di * di + dj * dj);
+
+            double max_coordinate_boundary = 1;
+
+            double max_physical_boundary = outer_boundary;
+
+            double my_physical_radius = rad * (max_physical_boundary / max_coordinate_boundary);
+
+            double which = 0;
+
+            //for(auto& [pr, b] : brightness)
+
+            for(int i=(int)brightness.size() - 1; i >= 0; i--)
+            {
+                auto& [pr, b] = brightness[i];
+
+                if(my_physical_radius >= pr)
+                {
+                    which = b;
+                    break;
+                }
+            }
+
+            assert(which >= 0 && which <= 1);
+
+            sf::Color col(255 * which, 255 * which, 255 * which, 255);
+
+            img.setPixel(i, j, col);
+        }
+    }
+
+    img.saveToFile("Test.png");
 
     accretion_disk disk;
 
