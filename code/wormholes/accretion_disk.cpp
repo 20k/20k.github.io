@@ -53,6 +53,7 @@ accretion_disk make_for_kerr(float M, float a)
     ///10 radii out??
     double outer_boundary = 2 * M * 10;
 
+    ///0 = plunge, 1 = edge, 2 = inner, 3 = middle, 4 = outer
     int region = 0;
 
     int max_steps = 0;
@@ -97,9 +98,25 @@ accretion_disk make_for_kerr(float M, float a)
         double S = pow(A, 2) * pow(B, -2) * C * pow(D, -1) * R;
         double V = pow(D, -1) * (1 + pow(x, -4) * (assq - pow(x0, 2) * pow(F0, 2) * pow(G0, -2)) + 2 * pow(x, -6) * (a_star - x0 * F0 * pow(G0, -1)));
 
-        double Phi =Q + (0.02) * (pow(alpha, 9/8.) * pow(m_star, -3/8.) * pow(mdot_star, 1/4.) * pow(x, -1) * B * pow(C, -1/2.) * (pow(x0, 9/8.) * pow(C0, -5/8.) * G0 * pow(V0, 1/2.)));
+        double Phi = Q + (0.02) * (pow(alpha, 9/8.) * pow(m_star, -3/8.) * pow(mdot_star, 1/4.) * pow(x, -1) * B * pow(C, -1/2.) * (pow(x0, 9/8.) * pow(C0, -5/8.) * G0 * pow(V0, 1/2.)));
 
         double p_gas_p_rad = (5 * pow(10, -5)) * (pow(alpha, -1/4.) * pow(m_star, 7/4.) * pow(mdot_star, -2)) * pow(x, 21/4.) * pow(A, -5/2.) * pow(B, 9/2.) * D * pow(S, 5/4.) * pow(Phi, -2);
+
+        ///in the edge region, gas pressure dominates over radiation pressure
+        ///in the inner region, gas pressure is less than radiation pressure
+        ///in the middle region, gas pressure is greater than radiation pressure
+        if(region == 1 && p_gas_p_rad < 1)
+            region = 2;
+
+        if(region == 2 && p_gas_p_rad > 1)
+            region = 3;
+
+        //in the outer region opacity is free-free
+        //in the middle region, opacity is electron scattering
+        double Tff_Tes = (0.6 * pow(10,-5)) * pow(m_star * pow(mdot_star, -1)) * pow(x, 3) * pow(A, -1) * pow(B, 2) * pow(D, 1/2.) * pow(S, 1/2.) * pow(Phi, -1);
+
+        if(Tff_Tes >= 1)
+            region = 4;
     }
 
     accretion_disk disk;
