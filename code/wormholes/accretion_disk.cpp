@@ -94,32 +94,17 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
     double Msol_natural = (Msol * cst_G) / (cst_C*cst_C);
 
-    //mass = 10 * Msol_natural;
-
     double m_star = mass / (3 * Msol_natural);
-
-    //std::cout << m_star << std::endl;
 
     double eddington_kg_ps = eddington_limit_kg_s(mass);
 
-    std::cout << "Eddington " << eddington_kg_ps << std::endl;
-
-    ///sure why not
-    //double mdot_star = 0.001;
-
     ///they want grams per second
     double mdot_star = 0.3 * eddington_kg_ps * 1000 / pow(10., 17.);
-
-    //a = 0;
 
     double a_star = a/mass;
     double assq = cpow(a_star, 2.);
 
     double isco = get_isco(mass, a);
-
-    std::cout << "ISCOF " << isco / (2 * mass) << std::endl;
-
-
 
     double x1 = 2 * cos(acos(a_star)/3 - pi/3);
     double x2 = 2 * cos(acos(a_star)/3 + pi/3);
@@ -128,7 +113,7 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
     double horizon = get_event_horizon(mass, a);
 
     ///10 radii out??
-    double outer_boundary = 2 * mass * 200;
+    double outer_boundary = 2 * mass * 50;
 
     ///0 = plunge, 1 = edge, 2 = inner, 3 = middle, 4 = outer
     int region = 0;
@@ -138,7 +123,7 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
     ///VISCOSITY
     double alpha = 0.1;
 
-    std::cout << "ISCO " << isco << " horizon " << horizon << " Boundary " << outer_boundary << " mass " << mass << std::endl;
+    //std::cout << "ISCO " << isco << " horizon " << horizon << " Boundary " << outer_boundary << " mass " << mass << std::endl;
 
     double x0 = sqrt(isco/mass);
     double F0 = 1 - 2 * a_star * cpow(x0, -3.) + assq * cpow(x0, -4.);
@@ -147,11 +132,11 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
     double D0 = 1 - 2 * cpow(x0, -2.) + assq * cpow(x0, -4.);
     double V0 = cpow(D0, -1.) * (1 + cpow(x0, -4.) * (assq - cpow(x0, 2.) * cpow(F0, 2.) * cpow(G0, -2.)) + 2 * cpow(x0, -6.) * (a_star - x0 * F0 * cpow(G0, -1.)));
 
-    std::cout << "C0 " << C0 << " G0 " << G0 << std::endl;
+    //std::cout << "C0 " << C0 << " G0 " << G0 << std::endl;
 
-    std::cout << "F0 " << F0 << std::endl;
+    //std::cout << "F0 " << F0 << std::endl;
 
-    std::cout << "X0 " << x0 << std::endl;
+    //std::cout << "X0 " << x0 << std::endl;
 
     std::vector<std::pair<double, double>> brightness;
 
