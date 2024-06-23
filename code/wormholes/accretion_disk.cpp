@@ -73,6 +73,8 @@ accretion_disk make_accretion_disk_kerr(float M, float a)
     ///VISCOSITY
     double alpha = 0.1;
 
+    std::cout << "ISCO " << isco << " Start " << horizon << " Boundary " << outer_boundary << std::endl;
+
     for(int steps = 0; steps < max_steps; steps++)
     {
         double r = mix(horizon, outer_boundary, steps / (double)max_steps);
@@ -81,6 +83,8 @@ accretion_disk make_accretion_disk_kerr(float M, float a)
             region = 1;
 
         double x = sqrt(r/M);
+
+        std::cout << "X " << x << std::endl;
 
         double x0 = sqrt(isco/M);
         double F0 = 1 - 2 * a_star * cpow(x0, -3.) + assq * cpow(x0, -4.);
@@ -100,7 +104,7 @@ accretion_disk make_accretion_disk_kerr(float M, float a)
         double I = A - 2 * a_star * cpow(x, -6.) * x0 * F0 * cpow(G0, -1.);
         double O = H * cpow(I, -1.);
         double J = O - cpow(x, -2.) * cpow(I, -1.) * (1 - a_star * cpow(x0, -1.) * cpow(F0, -1.) * G0 + assq * cpow(x, -2.) * H * cpow(J, -1.) * (1 + 3 * cpow(x, -2.) - 3 * cpow(a_star, -1.) * cpow(x, -2.) * x0 * F0 * cpow(G0, -1.)));
-        double K = fabs(cpow(A * J * (1 - cpow(x, -4.) * cpow(A, 2.) * cpow(D, -1.) * cpow(x0 * F0 * cpow(G0, -1.) * O - 2 * a_star * cpow(x, -2.) * cpow(A, -1.), 2.)), -1.));
+        double K = fabs(A * J * cpow(1 - cpow(x, -4.) * cpow(A, 2.) * cpow(D, -1.) * cpow(x0 * F0 * cpow(G0, -1.) * O - 2 * a_star * cpow(x, -2.) * cpow(A, -1.), 2.), -1.));
         double Q = B * cpow(C, -1/2.) * (1/x) * (x - x0 - 3/2. * a_star * log(x/x0)
                                                 - (3 * cpow(x1 - a_star, 2.) / (x1 * (x1 - x2) * (x1 - x3))) * log((x - x1) / (x0 - x1))
                                                 - (3 * cpow(x2 - a_star, 2.) / (x2 * (x2 - x1) * (x2 - x3))) * log((x - x2) / (x0 - x2))
@@ -141,7 +145,17 @@ accretion_disk make_accretion_disk_kerr(float M, float a)
         if(region == 0)
         {
             //std::cout << "Vs? " << v_star << " in " << v_star_inner << std::endl;
-            std::cout << "C " << C0 << " D " << D0 << " V " << V << " x " << x << std::endl;
+            /*std::cout << "C " << C0 << " D " << D0 << " V " << V << " x " << x << std::endl;
+
+            std::cout << "assq " << assq << std::endl;
+
+            std::cout << "VP1 " << 1 + cpow(x, -4.) * (assq - cpow(x0, 2.) * cpow(F0, 2.) * cpow(G0, -2.)) << std::endl;
+            std::cout << "VP2 " << 2 * cpow(x, -6.) * (a_star - x0 * F0 * cpow(G0, -1.)) << std::endl;
+            std::cout << "D? " << cpow(D, -1.) << std::endl;
+            std::cout << "D " << D << std::endl;*/
+
+
+            std::cout << "VSI " << v_star_inner << std::endl;
 
             //erg/cm^2 sec
             surface_flux = 2 * cpow(10., 18.) * (cpow(alpha, 4/3.) * cpow(m_star, -3.) * cpow(mdot_star, 5/3.)) * cpow(x, -26/3.) * cpow(x0, 4/3.) * cpow(D, -5/6.) * cpow(K, 4/3.) * cpow(F0, 4/3.) * cpow(G0, -4/3.) * cpow(v_star, -5/3.);
