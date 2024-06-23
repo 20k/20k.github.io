@@ -85,9 +85,6 @@ double eddington_limit_kg_s(double M)
 ///https://arxiv.org/pdf/1110.6556
 accretion_disk make_accretion_disk_kerr(float mass, float a)
 {
-    mass *= 0.1;
-    a = 0;
-
     double Msol = 1.988 * cpow(10., 30.);
 
     double pi = std::numbers::pi_v<double>;
@@ -279,14 +276,16 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
         #endif
     }
 
-    sf::Image img;
-    img.create(1024, 1024);
+    int tex_size = 2048;
 
-    for(int j=0; j < 1024; j++)
+    sf::Image img;
+    img.create(tex_size, tex_size);
+
+    for(int j=0; j < tex_size; j++)
     {
-        for(int i=0; i < 1024; i++)
+        for(int i=0; i < tex_size; i++)
         {
-            int centre = 512;
+            int centre = tex_size/2;
 
             float dj = (j - centre) / (float)centre;
             float di = (i - centre) / (float)centre;
@@ -327,8 +326,6 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
     accretion_disk disk;
 
     ///we use units of c=g=1
-
-    assert(false);
 
     return disk;
 }

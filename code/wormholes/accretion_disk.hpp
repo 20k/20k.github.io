@@ -2,19 +2,11 @@
 #define ACCRETION_DISK_HPP_INCLUDED
 
 #include <array>
-
-struct accretion_segment
-{
-    float r_start = 0;
-    float r_end = 0;
-
-    float F_start = 0;
-    float F_end = 0;
-};
+#include <SFML/Graphics.hpp>
 
 struct accretion_disk
 {
-    std::array<accretion_segment, 5> segments;
+    sf::Image normalised_brightness;
 };
 
 accretion_disk make_accretion_disk_kerr(float M, float a);

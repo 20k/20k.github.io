@@ -2,6 +2,7 @@
 #define STDMATH_HPP_INCLUDED
 
 #include <cmath>
+#include <assert.h>
 
 namespace stdmath
 {
@@ -75,22 +76,30 @@ namespace stdmath
 
     auto usign = []<typename T>(T in)
     {
-        if(in == T(-0.0))
-            return T(-0.0);
+        if constexpr(std::is_same_v<T, bool>)
+        {
+            assert(false);
+            return false;
+        }
+        else
+        {
+            if(in == T(-0.0))
+                return T(-0.0);
 
-        if(in == T(0.0))
-            return T(0.0);
+            if(in == T(0.0))
+                return T(0.0);
 
-        if(in > 0)
-            return T(1);
+            if(in > 0)
+                return T(1);
 
-        if(in < 0)
-            return T(-1);
+            if(in < 0)
+                return T(-1);
 
-        using std::isnan;
+            using std::isnan;
 
-        if(isnan(in))
-            return T(0);
+            if(isnan(in))
+                return T(0);
+        }
 
         throw std::runtime_error("Bad sign function");
     };

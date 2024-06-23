@@ -523,7 +523,7 @@ namespace value_impl
                 if constexpr(std::is_same_v<T, float>)
                     suffix = "f";
 
-                if constexpr(std::is_arithmetic_v<T>)
+                if constexpr(std::is_arithmetic_v<T> && !std::is_same_v<T, bool>)
                 {
                     //to_string_s is implemented in terms of std::to_chars, but always ends with a "." for floating point numbers, as 1234f is invalid syntax in OpenCL
                     if(in < 0)
@@ -985,12 +985,12 @@ namespace value_impl
     {
         ectx.add(declare_array_b<T>(name, size, {}));
 
-        assert(rhs.size() <= size);
+        assert((int)rhs.size() <= size);
 
         single_source::array<T> out;
         out.name = name;
 
-        for(int i=0; i < rhs.size(); i++)
+        for(int i=0; i < (int)rhs.size(); i++)
         {
             single_source::array_mut<T> temp;
             temp.name = name;
