@@ -219,7 +219,7 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
         //std::cout << "Tff " << Tff_Tes << std::endl;
 
-        if(Tff_Tes >= 1)
+        if(region == 3 && Tff_Tes >= 1)
             region = 4;
 
         double surface_flux = 0;
