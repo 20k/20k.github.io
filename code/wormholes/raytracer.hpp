@@ -512,6 +512,81 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
 
     swap(tetrad_array[0], tetrad_array[timelike_coordinate]);
 
+    /*
+    if(should_orient)
+    {
+        float4 le0;
+        float4 le1;
+        float4 le2;
+        float4 le3;
+
+        {
+            float3 apolar = polar_camera.yzw;
+            apolar.x = fabs(apolar.x);
+
+            float3 cart_camera = polar_to_cartesian(apolar);
+
+            float4 e_lo[4];
+            get_tetrad_inverse(e0, e1, e2, e3, &e_lo[0], &e_lo[1], &e_lo[2], &e_lo[3]);
+
+            float3 cx = (float3)(1, 0, 0);
+            float3 cy = (float3)(0, 1, 0);
+            float3 cz = (float3)(0, 0, 1);
+
+            float3 sx = cartesian_velocity_to_polar_velocity(cart_camera, cx);
+            float3 sy = cartesian_velocity_to_polar_velocity(cart_camera, cy);
+            float3 sz = cartesian_velocity_to_polar_velocity(cart_camera, cz);
+
+            if(polar_camera.y < 0)
+            {
+                sx.x = -sx.x;
+                sy.x = -sy.x;
+                sz.x = -sz.x;
+            }
+
+            float4 gx = spherical_velocity_to_generic_velocity(polar_camera, (float4)(0, sx), cfg);
+            float4 gy = spherical_velocity_to_generic_velocity(polar_camera, (float4)(0, sy), cfg);
+            float4 gz = spherical_velocity_to_generic_velocity(polar_camera, (float4)(0, sz), cfg);
+
+            ///normalise with y first, so that the camera controls always work intuitively - as they are inherently a 'global' concept
+            ///ok so this is in global coordinate
+            float4 approximate_basis[3] = {gy, gx, gz};
+
+            ///push it into the tetrad
+            float4 tE1 = coordinate_to_tetrad_basis(approximate_basis[0], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+            float4 tE2 = coordinate_to_tetrad_basis(approximate_basis[1], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+            float4 tE3 = coordinate_to_tetrad_basis(approximate_basis[2], e_lo[0], e_lo[1], e_lo[2], e_lo[3]);
+
+            ///orthonormalise the spatial parts of the projected vectors
+            struct ortho_result result = orthonormalise(tE1.yzw, tE2.yzw, tE3.yzw);
+
+            ///discard the timelike component
+            float4 basis1 = (float4)(0, result.v1);
+            float4 basis2 = (float4)(0, result.v2);
+            float4 basis3 = (float4)(0, result.v3);
+
+            float4 x_basis = basis2;
+            float4 y_basis = basis1;
+            float4 z_basis = basis3;
+
+            ///use the original tetrads, because we know where the timelike component lives
+            float4 x_out = tetrad_to_coordinate_basis(x_basis, e0, e1, e2, e3);
+            float4 y_out = tetrad_to_coordinate_basis(y_basis, e0, e1, e2, e3);
+            float4 z_out = tetrad_to_coordinate_basis(z_basis, e0, e1, e2, e3);
+
+            le0 = e0;
+            le1 = x_out;
+            le2 = y_out;
+            le3 = z_out;
+        }
+
+        e0 = le0;
+        e1 = le1;
+        e2 = le2;
+        e3 = le3;
+    }
+    */
+
     as_ref(e0_out[0]) = tetrad_array[0];
     as_ref(e1_out[0]) = tetrad_array[1];
     as_ref(e2_out[0]) = tetrad_array[2];
