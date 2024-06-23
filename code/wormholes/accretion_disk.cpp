@@ -35,24 +35,28 @@ double get_event_horizon(double M, double a)
 }
 
 ///https://arxiv.org/pdf/1110.6556
-accretion_disk make_accretion_disk_kerr(float M, float a)
+accretion_disk make_accretion_disk_kerr(float mass, float a)
 {
     double Msol = 1.988 * cpow(10., 30.);
 
     double cst_G = 6.6743 * cpow(10., -11.);
     double cst_C = 299792458;
 
-    double Msol_natural = Msol * cst_G / (cst_C*cst_C);
+    double Msol_natural = (Msol * cst_G) / (cst_C*cst_C);
 
-    double m_star = M / (3 * Msol_natural);
+    mass = 10 * Msol_natural;
+
+    double m_star = mass / (3 * Msol_natural);
 
     ///sure why not
-    double mdot_star = 0.01;
+    double mdot_star = 0.3;
 
-    double a_star = a/M;
+    a = 0;
+
+    double a_star = a/mass;
     double assq = cpow(a_star, 2.);
 
-    double isco = get_isco(M, a);
+    double isco = get_isco(mass, a);
 
     double pi = std::numbers::pi_v<double>;
 
@@ -60,10 +64,10 @@ accretion_disk make_accretion_disk_kerr(float M, float a)
     double x2 = 2 * cos(acos(a_star)/3 + pi/3);
     double x3 = -2 * cos(acos(a_star)/3);
 
-    double horizon = get_event_horizon(M, a);
+    double horizon = get_event_horizon(mass, a);
 
     ///10 radii out??
-    double outer_boundary = 2 * M * 10;
+    double outer_boundary = 2 * mass * 9;
 
     ///0 = plunge, 1 = edge, 2 = inner, 3 = middle, 4 = outer
     int region = 0;
@@ -82,11 +86,11 @@ accretion_disk make_accretion_disk_kerr(float M, float a)
         if(region == 0 && r >= isco)
             region = 1;
 
-        double x = sqrt(r/M);
+        double x = sqrt(r/mass);
 
         std::cout << "X " << x << std::endl;
 
-        double x0 = sqrt(isco/M);
+        double x0 = sqrt(isco/mass);
         double F0 = 1 - 2 * a_star * cpow(x0, -3.) + assq * cpow(x0, -4.);
         double G0 = 1 - 2 * cpow(x0, -2.) + a_star * cpow(x0, -3.);
         double C0 = 1 - 3 * cpow(x0, -2.) + 2 * assq * cpow(x0, -3.);
@@ -141,6 +145,7 @@ accretion_disk make_accretion_disk_kerr(float M, float a)
         double surface_flux = 0;
         double temperature = 0;
         double density = 0;
+        double surface_density = 0;
 
         if(region == 0)
         {
@@ -159,24 +164,28 @@ accretion_disk make_accretion_disk_kerr(float M, float a)
 
             //erg/cm^2 sec
             surface_flux = 2 * cpow(10., 18.) * (cpow(alpha, 4/3.) * cpow(m_star, -3.) * cpow(mdot_star, 5/3.)) * cpow(x, -26/3.) * cpow(x0, 4/3.) * cpow(D, -5/6.) * cpow(K, 4/3.) * cpow(F0, 4/3.) * cpow(G0, -4/3.) * cpow(v_star, -5/3.);
+            surface_density = 1 * cpow(m_star, -1.) * mdot_star * cpow(x, -2.) * cpow(D, -1/2.) * cpow(v_star, -1.);
         }
 
         if(region == 1 || region == 3)
         {
             surface_flux = 0.6 * cpow(10., 26.) * (cpow(m_star, -2.) * mdot_star) * cpow(x, -6.) * cpow(B, -1.) * cpow(C,-1/2.) * Phi;
+            surface_density = 5 * cpow(10., 4.) * cpow(alpha, -4/5.) * cpow(m_star, -2/5.) * cpow(mdot_star, 3/5.) * cpow(x, -6/5.) * cpow(B, -4/5.) * cpow(C, -1/2.) * cpow(D, -4/5.) * cpow(Phi, 3/5.);
         }
 
         if(region == 2)
         {
             surface_flux = 0.6 * cpow(10., 26.) * (cpow(m_star, -2.) * mdot_star) * cpow(x, -6.) * cpow(B, -1.) * cpow(C,-1/2.) * Phi;
+            surface_density = 20 * cpow(alpha, -1.) * m_star * cpow(mdot_star, -1.) * cpow(x, 3.) * cpow(A, -2.) * cpow(B, 3.) * cpow(C, 1/2.) * S * cpow(Phi, -1.);
         }
 
         if(region == 4)
         {
             surface_flux = 0.6 * cpow(10., 26.) * (cpow(m_star, -2.) * mdot_star) * cpow(x, -6.) * cpow(B, -1.) * cpow(C,-1/2.) * Phi;
+            surface_density = 2 * cpow(10., 5.) * cpow(alpha, -4/5.) * cpow(m_star, -1/2.) * cpow(mdot_star, 7/10.) * cpow(x, -3/2.) * cpow(A, 1/10.) * cpow(B, -4/5.) * cpow(C, 1/2.) * cpow(D, -17/20.) * cpow(S, -1/20.) * cpow(Phi, 7/10.);
         }
 
-        printf("At %i r %f flux %f\n", region, r, surface_flux);
+        printf("At %i step %i r %f flux %f surface %f\n", region, steps, r / (2 * mass), surface_flux, surface_density);
     }
 
     accretion_disk disk;
