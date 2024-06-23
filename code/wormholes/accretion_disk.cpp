@@ -5,7 +5,7 @@
 #include <iostream>
 
 
-double cpow(double a, double b)
+constexpr double cpow(double a, double b)
 {
     return pow(a, b);
 }
@@ -34,26 +34,83 @@ double get_event_horizon(double M, double a)
     return (rs + (sqrt(rs*rs - 4*a*a))) / 2.;
 }
 
+constexpr double cst_G = 6.6743 * cpow(10., -11.);
+constexpr double cst_C = 299792458;
+
+double kg_to_geom(double M)
+{
+    return M * cst_G / (cst_C * cst_C);
+}
+
+double geom_to_kg(double M)
+{
+    return M * cst_C * cst_C / cst_G;
+}
+
+double geom_to_time(double t)
+{
+    return t / cst_C;
+}
+
+double geom_to_itime(double t)
+{
+    return t * cst_C;
+}
+
+double itime_to_geom(double t)
+{
+    return t / cst_C;
+}
+
+double eddington_limit_kg_s(double M)
+{
+    double pi = std::numbers::pi_v<double>;
+
+    double M_in_kg = M * cst_C * cst_C / cst_G;
+
+    double sigmaT = 6.65245863216 * cpow(10., -29.);
+    double proton_mass = 1.67262192595 * pow(10., -27.);
+
+    double pm_t = proton_mass / sigmaT;;
+
+    double e = 0.1;
+
+    double kg_ps = 4 * pi * (cst_G * M_in_kg * pm_t) / (e * cst_C);
+
+    return kg_ps;
+
+    //return itime_to_geom(kg_to_geom(kg_ps));
+}
+
 ///https://arxiv.org/pdf/1110.6556
 accretion_disk make_accretion_disk_kerr(float mass, float a)
 {
+    mass *= 0.1;
+    a = 0;
+
     double Msol = 1.988 * cpow(10., 30.);
 
-    double cst_G = 6.6743 * cpow(10., -11.);
-    double cst_C = 299792458;
+    double pi = std::numbers::pi_v<double>;
 
     double Msol_natural = (Msol * cst_G) / (cst_C*cst_C);
 
-    mass = 10 * Msol_natural;
+    //mass = 10 * Msol_natural;
 
     double m_star = mass / (3 * Msol_natural);
 
-    std::cout << m_star << std::endl;
+    //std::cout << m_star << std::endl;
+
+    double eddington_kg_ps = eddington_limit_kg_s(mass);
+
+    std::cout << "Eddington " << eddington_kg_ps << std::endl;
 
     ///sure why not
-    double mdot_star = 0.3;
+    //double mdot_star = 0.001;
 
-    a = 0;
+    ///they want grams per second
+    double mdot_star = 0.3 * eddington_kg_ps * 1000 / pow(10., 17.);
+
+    //a = 0;
 
     double a_star = a/mass;
     double assq = cpow(a_star, 2.);
@@ -62,7 +119,7 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
     std::cout << "ISCOF " << isco / (2 * mass) << std::endl;
 
-    double pi = std::numbers::pi_v<double>;
+
 
     double x1 = 2 * cos(acos(a_star)/3 - pi/3);
     double x2 = 2 * cos(acos(a_star)/3 + pi/3);
@@ -71,12 +128,12 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
     double horizon = get_event_horizon(mass, a);
 
     ///10 radii out??
-    double outer_boundary = 2 * mass * 9;
+    double outer_boundary = 2 * mass * 200;
 
     ///0 = plunge, 1 = edge, 2 = inner, 3 = middle, 4 = outer
     int region = 0;
 
-    int max_steps = 100;
+    int max_steps = 1000;
 
     ///VISCOSITY
     double alpha = 0.1;
@@ -173,6 +230,8 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
         //in the middle region, opacity is electron scattering
         double Tff_Tes = (0.6 * cpow(10.,-5.)) * (m_star * cpow(mdot_star, -1.)) * cpow(x, 3.) * cpow(A, -1.) * cpow(B, 2.) * cpow(D, 1/2.) * cpow(S, 1/2.) * cpow(Phi, -1.);
 
+        //std::cout << "Tff " << Tff_Tes << std::endl;
+
         if(Tff_Tes >= 1)
             region = 4;
 
@@ -194,7 +253,7 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
             std::cout << "D " << D << std::endl;*/
 
 
-            std::cout << "VSI " << v_star_inner << std::endl;
+            //std::cout << "VSI " << v_star_inner << std::endl;
 
             //erg/cm^2 sec
             surface_flux = 2 * cpow(10., 18.) * (cpow(alpha, 4/3.) * cpow(m_star, -3.) * cpow(mdot_star, 5/3.)) * cpow(x, -26/3.) * cpow(x0, 4/3.) * cpow(D, -5/6.) * cpow(K, 4/3.) * cpow(F0, 4/3.) * cpow(G0, -4/3.) * cpow(v_star, -5/3.);
@@ -219,7 +278,7 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
             surface_density = 2 * cpow(10., 5.) * cpow(alpha, -4/5.) * cpow(m_star, -1/2.) * cpow(mdot_star, 7/10.) * cpow(x, -3/2.) * cpow(A, 1/10.) * cpow(B, -4/5.) * cpow(C, 1/2.) * cpow(D, -17/20.) * cpow(S, -1/20.) * cpow(Phi, 7/10.);
         }
 
-        printf("At %i step %i r %f flux %f surface %f\n", region, steps, r / (2 * mass), surface_flux, surface_density);
+        //printf("At %i step %i r %f flux %f surface %f\n", region, steps, r / (2 * mass), surface_flux, surface_density);
     }
 
     accretion_disk disk;
