@@ -194,9 +194,11 @@ Lets imagine you have a regular good ol' velocity in 3 dimensional space. We'll 
 4. 4-velocities parameterised by proper time $\frac{dx^\mu}{d\tau}$
 5. Timelike vs lightlike geodesics, with all of the different parameterisations
 
-It is common to define 4-velocities as only being those velocities which are parameterised by proper time, but we need to encompass every kind of geodesic
+It is common to define 4-velocities as only being those velocities which are parameterised by proper time, but we're going with the generalised understanding here. Note that this segment is dealing with line elements in minkowski for simplicity, and as such is special relativity. That said, the language of special relativity, and general relativity are often not very similar at all, so this is very useful to write down
 
 ### Lightlike Geodesics
+
+A lightlike geodesic is defined has having $ds^2 = 0$. If you've forgotten, remember that we evaluate this quantity with the metric tensor, or directly with the [line element](https://en.wikipedia.org/wiki/Line_element)
 
 #### Coordinate time parameterisation
 
@@ -219,51 +221,48 @@ $$
 
 #### Affine parameterisation
 
-This is the most common parameterisation for a geodesic, and the one we will be using. Luckily, because the parameter for a geodesic has no particularly useful interpretation, we simply set $\lambda = t$
+This is the most common parameterisation for a geodesic, and the one we will be using. Luckily, because the parameter for a geodesic has no particularly useful interpretation, we simply set $\lambda = t$ at the moment of construction
 
-In minkowski, because spacetime is trivially flat, this parameterisation will always hold, and affine and coordinate parameterisations are equivalent for light rays. In curved spacetime, this will only hold at the moment of construction, and then will diverge. This is because we're use [different geodesic equations](https://en.wikipedia.org/wiki/Geodesics_in_general_relativity#Equivalent_mathematical_expression_using_coordinate_time_as_parameter) depending on the parameterisation we pick
+In minkowski, because spacetime is trivially flat, this parameterisation will always hold, and affine and coordinate parameterisations are equivalent for light rays. In curved spacetime, this will only hold at the moment of construction, and then will diverge. This is because we use [different geodesic equations](https://en.wikipedia.org/wiki/Geodesics_in_general_relativity#Equivalent_mathematical_expression_using_coordinate_time_as_parameter) depending on the parameterisation we pick
 
-### Lightlike 4-Velocities
+#### Proper time parameterisation
 
-From our perspective, we can model a ray of light has having a velocity through space as eg $l_3=(1, 0, 0)$, meaning something moving with a speed of 1, in the +x direction. Turning this into lightlike 4-velocity[^definitions] in general relativity, in minkowski spacetime, is easy. We represent this as:
+The full line element reads:
 
-[^definitions]: Note that there is seemingly disagreement as to whether or not to call the velocities of lightlike geodesics 4-velocities
+$$ds^2 = -d\tau^2 = g_{\mu\nu}$$
 
-$$
-l_4^\mu = (\pm 1, l_3^0, l_3^1, l_3^2)
-$$
+Because for a lightlike geodesic, $ds^2 = 0$, $d\tau^2 = 0$. There is therefore no proper time parameterisation of a lightlike geodesic. For this reason, it is common to state that the velocity of a lightlike geodesic is not a 4-velocity, as it can never be parameterised by proper time
 
-We can verify with our minkowski metric tensor $n_{\mu\nu}$ that this is lightlike. One thing of key importance here is the parameterisation - our 3-velocity is parameterised by coordinate time $l_3^i = dx^i/dt$, and therefore the lightray $l_4^\mu$ is also parameterised by coordinate time, $l_4^\mu = \frac{dx^\mu}{dt}$. For our geodesic equation we actually want an affine parameterisation $l_4^\mu = \frac{dx^\mu}{d\lambda}$, as we're going to use the affine form of the geodesic equation. The nice thing is, because we don't need a physical interpretation for the parameter of the geodesic, we can set $\lambda = t$. Its worth noting that while this equation generally holds true in minkowski as space is very trivially flat, it is only true for one moment in time in curved spacetime
+### Timelike Geodesics
 
-The parameterisations diverge as we follow the geodesic forwards, because we use [different geodesic equations](https://en.wikipedia.org/wiki/Geodesics_in_general_relativity#Equivalent_mathematical_expression_using_coordinate_time_as_parameter) depending on whether or not we consider our parameterisation to be affine $\lambda$, or wish to enforce that $\lambda = t$. Note that the affine parameterisation is also often called $s$, or $ds$ for the delta
+A timelike geodesic is defined as having $ds^2 < 0$
 
-Please also note: its quite common to consider 4-velocities to be specifically only parameterised by proper time, and lightlike geodesics cannot be parameterised by proper time. Therefore we're abusing terminology a bit
+#### Coordinate time parameterisation
 
-### Timelike 4-Velocities
-
-Constructing a timelike geodesic is therefore a bit more tricky. Lets start off with a regular 3-velocity $v^i = dx^i/dt$, and imagine we're trying to construct a timelike 4-velocity $v_4^\mu = dx^\mu/d\tau$. We're looking for a specific parameterisation by $d\tau$, and constructing that requires more work
-
-Lets first up construct a timelike 4-velocity ($dx^\mu/dt$) parameterised by coordinate time. We know that the $dx^0/dt$ component must still be $1$, as $dx^0 = dt$. Lets check if $(1, v^0, v^1, v^2)$ is timelike:
+Lets first up construct a timelike 4-velocity $\frac{dx^\mu}{dt}$ parameterised by coordinate time. We know that the $dx^0/dt$ component must be $1$, as $dx^0 = dt$. Lets check if $(1, v^0, v^1, v^2)$ is timelike:
 
 $$
 ds^2 = -dt^2 + dx^2 + dy^2 + dz^2\\
 \\
 = -1 + dx^2 + dy^2 + dz^2 < 0\\
-\\s
 $$
 
 Therefore, if $|v| < 1$, we do get a valid timelike geodesic $\frac{dx^\mu}{dt} = (1, v^0, v^1, v^2)$ parameterised by coordinate time. If we want to change our parameterisation, we need to multiply by the quantity $\frac{dt}{d\tau}$. Using the line element for Minkowski again:
 
-$$
-\begin{align}
--d\tau^2 &= ds^2 = -1 + dx^2 + dy^2 + dz^2\\
-d\tau &= ds^2 = \sqrt{1 - (dx^2 + dy^2 + dz^2)}\\
-dt/d\tau^2 &= ds^2 = 1/\sqrt{1 - (dx^2 + dy^2 + dz^2)}\\
-dt/d\tau &= 1 / \sqrt{1 - |v^i|^2}\\
+#### Proper time parameterisation
+
+To transform from a coordinate time paramterisation, to a proper time parameterisation, we must multiply $\frac{dx^\mu}{dt}$ by $\frac{dt}{d\tau}$. How do we calculate $d\tau$? Easy, we use the line element for minkowski, and plug in our coordinate time velocity
+
+$$\begin{align}
+ds^2 &= -d\tau^2 = -dt^2 + dx^2 + dy^2 + dz^2\\
+-d\tau^2 &= -1 + |v|^2\\
+d\tau^2 &= 1 - |v|^2\\
+d\tau &= \sqrt{1 - |v|^2}\\
+\frac{dt}{d\tau} &= \frac{1}{\sqrt{1 - |v|^2}}\\
 \end{align}
 $$
 
-If you're at all familiar with general or special relativity, you will recognise this as the equation for the lorentz factor $\gamma$, and indeed $\gamma = dt/d\tau = \frac{1}{\sqrt{1 - |v|^2}}$. Lets proceed now with calculating our timelike 4-velocity
+You may recognise this as the formula for the lorentz factor $\gamma = \frac{dt}{d\tau}$. So to construct a 4-velocity parameterised by coordinate time from the 3-velocity $v^i$, we do:
 
 $$\begin{align}
 \frac{dx^\mu}{d\tau} &= \frac{dt}{d\tau} \frac{dx^\mu}{dt}\\
@@ -277,9 +276,21 @@ $$
 
 Part of the reason why I'm spelling this out so explicitly is because this notation is thrown around a lot, so hopefully you can come back to this in the future
 
+#### Affine parameterisation
+
+Like with lightlike geodesics, we can construct 'an' affine parameterisation by setting $\lambda = t$ at the moment of construction, after which the two parameters diverge. This however is very uncommon, and is only mentioned for completenes. When you do this, the parameterisation has no physical interpretation
+
+We can also construct an affine time parameterisation by setting $\lambda = \tau$, where $d\tau = ds^2 = -1$ (which is true in any proper time parameterisation). One very neat fact of proper time is that it *is* a general affine parameterisation, and so if we use a proper time parameterised geodesic and plug it through the geodesic equation specialised for the affine parameter (which is the one we use), this is perfectly valid
+
 ## Calculating the lorentz boost
 
-If we have an initial 4-velocity $u$ of our tetrad, and we want to boost the tetrad to represent an observer with a 4-velocity $v$, the formula is this[^form]:
+We now know how to make an observer with a (timelike) velocity in minkowski, by constructing it from a 3-velocity parameterised by coordinate time. To be very explicit, given a velocity in cartesian coordinates $d^i = (dx, dy, dz)$, where $|d| < 1$
+
+$$
+\frac{dx^\mu}{d\tau} = v = \frac{1}{\sqrt{1 - |d|^2}} (1, d^0, d^1, d^2)
+$$
+
+If we have an initial 4-velocity $u = e_0$ of our tetrad, and we want to boost the tetrad to represent an observer with a 4-velocity $v$, the formula is this[^form]:
 
 [^form]: [https://arxiv.org/pdf/2404.05744](https://arxiv.org/pdf/2404.05744) (18)
 
@@ -290,7 +301,6 @@ B^i_{\;\;j} &= \delta^i_{\;\;j} + \frac{(v^i + u^i)(v_j + u_j)}{1 + \gamma} - 2 
 \end{align}
 $$
 
-I need more of the construction so I can talk about it, 4-velocity construction etc. Existing literature makes this overly complicated, but that does mean I need to rederive the method I use in this part of the article
 
 # Redshift
 
