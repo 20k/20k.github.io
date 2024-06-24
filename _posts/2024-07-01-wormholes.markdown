@@ -382,6 +382,18 @@ tetrad boost_tetrad(v3f velocity, const tetrad& tetrads, const metric<valuef, 4,
 }
 ```
 
+## Wormhole Results
+
+With a wormhole with params M = 0.01, p = 1, a = 1, and an observer of $(-0.2, 0, 0)$
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/86528MigRMg?si=WF8o3tEySnRpykT2" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Of course the foreground and background texture do not have to be the same, and can be distinguished by $l < 0$
+
+M = 0.01, p = 1, a = 0.001
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/tgIBbN5_q1E?si=1tkzCCEcvLnIDKjn" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
 # Redshift
 
 ## Physically accurate redshift

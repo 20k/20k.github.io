@@ -93,7 +93,7 @@ metric<valuef, 4, 4> get_metric(const tensor<valuef, 4>& position) {
 
     valuef M = 0.01;
     valuef p = 1;
-    valuef a = 0.001f;
+    valuef a = 1.f;
 
     valuef l = position[1];
 
@@ -168,7 +168,7 @@ int main()
     int screen_height = 1080;
 
     sf::VideoMode mode(screen_width, screen_height);
-    sf::RenderWindow win(mode, "I am a black hole");
+    sf::RenderWindow win(mode, "I am a black hole", sf::Style::Fullscreen);
 
     cl::context ctx;
 
@@ -249,6 +249,8 @@ int main()
 
     sf::Keyboard key;
 
+    sf::Clock elapsed;
+
     while(win.isOpen())
     {
         sf::Event evt;
@@ -259,7 +261,7 @@ int main()
                 win.close();
         }
 
-        desired_proper_time += 0.1f;
+        desired_proper_time += 0.25f * elapsed.restart().asMicroseconds() / 1000. / 1000.;
 
         if(key.isKeyPressed(sf::Keyboard::J))
             cam.rotate({0.1f, 0.f});
@@ -289,7 +291,7 @@ int main()
 
 
         {
-            cl_float3 local_velocity = {-0.5, 0, 0.f};
+            cl_float3 local_velocity = {-0.2, 0, 0.f};
 
             cl::args args;
             args.push_back(cam.get_position());
@@ -349,7 +351,7 @@ int main()
             cqueue.exec(interpolate_kern, {1}, {1}, {});
         }
 
-        printf("Pos %f\n", final_camera_position.read<float>(cqueue)[1]);
+        //printf("Pos %f\n", final_camera_position.read<float>(cqueue)[1]);
         #else
         cl::copy(cqueue, tetrads[0], final_tetrads[0]);
         cl::copy(cqueue, tetrads[1], final_tetrads[1]);
@@ -383,7 +385,7 @@ int main()
             screen.unacquire(cqueue);
         }
 
-        cqueue.block();
+        //cqueue.block();
 
         std::cout << "Time " << clk.getElapsedTime().asMicroseconds() / 1000. << std::endl;
 
@@ -393,7 +395,7 @@ int main()
 
         win.display();
 
-        sf::sleep(sf::milliseconds(8));
+        //sf::sleep(sf::milliseconds(8));
     }
 
     return 0;
