@@ -180,11 +180,115 @@ Todo: video
 
 # Observers with velocity / Lorentz boosts
 
-In a previous article, we learnt that given a set of tetrad vectors $e_i^\mu$, the 0th vector $e_0^\mu$ represents the velocity of our observer. If we want to represent an observer with a different speed, sadly we can't just modify that component - to transform the entire tetrad is a little more involved. The standard method for this is something called a lorentz boost (or more generally, a lorentz transform), which - in special relativity - relates two observers moving at different speeds
+In a previous article, we learnt that given a set of tetrad vectors $e_i^\mu$, the 0th vector $e_0^\mu$ represents the velocity of our observer. If we want to represent an observer with a different speed, sadly we can't just modify that component - to transform the entire tetrad is a little more involved. The standard method for this is something called a lorentz boost (or more generally, a lorentz transform - which may include rotations), which - in special relativity - relates two observers moving at different speeds. A lorentz boost (or transform) in general relativity is often denoted by the symbol $\Lambda^i_{\;j}$, or $B^i_{\;j}$ for a lorentz boost specifically here. [This](https://arxiv.org/pdf/1106.2037) paper and [this](https://arxiv.org/pdf/2404.05744) paper contain more information in general
 
-For us, we're looking to perform a lorentz boost in an arbitrary direction, and apply it to our basis vectors. The specific form of this can be a little tricky to find, so here it is:
+For us, we're looking to perform a lorentz boost in an arbitrary direction, and apply it to our basis vectors. Before we get there, we need to know what a 4-velocity is - something we've skimmed over a bit
 
-$$todo:$$
+## 4-velocities are not quite like 3-velocities
+
+Lets imagine you have a regular good ol' velocity in 3 dimensional space. We'll normalise our velocities so that $1$ represents the speed of light, and $0$ represents stationary relative to our observer. We're going to examine the difference between:
+
+1. 3-velocities parameterised by coordinate time $\frac{dx^i}{dt}$, your regular everyday concept of velocity. We will call this $v$, and its euclidian magnitude is $|v|$
+2. 4-velocities parameterised by coordinate time $\frac{dx^\mu}{dt}$
+3. 4-velocities parameterised by an affine parameter $\frac{dx^\mu}{d\lambda}$
+4. 4-velocities parameterised by proper time $\frac{dx^\mu}{d\tau}$
+5. Timelike vs lightlike geodesics, with all of the different parameterisations
+
+It is common to define 4-velocities as only being those velocities which are parameterised by proper time, but we need to encompass every kind of geodesic
+
+### Lightlike Geodesics
+
+#### Coordinate time parameterisation
+
+Constructing a 4-velocity for a lightlike geodesic which is parameterised by coordinate time is easy. Definitionally for a lightlike geodesic:
+
+$$ds^2 = 0$$
+
+We can use the line element for minkowski as such, plugging in our 3-velocity to get a 4-velocity
+
+$$
+ds^2 = 0 = -dt^2 + dx^2 + dy^2 + dz^2\\
+-dt^2 = |v|^2\\
+$$
+
+We know a ray of light moves with a speed of $1$, therefore
+
+$$
+dt = \pm 1
+$$
+
+#### Affine parameterisation
+
+This is the most common parameterisation for a geodesic, and the one we will be using. Luckily, because the parameter for a geodesic has no particularly useful interpretation, we simply set $\lambda = t$
+
+In minkowski, because spacetime is trivially flat, this parameterisation will always hold, and affine and coordinate parameterisations are equivalent for light rays. In curved spacetime, this will only hold at the moment of construction, and then will diverge. This is because we're use [different geodesic equations](https://en.wikipedia.org/wiki/Geodesics_in_general_relativity#Equivalent_mathematical_expression_using_coordinate_time_as_parameter) depending on the parameterisation we pick
+
+### Lightlike 4-Velocities
+
+From our perspective, we can model a ray of light has having a velocity through space as eg $l_3=(1, 0, 0)$, meaning something moving with a speed of 1, in the +x direction. Turning this into lightlike 4-velocity[^definitions] in general relativity, in minkowski spacetime, is easy. We represent this as:
+
+[^definitions]: Note that there is seemingly disagreement as to whether or not to call the velocities of lightlike geodesics 4-velocities
+
+$$
+l_4^\mu = (\pm 1, l_3^0, l_3^1, l_3^2)
+$$
+
+We can verify with our minkowski metric tensor $n_{\mu\nu}$ that this is lightlike. One thing of key importance here is the parameterisation - our 3-velocity is parameterised by coordinate time $l_3^i = dx^i/dt$, and therefore the lightray $l_4^\mu$ is also parameterised by coordinate time, $l_4^\mu = \frac{dx^\mu}{dt}$. For our geodesic equation we actually want an affine parameterisation $l_4^\mu = \frac{dx^\mu}{d\lambda}$, as we're going to use the affine form of the geodesic equation. The nice thing is, because we don't need a physical interpretation for the parameter of the geodesic, we can set $\lambda = t$. Its worth noting that while this equation generally holds true in minkowski as space is very trivially flat, it is only true for one moment in time in curved spacetime
+
+The parameterisations diverge as we follow the geodesic forwards, because we use [different geodesic equations](https://en.wikipedia.org/wiki/Geodesics_in_general_relativity#Equivalent_mathematical_expression_using_coordinate_time_as_parameter) depending on whether or not we consider our parameterisation to be affine $\lambda$, or wish to enforce that $\lambda = t$. Note that the affine parameterisation is also often called $s$, or $ds$ for the delta
+
+Please also note: its quite common to consider 4-velocities to be specifically only parameterised by proper time, and lightlike geodesics cannot be parameterised by proper time. Therefore we're abusing terminology a bit
+
+### Timelike 4-Velocities
+
+Constructing a timelike geodesic is therefore a bit more tricky. Lets start off with a regular 3-velocity $v^i = dx^i/dt$, and imagine we're trying to construct a timelike 4-velocity $v_4^\mu = dx^\mu/d\tau$. We're looking for a specific parameterisation by $d\tau$, and constructing that requires more work
+
+Lets first up construct a timelike 4-velocity ($dx^\mu/dt$) parameterised by coordinate time. We know that the $dx^0/dt$ component must still be $1$, as $dx^0 = dt$. Lets check if $(1, v^0, v^1, v^2)$ is timelike:
+
+$$
+ds^2 = -dt^2 + dx^2 + dy^2 + dz^2\\
+\\
+= -1 + dx^2 + dy^2 + dz^2 < 0\\
+\\s
+$$
+
+Therefore, if $|v| < 1$, we do get a valid timelike geodesic $\frac{dx^\mu}{dt} = (1, v^0, v^1, v^2)$ parameterised by coordinate time. If we want to change our parameterisation, we need to multiply by the quantity $\frac{dt}{d\tau}$. Using the line element for Minkowski again:
+
+$$
+\begin{align}
+-d\tau^2 &= ds^2 = -1 + dx^2 + dy^2 + dz^2\\
+d\tau &= ds^2 = \sqrt{1 - (dx^2 + dy^2 + dz^2)}\\
+dt/d\tau^2 &= ds^2 = 1/\sqrt{1 - (dx^2 + dy^2 + dz^2)}\\
+dt/d\tau &= 1 / \sqrt{1 - |v^i|^2}\\
+\end{align}
+$$
+
+If you're at all familiar with general or special relativity, you will recognise this as the equation for the lorentz factor $\gamma$, and indeed $\gamma = dt/d\tau = \frac{1}{\sqrt{1 - |v|^2}}$. Lets proceed now with calculating our timelike 4-velocity
+
+$$\begin{align}
+\frac{dx^\mu}{d\tau} &= \frac{dt}{d\tau} \frac{dx^\mu}{dt}\\
+\frac{dx^\mu}{d\tau} &= \frac{1}{\sqrt{1 - |v^i|^2}}  \frac{dx^\mu}{dt}\\
+\frac{dx^\mu}{d\tau} &= \gamma  \frac{dx^\mu}{dt}\\
+\frac{dx^\mu}{d\tau} &= \gamma  (1, v^0, v^1, v^2)\\
+\frac{dx^\mu}{d\tau} &= \gamma  (1, v)\\
+\frac{dx^\mu}{d\tau} &=  (\gamma, \gamma v^0, \gamma v^1, \gamma v^2)\\
+\end{align}
+$$
+
+Part of the reason why I'm spelling this out so explicitly is because this notation is thrown around a lot, so hopefully you can come back to this in the future
+
+## Calculating the lorentz boost
+
+If we have an initial 4-velocity $u$ of our tetrad, and we want to boost the tetrad to represent an observer with a 4-velocity $v$, the formula is this[^form]:
+
+[^form]: [https://arxiv.org/pdf/2404.05744](https://arxiv.org/pdf/2404.05744) (18)
+
+$$
+\begin{align}
+B^i_{\;\;j} &= \delta^i_{\;\;j} + \frac{(v^i + u^i)(v_j + u_j)}{1 + \gamma} - 2 v^i u^j\\
+\gamma &= -v_i u^i
+\end{align}
+$$
 
 I need more of the construction so I can talk about it, 4-velocity construction etc. Existing literature makes this overly complicated, but that does mean I need to rederive the method I use in this part of the article
 
