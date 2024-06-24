@@ -192,7 +192,7 @@ For us, we're looking to perform a lorentz boost in an arbitrary direction, and 
 
 Lets imagine you have a regular good ol' velocity in 3 dimensional space. We'll normalise our velocities so that $1$ represents the speed of light, and $0$ represents stationary relative to our observer. We're going to examine the difference between:
 
-1. 3-velocities parameterised by coordinate time $\frac{dx^i}{dt}$, your regular everyday concept of velocity. We will call this $v$, and its euclidian magnitude is $|v|$
+1. 3-velocities parameterised by coordinate time $\frac{dx^i}{dt}$, your regular everyday concept of velocity. We will call this $v$, and its euclidian magnitude is $|v|$. $|v| = 1$ represents light
 2. 4-velocities parameterised by coordinate time $\frac{dx^\mu}{dt}$
 3. 4-velocities parameterised by an affine parameter $\frac{dx^\mu}{d\lambda}$
 4. 4-velocities parameterised by proper time $\frac{dx^\mu}{d\tau}$
@@ -223,11 +223,13 @@ $$
 dt = \pm 1
 $$
 
+Giving us a final coordinate parameterised 4-velocity of $\frac{dx^\mu}{dt} = (\pm 1, v^0, v^1, v^2)$
+
 #### Affine parameterisation
 
 This is the most common parameterisation for a geodesic, and the one we will be using. Luckily, because the parameter for a geodesic has no particularly useful interpretation, we simply set $\lambda = t$ at the moment of construction
 
-In minkowski, because spacetime is trivially flat, this parameterisation will always hold, and affine and coordinate parameterisations are equivalent for light rays. In curved spacetime, this will only hold at the moment of construction, and then will diverge. This is because we use [different geodesic equations](https://en.wikipedia.org/wiki/Geodesics_in_general_relativity#Equivalent_mathematical_expression_using_coordinate_time_as_parameter) depending on the parameterisation we pick
+In minkowski, because spacetime is trivially flat, this parameterisation will always hold. In curved spacetime, this relation will only hold at the moment of construction, and then will diverge. This is because we use [different geodesic equations](https://en.wikipedia.org/wiki/Geodesics_in_general_relativity#Equivalent_mathematical_expression_using_coordinate_time_as_parameter) depending on the parameterisation we pick
 
 #### Proper time parameterisation
 
@@ -307,7 +309,7 @@ $$
 
 $\delta^i_{\;\;j}$ is known as the kronecker delta. It is $1$ when $i==j$, and $0$ otherwise
 
-Next up, we need to apply this lorentz boost to our tetrad vectors. Lets say our original tetrads are $e_i^\mu$, and our boosted tetrads are $\hat{e}_i^\mu$. We already know what the new value of $\hat{e}_0^\mu$ will be, as it must be $v$
+Next up, we need to apply this lorentz boost to our tetrad vectors. Lets say our original tetrads are $e_i^\mu$, and our boosted tetrads are $\hat{e}_i^\mu$. We already know what the new value of $\hat{e}_0^\mu$ will be, as it must be $v$, but the general transform is:
 
 $$\hat{e}^i_a = B^i_{\;\;j} e_a^j$$
 
