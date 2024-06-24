@@ -452,6 +452,7 @@ v4f get_timelike_vector(v3f velocity, const tetrad& tetrads)
 
     v4f proper_time = lorentz_factor * coordinate_time;
 
+    ///put into curved spacetime
     return proper_time.x() * tetrads.v[0] + proper_time.y() * tetrads.v[1] + proper_time.z() * tetrads.v[2] + proper_time.w() * tetrads.v[3];
 }
 
@@ -467,6 +468,7 @@ tetrad boost_tetrad(v3f velocity, const tetrad& tetrads, const metric<valuef, 4,
 
     valuef Y = -dot(v_l, u);
 
+    ///https://arxiv.org/pdf/2404.05744 18
     tensor<valuef, 4, 4> B;
 
     for(int i=0; i < 4; i++)
