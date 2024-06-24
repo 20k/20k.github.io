@@ -180,6 +180,10 @@ Todo: video
 
 # Observers with velocity / Lorentz boosts
 
+We'd like to give our observer a shove in a particular direction, instead of letting them drift completely freely. Amusingly enough, the interstellar wormhole has neglegible gravity, so we'll simply sit still forever if we can't represent a moving observer instead of whatever we get out of the metric from Gram-Scmidt[^notethat]
+
+[^notethat]: Note that boosting our observer in a direction *still* doesn't give us any more physical information as to where we're going, as our initial tetrad is still entirely arbitrary. We do however construct our boosts in the local frame of reference - so if we know where our tetrad is pointing (which is not always certain), we know the direction we boost towards. We have no information on our absolute velocity - as there is no absolute velocity
+
 In a previous article, we learnt that given a set of tetrad vectors $e_i^\mu$, the 0th vector $e_0^\mu$ represents the velocity of our observer. If we want to represent an observer with a different speed, sadly we can't just modify that component - to transform the entire tetrad is a little more involved. The standard method for this is something called a lorentz boost (or more generally, a lorentz transform - which may include rotations), which - in special relativity - relates two observers moving at different speeds. A lorentz boost (or transform) in general relativity is often denoted by the symbol $\Lambda^i_{\;j}$, or $B^i_{\;j}$ for a lorentz boost specifically here. [This](https://arxiv.org/pdf/1106.2037) paper and [this](https://arxiv.org/pdf/2404.05744) paper contain more information in general
 
 For us, we're looking to perform a lorentz boost in an arbitrary direction, and apply it to our basis vectors. Before we get there, we need to know what a 4-velocity is - something we've skimmed over a bit
@@ -282,7 +286,7 @@ Like with lightlike geodesics, we can construct 'an' affine parameterisation by 
 
 We can also construct an affine time parameterisation by setting $\lambda = \tau$, where $d\tau = ds^2 = -1$ (which is true in any proper time parameterisation). One very neat fact of proper time is that it *is* a general affine parameterisation, and so if we use a proper time parameterised geodesic and plug it through the geodesic equation specialised for the affine parameter (which is the one we use), this is perfectly valid
 
-## Calculating the lorentz boost
+## Calculating a lorentz boost
 
 We now know how to make an observer with a (timelike) velocity in minkowski, by constructing it from a 3-velocity parameterised by coordinate time. To be very explicit, given a velocity in cartesian coordinates $d^i = (dx, dy, dz)$, where $|d| < 1$
 
@@ -290,7 +294,7 @@ $$
 \frac{dx^\mu}{d\tau} = v = \frac{1}{\sqrt{1 - |d|^2}} (1, d^0, d^1, d^2)
 $$
 
-If we have an initial 4-velocity $u = e_0$ of our tetrad, and we want to boost the tetrad to represent an observer with a 4-velocity $v$, the formula is this[^form]:
+If we have an initial 4-velocity $u^\mu = e_0^\mu$ of our tetrad, and we want to boost the tetrad to represent an observer with a 4-velocity $v$, the formula for the lorentz boost is this[^form]:
 
 [^form]: [https://arxiv.org/pdf/2404.05744](https://arxiv.org/pdf/2404.05744) (18)
 
@@ -301,6 +305,13 @@ B^i_{\;\;j} &= \delta^i_{\;\;j} + \frac{(v^i + u^i)(v_j + u_j)}{1 + \gamma} - 2 
 \end{align}
 $$
 
+$\delta^i_{\;\;j}$ is known as the kronecker delta. It is $1$ when $i==j$, and $0$ otherwise
+
+Next up, we need to apply this lorentz boost to our tetrad vectors. Lets say our original tetrads are $e_i^\mu$, and our boosted tetrads are $\hat{e}_i^\mu$. We already know what the new value of $\hat{e}_0^\mu$ will be, as it must be $v$
+
+$$\hat{e}^i_a = B^i_{\;\;j} e_a^j$$
+
+Todo: Lorentz Boost Code
 
 # Redshift
 
@@ -308,7 +319,7 @@ $$
 
 Calculating a physically accurate rendering of redshift is an extremely involved process, and I am not aware of any visually accurate simulations of this. This may surprise you if you know general relativity, because the equations for redshift are very simple. I will outline the full process below of rendering redshift, and then we will use a visual approximation to skip the difficult steps
 
-1. We first need a skymap across all frequencies, giving us the different intensities. A good starting point is over [here](http://aladin.cds.unistra.fr/hips/list), luckily we live in 2024 and a significant amount of this information is simply public - unfortunately these skymaps do not come with what units their intensity data is in, making them unusable[^digging] . Still, you can go find the original surveys - although it often requires significant digging
+1. We first need a skymap across all frequencies, giving us the different intensities. A good starting point is over [here](http://aladin.cds.unistra.fr/hips/list), luckily we live in 2024 and a significant amount of this information is simply public - unfortunately these skymaps do not come with what units their intensity data is in, making them unusable[^digging] . Still, you can go find the original surveys - although it often requires significant digging. An alternative is to have a known analytic distribution, like a blackbody radiator
 
 [^digging]: This step is the bottleneck for actually achieving what we're trying to do here. Try as I might, I cannot find any standardised way to obtain anything corresponding to physical units (instead of raw data in unknown units). If you know, please contact me! It looks like [adadin](https://aladin.cds.unistra.fr/hips/HipsIn10Steps.gml) may be able to do what we want, but its certainly not straightforward. Apparently the 'default' unit is ADU, which is the raw CCD readout data, but its not even vaguely clear how to go about converting this into a calibrated physical unit
 
