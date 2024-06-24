@@ -287,9 +287,13 @@ int main()
 
         sf::Clock clk;
 
+
         {
+            cl_float3 local_velocity = {-0.5, 0, 0.f};
+
             cl::args args;
             args.push_back(cam.get_position());
+            args.push_back(local_velocity);
             args.push_back(gpu_camera_pos);
             args.push_back(tetrads[0]);
             args.push_back(tetrads[1]);
@@ -301,6 +305,7 @@ int main()
             cqueue.exec(tetrad_kern, {1}, {1}, {});
         }
 
+        #define PARALLEL_TRANSPORT
         #ifdef PARALLEL_TRANSPORT
         {
             cl::args args;

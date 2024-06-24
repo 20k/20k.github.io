@@ -444,9 +444,64 @@ valuei calculate_which_coordinate_is_timelike(const tetrad& tetrads, const m44f&
     return lowest_index;
 }
 
+v4f get_timelike_vector(v3f velocity, const tetrad& tetrads)
+{
+    v4f coordinate_time = {1, velocity.x(), velocity.y(), velocity.z()};
+
+    valuef lorentz_factor = 1/sqrt(1 - (velocity.x() * velocity.x() + velocity.y() * velocity.y() + velocity.z() * velocity.z()));
+
+    v4f proper_time = lorentz_factor * coordinate_time;
+
+    return proper_time.x() * tetrads.v[0] + proper_time.y() * tetrads.v[1] + proper_time.z() * tetrads.v[2] + proper_time.w() * tetrads.v[3];
+}
+
+tetrad boost_tetrad(v3f velocity, const tetrad& tetrads, const metric<valuef, 4, 4>& m)
+{
+    using namespace single_source;
+
+    v4f u = tetrads.v[0];
+    v4f v = get_timelike_vector(velocity, tetrads);
+
+    v4f u_l = m.lower(u);
+    v4f v_l = m.lower(v);
+
+    valuef Y = -dot(v_l, u);
+
+    tensor<valuef, 4, 4> B;
+
+    for(int i=0; i < 4; i++)
+    {
+        for(int j=0; j < 4; j++)
+        {
+            valuef kronecker = (i == j) ? 1 : 0;
+
+            B[i, j] = kronecker + ((v[i] + u[i]) * (v_l[j] + u_l[j]) / (1 + Y)) - 2 * v[i] * u_l[j];
+        }
+    }
+
+    tetrad next;
+
+    for(int a=0; a < 4; a++)
+    {
+        for(int i=0; i < 4; i++)
+        {
+            valuef sum = 0;
+
+            for(int j=0; j < 4; j++)
+            {
+                sum += B[i, j] * tetrads.v[a][j];
+            }
+
+            next.v[a][i] = sum;
+        }
+    }
+
+    return next;
+}
 
 template<auto GetMetric>
 void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
+                           literal<v3f> local_velocity,
                            buffer_mut<v4f> position_out,
                            buffer_mut<v4f> e0_out, buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out)
 {
@@ -510,6 +565,11 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
     valuei timelike_coordinate = calculate_which_coordinate_is_timelike(tetrads, metric);
 
     swap(tetrad_array[0], tetrad_array[timelike_coordinate]);
+
+    tetrad tet;
+    tet.v = {declare_e(tetrad_array[0]), declare_e(tetrad_array[1]), declare_e(tetrad_array[2]), declare_e(tetrad_array[3])};
+
+    tetrad boosted = boost_tetrad(local_velocity.get(), tet, metric);
 
     /*
     if(should_orient)
@@ -586,10 +646,10 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
     }
     */
 
-    as_ref(e0_out[0]) = tetrad_array[0];
-    as_ref(e1_out[0]) = tetrad_array[1];
-    as_ref(e2_out[0]) = tetrad_array[2];
-    as_ref(e3_out[0]) = tetrad_array[3];
+    as_ref(e0_out[0]) = boosted.v[0];
+    as_ref(e1_out[0]) = boosted.v[1];
+    as_ref(e2_out[0]) = boosted.v[2];
+    as_ref(e3_out[0]) = boosted.v[3];
 }
 
 #define TRACE_DT 0.005f

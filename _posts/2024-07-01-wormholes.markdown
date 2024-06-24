@@ -5,7 +5,7 @@ date:   2024-06-19 19:33:23 +0000
 categories: C++
 ---
 
-Hiyas! We're going to tie up some loose ends today, and complete the steps you need to render arbitrary metric tensors in general relativity. This is the last tutorial article in this segment - after this we'll be moving onto numerical relativity, so its time to clear up a few straggler topics:
+Hiyas! We're going to tie up some loose ends today, and complete the steps you need to render arbitrary metric tensors in general relativity. This is the last jumbo tutorial article I'm doing in this series - after this we'll be moving onto numerical relativity, so its time to clear up a few straggler topics:
 
 1. A dynamic timestep
 2. Workable camera controls/consistently orienting tetrads
@@ -15,7 +15,7 @@ Hiyas! We're going to tie up some loose ends today, and complete the steps you n
 
 # The interstellar wormhole
 
-The paper which describes interstellars wormhole is [this](https://arxiv.org/pdf/1502.03809) one. We want the fully configurable version, which are equations (5a-c)
+The paper which describes interstellars wormhole is [this](https://arxiv.org/pdf/1502.03809) one. We want the fully configurable smooth version, which are equations (5a-c)
 
 Given a coordinate system $(t, l, \theta, \phi)$, and the parameters $M$ = mass, $a$ = wormhole length and $p$ = throat radius:
 
@@ -100,7 +100,7 @@ valuef get_timestep(v4f position, v4f velocity)
 
 This assumes that `position[1]` is a radial coordinate, which is not always true - and you'll need a generic system for calculating the distance from your object in question for this to work - but its worth it for the extra performance
 
-With this in place, we get this result, which looks pretty great
+With this in place, we get this result, which looks pretty great:
 
 ![wormhole2](/assets/wormhole_2.png)
 
@@ -122,6 +122,7 @@ Where the velocity is updated, and then the position is updated with that new ve
         as_ref(velocity) = cvelocity + acceleration * dt;
 ```
 # Camera Controls / Orienting Tetrad
+
 At the moment, we're constructing a tetrad directly from the underying metric. This works great, but results in a tetrad that - in polar metrics - tends to point directly at our object. This lads to very unintuitive camera controls as we move our camera around. In this segment we're going to commit some crimes against coordinate systems to get them to point roughly where we want them to
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/L-sXQdiCkCY?si=4Hu52YdR1hoJZBUd" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
@@ -154,7 +155,7 @@ And we'll call these new vectors $c_k$, for our new coordinate vectors. Note tha
 
 $$d_k^\mu = (0, c_k^0, c_k^1, c_k^2)$$
 
-Where we hope that the 0th component is a timelike[^untested] coordinate. We now have 3 ($_k$) spatial vectors $d_k^\mu$, which have 4 components ($^\mu$) each. Now, calculate your tetrads as per the usual fashion, via gram-schmidt to get a valid tetrad frame $e_i^\mu$, followed by projecting your vectors $d_k^\mu$ into the local frame of reference. We'll call these projected local vectors $l_k^\mu$
+Where we hope that the 0th component is a timelike[^untested] coordinate. We could additionally use the camera's time coordinate instead of $0$. We now have 3 ($_k$) spatial vectors $d_k^\mu$, which have 4 components ($^\mu$) each. Now, calculate your tetrads as per the usual fashion, via gram-schmidt to get a valid tetrad frame $e_i^\mu$, followed by projecting your vectors $d_k^\mu$ into the local frame of reference (via the inverse tetrads). We'll call these projected local vectors $l_k^\mu$
 
 $$l_i^\mu = e^i_\mu d^\mu_i$$
 
@@ -162,9 +163,11 @@ Note that $i$ ranges over 1-3, instead of 0-3
 
 We now have 3 vectors - which we *hope* are spacelike. If they are - which they often will be - we can proceed
 
-We can now orthonormalise these vectors to produce a new set of spacelike basis vectors for our tetrad. Because we're in a minkowski metric, this orthonormalisation is very easy - we can use gram schmidt, but with a trivial 3x3 identity matrix as the metric tensor
+We can now orthonormalise these vectors to produce a new set of spacelike basis vectors for our tetrad. Because we're in a minkowski metric orthonormalising 3 spacelike vectors, this orthonormalisation is very easy - we can use gram schmidt, but with a trivial 3x3 identity matrix as the metric tensor
 
-As you may have spotted, orthornormalising these vectors changes them - we start from a vector, which means that we *can* preserve one of these vectors as pointing in our original direction, as long as it wasn't null or timelike. The correct vector to preserve is the 'up' vector - this means that as you spin the camera left and right, the axis you rotate around remains consistent, and this provides the best user experience
+As you may have spotted, orthornormalising these vectors changes them - we start from a vector, which means that we *can* preserve one of these vectors as pointing in our original direction, as long as it wasn't null or timelike. The correct vector to preserve is the 'up' vector that you use for your fixed mouse vertical axis - this means that as you spin the camera left and right, the axis you rotate around remains consistent, and this provides the best user experience
+
+One key thing to note is that we only orient the *initial* tetrad if we're parallel transporting tetrads - this is one of the reasons why the technique works, often the camera ends up parallel transported into poorly behaved areas from well behaved nearly flat ones, so we only need it to work at our starting point
 
 In code, this looks like this:
 
@@ -293,8 +296,10 @@ We can also construct an affine time parameterisation by setting $\lambda = \tau
 We now know how to make an observer with a (timelike) velocity in minkowski, by constructing it from a 3-velocity parameterised by coordinate time. To be very explicit, given a velocity in cartesian coordinates $d^i = (dx, dy, dz)$, where $|d| < 1$
 
 $$
-\frac{dx^\mu}{d\tau} = v = \frac{1}{\sqrt{1 - |d|^2}} (1, d^0, d^1, d^2)
+\frac{dx^\mu}{d\tau} = v_{local} = \frac{1}{\sqrt{1 - |d|^2}} (1, d^0, d^1, d^2)
 $$
+
+Then convert $v_{local}$ to $v$ by transforming it with the tetrad, as $v^\mu = e_i^\mu v^i_{local}$
 
 If we have an initial 4-velocity $u^\mu = e_0^\mu$ of our tetrad, and we want to boost the tetrad to represent an observer with a 4-velocity $v$, the formula for the lorentz boost is this[^form]:
 
@@ -302,7 +307,7 @@ If we have an initial 4-velocity $u^\mu = e_0^\mu$ of our tetrad, and we want to
 
 $$
 \begin{align}
-B^i_{\;\;j} &= \delta^i_{\;\;j} + \frac{(v^i + u^i)(v_j + u_j)}{1 + \gamma} - 2 v^i u^j\\
+B^i_{\;\;j} &= \delta^i_{\;\;j} + \frac{(v^i + u^i)(v_j + u_j)}{1 + \gamma} - 2 v^i u_j\\
 \gamma &= -v_i u^i
 \end{align}
 $$
