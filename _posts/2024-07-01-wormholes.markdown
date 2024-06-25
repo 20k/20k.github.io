@@ -595,24 +595,27 @@ One problem specific to blueshift is that our energy is unbounded, and our pixel
 This is one of those things that's a lot easier to express in code, rather than equations:
 
 ```c++
+
 //calculate Y of XYZ
 valuef energy_of(v3f v)
 {
-    return v.x*0.2125f + v.y*0.7154f + v.z*0.0721f;
+    return v.x()*0.2125f + v.y()*0.7154f + v.z()*0.0721f;
 }
 
 v3f redshift(v3f v, valuef z)
 {
+    using namespace single_source;
+
     valuef radiant_energy = energy_of(v);
 
     v3f red = {1/0.2125f, 0.f, 0.f};
     v3f green = {0, 1/0.7154, 0.f};
     v3f blue = {0.f, 0.f, 1/0.0721};
 
-    v3f result = declare_mut_e((v3f){0,0,0});
+    mut_v3f result = declare_mut_e((v3f){0,0,0});
 
     if_e(z >= 0, [&]{
-        result = mix(v, radiant_energy * red, tanh(z));
+        as_ref(result) = mix(v, radiant_energy * red, tanh(z));
     });
 
     if_e(z < 0, [&]{
@@ -633,12 +636,12 @@ v3f redshift(v3f v, valuef z)
             col.y() += remaining_energy * green.y();
         }
 
-        result = col;
+        as_ref(result) = col;
     });
 
-    result = clamp(result, 0.f, 1.f);
+    as_ref(result) = clamp(result, 0.f, 1.f);
 
-    return result;
+    return declare_e(result);
 }
 ```
 
