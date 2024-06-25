@@ -140,47 +140,112 @@ $$
 
 Now, our coordinate system isn't in cartesian, so we need to convert these ideal vectors into our actual coordinate system, whatever that may be. Here we have polar coordinates, so lets use that illustratively
 
-todo: the rest of this
 $$
-r = \sqrt{x^2 + y^2 + z^2}
-$$
-
-We are dealing with *tangent* vectors, so we need to treat $b$ as a 'velocity' - for that reason we want the derivative of the above equation:
-
-todo: the rest of this
-$$
-dr = whatever
+\begin{align}
+r &= \sqrt{x^2 + y^2 + z^2}\\
+\theta &= acos(\frac{z}{r});\\
+\phi &= atan2(y, x)
+\end{align}
 $$
 
-And we'll call these new vectors $c_k$, for our new coordinate vectors. Note that we're only working with 3d vectors at the moment, not 4d vectors. We'll need to construct 4d vectors for our next step, and we do that as following:
+We are dealing with *tangent* vectors, so we need to treat $b$ as a velocity - for that reason we want the total derivative[^howtodifferentiate] of the above set of equations:
+
+[^howtodifferentiate]: If you don't know what this is: partially differentiate with respect to each variable (while holding the others constant, as per usual), and then sum all the resulting derivative. You should absolutely be automating this with dual numbers though!
+
+$$
+\begin{align}
+dr &= \frac{x dx + y dy + z dz}{r}\\
+d\theta &= \frac{z dr}{r^2 \sqrt{1 - \frac{z^2}{r^2}}} - \frac{dz}{r \sqrt{1 - \frac{z^2}{r^2}}}\\
+d\phi &= \frac{x dy - y dx)}{x^2 y^2}\\
+\end{align}
+$$
+
+And we'll call these new vectors $c_k$, for our new coordinate vectors[^inpractice] after plugging our cartesian coordinates into this equation. Note that we're only working with 3d vectors at the moment, not 4d vectors. We'll need to construct 4d vectors for our next step, and we do that as following:
+
+[^inpractice]: In practice I always take a trip spherical coordinates first, to fix velocity vectors when $r < 0$ (inverting dr)
 
 $$d_k^\mu = (0, c_k^0, c_k^1, c_k^2)$$
 
-Where we hope that the 0th component is a timelike[^untested] coordinate. We could additionally use the camera's time coordinate instead of $0$. We now have 3 ($_k$) spatial vectors $d_k^\mu$, which have 4 components ($^\mu$) each. Now, calculate your tetrads as per the usual fashion, via gram-schmidt to get a valid tetrad frame $e_i^\mu$, followed by projecting your vectors $d_k^\mu$ into the local frame of reference (via the inverse tetrads). We'll call these projected local vectors $l_k^\mu$
+Where we hope that the 0th component is a timelike[^untested] coordinate. We now have 3 ($_k$) spatial vectors $d_k^\mu$, which have 4 components ($^\mu$) each. Now, calculate your tetrads as per the usual fashion, via gram-schmidt to get a valid tetrad frame $e_i^\mu$, followed by projecting your vectors $d_k^\mu$ into the local frame of reference (via the inverse tetrads). We'll call these projected local vectors $l_k^\mu$
 
 $$l_i^\mu = e^i_\mu d^\mu_i$$
 
-Note that $i$ ranges over 1-3, instead of 0-3
+Note that $i$ ranges over 1-3, instead of 0-3. We now have 3 vectors - which we *hope* are spacelike. If they are - which they often will be - you can proceed
 
-We now have 3 vectors - which we *hope* are spacelike. If they are - which they often will be - we can proceed
+We can now orthonormalise these vectors to produce a new set of spacelike basis vectors for the frame of reference. Because we're in a minkowski metric - we can use gram schmidt with a trivial 3x3 identity matrix as the metric tensor
 
-We can now orthonormalise these vectors to produce a new set of spacelike basis vectors for our tetrad. Because we're in a minkowski metric orthonormalising 3 spacelike vectors, this orthonormalisation is very easy - we can use gram schmidt, but with a trivial 3x3 identity matrix as the metric tensor
-
-As you may have spotted, orthornormalising these vectors changes them - we start from a vector, which means that we *can* preserve one of these vectors as pointing in our original direction, as long as it wasn't null or timelike. The correct vector to preserve is the 'up' vector that you use for your fixed mouse vertical axis - this means that as you spin the camera left and right, the axis you rotate around remains consistent, and this provides the best user experience
+As you may have spotted, orthornormalising these vectors changes them - we start from a vector, which means that you can only preserve one of the original vectors after orthonormalisation. The correct vector to preserve is the 'up' vector that you use for your fixed mouse vertical axis - this means that as you spin the camera left and right, the axis you rotate around remains consistent, and this is a reasonable compromise
 
 One key thing to note is that we only orient the *initial* tetrad if we're parallel transporting tetrads - this is one of the reasons why the technique works, often the camera ends up parallel transported into poorly behaved areas from well behaved nearly flat ones, so we only need it to work at our starting point
 
 In code, this looks like this:
 
 ```c++
-todo: port my bad code
+if(should_orient)
+{
+    v4f spher = GenericToSpherical(position.get());
+    v3f cart = spherical_to_cartesian(spher.yzw());
+
+    v3f cx = (v3f){1, 0, 0};
+    v3f cy = (v3f){0, 1, 0};
+    v3f cz = (v3f){0, 0, 1};
+
+    //in practice we always convert to spherical coordinates first
+    v3f sx = convert_velocity(cartesian_to_spherical, cart, cx);
+    v3f sy = convert_velocity(cartesian_to_spherical, cart, cy);
+    v3f sz = convert_velocity(cartesian_to_spherical, cart, cz);
+
+    //This is why we convert to spherical
+    //This is a specific correction for wormhole-typed metrics, to fix the camera's direction when the radial coordinate is negative, so that it lines up with +r
+    sx.x() = ternary(spher.y() < 0, -sx.x(), sx.x());
+    sy.x() = ternary(spher.y() < 0, -sy.x(), sy.x());
+    sz.x() = ternary(spher.y() < 0, -sz.x(), sz.x());
+
+    //now we convert our basis vectors into the metrics actual coordinate system. You'll need to provide SphericalToGeneric
+    v4f gx = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sx.x(), sx.y(), sx.z()});
+    v4f gy = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sy.x(), sy.y(), sy.z()});
+    v4f gz = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sz.x(), sz.y(), sz.z()});
+
+    inverse_tetrad itet = tetrads.invert();
+
+    //only here for the compile times
+    pin(gx);
+    pin(gy);
+    pin(gz);
+
+    v4f lx = itet.into_frame_of_reference(gx);
+    v4f ly = itet.into_frame_of_reference(gy);
+    v4f lz = itet.into_frame_of_reference(gz);
+
+    //only here for the compile times
+    pin(lx);
+    pin(ly);
+    pin(lz);
+
+    //start orthonormalisation off with our 'up' vector
+    std::array<v3f, 3> ortho = orthonormalise(ly.yzw(), lx.yzw(), lz.yzw());
+
+    ///after we orthonormalise, our axis are permuted, so undo that permutation
+    v4f x_basis = {0, ortho[1].x(), ortho[1].y(), ortho[1].z()};
+    v4f y_basis = {0, ortho[0].x(), ortho[0].y(), ortho[0].z()};
+    v4f z_basis = {0, ortho[2].x(), ortho[2].y(), ortho[2].z()};
+
+    //we now have our new basis vectors
+    v4f x_out = tetrads.into_coordinate_space(x_basis);
+    v4f y_out = tetrads.into_coordinate_space(y_basis);
+    v4f z_out = tetrads.into_coordinate_space(z_basis);
+
+    boosted.v[1] = x_out;
+    boosted.v[2] = y_out;
+    boosted.v[3] = z_out;
+}
 ```
 
-Which results in your metric looking like this as you fly around, making it way easier to implement camera controls!
+Which results in your metric looking like this as you fly around, making it way easier to implement camera controls, as now you have a consistent usable tetrad basis
 
 [^untested]: You could potentially calculate which coordinate is timelike, and improve this step by setting the timelike coordinate to be 0 instead. However, your tetrad orientation would no longer be consistent - this is a basic problem with this method - we cannot truly globally orient our tetrad vectors
 
-Todo: video
+<iframe width="560" height="315" src="https://www.youtube.com/embed/lyfOMHNaLyw?si=n2Zrmubk-ux-wmzZ" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 # Observers with velocity / Lorentz boosts
 

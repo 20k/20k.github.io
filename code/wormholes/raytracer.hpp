@@ -21,9 +21,53 @@ using mut_v3f = tensor<mut<valuef>, 3>;
 template<typename T>
 using dual = dual_types::dual_v<T>;
 
+struct inverse_tetrad
+{
+    std::array<v4f, 4> v_lo;
+
+    v4f into_frame_of_reference(v4f in)
+    {
+        v4f out;
+
+        for(int i=0; i < 4; i++)
+            out[i] = dot(in, v_lo[i]);
+
+        return out;
+    }
+};
+
 struct tetrad
 {
     std::array<v4f, 4> v;
+
+    v4f into_coordinate_space(v4f in)
+    {
+        return v[0] * in.x() + v[1] * in.y() + v[2] * in.z() + v[3] * in.w();
+    }
+
+    inverse_tetrad invert()
+    {
+        inverse_tetrad invert;
+
+        tensor<valuef, 4, 4> as_matrix;
+
+        for(int i=0; i < 4; i++)
+        {
+            for(int j=0; j < 4; j++)
+            {
+                as_matrix[i, j] = v[i][j];
+            }
+        }
+
+        tensor<valuef, 4, 4> inv = as_matrix.asymmetric_invert();
+
+        invert.v_lo[0] = {inv[0, 0], inv[0, 1], inv[0, 2], inv[0, 3]};
+        invert.v_lo[1] = {inv[1, 0], inv[1, 1], inv[1, 2], inv[1, 3]};
+        invert.v_lo[2] = {inv[2, 0], inv[2, 1], inv[2, 2], inv[2, 3]};
+        invert.v_lo[3] = {inv[3, 0], inv[3, 1], inv[3, 2], inv[3, 3]};
+
+        return invert;
+    }
 };
 
 inline
@@ -69,31 +113,12 @@ auto spherical_to_cartesian = []<typename T>(const tensor<T, 3>& spherical)
     return tensor<T, 3>{x, y, z};
 };
 
-template<typename T>
-inline
-tensor<T, 3> cartesian_velocity_to_spherical_velocity(const tensor<T, 3>& cartesian, const tensor<T, 3>& cartesian_velocity)
-{
-    tensor<dual<T>, 3> val;
-
-    for(int i=0; i < 3; i++)
-        val[i] = dual(cartesian[i], cartesian_velocity[i]);
-
-    auto diff = cartesian_to_spherical(val);
-
-    tensor<T, 3> ret;
-
-    for(int i=0; i < 3; i++)
-        ret[i] = diff[i].dual;
-
-    return ret;
-}
-
 v3f get_ray_through_pixel(v2i screen_position, v2i screen_size, float fov_degrees, v4f camera_quat) {
     float fov_rad = (fov_degrees / 360.f) * 2 * std::numbers::pi_v<float>;
     valuef f_stop = (screen_size.x()/2).to<float>() / tan(fov_rad/2);
 
     v3f pixel_direction = {(screen_position.x() - screen_size.x()/2).to<float>(), (screen_position.y() - screen_size.y()/2).to<float>(), f_stop};
-    //pixel_direction = rot_quat(pixel_direction, camera_quat); //if you have quaternions, or some rotation library, rotate your pixel direction here by your cameras rotation
+    pixel_direction = rot_quat(pixel_direction, camera_quat); //if you have quaternions, or some rotation library, rotate your pixel direction here by your cameras rotation
 
     return pixel_direction.norm();
 }
@@ -258,7 +283,7 @@ valuef get_timestep(v4f position, v4f velocity)
     valuef divisor = max(max(avelocity.x(), avelocity.y()), max(avelocity.z(), avelocity.w()));
 
     valuef normal_precision = 0.1f/divisor;
-    valuef high_precision = 0.02f/divisor;
+    valuef high_precision = 0.04f/divisor;
 
     return ternary(fabs(position[1]) < 3.f, high_precision, normal_precision);
 }
@@ -316,7 +341,9 @@ v3f render_pixel(v2i screen_position, v2i screen_size, const read_only_image<2>&
     //so, the tetrad vectors give us a basis, that points in the direction t, r, theta, and phi, because schwarzschild is diagonal
     //we'd like the ray to point towards the black hole: this means we make +z point towards -r, +y point towards +theta, and +x point towards +phi
     //v3f modified_ray = {ray_direction[1], ray_direction[2], ray_direction[0]};
-    v3f modified_ray = {-ray_direction[2], ray_direction[1], ray_direction[0]};
+    //v3f modified_ray = {-ray_direction[2], ray_direction[1], ray_direction[0]};
+
+    v3f modified_ray = ray_direction;
 
     geodesic my_geodesic = make_lightlike_geodesic(start_position, modified_ray, tetrads);
 
@@ -563,6 +590,29 @@ tetrad boost_tetrad(v3f velocity, const tetrad& tetrads, const metric<valuef, 4,
     return next;
 }
 
+v3f project(v3f u, v3f v)
+{
+    return (dot(u, v) / dot(u, u)) * u;
+}
+
+std::array<v3f, 3> orthonormalise(v3f i1, v3f i2, v3f i3)
+{
+    v3f u1 = i1;
+    v3f u2 = i2;
+    v3f u3 = i3;
+
+    u2 = u2 - project(u1, u2);
+
+    u3 = u3 - project(u1, u3);
+    u3 = u3 - project(u2, u3);
+
+    u1 = u1.norm();
+    u2 = u2.norm();
+    u3 = u3.norm();
+
+    return {u1, u2, u3};
+};
+
 template<auto GetMetric, auto GenericToSpherical, auto SphericalToGeneric>
 void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
                            literal<v3f> local_velocity,
@@ -642,23 +692,49 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
         v4f spher = GenericToSpherical(position.get());
         v3f cart = spherical_to_cartesian(spher.yzw());
 
-        v3f cx = (v3f){1, 0, 0};
-        v3f cy = (v3f){0, 1, 0};
-        v3f cz = (v3f){0, 0, 1};
+        v3f bx = (v3f){1, 0, 0};
+        v3f by = (v3f){0, 1, 0};
+        v3f bz = (v3f){0, 0, 1};
 
-        v3f sx = convert_velocity(cartesian_to_spherical, cart, cx);
-        v3f sy = convert_velocity(cartesian_to_spherical, cart, cy);
-        v3f sz = convert_velocity(cartesian_to_spherical, cart, cz);
+        v3f sx = convert_velocity(cartesian_to_spherical, cart, bx);
+        v3f sy = convert_velocity(cartesian_to_spherical, cart, by);
+        v3f sz = convert_velocity(cartesian_to_spherical, cart, bz);
 
         sx.x() = ternary(spher.y() < 0, -sx.x(), sx.x());
         sy.x() = ternary(spher.y() < 0, -sy.x(), sy.x());
         sz.x() = ternary(spher.y() < 0, -sz.x(), sz.x());
 
-        v4f gx = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sx.x(), sx.y(), sx.z()});
-        v4f gy = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sy.x(), sy.y(), sy.z()});
-        v4f gz = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sz.x(), sz.y(), sz.z()});
+        v4f dx = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sx.x(), sx.y(), sx.z()});
+        v4f dy = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sy.x(), sy.y(), sy.z()});
+        v4f dz = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sz.x(), sz.y(), sz.z()});
 
+        inverse_tetrad itet = tetrads.invert();
 
+        pin(dx);
+        pin(dy);
+        pin(dz);
+
+        v4f lx = itet.into_frame_of_reference(dx);
+        v4f ly = itet.into_frame_of_reference(dy);
+        v4f lz = itet.into_frame_of_reference(dz);
+
+        pin(lx);
+        pin(ly);
+        pin(lz);
+
+        std::array<v3f, 3> ortho = orthonormalise(ly.yzw(), lx.yzw(), lz.yzw());
+
+        v4f x_basis = {0, ortho[1].x(), ortho[1].y(), ortho[1].z()};
+        v4f y_basis = {0, ortho[0].x(), ortho[0].y(), ortho[0].z()};
+        v4f z_basis = {0, ortho[2].x(), ortho[2].y(), ortho[2].z()};
+
+        v4f x_out = tetrads.into_coordinate_space(x_basis);
+        v4f y_out = tetrads.into_coordinate_space(y_basis);
+        v4f z_out = tetrads.into_coordinate_space(z_basis);
+
+        boosted.v[1] = x_out;
+        boosted.v[2] = y_out;
+        boosted.v[3] = z_out;
     }
 
     /*
