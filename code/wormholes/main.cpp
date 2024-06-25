@@ -6,28 +6,6 @@
 #include <vec/vec.hpp>
 #include "accretion_disk.hpp"
 
-tensor<float, 3> cartesian_to_spherical(const tensor<float, 3>& cartesian)
-{
-    float r = cartesian.length();
-    float theta = acos(cartesian[2] / r);
-    float phi = atan2(cartesian[1], cartesian[0]);
-
-    return {r, theta, phi};
-}
-
-tensor<float, 3> spherical_to_cartesian(const tensor<float, 3>& polar)
-{
-    float r = polar[0];
-    float theta = polar[1];
-    float phi = polar[2];
-
-    float x = r * sin(theta) * cos(phi);
-    float y = r * sin(theta) * sin(phi);
-    float z = r * cos(theta);
-
-    return {x, y, z};
-}
-
 struct camera
 {
     tensor<float, 4> pos;
@@ -116,15 +94,15 @@ metric<valuef, 4, 4> get_metric(const tensor<valuef, 4>& position) {
     return m;
 }
 
-v4f metric_to_spherical(v4f generic)
+auto metric_to_spherical = [](auto generic)
 {
     return generic;
-}
+};
 
-v4f spherical_to_metric(v4f spherical)
+auto spherical_to_metric = [](auto spherical)
 {
     return spherical;
-}
+};
 
 cl::image load_background(cl::context ctx, cl::command_queue cqueue)
 {
@@ -188,7 +166,7 @@ int main()
 
     std::cout << kernel << std::endl;
 
-    std::string tetrad_calc = value_impl::make_function(build_initial_tetrads<get_metric>, "tetrad");
+    std::string tetrad_calc = value_impl::make_function(build_initial_tetrads<get_metric, metric_to_spherical, spherical_to_metric>, "tetrad");
 
     std::cout << tetrad_calc << std::endl;
 

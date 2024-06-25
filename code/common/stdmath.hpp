@@ -186,6 +186,26 @@ namespace stdmath
             return ternary(condition, if_true, if_false);
     };
 
+    auto uasin = []<typename T>(const T& in)
+    {
+        using std::asin;
+
+        if constexpr(std::is_integral_v<T>)
+            return asin((float)in);
+        else
+            return asin(in);
+    };
+
+    auto uacos = []<typename T>(const T& in)
+    {
+        using std::acos;
+
+        if constexpr(std::is_integral_v<T>)
+            return acos((float)in);
+        else
+            return acos(in);
+    };
+
     auto uatan = []<typename T>(const T& in)
     {
         using std::atan;

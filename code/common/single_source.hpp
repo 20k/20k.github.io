@@ -475,6 +475,8 @@ namespace value_impl
             {SIGN, "sign"},
             {FLOOR, "floor"},
             {CEIL, "ceil"},
+            {ASIN, "asin"},
+            {ACOS, "acos"},
             {ATAN, "atan"},
             {ATAN2, "atan2"},
             {MIN, "min"},

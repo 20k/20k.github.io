@@ -26,50 +26,48 @@ struct tetrad
     std::array<v4f, 4> v;
 };
 
-template<typename T>
 inline
-tensor<T, 3> cartesian_to_spherical(const tensor<T, 3>& cartesian)
+auto cartesian_to_spherical = []<typename T>(const tensor<T, 3>& cartesian)
 {
     T r = cartesian.length();
-    T theta = acos(cartesian.v[2] / r);
-    T phi = atan2(cartesian.v[1], cartesian.v[0]);
+    T theta = acos(cartesian[2] / r);
+    T phi = atan2(cartesian[1], cartesian[0]);
 
-    return {r, theta, phi};
-}
+    return tensor<T, 3>{r, theta, phi};
+};
 
-template<typename T, typename Func>
+template<typename T, int N, typename Func>
 inline
-tensor<T, 3> convert_velocity(Func&& f, const tensor<T, 3>& pos, const tensor<T, 3>& deriv)
+tensor<T, N> convert_velocity(Func&& f, const tensor<T, N>& pos, const tensor<T, N>& deriv)
 {
-    tensor<dual<T>, 3> val;
+    tensor<dual<T>, N> val;
 
-    for(int i=0; i < 3; i++)
+    for(int i=0; i < N; i++)
         val[i] = dual(pos[i], deriv[i]);
 
-    auto diff = f(val);
+    auto d = f(val);
 
-    tensor<T, 3> ret;
+    tensor<T, N> ret;
 
-    for(int i=0; i < 3; i++)
-        ret[i] = diff[i].dual;
+    for(int i=0; i < N; i++)
+        ret[i] = d[i].dual;
 
     return ret;
 }
 
-template<typename T>
 inline
-tensor<T, 3> spherical_to_cartesian(const tensor<T, 3>& spherical)
+auto spherical_to_cartesian = []<typename T>(const tensor<T, 3>& spherical)
 {
-    T r = spherical.v[0];
-    T theta = spherical.v[1];
-    T phi = spherical.v[2];
+    T r = spherical[0];
+    T theta = spherical[1];
+    T phi = spherical[2];
 
     T x = r * sin(theta) * cos(phi);
     T y = r * sin(theta) * sin(phi);
     T z = r * cos(theta);
 
-    return {x, y, z};
-}
+    return tensor<T, 3>{x, y, z};
+};
 
 template<typename T>
 inline
@@ -565,7 +563,7 @@ tetrad boost_tetrad(v3f velocity, const tetrad& tetrads, const metric<valuef, 4,
     return next;
 }
 
-template<auto GetMetric>
+template<auto GetMetric, auto GenericToSpherical, auto SphericalToGeneric>
 void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
                            literal<v3f> local_velocity,
                            buffer_mut<v4f> position_out,
@@ -636,6 +634,32 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
     tet.v = {declare_e(tetrad_array[0]), declare_e(tetrad_array[1]), declare_e(tetrad_array[2]), declare_e(tetrad_array[3])};
 
     tetrad boosted = boost_tetrad(local_velocity.get(), tet, metric);
+
+    bool should_orient = true;
+
+    if(should_orient)
+    {
+        v4f spher = GenericToSpherical(position.get());
+        v3f cart = spherical_to_cartesian(spher.yzw());
+
+        v3f cx = (v3f){1, 0, 0};
+        v3f cy = (v3f){0, 1, 0};
+        v3f cz = (v3f){0, 0, 1};
+
+        v3f sx = convert_velocity(cartesian_to_spherical, cart, cx);
+        v3f sy = convert_velocity(cartesian_to_spherical, cart, cy);
+        v3f sz = convert_velocity(cartesian_to_spherical, cart, cz);
+
+        sx.x() = ternary(spher.y() < 0, -sx.x(), sx.x());
+        sy.x() = ternary(spher.y() < 0, -sy.x(), sy.x());
+        sz.x() = ternary(spher.y() < 0, -sz.x(), sz.x());
+
+        v4f gx = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sx.x(), sx.y(), sx.z()});
+        v4f gy = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sy.x(), sy.y(), sy.z()});
+        v4f gz = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sz.x(), sz.y(), sz.z()});
+
+
+    }
 
     /*
     if(should_orient)

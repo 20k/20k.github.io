@@ -49,6 +49,8 @@ namespace value_impl
             TAN,
             LOG,
 
+            ASIN,
+            ACOS,
             ATAN,
             ATAN2,
 
@@ -311,6 +313,8 @@ namespace value_impl
     DECL_VALUE_FUNC1(SIN, sin, stdmath::usin);
     DECL_VALUE_FUNC1(COS, cos, stdmath::ucos);
     DECL_VALUE_FUNC1(TAN, tan, stdmath::utan);
+    DECL_VALUE_FUNC1(ASIN, asin, stdmath::uasin);
+    DECL_VALUE_FUNC1(ACOS, acos, stdmath::uacos);
     DECL_VALUE_FUNC1(ATAN, atan, stdmath::uatan);
     DECL_VALUE_FUNC2(ATAN2, atan2, stdmath::uatan2);
     DECL_VALUE_FUNC1(SQRT, sqrt, stdmath::usqrt);
@@ -385,6 +389,8 @@ namespace value_impl
             PROPAGATE_BASE1(SIN, usin);
             PROPAGATE_BASE1(COS, ucos);
             PROPAGATE_BASE1(TAN, utan);
+            PROPAGATE_BASE1(ASIN, uasin);
+            PROPAGATE_BASE1(ACOS, uacos);
             PROPAGATE_BASE1(ATAN, uatan);
             PROPAGATE_BASE2(ATAN2, uatan2);
             PROPAGATE_BASE1(LOG, ulog);
@@ -1139,6 +1145,26 @@ namespace value_impl
     {
         value<T> ret;
         ret.type = op::TAN;
+        ret.args = {v1};
+        return from_base<T>(optimise(ret));
+    }
+
+    template<typename T>
+    inline
+    value<T> asin(const value<T>& v1)
+    {
+        value<T> ret;
+        ret.type = op::ASIN;
+        ret.args = {v1};
+        return from_base<T>(optimise(ret));
+    }
+
+    template<typename T>
+    inline
+    value<T> acos(const value<T>& v1)
+    {
+        value<T> ret;
+        ret.type = op::ACOS;
         ret.args = {v1};
         return from_base<T>(optimise(ret));
     }
