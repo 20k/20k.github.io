@@ -186,6 +186,35 @@ namespace stdmath
             return ternary(condition, if_true, if_false);
     };
 
+    auto usinh = []<typename T>(const T& in)
+    {
+        using std::sinh;
+
+        if constexpr(std::is_integral_v<T>)
+            return sinh((float)in);
+        else
+            return sinh(in);
+    };
+
+    auto ucosh = []<typename T>(const T& in)
+    {
+        using std::cosh;
+
+        if constexpr(std::is_integral_v<T>)
+            return cosh((float)in);
+        else
+            return cosh(in);
+    };
+
+    auto utanh = []<typename T>(const T& in)
+    {
+        using std::tanh;
+
+        if constexpr(std::is_integral_v<T>)
+            return tanh((float)in);
+        else
+            return tanh(in);
+    };
     auto uasin = []<typename T>(const T& in)
     {
         using std::asin;
@@ -238,6 +267,13 @@ namespace stdmath
         using std::max;
 
         return max(v1, v2);
+    };
+
+    auto uclamp = []<typename T>(const T& v1, const T& v2, const T& v3)
+    {
+        using std::clamp;
+
+        return clamp(v1, v2, v3);
     };
 }
 

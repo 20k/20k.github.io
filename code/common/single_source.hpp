@@ -475,12 +475,16 @@ namespace value_impl
             {SIGN, "sign"},
             {FLOOR, "floor"},
             {CEIL, "ceil"},
+            {SINH, "sinh"},
+            {COSH, "cosh"},
+            {TANH, "tanh"},
             {ASIN, "asin"},
             {ACOS, "acos"},
             {ATAN, "atan"},
             {ATAN2, "atan2"},
             {MIN, "min"},
             {MAX, "max"},
+            {CLAMP, "clamp"},
 
             {GET_GLOBAL_ID, "get_global_id"},
         };

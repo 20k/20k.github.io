@@ -54,8 +54,13 @@ namespace value_impl
             ATAN,
             ATAN2,
 
+            SINH,
+            COSH,
+            TANH,
+
             MIN,
             MAX,
+            CLAMP,
 
             INVERSE_SQRT,
             SQRT,
@@ -283,6 +288,10 @@ namespace value_impl
 
     template<typename U>
     inline
+    std::optional<value_base> replay_constant(const value_base& v1, const value_base& v2, const value_base& v3, U&& func);
+
+    template<typename U>
+    inline
     std::optional<value_base> replay_constant(const value_base& v1, const value_base& v2, U&& func);
 
     template<typename U>
@@ -316,6 +325,9 @@ namespace value_impl
     DECL_VALUE_FUNC1(ASIN, asin, stdmath::uasin);
     DECL_VALUE_FUNC1(ACOS, acos, stdmath::uacos);
     DECL_VALUE_FUNC1(ATAN, atan, stdmath::uatan);
+    DECL_VALUE_FUNC1(SINH, sinh, stdmath::usinh);
+    DECL_VALUE_FUNC1(COSH, cosh, stdmath::ucosh);
+    DECL_VALUE_FUNC1(TANH, tanh, stdmath::utanh);
     DECL_VALUE_FUNC2(ATAN2, atan2, stdmath::uatan2);
     DECL_VALUE_FUNC1(SQRT, sqrt, stdmath::usqrt);
     DECL_VALUE_FUNC1(LOG, log, stdmath::ulog);
@@ -330,6 +342,11 @@ namespace value_impl
 
     DECL_VALUE_FUNC2(MIN, min, stdmath::umin);
     DECL_VALUE_FUNC2(MAX, max, stdmath::umax);
+    DECL_VALUE_FUNC3(CLAMP, clamp, stdmath::uclamp);
+
+    #define PROPAGATE_BASE3(vop, func) if(in.type == op::vop) { \
+        out = replay_constant(in.args[0], in.args[1], in.args[2], func);\
+    }
 
     #define PROPAGATE_BASE2(vop, func) if(in.type == op::vop) { \
         out = replay_constant(in.args[0], in.args[1], func);\
@@ -389,10 +406,17 @@ namespace value_impl
             PROPAGATE_BASE1(SIN, usin);
             PROPAGATE_BASE1(COS, ucos);
             PROPAGATE_BASE1(TAN, utan);
+
+            PROPAGATE_BASE1(SINH, usinh);
+            PROPAGATE_BASE1(COSH, ucosh);
+            PROPAGATE_BASE1(TANH, utanh);
+
             PROPAGATE_BASE1(ASIN, uasin);
             PROPAGATE_BASE1(ACOS, uacos);
             PROPAGATE_BASE1(ATAN, uatan);
+
             PROPAGATE_BASE2(ATAN2, uatan2);
+
             PROPAGATE_BASE1(LOG, ulog);
             PROPAGATE_BASE1(SQRT, usqrt);
             PROPAGATE_BASE1(FABS, ufabs);
@@ -403,8 +427,10 @@ namespace value_impl
             PROPAGATE_BASE1(FLOOR, ufloor);
             PROPAGATE_BASE1(CEIL, uceil);
             PROPAGATE_BASE1(INVERSE_SQRT, uinverse_sqrt);
+
             PROPAGATE_BASE2(MIN, umin);
             PROPAGATE_BASE2(MAX, umax);
+            PROPAGATE_BASE3(CLAMP, uclamp);
 
             if(out)
                 return out.value();
@@ -560,6 +586,9 @@ namespace value_impl
         REPLAY1(SIN, usin);
         REPLAY1(COS, ucos);
         REPLAY1(TAN, utan);
+        REPLAY1(SINH, usinh);
+        REPLAY1(COSH, ucosh);
+        REPLAY1(TANH, utanh);
         REPLAY1(ATAN, uatan);
         REPLAY2(ATAN2, uatan2);
         REPLAY1(LOG, ulog);
@@ -584,6 +613,7 @@ namespace value_impl
 
         REPLAY2(MIN, umin);
         REPLAY2(MAX, umax);
+        //REPLAY3(CLAMP, uclamp);
 
         assert(false);
     }
@@ -593,13 +623,17 @@ namespace value_impl
 
     template<typename T, typename U>
     inline
+    auto replay_constant(const value<T>& v1, const value<T>& v2, const value<T>& v3, U&& func) -> std::optional<value<std::remove_reference_t<decltype(func(T(), T(), T()))>>>;
+
+    template<typename T, typename U>
+    inline
     auto replay_constant(const value<T>& v1, const value<T>& v2, U&& func) -> std::optional<value<std::remove_reference_t<decltype(func(T(), T()))>>>;
 
     template<typename T, typename U>
     inline
     auto replay_constant(const value<T>& v1, U&& func) -> std::optional<value<std::remove_reference_t<decltype(func(T()))>>>;
 
-    #define OPTIMISE_VALUE
+    /*#define OPTIMISE_VALUE
 
     #ifdef OPTIMISE_VALUE
     #define PROPAGATE2(x, y, op) if(auto it = replay_constant(x, y, [](const T& a, const T& b){using namespace stdmath; return op(a,b);})){return it.value();}
@@ -607,7 +641,7 @@ namespace value_impl
     #else
     #define PROPAGATE2(x, y, op)
     #define PROPAGATE1(x, op)
-    #endif
+    #endif*/
 
     template<typename T>
     inline
@@ -870,6 +904,25 @@ namespace value_impl
 
     template<typename T, typename U>
     inline
+    auto replay_constant(const value<T>& v1, const value<T>& v2, const value<T>& v3, U&& func) -> std::optional<value<std::remove_reference_t<decltype(func(T(), T()))>>>
+    {
+        if(!v1.is_concrete_type() || !v2.is_concrete_type() || !v3.is_concrete_type())
+            return std::nullopt;
+
+        if(v1.concrete.index() != v2.concrete.index())
+            return std::nullopt;
+
+        if(v1.concrete.index() != v3.concrete.index())
+            return std::nullopt;
+
+        if(!std::holds_alternative<T>(v1.concrete))
+            return std::nullopt;
+
+        return func(std::get<T>(v1.concrete), std::get<T>(v2.concrete), std::get<T>(v3.concrete));
+    }
+
+    template<typename T, typename U>
+    inline
     auto replay_constant(const value<T>& v1, const value<T>& v2, U&& func) -> std::optional<value<std::remove_reference_t<decltype(func(T(), T()))>>>
     {
         if(!v1.is_concrete_type() || !v2.is_concrete_type())
@@ -895,6 +948,36 @@ namespace value_impl
             return std::nullopt;
 
         return func(std::get<T>(v1.concrete));
+    }
+
+    template<typename U>
+    inline
+    std::optional<value_base> replay_constant(const value_base& v1, const value_base& v2, const value_base& v3, U&& func)
+    {
+        if(!v1.is_concrete_type() || !v2.is_concrete_type() || !v3.is_concrete_type())
+            return std::nullopt;
+
+        if(v1.concrete.index() != v2.concrete.index())
+            return std::nullopt;
+
+        if(v1.concrete.index() != v3.concrete.index())
+            return std::nullopt;
+
+        std::optional<value_base> out;
+
+        std::visit([&](auto&& i1, auto&& i2, auto&& i3) {
+            if constexpr(std::is_same_v<decltype(i1), decltype(i2)> && std::is_same_v<decltype(i1), decltype(i3)>)
+            {
+                value_base b;
+                b.type = op::VALUE;
+                b.concrete = func(i1, i2, i3);
+
+                out = b;
+            }
+
+        }, v1.concrete, v2.concrete, v3.concrete);
+
+        return out;
     }
 
     template<typename U>
@@ -1151,6 +1234,36 @@ namespace value_impl
 
     template<typename T>
     inline
+    value<T> sinh(const value<T>& v1)
+    {
+        value<T> ret;
+        ret.type = op::SINH;
+        ret.args = {v1};
+        return from_base<T>(optimise(ret));
+    }
+
+    template<typename T>
+    inline
+    value<T> cosh(const value<T>& v1)
+    {
+        value<T> ret;
+        ret.type = op::COSH;
+        ret.args = {v1};
+        return from_base<T>(optimise(ret));
+    }
+
+    template<typename T>
+    inline
+    value<T> tanh(const value<T>& v1)
+    {
+        value<T> ret;
+        ret.type = op::TANH;
+        ret.args = {v1};
+        return from_base<T>(optimise(ret));
+    }
+
+    template<typename T>
+    inline
     value<T> asin(const value<T>& v1)
     {
         value<T> ret;
@@ -1287,6 +1400,20 @@ namespace value_impl
     value<T> max(const value<T>& v1, const value<T>& v2)
     {
         return from_base<T>(optimise(make_op<value<T>>(op::MAX, {v1, v2})));
+    }
+
+    template<typename T>
+    inline
+    value<T> clamp(const value<T>& v1, const value<T>& v2, const value<T>& v3)
+    {
+        return from_base<T>(optimise(make_op<value<T>>(op::CLAMP, {v1, v2, v3})));
+    }
+
+    template<typename T>
+    inline
+    value<T> clamp(const value<T>& v1, const T& v2, const T& v3)
+    {
+        return from_base<T>(optimise(make_op<value<T>>(op::CLAMP, {v1, value<T>(v2), value<T>(v3)})));
     }
 
     template<typename T>

@@ -13,6 +13,8 @@ Hiyas! We're going to tie up some loose ends today, and complete the steps you n
 4. Redshift
 5. Accretion disk?
 
+Todo: Do I need to split this up into chapters?
+
 # The interstellar wormhole
 
 The paper which describes interstellars wormhole is [this](https://arxiv.org/pdf/1502.03809) one. We want the fully configurable smooth version, which are equations (5a-c)
@@ -21,15 +23,15 @@ Given a coordinate system $(t, l, \theta, \phi)$, and the parameters $M$ = mass,
 
 $$
 \begin{align}
-r &= p + M(x \; atan(x) - \frac{1}{2}ln(1 + x^2)) \;\; &where \;\; &|l| > a\\
-r &= p \;\; &where \;\; &|l| < a\\
-x &= \frac{2(|l| - a)}{\pi M}\\
+r &= p + M(x \; atan(x) - \frac{1}{2}ln(1 + x^2)) \;\; &where \;\; &\mid l\mid > a \\
+r &= p \;\; &where \;\; &\mid l\mid < a \\
+x &= \frac{2(\mid l\mid - a)}{\pi M} \\
 \\
-ds^2 &= -(1-2\frac{M}{r}) dt^2 + \frac{dr^2}{1-2\frac{M}{r}} + r^2 (d\theta^2 + sin^2 \theta d\phi^2)
+ds^2 &= -(1-2\frac{M}{r}) dt^2 + \frac{dr^2}{1-2\frac{M}{r}} + r^2 (d\theta^2 + sin^2 \theta d\phi^2) \\
 \end{align}
 $$
 
-Note that there's a discontinuity in these equations at $|l|=a$ as given, so I swap (2) for a $<=$ instead. Using the raytracer we've produced, we can translate this to code:
+Note that there's a discontinuity in these equations at $\mid l\mid = a$ as given, so I swap (2) for a $ <= $ instead. Using the raytracer we've produced, we can translate this to code:
 
 ```c++
 metric<valuef, 4, 4> get_metric(const tensor<valuef, 4>& position) {
@@ -124,6 +126,8 @@ Where the velocity is updated, and then the position is updated with that new ve
 
 # Camera Controls / Orienting Tetrad
 
+Todo: This segment needs to be broken up
+
 At the moment, we're constructing a tetrad directly from the underying metric. This works great, but results in a tetrad that - in polar metrics - tends to point directly at our object. This leads to very unintuitive camera controls as we move our camera around. In this segment we're going to commit some crimes against coordinate systems to get them to point roughly where we want them to
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/L-sXQdiCkCY?si=4Hu52YdR1hoJZBUd" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
@@ -135,7 +139,7 @@ First off, lets define 3 vectors in cartesian, where it'd sure be ideal if our c
 $$
 b_x = (1, 0, 0)\\
 b_y = (0, 1, 0)\\
-b_z = (0, 0, 1)\\
+b_z = (0, 0, 1)
 $$
 
 Now, our coordinate system isn't in cartesian, so we need to convert these ideal vectors into our actual coordinate system, whatever that may be. Here we have polar coordinates, so lets use that illustratively
@@ -249,7 +253,7 @@ Which results in your metric looking like this as you fly around, making it way 
 
 # Observers with velocity / Lorentz boosts
 
-We'd like to give our observer a shove in a particular direction, instead of letting them drift completely freely. Amusingly enough, the interstellar wormhole has neglegible gravity, so we'll simply sit still forever if we can't represent a moving observer instead of whatever we get out of the metric from Gram-Scmidt[^notethat]
+We'd like to give our observer a shove in a particular direction, instead of letting them drift completely freely. Amusingly enough, the interstellar wormhole has neglegible gravity, so we'll simply sit still forever if we can't represent a moving observer (instead of whatever we get out of the metric from Gram-Scmidt[^notethat])
 
 [^notethat]: Note that boosting our observer in a direction *still* doesn't give us any more physical information as to where we're going, as our initial tetrad is still entirely arbitrary. We do however construct our boosts in the local frame of reference - so if we know where our tetrad is pointing (which is not always certain), we know the direction we boost towards. We have no information on our absolute velocity - as there is no absolute velocity
 
@@ -286,7 +290,7 @@ ds^2 = 0 = -dt^2 + dx^2 + dy^2 + dz^2\\
 -dt^2 = |v|^2\\
 $$
 
-We know a ray of light moves with a speed of $1$, therefore
+We know a ray of light moves with a speed of $|v|=1$, therefore
 
 $$
 dt = \pm 1
@@ -310,7 +314,7 @@ Because for a lightlike geodesic, $ds^2 = 0$, $d\tau^2 = 0$. There is therefore 
 
 ### Timelike Geodesics
 
-A timelike geodesic is defined as having $ds^2 < 0$
+A timelike geodesic is defined as when $ds^2 < 0$
 
 #### Coordinate time parameterisation
 
@@ -322,7 +326,7 @@ ds^2 = -dt^2 + dx^2 + dy^2 + dz^2\\
 = -1 + dx^2 + dy^2 + dz^2 < 0\\
 $$
 
-Therefore, if $|v| < 1$, we do get a valid timelike geodesic $\frac{dx^\mu}{dt} = (1, v^0, v^1, v^2)$ parameterised by coordinate time. If we want to change our parameterisation, we need to multiply by the quantity $\frac{dt}{d\tau}$. Using the line element for Minkowski again:
+Therefore, if $|v| < 1$, we do get a valid timelike geodesic $\frac{dx^\mu}{dt} = (1, v^0, v^1, v^2)$ parameterised by coordinate time
 
 #### Proper time parameterisation
 
@@ -349,23 +353,23 @@ $$\begin{align}
 \end{align}
 $$
 
-Part of the reason why I'm spelling this out so explicitly is because this notation is thrown around a lot, so hopefully you can come back to this in the future
+Part of the reason why I'm spelling this out so explicitly is because all this notation is used to mean the same thing, so hopefully you can come back to this in the future
 
 #### Affine parameterisation
 
-Like with lightlike geodesics, we can construct 'an' affine parameterisation by setting $\lambda = t$ at the moment of construction, after which the two parameters diverge. This however is very uncommon, and is only mentioned for completenes. When you do this, the parameterisation has no physical interpretation
+Like with lightlike geodesics, we can construct 'an' affine parameterisation by setting $\lambda = t$ at the moment of construction, after which the two parameters diverge. This however is very uncommon, and is only mentioned for completeness. When you do this, the parameterisation has no physical interpretation
 
 We can also construct an affine time parameterisation by setting $\lambda = \tau$, where $d\tau = ds^2 = -1$ (which is true in any proper time parameterisation). One very neat fact of proper time is that it *is* a general affine parameterisation, and so if we use a proper time parameterised geodesic and plug it through the geodesic equation specialised for the affine parameter (which is the one we use), this is perfectly valid
 
 ## Calculating a lorentz boost
 
-We now know how to make an observer with a (timelike) velocity in minkowski, by constructing it from a 3-velocity parameterised by coordinate time. To be very explicit, given a velocity in cartesian coordinates $d^i = (dx, dy, dz)$, where $|d| < 1$
+We now know how to make an observer with a (timelike) 4-velocity in minkowski, by constructing it from a 3-velocity. To be very explicit, given a velocity in cartesian coordinates $d^i = (dx, dy, dz)$, where $\mid d\mid < 1$
 
 $$
 \frac{dx^\mu}{d\tau} = v_{local} = \frac{1}{\sqrt{1 - |d|^2}} (1, d^0, d^1, d^2)
 $$
 
-Then convert $v_{local}$ to $v$ by transforming it with the tetrad, as $v^\mu = e_i^\mu v^i_{local}$
+We then want to convert $v_{local}$ to $v$ by transforming it with the tetrad, as $v^\mu = e_i^\mu v^i_{local}$, to get our new observer velocity in our curved spacetime
 
 If we have an initial 4-velocity $u^\mu = e_0^\mu$ of our tetrad, and we want to boost the tetrad to represent an observer with a 4-velocity $v$, the formula for the lorentz boost is this[^form]:
 
@@ -466,7 +470,7 @@ M = 0.01, p = 1, a = 0.001
 
 Calculating a physically accurate rendering of redshift is an extremely involved process, and I am not aware of any visually accurate simulations of this. This may surprise you if you know general relativity, because the equations for redshift are very simple. I will outline the full process below of rendering redshift, and then we will use a visual approximation to skip the difficult steps
 
-1. We first need a skymap across all frequencies, giving us the different intensities. A good starting point is over [here](http://aladin.cds.unistra.fr/hips/list), luckily we live in 2024 and a significant amount of this information is simply public - unfortunately these skymaps do not come with what units their intensity data is in, making them unusable[^digging] . Still, you can go find the original surveys - although it often requires significant digging. An alternative is to have a known analytic distribution, like a blackbody radiator
+1. We first need frequency information across the entire spectrum. For rendering something like the galaxy, we need a skymap across all frequencies, giving us the different intensities. A good starting point is over [here](http://aladin.cds.unistra.fr/hips/list), luckily we live in 2024 and a significant amount of this information is simply public - unfortunately these skymaps do not come with what units their intensity data is in, making them unusable[^digging] . Still, you can go find the original surveys - although it often requires significant digging. We may however have an analytic distribution like a blackbody radiator, in which case the problem becomes more tractable
 
 [^digging]: This step is the bottleneck for actually achieving what we're trying to do here. Try as I might, I cannot find any standardised way to obtain anything corresponding to physical units (instead of raw data in unknown units). If you know, please contact me! It looks like [adadin](https://aladin.cds.unistra.fr/hips/HipsIn10Steps.gml) may be able to do what we want, but its certainly not straightforward. Apparently the 'default' unit is ADU, which is the raw CCD readout data, but its not even vaguely clear how to go about converting this into a calibrated physical unit
 
@@ -492,7 +496,7 @@ Calculating a physically accurate rendering of redshift is an extremely involved
 
 10. We then convert this to the sRGB' linear colour space, via this [matrix](https://en.wikipedia.org/wiki/SRGB#From_CIE_XYZ_to_sRGB), before finally using the CsRGB conversion below it. If you use $pow(x, 2.2)$ then this is wrong
 
-11. Then you display this sRGB data, hoping that your operating system isn't mad[^madness], and you have a decent colour calibrated monitor
+11. Then you display this sRGB data, hoping that your operating system isn't mad[^madness], and that you also haven't become mad in the process
 
 [^madness]: Note that while I'm being a bit jokey, getting sRGB to display correctly has been a major stumbling block on linux, and in graphics APIs, and you do need to check that your graphics pipeline is doing what you think it is
 
@@ -510,19 +514,140 @@ A much more likely situation is that we have some kind of texture, and we'd like
 
 4. Pick a very arbitrary frequency of visible light to represent our frequency information, eg 555 nanometers (in Hz)
 
-5. Calculate the new frequency and intensity using this frequency
+5. Calculate the new frequency and intensity by using our redshift equation
 
 6. Map higher frequencies to bluer colours, and lower frequencies to darker colours
 
-todo: finish this off
+### Redshift
+
+The equations for redshift in general relativity are pretty simple. First off, we define the redshift $z$, as follows[^derivation]:
+
+$$z+1 = \frac{g_{\mu\nu} k^\mu_{emit} u^\mu_{emit}}{g_{\mu\nu} k^\mu_{obs} u^\mu_{obs}}$$
+
+$k^\mu$ represents our geodesic's velocity, and u is the observer velocity. $u^\mu_{emit}$ specifically will be where our ray terminates, and $u^\mu_{obs} = e_0$ is our initial observer's velocity (after boosting!). Do note that the metric tensors are evaluated at different locations
+
+Next up, we need to work out how our light changes, from our end frame of reference (defined by u^\mu_{emit}), to our initial frame of reference. Light has two properties - frequency/wavelength, and intensity. The equation for wavelength looks like this
+
+$$\lambda^{obs} = \frac{\lambda^{emit}}{1+z}$$
+
+Once we have our new wavelength, we need to calculate the intensity. We can do this by calculating the lorentz invariant (constant in every frame of reference): $\frac{I_\nu}{\nu^3}$, where $\nu$ is your frequency. See [here](https://www.astro.princeton.edu/~jeremy/heap.pdf) 1.26 for details. Note that the quantity $I \lambda^3$ is also therefore lorentz invariant
+
+So, to calculate our observed intensity, we say
+
+$$I_{obs} \lambda_{obs}^3 = I_{emit} \lambda_{emit}^3\\
+I_{obs} = I_{emit} \frac{\lambda_{emit}^3}{\lambda_{obs}^3}
+$$
+
+Note that this equation is linear in terms of intensity, and only depends on the ratio of our wavelengths
+
+Once we have our new frequency $\lambda_{obs}$, and $I_{obs}$, in theory we have everything we need to render our our final colour. We just have two unknowns, which are our initial intensity, and the initial wavelength
+
+#### Where do $I_{emit}$ and $\lambda_{emit}$ come from?
+
+It depends what we're simulating. For our use case - redshifting a galaxy background, we'd need frequency and intensity data across the entire sky. A good starting point is over [here](http://aladin.cds.unistra.fr/hips/list), luckily we live in 2024 and a significant amount of this information is simply public - unfortunately these skymaps do not come with what units their intensity data is in, making them unusable[^digging] . Still, you can go find the original surveys - although it requires significant digging which I'm not going to do in this article
+
+If you have a blackbody radiator, it becomes fairly straightforward, as given a temperature we can redshift that directly, via the equation:
+
+$$T^{obs} = \frac{T}{1+z}$$
+
+[^digging]: This step is the bottleneck for actually achieving what we're trying to do here. Try as I might, I cannot find any standardised way to obtain anything corresponding to physical units (instead of raw data in unknown units). If you know, please contact me! It looks like [adadin](https://aladin.cds.unistra.fr/hips/HipsIn10Steps.gml) may be able to do what we want, but its certainly not straightforward. Apparently the 'default' unit is ADU, which is the raw CCD readout data, but its not even vaguely clear how to go about converting this into a calibrated physical unit
+
+So, for our galaxy, we're going to implement *illustrative* redshift, rather than attempting to find calibration data for hundreds of surveys
+
+### Illustrative redshift
+
+The key here is that we're going to discard physicality, and just show a measure of redshift. To do this, we first pick a fairly arbitrary wavelength - in my case I use $555$[^dontdoit], to represent green light. We then carry on as normal, and calculate $z+1$. Our intensity data is defined as the $Y$ component of the $XYZ$, see [here](https://en.wikipedia.org/wiki/SRGB#From_CIE_XYZ_to_sRGB), but put more simply: we convert to linear sRGB, and then calculate Y as:
+
+[^dontdoit]: You might be tempted to try and do something more fancy like dominant colours or whatever, but the reality is when we're dealing only with a narrow range of visible light it makes 0 difference
+
+$$Y = 0.2126 r + 0.7152 g + 0.0722 b$$
+
+Once we've calculated our new intensity via the same intensity equation (plugging in $Y$), its then time to recolour our texture. We don't actually want to use our new wavelength - because it contains no useful colour information, but instead interpolate between red and blue. $z$ has a range of $[-1, +inf]$, so we split into two branches
+
+#### Redshift Only
+
+Redshift (z > 0):
+
+```c++
+new_colour = mix(old_colour, pure_red / 0.2126, tanh(z));
+```
+
+Redshift naturally fades to black as the intensity drops. The choice of `tanh` to map the infinite range to $[0, 1]$ is fairly arbitrary
+
+#### Blueshift Only
+
+Blueshift (z > 1):
+
+```c++
+iv1pz = (1/(1 + z)) - 1;
+
+interpolating_fraction = tanh(iv1pz);
+
+new_colour = mix(old_colour, pure_blue / 0.0722, interpolating_fraction);
+```
+
+The mapping here is more complicated to replicate the same falloff as redshift. One question you might have is why we're dividing our colours by the constants: notice that they're the same constants we use to calculate $Y$. This ensures that our new colour is equivalent in power/brightness to the old one
+
+One problem specific to blueshift is that our energy is unbounded, and our pixels can become infinitely bright. Its therefore much more aesthetically pleasing to spill over the extra energy into white once we max out the blue colour
+
+### Code
+
+This is one of those things that's a lot easier to express in code, rather than equations:
+
+```c++
+//calculate Y of XYZ
+valuef energy_of(v3f v)
+{
+    return v.x*0.2125f + v.y*0.7154f + v.z*0.0721f;
+}
+
+v3f redshift(v3f v, valuef z)
+{
+    valuef radiant_energy = energy_of(v);
+
+    v3f red = {1/0.2125f, 0.f, 0.f};
+    v3f green = {0, 1/0.7154, 0.f};
+    v3f blue = {0.f, 0.f, 1/0.0721};
+
+    v3f result = declare_mut_e((v3f){0,0,0});
+
+    if_e(z >= 0, [&]{
+        result = mix(v, radiant_energy * red, tanh(z));
+    });
+
+    if_e(z < 0, [&]{
+        valuef iv1pz = (1/(1 + z)) - 1;
+
+        valuef interpolating_fraction = tanh(iv1pz);
+
+        v3f col = mix(v, radiant_energy * blue, interpolating_fraction);
+
+        //calculate spilling into white
+        {
+            valuef final_energy = energy_of(clamp(col, 0.f, 1.f));
+            valuef real_energy = energy_of(col);
+
+            valuef remaining_energy = real_energy - final_energy;
+
+            col.x() += remaining_energy * red.x();
+            col.y() += remaining_energy * green.y();
+        }
+
+        result = col;
+    });
+
+    result = clamp(result, 0.f, 1.f);
+
+    return result;
+}
+```
 
 # Accretion disk?
 
 https://www.emis.de/journals/LRG/Articles/lrr-2013-1/articlese5.html
 
-This segment was up for debate. No black hole is really complete without an accretion disk, but as someone who is in this for the brutalist physical accuracy, I didn't want to simply put in a texture and call it a day without it having at least some physical basis, and this is one of the few things in this article series that I haven't written prior to writing this article, so I'm starting as fresh as you! In future articles we'll be simulating the accretion disk directly rather than using an analytic solution - which will be super fun[^fun]
+This segment was up for debate. No black hole is really complete without an accretion disk, but as someone who is in this for the brutalist physical accuracy, I didn't want to simply put in a texture and call it a day without it having at least some physical basis, and this is one of the few things in this article series that I haven't written prior to writing this article, so I'm starting as fresh as you! In future articles we'll be simulating the accretion disk directly rather than using an analytic solution - which will be super fun
 
-[^fun]: My 29th birthday present to myself was implementing a new set of equations for simulating spacetime, which I didn't have a good excuse for using otherwise
 
 ## Thin disk
 

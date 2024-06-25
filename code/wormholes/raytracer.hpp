@@ -374,6 +374,54 @@ v3f render_pixel(v2i screen_position, v2i screen_size, const read_only_image<2>&
     return colour.as<valuef>();
 }
 
+//calculate Y of XYZ
+valuef energy_of(v3f v)
+{
+    return v.x()*0.2125f + v.y()*0.7154f + v.z()*0.0721f;
+}
+
+v3f redshift(v3f v, valuef z)
+{
+    using namespace single_source;
+
+    valuef radiant_energy = energy_of(v);
+
+    v3f red = {1/0.2125f, 0.f, 0.f};
+    v3f green = {0, 1/0.7154, 0.f};
+    v3f blue = {0.f, 0.f, 1/0.0721};
+
+    mut_v3f result = declare_mut_e((v3f){0,0,0});
+
+    if_e(z >= 0, [&]{
+        as_ref(result) = mix(v, radiant_energy * red, tanh(z));
+    });
+
+    if_e(z < 0, [&]{
+        valuef iv1pz = (1/(1 + z)) - 1;
+
+        valuef interpolating_fraction = tanh(iv1pz);
+
+        v3f col = mix(v, radiant_energy * blue, interpolating_fraction);
+
+        //calculate spilling into white
+        {
+            valuef final_energy = energy_of(clamp(col, 0.f, 1.f));
+            valuef real_energy = energy_of(col);
+
+            valuef remaining_energy = real_energy - final_energy;
+
+            col.x() += remaining_energy * red.x();
+            col.y() += remaining_energy * green.y();
+        }
+
+        as_ref(result) = col;
+    });
+
+    as_ref(result) = clamp(result, 0.f, 1.f);
+
+    return declare_e(result);
+}
+
 template<auto GetMetric>
 void opencl_raytrace(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
                      read_only_image<2> background, write_only_image<2> screen,
