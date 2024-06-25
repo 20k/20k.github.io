@@ -26,6 +26,70 @@ struct tetrad
     std::array<v4f, 4> v;
 };
 
+template<typename T>
+inline
+tensor<T, 3> cartesian_to_spherical(const tensor<T, 3>& cartesian)
+{
+    T r = cartesian.length();
+    T theta = acos(cartesian.v[2] / r);
+    T phi = atan2(cartesian.v[1], cartesian.v[0]);
+
+    return {r, theta, phi};
+}
+
+template<typename T, typename Func>
+inline
+tensor<T, 3> convert_velocity(Func&& f, const tensor<T, 3>& pos, const tensor<T, 3>& deriv)
+{
+    tensor<dual<T>, 3> val;
+
+    for(int i=0; i < 3; i++)
+        val[i] = dual(pos[i], deriv[i]);
+
+    auto diff = f(val);
+
+    tensor<T, 3> ret;
+
+    for(int i=0; i < 3; i++)
+        ret[i] = diff[i].dual;
+
+    return ret;
+}
+
+template<typename T>
+inline
+tensor<T, 3> spherical_to_cartesian(const tensor<T, 3>& spherical)
+{
+    T r = spherical.v[0];
+    T theta = spherical.v[1];
+    T phi = spherical.v[2];
+
+    T x = r * sin(theta) * cos(phi);
+    T y = r * sin(theta) * sin(phi);
+    T z = r * cos(theta);
+
+    return {x, y, z};
+}
+
+template<typename T>
+inline
+tensor<T, 3> cartesian_velocity_to_spherical_velocity(const tensor<T, 3>& cartesian, const tensor<T, 3>& cartesian_velocity)
+{
+    tensor<dual<T>, 3> val;
+
+    for(int i=0; i < 3; i++)
+        val[i] = dual(cartesian[i], cartesian_velocity[i]);
+
+    auto diff = cartesian_to_spherical(val);
+
+    tensor<T, 3> ret;
+
+    for(int i=0; i < 3; i++)
+        ret[i] = diff[i].dual;
+
+    return ret;
+}
+
 v3f get_ray_through_pixel(v2i screen_position, v2i screen_size, float fov_degrees, v4f camera_quat) {
     float fov_rad = (fov_degrees / 360.f) * 2 * std::numbers::pi_v<float>;
     valuef f_stop = (screen_size.x()/2).to<float>() / tan(fov_rad/2);

@@ -93,7 +93,7 @@ metric<valuef, 4, 4> get_metric(const tensor<valuef, 4>& position) {
 
     valuef M = 0.01;
     valuef p = 1;
-    valuef a = 1.f;
+    valuef a = 0.001f;
 
     valuef l = position[1];
 
@@ -114,6 +114,16 @@ metric<valuef, 4, 4> get_metric(const tensor<valuef, 4>& position) {
     m[3, 3] = r*r * sin(theta)*sin(theta);
 
     return m;
+}
+
+v4f metric_to_spherical(v4f generic)
+{
+    return generic;
+}
+
+v4f spherical_to_metric(v4f spherical)
+{
+    return spherical;
 }
 
 cl::image load_background(cl::context ctx, cl::command_queue cqueue)
@@ -307,7 +317,7 @@ int main()
             cqueue.exec(tetrad_kern, {1}, {1}, {});
         }
 
-        #define PARALLEL_TRANSPORT
+        //#define PARALLEL_TRANSPORT
         #ifdef PARALLEL_TRANSPORT
         {
             cl::args args;

@@ -104,7 +104,7 @@ With this in place, we get this result, which looks pretty great:
 
 ![wormhole2](/assets/wormhole_2.png)
 
-The singularities are barely noticable, and our performance is 60ms/frame @ 1080p
+The singularities are barely noticable, and our performance is 60ms/frame @ 1080p. Truly incredible. I'm joking, but interactive framerates here are pretty decent - with a better integrator, some performance improvements, and general work this can be improved singificantly
 
 ## Watch out for your integrator!
 
@@ -121,11 +121,12 @@ Where the velocity is updated, and then the position is updated with that new ve
         as_ref(position) = cposition + cvelocity * dt;
         as_ref(velocity) = cvelocity + acceleration * dt;
 ```
+
 # Camera Controls / Orienting Tetrad
 
-At the moment, we're constructing a tetrad directly from the underying metric. This works great, but results in a tetrad that - in polar metrics - tends to point directly at our object. This lads to very unintuitive camera controls as we move our camera around. In this segment we're going to commit some crimes against coordinate systems to get them to point roughly where we want them to
+At the moment, we're constructing a tetrad directly from the underying metric. This works great, but results in a tetrad that - in polar metrics - tends to point directly at our object. This leads to very unintuitive camera controls as we move our camera around. In this segment we're going to commit some crimes against coordinate systems to get them to point roughly where we want them to
 
-\<iframe width="560" height="315" src="https://www.youtube.com/embed/L-sXQdiCkCY?si=4Hu52YdR1hoJZBUd" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/L-sXQdiCkCY?si=4Hu52YdR1hoJZBUd" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 Fixing this is a bit of a pain. What we'd like to do is have our tetrads consistently point in a specific direction - any direction would do. While this isn't possible to do in the general case (because the tetrads and coordinates are inherently arbitrary), as it turns out - we actually can do this in a pretty wide variety of cases. Most coordinate systems aren't out to get you, so lets examine how to do this. This process is unfortunately going to be very coordinate dependent
 
@@ -451,6 +452,8 @@ A much more likely situation is that we have some kind of texture, and we'd like
 todo: finish this off
 
 # Accretion disk?
+
+https://www.emis.de/journals/LRG/Articles/lrr-2013-1/articlese5.html
 
 This segment was up for debate. No black hole is really complete without an accretion disk, but as someone who is in this for the brutalist physical accuracy, I didn't want to simply put in a texture and call it a day without it having at least some physical basis, and this is one of the few things in this article series that I haven't written prior to writing this article, so I'm starting as fresh as you! In future articles we'll be simulating the accretion disk directly rather than using an analytic solution - which will be super fun[^fun]
 
