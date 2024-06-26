@@ -466,60 +466,6 @@ M = 0.01, p = 1, a = 0.001
 
 # Redshift
 
-## Physically accurate redshift
-
-Calculating a physically accurate rendering of redshift is an extremely involved process, and I am not aware of any visually accurate simulations of this. This may surprise you if you know general relativity, because the equations for redshift are very simple. I will outline the full process below of rendering redshift, and then we will use a visual approximation to skip the difficult steps
-
-1. We first need frequency information across the entire spectrum. For rendering something like the galaxy, we need a skymap across all frequencies, giving us the different intensities. A good starting point is over [here](http://aladin.cds.unistra.fr/hips/list), luckily we live in 2024 and a significant amount of this information is simply public - unfortunately these skymaps do not come with what units their intensity data is in, making them unusable[^digging] . Still, you can go find the original surveys - although it often requires significant digging. We may however have an analytic distribution like a blackbody radiator, in which case the problem becomes more tractable
-
-[^digging]: This step is the bottleneck for actually achieving what we're trying to do here. Try as I might, I cannot find any standardised way to obtain anything corresponding to physical units (instead of raw data in unknown units). If you know, please contact me! It looks like [adadin](https://aladin.cds.unistra.fr/hips/HipsIn10Steps.gml) may be able to do what we want, but its certainly not straightforward. Apparently the 'default' unit is ADU, which is the raw CCD readout data, but its not even vaguely clear how to go about converting this into a calibrated physical unit
-
-2. We then perform our geodesic tracing as per normal. At our starting point, the camera, we calculate the quantity $g_{\mu\nu} k^\mu_{obs} u^\mu_{obs}$, where $k_{obs}$ is our geodesic velocity, and $u_{obs}$ is our observer velocity
-
-3. At our rays termination point, we need to define some observer that was considered to have emitted that ray, and get the velocity $u_{emit}$. Eg, if your ray originated from an accretion disk, you need the velocity of the matter. You might calculate a new set of tetrads $e_k$ at our termination point, and consider $u_{emit} = e_0$ to be the velocity of whatever emitted the ray. Then, calculate $g_{\mu\nu} k^\mu_{emit} u^\mu_{emit}$. Remember that because we're tracing rays backwards in time, our termination point is where the ray was emitted!
-
-4. Next we calculate the quantity $z$, which is defined as $z+1 = \frac{g_{\mu\nu} k^\mu_{emit} u^\mu_{emit}}{g_{\mu\nu} k^\mu_{obs} u^\mu_{obs}}$, bearing in mind that our two metric tensors are evaluated at different coordinates
-
-5. The change in frequency of light due to redshift is defined as $v_{obs} = \frac{v_{emit}}{z+1}$
-
-6. The intensity $I_{obs}$ is calculated by using the [lorentz invariant quantity](https://physics.stackexchange.com/questions/321220/derivation-of-the-lorentz-transform-of-brightness-dp-d-omega) $\frac{I_{emit}}{v_{emit}^3}$, where $v$ is frequency, and $I$ is spectral radiance[^whatisthis] . Lorentz invariant quantities do not change based on your frame of reference, therefore $\frac{I_{emit}}{v_{emit}^3} = \frac{I_{obs}}{v_{obs}^3}$, and $ \frac{I_{emit} v_{obs}^3}{v_{emit}^3} = I_{obs}$, our observed intensity of light. Note the linearity of this equation in terms of the intensity of light
-
-[^whatisthis]: [Radiance per unit frequency](https://en.wikipedia.org/wiki/Spectral_radiance)
-
-7. We now have a way to calculate the change in intensity, and frequency, of emitted rays. We now sample all the frequencies from our skymaps observed in step 1, and calculate the new frequencies and intensities in our local frame of reference by applying the above equation to out frequency + intensity distribution. Next up, we need to calculate what this actually looks like to a human being
-
-8. Human colour response to a frequency spectrum is defined by the LMS (long medium short - your eyes cone response) colour system. First up, you need to download the cie 1931 2 degree fov data from [here](http://www.cvrl.org/cmfs.htm). Using later observers may work as well. This gives you a table of colour matching functions[^moredetail] which we convolve against our frequency data. This convolution returns a new set of tristimulus values in the LMS colour space, which represents how much each eye cone responds to a particular frequency
-
-[^moredetail]: We're glossing over colouriometry theory at high speed here, the short version is that you can work out how much human eyes respond to different frequencies of light
-
-9. Once we have an LMS triplet, we then convert that to the XYZ colour space, by calculating the inverse of [this](https://en.wikipedia.org/wiki/LMS_color_space#Hunt,_RLAB) matrix, which we use under D65 lighting
-
-10. We then convert this to the sRGB' linear colour space, via this [matrix](https://en.wikipedia.org/wiki/SRGB#From_CIE_XYZ_to_sRGB), before finally using the CsRGB conversion below it. If you use $pow(x, 2.2)$ then this is wrong
-
-11. Then you display this sRGB data, hoping that your operating system isn't mad[^madness], and that you also haven't become mad in the process
-
-[^madness]: Note that while I'm being a bit jokey, getting sRGB to display correctly has been a major stumbling block on linux, and in graphics APIs, and you do need to check that your graphics pipeline is doing what you think it is
-
-This, as things go, is not all that straightforward. It would be a lot easier if the hips standard for asytrophysics included what the datatypes of the data was when downloading chunks, and would make this implementable
-
-## Illustrative redshift
-
-A much more likely situation is that we have some kind of texture, and we'd like to show off how red/blue shifted something is by altering the colour of the texture. This is a lot simpler to do than the full version, and we're going to use a simplified process:
-
-1. Read our sRGB texture colour from where our ray hits
-
-2. Calculate $z+1$ as we do in the physical test case
-
-3. Calculate the intensity of our texture colour, by converting our sRGB colour to XYZ (see above), and using the Y component
-
-4. Pick a very arbitrary frequency of visible light to represent our frequency information, eg 555 nanometers (in Hz)
-
-5. Calculate the new frequency and intensity by using our redshift equation
-
-6. Map higher frequencies to bluer colours, and lower frequencies to darker colours
-
-### Redshift: 2
-
 The equations for redshift in general relativity are pretty simple. First off, we define the redshift $z$, as follows[^derivation]:
 
 $$z+1 = \frac{g_{\mu\nu} k^\mu_{emit} u^\mu_{emit}}{g_{\mu\nu} k^\mu_{obs} u^\mu_{obs}}$$
@@ -542,9 +488,9 @@ Note that this equation is linear in terms of intensity, and only depends on the
 
 Once we have our new frequency $\lambda_{obs}$, and $I_{obs}$, in theory we have everything we need to render our our final colour. We just have two unknowns, which are our initial intensity, and the initial wavelength
 
-#### Where do $I_{emit}$ and $\lambda_{emit}$ come from?
+## Where do $I_{emit}$ and $\lambda_{emit}$ come from?
 
-It depends what we're simulating. For our use case - redshifting a galaxy background, we'd need frequency and intensity data across the entire sky. A good starting point is over [here](http://aladin.cds.unistra.fr/hips/list), luckily we live in 2024 and a significant amount of this information is simply public - unfortunately these skymaps do not come with what units their intensity data is in, making them unusable[^digging] . Still, you can go find the original surveys - although it requires significant digging which I'm not going to do in this article
+It depends what we're simulating. For our use case - redshifting a galaxy background, you'd need frequency and intensity data across the entire sky. A good starting point is over [here](http://aladin.cds.unistra.fr/hips/list), luckily we live in 2024 and a significant amount of this information is simply public - unfortunately these skymaps do not come with what units their intensity data is in, making them unusable[^digging] . Still, you can go find the original surveys - although it requires significant digging which I'm not going to do in this article
 
 If you have a blackbody radiator, it becomes fairly straightforward, as given a temperature we can redshift that directly, via the equation:
 
@@ -552,19 +498,19 @@ $$T^{obs} = \frac{T}{1+z}$$
 
 [^digging]: This step is the bottleneck for actually achieving what we're trying to do here. Try as I might, I cannot find any standardised way to obtain anything corresponding to physical units (instead of raw data in unknown units). If you know, please contact me! It looks like [adadin](https://aladin.cds.unistra.fr/hips/HipsIn10Steps.gml) may be able to do what we want, but its certainly not straightforward. Apparently the 'default' unit is ADU, which is the raw CCD readout data, but its not even vaguely clear how to go about converting this into a calibrated physical unit
 
-So, for our galaxy, we're going to implement *illustrative* redshift, rather than attempting to find calibration data for hundreds of surveys
+For our galaxy background, we're instead going to implement *illustrative* redshift, rather than attempting to find calibration data for hundreds of surveys
 
-### Illustrative redshift
+## Illustrative redshift
 
-The key here is that we're going to discard physicality, and just show a measure of redshift. To do this, we first pick a fairly arbitrary wavelength - in my case I use $555$[^dontdoit], to represent green light. We then carry on as normal, and calculate $z+1$. Our intensity data is defined as the $Y$ component of the $XYZ$, see [here](https://en.wikipedia.org/wiki/SRGB#From_CIE_XYZ_to_sRGB), but put more simply: we convert to linear sRGB, and then calculate Y as:
+The key here is that we're going to discard physicality, and just show a measure of redshift. To do this, we first pick a fairly arbitrary wavelength - in my case I use $555$[^dontdoit], to represent green light. We then carry on as normal, and calculate $z+1$. Our intensity data is defined as the $Y$ component of the $XYZ$, see [here](https://en.wikipedia.org/wiki/SRGB#From_sRGB_to_CIE_XYZ), but put more simply: we convert to linear sRGB, and then calculate Y as:
 
-[^dontdoit]: You might be tempted to try and do something more fancy like dominant colours or whatever, but the reality is when we're dealing only with a narrow range of visible light it makes 0 difference
+[^dontdoit]: You might be tempted to try and do something more fancy like dominant colours or whatever, but the reality is when you're dealing only with a narrow range of visible light it makes 0 difference
 
 $$Y = 0.2126 r + 0.7152 g + 0.0722 b$$
 
 Once we've calculated our new intensity via the same intensity equation (plugging in $Y$), its then time to recolour our texture. We don't actually want to use our new wavelength - because it contains no useful colour information, but instead interpolate between red and blue. $z$ has a range of $[-1, +inf]$, so we split into two branches
 
-#### Redshift Only
+### Redshift Only
 
 Redshift (z > 0):
 
@@ -572,9 +518,9 @@ Redshift (z > 0):
 new_colour = mix(old_colour, pure_red / 0.2126, tanh(z));
 ```
 
-Redshift naturally fades to black as the intensity drops. The choice of `tanh` to map the infinite range to $[0, 1]$ is fairly arbitrary
+Redshift naturally fades to black as the intensity drops. The choice of `tanh` to map the infinite range to $[0, 1]$ is fairly arbitrary. The division by the constant is to ensure that our brightness remains the sam
 
-#### Blueshift Only
+### Blueshift Only
 
 Blueshift (z > 1):
 
@@ -589,6 +535,18 @@ new_colour = mix(old_colour, pure_blue / 0.0722, interpolating_fraction);
 The mapping here is more complicated to replicate the same falloff as redshift. One question you might have is why we're dividing our colours by the constants: notice that they're the same constants we use to calculate $Y$. This ensures that our new colour is equivalent in power/brightness to the old one
 
 One problem specific to blueshift is that our energy is unbounded, and our pixels can become infinitely bright. Its therefore much more aesthetically pleasing to spill over the extra energy into white once we max out the blue colour
+
+## Physically accurate wavelength rendering
+
+Because our colour is artificial, this doesn't matter for us, but if you wanted to physically accurately render a wavelength, here's how you'd do it:
+
+Human colour response to a frequency spectrum is defined by the LMS (long medium short - your eyes cone response) colour system. First up, you need to download the cie 1931 2 degree fov data from [here](http://www.cvrl.org/cmfs.htm).This gives you a table of colour matching functions which we convolve against our frequency data. This convolution returns a new set of tristimulus values in the LMS colour space, which represents how much each eye cone responds to a particular frequency
+
+Once you have an LMS triplet, you convert that to the XYZ colour space, by calculating the inverse of [this](https://en.wikipedia.org/wiki/LMS_color_space#Hunt,_RLAB) matrix, which you use under D65 lighting
+
+Then, convert that to the sRGB' linear colour space, via this [matrix](https://en.wikipedia.org/wiki/SRGB#From_CIE_XYZ_to_sRGB), before finally using the CsRGB conversion below it
+
+There will likely be a future article about accurately rendering black body radiators, but this one is long enough as it is
 
 ### Code
 
@@ -724,68 +682,7 @@ This gives pretty nice results, eg here for $M=1$[^geometric], $a=0.6$, $\dot{m}
 
 ![Disk](/assets/disk.png)
 
-In practice we won't use a 2d texture of an accretion disk, because its spherically symmetric we'll just take one radial slice
-
-## Accretion Disks
-
-https://www.emis.de/journals/LRG/Articles/lrr-2013-1/articlese5.html
-
-This segment was up for debate. No black hole is really complete without an accretion disk, but as someone who is in this for the brutalist physical accuracy, I didn't want to simply put in a texture and call it a day without it having at least some physical basis for it, and this is one of the few things in this article series that I haven't written prior to writing this article, so I'm starting as fresh as you! In future articles we'll be simulating the accretion disk directly rather than using an analytic solution
-
-## Thin disk
-
-The archetypal accretion disk model is known as the [Novikov-Thorne model](https://www.its.caltech.edu/~kip/scripts/PubScans/II-48.pdf)
-
-Accretion disk models are normally based a few assumptions, notably:
-
-1. That the accretion disk has neglegible mass
-2. That it is thin. You probably figured this one out
-
-You may notice in renderings of an accretion disk, there's a gap between the inner most boundary of the accretion disk, and the black hole - this boundary is known as the innermost stable circular orbit (ISCO). This will crop up again in the future, but the orbit of any particle within the ISCO is unstable, and will eventually hit the black hole, whereas circular orbits outside this region are stable[^stable] to a degree
-
-
-### ISCO equation
-
-We can find the definition of ISCO for a kerr typed black hole via [2.21](https://articles.adsabs.harvard.edu/pdf/1972ApJ...178..347B) here, or [here](https://en.wikipedia.org/wiki/Innermost_stable_circular_orbit#Rotating_black_holes) for wikipedia
-
-## Sigh
-
-Lets look at the set of equations we're going to implement, from [here](https://www.emis.de/journals/LRG/Articles/lrr-2013-1/articlese5.html) for the Shakura-Sunyaev disk model, with some reference to [this](https://arxiv.org/pdf/1110.6556) paper where appropriate. Do note that this article was significantly sidetracked by some pretty sizeable errors in the second paper, which will be discussed at the end
-
-If this looks horrendous to you: remember that this is literally just a large expression of basic operations, there's nothing fancy or tricky to evaluate here, and we don't have to do any swanky maths. We literally just need to type this all out correctly.  Do note that quantities with the subscript $_0$ are evaluated at the ISCO
-
-Now, these are the intermediate variables that define the disk, and we need to pick and choose the real quantities we want to calculate
-
-1. Radial velocity in the local nonrotating frame $v^{\hat{r}}$, if we would like accurate redshift, or to generate faux particles for visual effects. Hang on, i think radial velocity is inwards velocity
-2. Temperature $T$, for visually varying the colour. You could also assume a black body radiator, to determine frequency content
-3. Radiant flux on the surface of the disk, for determining the brightness
-4. Disk height $h$, where $H$ is the scaled disk height $h=H/r$. A very thin disk has $h$ -> $0$, which we will assume. Wait, h << 0 h is disk opening angle? Todo?
-5. Density, if we want to do volumetric tracing. This is complicated, so I'm going to assume the disk is opaque, and not do this
-
-The thin disk accretion model is split into 5 segments
-
-1. The plunging region, within the ISCO. The equations provided in this paper do not seem to work[^donotseem], so we will ignore this region
-2. The edge region
-3. The inner region
-4. The middle region
-5. The outer region
-
-[^donotseem]: I have a few grievances with [this](https://arxiv.org/pdf/1110.6556) paper: the code link is dead, they do not provide derivations for their additions to the standard set of equations, and there are some fairly important typographical errors. I have not been able to reproduce their results, and it
-
-The definition of where these lie is determined by the quantity $\frac{p^{gas}}{p^{rad}}$. In the edge region, gas pressure > radiation pressure. In the inner region, gas pressure < radiation pressure. In the middle region gas pressure > radiation pressure, and unfortunately an outer region where gas pressure also > radiation pressure
-
-So while we can use the gas ratios to distinguish between the middle three segments, we need an extra criteria for the outer region. In the outer region, opacity is dominated by a free-free (ff) term, and in the middle: opacity is dominated by electron scattering (es). We can therefore use the relations
-
-$$
-K_{ff} = (0.64 * 10^23) (\rho / (g/cm^3)) (\frac{T}{K})^{-7/2} cm^2/g\\
-K_{es} = 0.4 cm^2/g
-$$
-
-To calculate if we're in the inner region, or the outer region
-
-## Solving the equations
-
-What we want, is A: Concrete radial values for each transition segment for a black hole, and B: Concrete functions for whatever physical values we're looking for in each segment. So the very first thing to do is to solve these equations, and spit out 5 values of $r$ that denote the transition boundaries. Once we do that, we're going to fit a basic interpolating polynomial through the data we fit, and then hey presto bobs your uncle
+In practice we don't need to use a 2d texture of an accretion disk, because its spherically symmetric, you could just take a radial slice
 
 # Taking a trip through Interstellar's wormhole
 
