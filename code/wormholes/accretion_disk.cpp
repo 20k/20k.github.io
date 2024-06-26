@@ -294,8 +294,6 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
                 }
             }
 
-            //std::cout << "temp " << my_temperature << std::endl;
-
             assert(my_brightness >= 0 && my_brightness <= 1);
 
             tensor<float, 3> hot = {1, 0.2, 0.1};
@@ -304,8 +302,6 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
             tensor<float, 3> tcol = mix(cold, hot, (float)my_temperature);
 
             tensor<float, 3> srgb = linear_to_srgb(my_brightness * tcol);
-
-            //std::cout << "X? " << my_brightness << std::endl;
 
             sf::Color col(255 * srgb.x(), 255 * srgb.y(), 255 * srgb.z(), 255);
 
