@@ -557,7 +557,6 @@ There will likely be a future article about accurately rendering black body radi
 This is one of those things that's a lot easier to express in code, rather than equations:
 
 ```c++
-
 //calculate Y of XYZ
 valuef energy_of(v3f v)
 {
@@ -568,6 +567,22 @@ v3f redshift(v3f v, valuef z)
 {
     using namespace single_source;
 
+    {
+        valuef iemit = energy_of(v);
+
+        ///z+1 = lobs / lemit
+        ///lobs = lemit * (z+1)
+        valuef test_wavelength = 555;
+        valuef lobs = test_wavelength * (z + 1);
+
+        ///Iobs lobs^3 = Iemit lemit^3
+        valuef iobs = iemit * pow(test_wavelength, 3.f) / pow(lobs, 3.f);
+
+        v = (iobs / iemit) * v;
+
+        pin(v);
+    }
+
     valuef radiant_energy = energy_of(v);
 
     v3f red = {1/0.2125f, 0.f, 0.f};
@@ -576,18 +591,22 @@ v3f redshift(v3f v, valuef z)
 
     mut_v3f result = declare_mut_e((v3f){0,0,0});
 
+    //redshift
     if_e(z >= 0, [&]{
         as_ref(result) = mix(v, radiant_energy * red, tanh(z));
     });
 
+    //blueshift
     if_e(z < 0, [&]{
+        //map red and blueshift to the same sacles
         valuef iv1pz = (1/(1 + z)) - 1;
 
         valuef interpolating_fraction = tanh(iv1pz);
 
         v3f col = mix(v, radiant_energy * blue, interpolating_fraction);
 
-        //calculate spilling into white
+        //calculate spilling into white. This works out how much energy we are unable to represent
+        //and spills the rest into the other colours
         {
             valuef final_energy = energy_of(clamp(col, 0.f, 1.f));
             valuef real_energy = energy_of(col);
@@ -606,6 +625,14 @@ v3f redshift(v3f v, valuef z)
     return declare_e(result);
 }
 ```
+
+For a schwarzschild black hole, a velocity boosted 0.5 towards the black hole, and a starting position of $(0, 5, 0, 0)$, you end up with this
+
+![Towards](/assets/blueshift_bh.png)
+
+![Away](/assets/redshift_bh.png)
+
+From the front and back. Notice that we blueshift in the direction of travel, and see a redshift in the opposite direction
 
 # Rendering Kerr
 

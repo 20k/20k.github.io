@@ -15,7 +15,7 @@ struct camera
     {
         float pi = std::numbers::pi_v<float>;
 
-        pos = {0, 7, pi/2, -pi/2};
+        pos = {0, 5, pi/2, -pi/2};
         rot.load_from_axis_angle({1, 0, 0, -M_PI/2});
     }
 
@@ -294,7 +294,7 @@ int main()
 
 
         {
-            cl_float3 local_velocity = {0, 0, 0.f};
+            cl_float3 local_velocity = {-0.5, 0, 0.f};
 
             cl::args args;
             args.push_back(cam.get_position());
