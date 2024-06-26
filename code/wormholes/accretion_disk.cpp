@@ -6,6 +6,11 @@
 #include <SFML/Graphics.hpp>
 #include "../common/vec/tensor.hpp"
 
+#define USE_REAL_BLACKBODY
+#ifdef USE_REAL_BLACKBODY
+#include "blackbody.hpp"
+#endif
+
 template<typename T>
 T linear_to_srgb(const T& in)
 {
@@ -225,26 +230,34 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
         }
     }
 
-    //temperature normalisation
+    double min_temperature = FLT_MAX;
+    double max_temperature = 0;
+
+    for(auto& [a, b] : temperature)
     {
-        double min_val = FLT_MAX;
-        double max_val = 0;
+        max_temperature = std::max(b, max_temperature);
+        min_temperature = std::min(b, min_temperature);
+    }
 
-        for(auto& [a, b] : temperature)
-        {
-            max_val = std::max(b, max_val);
-            min_val = std::min(b, min_val);
-        }
+    std::vector<tensor<float, 3>> radial_colour;
 
-        for(auto& [a, b] : temperature)
-        {
-            #ifdef MAX_CONTRAST
-            b -= min_val;
-            b /= (max_val - min_val);
-            #else
-            b /= max_val;
-            #endif
-        }
+    auto temperature_to_colour = [max_temperature](double in)
+    {
+        #ifndef USE_REAL_BLACKBODY
+        tensor<float, 3> hot = {1, 0.2, 0.1};
+        tensor<float, 3> cold = {0.7, 0.7, 1};
+
+        tensor<float, 3> tcol = mix(cold, hot, (float)(in / max_temperature));
+
+        return tcol;
+        #else
+        return blackbody_temperature_to_linear_rgb(in);
+        #endif
+    };
+
+    for(auto& [r, c] : temperature)
+    {
+        radial_colour.push_back(temperature_to_colour(c));
     }
 
     int tex_size = 2048;
@@ -271,7 +284,7 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
             double my_physical_radius = rad * (max_physical_boundary / max_coordinate_boundary);
 
             double my_brightness = 0;
-            double my_temperature = 0;
+            tensor<float, 3> my_linear_rgb;
 
             ///iterate from outside in, as there's a gap in the middle of our accretion disk
             for(int i=(int)brightness.size() - 2; i >= 0; i--)
@@ -286,22 +299,17 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
                     my_physical_radius = std::clamp(my_physical_radius, lower, upper);
 
-                    double frac = (my_physical_radius - lower) / (upper - lower);
+                    float frac = (my_physical_radius - lower) / (upper - lower);
 
                     my_brightness = mix(b, brightness[i + 1].second, frac);
-                    my_temperature = mix(temperature[i].second, temperature[i + 1].second, frac);
+                    my_linear_rgb = mix(radial_colour[i], radial_colour[i + 1], frac);
                     break;
                 }
             }
 
             assert(my_brightness >= 0 && my_brightness <= 1);
 
-            tensor<float, 3> hot = {1, 0.2, 0.1};
-            tensor<float, 3> cold = {0.7, 0.7, 1};
-
-            tensor<float, 3> tcol = mix(cold, hot, (float)my_temperature);
-
-            tensor<float, 3> srgb = linear_to_srgb(my_brightness * tcol);
+            tensor<float, 3> srgb = linear_to_srgb(my_brightness * my_linear_rgb);
 
             sf::Color col(255 * srgb.x(), 255 * srgb.y(), 255 * srgb.z(), 255);
 

@@ -11,13 +11,13 @@ Hiyas! We're going to tie up some loose ends today, and complete the steps you n
 2. Workable camera controls/consistently orienting tetrads
 3. Observers with velocity
 4. Redshift
-5. Accretion disk?
+5. Accretion disk
 
 Todo: Do I need to split this up into chapters?
 
 # The interstellar wormhole
 
-The paper which describes interstellars wormhole is [this](https://arxiv.org/pdf/1502.03809) one. We want the fully configurable smooth version, which are equations (5a-c)
+The paper which describes interstellars wormhole is [this](https://arxiv.org/pdf/1502.03809) one. We want the fully configurable smooth version, which is equations (5a-c)
 
 Given a coordinate system $(t, l, \theta, \phi)$, and the parameters $M$ = mass, $a$ = wormhole length and $p$ = throat radius:
 
