@@ -367,6 +367,8 @@ integration_result integrate(geodesic& g, v4f initial_observer, const read_only_
 
             v3f disk = accretion_disk.read<float, 3>(tensor<valuei, 2>{iradial, texture_size/2});
 
+            as_ref(opacity) = declare_e(opacity) + energy_of(disk) * 10;
+
             #define ACCRETE_REDSHIFT
             #ifdef ACCRETE_REDSHIFT
             valuef M = 1;
@@ -383,18 +385,11 @@ integration_result integrate(geodesic& g, v4f initial_observer, const read_only_
 
             observer = observer / sqrt(fabs(ds));
 
-            ds = dot_metric(observer, observer, get_metric(cposition));
-
-            /*value_base se;
-            se.type = value_impl::op::SIDE_EFFECT;
-            se.abstract_value = "printf(\"%f\\n\"," + value_to_string(ds) + ")";
-
-            value_impl::get_context().add(se);*/
+            pin(observer);
 
             disk = do_redshift(disk, g.position, g.velocity, initial_observer, cposition, cvelocity, observer, get_metric);
             #endif
 
-            as_ref(opacity) = declare_e(opacity) + energy_of(disk) * 10;
             as_ref(colour_out) = declare_e(colour_out) + disk;
         });
         #endif
@@ -447,9 +442,7 @@ v3f render_pixel(v2i screen_position, v2i screen_size,
     //#define DO_REDSHIFT
     #ifdef DO_REDSHIFT
     {
-        v3f col3 = do_redshift(srgb_to_linear_gpu(col.xyz()), my_geodesic.position, my_geodesic.velocity, tetrads.v[0], result.position, result.velocity, (v4f){1, 0, 0, 0}, get_metric);
-
-        col3 = linear_to_srgb(col);
+        v3f col3 = do_redshift(col.xyz(), my_geodesic.position, my_geodesic.velocity, tetrads.v[0], result.position, result.velocity, (v4f){1, 0, 0, 0}, get_metric);
 
         col.x() = col3.x();
         col.y() = col3.y();
@@ -467,7 +460,9 @@ v3f render_pixel(v2i screen_position, v2i screen_size,
         as_ref(colour) = result.sample_colour;
     });*/
 
-    return colour.as<valuef>() * (1-result.sample_opacity) + linear_to_srgb_gpu(result.sample_colour);
+    v3f fixed_colour = declare_e(colour);
+
+    return colour.as<valuef>() * (1-result.sample_opacity) + result.sample_colour;
 }
 
 template<auto GetMetric>
@@ -502,6 +497,8 @@ void opencl_raytrace(execution_context& ectx, literal<valuei> screen_width, lite
     tetrad tetrads = {e0[0], e1[0], e2[0], e3[0]};
 
     v3f colour = render_pixel(screen_pos, screen_size, background, accretion_disk_texture, background_size, tetrads, position[0], camera_quat.get(), GetMetric);
+
+    colour = linear_to_srgb_gpu(colour);
 
     //the tensor library does actually support .x() etc, but I'm trying to keep the requirements for whatever you use yourself minimal
     v4f crgba = {colour[0], colour[1], colour[2], 1.f};

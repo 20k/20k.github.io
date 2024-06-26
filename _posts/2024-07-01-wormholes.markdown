@@ -734,7 +734,7 @@ $$
 w = \frac{1}{r^{3/2} + a}
 $$
 
-Given that we know that our geodesic must point in the $d\phi$ direction, we can work out the $d\phi$ component as being $wr$. This means that $dt = d\phi/w = 1/r$. We now have the 4-velocity of a geodesic on our equatorial orbit
+Given that we know that our geodesic must point in the $d\phi$ direction, we can work out the $d\phi$ component as being $wr$. This means that $dt = d\phi/w = r$. We now have the 4-velocity of a geodesic on our equatorial orbit
 
 One extremely tricky aspect is that our geodesics in general will not intersect the equatorial plane at $\theta = pi/2$, and could be any multiple of it.
 

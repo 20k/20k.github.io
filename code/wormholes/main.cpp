@@ -135,9 +135,14 @@ cl::image load_background(cl::context ctx, cl::command_queue cqueue)
         {
             sf::Color col = background.getPixel(x, y);
 
-            background_floats.push_back(col.r/255.f);
-            background_floats.push_back(col.g/255.f);
-            background_floats.push_back(col.b/255.f);
+            tensor<float, 3> tcol = {col.r, col.g, col.b};
+
+            tcol = tcol / 255.f;
+            tcol = tcol.for_each([](auto&& in){return srgb_to_lin(in);});
+
+            background_floats.push_back(tcol.x());
+            background_floats.push_back(tcol.y());
+            background_floats.push_back(tcol.z());
             background_floats.push_back(1.f);
         }
     }
@@ -336,7 +341,7 @@ int main()
 
 
         {
-            cl_float3 local_velocity = {-0.5, 0, 0.f};
+            cl_float3 local_velocity = {0., 0, 0.f};
 
             cl::args args;
             args.push_back(cam.get_position());
