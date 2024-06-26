@@ -391,18 +391,12 @@ integration_result integrate(geodesic& g, v4f initial_observer, const read_only_
                 #ifdef ACCRETE_REDSHIFT
                 valuef temperature_in = temperature[iradial + (texture_size/2) * texture_size];
 
-                //temperature_in = clamp(temperature_in, 1.f, 9999.f) / 1;
-
-                if_e(temperature_in > 20, [&]
+                if_e(temperature_in >= 1, [&]
                 {
                     valuef zp1 = get_zp1(g.position, g.velocity, initial_observer, cposition, cvelocity, observer, get_metric);
 
-                    //zp1 = 1;
-
                     ///https://www.jb.man.ac.uk/distance/frontiers/cmb/node7.htm
                     valuef shifted_temperature = temperature_in / zp1;
-
-                    //shifted_temperature = clamp(shifted_temperature, 1.f, 9999.f);
 
                     valuef old_brightness = energy_of(declare_e(disk));
 
