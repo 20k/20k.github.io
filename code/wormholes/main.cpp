@@ -320,7 +320,7 @@ int main()
                 win.close();
         }
 
-        desired_proper_time += 0.25f * elapsed.restart().asMicroseconds() / 1000. / 1000.;
+        desired_proper_time += 2.25f * elapsed.restart().asMicroseconds() / 1000. / 1000.;
 
         if(key.isKeyPressed(sf::Keyboard::J))
             cam.rotate({0.1f, 0.f});
@@ -356,7 +356,7 @@ int main()
 
 
         {
-            cl_float3 local_velocity = {0., 0, 0.f};
+            cl_float3 local_velocity = {0.0, 0, 0.f};
 
             cl::args args;
             args.push_back(cam.get_position());

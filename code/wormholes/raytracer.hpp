@@ -369,53 +369,64 @@ integration_result integrate(geodesic& g, v4f initial_observer, const read_only_
 
             as_ref(opacity) = declare_e(opacity) + energy_of(declare_e(disk)) * 10;
 
-            #define ACCRETE_REDSHIFT
-            #ifdef ACCRETE_REDSHIFT
-            valuef temperature_in = temperature[iradial + (texture_size/2) * texture_size];
+            valuef M = 1;
+            valuef a = 0.f;
 
-            temperature_in = clamp(temperature_in, 1.f, 9999.f) / 1;
+            valuef w = pow(M, 1.f/2.f) / (pow(radial, 3.f/2.f) + a * pow(M, 1.f/2.f));
 
-            //temperature_in = 555;
+            valuef dphi = w * radial;
+            valuef dt = radial;
 
-            if_e(temperature_in > 20, [&]
+            v4f observer = {dt, 0, 0, dphi};
+
+            valuef ds = dot_metric(observer, observer, get_metric(cposition));
+
+            if_e(ds < 0, [&]
             {
-                valuef M = 1;
-                valuef a = 0.f;
-
-                valuef w = pow(M, 1.f/2.f) / (pow(radial, 3.f/2.f) + a * pow(M, 1.f/2.f));
-
-                valuef dphi = w * radial;
-                valuef dt = radial;
-
-                v4f observer = {dt, 0, 0, dphi};
-
-                valuef ds = dot_metric(observer, observer, get_metric(cposition));
-
                 observer = observer / sqrt(fabs(ds));
 
                 pin(observer);
 
+                #define ACCRETE_REDSHIFT
+                #ifdef ACCRETE_REDSHIFT
+                valuef temperature_in = temperature[iradial + (texture_size/2) * texture_size];
+
+                temperature_in = clamp(temperature_in, 1.f, 9999.f) / 1;
+
+                if_e(temperature_in > 20, [&]
+                {
+                    valuef zp1 = get_zp1(g.position, g.velocity, initial_observer, cposition, cvelocity, observer, get_metric);
+
+                    //zp1 = 1;
+
+                    ///https://www.jb.man.ac.uk/distance/frontiers/cmb/node7.htm
+                    valuef shifted_temperature = temperature_in / zp1;
+
+                    shifted_temperature = clamp(shifted_temperature, 1.f, 9999.f);
+
+                    valuef old_brightness = energy_of(declare_e(disk));
+
+                    valuef new_brightness = old_brightness * pow(shifted_temperature, 3.f) / pow(temperature_in, 3.f);
+
+                    as_ref(disk) = bbody_table[shifted_temperature.to<int>()] * new_brightness;
+
+                    as_ref(colour_out) = declare_e(colour_out) + declare_e(disk);
+                });
+                #endif
+
+                #ifdef ILLUSTRATIVE_REDSHIFT
                 valuef zp1 = get_zp1(g.position, g.velocity, initial_observer, cposition, cvelocity, observer, get_metric);
 
-                //zp1 = 1;
+                as_ref(disk) = do_redshift(declare_e(disk), zp1);
 
-                ///https://www.jb.man.ac.uk/distance/frontiers/cmb/node7.htm
-                valuef shifted_temperature = temperature_in / zp1;
+                as_ref(colour_out) = declare_e(colour_out) + declare_e(disk);
+                #endif
 
-                shifted_temperature = clamp(shifted_temperature, 1.f, 9999.f);
-
-                valuef old_brightness = energy_of(declare_e(disk));
-
-                valuef new_brightness = old_brightness * pow(shifted_temperature, 3.f) / pow(temperature_in, 3.f);
-
-                as_ref(disk) = bbody_table[shifted_temperature.to<int>()] * new_brightness;
+                //#define RAW_DISK
+                #ifdef RAW_DISK
+                as_ref(colour_out) = declare_e(colour_out) + declare_e(disk);
+                #endif // RAW_DISK
             });
-
-
-            //disk = do_redshift(disk, g.position, g.velocity, initial_observer, cposition, cvelocity, observer, get_metric);
-            #endif
-
-            as_ref(colour_out) = declare_e(colour_out) + declare_e(disk);
         });
         #endif
 
@@ -464,10 +475,10 @@ v3f render_pixel(v2i screen_position, v2i screen_size,
 
     v4f col = background.read<float, 4>({tx, ty});
 
-    //#define DO_REDSHIFT
+    #define DO_REDSHIFT
     #ifdef DO_REDSHIFT
     {
-        valuef zp1 = get_zp1(my_geodesic.position, my_geodesic.velocity, tetrads.v[0], result.position, result.velocity, (v4f){1, 0, 0, 0}, get_metric)
+        valuef zp1 = get_zp1(my_geodesic.position, my_geodesic.velocity, tetrads.v[0], result.position, result.velocity, (v4f){1, 0, 0, 0}, get_metric);
 
         v3f col3 = do_redshift(col.xyz(), zp1);
 
@@ -805,8 +816,6 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
     tetrad tet;
     tet.v = {declare_e(tetrad_array[0]), declare_e(tetrad_array[1]), declare_e(tetrad_array[2]), declare_e(tetrad_array[3])};
 
-    tetrad boosted = boost_tetrad(local_velocity.get(), tet, metric);
-
     bool should_orient = true;
 
     if(should_orient)
@@ -830,7 +839,7 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
         v4f dy = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sy.x(), sy.y(), sy.z()});
         v4f dz = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sz.x(), sz.y(), sz.z()});
 
-        inverse_tetrad itet = tetrads.invert();
+        inverse_tetrad itet = tet.invert();
 
         pin(dx);
         pin(dy);
@@ -850,14 +859,24 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
         v4f y_basis = {0, ortho[0].x(), ortho[0].y(), ortho[0].z()};
         v4f z_basis = {0, ortho[2].x(), ortho[2].y(), ortho[2].z()};
 
-        v4f x_out = tetrads.into_coordinate_space(x_basis);
-        v4f y_out = tetrads.into_coordinate_space(y_basis);
-        v4f z_out = tetrads.into_coordinate_space(z_basis);
+        pin(x_basis);
+        pin(y_basis);
+        pin(z_basis);
 
-        boosted.v[1] = x_out;
-        boosted.v[2] = y_out;
-        boosted.v[3] = z_out;
+        v4f x_out = tet.into_coordinate_space(x_basis);
+        v4f y_out = tet.into_coordinate_space(y_basis);
+        v4f z_out = tet.into_coordinate_space(z_basis);
+
+        pin(x_out);
+        pin(y_out);
+        pin(z_out);
+
+        tet.v[1] = x_out;
+        tet.v[2] = y_out;
+        tet.v[3] = z_out;
     }
+
+    tetrad boosted = boost_tetrad(local_velocity.get(), tet, metric);
 
     as_ref(e0_out[0]) = boosted.v[0];
     as_ref(e1_out[0]) = boosted.v[1];
