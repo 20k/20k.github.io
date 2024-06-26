@@ -4,6 +4,7 @@
 #include <vec/vec.hpp>
 #include <iostream>
 #include <SFML/Graphics.hpp>
+#include "../common/vec/tensor.hpp"
 
 template<typename T>
 T linear_to_srgb(const T& in)
@@ -12,6 +13,17 @@ T linear_to_srgb(const T& in)
         return in * 12.92;
     else
         return 1.055 * pow(in, 1.0 / 2.4) - 0.055;
+}
+
+template<typename T>
+tensor<T, 3> linear_to_srgb(const tensor<T, 3>& in)
+{
+    tensor<T, 3> ret;
+
+    for(int i=0; i < 3; i++)
+        ret[i] = linear_to_srgb(in[i]);
+
+    return ret;
 }
 
 constexpr double cpow(double a, double b)
@@ -116,6 +128,7 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
     double x0 = sqrt(isco/mass);
 
     std::vector<std::pair<double, double>> brightness;
+    std::vector<std::pair<double, double>> temperature;
 
     for(int steps = 0; steps < max_steps; steps++)
     {
@@ -163,47 +176,73 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
             region = 4;
 
         double surface_flux = 0;
-        double temperature = 0;
+        double T = 0;
 
         if(region == 2)
         {
             surface_flux = 7 * cpow(10., 26.) * cpow(m_star, -1.) * mdot_star * cpow(r_star, -3.) * cpow(B, -1.) * cpow(C, -1/2.) * Q;
+            T = 5 * cpow(10., 7.) * cpow(alpha, -1/4.) * cpow(m_star, -1/4.) * cpow(r_star, -3/8.) * cpow(A, -1/2.) * cpow(B, 1/2.) * cpow(E, 1/4.);
         }
 
         if(region == 1 || region == 3)
         {
             surface_flux = 7 * cpow(10., 26.) * cpow(m_star, -1.) * mdot_star * cpow(r_star, -3.) * cpow(B, -1.) * cpow(C, -1/2.) * Q;
+            T = 7 * cpow(10., 8.) * cpow(alpha, -1/5.) * cpow(m_star, -1/5.) * cpow(mdot_star, 2/5.) * cpow(r_star, -9/10.) * cpow(B, -2/5.) * cpow(D, -1/5.) * cpow(Q, 2/5.);
         }
 
         if(region == 4)
         {
             surface_flux = 7 * cpow(10., 26.) * cpow(m_star, -1.) * mdot_star * cpow(r_star, -3.) * cpow(B, -1.) * cpow(C, -1/2.) * Q;
+            T = 2 * cpow(10., 8.) * cpow(alpha, -1/5.) * cpow(m_star, -1/5.) * cpow(mdot_star, 3/10.) * cpow(r_star, -3/4.) * cpow(A, -1/10.) * cpow(B, -1/5.) * cpow(D, -3/20.) * cpow(E, 1/20.) * cpow(Q, 3/10.);
         }
 
-        if(!std::isnan(surface_flux))
+        if(!std::isnan(surface_flux) && !std::isnan(T))
         {
             brightness.push_back({r, surface_flux});
+            temperature.push_back({r, T});
         }
     }
 
     //brightness normalisation
     {
-        double max_bright = 0;
-        double min_bright = FLT_MAX;
+        double min_val = FLT_MAX;
+        double max_val = 0;
 
         for(auto& [a, b] : brightness)
         {
-            max_bright = std::max(b, max_bright);
-            min_bright = std::min(b, min_bright);
+            max_val = std::max(b, max_val);
+            min_val = std::min(b, min_val);
         }
 
         for(auto& [a, b] : brightness)
         {
             #ifdef MAX_CONTRAST
-            b -= min_bright;
-            b /= (max_bright - min_bright);
+            b -= min_val;
+            b /= (max_val - min_val);
             #else
-            b /= max_bright;
+            b /= max_val;
+            #endif
+        }
+    }
+
+    //temperature normalisation
+    {
+        double min_val = FLT_MAX;
+        double max_val = 0;
+
+        for(auto& [a, b] : temperature)
+        {
+            max_val = std::max(b, max_val);
+            min_val = std::min(b, min_val);
+        }
+
+        for(auto& [a, b] : temperature)
+        {
+            #ifdef MAX_CONTRAST
+            b -= min_val;
+            b /= (max_val - min_val);
+            #else
+            b /= max_val;
             #endif
         }
     }
@@ -232,6 +271,7 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
             double my_physical_radius = rad * (max_physical_boundary / max_coordinate_boundary);
 
             double my_brightness = 0;
+            double my_temperature = 0;
 
             ///iterate from outside in, as there's a gap in the middle of our accretion disk
             for(int i=(int)brightness.size() - 2; i >= 0; i--)
@@ -249,15 +289,25 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
                     double frac = (my_physical_radius - lower) / (upper - lower);
 
                     my_brightness = mix(b, brightness[i + 1].second, frac);
+                    my_temperature = mix(temperature[i].second, temperature[i + 1].second, frac);
                     break;
                 }
             }
 
+            //std::cout << "temp " << my_temperature << std::endl;
+
             assert(my_brightness >= 0 && my_brightness <= 1);
 
-            double my_srgb = linear_to_srgb(my_brightness);
+            tensor<float, 3> hot = {1, 0.2, 0.1};
+            tensor<float, 3> cold = {0.7, 0.7, 1};
 
-            sf::Color col(255 * my_srgb, 255 * my_srgb, 255 * my_srgb, 255);
+            tensor<float, 3> tcol = mix(cold, hot, (float)my_temperature);
+
+            tensor<float, 3> srgb = linear_to_srgb(my_brightness * tcol);
+
+            //std::cout << "X? " << my_brightness << std::endl;
+
+            sf::Color col(255 * srgb.x(), 255 * srgb.y(), 255 * srgb.z(), 255);
 
             img.setPixel(i, j, col);
         }
@@ -268,6 +318,8 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
     accretion_disk disk;
 
     disk.normalised_brightness = img;
+
+    assert(false);
 
     return disk;
 }
