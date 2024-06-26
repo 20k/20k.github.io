@@ -400,9 +400,21 @@ integration_result integrate(geodesic& g, v4f initial_observer, const read_only_
 
                     valuef old_brightness = energy_of(declare_e(disk));
 
-                    valuef new_brightness = old_brightness * pow(shifted_temperature, 3.f) / pow(temperature_in, 3.f);
+                    ///https://arxiv.org/pdf/gr-qc/9505010 12
+                    valuef new_brightness = old_brightness / pow(zp1, 4.f);
 
-                    as_ref(disk) = bbody_table[clamp(shifted_temperature, 1.f, 9999.f).to<int>()] * new_brightness;
+                    auto lookup_frac = [&](valuef in)
+                    {
+                        valuef root = floor(in);
+                        valuef frac = in - root;
+
+                        v3f p1 = bbody_table[clamp(root, 1.f, 9999.f).to<int>()];
+                        v3f p2 = bbody_table[clamp(root+1, 1.f, 9999.f).to<int>()];
+
+                        return mix(p1, p2, frac);
+                    };
+
+                    as_ref(disk) = lookup_frac(shifted_temperature) * new_brightness;
 
                     as_ref(colour_out) = declare_e(colour_out) + declare_e(disk);
                 });

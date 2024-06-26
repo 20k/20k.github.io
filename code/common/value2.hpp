@@ -1437,6 +1437,13 @@ namespace value_impl
 
     template<typename T>
     inline
+    value<T> mix(const value<T>& v1, const value<T>& v2, const value<T>& v3)
+    {
+        return v1 * (1-v3) + v2 * v3;
+    }
+
+    template<typename T>
+    inline
     std::string name_type(T tag)
     {
         if constexpr(std::is_same_v<T, float>)
