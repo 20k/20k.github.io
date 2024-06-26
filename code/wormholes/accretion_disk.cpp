@@ -218,28 +218,35 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
             double my_physical_radius = rad * (max_physical_boundary / max_coordinate_boundary);
 
-            double which = 0;
+            double my_brightness = 0;
 
-            for(int i=(int)brightness.size() - 1; i >= 0; i--)
+            for(int i=(int)brightness.size() - 2; i >= 0; i--)
             {
                 auto& [pr, b] = brightness[i];
 
                 if(my_physical_radius >= pr)
                 {
-                    which = b;
+                    double upper = brightness[i + 1].first;
+                    double lower = pr;
+
+                    my_physical_radius = clamp(my_physical_radius, lower, upper);
+
+                    double frac = (my_physical_radius - lower) / (upper - lower);
+
+                    my_brightness = mix(b, brightness[i + 1].second, frac);
                     break;
                 }
             }
 
-            assert(which >= 0 && which <= 1);
+            assert(my_brightness >= 0 && my_brightness <= 1);
 
-            sf::Color col(255 * which, 255 * which, 255 * which, 255);
+            sf::Color col(255 * my_brightness, 255 * my_brightness, 255 * my_brightness, 255);
 
             img.setPixel(i, j, col);
         }
     }
 
-    img.saveToFile("Test.png");
+    img.saveToFile("out.png");
 
     accretion_disk disk;
 
