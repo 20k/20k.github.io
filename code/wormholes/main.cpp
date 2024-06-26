@@ -5,6 +5,7 @@
 #include <SFML/Graphics.hpp>
 #include <vec/vec.hpp>
 #include "accretion_disk.hpp"
+#include "blackbody.hpp"
 
 struct camera
 {
@@ -231,26 +232,20 @@ int main()
 
     cl::image accretion_tex(ctx);
 
-    {
-        sf::Image& img = accrete.normalised_brightness;
+    int tex_size = 2048;
 
+    {
         cl_image_format fmt;
         fmt.image_channel_data_type = CL_FLOAT;
         fmt.image_channel_order = CL_RGBA;
 
         std::vector<float> as_float;
 
-        for(int y=0; y < img.getSize().y; y++)
+        for(int y=0; y < tex_size; y++)
         {
-            for(int x=0; x < img.getSize().x; x++)
+            for(int x=0; x < tex_size; x++)
             {
-                sf::Color col = img.getPixel(x, y);
-
-                tensor<float, 3> tcol = {col.r, col.g, col.b};
-
-                tcol = tcol / 255.f;
-
-                tcol = tcol.for_each([](auto&& in){return srgb_to_lin(in);});
+                tensor<float, 3> tcol = accrete.brightness[y * tex_size + x];
 
                 as_float.push_back(tcol.x());
                 as_float.push_back(tcol.y());
@@ -286,6 +281,26 @@ int main()
     final_camera_position.alloc(sizeof(cl_float4));
 
     float desired_proper_time = 0.f;
+
+    auto bbody_table = blackbody_table();
+
+    cl::buffer blackbody(ctx);
+    blackbody.alloc(sizeof(cl_float4) * bbody_table.size());
+
+    cl::buffer temperature_data(ctx);
+    temperature_data.alloc(accrete.temperature.size() * sizeof(cl_float));
+    temperature_data.write(cqueue, accrete.temperature);
+
+    {
+        std::vector<cl_float4> data;
+
+        for(auto& i : bbody_table)
+        {
+            data.push_back({i.x(), i.y(), i.z(), 0});
+        }
+
+        blackbody.write(cqueue, data);
+    }
 
     camera cam;
     cam.move({0, 0, 2});
@@ -428,6 +443,8 @@ int main()
             args.push_back(final_tetrads[3]);
             args.push_back(final_camera_position);
             args.push_back(q);
+            args.push_back(blackbody);
+            args.push_back(temperature_data);
 
             trace_kern.set_args(args);
 

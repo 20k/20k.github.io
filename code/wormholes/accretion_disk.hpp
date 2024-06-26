@@ -3,10 +3,12 @@
 
 #include <array>
 #include <SFML/Graphics.hpp>
+#include <vec/tensor.hpp>
 
 struct accretion_disk
 {
-    sf::Image normalised_brightness;
+    std::vector<tensor<float, 3>> brightness;
+    std::vector<float> temperature;
 };
 
 accretion_disk make_accretion_disk_kerr(float M, float a);

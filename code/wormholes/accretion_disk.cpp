@@ -265,6 +265,12 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
     sf::Image img;
     img.create(tex_size, tex_size);
 
+    std::vector<tensor<float, 3>> brightness_raw;
+    brightness_raw.resize(tex_size * tex_size);
+
+    std::vector<float> out_temp;
+    out_temp.resize(tex_size * tex_size);
+
     ///generate a texture
     for(int j=0; j < tex_size; j++)
     {
@@ -284,6 +290,7 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
             double my_physical_radius = rad * (max_physical_boundary / max_coordinate_boundary);
 
             double my_brightness = 0;
+            double my_temperature = 0;
             tensor<float, 3> my_linear_rgb;
 
             ///iterate from outside in, as there's a gap in the middle of our accretion disk
@@ -303,16 +310,18 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
                     my_brightness = mix(b, brightness[i + 1].second, frac);
                     my_linear_rgb = mix(radial_colour[i], radial_colour[i + 1], frac);
+                    my_temperature = mix(temperature[i].second, temperature[i + 1].second, frac);
                     break;
                 }
             }
 
             assert(my_brightness >= 0 && my_brightness <= 1);
 
+            brightness_raw[j * tex_size + i] = tensor<float, 3>{my_brightness, my_brightness, my_brightness};
+            out_temp[j * tex_size + i] = my_temperature;
+
             tensor<float, 3> srgb = linear_to_srgb(my_brightness * my_linear_rgb);
-
             sf::Color col(255 * srgb.x(), 255 * srgb.y(), 255 * srgb.z(), 255);
-
             img.setPixel(i, j, col);
         }
     }
@@ -321,7 +330,8 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
     accretion_disk disk;
 
-    disk.normalised_brightness = img;
+    disk.brightness = brightness_raw;
+    disk.temperature = out_temp;
 
     return disk;
 }

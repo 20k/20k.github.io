@@ -302,7 +302,7 @@ struct integration_result
 };
 
 //this integrates a geodesic, until it either escapes our small universe or hits the event horizon
-integration_result integrate(geodesic& g, v4f initial_observer, const read_only_image<2>& accretion_disk, auto&& get_metric) {
+integration_result integrate(geodesic& g, v4f initial_observer, const read_only_image<2>& accretion_disk, buffer<v3f> bbody_table, buffer<valuef> temperature, auto&& get_metric) {
     using namespace single_source;
 
     integration_result found;
@@ -365,32 +365,56 @@ integration_result integrate(geodesic& g, v4f initial_observer, const read_only_
 
             valuei iradial = (min(fabs(radial) / outer_boundary, valuef(1.f)) * texture_size/2 + texture_size/2).to<int>();
 
-            v3f disk = accretion_disk.read<float, 3>(tensor<valuei, 2>{iradial, texture_size/2});
+            mut_v3f disk = declare_mut_e(accretion_disk.read<float, 3>(tensor<valuei, 2>{iradial, texture_size/2}));
 
-            as_ref(opacity) = declare_e(opacity) + energy_of(disk) * 10;
+            as_ref(opacity) = declare_e(opacity) + energy_of(declare_e(disk)) * 10;
 
             #define ACCRETE_REDSHIFT
             #ifdef ACCRETE_REDSHIFT
-            valuef M = 1;
-            valuef a = 0.f;
+            valuef temperature_in = temperature[iradial + (texture_size/2) * texture_size];
 
-            valuef w = pow(M, 1.f/2.f) / (pow(radial, 3.f/2.f) + a * pow(M, 1.f/2.f));
+            temperature_in = clamp(temperature_in, 1.f, 9999.f);
 
-            valuef dphi = w * radial;
-            valuef dt = radial;
+            //temperature_in = 555;
 
-            v4f observer = {dt, 0, 0, dphi};
+            if_e(temperature_in > 20, [&]
+            {
+                valuef M = 1;
+                valuef a = 0.f;
 
-            valuef ds = dot_metric(observer, observer, get_metric(cposition));
+                valuef w = pow(M, 1.f/2.f) / (pow(radial, 3.f/2.f) + a * pow(M, 1.f/2.f));
 
-            observer = observer / sqrt(fabs(ds));
+                valuef dphi = w * radial;
+                valuef dt = radial;
 
-            pin(observer);
+                v4f observer = {dt, 0, 0, dphi};
 
-            disk = do_redshift(disk, g.position, g.velocity, initial_observer, cposition, cvelocity, observer, get_metric);
+                valuef ds = dot_metric(observer, observer, get_metric(cposition));
+
+                observer = observer / sqrt(fabs(ds));
+
+                pin(observer);
+
+                valuef zp1 = get_zp1(g.position, g.velocity, initial_observer, cposition, cvelocity, observer, get_metric);
+
+                //zp1 = 1;
+
+                valuef shifted_temperature = temperature_in * zp1;
+
+                shifted_temperature = clamp(shifted_temperature, 1.f, 9999.f);
+
+                valuef old_brightness = energy_of(declare_e(disk));
+
+                valuef new_brightness = old_brightness * pow(temperature_in, 3.f) / pow(shifted_temperature, 3.f);
+
+                as_ref(disk) = bbody_table[shifted_temperature.to<int>()] * new_brightness;
+            });
+
+
+            //disk = do_redshift(disk, g.position, g.velocity, initial_observer, cposition, cvelocity, observer, get_metric);
             #endif
 
-            as_ref(colour_out) = declare_e(colour_out) + disk;
+            as_ref(colour_out) = declare_e(colour_out) + declare_e(disk);
         });
         #endif
 
@@ -410,7 +434,7 @@ integration_result integrate(geodesic& g, v4f initial_observer, const read_only_
 }
 
 v3f render_pixel(v2i screen_position, v2i screen_size,
-                 const read_only_image<2>& background, const read_only_image<2>& accretion_disk_texture,
+                 const read_only_image<2>& background, const read_only_image<2>& accretion_disk_texture, buffer<v3f> bbody_table, buffer<valuef> temperature,
                  v2i background_size, const tetrad& tetrads, v4f start_position, v4f camera_quat, auto&& get_metric)
 {
     using namespace single_source;
@@ -427,7 +451,7 @@ v3f render_pixel(v2i screen_position, v2i screen_size,
 
     value_impl::get_context().add(se);*/
 
-    integration_result result = integrate(my_geodesic, tetrads.v[0], accretion_disk_texture, get_metric);
+    integration_result result = integrate(my_geodesic, tetrads.v[0], accretion_disk_texture, bbody_table, temperature, get_metric);
 
     valuef theta = result.position[2];
     valuef phi = result.position[3];
@@ -442,7 +466,9 @@ v3f render_pixel(v2i screen_position, v2i screen_size,
     //#define DO_REDSHIFT
     #ifdef DO_REDSHIFT
     {
-        v3f col3 = do_redshift(col.xyz(), my_geodesic.position, my_geodesic.velocity, tetrads.v[0], result.position, result.velocity, (v4f){1, 0, 0, 0}, get_metric);
+        valuef zp1 = get_zp1(my_geodesic.position, my_geodesic.velocity, tetrads.v[0], result.position, result.velocity, (v4f){1, 0, 0, 0}, get_metric)
+
+        v3f col3 = do_redshift(col.xyz(), zp1);
 
         col.x() = col3.x();
         col.y() = col3.y();
@@ -471,7 +497,8 @@ void opencl_raytrace(execution_context& ectx, literal<valuei> screen_width, lite
                      read_only_image<2> accretion_disk_texture,
                      literal<valuei> background_width, literal<valuei> background_height,
                      buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
-                     buffer<v4f> position, literal<v4f> camera_quat)
+                     buffer<v4f> position, literal<v4f> camera_quat,
+                     buffer<v3f> bbody_table, buffer<valuef> temperature)
 {
     using namespace single_source;
 
@@ -496,7 +523,7 @@ void opencl_raytrace(execution_context& ectx, literal<valuei> screen_width, lite
 
     tetrad tetrads = {e0[0], e1[0], e2[0], e3[0]};
 
-    v3f colour = render_pixel(screen_pos, screen_size, background, accretion_disk_texture, background_size, tetrads, position[0], camera_quat.get(), GetMetric);
+    v3f colour = render_pixel(screen_pos, screen_size, background, accretion_disk_texture, bbody_table, temperature, background_size, tetrads, position[0], camera_quat.get(), GetMetric);
 
     colour = linear_to_srgb_gpu(colour);
 

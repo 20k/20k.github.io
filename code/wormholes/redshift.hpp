@@ -122,7 +122,7 @@ tensor<T, 3> srgb_to_linear_gpu(const tensor<T, 3>& in)
     return ret;
 }
 
-v3f do_redshift(v3f colour, v4f position_obs, v4f velocity_obs, v4f ref_obs, v4f position_emit, v4f velocity_emit, v4f ref_emit, auto&& get_metric)
+valuef get_zp1(v4f position_obs, v4f velocity_obs, v4f ref_obs, v4f position_emit, v4f velocity_emit, v4f ref_emit, auto&& get_metric)
 {
     using namespace single_source;
 
@@ -132,6 +132,13 @@ v3f do_redshift(v3f colour, v4f position_obs, v4f velocity_obs, v4f ref_obs, v4f
     valuef zp1 = dot_metric(velocity_emit, ref_emit, guv_emit) / dot_metric(velocity_obs, ref_obs, guv_obs);
 
     pin(zp1);
+
+    return zp1;
+}
+
+v3f do_redshift(v3f colour, valuef zp1)
+{
+    using namespace single_source;
 
     return redshift(colour, zp1 - 1);
 }
