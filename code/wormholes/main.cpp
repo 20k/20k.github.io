@@ -290,6 +290,12 @@ int main()
         if(key.isKeyPressed(sf::Keyboard::S))
             cam.move({0, -kspeed, 0});
 
+        if(key.isKeyPressed(sf::Keyboard::Q))
+            cam.move({0, 0, kspeed});
+
+        if(key.isKeyPressed(sf::Keyboard::E))
+            cam.move({0, 0, -kspeed});
+
         sf::Clock clk;
 
 

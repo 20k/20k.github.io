@@ -473,7 +473,7 @@ $k^\mu$ represents our geodesic's velocity, and u is the observer velocity. $u^\
 
 Next up, we need to work out how our light changes, from our end frame of reference (defined by u^\mu_{emit}), to our initial frame of reference. Light has two properties - frequency/wavelength, and intensity. The equation for wavelength looks like this[^linky]
 
-[^linky](https://www.astro.ljmu.ac.uk/~ikb/research/zeta/node1.html)
+[^linky]: [https://www.astro.ljmu.ac.uk/~ikb/research/zeta/node1.html](https://www.astro.ljmu.ac.uk/~ikb/research/zeta/node1.html)
 
 $$z+1 = \frac{\lambda_{obs}}{\lambda_{em}}$$
 
@@ -497,7 +497,7 @@ It depends what we're simulating. For our use case - redshifting a galaxy backgr
 
 If you have a blackbody radiator, it becomes fairly straightforward, as given a temperature we can redshift that directly, via the equation:
 
-$$T^{obs} = \frac{T}{1+z}$$
+$$T_{obs} = \frac{T_{emit}}{1+z}$$
 
 [^digging]: This step is the bottleneck for actually achieving what we're trying to do here. Try as I might, I cannot find any standardised way to obtain anything corresponding to physical units (instead of raw data in unknown units). If you know, please contact me! It looks like [adadin](https://aladin.cds.unistra.fr/hips/HipsIn10Steps.gml) may be able to do what we want, but its certainly not straightforward. Apparently the 'default' unit is ADU, which is the raw CCD readout data, but its not even vaguely clear how to go about converting this into a calibrated physical unit
 
@@ -505,13 +505,13 @@ For our galaxy background, we're instead going to implement *illustrative* redsh
 
 ## Illustrative redshift
 
-The key here is that we're going to discard physicality, and just show a measure of redshift. To do this, we first pick a fairly arbitrary wavelength - in my case I use $555$[^dontdoit], to represent green light. We then carry on as normal, and calculate $z+1$. Our intensity data is defined as the $Y$ component of the $XYZ$, see [here](https://en.wikipedia.org/wiki/SRGB#From_sRGB_to_CIE_XYZ), but put more simply: we convert to linear sRGB, and then calculate Y as:
+The key here is that we're going to discard physicality, and just show a measure of redshift. To do this, we first pick a fairly arbitrary wavelength - in my case I use $555nm$[^dontdoit], to represent green light. We then carry on as normal, and calculate $z+1$. Our intensity data is defined as the $Y$ component of the $XYZ$ colour space which represents power, see [here](https://en.wikipedia.org/wiki/SRGB#From_sRGB_to_CIE_XYZ). Put more simply: we convert to linear sRGB, and then calculate Y as:
 
 [^dontdoit]: You might be tempted to try and do something more fancy like dominant colours or whatever, but the reality is when you're dealing only with a narrow range of visible light it makes 0 difference
 
 $$Y = 0.2126 r + 0.7152 g + 0.0722 b$$
 
-Once we've calculated our new intensity via the same intensity equation (plugging in $Y$), its then time to recolour our texture. We don't actually want to use our new wavelength - because it contains no useful colour information, but instead interpolate between red and blue. $z$ has a range of $[-1, +inf]$, so we split into two branches
+Once we've calculated our new intensity via the intensity equation, its then time to recolour our texture. We don't actually want to use our new wavelength - because it contains no useful colour information, but instead interpolate between red and blue depending on the value of $z$. $z$ has a range of $[-1, +inf]$, so we split into two branches
 
 ### Redshift Only
 
@@ -537,7 +537,7 @@ new_colour = mix(old_colour, pure_blue / 0.0722, interpolating_fraction);
 
 The mapping here is more complicated to replicate the same falloff as redshift. One question you might have is why we're dividing our colours by the constants: notice that they're the same constants we use to calculate $Y$. This ensures that our new colour is equivalent in power/brightness to the old one
 
-One problem specific to blueshift is that our energy is unbounded, and our pixels can become infinitely bright. Its therefore much more aesthetically pleasing to spill over the extra energy into white once we max out the blue colour
+One problem specific to blueshift is that our energy is unbounded, and our pixels can become infinitely bright. Its therefore much more aesthetically pleasing to spill over the extra energy into white once we max out the blue colour - which is shown in the full code sample
 
 ## Physically accurate wavelength rendering
 
@@ -637,7 +637,7 @@ From the front and back. Notice that we blueshift in the direction of travel, an
 
 ## Accretion Disks
 
-No black hole is complete without an accretion disk, so today we're going to be looking at implementing a reasonable accretion disk model. We're going to look at whats called a [thin-disk model](https://www.emis.de/journals/LRG/Articles/lrr-2013-1/articlese5.html) (98-100), because it has a straightforward-ish algebraic solution. In the future, we'll be simulating accretion disks directly
+No black hole is complete without an accretion disk, so today we're going to be looking at implementing a reasonable accretion disk model. We're going to look at whats called a [thin-disk model](https://www.emis.de/journals/LRG/Articles/lrr-2013-1/articlese5.html) (98-100), because it has a straightforward algebraic solution. In the future, we'll be simulating accretion disks directly
 
 One thing we should examine first is the concept of an innermost stable orbit, or ISCO for short
 
@@ -664,7 +664,9 @@ The retrograde ISCO is higher than the prograde ISCO, so flip the sign appropria
 
 ## Accretion Disk Regions
 
-Because orbits within the ISCO are unstable, matter depletes from this region very quickly. For this reason, accretion disks are often modelled as having a gap between the event horizon, and the ISCO - which we will follow. For the model we're looking at, [here](https://www.emis.de/journals/LRG/Articles/lrr-2013-1/articlese5.html) equations 98-100, we have three regions for us to work with, which are called:
+Because orbits within the ISCO are unstable, matter depletes from this region very quickly. For this reason, accretion disks are often modelled as having a gap between the event horizon, and the ISCO - which we will follow[^alert]. For the model we're looking at, [here](https://www.emis.de/journals/LRG/Articles/lrr-2013-1/articlese5.html) equations 98-100, we have three regions for us to work with, which are called:
+
+[^alert]: Note that one of the papers linked, [this](https://arxiv.org/pdf/1110.6556) one, was originally what this article implemented, and claims to model the plunging region. This ended up being a significantly delay, as as far as I can tell the equations for the plunging region fundamentally do not work - you can straightforwardly prove that the radial velocity profile is imaginary, and tends to infinity, simultaneously. This is a bit unfortunate
 
 1. The inner region
 2. The middle region
@@ -675,11 +677,11 @@ Distinguishing between these three regions is done by two values
 1. Gas pressure vs radiation pressure. When gas pressure < radiation pressure, we're either in the inner or outer region
 2. Whether opacity is driven by free-free interactions, or electron scattering. If free-free > electron scattering, we're in the outer region, otherwise we're in the inner or middle region
 
-The details of this are interesting[^interesting], but we're going to focus on how to actually implement this. The idea is to iterate from the innermost boundary of our accretion disk ($r = r_{isco}$), and terminate at some finite radius away from the accretion disk ($r = 100M$). We know at the start, we must be in region #1 - the inner region at the isco
+The details of this are interesting[^interesting], but we're going to focus on how to actually implement this rather than what it means (unfortunately) - there's lots of information available in the linked articles. The idea is to iterate from the innermost boundary of our accretion disk ($r = r_{isco}$), and terminate at some finite radius away from the accretion disk ($r = 100M$). We know at the start, we must be in region #1 - the inner region - at the isco
 
-[^interesting]: If there was time, it would be interesting to lay it all out. This is one of the downsides of writing articles which are intended to be implementation focused. While these papers themselves contain all the theory you need, the thing we are lacking is actually how to implement this
+[^interesting]: If there was time, it would be interesting to lay it all out. This is one of the downsides of writing articles which are intended to be implementation focused, and a bit jumbo like this one. While these papers themselves contain all the theory you need, the thing we are lacking is actually how to implement this. In the future, I may revisit accretion disks in a lot more detail
 
-To distinguish when we transition from region 1, to region 2, which want to calculate (gas pressure / radiation pressure), and if its > 1 move into the middle region. This quantity is here labelled $\beta / (1-\beta)$ I believe
+To distinguish when we transition from region 1, to region 2, which want to calculate (gas pressure / radiation pressure), and if its > 1 move into the middle region. This quantity is labelled $\beta / (1-\beta)$ I believe
 
 To distinguish when we transition from region 2, to region 3, we calculate the quantity $T_ff / T_es$, which is the free-free opacity / the electron scattering opacity. When this quantity is > 1, we swap to region 3
 
@@ -700,19 +702,25 @@ The meaning of the variables here are, in order
 
 With this, we should have everything[^onemore] we need to implement this correctly
 
-[^onemore]: The equations we're implementing mention the eddington luminosity. We don't need this as we're using a fraction of it, but you may want this for yourself, check out over [here](https://www-astro.physics.ox.ac.uk/~garret/teaching/lecture7-2012.pdf) for details
+[^onemore]: The equations we're implementing mention the eddington luminosity. We don't need this as we're using a fraction of it, but you may want this for yourself, check out over [here](https://www-astro.physics.ox.ac.uk/~garret/teaching/lecture7-2012.pdf) for details. I've added an implementation of this into the code sample as well
 
 ## Code
 
-The equations here - as written, are long and complicated to implement correctly. I won't reproduce the equations here - it just introduces a risk of mistakes, but you can find the code for implementing this method, and producing a nice accretion disk texture over here
+The equations here - as written, are long and complicated to implement correctly. I won't reproduce the equations in full here - it just introduces a risk of mistakes, but you can find the code for implementing this method, and producing a nice accretion disk texture over here
 
-This gives pretty nice results, eg here for $M=1$[^geometric], $a=0.6$, $\dot{m} = 0.3$:
+This gives pretty nice results. For $M=1$[^geometric], $a=0.6$, $\dot{m} = 0.3$:
 
 [^geometric]: Note that this is in geometric units
 
 ![Disk](/assets/disk.png)
 
-In practice we don't need to use a 2d texture of an accretion disk, because its spherically symmetric, you could just take a radial slice
+In practice you don't need to use a 2d texture of an accretion disk, because its spherically symmetric, you could just take a radial slice
+
+## Rendering
+
+Rendering the accretion disk is extremely straightforward. Because we model it as a very thin disk, you can check as a geodesic crosses the equatorial plane ($theta = n pi + pi/2$), sample the accretion disk texture, and render that colour out if we hit. Or you could carry on rendering, and add it to the background colour
+
+One key thing to note here is that we're going to implement redshift, and to do that, we need to know the velocity of the fluid in the accretion disk. We already know that its moving approximately in circular orbits (otherwise it'd escape, or hit the black hole), but what is that as a velocity vector specifically?
 
 # Taking a trip through Interstellar's wormhole
 
