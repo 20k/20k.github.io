@@ -17,7 +17,7 @@ Todo: Do I need to split this up into chapters?
 
 # The interstellar wormhole
 
-The paper which describes interstellars wormhole is [this](https://arxiv.org/pdf/1502.03809) one. We want the fully configurable smooth version, which is equations (5a-c)
+The paper which describes interstellar's wormhole is [this](https://arxiv.org/pdf/1502.03809) one. We want the fully configurable smooth version, which is equations (5a-c)
 
 Given a coordinate system $(t, l, \theta, \phi)$, and the parameters $M$ = mass, $a$ = wormhole length and $p$ = throat radius:
 
@@ -89,9 +89,8 @@ The works reasonably well, but it still gives a fairly low universal timestep, w
 ```c++
 valuef get_timestep(v4f position, v4f velocity)
 {
-    valuef divisor = max(max(avelocity.x(), avelocity.y()), max(avelocity.z(), avelocity.w()));
-
     v4f avelocity = fabs(velocity);
+    valuef divisor = max(max(avelocity.x(), avelocity.y()), max(avelocity.z(), avelocity.w()));
 
     valuef normal_precision = 0.1f/divisor;
     valuef high_precision = 0.02f/divisor;
@@ -636,7 +635,7 @@ From the front and back. Notice that we blueshift in the direction of travel, an
 
 # Rendering Kerr
 
-## Accretion Disks: 2
+## Accretion Disks
 
 No black hole is complete without an accretion disk, so today we're going to be looking at implementing a reasonable accretion disk model. We're going to look at whats called a [thin-disk model](https://www.emis.de/journals/LRG/Articles/lrr-2013-1/articlese5.html) (98-100), because it has a straightforward-ish algebraic solution. In the future, we'll be simulating accretion disks directly
 
