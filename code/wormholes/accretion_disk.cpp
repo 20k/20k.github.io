@@ -27,6 +27,7 @@ double get_isco(double M, double a)
     return r0_M * M;
 }
 
+///we don't actually use this
 double get_event_horizon(double M, double a)
 {
     double rs = 2 * M;
@@ -47,26 +48,11 @@ double geom_to_kg(double M)
     return M * cst_C * cst_C / cst_G;
 }
 
-double geom_to_time(double t)
-{
-    return t / cst_C;
-}
-
-double geom_to_itime(double t)
-{
-    return t * cst_C;
-}
-
-double itime_to_geom(double t)
-{
-    return t / cst_C;
-}
-
-double eddington_limit_kg_s(double M)
+///https://www-astro.physics.ox.ac.uk/~garret/teaching/lecture7-2012.pdf 12
+///we're not using this, but you might if you want an accretion rate in kg
+double eddington_limit_kg_s(double M_kg)
 {
     double pi = std::numbers::pi_v<double>;
-
-    double M_in_kg = M * cst_C * cst_C / cst_G;
 
     double sigmaT = 6.65245863216 * cpow(10., -29.);
     double proton_mass = 1.67262192595 * pow(10., -27.);
@@ -75,28 +61,26 @@ double eddington_limit_kg_s(double M)
 
     double e = 0.1;
 
-    double kg_ps = 4 * pi * (cst_G * M_in_kg * pm_t) / (e * cst_C);
+    double kg_ps = 4 * pi * (cst_G * M_kg * pm_t) / (e * cst_C);
 
     return kg_ps;
-
-    //return itime_to_geom(kg_to_geom(kg_ps));
 }
 
-///https://arxiv.org/pdf/1110.6556
+///https://arxiv.org/pdf/1110.6556 is broken
+///https://www.emis.de/journals/LRG/Articles/lrr-2013-1/articlese5.html
 accretion_disk make_accretion_disk_kerr(float mass, float a)
 {
-    double Msol = 1.988 * cpow(10., 30.);
+    double Msol_kg = 1.988 * cpow(10., 30.);
 
     double pi = std::numbers::pi_v<double>;
 
-    double Msol_natural = (Msol * cst_G) / (cst_C*cst_C);
+    double Msol_natural = kg_to_geom(Msol_kg);
 
     double m_star = mass / Msol_natural;
 
-    double eddington_kg_ps = eddington_limit_kg_s(mass);
+    //double eddington_kg_ps = eddington_limit_kg_s(geom_to_kg(mass));
 
-    ///they want grams per second
-    double mdot_star = 0.3 * eddington_kg_ps * 1000 / pow(10., 17.);
+    double mdot_star = 0.3;
 
     double a_star = a/mass;
     double assq = cpow(a_star, 2.);
@@ -107,9 +91,9 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
     double x2 = 2 * cos(acos(a_star)/3 + pi/3);
     double x3 = -2 * cos(acos(a_star)/3);
 
-    double horizon = get_event_horizon(mass, a);
+    ///unused
+    //double horizon = get_event_horizon(mass, a);
 
-    ///10 radii out??
     double outer_boundary = 2 * mass * 50;
 
     ///0 = plunge, 1 = edge, 2 = inner, 3 = middle, 4 = outer
@@ -117,58 +101,34 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
     int max_steps = 1000;
 
-    ///VISCOSITY
+    ///Viscosity
     double alpha = 0.1;
 
-    //std::cout << "ISCO " << isco << " horizon " << horizon << " Boundary " << outer_boundary << " mass " << mass << std::endl;
-
     double x0 = sqrt(isco/mass);
-    double F0 = 1 - 2 * a_star * cpow(x0, -3.) + assq * cpow(x0, -4.);
-    double G0 = 1 - 2 * cpow(x0, -2.) + a_star * cpow(x0, -3.);
-    double C0 = 1 - 3 * cpow(x0, -2.) + 2 * assq * cpow(x0, -3.);
-    double D0 = 1 - 2 * cpow(x0, -2.) + assq * cpow(x0, -4.);
-    double V0 = cpow(D0, -1.) * (1 + cpow(x0, -4.) * (assq - cpow(x0, 2.) * cpow(F0, 2.) * cpow(G0, -2.)) + 2 * cpow(x0, -6.) * (a_star - x0 * F0 * cpow(G0, -1.)));
-
-    //std::cout << "C0 " << C0 << " G0 " << G0 << std::endl;
-
-    //std::cout << "F0 " << F0 << std::endl;
-
-    //std::cout << "X0 " << x0 << std::endl;
 
     std::vector<std::pair<double, double>> brightness;
 
     for(int steps = 0; steps < max_steps; steps++)
     {
         double r = mix(isco, outer_boundary, steps / (double)max_steps);
-
         double x = sqrt(r/mass);
-
-        //std::cout << "X " << x << std::endl;
-
-        ///so, when r/m > 2, we're outside the event horizon
-        ///because rs = 2m
 
         float r_star = r / mass;
 
         float x_pow_m2 = mass/r;
         float x_pow_m4 = cpow(mass/r, 2.);
 
-        ///ok so, x_pow_m2 has a value of 1/2 at the event horizon
-        ///x_pow_m4 has a value of 1/4
-
         double A = 1 + assq * x_pow_m4 + 2 * assq * cpow(x, -6.);
         double B = 1 + a_star * cpow(x, -3.);
         double C = 1 - 3 * x_pow_m2 + 2 * assq * cpow(x, -3.);
         double D = 1 - 2 * x_pow_m2 + assq * cpow(x, -4.);
         double E = 1 + 4 * assq * x_pow_m4 - 4 * assq * cpow(x,-6.) + 3 * cpow(a_star, 4.) * cpow(x, -8.);
-        double F = 1 - 2 * a_star * cpow(x, -3.) + assq * x_pow_m4;
-        double G = 1 - 2 * x_pow_m2 + a_star * cpow(x, -3.);
         double Q = B * cpow(C, -1/2.) * (1/x) * (x - x0 - (3/2.) * a_star * log(x/x0)
                                                 - (3 * cpow(x1 - a_star, 2.) / (x1 * (x1 - x2) * (x1 - x3))) * log((x - x1) / (x0 - x1))
                                                 - (3 * cpow(x2 - a_star, 2.) / (x2 * (x2 - x1) * (x2 - x3))) * log((x - x2) / (x0 - x2))
                                                 - (3 * cpow(x3 - a_star, 2.) / (x3 * (x3 - x1) * (x3 - x2))) * log((x - x3) / (x0 - x3))
                                                 );
-        ///ok, this is B/(1-B)
+        ///This is B/(1-B)
         double p_gas_p_rad = 0;
 
         if(region == 4)
@@ -190,46 +150,31 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
         //in the middle region, opacity is electron scattering
         double Tff_Tes = (2 * cpow(10., -6.)) * (cpow(mdot_star, -1.)) * cpow(r_star, 3/2.) * cpow(A, -1.) * cpow(B, 2.) * cpow(D, 1/2.) * cpow(E, 1/2.) * cpow(Q, -1.);
 
-        //std::cout << "Tff " << Tff_Tes << std::endl;
-
         if(region == 3 && Tff_Tes >= 1)
             region = 4;
 
         double surface_flux = 0;
         double temperature = 0;
-        double density = 0;
-        //double surface_density = 0;
-
-        if(region == 1 || region == 3)
-        {
-            surface_flux = 7 * cpow(10., 26.) * cpow(m_star, -1.) * mdot_star * cpow(r_star, -3.) * cpow(B, -1.) * cpow(C, -1/2.) * Q;
-            //surface_flux = 0.6 * cpow(10., 26.) * (cpow(m_star, -2.) * mdot_star) * cpow(x, -6.) * cpow(B, -1.) * cpow(C,-1/2.) * Phi;
-            //surface_density = 5 * cpow(10., 4.) * cpow(alpha, -4/5.) * cpow(m_star, -2/5.) * cpow(mdot_star, 3/5.) * cpow(x, -6/5.) * cpow(B, -4/5.) * cpow(C, -1/2.) * cpow(D, -4/5.) * cpow(Phi, 3/5.);
-
-        }
 
         if(region == 2)
         {
             surface_flux = 7 * cpow(10., 26.) * cpow(m_star, -1.) * mdot_star * cpow(r_star, -3.) * cpow(B, -1.) * cpow(C, -1/2.) * Q;
-            //surface_density = 5 * cpow(alpha, -1.) * cpow(mdot_star, -1.) * cpow(r_star, 3/2.) * cpow(A, -2.) * cpow(B,3.) * cpow(C, 1/2.) * E * cpow(Q, -1.);
+        }
 
-            //surface_flux = 0.6 * cpow(10., 26.) * (cpow(m_star, -2.) * mdot_star) * cpow(x, -6.) * cpow(B, -1.) * cpow(C,-1/2.) * Phi;
-            //surface_density = 20 * cpow(alpha, -1.) * m_star * cpow(mdot_star, -1.) * cpow(x, 3.) * cpow(A, -2.) * cpow(B, 3.) * cpow(C, 1/2.) * S * cpow(Phi, -1.);
+        if(region == 1 || region == 3)
+        {
+            surface_flux = 7 * cpow(10., 26.) * cpow(m_star, -1.) * mdot_star * cpow(r_star, -3.) * cpow(B, -1.) * cpow(C, -1/2.) * Q;
         }
 
         if(region == 4)
         {
             surface_flux = 7 * cpow(10., 26.) * cpow(m_star, -1.) * mdot_star * cpow(r_star, -3.) * cpow(B, -1.) * cpow(C, -1/2.) * Q;
-            //surface_flux = 0.6 * cpow(10., 26.) * (cpow(m_star, -2.) * mdot_star) * cpow(x, -6.) * cpow(B, -1.) * cpow(C,-1/2.) * Phi;
-            //surface_density = 2 * cpow(10., 5.) * cpow(alpha, -4/5.) * cpow(m_star, -1/2.) * cpow(mdot_star, 7/10.) * cpow(x, -3/2.) * cpow(A, 1/10.) * cpow(B, -4/5.) * cpow(C, 1/2.) * cpow(D, -17/20.) * cpow(S, -1/20.) * cpow(Phi, 7/10.);
         }
 
         if(!std::isnan(surface_flux))
         {
             brightness.push_back({r, surface_flux});
         }
-
-        //printf("At %i step %i r %f flux %f surface %f\n", region, steps, r / (2 * mass), surface_flux, surface_density);
     }
 
     double max_bright = 0;
@@ -275,8 +220,6 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
             double which = 0;
 
-            //for(auto& [pr, b] : brightness)
-
             for(int i=(int)brightness.size() - 1; i >= 0; i--)
             {
                 auto& [pr, b] = brightness[i];
@@ -300,9 +243,7 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
     accretion_disk disk;
 
-    ///we use units of c=g=1
-
-    assert(false);
+    disk.normalised_brightness = img;
 
     return disk;
 }

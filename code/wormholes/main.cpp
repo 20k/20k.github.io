@@ -156,7 +156,7 @@ int main()
     int screen_height = 1080;
 
     sf::VideoMode mode(screen_width, screen_height);
-    sf::RenderWindow win(mode, "I am a black hole", sf::Style::Fullscreen);
+    sf::RenderWindow win(mode, "I am a black hole");
 
     cl::context ctx;
 
