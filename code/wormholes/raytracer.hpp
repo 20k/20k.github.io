@@ -282,14 +282,14 @@ valuef get_timestep(v4f position, v4f velocity)
     v4f avelocity = fabs(velocity);
     valuef divisor = max(max(avelocity.x(), avelocity.y()), max(avelocity.z(), avelocity.w()));
 
-    valuef normal_precision = 0.1f/divisor;
-    valuef high_precision = 0.04f/divisor;
+    valuef normal_precision = 0.01f/divisor;
+    valuef high_precision = 0.01f/divisor;
 
     return ternary(fabs(position[1]) < 3.f, high_precision, normal_precision);
 }
 
 //this integrates a geodesic, until it either escapes our small universe or hits the event horizon
-std::pair<valuei, tensor<valuef, 4>> integrate(geodesic& g, auto&& get_metric) {
+std::tuple<valuei, tensor<valuef, 4>, tensor<valuef, 4>> integrate(geodesic& g, auto&& get_metric) {
     using namespace single_source;
 
     mut<valuei> result = declare_mut_e(valuei(1));
@@ -329,49 +329,7 @@ std::pair<valuei, tensor<valuef, 4>> integrate(geodesic& g, auto&& get_metric) {
         });
     });
 
-    return {result, position.as<valuef>()};
-}
-
-v3f render_pixel(v2i screen_position, v2i screen_size, const read_only_image<2>& background, v2i background_size, const tetrad& tetrads, v4f start_position, v4f camera_quat, auto&& get_metric)
-{
-    using namespace single_source;
-
-    v3f ray_direction = get_ray_through_pixel(screen_position, screen_size, 90, camera_quat);
-
-    //so, the tetrad vectors give us a basis, that points in the direction t, r, theta, and phi, because schwarzschild is diagonal
-    //we'd like the ray to point towards the black hole: this means we make +z point towards -r, +y point towards +theta, and +x point towards +phi
-    //v3f modified_ray = {ray_direction[1], ray_direction[2], ray_direction[0]};
-    //v3f modified_ray = {-ray_direction[2], ray_direction[1], ray_direction[0]};
-
-    v3f modified_ray = ray_direction;
-
-    geodesic my_geodesic = make_lightlike_geodesic(start_position, modified_ray, tetrads);
-
-    /*value_base se;
-    se.type = value_impl::op::SIDE_EFFECT;
-    se.abstract_value = "printf(\"%f\\n\"," + value_to_string(my_geodesic.velocity.z()) + ")";
-
-    value_impl::get_context().add(se);*/
-
-    auto [result, position] = integrate(my_geodesic, get_metric);
-
-    valuef theta = position[2];
-    valuef phi = position[3];
-
-    v2f texture_coordinate = angle_to_tex({theta, phi});
-
-    valuei tx = (texture_coordinate[0] * background_size.x().to<float>() + background_size.x().to<float>()).to<int>() % background_size.x();
-    valuei ty = (texture_coordinate[1] * background_size.y().to<float>() + background_size.y().to<float>()).to<int>() % background_size.y();
-
-    v4f col = background.read<float, 4>({tx, ty});
-
-    mut_v3f colour = declare_mut_e(col.xyz());
-
-    if_e(result == 1, [&] {
-        as_ref(colour) = (tensor<valuef, 3>){0,0,0};
-    });
-
-    return colour.as<valuef>();
+    return {result, declare_e(position), declare_e(velocity)};
 }
 
 //calculate Y of XYZ
@@ -383,6 +341,21 @@ valuef energy_of(v3f v)
 v3f redshift(v3f v, valuef z)
 {
     using namespace single_source;
+
+    {
+        valuef iemit = energy_of(v);
+
+        ///z+1 = lobs / lemit
+        ///lobs = lemit * (z+1)
+        valuef test_wavelength = 555;
+        valuef lobs = test_wavelength * (z + 1);
+
+        valuef iobs = iemit * pow(test_wavelength, 3.f) / pow(lobs, 3.f);
+
+        v = (iobs / iemit) * v;
+
+        pin(v);
+    }
 
     valuef radiant_energy = energy_of(v);
 
@@ -420,6 +393,104 @@ v3f redshift(v3f v, valuef z)
     as_ref(result) = clamp(result, 0.f, 1.f);
 
     return declare_e(result);
+}
+
+template<typename T>
+inline
+T linear_to_srgb_gpu(const T& in)
+{
+    return ternary(in <= 0.0031308f, in * 12.92f, 1.055 * pow(in, 1.0f / 2.4f) - 0.055);
+}
+
+template<typename T>
+inline
+tensor<T, 3> linear_to_srgb_gpu(const tensor<T, 3>& in)
+{
+    tensor<T, 3> ret;
+
+    for(int i=0; i < 3; i++)
+        ret[i] = linear_to_srgb_gpu(in[i]);
+
+    return ret;
+}
+
+template<typename T>
+inline
+T srgb_to_linear_gpu(const T& in)
+{
+    return ternary(in < 0.04045f, in/12.92f, pow((in + 0.055f) / 1.055f, 2.4f));
+}
+
+template<typename T>
+inline
+tensor<T, 3> srgb_to_linear_gpu(const tensor<T, 3>& in)
+{
+    tensor<T, 3> ret;
+
+    for(int i=0; i < 3; i++)
+        ret[i] = srgb_to_linear_gpu(in[i]);
+
+    return ret;
+}
+
+v3f render_pixel(v2i screen_position, v2i screen_size, const read_only_image<2>& background, v2i background_size, const tetrad& tetrads, v4f start_position, v4f camera_quat, auto&& get_metric)
+{
+    using namespace single_source;
+
+    v3f ray_direction = get_ray_through_pixel(screen_position, screen_size, 90, camera_quat);
+
+    //so, the tetrad vectors give us a basis, that points in the direction t, r, theta, and phi, because schwarzschild is diagonal
+    //we'd like the ray to point towards the black hole: this means we make +z point towards -r, +y point towards +theta, and +x point towards +phi
+    geodesic my_geodesic = make_lightlike_geodesic(start_position, ray_direction, tetrads);
+
+    /*value_base se;
+    se.type = value_impl::op::SIDE_EFFECT;
+    se.abstract_value = "printf(\"%f\\n\"," + value_to_string(my_geodesic.velocity.z()) + ")";
+
+    value_impl::get_context().add(se);*/
+
+    auto [result, position, velocity] = integrate(my_geodesic, get_metric);
+
+    valuef theta = position[2];
+    valuef phi = position[3];
+
+    v2f texture_coordinate = angle_to_tex({theta, phi});
+
+    valuei tx = (texture_coordinate[0] * background_size.x().to<float>() + background_size.x().to<float>()).to<int>() % background_size.x();
+    valuei ty = (texture_coordinate[1] * background_size.y().to<float>() + background_size.y().to<float>()).to<int>() % background_size.y();
+
+    v4f col = background.read<float, 4>({tx, ty});
+
+    #define DO_REDSHIFT
+    #ifdef DO_REDSHIFT
+    {
+        m44f guv_obs = get_metric(my_geodesic.position);
+        m44f guv_emit = get_metric(position);
+
+        valuef zp1 = dot_metric(velocity, (v4f){1, 0, 0, 0}, guv_emit) / dot_metric(my_geodesic.velocity, tetrads.v[0], guv_obs);
+
+        pin(zp1);
+
+        v3f tex_lin = srgb_to_linear_gpu(col.xyz());
+
+        v3f tex_shifted = redshift(tex_lin, zp1 - 1);
+
+        v3f col3 = linear_to_srgb_gpu(tex_shifted);
+
+        col.x() = col3.x();
+        col.y() = col3.y();
+        col.z() = col3.z();
+    }
+    #endif
+
+
+    mut_v3f colour = declare_mut_e(col.xyz());
+
+    if_e(result == 1, [&] {
+        as_ref(colour) = (tensor<valuef, 3>){0,0,0};
+    });
+
+    return colour.as<valuef>();
 }
 
 template<auto GetMetric>

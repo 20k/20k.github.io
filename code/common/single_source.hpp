@@ -485,6 +485,7 @@ namespace value_impl
             {MIN, "min"},
             {MAX, "max"},
             {CLAMP, "clamp"},
+            {POW, "pow"},
 
             {GET_GLOBAL_ID, "get_global_id"},
         };

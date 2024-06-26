@@ -275,6 +275,13 @@ namespace stdmath
 
         return clamp(v1, v2, v3);
     };
+
+    auto upow = []<typename T>(const T& v1, const T& v2)
+    {
+        using std::pow;
+
+        return pow(v1, v2);
+    };
 }
 
 #endif // STDMATH_HPP_INCLUDED

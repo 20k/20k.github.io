@@ -72,6 +72,7 @@ namespace value_impl
             FLOOR,
             CEIL,
             TERNARY,
+            POW,
 
             GET_GLOBAL_ID,
 
@@ -339,6 +340,7 @@ namespace value_impl
     DECL_VALUE_FUNC1(CEIL, ceil, stdmath::uceil);
     DECL_VALUE_FUNC1(INVERSE_SQRT, inverse_sqrt, stdmath::uinverse_sqrt);
     DECL_VALUE_FUNC3(TERNARY, ternary, stdmath::uternary);
+    DECL_VALUE_FUNC2(POW, pow, stdmath::upow);
 
     DECL_VALUE_FUNC2(MIN, min, stdmath::umin);
     DECL_VALUE_FUNC2(MAX, max, stdmath::umax);
@@ -427,6 +429,7 @@ namespace value_impl
             PROPAGATE_BASE1(FLOOR, ufloor);
             PROPAGATE_BASE1(CEIL, uceil);
             PROPAGATE_BASE1(INVERSE_SQRT, uinverse_sqrt);
+            PROPAGATE_BASE2(POW, upow);
 
             PROPAGATE_BASE2(MIN, umin);
             PROPAGATE_BASE2(MAX, umax);
@@ -614,6 +617,7 @@ namespace value_impl
         REPLAY2(MIN, umin);
         REPLAY2(MAX, umax);
         //REPLAY3(CLAMP, uclamp);
+        REPLAY2(POW, upow);
 
         assert(false);
     }
@@ -1414,6 +1418,21 @@ namespace value_impl
     value<T> clamp(const value<T>& v1, const T& v2, const T& v3)
     {
         return from_base<T>(optimise(make_op<value<T>>(op::CLAMP, {v1, value<T>(v2), value<T>(v3)})));
+    }
+
+
+    template<typename T>
+    inline
+    value<T> pow(const value<T>& v1, const value<T>& v2)
+    {
+        return from_base<T>(optimise(make_op<value<T>>(op::POW, {v1, v2})));
+    }
+
+    template<typename T>
+    inline
+    value<T> pow(const value<T>& v1, const T& v2)
+    {
+        return from_base<T>(optimise(make_op<value<T>>(op::POW, {v1, value<T>(v2)})));
     }
 
     template<typename T>

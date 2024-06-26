@@ -472,15 +472,19 @@ $$z+1 = \frac{g_{\mu\nu} k^\mu_{emit} u^\mu_{emit}}{g_{\mu\nu} k^\mu_{obs} u^\mu
 
 $k^\mu$ represents our geodesic's velocity, and u is the observer velocity. $u^\mu_{emit}$ specifically will be where our ray terminates, and $u^\mu_{obs} = e_0$ is our initial observer's velocity (after boosting!). Do note that the metric tensors are evaluated at different locations
 
-Next up, we need to work out how our light changes, from our end frame of reference (defined by u^\mu_{emit}), to our initial frame of reference. Light has two properties - frequency/wavelength, and intensity. The equation for wavelength looks like this
+Next up, we need to work out how our light changes, from our end frame of reference (defined by u^\mu_{emit}), to our initial frame of reference. Light has two properties - frequency/wavelength, and intensity. The equation for wavelength looks like this[^linky]
 
-$$\lambda^{obs} = \frac{\lambda^{emit}}{1+z}$$
+[^linky](https://www.astro.ljmu.ac.uk/~ikb/research/zeta/node1.html)
+
+$$z+1 = \frac{\lambda_{obs}}{\lambda_{em}}$$
 
 Once we have our new wavelength, we need to calculate the intensity. We can do this by calculating the lorentz invariant (constant in every frame of reference): $\frac{I_\nu}{\nu^3}$, where $\nu$ is your frequency. See [here](https://www.astro.princeton.edu/~jeremy/heap.pdf) 1.26 for details. Note that the quantity $I \lambda^3$ is also therefore lorentz invariant
 
 So, to calculate our observed intensity, we say
 
-$$I_{obs} \lambda_{obs}^3 = I_{emit} \lambda_{emit}^3\\
+$$I_{obs} \lambda_{obs}^3 = I_{emit} \lambda_{emit}^3$$
+
+$$
 I_{obs} = I_{emit} \frac{\lambda_{emit}^3}{\lambda_{obs}^3}
 $$
 
