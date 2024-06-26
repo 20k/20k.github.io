@@ -518,7 +518,7 @@ A much more likely situation is that we have some kind of texture, and we'd like
 
 6. Map higher frequencies to bluer colours, and lower frequencies to darker colours
 
-### Redshift
+### Redshift: 2
 
 The equations for redshift in general relativity are pretty simple. First off, we define the redshift $z$, as follows[^derivation]:
 
@@ -645,12 +645,92 @@ v3f redshift(v3f v, valuef z)
 }
 ```
 
-# Accretion disk?
+# Rendering Kerr
+
+## Accretion Disks: 2
+
+No black hole is complete without an accretion disk, so today we're going to be looking at implementing a reasonable accretion disk model. We're going to look at whats called a [thin-disk model](https://www.emis.de/journals/LRG/Articles/lrr-2013-1/articlese5.html) (98-100), because it has a straightforward-ish algebraic solution. In the future, we'll be simulating accretion disks directly
+
+One thing we should examine first is the concept of an innermost stable orbit, or ISCO for short
+
+### ISCO
+
+Outside of the ISCO, circular trajectories around the rotational plane of a black hole are stable[^stable]. Within the ISCO, orbits are unstable (as circular orbits don't exist) - and matter spirals into the black hole quickly. This is known as the 'plunging' region, and will crop up a lot in future articles
+
+[^stable]: No orbit in general relativity is ever truly stable, as everything emits gravitational waves and orbits decay. Near a black hole, this effect is particularly intense. Inwards accretion for a disk I believe is primarily driven by fluid dynamics, but this is outside of my area of knowledge
+
+For a schwarzschild black hole, the isco is defined as $r_{isco} = 3rs = 6M$. For a kerr black hole, the ISCO is defined as follows[^iscoeq] for a black hole with mass $M$, and spin $a$:
+
+$$
+\begin{align}
+X &= a/M\\
+Z_1 &= 1 + (1-X^2)^{\frac{1}{3}} ((1+X)^{\frac{1}{3}}(1-X)^{\frac{1}{3}})\\
+Z_2 &= (3 X^2 + Z_1^2)^{\frac{1}{2}}\\
+r_{isco} &= M (3 + Z_2 \pm ((3 - Z_1)(3 + Z_1 + 2Z_2))^{\frac{1}{2}})\\
+\end{align}
+$$
+
+The retrograde ISCO is higher than the prograde ISCO, so flip the sign appropriately when calculating
+
+[^iscoeq]: See [wikipedia](https://en.wikipedia.org/wiki/Innermost_stable_circular_orbit#Rotating_black_holes), or 2.21 in [this](https://articles.adsabs.harvard.edu/pdf/1972ApJ...178..347B) paper
+
+## Accretion Disk Regions
+
+Because orbits within the ISCO are unstable, matter depletes from this region very quickly. For this reason, accretion disks are often modelled as having a gap between the event horizon, and the ISCO - which we will follow. For the model we're looking at, [here](https://www.emis.de/journals/LRG/Articles/lrr-2013-1/articlese5.html) equations 98-100, we have three regions for us to work with, which are called:
+
+1. The inner region
+2. The middle region
+3. The outer region
+
+Distinguishing between these three regions is done by two values
+
+1. Gas pressure vs radiation pressure. When gas pressure < radiation pressure, we're either in the inner or outer region
+2. Whether opacity is driven by free-free interactions, or electron scattering. If free-free > electron scattering, we're in the outer region, otherwise we're in the inner or middle region
+
+The details of this are interesting[^interesting], but we're going to focus on how to actually implement this. The idea is to iterate from the innermost boundary of our accretion disk ($r = r_{isco}$), and terminate at some finite radius away from the accretion disk ($r = 100M$). We know at the start, we must be in region #1 - the inner region at the isco
+
+[^interesting]: If there was time, it would be interesting to lay it all out. This is one of the downsides of writing articles which are intended to be implementation focused. While these papers themselves contain all the theory you need, the thing we are lacking is actually how to implement this
+
+To distinguish when we transition from region 1, to region 2, which want to calculate (gas pressure / radiation pressure), and if its > 1 move into the middle region. This quantity is here labelled $\beta / (1-\beta)$ I believe
+
+To distinguish when we transition from region 2, to region 3, we calculate the quantity $T_ff / T_es$, which is the free-free opacity / the electron scattering opacity. When this quantity is > 1, we swap to region 3
+
+## Other details
+
+To be able to implement this, we first need to calculate our spatial functions $A$ $B$ $C$ $D$ $E$ $Q_0$ $Q$, as well as $y_1$ $y_2$ $y_3$, and $y_0$. While not mentioned on the page we're looking at, subscript $\_0$ variables are evaluated at the ISCO. We do have an explicit formula for $Q_0$, which means that the only other one we need is $y_0 = \frac{r_{isco}}{M}^{\frac{1}{2}}$
+
+The meaning of the variables here are, in order
+
+|variable|meaning|
+|F|surface radiant flux (ie brightness)|
+|$\Sigma$|surface density|
+|H|Disk thickness|
+|$\rho_0$ |rest mass density in the local rest frame|
+|$T$ |temperature|
+|$\beta / (1-\beta)$|ratio of gas pressure to radiation pressure|
+|$T_{ff}/T_{es}$|Ratio of free-free opacity to electron scattering opacity|
+
+With this, we should have everything[^onemore] we need to implement this correctly
+
+[^onemore]: The equations we're implementing mention the eddington luminosity. We don't need this as we're using a fraction of it, but you may want this for yourself, check out over [here](https://www-astro.physics.ox.ac.uk/~garret/teaching/lecture7-2012.pdf) for details
+
+## Code
+
+The equations here - as written, are long and complicated to implement correctly. I won't reproduce the equations here - it just introduces a risk of mistakes, but you can find the code for implementing this method, and producing a nice accretion disk texture over here
+
+This gives pretty nice results, eg here for $M=1$[^geometric], $a=0.6$, $\dot{m} = 0.3$:
+
+[^geometric]: Note that this is in geometric units
+
+![Disk](/assets/disk.png)
+
+In practice we won't use a 2d texture of an accretion disk, because its spherically symmetric we'll just take one radial slice
+
+## Accretion Disks
 
 https://www.emis.de/journals/LRG/Articles/lrr-2013-1/articlese5.html
 
-This segment was up for debate. No black hole is really complete without an accretion disk, but as someone who is in this for the brutalist physical accuracy, I didn't want to simply put in a texture and call it a day without it having at least some physical basis, and this is one of the few things in this article series that I haven't written prior to writing this article, so I'm starting as fresh as you! In future articles we'll be simulating the accretion disk directly rather than using an analytic solution - which will be super fun
-
+This segment was up for debate. No black hole is really complete without an accretion disk, but as someone who is in this for the brutalist physical accuracy, I didn't want to simply put in a texture and call it a day without it having at least some physical basis for it, and this is one of the few things in this article series that I haven't written prior to writing this article, so I'm starting as fresh as you! In future articles we'll be simulating the accretion disk directly rather than using an analytic solution
 
 ## Thin disk
 
@@ -663,7 +743,6 @@ Accretion disk models are normally based a few assumptions, notably:
 
 You may notice in renderings of an accretion disk, there's a gap between the inner most boundary of the accretion disk, and the black hole - this boundary is known as the innermost stable circular orbit (ISCO). This will crop up again in the future, but the orbit of any particle within the ISCO is unstable, and will eventually hit the black hole, whereas circular orbits outside this region are stable[^stable] to a degree
 
-[^stable]: No orbit in general relativity is ever truly stable, as everything emits gravitational waves and orbits decay. Near a black hole, this effect is particularly intense
 
 ### ISCO equation
 
@@ -671,44 +750,9 @@ We can find the definition of ISCO for a kerr typed black hole via [2.21](https:
 
 ## Sigh
 
-Lets look at the set of equations we're going to implement, from [here](https://arxiv.org/pdf/1110.6556). This segment is a pretty good introduction to the kind of stuff we have to deal with once we start implementing physical things
+Lets look at the set of equations we're going to implement, from [here](https://www.emis.de/journals/LRG/Articles/lrr-2013-1/articlese5.html) for the Shakura-Sunyaev disk model, with some reference to [this](https://arxiv.org/pdf/1110.6556) paper where appropriate. Do note that this article was significantly sidetracked by some pretty sizeable errors in the second paper, which will be discussed at the end
 
-$$
-\begin{align}
-z &= r \cos\theta\\
-a_* &= a/M \\
-x_1 &= 2\cos(acos(a_*)/3 - pi/3) \\
-x_2 &= 2\cos(acos(a_*)/3 + pi/3) \\
-x_3 &= -2\cos(acos(a_*)/3) \\
-x &= (r/M)^{1/2} \\
- \\
-A &= 1 + a_*^2 x^{-4} + 2 a_*^2 x^{-6} \\
-B &= 1 + a_* x^{-3} \\
-C &= 1 - 3 x^{-2} + 2 a_*^2 x^{-3} \\
-D &= 1 - 2x^{-2} + a_*^2 x^{-4} \\
-E &= 1 + 4a_*^2 x^{-4} - 4a_*^2 x^{-6} + 3 a_*^4 x^{-8} \\
-F &= 1 - 2 a_*^{-3} + a_*^2 x^{-4} \\
-G &= 1 - 2x^{-2} + a_* x^{-3} \\
-H &= 1 - 2x^{-2} + 2 a_* x^{-2} x_0^{-1} F_0^{-1} G_0 \\
-I &= A - 2a_* x^{-6} x_0 F_0 G_0^{-1} \\
-J &= O - x^{-2} J^{-1} (1 - a_* x_0^{-1} F_0^{-1} G_0 + a_*^2 x^{-2} H J^{-1} (1 + 3x^{-2} - 3 a_*{-1} x^{-2} x_0 F_0 G_0^{-1})) \\
-K &= |AJ(1 - x^{-4} A^2 D^{-1} (x_0 F_0 G_0^{-1} O - 2 a_* x^{-2} A^{-1})^2)^{-1}| \\
-O &= HJ^{-1} \\
-Q &= B E^{-1/2} (1/x) (x - x_0 - (3/2) a_* ln(x/x_0) \\
-                      &- (\frac{3(x_1 - a_*)^2}{x_1 (x_1 - x_2) (x_1 - x_3)}) ln(\frac{x - x_1}{x_0 - x_1}) \\
-                      &- (\frac{3(x_2 - a_*)^2} {x_2 (x_2 - x_1) (x_2 - x_3)}) ln(\frac{x - x_2}{x_0 - x_2}) \\
-                      &- (\frac{3(x_3 - a_*)^2} {x_3 (x_3 - x_1) (x_3 - x_2)}) ln(\frac{x - x_3}{x_0 - x_3})) \\
-R &= F^2 C^{-1} - a_*^2 x^{-2} (G E^{-1/2} - 1) \\
-S &= A^2 B^{-2} C D^{-1} R \\
-V &= D^{-1} (1 + x^{-4} (a_*^2 - x_0^2 F_0^2 G_0^{-2}) + 2 x^{-6} (a_* - x_0 F_0 G_0^{-1}))\\
-\\
-\Phi &= Q + (0.02) (a^{9/8} M_*^{-3/8} \dot{M}_*^{1/4}) x^{-1} B C^{-1/2} (x_0^{9/8} C_0^{-5/8} G_0 V_0^{1/2})
-\\
-\frac{p^{gas}}{p^{rad}} &= (5*10^{-5})(a^{-1/4} M_*^{7/4} \dot{M}_*^{-2}) x^{21/4} A^{-5} B^{9/2} D S^{5/4} \Phi^{-2}\\
-\end{align}
-$$
-
-What fun. If this looks horrendous to you: remember that this is literally just a large expression of basic operations, there's nothing fancy or tricky to evaluate here, and we don't have to do any swanky maths. We literally just need to type this all out correctly.  Do note that quantities with the subscript $_0$ are evaluated at the ISCO. Luckily, the paper we link mentions that the code is available [here](https://www.cfa.harvard.edu/%E2%88%BCrpenna/thindisk), which is very helpful for us to compare (this is a joke, its a broken link)
+If this looks horrendous to you: remember that this is literally just a large expression of basic operations, there's nothing fancy or tricky to evaluate here, and we don't have to do any swanky maths. We literally just need to type this all out correctly.  Do note that quantities with the subscript $_0$ are evaluated at the ISCO
 
 Now, these are the intermediate variables that define the disk, and we need to pick and choose the real quantities we want to calculate
 
@@ -720,11 +764,13 @@ Now, these are the intermediate variables that define the disk, and we need to p
 
 The thin disk accretion model is split into 5 segments
 
-1. The plunging region, within the ISCO
+1. The plunging region, within the ISCO. The equations provided in this paper do not seem to work[^donotseem], so we will ignore this region
 2. The edge region
 3. The inner region
 4. The middle region
 5. The outer region
+
+[^donotseem]: I have a few grievances with [this](https://arxiv.org/pdf/1110.6556) paper: the code link is dead, they do not provide derivations for their additions to the standard set of equations, and there are some fairly important typographical errors. I have not been able to reproduce their results, and it
 
 The definition of where these lie is determined by the quantity $\frac{p^{gas}}{p^{rad}}$. In the edge region, gas pressure > radiation pressure. In the inner region, gas pressure < radiation pressure. In the middle region gas pressure > radiation pressure, and unfortunately an outer region where gas pressure also > radiation pressure
 
@@ -824,14 +870,4 @@ This is going to take a hot minute to write up in a tutorially format - though i
 Until then!
 
 todo: Cat photo
-
-
-
-
-
-
-
-
-
-
 

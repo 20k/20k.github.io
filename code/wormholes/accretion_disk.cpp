@@ -5,6 +5,15 @@
 #include <iostream>
 #include <SFML/Graphics.hpp>
 
+template<typename T>
+T linear_to_srgb(const T& in)
+{
+    if(in <= 0.0031308)
+        return in * 12.92;
+    else
+        return 1.055 * pow(in, 1.0 / 2.4) - 0.055;
+}
+
 constexpr double cpow(double a, double b)
 {
     return pow(a, b);
@@ -246,7 +255,9 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
             assert(my_brightness >= 0 && my_brightness <= 1);
 
-            sf::Color col(255 * my_brightness, 255 * my_brightness, 255 * my_brightness, 255);
+            double my_srgb = linear_to_srgb(my_brightness);
+
+            sf::Color col(255 * my_srgb, 255 * my_srgb, 255 * my_srgb, 255);
 
             img.setPixel(i, j, col);
         }
