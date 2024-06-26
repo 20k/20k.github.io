@@ -323,7 +323,5 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
     disk.normalised_brightness = img;
 
-    assert(false);
-
     return disk;
 }
