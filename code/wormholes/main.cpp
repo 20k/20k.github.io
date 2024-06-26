@@ -35,7 +35,7 @@ struct camera
         pos.z() = spatial.y();
         pos.w() = spatial.z();
 
-        pos.y() = clamp(pos.y(), -10.f, 10.f);
+        pos.y() = clamp(pos.y(), -UNIVERSE_SIZE, UNIVERSE_SIZE);
     }
 
     void rotate(vec2f mouse_delta)
@@ -165,10 +165,10 @@ cl::kernel make_kernel(cl::context& ctx, const std::string& str, const std::stri
 
 int main()
 {
-    //accretion_disk accrete = make_accretion_disk_kerr(1.f, 0.6f);
+    accretion_disk accrete = make_accretion_disk_kerr(1.f, 0.6f);
 
-    int screen_width = 1920;
-    int screen_height = 1080;
+    int screen_width = 1920/2;
+    int screen_height = 1080/2;
 
     sf::VideoMode mode(screen_width, screen_height);
     sf::RenderWindow win(mode, "I am a black hole");
@@ -224,6 +224,40 @@ int main()
     cl::gl_rendertexture screen(ctx);
     screen.create_from_texture(handle);
 
+    cl::image accretion_tex(ctx);
+
+    {
+        sf::Image& img = accrete.normalised_brightness;
+
+        cl_image_format fmt;
+        fmt.image_channel_data_type = CL_FLOAT;
+        fmt.image_channel_order = CL_RGBA;
+
+        std::vector<float> as_float;
+
+        for(int y=0; y < img.getSize().y; y++)
+        {
+            for(int x=0; x < img.getSize().x; x++)
+            {
+                sf::Color col = img.getPixel(x, y);
+
+                tensor<float, 3> tcol = {col.r, col.g, col.b};
+
+                tcol = tcol / 255.f;
+
+                tcol = tcol.for_each([](auto&& in){return srgb_to_lin(in);});
+
+                as_float.push_back(tcol.x());
+                as_float.push_back(tcol.y());
+                as_float.push_back(tcol.z());
+                as_float.push_back(1.f);
+            }
+        }
+
+        accretion_tex.alloc({2048, 2048}, fmt);
+        accretion_tex.write(cqueue, (char*)&as_float[0], (vec<3, size_t>){0,0,0}, (vec<3, size_t>){2048, 2048, 1});
+    }
+
     cl::buffer positions(ctx);
     cl::buffer velocities(ctx);
     cl::buffer steps(ctx);
@@ -249,6 +283,8 @@ int main()
     float desired_proper_time = 0.f;
 
     camera cam;
+    cam.move({0, 0, 2});
+    cam.move({0, -20, 0});
 
     sf::Keyboard key;
 
@@ -378,6 +414,7 @@ int main()
             args.push_back(screen_width, screen_height);
             args.push_back(background);
             args.push_back(screen);
+            args.push_back(accretion_tex);
             args.push_back(background_width);
             args.push_back(background_height);
             args.push_back(final_tetrads[0]);

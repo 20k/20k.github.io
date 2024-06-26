@@ -714,13 +714,29 @@ This gives pretty nice results. For $M=1$[^geometric], $a=0.6$, $\dot{m} = 0.3$:
 
 ![Disk](/assets/disk.png)
 
-In practice you don't need to use a 2d texture of an accretion disk, because its spherically symmetric, you could just take a radial slice
+In practice you don't need to use a 2d texture of an accretion disk - because its spherically symmetric, you could just take a radial slice
 
 ## Rendering
 
 Rendering the accretion disk is extremely straightforward. Because we model it as a very thin disk, you can check as a geodesic crosses the equatorial plane ($theta = n pi + pi/2$), sample the accretion disk texture, and render that colour out if we hit. Or you could carry on rendering, and add it to the background colour
 
 One key thing to note here is that we're going to implement redshift, and to do that, we need to know the velocity of the fluid in the accretion disk. We already know that its moving approximately in circular orbits (otherwise it'd escape, or hit the black hole), but what is that as a velocity vector specifically?
+
+Well, in the equatorial plane for circular orbits, we know that $dr = 0$, and $d\theta = 0$. This means that we're only left to solve for $dt$, and $d\phi$.
+
+https://physics.stackexchange.com/questions/502796/how-to-derive-the-angular-velocity-of-circular-orbits-in-kerr-geometry
+
+https://articles.adsabs.harvard.edu/pdf/1972ApJ...178..347B
+
+Luckily other people have put in the legwork, and figured out that the angular velocity of a geodesic in the kerr spacetime is
+
+$$
+w = \frac{1}{r^{3/2} + a}
+$$
+
+Given that we know that our geodesic must point in the $d\phi$ direction, we can work out the $d\phi$ component as being $wr$. This means that $dt = d\phi/w = 1/r$. We now have the 4-velocity of a geodesic on our equatorial orbit
+
+One extremely tricky aspect is that our geodesics in general will not intersect the equatorial plane at $\theta = pi/2$, and could be any multiple of it.
 
 # Taking a trip through Interstellar's wormhole
 

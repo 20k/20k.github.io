@@ -4,6 +4,7 @@
 #include "../common/vec/tensor.hpp"
 #include "../common/vec/dual.hpp"
 #include "single_source.hpp"
+#include "redshift.hpp"
 
 using valuef = value<float>;
 using valuei = value<int>;
@@ -20,6 +21,8 @@ using mut_v3f = tensor<mut<valuef>, 3>;
 
 template<typename T>
 using dual = dual_types::dual_v<T>;
+
+#define UNIVERSE_SIZE 100
 
 struct inverse_tetrad
 {
@@ -274,7 +277,7 @@ value<bool> should_terminate(v4f start, v4f position, v4f velocity)
     value<bool> is_broken = !isfinite(position[0]) || !isfinite(position[1]) || !isfinite(position[2]) || !isfinite(position[3]) ||
                             !isfinite(velocity[0]) || !isfinite(velocity[1]) || !isfinite(velocity[2]) || !isfinite(velocity[3]) ;
 
-    return fabs(position[1]) > 10 || position[0] > start[0] + 1000 || fabs(velocity[0]) >= 10 || is_broken;
+    return fabs(position[1]) > UNIVERSE_SIZE || position[0] > start[0] + 1000 || fabs(velocity[0]) >= 10 || is_broken;
 }
 
 valuef get_timestep(v4f position, v4f velocity)
@@ -288,9 +291,21 @@ valuef get_timestep(v4f position, v4f velocity)
     return ternary(fabs(position[1]) < 3.f, high_precision, normal_precision);
 }
 
+struct integration_result
+{
+    valuei type;
+    v4f position;
+    v4f velocity;
+
+    v3f sample_colour;
+    valuef sample_opacity;
+};
+
 //this integrates a geodesic, until it either escapes our small universe or hits the event horizon
-std::tuple<valuei, tensor<valuef, 4>, tensor<valuef, 4>> integrate(geodesic& g, auto&& get_metric) {
+integration_result integrate(geodesic& g, v4f initial_observer, const read_only_image<2>& accretion_disk, auto&& get_metric) {
     using namespace single_source;
+
+    integration_result found;
 
     mut<valuei> result = declare_mut_e(valuei(1));
 
@@ -300,6 +315,12 @@ std::tuple<valuei, tensor<valuef, 4>, tensor<valuef, 4>> integrate(geodesic& g, 
     v4f start = g.position;
 
     mut<valuei> idx = declare_mut_e("i", valuei(0));
+
+    mut_v3f colour_out = declare_mut_e((v3f){0,0,0});
+
+    mut<valuef> opacity = declare_mut_e(valuef(0));
+
+    float pi = std::numbers::pi_v<float>;
 
     for_e(idx < 1024 * 100, assign_b(idx, idx + 1), [&]
     {
@@ -317,11 +338,66 @@ std::tuple<valuei, tensor<valuef, 4>, tensor<valuef, 4>> integrate(geodesic& g, 
 
         valuef radius = position[1];
 
-        if_e(fabs(radius) > 10, [&] {
+        if_e(fabs(radius) > UNIVERSE_SIZE, [&] {
             //ray escaped
             as_ref(result) = valuei(0);
             break_e();
         });
+
+        #define HAS_ACCRETION_DISK
+        #ifdef HAS_ACCRETION_DISK
+        valuef period_start = floor(position.z() / pi) * pi;
+
+        valuef in_start = cposition.z() - period_start;
+        valuef in_end = position.z() - period_start;
+
+        valuef min_start = min(in_start, in_end);
+        valuef max_start = max(in_start, in_end);
+
+        if_e(pi/2 >= min_start && pi/2 <= max_start, [&]
+        {
+            float mass = 1;
+            valuef radial = position[1];
+
+            float outer_boundary = 2 * mass * 50;
+
+            int texture_size = 2048;
+
+            valuei iradial = (min(fabs(radial) / outer_boundary, valuef(1.f)) * texture_size/2 + texture_size/2).to<int>();
+
+            v3f disk = accretion_disk.read<float, 3>(tensor<valuei, 2>{iradial, texture_size/2});
+
+            #define ACCRETE_REDSHIFT
+            #ifdef ACCRETE_REDSHIFT
+            valuef M = 1;
+            valuef a = 0.f;
+
+            valuef w = pow(M, 1.f/2.f) / (pow(radial, 3.f/2.f) + a * pow(M, 1.f/2.f));
+
+            valuef dphi = w * radial;
+            valuef dt = radial;
+
+            v4f observer = {dt, 0, 0, dphi};
+
+            valuef ds = dot_metric(observer, observer, get_metric(cposition));
+
+            observer = observer / sqrt(fabs(ds));
+
+            ds = dot_metric(observer, observer, get_metric(cposition));
+
+            /*value_base se;
+            se.type = value_impl::op::SIDE_EFFECT;
+            se.abstract_value = "printf(\"%f\\n\"," + value_to_string(ds) + ")";
+
+            value_impl::get_context().add(se);*/
+
+            disk = do_redshift(disk, g.position, g.velocity, initial_observer, cposition, cvelocity, observer, get_metric);
+            #endif
+
+            as_ref(opacity) = declare_e(opacity) + energy_of(disk) * 10;
+            as_ref(colour_out) = declare_e(colour_out) + disk;
+        });
+        #endif
 
         //we could do better than this by upgrading the tensor library
         if_e(should_terminate(start, as_constant(position), as_constant(velocity)), [&] {
@@ -329,111 +405,18 @@ std::tuple<valuei, tensor<valuef, 4>, tensor<valuef, 4>> integrate(geodesic& g, 
         });
     });
 
-    return {result, declare_e(position), declare_e(velocity)};
+    found.type = result;
+    found.position = declare_e(position);
+    found.velocity = declare_e(velocity);
+    found.sample_colour = declare_e(colour_out);
+    found.sample_opacity = clamp(declare_e(opacity), valuef(0.0f), valuef(1.f));
+
+    return found;
 }
 
-//calculate Y of XYZ
-valuef energy_of(v3f v)
-{
-    return v.x()*0.2125f + v.y()*0.7154f + v.z()*0.0721f;
-}
-
-v3f redshift(v3f v, valuef z)
-{
-    using namespace single_source;
-
-    {
-        valuef iemit = energy_of(v);
-
-        ///z+1 = lobs / lemit
-        ///lobs = lemit * (z+1)
-        valuef test_wavelength = 555;
-        valuef lobs = test_wavelength * (z + 1);
-
-        valuef iobs = iemit * pow(test_wavelength, 3.f) / pow(lobs, 3.f);
-
-        v = (iobs / iemit) * v;
-
-        pin(v);
-    }
-
-    valuef radiant_energy = energy_of(v);
-
-    v3f red = {1/0.2125f, 0.f, 0.f};
-    v3f green = {0, 1/0.7154, 0.f};
-    v3f blue = {0.f, 0.f, 1/0.0721};
-
-    mut_v3f result = declare_mut_e((v3f){0,0,0});
-
-    if_e(z >= 0, [&]{
-        as_ref(result) = mix(v, radiant_energy * red, tanh(z));
-    });
-
-    if_e(z < 0, [&]{
-        valuef iv1pz = (1/(1 + z)) - 1;
-
-        valuef interpolating_fraction = tanh(iv1pz);
-
-        v3f col = mix(v, radiant_energy * blue, interpolating_fraction);
-
-        //calculate spilling into white
-        {
-            valuef final_energy = energy_of(clamp(col, 0.f, 1.f));
-            valuef real_energy = energy_of(col);
-
-            valuef remaining_energy = real_energy - final_energy;
-
-            col.x() += remaining_energy * red.x();
-            col.y() += remaining_energy * green.y();
-        }
-
-        as_ref(result) = col;
-    });
-
-    as_ref(result) = clamp(result, 0.f, 1.f);
-
-    return declare_e(result);
-}
-
-template<typename T>
-inline
-T linear_to_srgb_gpu(const T& in)
-{
-    return ternary(in <= 0.0031308f, in * 12.92f, 1.055 * pow(in, 1.0f / 2.4f) - 0.055);
-}
-
-template<typename T>
-inline
-tensor<T, 3> linear_to_srgb_gpu(const tensor<T, 3>& in)
-{
-    tensor<T, 3> ret;
-
-    for(int i=0; i < 3; i++)
-        ret[i] = linear_to_srgb_gpu(in[i]);
-
-    return ret;
-}
-
-template<typename T>
-inline
-T srgb_to_linear_gpu(const T& in)
-{
-    return ternary(in < 0.04045f, in/12.92f, pow((in + 0.055f) / 1.055f, 2.4f));
-}
-
-template<typename T>
-inline
-tensor<T, 3> srgb_to_linear_gpu(const tensor<T, 3>& in)
-{
-    tensor<T, 3> ret;
-
-    for(int i=0; i < 3; i++)
-        ret[i] = srgb_to_linear_gpu(in[i]);
-
-    return ret;
-}
-
-v3f render_pixel(v2i screen_position, v2i screen_size, const read_only_image<2>& background, v2i background_size, const tetrad& tetrads, v4f start_position, v4f camera_quat, auto&& get_metric)
+v3f render_pixel(v2i screen_position, v2i screen_size,
+                 const read_only_image<2>& background, const read_only_image<2>& accretion_disk_texture,
+                 v2i background_size, const tetrad& tetrads, v4f start_position, v4f camera_quat, auto&& get_metric)
 {
     using namespace single_source;
 
@@ -449,10 +432,10 @@ v3f render_pixel(v2i screen_position, v2i screen_size, const read_only_image<2>&
 
     value_impl::get_context().add(se);*/
 
-    auto [result, position, velocity] = integrate(my_geodesic, get_metric);
+    integration_result result = integrate(my_geodesic, tetrads.v[0], accretion_disk_texture, get_metric);
 
-    valuef theta = position[2];
-    valuef phi = position[3];
+    valuef theta = result.position[2];
+    valuef phi = result.position[3];
 
     v2f texture_coordinate = angle_to_tex({theta, phi});
 
@@ -461,21 +444,12 @@ v3f render_pixel(v2i screen_position, v2i screen_size, const read_only_image<2>&
 
     v4f col = background.read<float, 4>({tx, ty});
 
-    #define DO_REDSHIFT
+    //#define DO_REDSHIFT
     #ifdef DO_REDSHIFT
     {
-        m44f guv_obs = get_metric(my_geodesic.position);
-        m44f guv_emit = get_metric(position);
+        v3f col3 = do_redshift(srgb_to_linear_gpu(col.xyz()), my_geodesic.position, my_geodesic.velocity, tetrads.v[0], result.position, result.velocity, (v4f){1, 0, 0, 0}, get_metric);
 
-        valuef zp1 = dot_metric(velocity, (v4f){1, 0, 0, 0}, guv_emit) / dot_metric(my_geodesic.velocity, tetrads.v[0], guv_obs);
-
-        pin(zp1);
-
-        v3f tex_lin = srgb_to_linear_gpu(col.xyz());
-
-        v3f tex_shifted = redshift(tex_lin, zp1 - 1);
-
-        v3f col3 = linear_to_srgb_gpu(tex_shifted);
+        col3 = linear_to_srgb(col);
 
         col.x() = col3.x();
         col.y() = col3.y();
@@ -483,19 +457,23 @@ v3f render_pixel(v2i screen_position, v2i screen_size, const read_only_image<2>&
     }
     #endif
 
-
     mut_v3f colour = declare_mut_e(col.xyz());
 
-    if_e(result == 1, [&] {
+    if_e(result.type == 1, [&] {
         as_ref(colour) = (tensor<valuef, 3>){0,0,0};
     });
 
-    return colour.as<valuef>();
+    /*if_e(result.type == 2, [&] {
+        as_ref(colour) = result.sample_colour;
+    });*/
+
+    return colour.as<valuef>() * (1-result.sample_opacity) + linear_to_srgb_gpu(result.sample_colour);
 }
 
 template<auto GetMetric>
 void opencl_raytrace(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
                      read_only_image<2> background, write_only_image<2> screen,
+                     read_only_image<2> accretion_disk_texture,
                      literal<valuei> background_width, literal<valuei> background_height,
                      buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
                      buffer<v4f> position, literal<v4f> camera_quat)
@@ -523,7 +501,7 @@ void opencl_raytrace(execution_context& ectx, literal<valuei> screen_width, lite
 
     tetrad tetrads = {e0[0], e1[0], e2[0], e3[0]};
 
-    v3f colour = render_pixel(screen_pos, screen_size, background, background_size, tetrads, position[0], camera_quat.get(), GetMetric);
+    v3f colour = render_pixel(screen_pos, screen_size, background, accretion_disk_texture, background_size, tetrads, position[0], camera_quat.get(), GetMetric);
 
     //the tensor library does actually support .x() etc, but I'm trying to keep the requirements for whatever you use yourself minimal
     v4f crgba = {colour[0], colour[1], colour[2], 1.f};
