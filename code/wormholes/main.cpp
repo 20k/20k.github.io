@@ -171,7 +171,7 @@ cl::kernel make_kernel(cl::context& ctx, const std::string& str, const std::stri
 
 int main()
 {
-    accretion_disk accrete = make_accretion_disk_kerr(1.f, 0.6f);
+    accretion_disk accrete = make_accretion_disk_kerr(1.f, 0.0f);
 
     int screen_width = 1920/2;
     int screen_height = 1080/2;
