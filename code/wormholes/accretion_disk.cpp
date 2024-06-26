@@ -177,23 +177,26 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
         }
     }
 
-    double max_bright = 0;
-    double min_bright = FLT_MAX;
-
-    for(auto& [a, b] : brightness)
+    //brightness normalisation
     {
-        max_bright = std::max(b, max_bright);
-        min_bright = std::min(b, min_bright);
-    }
+        double max_bright = 0;
+        double min_bright = FLT_MAX;
 
-    for(auto& [a, b] : brightness)
-    {
-        #ifdef MAX_CONTRAST
-        b -= min_bright;
-        b /= (max_bright - min_bright);
-        #else
-        b /= max_bright;
-        #endif
+        for(auto& [a, b] : brightness)
+        {
+            max_bright = std::max(b, max_bright);
+            min_bright = std::min(b, min_bright);
+        }
+
+        for(auto& [a, b] : brightness)
+        {
+            #ifdef MAX_CONTRAST
+            b -= min_bright;
+            b /= (max_bright - min_bright);
+            #else
+            b /= max_bright;
+            #endif
+        }
     }
 
     int tex_size = 2048;
@@ -201,6 +204,7 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
     sf::Image img;
     img.create(tex_size, tex_size);
 
+    ///generate a texture
     for(int j=0; j < tex_size; j++)
     {
         for(int i=0; i < tex_size; i++)
@@ -220,16 +224,18 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
             double my_brightness = 0;
 
+            ///iterate from outside in, as there's a gap in the middle of our accretion disk
             for(int i=(int)brightness.size() - 2; i >= 0; i--)
             {
                 auto& [pr, b] = brightness[i];
 
+                ///we've found our value, interpolate
                 if(my_physical_radius >= pr)
                 {
                     double upper = brightness[i + 1].first;
                     double lower = pr;
 
-                    my_physical_radius = clamp(my_physical_radius, lower, upper);
+                    my_physical_radius = std::clamp(my_physical_radius, lower, upper);
 
                     double frac = (my_physical_radius - lower) / (upper - lower);
 
