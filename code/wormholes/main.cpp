@@ -230,33 +230,19 @@ int main()
     cl::gl_rendertexture screen(ctx);
     screen.create_from_texture(handle);
 
-    cl::image accretion_tex(ctx);
-
-    int tex_size = 2048;
+    cl::buffer accretion_buf(ctx);
+    accretion_buf.alloc(accrete.brightness.size() * sizeof(cl_float4));
 
     {
-        cl_image_format fmt;
-        fmt.image_channel_data_type = CL_FLOAT;
-        fmt.image_channel_order = CL_RGBA;
+        std::vector<cl_float4> as_float4;
 
-        std::vector<float> as_float;
+        for(auto& i : accrete.brightness)
+            as_float4.push_back({i.x(), i.y(), i.z(), 0});
 
-        for(int y=0; y < tex_size; y++)
-        {
-            for(int x=0; x < tex_size; x++)
-            {
-                tensor<float, 3> tcol = accrete.brightness[y * tex_size + x];
-
-                as_float.push_back(tcol.x());
-                as_float.push_back(tcol.y());
-                as_float.push_back(tcol.z());
-                as_float.push_back(1.f);
-            }
-        }
-
-        accretion_tex.alloc({2048, 2048}, fmt);
-        accretion_tex.write(cqueue, (char*)&as_float[0], (vec<3, size_t>){0,0,0}, (vec<3, size_t>){2048, 2048, 1});
+        accretion_buf.write(cqueue, as_float4);
     }
+
+    int tex_size = 2048;
 
     cl::buffer positions(ctx);
     cl::buffer velocities(ctx);
@@ -434,7 +420,7 @@ int main()
             args.push_back(screen_width, screen_height);
             args.push_back(background);
             args.push_back(screen);
-            args.push_back(accretion_tex);
+            args.push_back(accretion_buf);
             args.push_back(background_width);
             args.push_back(background_height);
             args.push_back(final_tetrads[0]);

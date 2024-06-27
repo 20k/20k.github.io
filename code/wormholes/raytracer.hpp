@@ -302,7 +302,7 @@ struct integration_result
 };
 
 //this integrates a geodesic, until it either escapes our small universe or hits the event horizon
-integration_result integrate(geodesic& g, v4f initial_observer, const read_only_image<2>& accretion_disk, buffer<v3f> bbody_table, buffer<valuef> temperature, auto&& get_metric) {
+integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accretion_disk, buffer<v3f> bbody_table, buffer<valuef> temperature, auto&& get_metric) {
     using namespace single_source;
 
     integration_result found;
@@ -363,9 +363,9 @@ integration_result integrate(geodesic& g, v4f initial_observer, const read_only_
 
             int texture_size = 2048;
 
-            valuei iradial = (min(fabs(radial) / outer_boundary, valuef(1.f)) * texture_size/2 + texture_size/2).to<int>();
+            valuei iradial = (min(fabs(radial) / outer_boundary, valuef(1.f)) * texture_size).to<int>();
 
-            mut_v3f disk = declare_mut_e(accretion_disk.read<float, 3>(tensor<valuei, 2>{iradial, texture_size/2}));
+            mut_v3f disk = declare_mut_e(accretion_disk[iradial]);
 
             as_ref(disk) = declare_e(disk) * clamp(1 - declare_e(opacity), 0.f, 1.f);
 
@@ -392,7 +392,7 @@ integration_result integrate(geodesic& g, v4f initial_observer, const read_only_
 
                 #define ACCRETE_REDSHIFT
                 #ifdef ACCRETE_REDSHIFT
-                valuef temperature_in = temperature[iradial + (texture_size/2) * texture_size];
+                valuef temperature_in = temperature[iradial];
 
                 if_e(temperature_in >= 1, [&]
                 {
@@ -455,7 +455,7 @@ integration_result integrate(geodesic& g, v4f initial_observer, const read_only_
 }
 
 v3f render_pixel(v2i screen_position, v2i screen_size,
-                 const read_only_image<2>& background, const read_only_image<2>& accretion_disk_texture, buffer<v3f> bbody_table, buffer<valuef> temperature,
+                 const read_only_image<2>& background, buffer<v3f> accretion_disk, buffer<v3f> bbody_table, buffer<valuef> temperature,
                  v2i background_size, const tetrad& tetrads, v4f start_position, v4f camera_quat, auto&& get_metric)
 {
     using namespace single_source;
@@ -472,7 +472,7 @@ v3f render_pixel(v2i screen_position, v2i screen_size,
 
     value_impl::get_context().add(se);*/
 
-    integration_result result = integrate(my_geodesic, tetrads.v[0], accretion_disk_texture, bbody_table, temperature, get_metric);
+    integration_result result = integrate(my_geodesic, tetrads.v[0], accretion_disk, bbody_table, temperature, get_metric);
 
     valuef theta = result.position[2];
     valuef phi = result.position[3];
@@ -515,7 +515,7 @@ v3f render_pixel(v2i screen_position, v2i screen_size,
 template<auto GetMetric>
 void opencl_raytrace(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
                      read_only_image<2> background, write_only_image<2> screen,
-                     read_only_image<2> accretion_disk_texture,
+                     buffer<v3f> accretion_disk,
                      literal<valuei> background_width, literal<valuei> background_height,
                      buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
                      buffer<v4f> position, literal<v4f> camera_quat,
@@ -544,7 +544,7 @@ void opencl_raytrace(execution_context& ectx, literal<valuei> screen_width, lite
 
     tetrad tetrads = {e0[0], e1[0], e2[0], e3[0]};
 
-    v3f colour = render_pixel(screen_pos, screen_size, background, accretion_disk_texture, bbody_table, temperature, background_size, tetrads, position[0], camera_quat.get(), GetMetric);
+    v3f colour = render_pixel(screen_pos, screen_size, background, accretion_disk, bbody_table, temperature, background_size, tetrads, position[0], camera_quat.get(), GetMetric);
 
     colour = linear_to_srgb_gpu(colour);
 

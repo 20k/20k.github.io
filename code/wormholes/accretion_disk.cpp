@@ -265,11 +265,39 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
     sf::Image img;
     img.create(tex_size, tex_size);
 
-    std::vector<tensor<float, 3>> brightness_raw;
-    brightness_raw.resize(tex_size * tex_size);
+    std::vector<tensor<float, 3>> brightness_out;
+    std::vector<float> temperature_out;
 
-    std::vector<float> out_temp;
-    out_temp.resize(tex_size * tex_size);
+    auto lookup_radius = [&](double coordinate_radius)
+    {
+        double my_brightness = 0;
+        double my_temperature = 0;
+        tensor<float, 3> my_linear_rgb;
+
+        ///iterate from outside in, as there's a gap in the middle of our accretion disk
+        for(int i=(int)brightness.size() - 2; i >= 0; i--)
+        {
+            auto& [pr, b] = brightness[i];
+
+            ///we've found our value, interpolate
+            if(coordinate_radius >= pr)
+            {
+                double upper = brightness[i + 1].first;
+                double lower = pr;
+
+                coordinate_radius = std::clamp(coordinate_radius, lower, upper);
+
+                float frac = (coordinate_radius - lower) / (upper - lower);
+
+                my_brightness = mix(b, brightness[i + 1].second, frac);
+                my_linear_rgb = mix(radial_colour[i], radial_colour[i + 1], frac);
+                my_temperature = mix(temperature[i].second, temperature[i + 1].second, frac);
+                break;
+            }
+        }
+
+        return std::tuple{my_brightness, my_linear_rgb, my_temperature};
+    };
 
     ///generate a texture
     for(int j=0; j < tex_size; j++)
@@ -283,42 +311,9 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
             float rad = sqrt(di * di + dj * dj);
 
-            double max_coordinate_boundary = 1;
-
-            double max_physical_boundary = outer_boundary;
-
-            double my_physical_radius = rad * (max_physical_boundary / max_coordinate_boundary);
-
-            double my_brightness = 0;
-            double my_temperature = 0;
-            tensor<float, 3> my_linear_rgb;
-
-            ///iterate from outside in, as there's a gap in the middle of our accretion disk
-            for(int i=(int)brightness.size() - 2; i >= 0; i--)
-            {
-                auto& [pr, b] = brightness[i];
-
-                ///we've found our value, interpolate
-                if(my_physical_radius >= pr)
-                {
-                    double upper = brightness[i + 1].first;
-                    double lower = pr;
-
-                    my_physical_radius = std::clamp(my_physical_radius, lower, upper);
-
-                    float frac = (my_physical_radius - lower) / (upper - lower);
-
-                    my_brightness = mix(b, brightness[i + 1].second, frac);
-                    my_linear_rgb = mix(radial_colour[i], radial_colour[i + 1], frac);
-                    my_temperature = mix(temperature[i].second, temperature[i + 1].second, frac);
-                    break;
-                }
-            }
+            auto [my_brightness, my_linear_rgb, my_temperature] = lookup_radius(rad * outer_boundary);
 
             assert(my_brightness >= 0 && my_brightness <= 1);
-
-            brightness_raw[j * tex_size + i] = tensor<float, 3>{my_brightness, my_brightness, my_brightness};
-            out_temp[j * tex_size + i] = my_temperature;
 
             tensor<float, 3> srgb = linear_to_srgb(my_brightness * my_linear_rgb);
             sf::Color col(255 * srgb.x(), 255 * srgb.y(), 255 * srgb.z(), 255);
@@ -326,12 +321,22 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
         }
     }
 
+    for(int i=0; i < tex_size; i++)
+    {
+        float rad = (float)i / tex_size;
+
+        auto [my_brightness, _, my_temperature] = lookup_radius(rad * outer_boundary);
+
+        brightness_out.push_back({my_brightness, my_brightness, my_brightness});
+        temperature_out.push_back(my_temperature);
+    }
+
     img.saveToFile("out.png");
 
     accretion_disk disk;
 
-    disk.brightness = brightness_raw;
-    disk.temperature = out_temp;
+    disk.brightness = brightness_out;
+    disk.temperature = temperature_out;
 
     return disk;
 }
