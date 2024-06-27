@@ -35,7 +35,8 @@ metric<valuef, 4, 4> get_metric(const tensor<valuef, 4>& position) {
 #define BH_MASS 0
 #define BH_SPIN 0
 
-#ifdef SCHWARZCHILD_EF
+#define SCHWARZSCHILD_EF
+#ifdef SCHWARZSCHILD_EF
 #define HAS_ACCRETION_DISK
 #define BH_MASS 1
 #define BH_SPIN 0
@@ -57,15 +58,17 @@ metric<valuef, 4, 4> get_metric(const tensor<valuef, 4>& position) {
 
     m[2, 2] = r*r;
     m[3, 3] = r*r * sin(theta)*sin(theta);
+
+    return m;
 }
 #endif
 
-#define KERR
+//#define KERR
 #ifdef KERR
 
 #define HAS_ACCRETION_DISK
 #define BH_MASS 1
-#define BH_SPIN 0.9999
+#define BH_SPIN 0.0
 
 inline
 metric<valuef, 4, 4> get_metric(const tensor<valuef, 4>& position) {
@@ -81,15 +84,32 @@ metric<valuef, 4, 4> get_metric(const tensor<valuef, 4>& position) {
 
     valuef rs = 2 * M;
 
-    valuef E = r * r + a * a * cos(theta) * cos(theta);
-    valuef D = r * r  - rs * r + a * a;
+	valuef ct = cos(theta);
+	valuef st = sin(theta);
 
-    m[0, 0] = -(1 - rs * r / E);
-    m[1, 1] = E / D;
-    m[2, 2] = E;
-    m[3, 3] = (r * r + a * a + (rs * r * a * a / E) * sin(theta) * sin(theta)) * sin(theta) * sin(theta);
-    m[0, 3] = 0.5f * -2 * rs * r * a * sin(theta) * sin(theta) / E;
-    m[3, 0] = m[0, 3];
+	valuef R2 = r*r + a * a * ct * ct;
+	valuef D = r*r + a * a - rs * r;
+
+	valuef dv = (1 - (rs * r) / R2);
+	valuef dv_dr = -2;
+	valuef dv_dphi = (2 * a * st * st / R2) * (rs * r);
+	valuef dr_dphi = 2 * a * st * st;
+	valuef dtheta = -R2;
+	valuef dphi = (st * st / R2) * (D * a * a * st * st - pow(a * a + r*r, 2.f));
+
+	///v, r, theta, phi
+	m[0, 0] = -dv;
+	m[1, 0] = -0.5f * dv_dr;
+	m[0, 1] = -0.5f * dv_dr;
+
+	m[3, 0] = -0.5f * dv_dphi;
+	m[0, 3] = -0.5f * dv_dphi;
+
+	m[1, 3] = -0.5f * dr_dphi;
+	m[3, 1] = -0.5f * dr_dphi;
+
+	m[2, 2] = -dtheta;
+	m[3, 3] = -dphi;
 
     return m;
 }

@@ -278,7 +278,7 @@ value<bool> should_terminate(v4f start, v4f position, v4f velocity)
     value<bool> is_broken = !isfinite(position[0]) || !isfinite(position[1]) || !isfinite(position[2]) || !isfinite(position[3]) ||
                             !isfinite(velocity[0]) || !isfinite(velocity[1]) || !isfinite(velocity[2]) || !isfinite(velocity[3]) ;
 
-    return fabs(position[1]) > UNIVERSE_SIZE || position[0] > start[0] + 1000 || fabs(velocity[0]) >= 10 || is_broken;
+    return fabs(position[1]) > UNIVERSE_SIZE || position[0] > start[0] + 1000 || fabs(velocity[0]) >= 10 || fabs(velocity[1]) >= 10 || is_broken;
 }
 
 valuef get_timestep(v4f position, v4f velocity)
@@ -286,10 +286,11 @@ valuef get_timestep(v4f position, v4f velocity)
     v4f avelocity = fabs(velocity);
     valuef divisor = max(max(avelocity.x(), avelocity.y()), max(avelocity.z(), avelocity.w()));
 
-    valuef normal_precision = 0.01f/divisor;
+    valuef low_precision = 0.1f/divisor;
+    valuef normal_precision = 0.05f/divisor;
     valuef high_precision = 0.01f/divisor;
 
-    return ternary(fabs(position[1]) < 3.f, high_precision, normal_precision);
+    return ternary(fabs(position[1]) < 10, ternary(fabs(position[1]) < 3.f, high_precision, normal_precision), low_precision);
 }
 
 struct integration_result
@@ -345,6 +346,7 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
             break_e();
         });
 
+        //#undef HAS_ACCRETION_DISK
         #ifdef HAS_ACCRETION_DISK
         valuef period_start = floor(position.z() / pi) * pi;
 
@@ -378,13 +380,13 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
 
                 as_ref(disk) = declare_e(disk) * clamp(1 - declare_e(opacity), 0.f, 1.f);
 
-                as_ref(opacity) = declare_e(opacity) + energy_of(declare_e(disk)) * 10;
+                as_ref(opacity) = declare_e(opacity) + energy_of(declare_e(disk)) * 1;
 
                 observer = observer / sqrt(fabs(ds));
 
                 pin(observer);
 
-                #define ACCRETE_REDSHIFT
+                //#define ACCRETE_REDSHIFT
                 #ifdef ACCRETE_REDSHIFT
                 valuef temperature_in = temperature[iradial];
 
@@ -431,7 +433,7 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
                 as_ref(colour_out) = declare_e(colour_out) + declare_e(disk);
                 #endif
 
-                //#define RAW_DISK
+                #define RAW_DISK
                 #ifdef RAW_DISK
                 as_ref(colour_out) = declare_e(colour_out) + declare_e(disk);
                 #endif // RAW_DISK
@@ -489,7 +491,7 @@ v3f render_pixel(v2i screen_position, v2i screen_size,
 
     v4f col = background.read<float, 4>({tx, ty});
 
-    #define DO_REDSHIFT
+    //#define DO_REDSHIFT
     #ifdef DO_REDSHIFT
     {
         valuef zp1 = get_zp1(my_geodesic.position, my_geodesic.velocity, tetrads.v[0], result.position, result.velocity, (v4f){1, 0, 0, 0}, get_metric);

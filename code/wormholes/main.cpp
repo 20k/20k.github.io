@@ -237,7 +237,7 @@ int main()
 
     camera cam;
     cam.move({0, 0, 2});
-    cam.move({0, -20, 0});
+    cam.move({0, -0, 0});
 
     sf::Keyboard key;
 
@@ -253,7 +253,29 @@ int main()
                 win.close();
         }
 
-        desired_proper_time += 2.25f * elapsed.restart().asMicroseconds() / 1000. / 1000.;
+        //desired_proper_time += 2.25f * elapsed.restart().asMicroseconds() / 1000. / 1000.;
+
+        float ptime_diff = 0;
+
+        if(key.isKeyPressed(sf::Keyboard::Num1))
+            ptime_diff += 0.1f;
+
+        if(key.isKeyPressed(sf::Keyboard::Num2))
+            ptime_diff -= 0.1f;
+
+        if(key.isKeyPressed(sf::Keyboard::Num3))
+            ptime_diff += 1.f;
+
+        if(key.isKeyPressed(sf::Keyboard::Num4))
+            ptime_diff -= 1.f;
+
+        if(key.isKeyPressed(sf::Keyboard::Num5))
+            ptime_diff += 10.f;
+
+        if(key.isKeyPressed(sf::Keyboard::Num6))
+            ptime_diff -= 10.f;
+
+        desired_proper_time += ptime_diff;
 
         if(key.isKeyPressed(sf::Keyboard::J))
             cam.rotate({0.1f, 0.f});
@@ -289,7 +311,7 @@ int main()
 
 
         {
-            cl_float3 local_velocity = {0.0, 0, 0.f};
+            cl_float3 local_velocity = {0.0, 0.5, 0.0f};
 
             cl::args args;
             args.push_back(cam.get_position());
@@ -305,7 +327,7 @@ int main()
             cqueue.exec(tetrad_kern, {1}, {1}, {});
         }
 
-        //#define PARALLEL_TRANSPORT
+        #define PARALLEL_TRANSPORT
         #ifdef PARALLEL_TRANSPORT
         {
             cl::args args;
