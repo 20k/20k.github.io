@@ -332,7 +332,7 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
         auto [my_brightness, _, my_temperature] = lookup_radius(rad * outer_boundary);
 
-        brightness_out.push_back({my_brightness, my_brightness, my_brightness});
+        brightness_out.push_back({my_brightness*100, my_brightness*100, my_brightness*100});
         temperature_out.push_back(my_temperature);
     }
 

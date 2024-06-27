@@ -566,12 +566,12 @@ std::array<tensor<float, 3>, 100000> blackbody_table()
 {
     std::array<tensor<float, 3>, 100000> table;
 
-    table[0] = {0,0,0};
-
     for(int i=1; i < 100000; i++)
     {
         table[i] = blackbody_temperature_to_linear_rgb(i);
     }
+
+    table[0] = table[1];
 
     return table;
 }

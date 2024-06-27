@@ -359,7 +359,7 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
             valuef radial = position[1];
 
             valuef M = 1;
-            valuef a = 0.f;
+            valuef a = 0.9f;
 
             valuef w = pow(M, 1.f/2.f) / (pow(radial, 3.f/2.f) + a * pow(M, 1.f/2.f));
 
@@ -368,11 +368,10 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
             valuef ds = dot_metric(observer, observer, get_metric(cposition));
 
             ///valid circular geodesic
-            if_e(ds < 0, [&]
+            if_e(ds < 0 && radial > 0, [&]
             {
                 int texture_size = 2048;
                 valuef outer_boundary = 2 * M * 50;
-
                 valuei iradial = (min(fabs(radial) / outer_boundary, valuef(1.f)) * texture_size).to<int>();
 
                 mut_v3f disk = declare_mut_e(accretion_disk[iradial]);
@@ -395,6 +394,12 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
 
                     ///https://www.jb.man.ac.uk/distance/frontiers/cmb/node7.htm
                     valuef shifted_temperature = temperature_in / zp1;
+
+                    /*value_base se;
+                    se.type = value_impl::op::SIDE_EFFECT;
+                    se.abstract_value = "printf(\"%f\\n\"," + value_to_string(shifted_temperature) + ")";
+
+                    value_impl::get_context().add(se);*/
 
                     valuef old_brightness = energy_of(declare_e(disk));
 
