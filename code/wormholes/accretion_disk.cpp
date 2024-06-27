@@ -262,12 +262,6 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
     int tex_size = 2048;
 
-    sf::Image img;
-    img.create(tex_size, tex_size);
-
-    std::vector<tensor<float, 3>> brightness_out;
-    std::vector<float> temperature_out;
-
     auto lookup_radius = [&](double coordinate_radius)
     {
         double my_brightness = 0;
@@ -299,27 +293,38 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
         return std::tuple{my_brightness, my_linear_rgb, my_temperature};
     };
 
-    ///generate a texture
-    for(int j=0; j < tex_size; j++)
+    //purely for article purposes, img is never used
     {
-        for(int i=0; i < tex_size; i++)
+        sf::Image img;
+        img.create(tex_size, tex_size);
+
+        ///generate a texture
+        for(int j=0; j < tex_size; j++)
         {
-            int centre = tex_size/2;
+            for(int i=0; i < tex_size; i++)
+            {
+                int centre = tex_size/2;
 
-            float dj = (j - centre) / (float)centre;
-            float di = (i - centre) / (float)centre;
+                float dj = (j - centre) / (float)centre;
+                float di = (i - centre) / (float)centre;
 
-            float rad = sqrt(di * di + dj * dj);
+                float rad = sqrt(di * di + dj * dj);
 
-            auto [my_brightness, my_linear_rgb, my_temperature] = lookup_radius(rad * outer_boundary);
+                auto [my_brightness, my_linear_rgb, my_temperature] = lookup_radius(rad * outer_boundary);
 
-            assert(my_brightness >= 0 && my_brightness <= 1);
+                assert(my_brightness >= 0 && my_brightness <= 1);
 
-            tensor<float, 3> srgb = linear_to_srgb(my_brightness * my_linear_rgb);
-            sf::Color col(255 * srgb.x(), 255 * srgb.y(), 255 * srgb.z(), 255);
-            img.setPixel(i, j, col);
+                tensor<float, 3> srgb = linear_to_srgb(my_brightness * my_linear_rgb);
+                sf::Color col(255 * srgb.x(), 255 * srgb.y(), 255 * srgb.z(), 255);
+                img.setPixel(i, j, col);
+            }
         }
+
+        img.saveToFile("out.png");
     }
+
+    std::vector<tensor<float, 3>> brightness_out;
+    std::vector<float> temperature_out;
 
     for(int i=0; i < tex_size; i++)
     {
@@ -331,7 +336,6 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
         temperature_out.push_back(my_temperature);
     }
 
-    img.saveToFile("out.png");
 
     accretion_disk disk;
 
