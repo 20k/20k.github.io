@@ -562,13 +562,13 @@ tensor<float, 3> blackbody_temperature_to_linear_rgb(float temperature)
     return result;
 }
 
-std::array<tensor<float, 3>, 10000> blackbody_table()
+std::array<tensor<float, 3>, 100000> blackbody_table()
 {
-    std::array<tensor<float, 3>, 10000> table;
+    std::array<tensor<float, 3>, 100000> table;
 
     table[0] = {0,0,0};
 
-    for(int i=1; i < 10000; i++)
+    for(int i=1; i < 100000; i++)
     {
         table[i] = blackbody_temperature_to_linear_rgb(i);
     }

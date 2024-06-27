@@ -367,6 +367,9 @@ integration_result integrate(geodesic& g, v4f initial_observer, const read_only_
 
             mut_v3f disk = declare_mut_e(accretion_disk.read<float, 3>(tensor<valuei, 2>{iradial, texture_size/2}));
 
+            as_ref(disk) = declare_e(disk) * clamp(1 - declare_e(opacity), 0.f, 1.f);
+
+            //need to use opacity for disk brightness as well, in case we see disk through disk (i'm so tired)
             as_ref(opacity) = declare_e(opacity) + energy_of(declare_e(disk)) * 10;
 
             valuef M = 1;
@@ -408,8 +411,8 @@ integration_result integrate(geodesic& g, v4f initial_observer, const read_only_
                         valuef root = floor(in);
                         valuef frac = in - root;
 
-                        v3f p1 = bbody_table[clamp(root, 1.f, 9999.f).to<int>()];
-                        v3f p2 = bbody_table[clamp(root+1, 1.f, 9999.f).to<int>()];
+                        v3f p1 = bbody_table[clamp(root, 1.f, 100000 - 1.f).to<int>()];
+                        v3f p2 = bbody_table[clamp(root+1, 1.f, 100000 - 1.f).to<int>()];
 
                         return mix(p1, p2, frac);
                     };

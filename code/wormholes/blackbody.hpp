@@ -4,6 +4,6 @@
 #include <vec/tensor.hpp>
 
 tensor<float, 3> blackbody_temperature_to_linear_rgb(float wavelength);
-std::array<tensor<float, 3>, 10000> blackbody_table();
+std::array<tensor<float, 3>, 100000> blackbody_table();
 
 #endif // BLACKBODY_HPP_INCLUDED
