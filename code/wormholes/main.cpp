@@ -311,7 +311,7 @@ int main()
 
 
         {
-            cl_float3 local_velocity = {0.001, 0.002, -0.9f};
+            cl_float3 local_velocity = {0.001, 0.002, -0.8f};
 
             cl::args args;
             args.push_back(cam.get_position());

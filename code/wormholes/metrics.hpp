@@ -68,7 +68,7 @@ metric<valuef, 4, 4> get_metric(const tensor<valuef, 4>& position) {
 
 #define HAS_ACCRETION_DISK
 #define BH_MASS 1
-#define BH_SPIN 0.9
+#define BH_SPIN 0.99
 
 inline
 metric<valuef, 4, 4> get_metric(const tensor<valuef, 4>& position) {
