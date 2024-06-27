@@ -356,21 +356,7 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
 
         if_e(pi/2 >= min_start && pi/2 <= max_start, [&]
         {
-            float mass = 1;
             valuef radial = position[1];
-
-            float outer_boundary = 2 * mass * 50;
-
-            int texture_size = 2048;
-
-            valuei iradial = (min(fabs(radial) / outer_boundary, valuef(1.f)) * texture_size).to<int>();
-
-            mut_v3f disk = declare_mut_e(accretion_disk[iradial]);
-
-            as_ref(disk) = declare_e(disk) * clamp(1 - declare_e(opacity), 0.f, 1.f);
-
-            //need to use opacity for disk brightness as well, in case we see disk through disk (i'm so tired)
-            as_ref(opacity) = declare_e(opacity) + energy_of(declare_e(disk)) * 10;
 
             valuef M = 1;
             valuef a = 0.f;
@@ -384,8 +370,20 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
 
             valuef ds = dot_metric(observer, observer, get_metric(cposition));
 
+            ///valid circular geodesic
             if_e(ds < 0, [&]
             {
+                int texture_size = 2048;
+                valuef outer_boundary = 2 * M * 50;
+
+                valuei iradial = (min(fabs(radial) / outer_boundary, valuef(1.f)) * texture_size).to<int>();
+
+                mut_v3f disk = declare_mut_e(accretion_disk[iradial]);
+
+                as_ref(disk) = declare_e(disk) * clamp(1 - declare_e(opacity), 0.f, 1.f);
+
+                as_ref(opacity) = declare_e(opacity) + energy_of(declare_e(disk)) * 10;
+
                 observer = observer / sqrt(fabs(ds));
 
                 pin(observer);
@@ -435,7 +433,12 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
                 #ifdef RAW_DISK
                 as_ref(colour_out) = declare_e(colour_out) + declare_e(disk);
                 #endif // RAW_DISK
+
+                if_e(opacity >= 1, [] {
+                    break_e();
+                });
             });
+
         });
         #endif
 
