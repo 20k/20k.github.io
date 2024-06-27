@@ -359,7 +359,7 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
             valuef radial = position[1];
 
             valuef M = 1;
-            valuef a = 0.9f;
+            valuef a = 0.9999f;
 
             valuef w = pow(M, 1.f/2.f) / (pow(radial, 3.f/2.f) + a * pow(M, 1.f/2.f));
 
