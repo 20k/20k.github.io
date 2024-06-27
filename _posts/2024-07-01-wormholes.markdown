@@ -491,6 +491,22 @@ Note that this equation is linear in terms of intensity, and only depends on the
 
 Once we have our new frequency $\lambda_{obs}$, and $I_{obs}$, in theory we have everything we need to render our our final colour. We just have two unknowns, which are our initial intensity, and the initial wavelength
 
+### Minor note: Spectral Radiance
+
+The $I_\nu$ that we're dealing with in these equations is called spectral radiance - it is the power per unit frequency. Terminology here is confusing:
+
+|Term | Meaning|
+|Spectral Radiant Exitance | power per unit frequency per unit area |
+|Spectral Radiance / Specific intensity / Spectral Radiant Flux | power per unit frequency |
+|Radiant Exitance | power per unit area|
+|Radiance / Radiant Flux | power |
+
+If you want the equation for transforming a radiant flux, you're looking for[^twelve]
+
+$$F_{obs} = \frac{F_{emit}}{(z+1)^4}$$
+
+[^twelve]: [https://arxiv.org/pdf/gr-qc/9505010](https://arxiv.org/pdf/gr-qc/9505010) (12)
+
 ## Where do $I_{emit}$ and $\lambda_{emit}$ come from?
 
 It depends what we're simulating. For our use case - redshifting a galaxy background, you'd need frequency and intensity data across the entire sky. A good starting point is over [here](http://aladin.cds.unistra.fr/hips/list), luckily we live in 2024 and a significant amount of this information is simply public - unfortunately these skymaps do not come with what units their intensity data is in, making them unusable[^digging] . Still, you can go find the original surveys - although it requires significant digging which I'm not going to do in this article
