@@ -6,6 +6,7 @@
 #include <vec/vec.hpp>
 #include "accretion_disk.hpp"
 #include "blackbody.hpp"
+#include "metrics.hpp"
 
 struct camera
 {
@@ -67,101 +68,6 @@ struct camera
     }
 };
 
-metric<valuef, 4, 4> get_metric(const tensor<valuef, 4>& position) {
-    using namespace single_source;
-
-    /*valuef M = 0.01;
-    valuef p = 1;
-    valuef a = 0.001f;
-
-    valuef l = position[1];
-
-    valuef x = 2 * (fabs(l) - a) / (M_PI * M);
-
-    valuef r = ternary(fabs(l) <= a,
-                       p,
-                       p + M * (x * atan(x) - 0.5f * log(1 + x*x)));
-
-
-    valuef theta = position[2];
-
-    metric<valuef, 4, 4> m;
-    m[0, 0] = -1;
-    m[1, 1] = 1;
-
-    m[2, 2] = r*r;
-    m[3, 3] = r*r * sin(theta)*sin(theta);*/
-
-    //valuef rs = 1;
-    valuef r = position[1];
-    valuef theta = position[2];
-
-    #ifdef EDDINGTON_FINKELSTEIN
-    metric<valuef, 4, 4> m;
-    /*m[0, 0] = -(1-rs/r);
-    m[1, 1] = 1/(1-rs/r);*/
-
-    m[0, 0] = -(1-rs/r);
-    m[1, 0] = 1;
-    m[0, 1] = 1;
-
-    m[2, 2] = r*r;
-    m[3, 3] = r*r * sin(theta)*sin(theta);
-    #endif // EDDINGTON_FINKELSTEIN
-
-    #define KERR
-    #ifdef KERR
-    /*float M = 1;
-
-    var rs = $cfg.rs;
-
-    var a = $cfg.a;
-    var E = r * r + a * a * CMath.cos(theta) * CMath.cos(theta);
-    var D = r * r  - rs * r + a * a;
-
-    var c = 1;
-
-    var ret = [];
-    ret.length = 16;
-
-    ret[0] = -(1 - rs * r / E) * c * c;
-    ret[1 * 4 + 1] = E / D;
-    ret[2 * 4 + 2] = E;
-    ret[3 * 4 + 3] = (r * r + a * a + (rs * r * a * a / E) * CMath.sin(theta) * CMath.sin(theta)) * CMath.sin(theta) * CMath.sin(theta);
-    ret[0 * 4 + 3] = 0.5 * -2 * rs * r * a * CMath.sin(theta) * CMath.sin(theta) * c / E;
-    ret[3 * 4 + 0] = ret[0 * 4 + 3];*/
-
-    metric<valuef, 4, 4> m;
-
-    float M = 1;
-    float a = 0.9999;
-
-    valuef rs = 2 * M;
-
-    valuef E = r * r + a * a * cos(theta) * cos(theta);
-    valuef D = r * r  - rs * r + a * a;
-
-    m[0, 0] = -(1 - rs * r / E);
-    m[1, 1] = E / D;
-    m[2, 2] = E;
-    m[3, 3] = (r * r + a * a + (rs * r * a * a / E) * sin(theta) * sin(theta)) * sin(theta) * sin(theta);
-    m[0, 3] = 0.5f * -2 * rs * r * a * sin(theta) * sin(theta) / E;
-    m[3, 0] = m[0, 3];
-    #endif // KERR
-
-    return m;
-}
-
-auto metric_to_spherical = [](auto generic)
-{
-    return generic;
-};
-
-auto spherical_to_metric = [](auto spherical)
-{
-    return spherical;
-};
-
 cl::image load_background(cl::context ctx, cl::command_queue cqueue)
 {
     sf::Image background;
@@ -213,7 +119,7 @@ cl::kernel make_kernel(cl::context& ctx, const std::string& str, const std::stri
 
 int main()
 {
-    accretion_disk accrete = make_accretion_disk_kerr(1.f, 0.9999f);
+    accretion_disk accrete = make_accretion_disk_kerr(BH_MASS, BH_SPIN);
 
     int screen_width = 1920/2;
     int screen_height = 1080/2;
@@ -284,7 +190,6 @@ int main()
         accretion_buf.write(cqueue, as_float4);
     }
 
-    int tex_size = 2048;
 
     cl::buffer positions(ctx);
     cl::buffer velocities(ctx);

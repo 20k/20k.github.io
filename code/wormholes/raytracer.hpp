@@ -5,6 +5,7 @@
 #include "../common/vec/dual.hpp"
 #include "single_source.hpp"
 #include "redshift.hpp"
+#include "metrics.hpp"
 
 using valuef = value<float>;
 using valuei = value<int>;
@@ -344,7 +345,6 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
             break_e();
         });
 
-        #define HAS_ACCRETION_DISK
         #ifdef HAS_ACCRETION_DISK
         valuef period_start = floor(position.z() / pi) * pi;
 
@@ -358,8 +358,8 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
         {
             valuef radial = position[1];
 
-            valuef M = 1;
-            valuef a = 0.9999f;
+            valuef M = BH_MASS;
+            valuef a = BH_SPIN;
 
             valuef w = pow(M, 1.f/2.f) / (pow(radial, 3.f/2.f) + a * pow(M, 1.f/2.f));
 
@@ -370,9 +370,9 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
             ///valid circular geodesic
             if_e(ds < 0 && radial > 0, [&]
             {
-                int texture_size = 2048;
-                valuef outer_boundary = 2 * M * 50;
-                valuei iradial = (min(fabs(radial) / outer_boundary, valuef(1.f)) * texture_size).to<int>();
+                int buffer_size = 2048;
+                valuef outer_boundary = 2 * BH_MASS * 50;
+                valuei iradial = (min(fabs(radial) / outer_boundary, valuef(1.f)) * buffer_size).to<int>();
 
                 mut_v3f disk = declare_mut_e(accretion_disk[iradial]);
 
