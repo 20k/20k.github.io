@@ -35,7 +35,7 @@ metric<valuef, 4, 4> get_metric(const tensor<valuef, 4>& position) {
 #define BH_MASS 0
 #define BH_SPIN 0
 
-#define SCHWARZSCHILD_EF
+//#define SCHWARZSCHILD_EF
 #ifdef SCHWARZSCHILD_EF
 #define HAS_ACCRETION_DISK
 #define BH_MASS 1
@@ -63,12 +63,12 @@ metric<valuef, 4, 4> get_metric(const tensor<valuef, 4>& position) {
 }
 #endif
 
-//#define KERR
+#define KERR
 #ifdef KERR
 
 #define HAS_ACCRETION_DISK
 #define BH_MASS 1
-#define BH_SPIN 0.0
+#define BH_SPIN 0.9
 
 inline
 metric<valuef, 4, 4> get_metric(const tensor<valuef, 4>& position) {

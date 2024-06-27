@@ -236,8 +236,8 @@ int main()
     }
 
     camera cam;
-    cam.move({0, 0, 2});
-    cam.move({0, -0, 0});
+    cam.move({0, 0, 8});
+    cam.move({0, 4.95, 0});
 
     sf::Keyboard key;
 
@@ -311,7 +311,7 @@ int main()
 
 
         {
-            cl_float3 local_velocity = {0.0, 0.5, 0.0f};
+            cl_float3 local_velocity = {0.001, 0.002, -0.9f};
 
             cl::args args;
             args.push_back(cam.get_position());

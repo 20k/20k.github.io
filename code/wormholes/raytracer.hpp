@@ -278,7 +278,7 @@ value<bool> should_terminate(v4f start, v4f position, v4f velocity)
     value<bool> is_broken = !isfinite(position[0]) || !isfinite(position[1]) || !isfinite(position[2]) || !isfinite(position[3]) ||
                             !isfinite(velocity[0]) || !isfinite(velocity[1]) || !isfinite(velocity[2]) || !isfinite(velocity[3]) ;
 
-    return fabs(position[1]) > UNIVERSE_SIZE || position[0] > start[0] + 1000 || fabs(velocity[0]) >= 10 || fabs(velocity[1]) >= 10 || is_broken;
+    return fabs(position[1]) > UNIVERSE_SIZE || position[0] > start[0] + 10000 || fabs(velocity[0]) >= 100 || fabs(velocity[1]) >= 100 || is_broken;
 }
 
 valuef get_timestep(v4f position, v4f velocity)
@@ -286,8 +286,8 @@ valuef get_timestep(v4f position, v4f velocity)
     v4f avelocity = fabs(velocity);
     valuef divisor = max(max(avelocity.x(), avelocity.y()), max(avelocity.z(), avelocity.w()));
 
-    valuef low_precision = 0.1f/divisor;
-    valuef normal_precision = 0.05f/divisor;
+    valuef low_precision = 0.05f/divisor;
+    valuef normal_precision = 0.03f/divisor;
     valuef high_precision = 0.01f/divisor;
 
     return ternary(fabs(position[1]) < 10, ternary(fabs(position[1]) < 3.f, high_precision, normal_precision), low_precision);
@@ -380,13 +380,13 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
 
                 as_ref(disk) = declare_e(disk) * clamp(1 - declare_e(opacity), 0.f, 1.f);
 
-                as_ref(opacity) = declare_e(opacity) + energy_of(declare_e(disk)) * 1;
+                as_ref(opacity) = declare_e(opacity) + energy_of(declare_e(disk)) * 50;
 
                 observer = observer / sqrt(fabs(ds));
 
                 pin(observer);
 
-                //#define ACCRETE_REDSHIFT
+                #define ACCRETE_REDSHIFT
                 #ifdef ACCRETE_REDSHIFT
                 valuef temperature_in = temperature[iradial];
 
@@ -433,7 +433,7 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
                 as_ref(colour_out) = declare_e(colour_out) + declare_e(disk);
                 #endif
 
-                #define RAW_DISK
+                //#define RAW_DISK
                 #ifdef RAW_DISK
                 as_ref(colour_out) = declare_e(colour_out) + declare_e(disk);
                 #endif // RAW_DISK
@@ -930,6 +930,12 @@ void trace_geodesic(execution_context& ectx,
 
         v4f cposition = declare_e(position);
         v4f cvelocity = declare_e(velocity);
+
+        /*value_base se;
+        se.type = value_impl::op::SIDE_EFFECT;
+        se.abstract_value = "printf(\"%f\\n\"," + value_to_string(cposition.y()) + ")";
+
+        value_impl::get_context().add(se);*/
 
         v4f acceleration = calculate_acceleration_of(cposition, cvelocity, GetMetric);
 
