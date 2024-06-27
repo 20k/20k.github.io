@@ -363,10 +363,7 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
 
             valuef w = pow(M, 1.f/2.f) / (pow(radial, 3.f/2.f) + a * pow(M, 1.f/2.f));
 
-            valuef dphi = w * radial;
-            valuef dt = radial;
-
-            v4f observer = {dt, 0, 0, dphi};
+            v4f observer = {radial, 0, 0, w * radial};
 
             valuef ds = dot_metric(observer, observer, get_metric(cposition));
 
