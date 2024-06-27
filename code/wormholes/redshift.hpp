@@ -33,13 +33,7 @@ v3f redshift(v3f v, valuef z)
 
     {
         valuef iemit = energy_of(v);
-
-        ///z+1 = lobs / lemit
-        ///lobs = lemit * (z+1)
-        valuef test_wavelength = 555;
-        valuef lobs = test_wavelength * (z + 1);
-
-        valuef iobs = iemit * pow(test_wavelength, 3.f) / pow(lobs, 3.f);
+        valuef iobs = iemit / pow(z+1, 4.f);
 
         v = (iobs / iemit) * v;
 

@@ -501,7 +501,7 @@ The $I_\nu$ that we're dealing with in these equations is called spectral radian
 |Radiant Exitance | power per unit area|
 |Radiance / Radiant Flux | power |
 
-If you want the equation for transforming a radiant flux, you're looking for[^twelve]
+If you want the equation for transforming a radiant flux, you're looking for:[^twelve]
 
 $$F_{obs} = \frac{F_{emit}}{(z+1)^4}$$
 
