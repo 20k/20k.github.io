@@ -278,10 +278,11 @@ value<bool> should_terminate(v4f start, v4f position, v4f velocity)
     value<bool> is_broken = !isfinite(position[0]) || !isfinite(position[1]) || !isfinite(position[2]) || !isfinite(position[3]) ||
                             !isfinite(velocity[0]) || !isfinite(velocity[1]) || !isfinite(velocity[2]) || !isfinite(velocity[3]) ;
 
-    return fabs(position[1]) > UNIVERSE_SIZE || position[0] > start[0] + 10000 || fabs(velocity[0]) >= 100 || fabs(velocity[1]) >= 100 || is_broken;
+    return fabs(position[1]) > UNIVERSE_SIZE || is_broken;
+    //return fabs(position[1]) > UNIVERSE_SIZE || position[0] > start[0] + 100000 || fabs(velocity[0]) >= 1000 || fabs(velocity[1]) >= 1000 || is_broken;
 }
 
-valuef get_timestep(v4f position, v4f velocity)
+valuef get_timestep2(v4f position, v4f velocity)
 {
     v4f avelocity = fabs(velocity);
     valuef divisor = max(max(avelocity.x(), avelocity.y()), max(avelocity.z(), avelocity.w()));
@@ -289,8 +290,33 @@ valuef get_timestep(v4f position, v4f velocity)
     valuef low_precision = 0.05f/divisor;
     valuef normal_precision = 0.03f/divisor;
     valuef high_precision = 0.01f/divisor;
+    valuef superhigh_precision = 0.0001f/divisor;
 
-    return ternary(fabs(position[1]) < 10, ternary(fabs(position[1]) < 3.f, high_precision, normal_precision), low_precision);
+    return ternary(fabs(position[1]) < 1,
+                   superhigh_precision,
+                   ternary(fabs(position[1]) < 10,
+                           ternary(fabs(position[1]) < 3.f,
+                                   high_precision,
+                                   normal_precision),
+                           low_precision));
+}
+
+valuef get_timestep(v4f position, v4f velocity, v4f acceleration)
+{
+    valuef current_acceleration_err = (acceleration * (v4f){1, 1, 8, 32}).length() * 0.01f;
+
+    current_acceleration_err = current_acceleration_err / 32.f;
+
+    #define MIN_STEP 0.0000001f
+
+    ///of course, as is tradition, whatever works for kerr does not work for alcubierre
+    ///the sqrt error calculation is significantly better for alcubierre, largely in terms of having no visual artifacts at all
+    ///whereas the pow version is nearly 2x faster for kerr
+    valuef next_ds = sqrt(valuef(0.000001f) / current_acceleration_err);
+
+    next_ds = max(next_ds, valuef(MIN_STEP));
+
+    return next_ds;
 }
 
 struct integration_result
@@ -309,7 +335,7 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
 
     integration_result found;
 
-    mut<valuei> result = declare_mut_e(valuei(1));
+    mut<valuei> result = declare_mut_e(valuei(2));
 
     mut_v4f position = declare_mut_e(g.position);
     mut_v4f velocity = declare_mut_e(g.velocity);
@@ -324,19 +350,87 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
 
     float pi = std::numbers::pi_v<float>;
 
-    for_e(idx < 1024 * 100, assign_b(idx, idx + 1), [&]
+    v4f start_cpos = declare_e(g.position);
+    v4f start_cvel = declare_e(g.velocity);
+
+    mut_v4f acceleration = declare_mut_e(calculate_acceleration_of(start_cpos, start_cvel, get_metric));
+
+    for_e(idx < 1024 * 1024, assign_b(idx, idx + 1), [&]
     {
         v4f cposition = declare_e(position);
         v4f cvelocity = declare_e(velocity);
+        v4f cacceleration = declare_e(acceleration);
 
-        v4f acceleration = calculate_acceleration_of(cposition, cvelocity, get_metric);
+        //v4f acceleration = calculate_acceleration_of(cposition, cvelocity, get_metric);
 
-        pin(acceleration);
+        valuef dt = get_timestep(cposition, cvelocity, cacceleration);
 
-        valuef dt = get_timestep(cposition, cvelocity);
+        v4f next_position = cposition + cvelocity * dt + 0.5f * cacceleration * dt * dt;
+
+        v4f intermediate_next_velocity = cvelocity + cacceleration * dt;
+
+        pin(next_position);
+        pin(intermediate_next_velocity);
+
+        v4f next_acceleration = calculate_acceleration_of(next_position, intermediate_next_velocity, get_metric);
+
+        pin(next_acceleration);
+
+        v4f next_velocity = cvelocity + 0.5f * (cacceleration + next_acceleration) * dt;
+
+        v4f taccel = calculate_acceleration_of(cposition, cvelocity, get_metric);
 
         as_ref(position) = cposition + cvelocity * dt;
-        as_ref(velocity) = cvelocity + acceleration * dt;
+        as_ref(velocity) = cvelocity + taccel * dt;
+
+
+        /*as_ref(position) = next_position;
+        as_ref(velocity) = next_velocity;
+        as_ref(acceleration) = next_acceleration;*/
+
+        /*float4 next_position = position + velocity * ds + 0.5f * acceleration * ds * ds;
+            float4 intermediate_next_velocity = velocity + acceleration * ds;
+
+            float4 next_acceleration; = dodo
+
+            float4 next_velocity = velocity + 0.5f * (acceleration + next_acceleration) * ds;
+
+            //next_position = handle_coordinate_periodicity(next_position, cfg);
+
+            //float4 final_velocity = fix_light_velocity(next_position, next_velocity, always_lightlike, cfg);
+
+            float max_divisor = max(max(fabs(next_velocity.x), fabs(next_velocity.y)), max(fabs(next_velocity.z), fabs(next_velocity.w)));
+            //float max_divisor = fabs(next_velocity.x);
+            float K = 1/max_divisor;
+
+            ///so. In the x position we have dt/dlambda
+            ///and our whole ray is parameterised as dX/dlambda
+            ///we have a new divisor for a new parameter, here multiplication by a constant K
+            ///we want to relate the old parameterisatin to the new parameterisation
+            ///dX/dNew = dlambda/dNew * dX/dlambda
+            ///dX/dNew = (dX/dLambda) * K
+            ///1/dNew = K/dLambda
+            ///dLambda/dNew = K, obviously ok i'm bad at rearranging simple equations today
+            ///but ok, so, if we want to recover the original, we have dX/dNew
+            ///so (dX/dNew) / (dLambda/dNew) = dX/dLambda
+            ///= (dX/dNew) / K
+            ///all of this is fairly obvious but its worth spelling out
+
+            if(!GET_FEATURE(reparameterisation, dfg))
+                K = 1;
+
+            if(dLambda_dNew)
+                *dLambda_dNew = K;
+
+            *position_out = next_position;
+
+            *velocity_out = next_velocity * K;
+            ///ok, this is a second order coordinate change
+            ///at each step we're making a linear coordinate transform, which means that d^2u/dx^2 is 0, and I think this is justifiable
+            *acceleration_out = next_acceleration * K * K;*/
+
+        //as_ref(position) = cposition + cvelocity * dt;
+        //as_ref(velocity) = cvelocity + acceleration * dt;
 
         valuef radius = position[1];
 
@@ -346,7 +440,7 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
             break_e();
         });
 
-        //#undef HAS_ACCRETION_DISK
+        #undef HAS_ACCRETION_DISK
         #ifdef HAS_ACCRETION_DISK
         valuef period_start = floor(position.z() / pi) * pi;
 
@@ -386,7 +480,7 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
 
                 pin(observer);
 
-                #define ACCRETE_REDSHIFT
+                //#define ACCRETE_REDSHIFT
                 #ifdef ACCRETE_REDSHIFT
                 valuef temperature_in = temperature[iradial];
 
@@ -425,6 +519,7 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
                 });
                 #endif
 
+                #define ILLUSTRATIVE_REDSHIFT
                 #ifdef ILLUSTRATIVE_REDSHIFT
                 valuef zp1 = get_zp1(g.position, g.velocity, initial_observer, cposition, cvelocity, observer, get_metric);
 
@@ -448,6 +543,7 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
 
         //we could do better than this by upgrading the tensor library
         if_e(should_terminate(start, as_constant(position), as_constant(velocity)), [&] {
+            as_ref(result) = valuei(1);
             break_e();
         });
     });
@@ -508,6 +604,10 @@ v3f render_pixel(v2i screen_position, v2i screen_size,
 
     if_e(result.type == 1, [&] {
         as_ref(colour) = (tensor<valuef, 3>){0,0,0};
+    });
+
+    if_e(result.type == 2, [&] {
+        as_ref(colour) = (tensor<valuef, 3>){1,0,0};
     });
 
     /*if_e(result.type == 2, [&] {
@@ -900,7 +1000,7 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
     as_ref(e3_out[0]) = boosted.v[3];
 }
 
-#define TRACE_DT 0.005f
+#define TRACE_DT 0.0005f
 
 template<auto GetMetric>
 void trace_geodesic(execution_context& ectx,
@@ -918,7 +1018,7 @@ void trace_geodesic(execution_context& ectx,
     mut_v4f velocity = declare_mut_e(start_velocity[0]);
 
     //for a timelike geodesic, dt is proper time
-    float dt = TRACE_DT;
+    //float dt = TRACE_DT;
     v4f start = declare_e(start_position[0]);
 
     mut<valuei> idx = declare_mut_e("i", valuei(0));
@@ -941,8 +1041,10 @@ void trace_geodesic(execution_context& ectx,
 
         pin(acceleration);
 
+        valuef dt = get_timestep2(cposition,cvelocity);
+
+        as_ref(position) = cposition + cvelocity * dt;
         as_ref(velocity) = cvelocity + acceleration * dt;
-        as_ref(position) = cposition + velocity.as<valuef>() * dt;
 
         if_e(should_terminate(start, as_constant(position), as_constant(velocity)), [&] {
             break_e();
@@ -982,7 +1084,7 @@ void parallel_transport_tetrads(execution_context& ectx, buffer<v4f> e1, buffer<
 {
     using namespace single_source;
     //its important that this dt is the same dt as the one that we used in trace_geodesic, as we're dealing with the same parameterisation. If you use a variable timestep, you need to write this into a buffer
-    float dt = TRACE_DT;
+    //float dt = TRACE_DT;
 
     valuei count = declare_e(counts[0]);
     mut<valuei> i = declare_mut_e(valuei(0));
@@ -1011,6 +1113,8 @@ void parallel_transport_tetrads(execution_context& ectx, buffer<v4f> e1, buffer<
         v4f e2_change = parallel_transport_get_change(e2_cst, current_velocity, christoff2);
         v4f e3_change = parallel_transport_get_change(e3_cst, current_velocity, christoff2);
 
+        valuef dt = get_timestep2(current_position, current_velocity);
+
         as_ref(e1_current) = e1_cst + e1_change * dt;
         as_ref(e2_current) = e2_cst + e2_change * dt;
         as_ref(e3_current) = e3_cst + e3_change * dt;
@@ -1031,7 +1135,7 @@ void interpolate(execution_context& ectx, buffer<v4f> positions, buffer<v4f> e0s
     });
 
     //it is again important that this timestep matches the one from parallel transported tetrads
-    float dt = TRACE_DT;
+    //float dt = TRACE_DT;
 
     mut<valuef> elapsed_time = declare_mut_e(valuef(0));
 
@@ -1048,8 +1152,10 @@ void interpolate(execution_context& ectx, buffer<v4f> positions, buffer<v4f> e0s
     mut<valuei> i = declare_mut_e(valuei(0));
 
     for_e(i < (size - 1), assign_b(i, i+1), [&] {
-        if_e(elapsed_time >= desired_proper_time.get() && elapsed_time <= desired_proper_time.get() + dt, [&]{
-            valuef frac = (elapsed_time - desired_proper_time.get()) / dt;
+        valuef dt = get_timestep2(positions[i], e0s[i]);
+
+        if_e(desired_proper_time.get() >= elapsed_time && desired_proper_time.get() < elapsed_time + dt, [&]{
+            valuef frac = (desired_proper_time.get() - elapsed_time) / dt;
 
             as_ref(position_out[0]) = mix(positions[i], positions[i+1], frac);
             as_ref(e0_out[0]) = mix(e0s[i], e0s[i+1], frac);

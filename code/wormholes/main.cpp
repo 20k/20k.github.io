@@ -194,7 +194,7 @@ int main()
     cl::buffer positions(ctx);
     cl::buffer velocities(ctx);
     cl::buffer steps(ctx);
-    int max_writes = 1024 * 100;
+    int max_writes = 1024 * 1024;
 
     positions.alloc(sizeof(cl_float4) * max_writes);
     velocities.alloc(sizeof(cl_float4) * max_writes);
@@ -237,7 +237,18 @@ int main()
 
     camera cam;
     cam.move({0, 0, 8});
-    cam.move({0, 4.95, 0});
+    cam.move({0, -14, 0});
+
+    tensor<float, 3> cart = cam.get_position().yzw();
+
+    std::cout << "CAM " << cam.get_position().x() << " " << cam.get_position().y() << " " << cam.get_position().z() << " " << cam.get_position().w() << std::endl;
+
+    cam.pos.x() = 22.676;
+    cam.pos.y() = 19.745;
+    cam.pos.z() = 1.172;
+    cam.pos.w() = -1.583;
+
+    //std::cout << "C " << cart.x() << " " << cart.y() << " " << cart.z() << std::endl;
 
     sf::Keyboard key;
 
@@ -254,6 +265,8 @@ int main()
         }
 
         //desired_proper_time += 2.25f * elapsed.restart().asMicroseconds() / 1000. / 1000.;
+
+        float mdiff = 0;
 
         float ptime_diff = 0;
 
@@ -275,7 +288,18 @@ int main()
         if(key.isKeyPressed(sf::Keyboard::Num6))
             ptime_diff -= 10.f;
 
+        if(key.isKeyPressed(sf::Keyboard::LControl))
+            ptime_diff *= 0.1f;
+
+        if(key.isKeyPressed(sf::Keyboard::LAlt))
+            ptime_diff *= 0.1f;
+
+        if(key.isKeyPressed(sf::Keyboard::Num0))
+            desired_proper_time = 96.824f;
+
         desired_proper_time += ptime_diff;
+
+        printf("DPT %f\n", desired_proper_time);
 
         if(key.isKeyPressed(sf::Keyboard::J))
             cam.rotate({0.1f, 0.f});
@@ -311,7 +335,9 @@ int main()
 
 
         {
-            cl_float3 local_velocity = {0.001, 0.002, -0.8f};
+            //cl_float3 local_velocity = {0.001, 0.002, -0.8f};
+
+            cl_float3 local_velocity = {0,0,0};
 
             cl::args args;
             args.push_back(cam.get_position());
