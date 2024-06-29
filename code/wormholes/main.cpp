@@ -200,7 +200,7 @@ int main()
     velocities.alloc(sizeof(cl_float4) * max_writes);
     steps.alloc(sizeof(cl_int));
 
-    std::array<cl::buffer, 3> transported_tetrads{ctx, ctx, ctx};
+    std::array<cl::buffer, 4> transported_tetrads{ctx, ctx, ctx, ctx};
 
     for(auto& e : transported_tetrads)
         e.alloc(sizeof(cl_float4) * max_writes);
@@ -374,10 +374,10 @@ int main()
 
         {
             cl::args args;
-            args.push_back(tetrads[1], tetrads[2], tetrads[3]);
+            args.push_back(tetrads[0], tetrads[1], tetrads[2], tetrads[3]);
             args.push_back(positions, velocities);
             args.push_back(steps);
-            args.push_back(transported_tetrads[0], transported_tetrads[1], transported_tetrads[2]);
+            args.push_back(transported_tetrads[0], transported_tetrads[1], transported_tetrads[2], transported_tetrads[3]);
 
             transport_kern.set_args(args);
 
@@ -389,7 +389,7 @@ int main()
 
             cl::args args;
             args.push_back(positions);
-            args.push_back(velocities, transported_tetrads[0], transported_tetrads[1], transported_tetrads[2]);
+            args.push_back(transported_tetrads[0], transported_tetrads[1], transported_tetrads[2], transported_tetrads[3]);
             args.push_back(steps);
             args.push_back(desired_proper_time);
             args.push_back(final_camera_position);

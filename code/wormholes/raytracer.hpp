@@ -1062,7 +1062,7 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
     as_ref(e3_out[0]) = boosted.v[3];
 }
 
-#define TRACE_DT 0.0005f
+#define TRACE_DT 0.00025f
 
 template<auto GetMetric>
 void trace_geodesic(execution_context& ectx,
@@ -1148,11 +1148,32 @@ v4f parallel_transport_get_change(v4f tangent_vector, v4f geodesic_velocity, con
     return dAdt;
 }
 
+v4f transport(v4f what, v4f position, v4f next_position, v4f velocity, v4f next_velocity, valuef ds, auto&& get_metric)
+{
+    using namespace single_source;
+
+    tensor<valuef, 4, 4, 4> christoff2 = calculate_christoff2(position, get_metric);
+
+    pin(christoff2);
+
+    ///this isn't verlet, its generic 2nd order integration
+    v4f f_x = parallel_transport_get_change(what, velocity, christoff2);
+
+    v4f intermediate_next = what + f_x * ds;
+
+    tensor<valuef, 4, 4, 4> nchristoff2 = calculate_christoff2(next_position, get_metric);
+
+    pin(nchristoff2);
+
+    return what + 0.5f * ds * (f_x + parallel_transport_get_change(intermediate_next, next_velocity, nchristoff2));
+}
+
 //note: we already know the value of e0, as its the geodesic velocity
 template<auto GetMetric>
-void parallel_transport_tetrads(execution_context& ectx, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
+void parallel_transport_tetrads(execution_context& ectx,
+                                buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
                                 buffer<v4f> positions, buffer<v4f> velocities, buffer<valuei> counts,
-                                buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out)
+                                buffer_mut<v4f> e0_out, buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out)
 {
     using namespace single_source;
     //its important that this dt is the same dt as the one that we used in trace_geodesic, as we're dealing with the same parameterisation. If you use a variable timestep, you need to write this into a buffer
@@ -1161,11 +1182,13 @@ void parallel_transport_tetrads(execution_context& ectx, buffer<v4f> e1, buffer<
     valuei count = declare_e(counts[0]);
     mut<valuei> i = declare_mut_e(valuei(0));
 
+    mut_v4f e0_current = declare_mut_e(e0[0]);
     mut_v4f e1_current = declare_mut_e(e1[0]);
     mut_v4f e2_current = declare_mut_e(e2[0]);
     mut_v4f e3_current = declare_mut_e(e3[0]);
 
-    for_e(i < count, assign_b(i, i+1), [&] {
+    for_e(i < count - 1, assign_b(i, i+1), [&] {
+        as_ref(e0_out[i]) = e0_current;
         as_ref(e1_out[i]) = e1_current;
         as_ref(e2_out[i]) = e2_current;
         as_ref(e3_out[i]) = e3_current;
@@ -1173,21 +1196,61 @@ void parallel_transport_tetrads(execution_context& ectx, buffer<v4f> e1, buffer<
         v4f current_position = declare_e(positions[i]);
         v4f current_velocity = declare_e(velocities[i]);
 
-        tensor<valuef, 4, 4, 4> christoff2 = calculate_christoff2(current_position, GetMetric);
+        v4f next_position = declare_e(positions[i+1]);
+        v4f next_velocity = declare_e(velocities[i+1]);
 
-        pin(christoff2);
-
+        v4f e0_cst = declare_e(e0_current);
         v4f e1_cst = declare_e(e1_current);
         v4f e2_cst = declare_e(e2_current);
         v4f e3_cst = declare_e(e3_current);
 
+        v4f e0_next = transport(e0_cst, current_position, next_position, current_velocity, next_velocity, valuef(dt), GetMetric);
+        v4f e1_next = transport(e1_cst, current_position, next_position, current_velocity, next_velocity, valuef(dt), GetMetric);
+        v4f e2_next = transport(e2_cst, current_position, next_position, current_velocity, next_velocity, valuef(dt), GetMetric);
+        v4f e3_next = transport(e3_cst, current_position, next_position, current_velocity, next_velocity, valuef(dt), GetMetric);
+
+        as_ref(e0_current) = e0_next;
+        as_ref(e1_current) = e1_next;
+        as_ref(e2_current) = e2_next;
+        as_ref(e3_current) = e3_next;
+
+        /*v4f next_position = declare_e(positions[i+1]);
+        v4f next_velocity = declare_e(velocities[i+1]);*/
+
+        //tensor<valuef, 4, 4, 4> christoff2 = calculate_christoff2(current_position, GetMetric);
+
+        //pin(christoff2);
+
+        #if 0
+        v4f e0_cst = declare_e(e0_current);
+        v4f e1_cst = declare_e(e1_current);
+        v4f e2_cst = declare_e(e2_current);
+        v4f e3_cst = declare_e(e3_current);
+
+        /*
+        float4 current_position = geodesic_path[current_idx];
+        float4 next_position = geodesic_path[next_idx];
+
+        float4 current_velocity = geodesic_velocity[current_idx];
+        float4 next_velocity = geodesic_velocity[next_idx];
+
+        ///this isn't verlet, its generic 2nd order integration
+        float4 f_x = parallel_transport_get_velocity(current_quantity, current_position, current_velocity, cfg);
+
+        float4 intermediate_next = current_quantity + f_x * ds;
+
+        float4 next = current_quantity + 0.5f * ds * (f_x + parallel_transport_get_velocity(intermediate_next, next_position, next_velocity, cfg));*/
+
+        v4f e0_change = parallel_transport_get_change(e0_cst, current_velocity, christoff2);
         v4f e1_change = parallel_transport_get_change(e1_cst, current_velocity, christoff2);
         v4f e2_change = parallel_transport_get_change(e2_cst, current_velocity, christoff2);
         v4f e3_change = parallel_transport_get_change(e3_cst, current_velocity, christoff2);
 
+        as_ref(e0_current) = e0_cst + e0_change * dt;
         as_ref(e1_current) = e1_cst + e1_change * dt;
         as_ref(e2_current) = e2_cst + e2_change * dt;
         as_ref(e3_current) = e3_cst + e3_change * dt;
+        #endif
     });
 }
 
