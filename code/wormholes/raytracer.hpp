@@ -359,11 +359,11 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
     {
         v4f cposition = declare_e(position);
         v4f cvelocity = declare_e(velocity);
-        v4f cacceleration = declare_e(acceleration);
+        //v4f cacceleration = declare_e(acceleration);
 
         //v4f acceleration = calculate_acceleration_of(cposition, cvelocity, get_metric);
 
-        valuef dt = get_timestep(cposition, cvelocity, cacceleration);
+        /*valuef dt = get_timestep(cposition, cvelocity, cacceleration);
 
         v4f next_position = cposition + cvelocity * dt + 0.5f * cacceleration * dt * dt;
 
@@ -376,9 +376,13 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
 
         pin(next_acceleration);
 
-        v4f next_velocity = cvelocity + 0.5f * (cacceleration + next_acceleration) * dt;
+        v4f next_velocity = cvelocity + 0.5f * (cacceleration + next_acceleration) * dt;*/
 
         v4f taccel = calculate_acceleration_of(cposition, cvelocity, get_metric);
+
+        pin(taccel);
+
+        valuef dt = get_timestep(cposition, cvelocity, taccel);
 
         as_ref(position) = cposition + cvelocity * dt;
         as_ref(velocity) = cvelocity + taccel * dt;
