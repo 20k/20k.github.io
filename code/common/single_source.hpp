@@ -1456,7 +1456,7 @@ namespace value_impl
 
         for(auto& block : blocks)
         {
-            #define ELIMINATE_SUBEXPRESSIONS
+            //#define ELIMINATE_SUBEXPRESSIONS
             #ifdef ELIMINATE_SUBEXPRESSIONS
             auto next_block = expression_eliminate(get_context(), block);
             #else

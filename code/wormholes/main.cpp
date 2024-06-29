@@ -294,8 +294,11 @@ int main()
         if(key.isKeyPressed(sf::Keyboard::LAlt))
             ptime_diff *= 0.1f;
 
+        //if(key.isKeyPressed(sf::Keyboard::Num0))
+        //    desired_proper_time = 96.824f;
+
         if(key.isKeyPressed(sf::Keyboard::Num0))
-            desired_proper_time = 96.824f;
+            desired_proper_time = 96.9f;
 
         desired_proper_time += ptime_diff;
 
