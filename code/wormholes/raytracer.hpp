@@ -279,7 +279,7 @@ value<bool> should_terminate(v4f start, v4f position, v4f velocity)
                             !isfinite(velocity[0]) || !isfinite(velocity[1]) || !isfinite(velocity[2]) || !isfinite(velocity[3]) ;
 
     //return fabs(position[1]) > UNIVERSE_SIZE || is_broken;
-    return fabs(position[1]) > UNIVERSE_SIZE || position[0] > start[0] + 1000 || fabs(velocity[0]) >= 100 || fabs(velocity[1]) >= 100 || is_broken;
+    return fabs(position[1]) > UNIVERSE_SIZE || position[0] > start[0] + 100 || fabs(velocity[0]) >= 10 || fabs(velocity[1]) >= 10 || is_broken;
 }
 
 valuef get_timelike_timestep(v4f position, v4f velocity)
@@ -288,8 +288,8 @@ valuef get_timelike_timestep(v4f position, v4f velocity)
     valuef divisor = max(max(avelocity.x(), avelocity.y()), max(avelocity.z(), avelocity.w()));
 
     valuef low_precision = 0.05f/divisor;
-    valuef normal_precision = 0.003f/divisor;
-    valuef high_precision = 0.001f/divisor;
+    valuef normal_precision = 0.012f/divisor;
+    valuef high_precision = 0.005f/divisor;
 
     return ternary(fabs(position[1]) < 10, ternary(fabs(position[1]) < 3.f, high_precision, normal_precision), low_precision);
 }
