@@ -1000,7 +1000,6 @@ On top of this, there are a number of misc topics to cover in analytic metrics:
 6. Wave propagation in curved spacetimes
 7. 256x anisotropic texture filtering
 8. Relativistic volumetric rendering
-~~9. QFT in curved spacetime~~ ok not that one
 
 This is going to take a hot minute to write up in a tutorially format - though its all largely work I've done previously (except smooth particle hydrodynamics, and magnetohydrodynamics). This kind of information doesn't really exist outside of papers - and there are no gpu implementations - so it seems good to write it up
 
