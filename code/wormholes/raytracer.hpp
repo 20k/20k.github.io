@@ -391,7 +391,6 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
             break_e();
         });
 
-        #undef HAS_ACCRETION_DISK
         #ifdef HAS_ACCRETION_DISK
         valuef period_start = floor(position.z() / pi) * pi;
 
