@@ -68,10 +68,10 @@ struct camera
     }
 };
 
-cl::image load_background(cl::context ctx, cl::command_queue cqueue)
+cl::image load_background(cl::context ctx, cl::command_queue cqueue, const std::string& name)
 {
     sf::Image background;
-    background.loadFromFile("../common/nasa.png");
+    background.loadFromFile(name);
 
     int background_width = background.getSize().x;
     int background_height = background.getSize().y;
@@ -165,7 +165,8 @@ int main()
     for(int i=0; i < tetrads.size(); i++)
         tetrads[i].alloc(sizeof(cl_float4));
 
-    cl::image background = load_background(ctx, cqueue);
+    cl::image background = load_background(ctx, cqueue, "../common/nasa.png");
+    cl::image background2 = load_background(ctx, cqueue, "../common/wes.png");
 
     int background_width = background.size<2>().x();
     int background_height = background.size<2>().y();
@@ -239,8 +240,6 @@ int main()
     cam.move({0, 0, 8});
     cam.move({0, -14, 0});
 
-    tensor<float, 3> cart = cam.get_position().yzw();
-
     std::cout << "CAM " << cam.get_position().x() << " " << cam.get_position().y() << " " << cam.get_position().z() << " " << cam.get_position().w() << std::endl;
 
     cam.pos.x() = 22.676;
@@ -265,8 +264,6 @@ int main()
         }
 
         //desired_proper_time += 2.25f * elapsed.restart().asMicroseconds() / 1000. / 1000.;
-
-        float mdiff = 0;
 
         float ptime_diff = 0;
 
@@ -418,6 +415,7 @@ int main()
             cl::args args;
             args.push_back(screen_width, screen_height);
             args.push_back(background);
+            args.push_back(background2);
             args.push_back(screen);
             args.push_back(accretion_buf);
             args.push_back(background_width);

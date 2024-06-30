@@ -1392,6 +1392,18 @@ namespace value_impl
         return from_base<T>(optimise(make_op<value<T>>(op::TERNARY, {condition, if_true, if_false})));
     }
 
+    template<typename T, int N>
+    inline
+    tensor<value<T>, N> ternary(const value<bool>& condition, const tensor<value<T>, N>& if_true, const tensor<value<T>, N>& if_false)
+    {
+        tensor<value<T>, N> ret;
+
+        for(int i=0; i < N; i++)
+            ret[i] = from_base<T>(optimise(make_op<value<T>>(op::TERNARY, {condition, if_true[i], if_false[i]})));
+
+        return ret;
+    }
+
     template<typename T>
     inline
     value<T> min(const value<T>& v1, const value<T>& v2)

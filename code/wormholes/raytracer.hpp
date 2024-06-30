@@ -278,7 +278,6 @@ value<bool> should_terminate(v4f start, v4f position, v4f velocity)
     value<bool> is_broken = !isfinite(position[0]) || !isfinite(position[1]) || !isfinite(position[2]) || !isfinite(position[3]) ||
                             !isfinite(velocity[0]) || !isfinite(velocity[1]) || !isfinite(velocity[2]) || !isfinite(velocity[3]) ;
 
-    //return fabs(position[1]) > UNIVERSE_SIZE || is_broken;
     return fabs(position[1]) > UNIVERSE_SIZE || position[0] > start[0] + 100 || fabs(velocity[0]) >= 10 || fabs(velocity[1]) >= 10 || is_broken;
 }
 
@@ -357,7 +356,7 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
     //v4f start_cpos = declare_e(g.position);
     //mut_v4f acceleration = declare_mut_e(calculate_acceleration_of(start_cpos, start_cvel, get_metric));
 
-    for_e(idx < 1024 * 100, assign_b(idx, idx + 1), [&]
+    for_e(idx < 1024 * 1000, assign_b(idx, idx + 1), [&]
     {
         /*v4f cposition = declare_e(position);
         v4f cvelocity = declare_e(velocity);
@@ -505,7 +504,7 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
 }
 
 v3f render_pixel(v2i screen_position, v2i screen_size,
-                 const read_only_image<2>& background, buffer<v3f> accretion_disk, buffer<v3f> bbody_table, buffer<valuef> temperature,
+                 const read_only_image<2>& background, const read_only_image<2>& background2, buffer<v3f> accretion_disk, buffer<v3f> bbody_table, buffer<valuef> temperature,
                  v2i background_size, const tetrad& tetrads, v4f start_position, v4f camera_quat, auto&& get_metric)
 {
     using namespace single_source;
@@ -532,7 +531,7 @@ v3f render_pixel(v2i screen_position, v2i screen_size,
     valuei tx = (texture_coordinate[0] * background_size.x().to<float>() + background_size.x().to<float>()).to<int>() % background_size.x();
     valuei ty = (texture_coordinate[1] * background_size.y().to<float>() + background_size.y().to<float>()).to<int>() % background_size.y();
 
-    v4f col = background.read<float, 4>({tx, ty});
+    v4f col = ternary(result.position[1] >= 0, background.read<float, 4>({tx, ty}), background2.read<float,4>({tx, ty}));
 
     //#define DO_REDSHIFT
     #ifdef DO_REDSHIFT
@@ -558,7 +557,7 @@ v3f render_pixel(v2i screen_position, v2i screen_size,
 
 template<auto GetMetric>
 void opencl_raytrace(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
-                     read_only_image<2> background, write_only_image<2> screen,
+                     read_only_image<2> background, read_only_image<2> background2, write_only_image<2> screen,
                      buffer<v3f> accretion_disk,
                      literal<valuei> background_width, literal<valuei> background_height,
                      buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
@@ -588,7 +587,7 @@ void opencl_raytrace(execution_context& ectx, literal<valuei> screen_width, lite
 
     tetrad tetrads = {e0[0], e1[0], e2[0], e3[0]};
 
-    v3f colour = render_pixel(screen_pos, screen_size, background, accretion_disk, bbody_table, temperature, background_size, tetrads, position[0], camera_quat.get(), GetMetric);
+    v3f colour = render_pixel(screen_pos, screen_size, background, background2, accretion_disk, bbody_table, temperature, background_size, tetrads, position[0], camera_quat.get(), GetMetric);
 
     colour = linear_to_srgb_gpu(colour);
 
@@ -1014,7 +1013,7 @@ v4f parallel_transport_get_change(v4f tangent_vector, v4f geodesic_velocity, con
     return dAdt;
 }
 
-v4f transport(v4f what, v4f position, v4f next_position, v4f velocity, v4f next_velocity, valuef ds, auto&& get_metric)
+v4f transport2(v4f what, v4f position, v4f next_position, v4f velocity, v4f next_velocity, valuef ds, auto&& get_metric)
 {
     using namespace single_source;
 
@@ -1032,6 +1031,19 @@ v4f transport(v4f what, v4f position, v4f next_position, v4f velocity, v4f next_
     pin(nchristoff2);
 
     return what + 0.5f * ds * (f_x + parallel_transport_get_change(intermediate_next, next_velocity, nchristoff2));
+}
+
+v4f transport1(v4f what, v4f position, v4f velocity, valuef ds, auto&& get_metric)
+{
+    using namespace single_source;
+
+    tensor<valuef, 4, 4, 4> christoff2 = calculate_christoff2(position, get_metric);
+
+    pin(christoff2);
+
+    v4f f_x = parallel_transport_get_change(what, velocity, christoff2);
+
+    return what + f_x * ds;
 }
 
 //note: we already know the value of e0, as its the geodesic velocity
@@ -1070,15 +1082,22 @@ void parallel_transport_tetrads(execution_context& ectx,
 
         valuef dt = get_timelike_timestep(current_position, current_velocity);
 
-        v4f e0_next = transport(e0_cst, current_position, next_position, current_velocity, next_velocity, valuef(dt), GetMetric);
-        v4f e1_next = transport(e1_cst, current_position, next_position, current_velocity, next_velocity, valuef(dt), GetMetric);
-        v4f e2_next = transport(e2_cst, current_position, next_position, current_velocity, next_velocity, valuef(dt), GetMetric);
-        v4f e3_next = transport(e3_cst, current_position, next_position, current_velocity, next_velocity, valuef(dt), GetMetric);
+        v4f e0_next = transport2(e0_cst, current_position, next_position, current_velocity, next_velocity, valuef(dt), GetMetric);
+        v4f e1_next = transport2(e1_cst, current_position, next_position, current_velocity, next_velocity, valuef(dt), GetMetric);
+        v4f e2_next = transport2(e2_cst, current_position, next_position, current_velocity, next_velocity, valuef(dt), GetMetric);
+        v4f e3_next = transport2(e3_cst, current_position, next_position, current_velocity, next_velocity, valuef(dt), GetMetric);
 
         as_ref(e0_current) = e0_next;
         as_ref(e1_current) = e1_next;
         as_ref(e2_current) = e2_next;
         as_ref(e3_current) = e3_next;
+    });
+
+    if_e(count > 0, [&]{
+        as_ref(e0_out[i]) = e0_current;
+        as_ref(e1_out[i]) = e1_current;
+        as_ref(e2_out[i]) = e2_current;
+        as_ref(e3_out[i]) = e3_current;
     });
 }
 
