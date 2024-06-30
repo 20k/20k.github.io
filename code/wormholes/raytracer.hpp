@@ -422,29 +422,24 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
                 mut_v3f disk = declare_mut_e(accretion_disk[iradial]);
 
                 as_ref(disk) = declare_e(disk) * clamp(1 - declare_e(opacity), 0.f, 1.f);
-
                 as_ref(opacity) = declare_e(opacity) + energy_of(declare_e(disk)) * 50;
 
+                ///change the parameterisation to proper time
                 observer = observer / sqrt(fabs(ds));
 
                 pin(observer);
 
-                #define ACCRETE_REDSHIFT
-                #ifdef ACCRETE_REDSHIFT
+                #define ACCURATE_REDSHIFT
+                #ifdef ACCURATE_REDSHIFT
                 valuef temperature_in = temperature[iradial];
 
+                ///temperature == 0 is impossible in our disk, so indicates an invalid area
                 if_e(temperature_in >= 1, [&]
                 {
                     valuef zp1 = get_zp1(g.position, g.velocity, initial_observer, cposition, cvelocity, observer, get_metric);
 
                     ///https://www.jb.man.ac.uk/distance/frontiers/cmb/node7.htm
                     valuef shifted_temperature = temperature_in / zp1;
-
-                    /*value_base se;
-                    se.type = value_impl::op::SIDE_EFFECT;
-                    se.abstract_value = "printf(\"%f\\n\"," + value_to_string(shifted_temperature) + ")";
-
-                    value_impl::get_context().add(se);*/
 
                     valuef old_brightness = energy_of(declare_e(disk));
 
@@ -456,6 +451,7 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
                         valuef root = floor(in);
                         valuef frac = in - root;
 
+                        ///our bbody_table only goes up to 100kK
                         v3f p1 = bbody_table[clamp(root, 1.f, 100000 - 1.f).to<int>()];
                         v3f p2 = bbody_table[clamp(root+1, 1.f, 100000 - 1.f).to<int>()];
 
@@ -476,7 +472,6 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
                 as_ref(colour_out) = declare_e(colour_out) + declare_e(disk);
                 #endif
 
-                //#define RAW_DISK
                 #ifdef RAW_DISK
                 as_ref(colour_out) = declare_e(colour_out) + declare_e(disk);
                 #endif // RAW_DISK

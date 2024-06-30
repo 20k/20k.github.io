@@ -47,7 +47,7 @@ syntax_highlighter_style: github2
 toc:
     enabled: true
     h_min: 1
-    h_max: 4
+    h_max: 7
 
 color_scheme: dark
 future: true
