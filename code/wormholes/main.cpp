@@ -438,7 +438,7 @@ int main()
             screen.unacquire(cqueue);
         }
 
-        //cqueue.block();
+        cqueue.block();
 
         std::cout << "Time " << clk.getElapsedTime().asMicroseconds() / 1000. << std::endl;
 

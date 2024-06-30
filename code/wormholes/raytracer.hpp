@@ -279,17 +279,8 @@ value<bool> should_terminate(v4f start, v4f position, v4f velocity)
                             !isfinite(velocity[0]) || !isfinite(velocity[1]) || !isfinite(velocity[2]) || !isfinite(velocity[3]) ;
 
     //return fabs(position[1]) > UNIVERSE_SIZE || is_broken;
-    return fabs(position[1]) > UNIVERSE_SIZE || position[0] > start[0] + 10000 || fabs(velocity[0]) >= 1000 || fabs(velocity[1]) >= 1000 || is_broken;
+    return fabs(position[1]) > UNIVERSE_SIZE || position[0] > start[0] + 1000 || fabs(velocity[0]) >= 100 || fabs(velocity[1]) >= 100 || is_broken;
 }
-
-/*value<bool> should_terminate(v4f start, v4f position, v4f velocity)
-{
-    value<bool> is_broken = !isfinite(position[0]) || !isfinite(position[1]) || !isfinite(position[2]) || !isfinite(position[3]) ||
-                            !isfinite(velocity[0]) || !isfinite(velocity[1]) || !isfinite(velocity[2]) || !isfinite(velocity[3]) ;
-
-    //return fabs(position[1]) > UNIVERSE_SIZE || is_broken;
-    return fabs(position[1]) > UNIVERSE_SIZE || position[0] > start[0] + 10000 || fabs(velocity[0]) >= 1000 || fabs(velocity[1]) >= 1000 || is_broken;
-}*/
 
 valuef get_timelike_timestep(v4f position, v4f velocity)
 {
@@ -303,57 +294,8 @@ valuef get_timelike_timestep(v4f position, v4f velocity)
     return ternary(fabs(position[1]) < 10, ternary(fabs(position[1]) < 3.f, high_precision, normal_precision), low_precision);
 }
 
-
-/*valuef get_timestep2(v4f position, v4f velocity, v4f acceleration)
-{
-    valuef current_acceleration_err = (acceleration * (v4f){1, 1, 8, 32}).length() * 0.01f;
-
-    current_acceleration_err = current_acceleration_err / 32.f;
-
-    #define MIN_STEP 0.00000001f
-
-    ///of course, as is tradition, whatever works for kerr does not work for alcubierre
-    ///the sqrt error calculation is significantly better for alcubierre, largely in terms of having no visual artifacts at all
-    ///whereas the pow version is nearly 2x faster for kerr
-    valuef next_ds = sqrt(valuef(0.000000001f) / current_acceleration_err);
-
-    next_ds = max(next_ds, valuef(MIN_STEP));
-
-    return next_ds;
-}*/
-
 valuef get_lightlike_timestep(v4f position, v4f velocity, v4f acceleration)
 {
-    /*valuef W_V1 = 1;
-    valuef W_V2 = 1;
-    valuef W_V3 = 8;
-    valuef W_V4 = 32;
-
-    valuef uniform_coordinate_precision_divisor = max(max(W_V1, W_V2), max(W_V3, W_V4));
-
-    valuef current_acceleration_err = (acceleration * (v4f){W_V1, W_V2, W_V3, W_V4}).length() * 0.01f;
-    current_acceleration_err = current_acceleration_err / uniform_coordinate_precision_divisor;
-
-    valuef experienced_acceleration_change = current_acceleration_err;
-
-    valuef err = 0.0000001f;
-
-    //#define MIN_STEP 0.00001f
-    //#define MIN_STEP 0.000001f
-
-    valuef max_timestep = 10000;
-
-    valuef diff = experienced_acceleration_change;
-
-    //diff = max(diff, err / pow(max_timestep, 2.f));
-
-    ///of course, as is tradition, whatever works for kerr does not work for alcubierre
-    ///the sqrt error calculation is significantly better for alcubierre, largely in terms of having no visual artifacts at all
-    ///whereas the pow version is nearly 2x faster for kerr
-    valuef next_ds = sqrt(err / diff);
-
-    return next_ds;*/
-
     return get_timelike_timestep(position, velocity);
 }
 
@@ -415,7 +357,7 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
     //v4f start_cpos = declare_e(g.position);
     //mut_v4f acceleration = declare_mut_e(calculate_acceleration_of(start_cpos, start_cvel, get_metric));
 
-    for_e(idx < 1024 * 1000, assign_b(idx, idx + 1), [&]
+    for_e(idx < 1024 * 100, assign_b(idx, idx + 1), [&]
     {
         /*v4f cposition = declare_e(position);
         v4f cvelocity = declare_e(velocity);
