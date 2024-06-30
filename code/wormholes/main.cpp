@@ -389,6 +389,7 @@ int main()
 
             cl::args args;
             args.push_back(positions);
+            args.push_back(velocities);
             args.push_back(transported_tetrads[0], transported_tetrads[1], transported_tetrads[2], transported_tetrads[3]);
             args.push_back(steps);
             args.push_back(desired_proper_time);

@@ -291,7 +291,7 @@ value<bool> should_terminate(v4f start, v4f position, v4f velocity)
     return fabs(position[1]) > UNIVERSE_SIZE || position[0] > start[0] + 10000 || fabs(velocity[0]) >= 1000 || fabs(velocity[1]) >= 1000 || is_broken;
 }*/
 
-valuef get_timestep(v4f position, v4f velocity)
+valuef get_timelike_timestep(v4f position, v4f velocity)
 {
     v4f avelocity = fabs(velocity);
     valuef divisor = max(max(avelocity.x(), avelocity.y()), max(avelocity.z(), avelocity.w()));
@@ -322,7 +322,7 @@ valuef get_timestep(v4f position, v4f velocity)
     return next_ds;
 }*/
 
-valuef get_timestep2(v4f position, v4f velocity, v4f acceleration)
+valuef get_lightlike_timestep(v4f position, v4f velocity, v4f acceleration)
 {
     /*valuef W_V1 = 1;
     valuef W_V2 = 1;
@@ -354,7 +354,7 @@ valuef get_timestep2(v4f position, v4f velocity, v4f acceleration)
 
     return next_ds;*/
 
-    return get_timestep(position, velocity);
+    return get_timelike_timestep(position, velocity);
 }
 
 struct integration_result
@@ -395,9 +395,9 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
 
     integration_result found;
 
-    mut<valuei> result = declare_mut_e(valuei(2));
+    mut<valuei> result = declare_mut_e(valuei(1));
 
-    v4f start_cvel = declare_e(g.velocity / fabs(g.velocity.x()));
+    v4f start_cvel = declare_e(g.velocity);
 
     mut_v4f position = declare_mut_e(g.position);
     mut_v4f velocity = declare_mut_e(start_cvel);
@@ -412,31 +412,11 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
 
     float pi = std::numbers::pi_v<float>;
 
-    v4f start_cpos = declare_e(g.position);
-
-    mut_v4f acceleration = declare_mut_e(calculate_acceleration_of(start_cpos, start_cvel, get_metric));
+    //v4f start_cpos = declare_e(g.position);
+    //mut_v4f acceleration = declare_mut_e(calculate_acceleration_of(start_cpos, start_cvel, get_metric));
 
     for_e(idx < 1024 * 1000, assign_b(idx, idx + 1), [&]
     {
-        v4f cposition = declare_e(position);
-        v4f cvelocity = declare_e(velocity);
-
-        /*cvelocity = cvelocity / fabs(cvelocity.x());
-
-        v4f acceleration = calculate_acceleration_of(cposition, cvelocity, get_metric);
-
-        pin(acceleration);
-
-        //valuef dt = get_timestep(cposition, cvelocity);
-
-        valuef dt = 0.01f;
-
-        as_ref(position) = cposition + (cvelocity / fabs(cvelocity.x())) * dt;
-
-        v4f ncv = declare_e(cvelocity + acceleration * dt);
-
-        as_ref(velocity) = ncv / fabs(ncv.x());*/
-
         /*v4f cposition = declare_e(position);
         v4f cvelocity = declare_e(velocity);
         v4f cacceleration = declare_e(acceleration);
@@ -449,9 +429,12 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
         as_ref(velocity) = next_velocity;
         as_ref(acceleration) = next_acceleration;*/
 
-        valuef dt = get_timestep(cposition, cvelocity);
+        v4f cposition = declare_e(position);
+        v4f cvelocity = declare_e(velocity);
 
         v4f acceleration = calculate_acceleration_of(cposition, cvelocity, get_metric);
+
+        valuef dt = get_lightlike_timestep(cposition, cvelocity, acceleration);
 
         pin(acceleration);
 
@@ -566,34 +549,7 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
         });
         #endif
 
-        //we could do better than this by upgrading the tensor library
-        /*if_e(should_terminate(start, as_constant(position), as_constant(velocity)), [&] {
-            break_e();
-        });*/
-
-        value<bool> is_broken = !isfinite(position[0]) || !isfinite(position[1]) || !isfinite(position[2]) || !isfinite(position[3]) ||
-                            !isfinite(velocity[0]) || !isfinite(velocity[1]) || !isfinite(velocity[2]) || !isfinite(velocity[3]) ;
-
-        //return fabs(position[1]) > UNIVERSE_SIZE || is_broken;
-        //return fabs(position[1]) > UNIVERSE_SIZE || position[0] > start[0] + 10000 || fabs(velocity[0]) >= 1000 || fabs(velocity[1]) >= 1000 || is_broken;
-
-        if_e(is_broken, [&]{
-            as_ref(result) = valuei(3);
-            break_e();
-        });
-
-        if_e(fabs(velocity[0] + start_cvel.x()) >= 1000, [&]{
-            as_ref(result) = valuei(4);
-            break_e();
-        });
-
-        if_e(fabs(velocity[1] + start_cvel.y()) >= 1000, [&]{
-            //as_ref(result) = valuei(5);
-            break_e();
-        });
-
-        if_e(position[0] > start[0] + 10000, [&]{
-            as_ref(result) = valuei(5);
+        if_e(should_terminate(start, as_constant(position), as_constant(velocity)), [&] {
             break_e();
         });
     });
@@ -655,28 +611,6 @@ v3f render_pixel(v2i screen_position, v2i screen_size,
     if_e(result.type == 1, [&] {
         as_ref(colour) = (tensor<valuef, 3>){0,0,0};
     });
-
-    if_e(result.type == 2, [&] {
-        as_ref(colour) = (tensor<valuef, 3>){1,0,0};
-    });
-
-    if_e(result.type == 3, [&] {
-        as_ref(colour) = (tensor<valuef, 3>){0,1,0};
-    });
-
-    if_e(result.type == 4, [&] {
-        as_ref(colour) = (tensor<valuef, 3>){0,0,1};
-    });
-
-    if_e(result.type == 5, [&] {
-        as_ref(colour) = (tensor<valuef, 3>){1,0,1};
-    });
-
-    /*if_e(result.type == 2, [&] {
-        as_ref(colour) = result.sample_colour;
-    });*/
-
-    v3f fixed_colour = declare_e(colour);
 
     return colour.as<valuef>() * (1-result.sample_opacity) + result.sample_colour;
 }
@@ -1062,8 +996,6 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
     as_ref(e3_out[0]) = boosted.v[3];
 }
 
-#define TRACE_DT 0.00025f
-
 template<auto GetMetric>
 void trace_geodesic(execution_context& ectx,
                     buffer<v4f> start_position, buffer<v4f> start_velocity,
@@ -1084,8 +1016,6 @@ void trace_geodesic(execution_context& ectx,
 
     mut_v4f acceleration = declare_mut_e(calculate_acceleration_of(start_cpos, start_cvel, GetMetric));
 
-    //for a timelike geodesic, dt is proper time
-    float dt = TRACE_DT;
     v4f start = declare_e(start_position[0]);
 
     mut<valuei> idx = declare_mut_e("i", valuei(0));
@@ -1105,12 +1035,7 @@ void trace_geodesic(execution_context& ectx,
 
         value_impl::get_context().add(se);*/
 
-        /*v4f acceleration = calculate_acceleration_of(cposition, cvelocity, GetMetric);
-
-        pin(acceleration);
-
-        as_ref(velocity) = cvelocity + acceleration * dt;
-        as_ref(position) = cposition + velocity.as<valuef>() * dt;*/
+        valuef dt = get_timelike_timestep(cposition, cvelocity);
 
         auto [next_position, next_velocity, next_acceleration] = verlet(cposition, cvelocity, cacceleration, valuef(dt), GetMetric);
 
@@ -1176,8 +1101,6 @@ void parallel_transport_tetrads(execution_context& ectx,
                                 buffer_mut<v4f> e0_out, buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out)
 {
     using namespace single_source;
-    //its important that this dt is the same dt as the one that we used in trace_geodesic, as we're dealing with the same parameterisation. If you use a variable timestep, you need to write this into a buffer
-    float dt = TRACE_DT;
 
     valuei count = declare_e(counts[0]);
     mut<valuei> i = declare_mut_e(valuei(0));
@@ -1204,6 +1127,8 @@ void parallel_transport_tetrads(execution_context& ectx,
         v4f e2_cst = declare_e(e2_current);
         v4f e3_cst = declare_e(e3_current);
 
+        valuef dt = get_timelike_timestep(current_position, current_velocity);
+
         v4f e0_next = transport(e0_cst, current_position, next_position, current_velocity, next_velocity, valuef(dt), GetMetric);
         v4f e1_next = transport(e1_cst, current_position, next_position, current_velocity, next_velocity, valuef(dt), GetMetric);
         v4f e2_next = transport(e2_cst, current_position, next_position, current_velocity, next_velocity, valuef(dt), GetMetric);
@@ -1213,48 +1138,11 @@ void parallel_transport_tetrads(execution_context& ectx,
         as_ref(e1_current) = e1_next;
         as_ref(e2_current) = e2_next;
         as_ref(e3_current) = e3_next;
-
-        /*v4f next_position = declare_e(positions[i+1]);
-        v4f next_velocity = declare_e(velocities[i+1]);*/
-
-        //tensor<valuef, 4, 4, 4> christoff2 = calculate_christoff2(current_position, GetMetric);
-
-        //pin(christoff2);
-
-        #if 0
-        v4f e0_cst = declare_e(e0_current);
-        v4f e1_cst = declare_e(e1_current);
-        v4f e2_cst = declare_e(e2_current);
-        v4f e3_cst = declare_e(e3_current);
-
-        /*
-        float4 current_position = geodesic_path[current_idx];
-        float4 next_position = geodesic_path[next_idx];
-
-        float4 current_velocity = geodesic_velocity[current_idx];
-        float4 next_velocity = geodesic_velocity[next_idx];
-
-        ///this isn't verlet, its generic 2nd order integration
-        float4 f_x = parallel_transport_get_velocity(current_quantity, current_position, current_velocity, cfg);
-
-        float4 intermediate_next = current_quantity + f_x * ds;
-
-        float4 next = current_quantity + 0.5f * ds * (f_x + parallel_transport_get_velocity(intermediate_next, next_position, next_velocity, cfg));*/
-
-        v4f e0_change = parallel_transport_get_change(e0_cst, current_velocity, christoff2);
-        v4f e1_change = parallel_transport_get_change(e1_cst, current_velocity, christoff2);
-        v4f e2_change = parallel_transport_get_change(e2_cst, current_velocity, christoff2);
-        v4f e3_change = parallel_transport_get_change(e3_cst, current_velocity, christoff2);
-
-        as_ref(e0_current) = e0_cst + e0_change * dt;
-        as_ref(e1_current) = e1_cst + e1_change * dt;
-        as_ref(e2_current) = e2_cst + e2_change * dt;
-        as_ref(e3_current) = e3_cst + e3_change * dt;
-        #endif
     });
 }
 
-void interpolate(execution_context& ectx, buffer<v4f> positions, buffer<v4f> e0s, buffer<v4f> e1s, buffer<v4f> e2s, buffer<v4f> e3s, buffer<valuei> counts,
+void interpolate(execution_context& ectx, buffer<v4f> positions, buffer<v4f> velocities,
+                 buffer<v4f> e0s, buffer<v4f> e1s, buffer<v4f> e2s, buffer<v4f> e3s, buffer<valuei> counts,
                  literal<valuef> desired_proper_time,
                  buffer_mut<v4f> position_out, buffer_mut<v4f> e0_out, buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out)
 {
@@ -1266,9 +1154,6 @@ void interpolate(execution_context& ectx, buffer<v4f> positions, buffer<v4f> e0s
     if_e(size == 0, [&] {
         return_e();
     });
-
-    //it is again important that this timestep matches the one from parallel transported tetrads
-    float dt = TRACE_DT;
 
     mut<valuef> elapsed_time = declare_mut_e(valuef(0));
 
@@ -1285,6 +1170,8 @@ void interpolate(execution_context& ectx, buffer<v4f> positions, buffer<v4f> e0s
     mut<valuei> i = declare_mut_e(valuei(0));
 
     for_e(i < (size - 1), assign_b(i, i+1), [&] {
+        valuef dt = get_timelike_timestep(positions[i], velocities[i]);
+
         if_e(desired_proper_time.get() >= elapsed_time && desired_proper_time.get() < elapsed_time + dt, [&]{
             valuef frac = (desired_proper_time.get() - elapsed_time) / dt;
 
