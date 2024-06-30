@@ -7,13 +7,15 @@ categories: C++
 
 Hiyas! We're going to tie up some loose ends today, and complete the steps you need to render arbitrary metric tensors in general relativity. This is the last jumbo tutorial article I'm doing in this series - after this we'll be moving onto numerical relativity, so its time to clear up a few straggler topics:
 
-1. A dynamic timestep
-2. Workable camera controls/consistently orienting tetrads
-3. Observers with velocity
-4. Redshift
-5. Accretion disk
+1. Wormholes
+2. A dynamic timestep
+3. Workable camera controls/consistently orienting tetrads
+4. Observers with velocity
+5. Redshift
+6. Accretion disks
+7. Spinning black holes
 
-Todo: Do I need to split this up into chapters?
+There will also be at least one cat in this article
 
 # The interstellar wormhole
 
@@ -92,10 +94,11 @@ valuef get_timestep(v4f position, v4f velocity)
     v4f avelocity = fabs(velocity);
     valuef divisor = max(max(avelocity.x(), avelocity.y()), max(avelocity.z(), avelocity.w()));
 
-    valuef normal_precision = 0.1f/divisor;
-    valuef high_precision = 0.02f/divisor;
+    valuef low_precision = 0.05f/divisor;
+    valuef normal_precision = 0.012f/divisor;
+    valuef high_precision = 0.005f/divisor;
 
-    return ternary(fabs(position[1]) < 3.f, high_precision, normal_precision);
+    return ternary(fabs(position[1]) < 10, ternary(fabs(position[1]) < 3.f, high_precision, normal_precision), low_precision);
 }
 ```
 
@@ -177,7 +180,7 @@ Note that $i$ ranges over 1-3, instead of 0-3. We now have 3 vectors - which we 
 
 We can now orthonormalise these vectors to produce a new set of spacelike basis vectors for the frame of reference. Because we're in a minkowski metric - we can use gram schmidt with a trivial 3x3 identity matrix as the metric tensor
 
-As you may have spotted, orthornormalising these vectors changes them - we start from a vector, which means that you can only preserve one of the original vectors after orthonormalisation. The correct vector to preserve is the 'up' vector that you use for your fixed mouse vertical axis - this means that as you spin the camera left and right, the axis you rotate around remains consistent, and this is a reasonable compromise
+As you may have spotted, orthornormalising these vectors changes them - orthonormalising can only preserve a single vector (the one we start from). The correct vector to preserve is the 'up' vector that you use for your fixed mouse vertical axis - this means that as you spin the camera left and right, the axis you rotate around remains consistent, giving a reasonable compromise control scheme
 
 One key thing to note is that we only orient the *initial* tetrad if we're parallel transporting tetrads - this is one of the reasons why the technique works, often the camera ends up parallel transported into poorly behaved areas from well behaved nearly flat ones, so we only need it to work at our starting point
 
@@ -189,74 +192,71 @@ if(should_orient)
     v4f spher = GenericToSpherical(position.get());
     v3f cart = spherical_to_cartesian(spher.yzw());
 
-    v3f cx = (v3f){1, 0, 0};
-    v3f cy = (v3f){0, 1, 0};
-    v3f cz = (v3f){0, 0, 1};
+    v3f bx = (v3f){1, 0, 0};
+    v3f by = (v3f){0, 1, 0};
+    v3f bz = (v3f){0, 0, 1};
 
-    //in practice we always convert to spherical coordinates first
-    v3f sx = convert_velocity(cartesian_to_spherical, cart, cx);
-    v3f sy = convert_velocity(cartesian_to_spherical, cart, cy);
-    v3f sz = convert_velocity(cartesian_to_spherical, cart, cz);
+    v3f sx = convert_velocity(cartesian_to_spherical, cart, bx);
+    v3f sy = convert_velocity(cartesian_to_spherical, cart, by);
+    v3f sz = convert_velocity(cartesian_to_spherical, cart, bz);
 
-    //This is why we convert to spherical
-    //This is a specific correction for wormhole-typed metrics, to fix the camera's direction when the radial coordinate is negative, so that it lines up with +r
     sx.x() = ternary(spher.y() < 0, -sx.x(), sx.x());
     sy.x() = ternary(spher.y() < 0, -sy.x(), sy.x());
     sz.x() = ternary(spher.y() < 0, -sz.x(), sz.x());
 
-    //now we convert our basis vectors into the metrics actual coordinate system. You'll need to provide SphericalToGeneric
-    v4f gx = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sx.x(), sx.y(), sx.z()});
-    v4f gy = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sy.x(), sy.y(), sy.z()});
-    v4f gz = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sz.x(), sz.y(), sz.z()});
+    v4f dx = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sx.x(), sx.y(), sx.z()});
+    v4f dy = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sy.x(), sy.y(), sy.z()});
+    v4f dz = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sz.x(), sz.y(), sz.z()});
 
-    inverse_tetrad itet = tetrads.invert();
+    inverse_tetrad itet = tet.invert();
 
-    //only here for the compile times
-    pin(gx);
-    pin(gy);
-    pin(gz);
+    pin(dx);
+    pin(dy);
+    pin(dz);
 
-    v4f lx = itet.into_frame_of_reference(gx);
-    v4f ly = itet.into_frame_of_reference(gy);
-    v4f lz = itet.into_frame_of_reference(gz);
+    v4f lx = itet.into_frame_of_reference(dx);
+    v4f ly = itet.into_frame_of_reference(dy);
+    v4f lz = itet.into_frame_of_reference(dz);
 
-    //only here for the compile times
     pin(lx);
     pin(ly);
     pin(lz);
 
-    //start orthonormalisation off with our 'up' vector
     std::array<v3f, 3> ortho = orthonormalise(ly.yzw(), lx.yzw(), lz.yzw());
 
-    ///after we orthonormalise, our axis are permuted, so undo that permutation
     v4f x_basis = {0, ortho[1].x(), ortho[1].y(), ortho[1].z()};
     v4f y_basis = {0, ortho[0].x(), ortho[0].y(), ortho[0].z()};
     v4f z_basis = {0, ortho[2].x(), ortho[2].y(), ortho[2].z()};
 
-    //we now have our new basis vectors
-    v4f x_out = tetrads.into_coordinate_space(x_basis);
-    v4f y_out = tetrads.into_coordinate_space(y_basis);
-    v4f z_out = tetrads.into_coordinate_space(z_basis);
+    pin(x_basis);
+    pin(y_basis);
+    pin(z_basis);
 
-    boosted.v[1] = x_out;
-    boosted.v[2] = y_out;
-    boosted.v[3] = z_out;
+    v4f x_out = tet.into_coordinate_space(x_basis);
+    v4f y_out = tet.into_coordinate_space(y_basis);
+    v4f z_out = tet.into_coordinate_space(z_basis);
+
+    pin(x_out);
+    pin(y_out);
+    pin(z_out);
+
+    tet.v[1] = x_out;
+    tet.v[2] = y_out;
+    tet.v[3] = z_out;
 }
 ```
 
 Which results in your metric looking like this as you fly around, making it way easier to implement camera controls, as now you have a consistent usable tetrad basis
 
-[^untested]: You could potentially calculate which coordinate is timelike, and improve this step by setting the timelike coordinate to be 0 instead. However, your tetrad orientation would no longer be consistent - this is a basic problem with this method - we cannot truly globally orient our tetrad vectors
+[^untested]: Its possible you may be able to come up with a consistent orientation scheme in this case, I'd love to hear it
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/lyfOMHNaLyw?si=n2Zrmubk-ux-wmzZ" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 # Observers with velocity / Lorentz boosts
 
-We'd like to give our observer a shove in a particular direction, instead of letting them drift completely freely. Amusingly enough, the interstellar wormhole has neglegible gravity, so we'll simply sit still forever if we can't represent a moving observer (instead of whatever we get out of the metric from Gram-Scmidt[^notethat])
+The interstellar wormhole has neglegible gravity, so we'll simply sit still forever if we can't represent a moving observer. Ideally we'd like to give our observer a push in a particular direction, to represent them moving. Note that we define this velocity relative to our initial frame of reference
 
-[^notethat]: Note that boosting our observer in a direction *still* doesn't give us any more physical information as to where we're going, as our initial tetrad is still entirely arbitrary. We do however construct our boosts in the local frame of reference - so if we know where our tetrad is pointing (which is not always certain), we know the direction we boost towards. We have no information on our absolute velocity - as there is no absolute velocity
-
-In a previous article, we learnt that given a set of tetrad vectors $e_i^\mu$, the 0th vector $e_0^\mu$ represents the velocity of our observer. If we want to represent an observer with a different speed, sadly we can't just modify that component - to transform the entire tetrad is a little more involved. The standard method for this is something called a lorentz boost (or more generally, a lorentz transform - which may include rotations), which - in special relativity - relates two observers moving at different speeds. A lorentz boost (or transform) in general relativity is often denoted by the symbol $\Lambda^i_{\;j}$, or $B^i_{\;j}$ for a lorentz boost specifically here. [This](https://arxiv.org/pdf/1106.2037) paper and [this](https://arxiv.org/pdf/2404.05744) paper contain more information in general
+In a previous article, we learnt that given a set of tetrad vectors $e_i^\mu$, the 0th vector $e_0^\mu$ represents the velocity of our observer. If we want to represent an observer with a different speed, sadly we can't just modify that component - to transform the entire tetrad is a little more involved. The standard method for this is something called a lorentz boost (or more generally, a lorentz transform - which may include rotations), which relates two observers moving at different speeds. A lorentz transform in general relativity is often denoted by the symbol $\Lambda^i_{\;j}$, or $B^i_{\;j}$ for a lorentz boost specifically here. [This](https://arxiv.org/pdf/1106.2037) paper and [this](https://arxiv.org/pdf/2404.05744) paper contain more information if you want to go digging
 
 For us, we're looking to perform a lorentz boost in an arbitrary direction, and apply it to our basis vectors. Before we get there, we need to know what a 4-velocity is - something we've skimmed over a bit
 
@@ -270,7 +270,7 @@ Lets imagine you have a regular good ol' velocity in 3 dimensional space. We'll 
 4. 4-velocities parameterised by proper time $\frac{dx^\mu}{d\tau}$
 5. Timelike vs lightlike geodesics, with all of the different parameterisations
 
-It is common to define 4-velocities as only being those velocities which are parameterised by proper time, but we're going with the generalised understanding here. Note that this segment is dealing with line elements in minkowski for simplicity, and as such is special relativity. That said, the language of special relativity, and general relativity are often not very similar at all, so this is very useful to write down
+It is common to define 4-velocities as only being those velocities which are parameterised by proper time, but we're going with the generalised understanding here. Note that this segment is dealing with line elements in minkowski as that's where we'll be constructing our geodesics, and as such is special relativity. That said, the language of special relativity, and general relativity are often not very similar at all, so I'm putting this all down in our terminology
 
 ### Lightlike Geodesics
 
@@ -309,7 +309,7 @@ The full line element reads:
 
 $$ds^2 = -d\tau^2 = g_{\mu\nu}$$
 
-Because for a lightlike geodesic, $ds^2 = 0$, $d\tau^2 = 0$. There is therefore no proper time parameterisation of a lightlike geodesic. For this reason, it is common to state that the velocity of a lightlike geodesic is not a 4-velocity, as it can never be parameterised by proper time
+For a lightlike geodesic, $ds^2 = 0$, $d\tau^2 = 0$. There is therefore no proper time parameterisation of a lightlike geodesic. For this reason, it is common to state that the velocity of a lightlike geodesic is not a 4-velocity, as it can never be parameterised by proper time
 
 ### Timelike Geodesics
 
@@ -356,9 +356,13 @@ Part of the reason why I'm spelling this out so explicitly is because all this n
 
 #### Affine parameterisation
 
-Like with lightlike geodesics, we can construct 'an' affine parameterisation by setting $\lambda = t$ at the moment of construction, after which the two parameters diverge. This however is very uncommon, and is only mentioned for completeness. When you do this, the parameterisation has no physical interpretation
+Like with lightlike geodesics, we can construct 'an' affine parameterisation by setting $\lambda = t$ at the moment of construction, after which the two parameters diverge. This however is very uncommon, and is only mentioned for completeness. When you do this, the parameterisation is hard to interpret physically
 
-We can also construct an affine time parameterisation by setting $\lambda = \tau$, where $d\tau = ds^2 = -1$ (which is true in any proper time parameterisation). One very neat fact of proper time is that it *is* a general affine parameterisation, and so if we use a proper time parameterised geodesic and plug it through the geodesic equation specialised for the affine parameter (which is the one we use), this is perfectly valid
+We can also construct an affine time parameterisation by setting $\lambda = \tau$, where $d\tau = ds^2 = -1$ (which is true in any proper time parameterisation). One very neat fact of proper time is that it *is* a general affine parameterisation, and so if we use a proper time parameterised geodesic and plug it through the geodesic equation specialised for the affine parameter (which is the one we use), it remains parameterised by proper time
+
+## Cat break
+
+![She lives on that bag](/assets/catbreak.jpg)
 
 ## Calculating a lorentz boost
 
@@ -431,7 +435,6 @@ tetrad boost_tetrad(v3f velocity, const tetrad& tetrads, const metric<valuef, 4,
 
     tetrad next;
 
-    //multiply our old tetrads by our lorentz boost to get our new tetrad
     for(int a=0; a < 4; a++)
     {
         for(int i=0; i < 4; i++)
@@ -477,7 +480,7 @@ Next up, we need to work out how our light changes, from our end frame of refere
 
 $$z+1 = \frac{\lambda_{obs}}{\lambda_{em}}$$
 
-Once we have our new wavelength, we need to calculate the intensity. We can do this by calculating the lorentz invariant (constant in every frame of reference): $\frac{I_\nu}{\nu^3}$, where $\nu$ is your frequency. See [here](https://www.astro.princeton.edu/~jeremy/heap.pdf) 1.26 for details. Note that the quantity $I \lambda^3$ is also therefore lorentz invariant
+Once we have our new wavelength, we need to calculate the intensity. We can do this by calculating the lorentz invariant (constant in every frame of reference): $\frac{I_\nu}{\nu^3}$, where $\nu$ is your frequency. See [here](https://www.astro.princeton.edu/~jeremy/heap.pdf) 1.26 for details. Note that the quantity $I_\nu \lambda^3$ is also therefore lorentz invariant
 
 So, to calculate our observed intensity, we say
 
@@ -505,11 +508,13 @@ If you want the equation for transforming a radiant flux, you're looking for:[^t
 
 $$F_{obs} = \frac{F_{emit}}{(z+1)^4}$$
 
+This is often much easier to work with
+
 [^twelve]: [https://arxiv.org/pdf/gr-qc/9505010](https://arxiv.org/pdf/gr-qc/9505010) (12)
 
 ## Where do $I_{emit}$ and $\lambda_{emit}$ come from?
 
-It depends what we're simulating. For our use case - redshifting a galaxy background, you'd need frequency and intensity data across the entire sky. A good starting point is over [here](http://aladin.cds.unistra.fr/hips/list), luckily we live in 2024 and a significant amount of this information is simply public - unfortunately these skymaps do not come with what units their intensity data is in, making them unusable[^digging] . Still, you can go find the original surveys - although it requires significant digging which I'm not going to do in this article
+It depends what we're simulating. For our use case - redshifting a galaxy background, you'd need frequency and intensity data across the entire sky. A good starting point is over [here](http://aladin.cds.unistra.fr/hips/list), luckily we live in 2024 and a significant amount of this information is simply public - unfortunately these skymaps do not come with what units their intensity data is in, making them unusable[^digging]. Still, you can go find the original surveys - though it requires significant digging which I'm not going to do in this article
 
 If you have a blackbody radiator, it becomes fairly straightforward, as given a temperature we can redshift that directly, via the equation:
 
@@ -521,23 +526,21 @@ For our galaxy background, we're instead going to implement *illustrative* redsh
 
 ## Illustrative redshift
 
-The key here is that we're going to discard physicality, and just show a measure of redshift. To do this, we first pick a fairly arbitrary wavelength - in my case I use $555nm$[^dontdoit], to represent green light. We then carry on as normal, and calculate $z+1$. Our intensity data is defined as the $Y$ component of the $XYZ$ colour space which represents power, see [here](https://en.wikipedia.org/wiki/SRGB#From_sRGB_to_CIE_XYZ). Put more simply: we convert to linear sRGB, and then calculate Y as:
-
-[^dontdoit]: You might be tempted to try and do something more fancy like dominant colours or whatever, but the reality is when you're dealing only with a narrow range of visible light it makes 0 difference
+The key here is that we're going to discard physicality when it comes to the colour, and just show a measure of redshift. We can still calculate $z+1$ as per normal, and then transform our radiant flux directly - we only need the wavelength for working out the final colour, which we'll use $z+1$ for directly. Our intensity data is defined as the $Y$ component of the $XYZ$ colour space which represents power, see [here](https://en.wikipedia.org/wiki/SRGB#From_sRGB_to_CIE_XYZ). Put more directly: we convert to linear sRGB, and then calculate Y as:
 
 $$Y = 0.2126 r + 0.7152 g + 0.0722 b$$
 
-Once we've calculated our new intensity via the intensity equation, its then time to recolour our texture. We don't actually want to use our new wavelength - because it contains no useful colour information, but instead interpolate between red and blue depending on the value of $z$. $z$ has a range of $[-1, +inf]$, so we split into two branches
+Once we've calculated our new intensity via the intensity equation, its then time to recolour our texture. To do this is as straightforward as interpolating between red and blue depending on the value of $z$. $z$ has a range of $[-1, +inf]$, so its easiest to split into two branches
 
 ### Redshift Only
 
 Redshift (z > 0):
 
 ```c++
-new_colour = mix(old_colour, pure_red / 0.2126, tanh(z));
+new_colour = mix(old_colour, pure_red / 0.2126f, tanh(z));
 ```
 
-Redshift naturally fades to black as the intensity drops. The choice of `tanh` to map the infinite range to $[0, 1]$ is fairly arbitrary. The division by the constant is to ensure that our brightness remains the sam
+Redshift naturally fades to black as the intensity drops. The choice of `tanh` to map the infinite range to $[0, 1]$ is fairly arbitrary. The division by the constant is to ensure that our brightness remains the same
 
 ### Blueshift Only
 
@@ -548,10 +551,10 @@ iv1pz = (1/(1 + z)) - 1;
 
 interpolating_fraction = tanh(iv1pz);
 
-new_colour = mix(old_colour, pure_blue / 0.0722, interpolating_fraction);
+new_colour = mix(old_colour, pure_blue / 0.0722f, interpolating_fraction);
 ```
 
-The mapping here is more complicated to replicate the same falloff as redshift. One question you might have is why we're dividing our colours by the constants: notice that they're the same constants we use to calculate $Y$. This ensures that our new colour is equivalent in power/brightness to the old one
+The mapping here is more complicated to replicate the same falloff as redshift. One question you might have is where these division constants come from: notice that they're the same constants we use to calculate $Y$. This ensures that our new colour is equivalent in power/brightness to the old one
 
 One problem specific to blueshift is that our energy is unbounded, and our pixels can become infinitely bright. Its therefore much more aesthetically pleasing to spill over the extra energy into white once we max out the blue colour - which is shown in the full code sample
 
@@ -565,7 +568,9 @@ Once you have an LMS triplet, you convert that to the XYZ colour space, by calcu
 
 Then, convert that to the sRGB' linear colour space, via this [matrix](https://en.wikipedia.org/wiki/SRGB#From_CIE_XYZ_to_sRGB), before finally using the CsRGB conversion below it
 
-There will likely be a future article about accurately rendering black body radiators, but this one is long enough as it is
+### Physically accurate blackbody rendering
+
+We'll get to this down below in kerr
 
 ### Code
 
@@ -584,14 +589,7 @@ v3f redshift(v3f v, valuef z)
 
     {
         valuef iemit = energy_of(v);
-
-        ///z+1 = lobs / lemit
-        ///lobs = lemit * (z+1)
-        valuef test_wavelength = 555;
-        valuef lobs = test_wavelength * (z + 1);
-
-        ///Iobs lobs^3 = Iemit lemit^3
-        valuef iobs = iemit * pow(test_wavelength, 3.f) / pow(lobs, 3.f);
+        valuef iobs = iemit / pow(z+1, 4.f);
 
         v = (iobs / iemit) * v;
 
@@ -606,22 +604,18 @@ v3f redshift(v3f v, valuef z)
 
     mut_v3f result = declare_mut_e((v3f){0,0,0});
 
-    //redshift
     if_e(z >= 0, [&]{
         as_ref(result) = mix(v, radiant_energy * red, tanh(z));
     });
 
-    //blueshift
     if_e(z < 0, [&]{
-        //map red and blueshift to the same sacles
         valuef iv1pz = (1/(1 + z)) - 1;
 
         valuef interpolating_fraction = tanh(iv1pz);
 
         v3f col = mix(v, radiant_energy * blue, interpolating_fraction);
 
-        //calculate spilling into white. This works out how much energy we are unable to represent
-        //and spills the rest into the other colours
+        //calculate spilling into white
         {
             valuef final_energy = energy_of(clamp(col, 0.f, 1.f));
             valuef real_energy = energy_of(col);
@@ -641,7 +635,7 @@ v3f redshift(v3f v, valuef z)
 }
 ```
 
-For a schwarzschild black hole, a velocity boosted 0.5 towards the black hole, and a starting position of $(0, 5, 0, 0)$, you end up with this
+For a schwarzschild black hole, a velocity of 0.5c boosting towards the black hole, and a starting position of $(0, 5, 0, 0)$, you end up with this
 
 ![Towards](/assets/blueshift_bh.png)
 
@@ -649,7 +643,7 @@ For a schwarzschild black hole, a velocity boosted 0.5 towards the black hole, a
 
 From the front and back. Notice that we blueshift in the direction of travel, and see a redshift in the opposite direction
 
-# Rendering Kerr
+# Rendering Kerr/Spinning black holes
 
 ## Accretion Disks
 
@@ -682,7 +676,7 @@ The retrograde ISCO is higher than the prograde ISCO, so flip the sign appropria
 
 Because orbits within the ISCO are unstable, matter depletes from this region very quickly. For this reason, accretion disks are often modelled as having a gap between the event horizon, and the ISCO - which we will follow[^alert]. For the model we're looking at, [here](https://www.emis.de/journals/LRG/Articles/lrr-2013-1/articlese5.html) equations 98-100, we have three regions for us to work with, which are called:
 
-[^alert]: Note that one of the papers linked, [this](https://arxiv.org/pdf/1110.6556) one, was originally what this article implemented, and claims to model the plunging region. This ended up being a significantly delay, as as far as I can tell the equations for the plunging region fundamentally do not work - you can straightforwardly prove that the radial velocity profile is imaginary, and tends to infinity, simultaneously. This is a bit unfortunate
+[^alert]: Note that one of the papers linked, [this](https://arxiv.org/pdf/1110.6556) one, was originally what this article implemented, and claims to model the plunging region. This ended up being a significantly delay, as as far as I can tell the equations for the plunging region fundamentally do not work - you can straightforwardly show that the radial velocity profile is imaginary, and tends to infinity, simultaneously. This is a bit unfortunate
 
 1. The inner region
 2. The middle region
@@ -697,9 +691,11 @@ The details of this are interesting[^interesting], but we're going to focus on h
 
 [^interesting]: If there was time, it would be interesting to lay it all out. This is one of the downsides of writing articles which are intended to be implementation focused, and a bit jumbo like this one. While these papers themselves contain all the theory you need, the thing we are lacking is actually how to implement this. In the future, I may revisit accretion disks in a lot more detail
 
-To distinguish when we transition from region 1, to region 2, which want to calculate (gas pressure / radiation pressure), and if its > 1 move into the middle region. This quantity is labelled $\beta / (1-\beta)$ I believe
+To distinguish when we transition from region 1, to region 2, which want to calculate (gas pressure / radiation pressure), and if its > 1 move into the middle region. This quantity is labelled $\beta / (1-\beta)$ (I do not know why)
 
-To distinguish when we transition from region 2, to region 3, we calculate the quantity $T_ff / T_es$, which is the free-free opacity / the electron scattering opacity. When this quantity is > 1, we swap to region 3
+To distinguish when we transition from region 2, to region 3, we calculate the quantity $T_ff / T_es$, which is the free-free opacity / the electron scattering opacity. When this quantity is > 1, we swap to region 3[^pleasedonote]
+
+[^pleasedonote]: You should be aware that I'm not 110% certain that this is correct, it seems to work well enough in my understanding but I've only spent a week or so on this
 
 ## Other details
 
@@ -722,7 +718,7 @@ With this, we should have everything[^onemore] we need to implement this correct
 
 ## Code
 
-The equations here - as written, are long and complicated to implement correctly. I won't reproduce the equations in full here - it just introduces a risk of mistakes, but you can find the code for implementing this method, and producing a nice accretion disk texture over here
+The equations here - as written, are long and complicated to implement correctly. I won't reproduce the equations in full here - it just introduces a risk of mistakes, but you can find the code for implementing this method, and producing a nice accretion disk texture over here:
 
 This gives pretty nice results. For $M=1$[^geometric], $a=0.6$, $\dot{m} = 0.3$:
 
