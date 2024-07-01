@@ -419,10 +419,10 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
                 valuef outer_boundary = 2 * BH_MASS * 50;
                 valuei iradial = (min(fabs(radial) / outer_boundary, valuef(1.f)) * buffer_size).to<int>();
 
-                mut_v3f disk = declare_mut_e(accretion_disk[iradial]);
+                v3f disk = accretion_disk[iradial];
 
-                as_ref(disk) = declare_e(disk) * clamp(1 - declare_e(opacity), 0.f, 1.f);
-                as_ref(opacity) = declare_e(opacity) + energy_of(declare_e(disk)) * 50;
+                disk = disk * clamp(1 - declare_e(opacity), 0.f, 1.f);
+                as_ref(opacity) = declare_e(opacity) + energy_of(disk) * 50;
 
                 ///change the parameterisation to proper time
                 observer = observer / sqrt(fabs(ds));
@@ -441,7 +441,7 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
                     ///https://www.jb.man.ac.uk/distance/frontiers/cmb/node7.htm
                     valuef shifted_temperature = temperature_in / zp1;
 
-                    valuef old_brightness = energy_of(declare_e(disk));
+                    valuef old_brightness = energy_of(disk);
 
                     ///https://arxiv.org/pdf/gr-qc/9505010 12
                     valuef new_brightness = old_brightness / pow(zp1, 4.f);
@@ -458,29 +458,28 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
                         return mix(p1, p2, frac);
                     };
 
-                    as_ref(disk) = lookup_frac(shifted_temperature) * new_brightness;
+                    v3f final_colour = lookup_frac(shifted_temperature) * new_brightness;
 
-                    as_ref(colour_out) = declare_e(colour_out) + declare_e(disk);
+                    as_ref(colour_out) = declare_e(colour_out) + final_colour;
                 });
                 #endif
 
                 #ifdef ILLUSTRATIVE_REDSHIFT
                 valuef zp1 = get_zp1(g.position, g.velocity, initial_observer, cposition, cvelocity, observer, get_metric);
 
-                as_ref(disk) = do_redshift(declare_e(disk), zp1);
+                v3f shifted = do_redshift(disk, zp1);
 
-                as_ref(colour_out) = declare_e(colour_out) + declare_e(disk);
+                as_ref(colour_out) = declare_e(colour_out) + shifted;
                 #endif
 
                 #ifdef RAW_DISK
-                as_ref(colour_out) = declare_e(colour_out) + declare_e(disk);
+                as_ref(colour_out) = declare_e(colour_out) + disk;
                 #endif // RAW_DISK
 
                 if_e(opacity >= 1, [] {
                     break_e();
                 });
             });
-
         });
         #endif
 

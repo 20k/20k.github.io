@@ -781,7 +781,9 @@ Given that this would be computationally expensive to calcualte at runtime, I si
 #ifdef HAS_ACCRETION_DISK
 valuef period_start = floor(position.z() / pi) * pi;
 
+//old position
 valuef in_start = cposition.z() - period_start;
+//new position
 valuef in_end = position.z() - period_start;
 
 valuef min_start = min(in_start, in_end);
@@ -794,28 +796,23 @@ if_e(pi/2 >= min_start && pi/2 <= max_start, [&]
     valuef M = BH_MASS;
     valuef a = BH_SPIN;
 
-    ///calculate the angular velocity
     valuef w = pow(M, 1.f/2.f) / (pow(radial, 3.f/2.f) + a * pow(M, 1.f/2.f));
 
-    ///calculate the observer velocity
     v4f observer = {radial, 0, 0, w * radial};
 
     valuef ds = dot_metric(observer, observer, get_metric(cposition));
 
-    ///are we a valid circular geodesic?
+    ///valid circular geodesic
     if_e(ds < 0 && radial > 0, [&]
     {
         int buffer_size = 2048;
         valuef outer_boundary = 2 * BH_MASS * 50;
         valuei iradial = (min(fabs(radial) / outer_boundary, valuef(1.f)) * buffer_size).to<int>();
 
-        ///this is the disk brightness, in linear rgb. We only actually need one row on the disk, as its symmetric
-        mut_v3f disk = declare_mut_e(accretion_disk[iradial]);
+        v3f disk = accretion_disk[iradial];
 
-        ///extremely basic 'volume' rendering to model opacity
-        as_ref(disk) = declare_e(disk) * clamp(1 - declare_e(opacity), 0.f, 1.f);
-        ///opacity is completely arbitrary here
-        as_ref(opacity) = declare_e(opacity) + energy_of(declare_e(disk)) * 50;
+        disk = disk * clamp(1 - declare_e(opacity), 0.f, 1.f);
+        as_ref(opacity) = declare_e(opacity) + energy_of(disk) * 50;
 
         ///change the parameterisation to proper time
         observer = observer / sqrt(fabs(ds));
@@ -834,7 +831,7 @@ if_e(pi/2 >= min_start && pi/2 <= max_start, [&]
             ///https://www.jb.man.ac.uk/distance/frontiers/cmb/node7.htm
             valuef shifted_temperature = temperature_in / zp1;
 
-            valuef old_brightness = energy_of(declare_e(disk));
+            valuef old_brightness = energy_of(disk);
 
             ///https://arxiv.org/pdf/gr-qc/9505010 12
             valuef new_brightness = old_brightness / pow(zp1, 4.f);
@@ -851,27 +848,28 @@ if_e(pi/2 >= min_start && pi/2 <= max_start, [&]
                 return mix(p1, p2, frac);
             };
 
-            as_ref(disk) = lookup_frac(shifted_temperature) * new_brightness;
-            as_ref(colour_out) = declare_e(colour_out) + declare_e(disk);
+            v3f final_colour = lookup_frac(shifted_temperature) * new_brightness;
+
+            as_ref(colour_out) = declare_e(colour_out) + final_colour;
         });
         #endif
 
         #ifdef ILLUSTRATIVE_REDSHIFT
         valuef zp1 = get_zp1(g.position, g.velocity, initial_observer, cposition, cvelocity, observer, get_metric);
 
-        as_ref(disk) = do_redshift(declare_e(disk), zp1);
-        as_ref(colour_out) = declare_e(colour_out) + declare_e(disk);
+        v3f shifted = do_redshift(disk, zp1);
+
+        as_ref(colour_out) = declare_e(colour_out) + shifted;
         #endif
 
         #ifdef RAW_DISK
-        as_ref(colour_out) = declare_e(colour_out) + declare_e(disk);
+        as_ref(colour_out) = declare_e(colour_out) + disk;
         #endif // RAW_DISK
 
         if_e(opacity >= 1, [] {
             break_e();
         });
     });
-
 });
 #endif
 ```
