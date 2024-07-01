@@ -27,21 +27,11 @@ tensor<T, 3> linear_to_srgb(const tensor<T, 3>& in)
     return ret;
 }
 
-constexpr double cpow(double a, double b)
-{
-    return pow(a, b);
-}
-
-double cpow(double a, int b)
-{
-    assert(false);
-}
-
 double get_isco(double M, double a)
 {
     double a_star = a/M;
 
-    double Z1 = 1 + cpow(1 - a_star*a_star, 1./3.) * (cpow(1 + a_star, 1./3.) + cpow(1 - a_star, 1./3.));
+    double Z1 = 1 + pow(1 - a_star*a_star, 1./3.) * (pow(1 + a_star, 1./3.) + pow(1 - a_star, 1./3.));
     double Z2 = sqrt(3 * a_star * a_star + Z1 * Z1);
 
     double r0_M = 3 + Z2 - sqrt((3 - Z1) * (3 + Z1 + 2 * Z2));
@@ -57,7 +47,7 @@ double get_event_horizon(double M, double a)
     return (rs + (sqrt(rs*rs - 4*a*a))) / 2.;
 }
 
-constexpr double cst_G = 6.6743 * cpow(10., -11.);
+constexpr double cst_G = 6.6743 * pow(10., -11.);
 constexpr double cst_C = 299792458;
 
 double kg_to_geom(double M)
@@ -76,7 +66,7 @@ double eddington_limit_kg_s(double M_kg)
 {
     double pi = std::numbers::pi_v<double>;
 
-    double sigmaT = 6.65245863216 * cpow(10., -29.);
+    double sigmaT = 6.65245863216 * pow(10., -29.);
     double proton_mass = 1.67262192595 * pow(10., -27.);
 
     double pm_t = proton_mass / sigmaT;;
@@ -102,7 +92,7 @@ namespace region_type
 ///https://www.emis.de/journals/LRG/Articles/lrr-2013-1/articlese5.html
 accretion_disk make_accretion_disk_kerr(float mass, float a)
 {
-    double Msol_kg = 1.988 * cpow(10., 30.);
+    double Msol_kg = 1.988 * pow(10., 30.);
 
     double pi = std::numbers::pi_v<double>;
 
@@ -115,7 +105,7 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
     double mdot_star = 0.3;
 
     double a_star = a/mass;
-    double assq = cpow(a_star, 2.);
+    double assq = pow(a_star, 2.);
 
     double isco = get_isco(mass, a);
 
@@ -149,22 +139,22 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
         float r_star = r / mass;
 
         float x_pow_m2 = mass/r;
-        float x_pow_m4 = cpow(mass/r, 2.);
+        float x_pow_m4 = pow(mass/r, 2.);
 
-        double A = 1 + assq * x_pow_m4 + 2 * assq * cpow(x, -6.);
-        double B = 1 + a_star * cpow(x, -3.);
-        double C = 1 - 3 * x_pow_m2 + 2 * assq * cpow(x, -3.);
-        double D = 1 - 2 * x_pow_m2 + assq * cpow(x, -4.);
-        double E = 1 + 4 * assq * x_pow_m4 - 4 * assq * cpow(x,-6.) + 3 * cpow(a_star, 4.) * cpow(x, -8.);
-        double Q = B * cpow(C, -1/2.) * (1/x) * (x - x0 - (3/2.) * a_star * log(x/x0)
-                                                - (3 * cpow(x1 - a_star, 2.) / (x1 * (x1 - x2) * (x1 - x3))) * log((x - x1) / (x0 - x1))
-                                                - (3 * cpow(x2 - a_star, 2.) / (x2 * (x2 - x1) * (x2 - x3))) * log((x - x2) / (x0 - x2))
-                                                - (3 * cpow(x3 - a_star, 2.) / (x3 * (x3 - x1) * (x3 - x2))) * log((x - x3) / (x0 - x3)));
+        double A = 1 + assq * x_pow_m4 + 2 * assq * pow(x, -6.);
+        double B = 1 + a_star * pow(x, -3.);
+        double C = 1 - 3 * x_pow_m2 + 2 * assq * pow(x, -3.);
+        double D = 1 - 2 * x_pow_m2 + assq * pow(x, -4.);
+        double E = 1 + 4 * assq * x_pow_m4 - 4 * assq * pow(x,-6.) + 3 * pow(a_star, 4.) * pow(x, -8.);
+        double Q = B * pow(C, -1/2.) * (1/x) * (x - x0 - (3/2.) * a_star * log(x/x0)
+                                                - (3 * pow(x1 - a_star, 2.) / (x1 * (x1 - x2) * (x1 - x3))) * log((x - x1) / (x0 - x1))
+                                                - (3 * pow(x2 - a_star, 2.) / (x2 * (x2 - x1) * (x2 - x3))) * log((x - x2) / (x0 - x2))
+                                                - (3 * pow(x3 - a_star, 2.) / (x3 * (x3 - x1) * (x3 - x2))) * log((x - x3) / (x0 - x3)));
 
         if(region == region_type::INNER)
         {
             ///This is B/(1-B)
-            double p_gas_p_rad = 4 * cpow(10., -6.) * cpow(alpha, -1/4.) * cpow(m_star, -1/4.) * cpow(mdot_star, -2.) * cpow(r_star, 21/8.) * cpow(A, -5/2.) * cpow(B, 9/2.) * D * cpow(E, 5/4.) * cpow(Q, -2.);
+            double p_gas_p_rad = 4 * pow(10., -6.) * pow(alpha, -1/4.) * pow(m_star, -1/4.) * pow(mdot_star, -2.) * pow(r_star, 21/8.) * pow(A, -5/2.) * pow(B, 9/2.) * D * pow(E, 5/4.) * pow(Q, -2.);
 
             ///in the edge region, gas pressure dominates over radiation pressure
             ///in the inner region, gas pressure is less than radiation pressure
@@ -177,24 +167,24 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
         {
             //in the outer region opacity is free-free
             //in the middle region, opacity is electron scattering
-            double Tff_Tes = (2 * cpow(10., -6.)) * (cpow(mdot_star, -1.)) * cpow(r_star, 3/2.) * cpow(A, -1.) * cpow(B, 2.) * cpow(D, 1/2.) * cpow(E, 1/2.) * cpow(Q, -1.);
+            double Tff_Tes = (2 * pow(10., -6.)) * (pow(mdot_star, -1.)) * pow(r_star, 3/2.) * pow(A, -1.) * pow(B, 2.) * pow(D, 1/2.) * pow(E, 1/2.) * pow(Q, -1.);
 
             if(Tff_Tes >= 1)
                 region = region_type::OUTER;
         }
 
-        double surface_flux = 7 * cpow(10., 26.) * cpow(m_star, -1.) * mdot_star * cpow(r_star, -3.) * cpow(B, -1.) * cpow(C, -1/2.) * Q;
+        double surface_flux = 7 * pow(10., 26.) * pow(m_star, -1.) * mdot_star * pow(r_star, -3.) * pow(B, -1.) * pow(C, -1/2.) * Q;
         double T = 0;
 
         if(region == region_type::INNER)
-            T = 5 * cpow(10., 7.) * cpow(alpha, -1/4.) * cpow(m_star, -1/4.) * cpow(r_star, -3/8.) * cpow(A, -1/2.) * cpow(B, 1/2.) * cpow(E, 1/4.);
+            T = 5 * pow(10., 7.) * pow(alpha, -1/4.) * pow(m_star, -1/4.) * pow(r_star, -3/8.) * pow(A, -1/2.) * pow(B, 1/2.) * pow(E, 1/4.);
 
         ///'edge' region as well in the more developed model
         if(region == region_type::MIDDLE)
-            T = 7 * cpow(10., 8.) * cpow(alpha, -1/5.) * cpow(m_star, -1/5.) * cpow(mdot_star, 2/5.) * cpow(r_star, -9/10.) * cpow(B, -2/5.) * cpow(D, -1/5.) * cpow(Q, 2/5.);
+            T = 7 * pow(10., 8.) * pow(alpha, -1/5.) * pow(m_star, -1/5.) * pow(mdot_star, 2/5.) * pow(r_star, -9/10.) * pow(B, -2/5.) * pow(D, -1/5.) * pow(Q, 2/5.);
 
         if(region == region_type::OUTER)
-            T = 2 * cpow(10., 8.) * cpow(alpha, -1/5.) * cpow(m_star, -1/5.) * cpow(mdot_star, 3/10.) * cpow(r_star, -3/4.) * cpow(A, -1/10.) * cpow(B, -1/5.) * cpow(D, -3/20.) * cpow(E, 1/20.) * cpow(Q, 3/10.);
+            T = 2 * pow(10., 8.) * pow(alpha, -1/5.) * pow(m_star, -1/5.) * pow(mdot_star, 3/10.) * pow(r_star, -3/4.) * pow(A, -1/10.) * pow(B, -1/5.) * pow(D, -3/20.) * pow(E, 1/20.) * pow(Q, 3/10.);
 
         brightness.push_back({r, surface_flux});
         temperature.push_back({r, T});
@@ -277,7 +267,7 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
             }
         }
 
-        return std::tuple{my_brightness, my_linear_rgb, my_temperature};
+        return std::tuple{(float)my_brightness, my_linear_rgb, (float)my_temperature};
     };
 
     //purely for article purposes, img is never used
@@ -297,7 +287,7 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
                 float rad = sqrt(di * di + dj * dj);
 
-                auto [my_brightness, my_linear_rgb, my_temperature] = lookup_radius(rad * outer_boundary);
+                auto [my_brightness, my_linear_rgb, _] = lookup_radius(rad * outer_boundary);
 
                 assert(my_brightness >= 0 && my_brightness <= 1);
 
