@@ -151,49 +151,44 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
                                                 - (3 * cpow(x2 - a_star, 2.) / (x2 * (x2 - x1) * (x2 - x3))) * log((x - x2) / (x0 - x2))
                                                 - (3 * cpow(x3 - a_star, 2.) / (x3 * (x3 - x1) * (x3 - x2))) * log((x - x3) / (x0 - x3))
                                                 );
-        ///This is B/(1-B)
-        double p_gas_p_rad = 0;
+        if(region == 2)
+        {
+            ///This is B/(1-B)
+            double p_gas_p_rad = 4 * cpow(10., -6.) * cpow(alpha, -1/4.) * cpow(m_star, -1/4.) * cpow(mdot_star, -2.) * cpow(r_star, 21/8.) * cpow(A, -5/2.) * cpow(B, 9/2.) * D * cpow(E, 5/4.) * cpow(Q, -2.);
 
-        if(region == 4)
-            p_gas_p_rad = 3 * cpow(alpha, -1/10.) * cpow(m_star, -1/10.) * cpow(mdot_star, -7/20.) * cpow(r_star, 3/8.) * cpow(A, -11/20.) * cpow(B, 9/10.) * cpow(D, 7/40.) * cpow(E, 11/40.) * cpow(Q, -7/20.);
+            ///in the edge region, gas pressure dominates over radiation pressure
+            ///in the inner region, gas pressure is less than radiation pressure
+            ///in the middle region, gas pressure is greater than radiation pressure
+            if(p_gas_p_rad > 1)
+                region = 3;
+        }
 
         if(region == 3)
-            p_gas_p_rad = 7 * cpow(10., -3.) * cpow(alpha, -1/10.) * cpow(m_star, -1/10.) * cpow(mdot_star, -4/5.) * cpow(r_star, 21/20.) * cpow(A, -1.) * cpow(B, 9/5.) * cpow(D, 2/5.) * cpow(E, 1/2.) * cpow(Q, -4/5.);
+        {
 
-        if(region == 2)
-            p_gas_p_rad = 4 * cpow(10., -6.) * cpow(alpha, -1/4.) * cpow(m_star, -1/4.) * cpow(mdot_star, -2.) * cpow(r_star, 21/8.) * cpow(A, -5/2.) * cpow(B, 9/2.) * D * cpow(E, 5/4.) * cpow(Q, -2.);
+            //in the outer region opacity is free-free
+            //in the middle region, opacity is electron scattering
+            double Tff_Tes = (2 * cpow(10., -6.)) * (cpow(mdot_star, -1.)) * cpow(r_star, 3/2.) * cpow(A, -1.) * cpow(B, 2.) * cpow(D, 1/2.) * cpow(E, 1/2.) * cpow(Q, -1.);
 
-        ///in the edge region, gas pressure dominates over radiation pressure
-        ///in the inner region, gas pressure is less than radiation pressure
-        ///in the middle region, gas pressure is greater than radiation pressure
-        if(region == 2 && p_gas_p_rad > 1)
-            region = 3;
+            if(Tff_Tes >= 1)
+                region = 4;
+        }
 
-        //in the outer region opacity is free-free
-        //in the middle region, opacity is electron scattering
-        double Tff_Tes = (2 * cpow(10., -6.)) * (cpow(mdot_star, -1.)) * cpow(r_star, 3/2.) * cpow(A, -1.) * cpow(B, 2.) * cpow(D, 1/2.) * cpow(E, 1/2.) * cpow(Q, -1.);
-
-        if(region == 3 && Tff_Tes >= 1)
-            region = 4;
-
-        double surface_flux = 0;
+        double surface_flux = 7 * cpow(10., 26.) * cpow(m_star, -1.) * mdot_star * cpow(r_star, -3.) * cpow(B, -1.) * cpow(C, -1/2.) * Q;
         double T = 0;
 
         if(region == 2)
         {
-            surface_flux = 7 * cpow(10., 26.) * cpow(m_star, -1.) * mdot_star * cpow(r_star, -3.) * cpow(B, -1.) * cpow(C, -1/2.) * Q;
             T = 5 * cpow(10., 7.) * cpow(alpha, -1/4.) * cpow(m_star, -1/4.) * cpow(r_star, -3/8.) * cpow(A, -1/2.) * cpow(B, 1/2.) * cpow(E, 1/4.);
         }
 
         if(region == 1 || region == 3)
         {
-            surface_flux = 7 * cpow(10., 26.) * cpow(m_star, -1.) * mdot_star * cpow(r_star, -3.) * cpow(B, -1.) * cpow(C, -1/2.) * Q;
             T = 7 * cpow(10., 8.) * cpow(alpha, -1/5.) * cpow(m_star, -1/5.) * cpow(mdot_star, 2/5.) * cpow(r_star, -9/10.) * cpow(B, -2/5.) * cpow(D, -1/5.) * cpow(Q, 2/5.);
         }
 
         if(region == 4)
         {
-            surface_flux = 7 * cpow(10., 26.) * cpow(m_star, -1.) * mdot_star * cpow(r_star, -3.) * cpow(B, -1.) * cpow(C, -1/2.) * Q;
             T = 2 * cpow(10., 8.) * cpow(alpha, -1/5.) * cpow(m_star, -1/5.) * cpow(mdot_star, 3/10.) * cpow(r_star, -3/4.) * cpow(A, -1/10.) * cpow(B, -1/5.) * cpow(D, -3/20.) * cpow(E, 1/20.) * cpow(Q, 3/10.);
         }
 
