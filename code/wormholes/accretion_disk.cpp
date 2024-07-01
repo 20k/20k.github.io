@@ -218,6 +218,7 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
     auto temperature_to_linear_rgb = [](double in)
     {
+        #define BLACKBODY_EXACT
         #ifndef BLACKBODY_EXACT
         return blackbody_temperature_to_approximate_linear_rgb(in);
         #else

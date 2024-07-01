@@ -568,11 +568,11 @@ std::array<tensor<float, 3>, 100000> blackbody_table()
 tensor<float, 3> blackbody_temperature_to_approximate_linear_rgb(double T)
 {
     ///https://en.wikipedia.org/wiki/Planckian_locus#Approximation
-    double uT = 0.860117757 + 1.54118254 * pow(10., -4.) * T + 1.28641212 * pow(10., -7.) * pow(T, 2.) /
+    double uT = (0.860117757 + 1.54118254 * pow(10., -4.) * T + 1.28641212 * pow(10., -7.) * pow(T, 2.)) /
                 (1 + 8.42420235 * pow(10., -4.) * T + 7.08145163 * pow(10., -7.) * pow(T, 2.));
 
 
-    double vT = 0.317398726 + 4.22806245 * pow(10., -5.) * T + 4.20481691 * pow(10., -8.) * pow(T, 2.) /
+    double vT = (0.317398726 + 4.22806245 * pow(10., -5.) * T + 4.20481691 * pow(10., -8.) * pow(T, 2.)) /
                 (1 - 2.89741816 * pow(10., -5.) * T + 1.61456053 * pow(10., -7.) * pow(T, 2.));
 
     ///https://en.wikipedia.org/wiki/CIE_1960_color_space
@@ -583,6 +583,12 @@ tensor<float, 3> blackbody_temperature_to_approximate_linear_rgb(double T)
     double Y = 1;
     double X = (Y / y) * x;
     double Z = (Y / y) * (1 - x - y);
+
+    double largest = std::max(std::max(X, Y), Z);
+
+    X /= largest;
+    Y /= largest;
+    Z /= largest;
 
     ///https://en.wikipedia.org/wiki/SRGB#From_CIE_XYZ_to_sRGB
     ///https://color.org/chardata/rgb/sRGB.pdf
