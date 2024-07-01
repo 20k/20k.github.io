@@ -187,26 +187,17 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
         double T = 0;
 
         if(region == region_type::INNER)
-        {
             T = 5 * cpow(10., 7.) * cpow(alpha, -1/4.) * cpow(m_star, -1/4.) * cpow(r_star, -3/8.) * cpow(A, -1/2.) * cpow(B, 1/2.) * cpow(E, 1/4.);
-        }
 
         ///'edge' region as well in the more developed model
         if(region == region_type::MIDDLE)
-        {
             T = 7 * cpow(10., 8.) * cpow(alpha, -1/5.) * cpow(m_star, -1/5.) * cpow(mdot_star, 2/5.) * cpow(r_star, -9/10.) * cpow(B, -2/5.) * cpow(D, -1/5.) * cpow(Q, 2/5.);
-        }
 
         if(region == region_type::OUTER)
-        {
             T = 2 * cpow(10., 8.) * cpow(alpha, -1/5.) * cpow(m_star, -1/5.) * cpow(mdot_star, 3/10.) * cpow(r_star, -3/4.) * cpow(A, -1/10.) * cpow(B, -1/5.) * cpow(D, -3/20.) * cpow(E, 1/20.) * cpow(Q, 3/10.);
-        }
 
-        if(!std::isnan(surface_flux) && !std::isnan(T))
-        {
-            brightness.push_back({r, surface_flux});
-            temperature.push_back({r, T});
-        }
+        brightness.push_back({r, surface_flux});
+        temperature.push_back({r, T});
     }
 
     //brightness normalisation
