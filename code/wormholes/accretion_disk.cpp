@@ -128,8 +128,9 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
     double x0 = sqrt(isco/mass);
 
-    std::vector<std::pair<double, double>> brightness;
-    std::vector<std::pair<double, double>> temperature;
+    std::vector<double> radius;
+    std::vector<double> brightness;
+    std::vector<double> temperature;
 
     for(int steps = 0; steps < max_steps; steps++)
     {
@@ -186,8 +187,9 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
         if(region == region_type::OUTER)
             T = 2 * pow(10., 8.) * pow(alpha, -1/5.) * pow(m_star, -1/5.) * pow(mdot_star, 3/10.) * pow(r_star, -3/4.) * pow(A, -1/10.) * pow(B, -1/5.) * pow(D, -3/20.) * pow(E, 1/20.) * pow(Q, 3/10.);
 
-        brightness.push_back({r, surface_flux});
-        temperature.push_back({r, T});
+        radius.push_back(r);
+        brightness.push_back(surface_flux);
+        temperature.push_back(T);
     }
 
     //brightness normalisation
@@ -195,13 +197,13 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
         double min_val = FLT_MAX;
         double max_val = 0;
 
-        for(auto& [a, b] : brightness)
+        for(auto& b : brightness)
         {
             max_val = std::max(b, max_val);
             min_val = std::min(b, min_val);
         }
 
-        for(auto& [a, b] : brightness)
+        for(auto& b : brightness)
         {
             #ifdef MAX_CONTRAST
             b -= min_val;
@@ -212,18 +214,9 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
         }
     }
 
-    double min_temperature = FLT_MAX;
-    double max_temperature = 0;
-
-    for(auto& [a, b] : temperature)
-    {
-        max_temperature = std::max(b, max_temperature);
-        min_temperature = std::min(b, min_temperature);
-    }
-
     std::vector<tensor<float, 3>> radial_colour;
 
-    auto temperature_to_linear_rgb = [max_temperature](double in)
+    auto temperature_to_linear_rgb = [](double in)
     {
         #ifndef BLACKBODY_EXACT
         return blackbody_temperature_to_approximate_linear_rgb(in);
@@ -232,9 +225,9 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
         #endif
     };
 
-    for(auto& [r, c] : temperature)
+    for(auto& T : temperature)
     {
-        radial_colour.push_back(temperature_to_linear_rgb(c));
+        radial_colour.push_back(temperature_to_linear_rgb(T));
     }
 
     int tex_size = 2048;
@@ -246,23 +239,23 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
         tensor<float, 3> my_linear_rgb;
 
         ///iterate from outside in, as there's a gap in the middle of our accretion disk
-        for(int i=(int)brightness.size() - 2; i >= 0; i--)
+        for(int i=(int)radius.size() - 2; i >= 0; i--)
         {
-            auto& [pr, b] = brightness[i];
+            auto& rad = radius[i];
 
             ///we've found our value, interpolate
-            if(coordinate_radius >= pr)
+            if(coordinate_radius >= rad)
             {
-                double upper = brightness[i + 1].first;
-                double lower = pr;
+                double upper = brightness[i + 1];
+                double lower = brightness[i];
 
                 coordinate_radius = std::clamp(coordinate_radius, lower, upper);
 
                 float frac = (coordinate_radius - lower) / (upper - lower);
 
-                my_brightness = mix(b, brightness[i + 1].second, frac);
+                my_brightness = mix(brightness[i], brightness[i + 1], frac);
                 my_linear_rgb = mix(radial_colour[i], radial_colour[i + 1], frac);
-                my_temperature = mix(temperature[i].second, temperature[i + 1].second, frac);
+                my_temperature = mix(temperature[i], temperature[i + 1], frac);
                 break;
             }
         }
