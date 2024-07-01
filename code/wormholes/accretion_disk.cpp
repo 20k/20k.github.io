@@ -5,11 +5,7 @@
 #include <iostream>
 #include <SFML/Graphics.hpp>
 #include "../common/vec/tensor.hpp"
-
-#define USE_REAL_BLACKBODY
-#ifdef USE_REAL_BLACKBODY
 #include "blackbody.hpp"
-#endif
 
 template<typename T>
 T linear_to_srgb(const T& in)
@@ -241,15 +237,10 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
     std::vector<tensor<float, 3>> radial_colour;
 
-    auto temperature_to_colour = [max_temperature](double in)
+    auto temperature_to_linear_rgb = [max_temperature](double in)
     {
-        #ifndef USE_REAL_BLACKBODY
-        tensor<float, 3> hot = {1, 0.2, 0.1};
-        tensor<float, 3> cold = {0.7, 0.7, 1};
-
-        tensor<float, 3> tcol = mix(cold, hot, (float)(in / max_temperature));
-
-        return tcol;
+        #ifndef BLACKBODY_EXACT
+        return blackbody_temperature_to_approximate_linear_rgb(in);
         #else
         return blackbody_temperature_to_linear_rgb(in);
         #endif
@@ -257,7 +248,7 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
     for(auto& [r, c] : temperature)
     {
-        radial_colour.push_back(temperature_to_colour(c));
+        radial_colour.push_back(temperature_to_linear_rgb(c));
     }
 
     int tex_size = 2048;
