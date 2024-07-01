@@ -97,25 +97,6 @@ tensor<T, 3> linear_to_srgb_gpu(const tensor<T, 3>& in)
     return ret;
 }
 
-template<typename T>
-inline
-T srgb_to_linear_gpu(const T& in)
-{
-    return ternary(in < 0.04045f, in/12.92f, pow((in + 0.055f) / 1.055f, 2.4f));
-}
-
-template<typename T>
-inline
-tensor<T, 3> srgb_to_linear_gpu(const tensor<T, 3>& in)
-{
-    tensor<T, 3> ret;
-
-    for(int i=0; i < 3; i++)
-        ret[i] = srgb_to_linear_gpu(in[i]);
-
-    return ret;
-}
-
 valuef get_zp1(v4f position_obs, v4f velocity_obs, v4f ref_obs, v4f position_emit, v4f velocity_emit, v4f ref_emit, auto&& get_metric)
 {
     using namespace single_source;
