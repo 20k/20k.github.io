@@ -1016,7 +1016,6 @@ v4f transport2(v4f what, v4f position, v4f next_position, v4f velocity, v4f next
 
     pin(christoff2);
 
-    ///this isn't verlet, its generic 2nd order integration
     v4f f_x = parallel_transport_get_change(what, velocity, christoff2);
 
     v4f intermediate_next = what + f_x * ds;

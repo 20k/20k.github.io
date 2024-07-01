@@ -19,7 +19,7 @@ There will also be at least one cat in this article
 
 ## The interstellar wormhole
 
-The paper which describes interstellar's wormhole is [this](https://arxiv.org/pdf/1502.03809) one. We want the fully configurable smooth version, which is equations (5a-c)
+The paper which describes interstellar's wormhole is [this](https://arxiv.org/pdf/1502.03809) one. We want the fully configurable smooth version, which are equations (5a-c)
 
 Given a coordinate system $(t, l, \theta, \phi)$, and the parameters $M$ = mass, $a$ = wormhole length and $p$ = throat radius:
 
@@ -644,7 +644,7 @@ For a schwarzschild black hole, a velocity of 0.5c boosting towards the black ho
 
 From the front and back. Notice that we blueshift in the direction of travel, and see a redshift in the opposite direction
 
-## Spinning black holes
+## Spinning black holes / The Kerr Metric
 
 ### Accretion Disks
 
@@ -884,7 +884,7 @@ So, the title wasn't a typo if a bit clickbaity. Interstellar contains a spinnin
 
 The metric for a Kerr-Newman black hole in ingoing[^kerr] coordinates looks like this:
 
-[^kerr]: http://www.scholarpedia.org/article/Kerr-Newman_metric (47), with signs flipped due to the metric signature
+[^kerr]: http://www.scholarpedia.org/article/Kerr-Newman_metric (47), with signs flipped due to the metric signature. Do note that this coordinate system is unable to cover the whole path of our geodesic, as in general it will orbit the singularity - as it starts moving away from the singularity it'll become singular. In reality we need to use multiple coordinate systems, but doing this performantly is tricky
 
 $$ds^2 = -(1-\frac{2Mr - Q^2}{R^2}) \;dv^2 + 2 dv dr - 2 a \frac{\sin^2 \theta}{R^2}(2 M r - Q^2)\; dv d\phi - 2 a \sin^2 \theta \;dr d\phi + R^2\; d\theta^2 - \frac{\sin^2 \theta}{R^2}(\Delta a^2 \sin^2 \theta - (a^2 + r^2)^2)\; d\phi^2
 $$
@@ -900,7 +900,7 @@ $$
 
 $Q$ is our charge, $M$ is our mass parameter, and $a$ is the black hole's spin
 
-In code:
+### Kerr Metric Code
 
 ```c++
 #define BH_MASS 1
@@ -950,11 +950,38 @@ metric<valuef, 4, 4> get_metric(const tensor<valuef, 4>& position) {
 }
 ```
 
-This gives us a pretty nice looking black hole, which looks like this:
+This gives us a pretty nice looking black hole, which looks like this when rendered with an accretion disk:
 
 ![kerraccrete](/assets/kerraccrete.PNG)
 
-The more interesting part is taking a trip inside the black hole to examine the ringularity:
+### Parallel transport numerical accuracy
+
+One thing to note is that the interior of kerr is very numerically unstable, due to very high accelerations on the equatorial plane - it behaves very poorly in general. To make this article work, I had to upgrade the parallel transport code to be second order, to increase the accuracy sufficiently. This is a very basic second order integrator with nothing fancy going on whatsoever
+
+```c++
+v4f transport2(v4f what, v4f position, v4f next_position, v4f velocity, v4f next_velocity, valuef dt, auto&& get_metric)
+{
+    using namespace single_source;
+
+    tensor<valuef, 4, 4, 4> christoff2 = calculate_christoff2(position, get_metric);
+
+    pin(christoff2);
+
+    v4f f_x = parallel_transport_get_change(what, velocity, christoff2);
+
+    v4f intermediate_next = what + f_x * dt;
+
+    tensor<valuef, 4, 4, 4> nchristoff2 = calculate_christoff2(next_position, get_metric);
+
+    pin(nchristoff2);
+
+    return what + 0.5f * dt * (f_x + parallel_transport_get_change(intermediate_next, next_velocity, nchristoff2));
+}
+```
+
+## Taking a trip into kerr
+
+The ringularity in kerr is extremely cool, and is one of my favourite things to simulate, so lets have a look at how this looks with an accretion disk!
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/5GThNPUu1KE?si=CbjZbSLSi-HOwT7-" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
@@ -972,7 +999,7 @@ With that in mind, here's the current list of topics that I'm going to get to in
 
 1. Examining the BSSN equations and the ADM formalism in numerical relativity, to evolve some simple numerical spacetimes
 2. Binary black hole mergers
-3. Fast, simple and accurate symmetric laplacian solving
+3. Fast laplacian solving
 4. Gravitational wave extraction
 5. Approximate numerical raytracing
 6. Full numerical raytracing
@@ -999,7 +1026,7 @@ On top of this, there are a number of misc topics to cover in analytic metrics:
 5. Near-massless (dust) accretion disks
 6. Wave propagation in curved spacetimes
 7. 256x anisotropic texture filtering
-8. Relativistic volumetric rendering
+8. Relativistic volumetrics
 
 This is going to take a hot minute to write up in a tutorially format - though its all largely work I've done previously (except smooth particle hydrodynamics, and magnetohydrodynamics). This kind of information doesn't really exist outside of papers - and there are no gpu implementations - so it seems good to write it up
 
