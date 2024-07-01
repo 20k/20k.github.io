@@ -330,6 +330,21 @@ std::tuple<v4f, v4f, v4f> verlet(v4f position, v4f velocity, v4f acceleration, v
     return {next_position, next_velocity, next_acceleration};
 }
 
+template<typename T>
+T lookup(buffer<T> in, valuef coordinate, valuef minimum, valuef maximum)
+{
+    valuef rootf = clamp(floor(coordinate), minimum, maximum);
+    valuef nextf = clamp(rootf + 1, minimum, maximum);
+
+    valuei root = rootf.to<int>();
+    valuei next = nextf.to<int>();
+
+    T at_root = in[root];
+    T at_next = in[next];
+
+    return mix(at_root, at_next, clamp(coordinate, minimum, maximum) - rootf);
+}
+
 //this integrates a geodesic, until it either escapes our small universe or hits the event horizon
 integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accretion_disk, buffer<v3f> bbody_table, buffer<valuef> temperature, auto&& get_metric) {
     using namespace single_source;
@@ -417,9 +432,9 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
             {
                 int buffer_size = 2048;
                 valuef outer_boundary = 2 * BH_MASS * 50;
-                valuei iradial = (min(fabs(radial) / outer_boundary, valuef(1.f)) * buffer_size).to<int>();
 
-                v3f disk = accretion_disk[iradial];
+                valuef buffer_coordinate = (fabs(radial) / outer_boundary) * buffer_size;
+                v3f disk = lookup(accretion_disk, buffer_coordinate, 0.f, valuef(buffer_size - 1));
 
                 disk = disk * clamp(1 - declare_e(opacity), 0.f, 1.f);
                 as_ref(opacity) = declare_e(opacity) + energy_of(disk) * 50;
@@ -431,7 +446,7 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
 
                 #define ACCURATE_REDSHIFT
                 #ifdef ACCURATE_REDSHIFT
-                valuef temperature_in = temperature[iradial];
+                valuef temperature_in = lookup(temperature, buffer_coordinate, 0.f, valuef(buffer_size - 1));
 
                 ///temperature == 0 is impossible in our disk, so indicates an invalid area
                 if_e(temperature_in >= 1, [&]
@@ -446,19 +461,7 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
                     ///https://arxiv.org/pdf/gr-qc/9505010 12
                     valuef new_brightness = old_brightness / pow(zp1, 4.f);
 
-                    auto lookup_frac = [&](valuef in)
-                    {
-                        valuef root = floor(in);
-                        valuef frac = in - root;
-
-                        ///our bbody_table only goes up to 100kK
-                        v3f p1 = bbody_table[clamp(root, 1.f, 100000 - 1.f).to<int>()];
-                        v3f p2 = bbody_table[clamp(root+1, 1.f, 100000 - 1.f).to<int>()];
-
-                        return mix(p1, p2, frac);
-                    };
-
-                    v3f final_colour = lookup_frac(shifted_temperature) * new_brightness;
+                    v3f final_colour = lookup(bbody_table, shifted_temperature, 1.f, 100000 - 1.f) * new_brightness;
 
                     as_ref(colour_out) = declare_e(colour_out) + final_colour;
                 });
