@@ -773,7 +773,7 @@ One slightly annoying aspect is that our geodesics in general will not intersect
 
 The nice thing here is that with the approximation that an accretion disk is a blackbody radiator, we can directly redshift it, and end up with an accurate visual colour out of the other end. Its fairly straightforward to do, as mentioned before, you can directly redshift the temperature of a blackbody radiator. Then, given the temperature, we can calculate the colour that it visually represents
 
-Given that this would be computationally expensive to calcualte at runtime, I simply chuck the whole process precalculated into a big buffer and call it a day
+Given that this would be computationally expensive to calcualte at runtime, I simply chuck the whole process precalculated into a big buffer indexed by temperature, and call it a day
 
 #### Code
 
@@ -781,9 +781,7 @@ Given that this would be computationally expensive to calcualte at runtime, I si
 #ifdef HAS_ACCRETION_DISK
 valuef period_start = floor(position.z() / pi) * pi;
 
-//old position
 valuef in_start = cposition.z() - period_start;
-//new position
 valuef in_end = position.z() - period_start;
 
 valuef min_start = min(in_start, in_end);
@@ -807,9 +805,9 @@ if_e(pi/2 >= min_start && pi/2 <= max_start, [&]
     {
         int buffer_size = 2048;
         valuef outer_boundary = 2 * BH_MASS * 50;
-        valuei iradial = (min(fabs(radial) / outer_boundary, valuef(1.f)) * buffer_size).to<int>();
 
-        v3f disk = accretion_disk[iradial];
+        valuef buffer_coordinate = (fabs(radial) / outer_boundary) * buffer_size;
+        v3f disk = lookup(accretion_disk, buffer_coordinate, 0.f, valuef(buffer_size - 1));
 
         disk = disk * clamp(1 - declare_e(opacity), 0.f, 1.f);
         as_ref(opacity) = declare_e(opacity) + energy_of(disk) * 50;
@@ -821,7 +819,7 @@ if_e(pi/2 >= min_start && pi/2 <= max_start, [&]
 
         #define ACCURATE_REDSHIFT
         #ifdef ACCURATE_REDSHIFT
-        valuef temperature_in = temperature[iradial];
+        valuef temperature_in = lookup(temperature, buffer_coordinate, 0.f, valuef(buffer_size - 1));
 
         ///temperature == 0 is impossible in our disk, so indicates an invalid area
         if_e(temperature_in >= 1, [&]
@@ -836,19 +834,7 @@ if_e(pi/2 >= min_start && pi/2 <= max_start, [&]
             ///https://arxiv.org/pdf/gr-qc/9505010 12
             valuef new_brightness = old_brightness / pow(zp1, 4.f);
 
-            auto lookup_frac = [&](valuef in)
-            {
-                valuef root = floor(in);
-                valuef frac = in - root;
-
-                ///our bbody_table only goes up to 100kK
-                v3f p1 = bbody_table[clamp(root, 1.f, 100000 - 1.f).to<int>()];
-                v3f p2 = bbody_table[clamp(root+1, 1.f, 100000 - 1.f).to<int>()];
-
-                return mix(p1, p2, frac);
-            };
-
-            v3f final_colour = lookup_frac(shifted_temperature) * new_brightness;
+            v3f final_colour = lookup(bbody_table, shifted_temperature, 1.f, 100000 - 1.f) * new_brightness;
 
             as_ref(colour_out) = declare_e(colour_out) + final_colour;
         });
