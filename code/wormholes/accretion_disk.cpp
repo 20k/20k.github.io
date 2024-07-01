@@ -88,6 +88,16 @@ double eddington_limit_kg_s(double M_kg)
     return kg_ps;
 }
 
+namespace region_type
+{
+    enum region_t
+    {
+        INNER,
+        MIDDLE,
+        OUTER,
+    };
+};
+
 ///https://arxiv.org/pdf/1110.6556 is broken
 ///https://www.emis.de/journals/LRG/Articles/lrr-2013-1/articlese5.html
 accretion_disk make_accretion_disk_kerr(float mass, float a)
@@ -118,8 +128,8 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
     double outer_boundary = 2 * mass * 50;
 
-    ///0 = plunge, 1 = edge, 2 = inner, 3 = middle, 4 = outer
-    int region = 2;
+    ///plunge, edge, inner, middle, outer
+    region_type::region_t region = region_type::INNER;
 
     int max_steps = 1000;
 
@@ -151,7 +161,7 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
                                                 - (3 * cpow(x2 - a_star, 2.) / (x2 * (x2 - x1) * (x2 - x3))) * log((x - x2) / (x0 - x2))
                                                 - (3 * cpow(x3 - a_star, 2.) / (x3 * (x3 - x1) * (x3 - x2))) * log((x - x3) / (x0 - x3))
                                                 );
-        if(region == 2)
+        if(region == region_type::INNER)
         {
             ///This is B/(1-B)
             double p_gas_p_rad = 4 * cpow(10., -6.) * cpow(alpha, -1/4.) * cpow(m_star, -1/4.) * cpow(mdot_star, -2.) * cpow(r_star, 21/8.) * cpow(A, -5/2.) * cpow(B, 9/2.) * D * cpow(E, 5/4.) * cpow(Q, -2.);
@@ -160,33 +170,34 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
             ///in the inner region, gas pressure is less than radiation pressure
             ///in the middle region, gas pressure is greater than radiation pressure
             if(p_gas_p_rad > 1)
-                region = 3;
+                region = region_type::MIDDLE;
         }
 
-        if(region == 3)
+        if(region == region_type::MIDDLE)
         {
             //in the outer region opacity is free-free
             //in the middle region, opacity is electron scattering
             double Tff_Tes = (2 * cpow(10., -6.)) * (cpow(mdot_star, -1.)) * cpow(r_star, 3/2.) * cpow(A, -1.) * cpow(B, 2.) * cpow(D, 1/2.) * cpow(E, 1/2.) * cpow(Q, -1.);
 
             if(Tff_Tes >= 1)
-                region = 4;
+                region = region_type::OUTER;
         }
 
         double surface_flux = 7 * cpow(10., 26.) * cpow(m_star, -1.) * mdot_star * cpow(r_star, -3.) * cpow(B, -1.) * cpow(C, -1/2.) * Q;
         double T = 0;
 
-        if(region == 2)
+        if(region == region_type::INNER)
         {
             T = 5 * cpow(10., 7.) * cpow(alpha, -1/4.) * cpow(m_star, -1/4.) * cpow(r_star, -3/8.) * cpow(A, -1/2.) * cpow(B, 1/2.) * cpow(E, 1/4.);
         }
 
-        if(region == 1 || region == 3)
+        ///'edge' region as well in the more developed model
+        if(region == region_type::MIDDLE)
         {
             T = 7 * cpow(10., 8.) * cpow(alpha, -1/5.) * cpow(m_star, -1/5.) * cpow(mdot_star, 2/5.) * cpow(r_star, -9/10.) * cpow(B, -2/5.) * cpow(D, -1/5.) * cpow(Q, 2/5.);
         }
 
-        if(region == 4)
+        if(region == region_type::OUTER)
         {
             T = 2 * cpow(10., 8.) * cpow(alpha, -1/5.) * cpow(m_star, -1/5.) * cpow(mdot_star, 3/10.) * cpow(r_star, -3/4.) * cpow(A, -1/10.) * cpow(B, -1/5.) * cpow(D, -3/20.) * cpow(E, 1/20.) * cpow(Q, 3/10.);
         }
