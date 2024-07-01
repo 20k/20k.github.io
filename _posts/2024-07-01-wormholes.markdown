@@ -512,10 +512,9 @@ If you want the equation for transforming a radiant flux, you're looking for:[^t
 
 $$F_{obs} = \frac{F_{emit}}{(z+1)^4}$$
 
-This is often much easier to work with
+This is often much easier to work with, and is the quantity we get out of our accretion disk model
 
 [^twelve]: [https://arxiv.org/pdf/gr-qc/9505010](https://arxiv.org/pdf/gr-qc/9505010) (12)
-
 
 ### Where do $I_{emit}$ and $\lambda_{emit}$ come from?
 
@@ -531,7 +530,7 @@ For our galaxy background, we're instead going to implement *illustrative* redsh
 
 ### Illustrative redshift
 
-The key here is that we're going to discard physicality when it comes to the colour, and just show a measure of redshift. We can still calculate $z+1$ as per normal, and then transform our radiant flux directly - we only need the wavelength for working out the final colour, which we'll use $z+1$ for directly. Our intensity data is defined as the $Y$ component of the $XYZ$ colour space which represents power, see [here](https://en.wikipedia.org/wiki/SRGB#From_sRGB_to_CIE_XYZ). Put more directly: we convert to linear sRGB, and then calculate Y as:
+The key here is that we're going to discard physicality when it comes to the colour, and just show a measure of redshift. We can still calculate $z+1$ as per normal, and then transform our radiant flux directly - we only need the wavelength for working out the final colour, which we'll use $z+1$ for directly. Our intensity data is defined as the $Y$ component of the $XYZ$ colour space which represents energy, see [here](https://en.wikipedia.org/wiki/SRGB#From_sRGB_to_CIE_XYZ). Put more directly: we convert to linear sRGB, and then calculate Y as:
 
 $$Y = 0.2126 r + 0.7152 g + 0.0722 b$$
 
@@ -543,7 +542,7 @@ Once we've calculated our new intensity via the intensity equation, its then tim
 new_colour = mix(old_colour, pure_red / 0.2126f, tanh(z));
 ```
 
-Redshift naturally fades to black as the intensity drops. The choice of `tanh` to map the infinite range to $[0, 1]$ is fairly arbitrary. The division by the constant is to ensure that our brightness remains the same
+Redshift naturally fades to black as the intensity drops. The choice of `tanh` to map the infinite range to $[0, 1]$ is fairly arbitrary. See below for the explanation of the constant
 
 #### Blueshift Only  (z < 0)
 
@@ -555,7 +554,7 @@ interpolating_fraction = tanh(iv1pz);
 new_colour = mix(old_colour, pure_blue / 0.0722f, interpolating_fraction);
 ```
 
-The mapping here is more complicated to replicate the same falloff as redshift. One question you might have is where these division constants come from: notice that they're the same constants we use to calculate $Y$. This ensures that our new colour is equivalent in power/brightness to the old one
+The mapping here is more complicated to replicate the same falloff as redshift. One question you might have is where these division constants come from: notice that they're the same constants we use to calculate $Y$. This ensures that our new colour scales in brightness better - a pure white background colour will map to an equivalently bright blue colour, and darker colours will blend towards a brighter colour as our intensity increases. Without the division, a bright background colour would first darken as we mix in the visually less bright primary, before brightening again - this U bend in brightness is visually strange
 
 One problem specific to blueshift is that our energy is unbounded, and our pixels can become infinitely bright. Its therefore much more aesthetically pleasing to spill over the extra energy into white once we max out the blue colour - which is shown in the full code sample
 
@@ -571,7 +570,7 @@ Then, convert that to the sRGB' linear colour space, via this [matrix](https://e
 
 #### Physically accurate blackbody redshift rendering
 
-We'll get to this down below in kerr
+We'll get to this later, this is a lot more straightforward as it can be done directly
 
 ### Code
 
@@ -642,7 +641,7 @@ For a schwarzschild black hole, a velocity of 0.5c boosting towards the black ho
 
 ![Away](/assets/redshift_bh.png)
 
-From the front and back. Notice that we blueshift in the direction of travel, and see a redshift in the opposite direction
+From the front and back. Notice that we blueshift in the direction of travel, and see a redshift in the opposite direction. Do be aware that you should do all of this in linear colour, and only map your colours to sRGB right at the very end of your pipeline
 
 ## Spinning black holes / The Kerr Metric
 
@@ -654,7 +653,7 @@ One thing we should examine first is the concept of an innermost stable orbit, o
 
 #### ISCO
 
-Outside of the ISCO, circular trajectories around the rotational plane of a black hole are stable[^stable]. Within the ISCO, orbits are unstable (as circular orbits don't exist) - and matter spirals into the black hole quickly. This is known as the 'plunging' region, and will crop up a lot in future articles
+Outside of the ISCO, circular trajectories around the rotational plane of a black hole are stable[^stable]. Within the ISCO, orbits are unstable (as circular orbits don't exist) - and matter spirals into the black hole quickly. This inner region is known as the 'plunging' region, and will crop up a lot in future articles
 
 [^stable]: No orbit in general relativity is ever truly stable, as everything emits gravitational waves and orbits decay. Near a black hole, this effect is particularly intense. Inwards accretion for a disk I believe is primarily driven by fluid dynamics, but this is outside of my area of knowledge
 
@@ -677,7 +676,7 @@ The retrograde ISCO is higher than the prograde ISCO, so flip the sign appropria
 
 Because orbits within the ISCO are unstable, matter depletes from this region very quickly. For this reason, accretion disks are often modelled as having a gap between the event horizon, and the ISCO - which we will follow[^alert]. For the model we're looking at, [here](https://www.emis.de/journals/LRG/Articles/lrr-2013-1/articlese5.html) equations 98-100, we have three regions for us to work with, which are called:
 
-[^alert]: Note that one of the papers linked, [this](https://arxiv.org/pdf/1110.6556) one, was originally what this article implemented, and claims to model the plunging region. This ended up being a significantly delay, as as far as I can tell the equations for the plunging region fundamentally do not work - you can straightforwardly show that the radial velocity profile is imaginary, and tends to infinity, simultaneously. This is a bit unfortunate
+[^alert]: Note that one of the papers linked, [this](https://arxiv.org/pdf/1110.6556) one, was originally what this article implemented, and claims to model the plunging region. This ended up being a significant delay, as as far as I can tell the equations for the plunging region do not work - you can straightforwardly show that the radial velocity profile is imaginary, and tends to infinity, simultaneously. This is a bit unfortunate
 
 1. The inner region
 2. The middle region
@@ -688,15 +687,15 @@ Distinguishing between these three regions is done by two values
 1. Gas pressure vs radiation pressure. When gas pressure < radiation pressure, we're either in the inner or outer region
 2. Whether opacity is driven by free-free interactions, or electron scattering. If free-free > electron scattering, we're in the outer region, otherwise we're in the inner or middle region
 
-The details of this are interesting[^interesting], but we're going to focus on how to actually implement this rather than what it means (unfortunately) - there's lots of information available in the linked articles. The idea is to iterate from the innermost boundary of our accretion disk ($r = r_{isco}$), and terminate at some finite radius away from the accretion disk ($r = 100M$), working out which region we're in as we go. We know at the start, we must be in region #1 - the inner region - at the ISCO
+The details of this are interesting[^interesting], but we're going to focus on how to actually implement this rather than what it means (unfortunately) - there's lots of information available in the linked articles if you're curious. The general idea for us is to iterate from the innermost boundary of our accretion disk ($r = r_{isco}$), and terminate at some finite radius away from the accretion disk ($r = 100M$), working out which region we're in as we go. We know at the start, we must be in region #1 - the inner region - at the ISCO
 
-[^interesting]: If there was time, it would be interesting to lay it all out. This is one of the downsides of writing articles which are intended to be implementation focused, and a bit jumbo like this one. While these papers themselves contain all the theory you need, the thing we are lacking is actually how to implement this. In the future, I may revisit accretion disks in a lot more detail
+[^interesting]: If there was time, it would be interesting to lay it all out. This is one of the downsides of writing articles which are intended to be implementation focused, and a bit jumbo like this one. While the papers linked themselves contain all the theory you need, the thing we are lacking is actually how to implement this. In the future, I may revisit accretion disks in a lot more detail
 
 To distinguish when we transition from region 1, to region 2, which want to calculate (gas pressure / radiation pressure), and if its > 1 move into the middle region. This quantity is labelled $\beta / (1-\beta)$ (I do not know why)
 
 To distinguish when we transition from region 2, to region 3, we calculate the quantity $T_{ff} / T_{es}$, which is the free-free opacity / the electron scattering opacity. When this quantity is > 1, we swap to region 3[^pleasedonote]
 
-[^pleasedonote]: You should be aware that I'm not 110% certain that this is correct, it seems to work well enough in my understanding but I've only spent a week or so on this
+[^pleasedonote]: You should be aware that I'm not 110% certain that this is correct
 
 ### Other details
 
@@ -721,12 +720,68 @@ With this, we should have everything[^onemore] we need to implement this correct
 
 The equations here - as written, are long and complicated to implement correctly. I won't reproduce the equations in full here - it just introduces a risk of mistakes, but you can find the code for implementing this method, and producing a nice accretion disk texture over [here](https://github.com/20k/20k.github.io/blob/master/code/wormholes/accretion_disk.cpp)
 
-Todo: Accretion disk needs a cleanup
-
 The core of our algorithm looks like this:
 
 ```c++
-TODO: PASTE AFTER CLEANUP
+for(int steps = 0; steps < max_steps; steps++)
+{
+    double r = mix(isco, outer_boundary, steps / (double)max_steps);
+    double x = sqrt(r/mass);
+
+    double r_star = r / mass;
+
+    double x_pow_m2 = mass/r;
+    double x_pow_m4 = pow(mass/r, 2.);
+
+    double A = 1 + assq * x_pow_m4 + 2 * assq * pow(x, -6.);
+    double B = 1 + a_star * pow(x, -3.);
+    double C = 1 - 3 * x_pow_m2 + 2 * assq * pow(x, -3.);
+    double D = 1 - 2 * x_pow_m2 + assq * pow(x, -4.);
+    double E = 1 + 4 * assq * x_pow_m4 - 4 * assq * pow(x,-6.) + 3 * pow(a_star, 4.) * pow(x, -8.);
+    double Q = B * pow(C, -1/2.) * (1/x) * (x - x0 - (3/2.) * a_star * log(x/x0)
+                                            - (3 * pow(x1 - a_star, 2.) / (x1 * (x1 - x2) * (x1 - x3))) * log((x - x1) / (x0 - x1))
+                                            - (3 * pow(x2 - a_star, 2.) / (x2 * (x2 - x1) * (x2 - x3))) * log((x - x2) / (x0 - x2))
+                                            - (3 * pow(x3 - a_star, 2.) / (x3 * (x3 - x1) * (x3 - x2))) * log((x - x3) / (x0 - x3)));
+
+    if(region == region_type::INNER)
+    {
+        ///This is B/(1-B)
+        double p_gas_p_rad = 4 * pow(10., -6.) * pow(alpha, -1/4.) * pow(m_star, -1/4.) * pow(mdot_star, -2.) * pow(r_star, 21/8.) * pow(A, -5/2.) * pow(B, 9/2.) * D * pow(E, 5/4.) * pow(Q, -2.);
+
+        ///in the edge region, gas pressure dominates over radiation pressure
+        ///in the inner region, gas pressure is less than radiation pressure
+        ///in the middle region, gas pressure is greater than radiation pressure
+        if(p_gas_p_rad > 1)
+            region = region_type::MIDDLE;
+    }
+
+    if(region == region_type::MIDDLE)
+    {
+        //in the outer region opacity is free-free
+        //in the middle region, opacity is electron scattering
+        double Tff_Tes = (2 * pow(10., -6.)) * (pow(mdot_star, -1.)) * pow(r_star, 3/2.) * pow(A, -1.) * pow(B, 2.) * pow(D, 1/2.) * pow(E, 1/2.) * pow(Q, -1.);
+
+        if(Tff_Tes >= 1)
+            region = region_type::OUTER;
+    }
+
+    double surface_flux = 7 * pow(10., 26.) * pow(m_star, -1.) * mdot_star * pow(r_star, -3.) * pow(B, -1.) * pow(C, -1/2.) * Q;
+    double T = 0;
+
+    if(region == region_type::INNER)
+        T = 5 * pow(10., 7.) * pow(alpha, -1/4.) * pow(m_star, -1/4.) * pow(r_star, -3/8.) * pow(A, -1/2.) * pow(B, 1/2.) * pow(E, 1/4.);
+
+    ///'edge' region as well in the more developed model
+    if(region == region_type::MIDDLE)
+        T = 7 * pow(10., 8.) * pow(alpha, -1/5.) * pow(m_star, -1/5.) * pow(mdot_star, 2/5.) * pow(r_star, -9/10.) * pow(B, -2/5.) * pow(D, -1/5.) * pow(Q, 2/5.);
+
+    if(region == region_type::OUTER)
+        T = 2 * pow(10., 8.) * pow(alpha, -1/5.) * pow(m_star, -1/5.) * pow(mdot_star, 3/10.) * pow(r_star, -3/4.) * pow(A, -1/10.) * pow(B, -1/5.) * pow(D, -3/20.) * pow(E, 1/20.) * pow(Q, 3/10.);
+
+    radius.push_back(r);
+    brightness.push_back(surface_flux);
+    temperature.push_back(T);
+}
 ```
 
 This gives pretty nice results. For $M=1$[^geometric], $a=0.6$, $\dot{m} = 0.3$:

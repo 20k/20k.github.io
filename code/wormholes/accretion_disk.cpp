@@ -137,10 +137,10 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
         double r = mix(isco, outer_boundary, steps / (double)max_steps);
         double x = sqrt(r/mass);
 
-        float r_star = r / mass;
+        double r_star = r / mass;
 
-        float x_pow_m2 = mass/r;
-        float x_pow_m4 = pow(mass/r, 2.);
+        double x_pow_m2 = mass/r;
+        double x_pow_m4 = pow(mass/r, 2.);
 
         double A = 1 + assq * x_pow_m4 + 2 * assq * pow(x, -6.);
         double B = 1 + a_star * pow(x, -3.);
