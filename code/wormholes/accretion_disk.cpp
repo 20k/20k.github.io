@@ -165,7 +165,6 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
         if(region == 3)
         {
-
             //in the outer region opacity is free-free
             //in the middle region, opacity is electron scattering
             double Tff_Tes = (2 * cpow(10., -6.)) * (cpow(mdot_star, -1.)) * cpow(r_star, 3/2.) * cpow(A, -1.) * cpow(B, 2.) * cpow(D, 1/2.) * cpow(E, 1/2.) * cpow(Q, -1.);

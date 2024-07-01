@@ -475,8 +475,6 @@ tensor<float, 3> blackbody_temperature_to_linear_rgb(float temperature)
     {
         wavelength = wavelength / wavelength_to_meters;
 
-        //std::cout << "IDX OF " << wavelength << std::endl;
-
         wavelength = std::clamp(wavelength, (float)first_wavelength, last_wavelength - increment);
 
         float felement = (wavelength - first_wavelength) / increment;
@@ -492,8 +490,6 @@ tensor<float, 3> blackbody_temperature_to_linear_rgb(float temperature)
         float frac = felement - floor(felement);
 
         float interpolated = V1 * (1 - frac) + V2 * frac;
-
-        //std::cout << interpolated << std::endl;
 
         return interpolated;
     };
@@ -536,8 +532,6 @@ tensor<float, 3> blackbody_temperature_to_linear_rgb(float temperature)
     float Yt = integrate::integrate_1d(Y_M, 64, upper, lower);
     float Zt = integrate::integrate_1d(Z_M, 64, upper, lower);
 
-    //std::cout << "RAW X " << Xt << " " << Yt << " " << Zt << std::endl;
-
     tensor<float, 3> XYZ = {Xt, Yt, Zt};
 
     float largest = std::max(std::max(Xt, Yt), Zt);
@@ -545,11 +539,6 @@ tensor<float, 3> blackbody_temperature_to_linear_rgb(float temperature)
     //XYZ = XYZ / XYZ.y();
 
     XYZ = XYZ / largest;
-
-    /*mat3f coeff;
-    coeff.load({3.2406, -1.5372, -0.4986}, {-0.9689, 1.8758, 0.0415}, {0.0557, -0.204, 1.0570});
-
-    vec3f result = coeff * XYZ;*/
 
     float R = 3.2406255 * XYZ.x() - 1.537208 * XYZ.y() - 0.4986286 * XYZ.z();
     float G = -0.9689307 * XYZ.x() + 1.8757561 * XYZ.y() + 0.0415175 * XYZ.z();
