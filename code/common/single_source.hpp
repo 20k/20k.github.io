@@ -458,12 +458,14 @@ namespace value_impl
             {SIN, "native_sin"},
             {COS, "native_cos"},
             {TAN, "native_tan"},
+            {LOG, "native_log"},
             {SQRT, "native_sqrt"},
             {INVERSE_SQRT, "native_rsqrt"},
             #else
             {SIN, "sin"},
             {COS, "cos"},
             {TAN, "tan"},
+            {LOG, "log"},
             {SQRT, "sqrt"},
             {INVERSE_SQRT, "rsqrt"},
             #endif // NATIVE_OPS
@@ -473,6 +475,17 @@ namespace value_impl
             {SIGN, "sign"},
             {FLOOR, "floor"},
             {CEIL, "ceil"},
+            {SINH, "sinh"},
+            {COSH, "cosh"},
+            {TANH, "tanh"},
+            {ASIN, "asin"},
+            {ACOS, "acos"},
+            {ATAN, "atan"},
+            {ATAN2, "atan2"},
+            {MIN, "min"},
+            {MAX, "max"},
+            {CLAMP, "clamp"},
+            {POW, "pow"},
 
             {GET_GLOBAL_ID, "get_global_id"},
         };
@@ -517,11 +530,19 @@ namespace value_impl
                 if constexpr(std::is_same_v<T, float>)
                     suffix = "f";
 
-                //to_string_s is implemented in terms of std::to_chars, but always ends with a "." for floating point numbers, as 1234f is invalid syntax in OpenCL
-                if(in < 0)
-                    return "(" + to_string_s(in) + suffix + ")";
+                if constexpr(std::is_arithmetic_v<T> && !std::is_same_v<T, bool>)
+                {
+                    //to_string_s is implemented in terms of std::to_chars, but always ends with a "." for floating point numbers, as 1234f is invalid syntax in OpenCL
+                    if(in < 0)
+                        return "(" + to_string_s(in) + suffix + ")";
+                    else
+                        return to_string_s(in) + suffix;
+                }
                 else
+                {
                     return to_string_s(in) + suffix;
+                }
+
             }, v.concrete);
         }
 
@@ -727,6 +748,13 @@ namespace value_impl
             return "native_divide(" + value_to_string(v.args.at(0)) + "," + value_to_string(v.args.at(1)) + ")";
         }
         #endif
+
+        if(v.type == op::TERNARY)
+        {
+            ///our select is a ? b : c
+            ///opencl's select is c ? b : a
+            return "select(" + value_to_string(v.args.at(2)) + "," + value_to_string(v.args.at(1)) + "," + value_to_string(v.args.at(0)) + ")";
+        }
 
         return function_call_or_infix(v);
     }
@@ -964,12 +992,12 @@ namespace value_impl
     {
         ectx.add(declare_array_b<T>(name, size, {}));
 
-        assert(rhs.size() <= size);
+        assert((int)rhs.size() <= size);
 
         single_source::array<T> out;
         out.name = name;
 
-        for(int i=0; i < rhs.size(); i++)
+        for(int i=0; i < (int)rhs.size(); i++)
         {
             single_source::array_mut<T> temp;
             temp.name = name;
@@ -1428,7 +1456,7 @@ namespace value_impl
 
         for(auto& block : blocks)
         {
-            #define ELIMINATE_SUBEXPRESSIONS
+            //#define ELIMINATE_SUBEXPRESSIONS
             #ifdef ELIMINATE_SUBEXPRESSIONS
             auto next_block = expression_eliminate(get_context(), block);
             #else

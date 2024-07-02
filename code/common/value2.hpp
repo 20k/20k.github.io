@@ -47,6 +47,20 @@ namespace value_impl
             SIN,
             COS,
             TAN,
+            LOG,
+
+            ASIN,
+            ACOS,
+            ATAN,
+            ATAN2,
+
+            SINH,
+            COSH,
+            TANH,
+
+            MIN,
+            MAX,
+            CLAMP,
 
             INVERSE_SQRT,
             SQRT,
@@ -57,6 +71,8 @@ namespace value_impl
             SIGN,
             FLOOR,
             CEIL,
+            TERNARY,
+            POW,
 
             GET_GLOBAL_ID,
 
@@ -132,6 +148,24 @@ namespace value_impl
             }
 
         }, v1.concrete, v2.concrete);
+
+        return ret;
+    }
+
+    template<typename T, typename U>
+    inline
+    T make_op_with_type_function(op::type t, T v1, T v2, T v3, U&& func)
+    {
+        T ret;
+        ret.type = t;
+        ret.args = {v1, v2, v3};
+
+        std::visit([&]<typename A, typename B, typename C>(const A&, const B&, const C&){
+            if constexpr(std::is_invocable_v<U, A, B>) {
+                ret.concrete = decltype(func(A(), B(), C()))();
+            }
+
+        }, v1.concrete, v2.concrete, v3.concrete);
 
         return ret;
     }
@@ -242,10 +276,20 @@ namespace value_impl
         BASE_OPERATOR2(operator*, op::MULTIPLY, stdmath::op_multiply);
         BASE_OPERATOR2(operator/, op::DIVIDE, stdmath::op_divide);
         BASE_OPERATOR1(operator-, op::UMINUS, stdmath::op_unary_minus);
+
+        BASE_OPERATOR2(operator<, op::LT, stdmath::op_lt);
+        BASE_OPERATOR2(operator<=, op::LTE, stdmath::op_lte);
+        BASE_OPERATOR2(operator==, op::EQ, stdmath::op_eq);
+        BASE_OPERATOR2(operator>, op::GT, stdmath::op_gt);
+        BASE_OPERATOR2(operator>=, op::GTE, stdmath::op_gte);
     };
 
     inline
     bool equivalent(const value_base& v1, const value_base& v2);
+
+    template<typename U>
+    inline
+    std::optional<value_base> replay_constant(const value_base& v1, const value_base& v2, const value_base& v3, U&& func);
 
     template<typename U>
     inline
@@ -270,10 +314,24 @@ namespace value_impl
         return optimise(make_op_with_type_function<value_base>(op::type, v1, v2, func));\
     }\
 
+    #define DECL_VALUE_FUNC3(type, name, func) \
+    inline \
+    value_base name(const value_base& v1, const value_base& v2, const value_base& v3) {\
+        return optimise(make_op_with_type_function<value_base>(op::type, v1, v2, v3, func));\
+    }\
+
     DECL_VALUE_FUNC1(SIN, sin, stdmath::usin);
     DECL_VALUE_FUNC1(COS, cos, stdmath::ucos);
     DECL_VALUE_FUNC1(TAN, tan, stdmath::utan);
+    DECL_VALUE_FUNC1(ASIN, asin, stdmath::uasin);
+    DECL_VALUE_FUNC1(ACOS, acos, stdmath::uacos);
+    DECL_VALUE_FUNC1(ATAN, atan, stdmath::uatan);
+    DECL_VALUE_FUNC1(SINH, sinh, stdmath::usinh);
+    DECL_VALUE_FUNC1(COSH, cosh, stdmath::ucosh);
+    DECL_VALUE_FUNC1(TANH, tanh, stdmath::utanh);
+    DECL_VALUE_FUNC2(ATAN2, atan2, stdmath::uatan2);
     DECL_VALUE_FUNC1(SQRT, sqrt, stdmath::usqrt);
+    DECL_VALUE_FUNC1(LOG, log, stdmath::ulog);
     DECL_VALUE_FUNC1(FABS, fabs, stdmath::ufabs);
     DECL_VALUE_FUNC1(ISFINITE, isfinite, stdmath::uisfinite);
     DECL_VALUE_FUNC2(FMOD, fmod, stdmath::ufmod);
@@ -281,7 +339,16 @@ namespace value_impl
     DECL_VALUE_FUNC1(FLOOR, floor, stdmath::ufloor);
     DECL_VALUE_FUNC1(CEIL, ceil, stdmath::uceil);
     DECL_VALUE_FUNC1(INVERSE_SQRT, inverse_sqrt, stdmath::uinverse_sqrt);
+    DECL_VALUE_FUNC3(TERNARY, ternary, stdmath::uternary);
+    DECL_VALUE_FUNC2(POW, pow, stdmath::upow);
 
+    DECL_VALUE_FUNC2(MIN, min, stdmath::umin);
+    DECL_VALUE_FUNC2(MAX, max, stdmath::umax);
+    DECL_VALUE_FUNC3(CLAMP, clamp, stdmath::uclamp);
+
+    #define PROPAGATE_BASE3(vop, func) if(in.type == op::vop) { \
+        out = replay_constant(in.args[0], in.args[1], in.args[2], func);\
+    }
 
     #define PROPAGATE_BASE2(vop, func) if(in.type == op::vop) { \
         out = replay_constant(in.args[0], in.args[1], func);\
@@ -341,6 +408,18 @@ namespace value_impl
             PROPAGATE_BASE1(SIN, usin);
             PROPAGATE_BASE1(COS, ucos);
             PROPAGATE_BASE1(TAN, utan);
+
+            PROPAGATE_BASE1(SINH, usinh);
+            PROPAGATE_BASE1(COSH, ucosh);
+            PROPAGATE_BASE1(TANH, utanh);
+
+            PROPAGATE_BASE1(ASIN, uasin);
+            PROPAGATE_BASE1(ACOS, uacos);
+            PROPAGATE_BASE1(ATAN, uatan);
+
+            PROPAGATE_BASE2(ATAN2, uatan2);
+
+            PROPAGATE_BASE1(LOG, ulog);
             PROPAGATE_BASE1(SQRT, usqrt);
             PROPAGATE_BASE1(FABS, ufabs);
             PROPAGATE_BASE1(ISFINITE, uisfinite);
@@ -350,6 +429,11 @@ namespace value_impl
             PROPAGATE_BASE1(FLOOR, ufloor);
             PROPAGATE_BASE1(CEIL, uceil);
             PROPAGATE_BASE1(INVERSE_SQRT, uinverse_sqrt);
+            PROPAGATE_BASE2(POW, upow);
+
+            PROPAGATE_BASE2(MIN, umin);
+            PROPAGATE_BASE2(MAX, umax);
+            PROPAGATE_BASE3(CLAMP, uclamp);
 
             if(out)
                 return out.value();
@@ -498,10 +582,19 @@ namespace value_impl
         #define REPLAY1(func, name) if(v.type == op::func) return name(replay_value_base<T>(v.args[0], handle_value));
         #define REPLAY2(func, name) if(v.type == op::func) return name(replay_value_base<T>(v.args[0], handle_value), \
                                                                         replay_value_base<T>(v.args[1], handle_value));
+        #define REPLAY3(func, name) if(v.type == op::func) return name(replay_value_base<T>(v.args[0], handle_value), \
+                                                                        replay_value_base<T>(v.args[1], handle_value),\
+                                                                        replay_value_base<T>(v.args[2], handle_value));
 
         REPLAY1(SIN, usin);
         REPLAY1(COS, ucos);
         REPLAY1(TAN, utan);
+        REPLAY1(SINH, usinh);
+        REPLAY1(COSH, ucosh);
+        REPLAY1(TANH, utanh);
+        REPLAY1(ATAN, uatan);
+        REPLAY2(ATAN2, uatan2);
+        REPLAY1(LOG, ulog);
         REPLAY1(SQRT, usqrt);
         REPLAY1(FABS, ufabs);
         REPLAY1(ISFINITE, uisfinite);
@@ -513,6 +606,18 @@ namespace value_impl
         REPLAY2(DIVIDE, op_divide);
         REPLAY1(UMINUS, op_unary_minus);
         REPLAY2(MOD, ufmod);
+        REPLAY3(TERNARY, uternary);
+
+        REPLAY2(LT, op_lt);
+        REPLAY2(LTE, op_lte);
+        REPLAY2(EQ, op_eq);
+        REPLAY2(GT, op_gt);
+        REPLAY2(GTE, op_gte);
+
+        REPLAY2(MIN, umin);
+        REPLAY2(MAX, umax);
+        //REPLAY3(CLAMP, uclamp);
+        REPLAY2(POW, upow);
 
         assert(false);
     }
@@ -522,13 +627,17 @@ namespace value_impl
 
     template<typename T, typename U>
     inline
+    auto replay_constant(const value<T>& v1, const value<T>& v2, const value<T>& v3, U&& func) -> std::optional<value<std::remove_reference_t<decltype(func(T(), T(), T()))>>>;
+
+    template<typename T, typename U>
+    inline
     auto replay_constant(const value<T>& v1, const value<T>& v2, U&& func) -> std::optional<value<std::remove_reference_t<decltype(func(T(), T()))>>>;
 
     template<typename T, typename U>
     inline
     auto replay_constant(const value<T>& v1, U&& func) -> std::optional<value<std::remove_reference_t<decltype(func(T()))>>>;
 
-    #define OPTIMISE_VALUE
+    /*#define OPTIMISE_VALUE
 
     #ifdef OPTIMISE_VALUE
     #define PROPAGATE2(x, y, op) if(auto it = replay_constant(x, y, [](const T& a, const T& b){using namespace stdmath; return op(a,b);})){return it.value();}
@@ -536,7 +645,7 @@ namespace value_impl
     #else
     #define PROPAGATE2(x, y, op)
     #define PROPAGATE1(x, op)
-    #endif
+    #endif*/
 
     template<typename T>
     inline
@@ -706,7 +815,6 @@ namespace value_impl
     inline
     T get_interior_type(const tensor<value<T>, N...>&){return T();}
 
-
     template<typename T>
     inline
     value<T> from_base(const value_base& b)
@@ -800,6 +908,25 @@ namespace value_impl
 
     template<typename T, typename U>
     inline
+    auto replay_constant(const value<T>& v1, const value<T>& v2, const value<T>& v3, U&& func) -> std::optional<value<std::remove_reference_t<decltype(func(T(), T()))>>>
+    {
+        if(!v1.is_concrete_type() || !v2.is_concrete_type() || !v3.is_concrete_type())
+            return std::nullopt;
+
+        if(v1.concrete.index() != v2.concrete.index())
+            return std::nullopt;
+
+        if(v1.concrete.index() != v3.concrete.index())
+            return std::nullopt;
+
+        if(!std::holds_alternative<T>(v1.concrete))
+            return std::nullopt;
+
+        return func(std::get<T>(v1.concrete), std::get<T>(v2.concrete), std::get<T>(v3.concrete));
+    }
+
+    template<typename T, typename U>
+    inline
     auto replay_constant(const value<T>& v1, const value<T>& v2, U&& func) -> std::optional<value<std::remove_reference_t<decltype(func(T(), T()))>>>
     {
         if(!v1.is_concrete_type() || !v2.is_concrete_type())
@@ -825,6 +952,36 @@ namespace value_impl
             return std::nullopt;
 
         return func(std::get<T>(v1.concrete));
+    }
+
+    template<typename U>
+    inline
+    std::optional<value_base> replay_constant(const value_base& v1, const value_base& v2, const value_base& v3, U&& func)
+    {
+        if(!v1.is_concrete_type() || !v2.is_concrete_type() || !v3.is_concrete_type())
+            return std::nullopt;
+
+        if(v1.concrete.index() != v2.concrete.index())
+            return std::nullopt;
+
+        if(v1.concrete.index() != v3.concrete.index())
+            return std::nullopt;
+
+        std::optional<value_base> out;
+
+        std::visit([&](auto&& i1, auto&& i2, auto&& i3) {
+            if constexpr(std::is_same_v<decltype(i1), decltype(i2)> && std::is_same_v<decltype(i1), decltype(i3)>)
+            {
+                value_base b;
+                b.type = op::VALUE;
+                b.concrete = func(i1, i2, i3);
+
+                out = b;
+            }
+
+        }, v1.concrete, v2.concrete, v3.concrete);
+
+        return out;
     }
 
     template<typename U>
@@ -1081,6 +1238,86 @@ namespace value_impl
 
     template<typename T>
     inline
+    value<T> sinh(const value<T>& v1)
+    {
+        value<T> ret;
+        ret.type = op::SINH;
+        ret.args = {v1};
+        return from_base<T>(optimise(ret));
+    }
+
+    template<typename T>
+    inline
+    value<T> cosh(const value<T>& v1)
+    {
+        value<T> ret;
+        ret.type = op::COSH;
+        ret.args = {v1};
+        return from_base<T>(optimise(ret));
+    }
+
+    template<typename T>
+    inline
+    value<T> tanh(const value<T>& v1)
+    {
+        value<T> ret;
+        ret.type = op::TANH;
+        ret.args = {v1};
+        return from_base<T>(optimise(ret));
+    }
+
+    template<typename T>
+    inline
+    value<T> asin(const value<T>& v1)
+    {
+        value<T> ret;
+        ret.type = op::ASIN;
+        ret.args = {v1};
+        return from_base<T>(optimise(ret));
+    }
+
+    template<typename T>
+    inline
+    value<T> acos(const value<T>& v1)
+    {
+        value<T> ret;
+        ret.type = op::ACOS;
+        ret.args = {v1};
+        return from_base<T>(optimise(ret));
+    }
+
+    template<typename T>
+    inline
+    value<T> atan(const value<T>& v1)
+    {
+        value<T> ret;
+        ret.type = op::ATAN;
+        ret.args = {v1};
+        return from_base<T>(optimise(ret));
+    }
+
+    template<typename T>
+    inline
+    value<T> atan2(const value<T>& v1, const value<T>& v2)
+    {
+        value<T> ret;
+        ret.type = op::ATAN2;
+        ret.args = {v1, v2};
+        return from_base<T>(optimise(ret));
+    }
+
+    template<typename T>
+    inline
+    value<T> log(const value<T>& v1)
+    {
+        value<T> ret;
+        ret.type = op::LOG;
+        ret.args = {v1};
+        return from_base<T>(optimise(ret));
+    }
+
+    template<typename T>
+    inline
     value<T> sqrt(const value<T>& v1)
     {
         value<T> ret;
@@ -1146,6 +1383,75 @@ namespace value_impl
     value<T> ceil(const value<T>& v1)
     {
         return from_base<T>(optimise(make_op<value<T>>(op::CEIL, {v1})));
+    }
+
+    template<typename T>
+    inline
+    value<T> ternary(const value<bool>& condition, const value<T>& if_true, const value<T>& if_false)
+    {
+        return from_base<T>(optimise(make_op<value<T>>(op::TERNARY, {condition, if_true, if_false})));
+    }
+
+    template<typename T, int N>
+    inline
+    tensor<value<T>, N> ternary(const value<bool>& condition, const tensor<value<T>, N>& if_true, const tensor<value<T>, N>& if_false)
+    {
+        tensor<value<T>, N> ret;
+
+        for(int i=0; i < N; i++)
+            ret[i] = from_base<T>(optimise(make_op<value<T>>(op::TERNARY, {condition, if_true[i], if_false[i]})));
+
+        return ret;
+    }
+
+    template<typename T>
+    inline
+    value<T> min(const value<T>& v1, const value<T>& v2)
+    {
+        return from_base<T>(optimise(make_op<value<T>>(op::MIN, {v1, v2})));
+    }
+
+    template<typename T>
+    inline
+    value<T> max(const value<T>& v1, const value<T>& v2)
+    {
+        return from_base<T>(optimise(make_op<value<T>>(op::MAX, {v1, v2})));
+    }
+
+    template<typename T>
+    inline
+    value<T> clamp(const value<T>& v1, const value<T>& v2, const value<T>& v3)
+    {
+        return from_base<T>(optimise(make_op<value<T>>(op::CLAMP, {v1, v2, v3})));
+    }
+
+    template<typename T>
+    inline
+    value<T> clamp(const value<T>& v1, const T& v2, const T& v3)
+    {
+        return from_base<T>(optimise(make_op<value<T>>(op::CLAMP, {v1, value<T>(v2), value<T>(v3)})));
+    }
+
+
+    template<typename T>
+    inline
+    value<T> pow(const value<T>& v1, const value<T>& v2)
+    {
+        return from_base<T>(optimise(make_op<value<T>>(op::POW, {v1, v2})));
+    }
+
+    template<typename T>
+    inline
+    value<T> pow(const value<T>& v1, const T& v2)
+    {
+        return from_base<T>(optimise(make_op<value<T>>(op::POW, {v1, value<T>(v2)})));
+    }
+
+    template<typename T>
+    inline
+    value<T> mix(const value<T>& v1, const value<T>& v2, const value<T>& v3)
+    {
+        return v1 * (1-v3) + v2 * v3;
     }
 
     template<typename T>

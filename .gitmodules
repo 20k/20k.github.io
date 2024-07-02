@@ -4,3 +4,6 @@
 [submodule "code/common/toolkit"]
 	path = code/common/toolkit
 	url = https://github.com/20k/toolkit
+[submodule "code/common/integration"]
+	path = code/common/integration
+	url = git@github.com:20k/integration.git
