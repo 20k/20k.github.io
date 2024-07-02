@@ -535,11 +535,11 @@ This is often much easier to work with, and is the quantity we get out of our ac
 
 It depends what we're simulating. For our use case - redshifting a galaxy background, you'd need frequency and intensity data across the entire sky. A good starting point is over [here](http://aladin.cds.unistra.fr/hips/list), luckily we live in 2024 and a significant amount of this information is simply public - unfortunately these skymaps do not come with what units their intensity data is in, making them unusable[^digging]. Still, you can go find the original surveys - though it requires significant digging which I'm not going to do in this article
 
+[^digging]: This step is the bottleneck for actually achieving what we're trying to do here. Try as I might, I cannot find any standardised way to obtain anything corresponding to physical units (instead of raw data in unknown units). If you know, please contact me! It looks like [adadin](https://aladin.cds.unistra.fr/hips/HipsIn10Steps.gml) may be able to do what we want, but its certainly not straightforward. Apparently the 'default' unit is ADU, which is the raw CCD readout data, but its not even vaguely clear how to go about converting this into a calibrated physical unit
+
 If you have a blackbody radiator, it becomes fairly straightforward, as given a temperature we can redshift that directly, via the equation:
 
 $$T_{obs} = \frac{T_{emit}}{1+z}$$
-
-[^digging]: This step is the bottleneck for actually achieving what we're trying to do here. Try as I might, I cannot find any standardised way to obtain anything corresponding to physical units (instead of raw data in unknown units). If you know, please contact me! It looks like [adadin](https://aladin.cds.unistra.fr/hips/HipsIn10Steps.gml) may be able to do what we want, but its certainly not straightforward. Apparently the 'default' unit is ADU, which is the raw CCD readout data, but its not even vaguely clear how to go about converting this into a calibrated physical unit
 
 For our galaxy background, we're instead going to implement *illustrative* redshift, rather than attempting to find calibration data for hundreds of surveys - which I've had to try very hard to stop myself from doing
 
@@ -646,13 +646,13 @@ From the front and back. Notice that we blueshift in the direction of travel, an
 
 ### Accretion Disks
 
-No black hole is complete without an accretion disk, so today we're going to be looking at implementing a reasonable accretion disk model. We're going to look at whats called a [thin-disk model](https://www.emis.de/journals/LRG/Articles/lrr-2013-1/articlese5.html) (98-100), because it has a straightforward algebraic solution. In the future, we'll be simulating accretion disks directly
+No black hole is complete without an accretion disk, so today we're going to be looking at implementing a reasonable accretion disk model. We're going to use whats called a [thin-disk model](https://www.emis.de/journals/LRG/Articles/lrr-2013-1/articlese5.html) (98-100), because it has a straightforward algebraic solution. In the future, we'll be simulating accretion disks directly
 
 One thing we should examine first is the concept of an innermost stable orbit, or ISCO for short
 
 #### ISCO
 
-The ISCO is the radius at which orbits for a black hole become unstable. Outside of this radius we can have long lived circular orbits - inside of this radius, circular orbits do not exist. This inner region is known as the 'plunging' region, and anything that's within this region rapidly enters into a black hole
+The ISCO is the radius at which orbits around a black hole become unstable. Outside of this radius we can have long lived circular orbits - inside of this radius, circular orbits do not exist. This inner region is known as the 'plunging' region, and anything that's within this region rapidly enters into a black hole
 
 For a schwarzschild black hole, the ISCO is defined as $r_{isco} = 3rs = 6M$. For a Kerr (spinning) black hole, the ISCO is defined as follows[^iscoeq] for a black hole with mass $M$, and spin $a$:
 
@@ -684,7 +684,7 @@ Distinguishing between these three regions is done by two values
 1. Gas pressure vs radiation pressure. When gas pressure < radiation pressure, we're either in the inner or outer region
 2. Whether opacity is driven by free-free interactions, or electron scattering. If free-free > electron scattering, we're in the outer region, otherwise we're in the inner or middle region
 
-The details of this are interesting[^interesting], but we're going to focus on how to actually implement this rather than what it means (unfortunately) - there's lots of information available in the linked articles if you're curious. The general idea for us is to iterate from the innermost boundary of our accretion disk ($r = r_{isco}$), and terminate at some finite radius away from the accretion disk ($r = 100M$), working out which region we're in as we go. We know at the start, we must be in region 1 - the inner region - at the ISCO
+The details of this are interesting[^interesting], but we're going to focus on the implementation. The general idea for us is to iterate from the innermost boundary of our accretion disk ($r = r_{isco}$), and terminate at some finite radius away from the accretion disk ($r = 100M$), working out which region we're in as we go. We know at the start, we must be in region 1 - the inner region - at the ISCO
 
 [^interesting]: If there was time, it would be interesting to lay it all out. This is one of the downsides of writing articles which are intended to be implementation focused, and a bit jumbo like this one. While the papers linked themselves contain all the theory you need, the thing we are lacking is actually how to implement this. In the future, I may revisit accretion disks in a lot more detail
 
@@ -821,9 +821,13 @@ Given that we know that our geodesic must point in the $d\phi$ direction, we can
 
 #### Physically accurate redshifting
 
-The nice thing here is that with the approximation that an accretion disk is a blackbody radiator, we can directly redshift it, and end up with an accurate visual colour out of the other end. Its fairly straightforward to do, as mentioned before, you can directly redshift the temperature of a blackbody radiator. Then, given the temperature, we can calculate the colour that it visually represents
+The nice thing here is that with the approximation that an accretion disk is a blackbody radiator, we can directly redshift the temperature[^peculiar], and so end up with an accurate visual colour out of the other end:
 
-Given that mapping a temperature to a colour is an expensive process, I simply chuck the whole thing precalculated into a big buffer indexed by temperature, and call it a day
+$$T_{obs} = \frac{T_{emit}}{1+z}$$
+
+[^peculiar]: Redshifting a blackbody radiator has the surprising property that it represents another blackbody radiator at a different temperature, which feels unlikely but is apparently true
+
+Given that mapping a temperature to a colour is an expensive process, I simply chuck the whole thing into a big buffer indexed by temperature, and call it a day
 
 ##### Code
 
@@ -889,6 +893,7 @@ if_e(pi/2 >= min_start && pi/2 <= max_start, [&]
             ///https://arxiv.org/pdf/gr-qc/9505010 12
             valuef new_brightness = old_brightness / pow(zp1, 4.f);
 
+            ///convert our temperature to a colour
             v3f final_colour = lookup(bbody_table, shifted_temperature, 1.f, 100000 - 1.f) * new_brightness;
 
             as_ref(colour_out) = declare_e(colour_out) + final_colour;
@@ -989,7 +994,7 @@ metric<valuef, 4, 4> get_metric(const tensor<valuef, 4>& position) {
 }
 ```
 
-This gives us a pretty nice looking black hole, which looks like this when rendered with an accretion disk:
+This gives us a pretty nice looking black hole, which looks like this when rendered with an accretion disk (including redshift):
 
 ![kerraccrete](/assets/kerraccrete.PNG)
 
@@ -1026,7 +1031,9 @@ The ringularity in Kerr is extremely cool, and is one of my favourite things to 
 
 Purrfect!
 
-While I partly built this for the memes, its worth noting that the interior of a black hole and the wormhole itself is generally considered to be a mathematical artifact, and that it wouldn't show up in reality. With that in mind, nobody really has a clue whats inside a black hole!
+While I partly built this for the memes, its worth noting that the interior of a black hole and the wormhole itself is generally considered to be a mathematical artifact, and that it wouldn't show up in reality. With that in mind, nobody really has a clue whats inside a black hole[^sincere]!
+
+[^sincere]: I sincerely hope that it *is* my cat though
 
 ## The end
 
