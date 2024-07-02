@@ -16,7 +16,7 @@ Hiyas! This article is the third in a series on rendering general relativity - i
 5. Redshift
 6. Accretion disks
 7. Spinning black holes
-8. Will there be more cats?
+8. Will there be more cats? (yes)
 
 If you're looking for a PhD student to work on numerical relativity, then I'd be very interested!
 
