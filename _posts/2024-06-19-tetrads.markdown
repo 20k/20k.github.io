@@ -846,7 +846,7 @@ In this article, we've looked at purely inertial observers, with whatever veloci
 1. How to set up proper camera controls
 2. How to set up observers with an initial velocity
 
-On top of this, we're going to set up a good variable timestep finally, which will fix a lot of the visual issues, and increase performance significantly. This will let us take a trip through kerr, the interstellar wormhole, and go for a general examination of a few other metrics in passing. It'll be an article where we tie up a lot of the loose ends we've left straggling around so far
+On top of this, we're going to set up a good variable timestep finally, which will fix a lot of the visual issues, and increase performance significantly. This will let us take a trip through Kerr, the interstellar wormhole, and go for a general examination of a few other metrics in passing. It'll be an article where we tie up a lot of the loose ends we've left straggling around so far
 
 # What's next?
 

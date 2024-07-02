@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Wormholes, spinning black holes, and accretion disks"
+title:  "Simulating Interstellar: Wormholes, spinning black holes, accretion disks, and redshift"
 date:   2024-06-19 19:33:23 +0000
 categories: C++
 ---
@@ -70,7 +70,7 @@ With almost no changes to our code (other than updating our termination conditio
 
 ![wormhole](/assets/wormhole_1.png)
 
-While the performance isn't too bad at ~70ms/frame, its definitely time to fix our timestepping - particularly to cut down on polar artifacts
+While the performance isn't too bad at ~70ms/frame, its definitely time to fix our timestepping - particularly to cut down on spherical artifacts
 
 ## Dynamic Timestepping
 
@@ -130,7 +130,7 @@ Where the velocity is updated, and then the position is updated with that new ve
 
 Todo: This segment needs to be broken up
 
-At the moment, we're constructing a tetrad directly from the underying metric. This works great, but results in a tetrad that - in polar metrics - tends to point directly at our object. This leads to very unintuitive camera controls as we move our camera around. In this segment we're going to commit some crimes against coordinate systems to get them to point roughly where we want them to
+At the moment, we're constructing a tetrad directly from the underying metric. This works great, but results in a tetrad that - in spherical metrics - tends to point directly at our object. This leads to very unintuitive camera controls as we move our camera around. In this segment we're going to commit some crimes against coordinate systems to get them to point roughly where we want them to
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/L-sXQdiCkCY?si=4Hu52YdR1hoJZBUd" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
@@ -148,7 +148,7 @@ b_z &= (0, 0, 1)
 \end{align}
 $$
 
-Now, our actual coordinate system isn't in cartesian, so we need to convert these ideal vectors into our actual 4d coordinate system, whatever that may be. For this article everything is in polar-like coordinates, so lets use that illustratively
+Now, our actual coordinate system isn't in cartesian, so we need to convert these ideal vectors into our actual 4d coordinate system, whatever that may be. For this article everything is in spherical-like coordinates, so lets use that illustratively
 
 $$
 \begin{align}
@@ -180,13 +180,13 @@ We now have 3 ($_k$) spatial vectors $d_k^\mu$, which have 4 components ($^\mu$)
 
 $$l_i^\mu = e^i_\mu d^\mu_i$$
 
-Note that $i$ ranges over 1-3, instead of 0-3. We now have 3 vectors - which we *hope* are spacelike. If they are - which they often will be - you can proceed
+Note that $i$ ranges over 1-3, instead of 0-3. We now have 3 vectors - which we hope are spacelike. Its not the end of the world if they aren't - as long as the spatial parts of these vectors are linearly independent, we're good to go
 
-We can now orthonormalise the spatial part of these vectors ($\mu$ = 1-3) to produce a new set of spacelike basis vectors for the frame of reference. Because we're in a minkowski metric - we can use gram schmidt with a trivial 3x3 identity matrix as the metric tensor
+We can now orthonormalise the spatial part of these vectors ($\mu$ = 1-3) to produce a new set of spacelike basis vectors for the frame of reference. Because we're in a minkowski metric - we can use gram schmidt with a trivial 3x3 identity matrix as the metric tensor, and we guarantee that our new vectors are spacelike by discarding the time component
 
 As you may have spotted, orthornormalising these vectors changes them - orthonormalising can only preserve the direction of a single vector (the one we start from). The correct vector to preserve is the 'up' vector that you use for your fixed mouse vertical axis - this means that the camera doesn't roll as you move it around, which is very disorienting, and preserves left-right movement for a mouse
 
-One key thing to note is that we only orient the *initial* tetrad if we're parallel transporting tetrads[^unless] - this is one of the reasons why the technique works, often the camera ends up parallel transported into poorly behaved areas from well behaved nearly flat ones, so we only need it to work at our starting point
+One key thing to note is that we only orient the *initial* tetrad if we're parallel transporting tetrads[^unless]
 
 [^unless]: Unless you deliberately want to remove the effect of parallel transport on the camera's pointing direction, in which case you'll need to come up with a different scheme
 
@@ -250,13 +250,13 @@ This results in your metric looking like this as you fly around, making it way e
 
 The interstellar wormhole has neglegible gravity, so we'll simply sit still forever if we can't represent a moving observer. Ideally we'd like to give our observer a push in a particular direction, to represent them moving. Note that we define this velocity relative to our initial frame of reference
 
-In a previous article, we learnt that given a set of tetrad vectors $e_i^\mu$, the 0th vector $e_0^\mu$ represents the velocity of our observer. If we want to represent an observer with a different speed, sadly we can't just modify that component - to transform the entire tetrad is a little more involved. The standard method for this is something called a lorentz boost (or more generally, a lorentz transform - which may include rotations), which relates two observers moving at different speeds. A lorentz transform in general relativity is often denoted by the symbol $\Lambda^i_{\;j}$, or $B^i_{\;j}$ for a lorentz boost specifically here. [This](https://arxiv.org/pdf/1106.2037) paper and [this](https://arxiv.org/pdf/2404.05744) paper contain more information if you want to go digging
+In a previous article, we learnt that given a set of tetrad vectors $e_i^\mu$, the 0th vector $e_0^\mu$ represents the velocity of our observer. If we want to represent an observer with a different speed, sadly we can't just modify that component - to transform the entire tetrad is a little more involved. The standard method for this is something called a Lorentz boost (or more generally, a Lorentz transform - which may include rotations), which relates two observers moving at different speeds. A Lorentz transform in general relativity is often denoted by the symbol $\Lambda^i_{\;j}$, or $B^i_{\;j}$ for a Lorentz boost specifically here. [This](https://arxiv.org/pdf/1106.2037) paper and [this](https://arxiv.org/pdf/2404.05744) paper contain more information if you want to go digging
 
-For us, we're looking to perform a lorentz boost in an arbitrary direction, and apply it to our basis vectors. Before we get there, we need to know what a 4-velocity is - something we've skimmed over a bit
+For us, we're looking to perform a Lorentz boost in an arbitrary direction, and apply it to our basis vectors. Before we get there, we need to know what a 4-velocity is - something we've skimmed over a bit
 
 ### 4-velocities are not quite like 3-velocities
 
-Lets imagine you have a regular good ol' velocity in 3 dimensional space. We'll normalise our velocities so that $1$ represents the speed of light, and $0$ represents stationary relative to our observer. We're going to examine the difference between:
+Lets imagine you have a regular good ol' velocity in 3 dimensional space. We'll scale our velocities so that $1$ represents the speed of light, and $0$ represents stationary relative to our observer. We're going to examine the difference between:
 
 1. 3-velocities parameterised by coordinate time $\frac{dx^i}{dt}$, your regular everyday concept of velocity. We will call this $v$, and its euclidian magnitude is $\vert v \vert$. $\vert v \vert = 1$ represents light
 2. 4-velocities parameterised by coordinate time $\frac{dx^\mu}{dt}$
@@ -311,7 +311,7 @@ For a lightlike geodesic, $ds^2 = 0$, so $d\tau^2 = 0$ ($d\tau$ being the change
 
 #### Timelike Geodesics
 
-A timelike geodesic is defined as when $ds^2 < 0$
+A timelike geodesic is defined as when $ds^2 < 0$. Do be aware that this is only true if we have a metric signature of [-, +, +, +] (which I use exclusively), which corresponds to the signs in our minkowski line element. If we have a metric signature of [+, -, -, -], then a timelike geodesic would be defined as $ds^2 > 0$
 
 ##### Coordinate time parameterisation
 
@@ -340,7 +340,7 @@ d\tau &= \sqrt{1 - \vert v \vert^2}\\
 \end{align}
 $$
 
-You may recognise this as the formula for the lorentz factor $\gamma = \frac{dt}{d\tau}$. So to construct a 4-velocity parameterised by coordinate time from the 3-velocity $v^i$, we do:
+You may recognise this as the formula for the Lorentz factor $\gamma = \frac{dt}{d\tau}$. So to construct a 4-velocity parameterised by coordinate time from the 3-velocity $v^i$, we do:
 
 $$\begin{align}
 \frac{dx^\mu}{d\tau} &= \frac{dt}{d\tau} \frac{dx^\mu}{dt}\\
@@ -364,7 +364,7 @@ We can also construct an affine time parameterisation by setting $\lambda = \tau
 
 ![She lives on that bag](/assets/catbreak.jpg)
 
-### Calculating a lorentz boost
+### Calculating a Lorentz boost
 
 We now know how to make an observer with a (timelike) 4-velocity in minkowski, by constructing it from a 3-velocity. To be very explicit, given a velocity in cartesian coordinates $d^i = (dx, dy, dz)$, where $\vert d\vert < 1$
 
@@ -374,7 +374,7 @@ $$
 
 We then want to convert $v_{local}$ to $v$ by transforming it with the tetrad, as $v^\mu = e_i^\mu v^i_{local}$, to get our new observer velocity in our curved spacetime
 
-If we have an initial 4-velocity $u^\mu = e_0^\mu$ of our tetrad, and we want to boost the tetrad to represent an observer with a 4-velocity $v$, the formula for the lorentz boost is this[^form]:
+If we have an initial 4-velocity $u^\mu = e_0^\mu$ of our tetrad, and we want to boost the tetrad to represent an observer with a 4-velocity $v$, the formula for the Lorentz boost is this[^form]:
 
 [^form]: [https://arxiv.org/pdf/2404.05744](https://arxiv.org/pdf/2404.05744) (18)
 
@@ -387,7 +387,7 @@ $$
 
 $\delta^i_{\;j}$ is known as the kronecker delta. It is $1$ when $i==j$, and $0$ otherwise
 
-Next up, we need to apply this lorentz boost to our tetrad vectors. Lets say our original tetrads are $e_i^\mu$, and our boosted tetrads are $\hat{e}_i^\mu$. We already know what the new value of $\hat{e}_0^\mu$ will be, as it must be $v$, but the general transform is:
+Next up, we need to apply this Lorentz boost to our tetrad vectors. Lets say our original tetrads are $e_i^\mu$, and our boosted tetrads are $\hat{e}_i^\mu$. We already know what the new value of $\hat{e}_0^\mu$ will be, as it must be $v$, but the general transform is:
 
 $$\hat{e}^i_a = B^i_{\;j} e_a^j$$
 
@@ -456,7 +456,7 @@ tetrad boost_tetrad(v3f velocity, const tetrad& tetrads, const metric<valuef, 4,
 
 ### Wormhole Results
 
-With a wormhole with params M = 0.01, p = 1, a = 1, and an observer of $(-0.2, 0, 0)$
+With a wormhole with params M = 0.01, p = 1, a = 1, and an observer moving at 0.2c towards the wormhole:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/86528MigRMg?si=WF8o3tEySnRpykT2" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
@@ -468,11 +468,17 @@ M = 0.01, p = 1, a = 0.001
 
 ## Redshift
 
-The equations for redshift in general relativity are pretty simple. First off, we define the redshift $z$, as follow:
+The equations for redshift in general relativity are pretty simple. First off, we define the redshift[^redshift] $z$, as follows:
 
-$$z+1 = \frac{g_{\mu\nu} k^\mu_{emit} u^\mu_{emit}}{g_{\mu\nu} k^\mu_{obs} u^\mu_{obs}}$$
+[^redshift]: [https://arxiv.org/pdf/gr-qc/9505010](https://arxiv.org/pdf/gr-qc/9505010) 13
 
-$k^\mu$ represents our geodesic's velocity, and $u$ is the observer velocity. $u^\mu_{emit}$ specifically will be where our ray terminates, and $u^\mu_{obs} = e_0$ is our initial observer's velocity (after boosting!). Do note that the metric tensors are evaluated at different locations
+$$z+1 = \frac{g_{\mu\nu} k^\mu_{emit} u^\nu_{emit}}{g_{\mu\nu} k^\mu_{obs} u^\nu_{obs}}$$
+
+Commonly also written:
+
+$$z+1 = \frac{k^{\mu}_{emit} u_{\mu emit}}{k^\mu_{obs} u_{\mu obs}}$$
+
+$k^\mu$ represents our geodesic's velocity, and $u$ is the observer's velocity. $u^\mu_{emit}$ specifically will be where our ray terminates (and may either be the $e_0$ of a calculated tetrad, or in the case of eg an accretion disk - a known velocity), and $u^\mu_{obs} = e_0$ is our initial observer's velocity (after boosting!). Do note that the metric tensors are evaluated at different locations
 
 Next up, we need to work out how our light changes, from our end frame of reference (defined by $u^\mu_{emit}$), to our initial frame of reference. Light has two properties - frequency/wavelength, and intensity. The equation for wavelength looks like this[^linky]
 
@@ -480,9 +486,9 @@ Next up, we need to work out how our light changes, from our end frame of refere
 
 $$z+1 = \frac{\lambda_{obs}}{\lambda_{emit}}$$
 
-Once we have our new wavelength, we need to calculate the intensity. We can do this by calculating the lorentz invariant (constant in every frame of reference): $\frac{I_\nu}{\nu^3}$, where $\nu$ is your frequency, and $I_\nu$ is spectral radiance. See [here](https://www.astro.princeton.edu/~jeremy/heap.pdf) 1.26 for details. Note that the quantity $I_\nu \lambda^3$ is also therefore lorentz invariant
+Once we have our new wavelength, we need to calculate the intensity. We can do this by calculating the Lorentz invariant (constant in every frame of reference): $\frac{I_\nu}{\nu^3}$, where $\nu$ is your frequency, and $I_\nu$ is spectral radiance. See [here](https://www.astro.princeton.edu/~jeremy/heap.pdf) 1.26 for details. Note that the quantity $I_\nu \lambda^3$ is also therefore Lorentz invariant
 
-So, to calculate our observed intensity, we say:
+So, to calculate our observed intensity, we know that this quantity never changes, and can say:
 
 $$I_{obs} \lambda_{obs}^3 = I_{emit} \lambda_{emit}^3$$
 
@@ -522,15 +528,15 @@ $$T_{obs} = \frac{T_{emit}}{1+z}$$
 
 [^digging]: This step is the bottleneck for actually achieving what we're trying to do here. Try as I might, I cannot find any standardised way to obtain anything corresponding to physical units (instead of raw data in unknown units). If you know, please contact me! It looks like [adadin](https://aladin.cds.unistra.fr/hips/HipsIn10Steps.gml) may be able to do what we want, but its certainly not straightforward. Apparently the 'default' unit is ADU, which is the raw CCD readout data, but its not even vaguely clear how to go about converting this into a calibrated physical unit
 
-For our galaxy background, we're instead going to implement *illustrative* redshift, rather than attempting to find calibration data for hundreds of surveys
+For our galaxy background, we're instead going to implement *illustrative* redshift, rather than attempting to find calibration data for hundreds of surveys - which I've had to try very hard to stop myself from doing
 
 ### Illustrative redshift
 
-The key here is that we're going to discard physicality when it comes to the colour, and just show a measure of redshift. We can still calculate $z+1$ as per normal, and then transform our radiant flux directly - we only need the wavelength for working out the final colour, which we'll use $z+1$ for directly. Our intensity data is defined as the $Y$ component of the $XYZ$ colour space which represents energy, see [here](https://en.wikipedia.org/wiki/SRGB#From_sRGB_to_CIE_XYZ). Put more directly: we convert to linear sRGB, and then calculate Y as:
+The key here is that we're going to discard physicality when it comes to the colour, and just show a measure of redshift. We can still calculate $z+1$ as per normal, and then transform our radiant flux directly - we only need the wavelength for working out the final colour, which we'll use $z+1$ for directly. Our intensity data is defined as the $Y$ component of the $XYZ$ colour space which represents energy, see [here](https://en.wikipedia.org/wiki/SRGB#From_sRGB_to_CIE_XYZ). Put more directly, after sampling our background colour - we convert to linear sRGB, and then calculate Y as:
 
 $$Y = 0.2126 r + 0.7152 g + 0.0722 b$$
 
-Once we've calculated our new intensity via the intensity equation, its then time to recolour our texture. To do this is as straightforward as interpolating between red and blue depending on the value of $z$. $z$ has a range of $[-1, +inf]$, so its easiest to split into two branches
+Once we've calculated our new intensity via the intensity equation, its then time to perform our recolouring. To do this is as straightforward as interpolating between red and blue depending on the value of $z$. $z$ has a range of $[-1, +inf]$, so its easiest to split into two branches
 
 #### Redshift Only (z > 0)
 
@@ -556,11 +562,11 @@ One problem specific to blueshift is that our energy is unbounded, and our pixel
 
 Because our colour is artificial, this doesn't matter for us, but if you wanted to physically accurately render a wavelength, here's how you'd do it:
 
-Human colour response to a frequency spectrum is defined by the LMS (long medium short - your eyes cone response) colour system. First up, you need to download the cie 1931 2 degree fov data from [here](http://www.cvrl.org/cmfs.htm). This gives you a table of colour matching functions which you can convolve against your spectral radiance, and frequency distribution. This convolution returns a new set of tristimulus values in the LMS colour space, which represents how much each eye cone responds to a particular frequency
+Human colour response to a frequency spectrum is defined by the LMS (long medium short - your eyes cone response) colour system. First up, you need to download the CIE 1931 2 degree fov data from [here](http://www.cvrl.org/cmfs.htm). This gives you a table of colour matching functions which you can convolve against your spectral radiance, and frequency distribution. This convolution returns a new set of tristimulus values in the LMS colour space, which represents how much each eye cone responds to a particular frequency
 
 Once you have an LMS triplet, you convert that to the XYZ colour space, by calculating the inverse of [this](https://en.wikipedia.org/wiki/LMS_color_space#Hunt,_RLAB) matrix, which you use under D65 lighting
 
-Then, convert that to the sRGB' linear colour space, via this [matrix](https://en.wikipedia.org/wiki/SRGB#From_CIE_XYZ_to_sRGB), before finally using the CsRGB conversion
+Then, convert that to the sRGB' linear colour space, via this [matrix](https://en.wikipedia.org/wiki/SRGB#From_CIE_XYZ_to_sRGB), before finally using the CsRGB conversion to get an sRGB value you can put on your display
 
 #### Physically accurate blackbody redshift rendering
 
@@ -629,7 +635,7 @@ v3f redshift(v3f v, valuef z)
 }
 ```
 
-For a schwarzschild black hole, a velocity of 0.5c boosting towards the black hole, and a starting position of $(0, 5, 0, 0)$, you end up with this
+For a Schwarzschild black hole, a velocity of 0.5c boosting towards the black hole, and a starting position of $(0, 5, 0, 0)$, you end up with this
 
 ![Towards](/assets/blueshift_bh.png)
 
@@ -647,11 +653,9 @@ One thing we should examine first is the concept of an innermost stable orbit, o
 
 #### ISCO
 
-Outside of the ISCO, circular trajectories around the rotational plane of a black hole are stable[^stable]. Within the ISCO, orbits are unstable (as circular orbits don't exist) - and matter spirals into the black hole quickly. This inner region is known as the 'plunging' region, and will crop up a lot in future articles
+The ISCO is the radius at which orbits for a black hole become unstable. Outside of this radius we can have long lived circular orbits - inside of this radius, circular orbits do not exist. This inner region is known as the 'plunging' region, and anything that's within this region rapidly enters into a black hole
 
-[^stable]: No orbit in general relativity is ever truly stable, as everything emits gravitational waves and orbits decay. Near a black hole, this effect is particularly intense. Inwards accretion for a disk I believe is primarily driven by fluid dynamics, but this is outside of my area of knowledge
-
-For a schwarzschild black hole, the ISCO is defined as $r_{isco} = 3rs = 6M$. For a kerr black hole, the ISCO is defined as follows[^iscoeq] for a black hole with mass $M$, and spin $a$:
+For a schwarzschild black hole, the ISCO is defined as $r_{isco} = 3rs = 6M$. For a Kerr (spinning) black hole, the ISCO is defined as follows[^iscoeq] for a black hole with mass $M$, and spin $a$:
 
 $$
 \begin{align}
@@ -681,7 +685,7 @@ Distinguishing between these three regions is done by two values
 1. Gas pressure vs radiation pressure. When gas pressure < radiation pressure, we're either in the inner or outer region
 2. Whether opacity is driven by free-free interactions, or electron scattering. If free-free > electron scattering, we're in the outer region, otherwise we're in the inner or middle region
 
-The details of this are interesting[^interesting], but we're going to focus on how to actually implement this rather than what it means (unfortunately) - there's lots of information available in the linked articles if you're curious. The general idea for us is to iterate from the innermost boundary of our accretion disk ($r = r_{isco}$), and terminate at some finite radius away from the accretion disk ($r = 100M$), working out which region we're in as we go. We know at the start, we must be in region #1 - the inner region - at the ISCO
+The details of this are interesting[^interesting], but we're going to focus on how to actually implement this rather than what it means (unfortunately) - there's lots of information available in the linked articles if you're curious. The general idea for us is to iterate from the innermost boundary of our accretion disk ($r = r_{isco}$), and terminate at some finite radius away from the accretion disk ($r = 100M$), working out which region we're in as we go. We know at the start, we must be in region 1 - the inner region - at the ISCO
 
 [^interesting]: If there was time, it would be interesting to lay it all out. This is one of the downsides of writing articles which are intended to be implementation focused, and a bit jumbo like this one. While the papers linked themselves contain all the theory you need, the thing we are lacking is actually how to implement this. In the future, I may revisit accretion disks in a lot more detail
 
@@ -700,11 +704,11 @@ The meaning of the variables here are:
 |variable|meaning|
 |F|surface radiant flux (ie brightness)|
 |$\Sigma$|surface density|
-|H|Disk thickness|
+|H|disk thickness|
 |$\rho_0$ |rest mass density in the local rest frame|
 |$T$ |temperature|
 |$\beta / (1-\beta)$|ratio of gas pressure to radiation pressure|
-|$T_{ff}/T_{es}$|Ratio of free-free opacity to electron scattering opacity|
+|$T_{ff}/T_{es}$|ratio of free-free opacity to electron scattering opacity|
 
 With this, we should have everything[^onemore] we need to implement this correctly
 
@@ -712,7 +716,7 @@ With this, we should have everything[^onemore] we need to implement this correct
 
 ##### Code
 
-The equations here - as written, are long and complicated to implement correctly. I won't reproduce the equations in full here - it just introduces a risk of mistakes, but you can find the code for implementing this method, and producing a nice accretion disk texture over [here](https://github.com/20k/20k.github.io/blob/master/code/wormholes/accretion_disk.cpp)
+The equations here - as written, are long and complicated to implement correctly. I won't reproduce the equations algebraically in full here - it just introduces a risk of mistakes. You can find the full code for implementing this method, and producing a nice accretion disk texture over [here](https://github.com/20k/20k.github.io/blob/master/code/wormholes/accretion_disk.cpp)
 
 The core of our algorithm looks like this:
 
@@ -800,7 +804,7 @@ If you run the accretion disk temperatures through this process, you'll be surpr
 
 #### Rendering
 
-Rendering the accretion disk is fairly straightforward. Because its modelled as a thin disk, you can check as a geodesic crosses the equatorial plane ($\theta = n\;\pi + \pi/2$), and sample the accretion disk texture. Here, I approximate the opacity as the brightness of the texture, because we're not physically accurately raytracing this[^please], and do some very basic volumetrics on the disk
+Rendering the accretion disk is fairly straightforward. Because its modelled as a thin disk, you can check if a geodesic crosses the equatorial plane ($\theta = n\;\pi + \pi/2$), and sample the accretion disk texture. Here, I approximate the opacity as the brightness of the texture, because we're not physically accurately raytracing this[^please], and do some very basic volumetrics on the disk
 
 [^please]: you have no idea how hard I have to resist this
 
@@ -808,7 +812,7 @@ One key thing to note here is that we're going to implement redshift, and to do 
 
 Well, in the equatorial plane for circular orbits, we know that $dr = 0$, and $d\theta = 0$. This means that we're only left to solve for $dt$, and $d\phi$.
 
-Luckily other people have put in the legwork [here](https://physics.stackexchange.com/questions/502796/how-to-derive-the-angular-velocity-of-circular-orbits-in-kerr-geometry), and [here](https://articles.adsabs.harvard.edu/pdf/1972ApJ...178..347B), and figured out that the angular velocity of a geodesic in the kerr spacetime is
+Luckily other people have put in the legwork [here](https://physics.stackexchange.com/questions/502796/how-to-derive-the-angular-velocity-of-circular-orbits-in-kerr-geometry), and [here](https://articles.adsabs.harvard.edu/pdf/1972ApJ...178..347B), and figured out that the angular velocity of a geodesic in the Kerr spacetime is
 
 $$
 w = \frac{\dot{\phi}}{\dot{t}} = \frac{1}{r^{3/2} + a}
@@ -816,13 +820,13 @@ $$
 
 Given that we know that our geodesic must point in the $d\phi$ direction, we can work out the $d\phi$ component as being $wr$. This means that $dt = d\phi/w = r$. We now have the 4-velocity of a geodesic on our equatorial orbit
 
-One slightly annoying aspect is that our geodesics in general will not intersect the equatorial plane at $\theta = \pi/2$
+One slightly annoying aspect is that our geodesics in general will not intersect the equatorial plane at $\theta = \pi/2$, so you have to do some annoying wrapping logic to work out if it hits. This is all in the code sample below
 
 #### Physically accurate redshifting
 
 The nice thing here is that with the approximation that an accretion disk is a blackbody radiator, we can directly redshift it, and end up with an accurate visual colour out of the other end. Its fairly straightforward to do, as mentioned before, you can directly redshift the temperature of a blackbody radiator. Then, given the temperature, we can calculate the colour that it visually represents
 
-Given that this would be computationally expensive to calculate at runtime, I simply chuck the whole process precalculated into a big buffer indexed by temperature, and call it a day
+Given that this would be computationally expensive to calculate at runtime, I simply chuck the whole process precalculated into a big buffer indexed by temperature, and call it a day. In practice, an accretion disk is so wildly hot that its accurate enough to simply use a constant temperature for it when observed by a human eye, but we might as well do it properly
 
 ##### Code
 
@@ -836,6 +840,7 @@ valuef in_end = position.z() - period_start;
 valuef min_start = min(in_start, in_end);
 valuef max_start = max(in_start, in_end);
 
+///have we hit the equatorial plane?
 if_e(pi/2 >= min_start && pi/2 <= max_start, [&]
 {
     valuef radial = position[1];
@@ -843,8 +848,10 @@ if_e(pi/2 >= min_start && pi/2 <= max_start, [&]
     valuef M = BH_MASS;
     valuef a = BH_SPIN;
 
+    ///calculate the angular velocity
     valuef w = pow(M, 1.f/2.f) / (pow(radial, 3.f/2.f) + a * pow(M, 1.f/2.f));
 
+    ///calculate the real observer velocity
     v4f observer = {radial, 0, 0, w * radial};
 
     valuef ds = dot_metric(observer, observer, get_metric(cposition));
@@ -903,7 +910,7 @@ if_e(pi/2 >= min_start && pi/2 <= max_start, [&]
 #endif
 ```
 
-## Interstellars other wormhole
+## Interstellars other wormhole / Spinning black holes
 
 Interstellar contains a spinning black hole, which we can model by the Kerr (or Kerr-Newman, with charge) metric. The interior of these metrics are actually pretty interesting. In addition to a ringularity (a ring singularity), the centre of a Kerr style black hole contains a wormhole, and copious time travel - which are certainly unusal things to find[^tofind]. We're going to take a trip inside!
 
@@ -991,7 +998,7 @@ This gives us a pretty nice looking black hole, which looks like this when rende
 
 ### Parallel transport numerical accuracy
 
-One thing to note is that the interior of kerr is very numerically unstable, due to very high accelerations on the equatorial plane - it behaves very poorly in general. To make this article work, I had to upgrade the parallel transport code to be second order, to increase the accuracy sufficiently. This is a very basic second order integrator with nothing fancy otherwise:
+One thing to note is that the interior of Kerr is very numerically unstable, due to very high accelerations on the equatorial plane - it behaves very poorly in general. To make this article work, I had to upgrade the parallel transport code to be second order, to increase the accuracy sufficiently. This is a very basic second order integrator with nothing fancy otherwise:
 
 ```c++
 v4f transport2(v4f what, v4f position, v4f next_position, v4f velocity, v4f next_velocity, valuef dt, auto&& get_metric)
@@ -1016,7 +1023,7 @@ v4f transport2(v4f what, v4f position, v4f next_position, v4f velocity, v4f next
 
 ## Taking a trip into a spinning black hole
 
-The ringularity in kerr is extremely cool, and is one of my favourite things to simulate, so lets have a look at how this looks with an accretion disk!
+The ringularity in Kerr is extremely cool, and is one of my favourite things to simulate, so lets have a look at how this looks with an accretion disk!
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/5GThNPUu1KE?si=CbjZbSLSi-HOwT7-" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
@@ -1049,7 +1056,7 @@ With that in mind, here's the current list of topics that I'm going to get to in
 15. Neutron star initial conditions, and equations of state
 16. Relativistic smooth particle hydrodynamics, which is a fun phrase to say
 17. Relativistic magnetohydrodynamics
-18. CCZ4/Z4CC, and friends
+18. CCZ4/Z4cc/constraint damped formalisms, and friends
 19. Solving elliptic equations
 
 On top of this, there are a number of misc topics to cover in analytic metrics:
