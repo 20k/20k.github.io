@@ -20,7 +20,7 @@ Hiyas! This article is the third in a series on rendering general relativity - i
 
 If you're looking for a PhD student to work on numerical relativity, then I'd be very interested!
 
-First up though: Wormholes
+The full code for this article can be found [here](https://github.com/20k/20k.github.io/tree/master/code/wormholes). First up: Wormholes
 
 ## The Interstellar wormhole
 
