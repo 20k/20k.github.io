@@ -1,11 +1,13 @@
 ---
 layout: post
-title:  "Simulating Interstellar: Wormholes, spinning black holes, accretion disks, and redshift"
+title:  "Wormholes, spinning black holes, accretion disks, and redshift"
 date:   2024-06-19 19:33:23 +0000
 categories: C++
 ---
 
-Hiyas! This article is the third in a series on rendering general relativity - if you're unfamiliar you may want to read these articles first: [one](https://20k.github.io/c++/2024/05/31/schwarzschild.html), [two](https://20k.github.io/c++/2024/06/19/tetrads.html). We're going to tie up some loose ends today, and complete the steps you need to render arbitrary metric tensors in general relativity. This is the last jumbo tutorial article I'm doing in this series - after this we'll be moving onto numerical relativity, so its time to clear up a few straggler topics:
+Hiyas! This article is the third in a series on rendering general relativity - if you're unfamiliar you may want to read these articles first: [one](https://20k.github.io/c++/2024/05/31/schwarzschild.html), [two](https://20k.github.io/c++/2024/06/19/tetrads.html). We're going to tie up some loose ends today, and dip heavily into the science behind Interstellar (mostly by accident)[^thorne]. This is the last jumbo tutorial article I'm doing in this series - after this we'll be moving onto numerical relativity, so its time to clear up a few straggler topics:
+
+[^thorne]: Really this is more that this is a very Kip Thorne heavy article
 
 1. Wormholes
 2. A dynamic timestep
@@ -14,12 +16,13 @@ Hiyas! This article is the third in a series on rendering general relativity - i
 5. Redshift
 6. Accretion disks
 7. Spinning black holes
+8. Will there be more cats?
 
-There will also be at least one cat in this article. If you're looking for a PhD student to work on numerical relativity, then I'd definitely be interested!
+If you're looking for a PhD student to work on numerical relativity, then I'd be very interested!
 
-## The interstellar wormhole
+## The Interstellar wormhole
 
-The paper which describes interstellar's wormhole is [this](https://arxiv.org/pdf/1502.03809) one. We want the configurable smooth version, which is described by equations (5a-c)
+The paper which describes Interstellar's wormhole is [this](https://arxiv.org/pdf/1502.03809) one. We want the configurable smooth version, which is described by equations (5a-c)
 
 Given a coordinate system $(t, l, \theta, \phi)$, and the parameters $M$ = mass, $a$ = wormhole length and $p$ = throat radius:
 
@@ -126,9 +129,7 @@ Where the velocity is updated, and then the position is updated with that new ve
         as_ref(velocity) = cvelocity + acceleration * dt;
 ```
 
-## Camera Controls / Orienting Tetrad
-
-Todo: This segment needs to be broken up
+## Camera Controls / Orienting Tetrads
 
 At the moment, we're constructing a tetrad directly from the underying metric. This works great, but results in a tetrad that - in spherical metrics - tends to point directly at our object. This leads to very unintuitive camera controls as we move our camera around. In this segment we're going to commit some crimes against coordinate systems to get them to point roughly where we want them to
 
@@ -159,7 +160,7 @@ r &= \sqrt{x^2 + y^2 + z^2}\\
 \end{align}
 $$
 
-We are dealing with *tangent* vectors, so we need to treat $b$ as a velocity - for that reason we want the total derivative[^howtodifferentiate] of the above set of equations:
+We are dealing with tangent vectors, so we need to treat $b$ as a velocity - for that reason we want the total derivative[^howtodifferentiate] of the above set of equations:
 
 [^howtodifferentiate]: If you don't know what this is: partially differentiate with respect to each variable (while holding the others constant, as per usual), and then sum all the resulting derivative. You should absolutely be automating this with dual numbers though!
 
@@ -180,15 +181,15 @@ We now have 3 ($_k$) spatial vectors $d_k^\mu$, which have 4 components ($^\mu$)
 
 $$l_i^\mu = e^i_\mu d^\mu_i$$
 
-Note that $i$ ranges over 1-3, instead of 0-3. We now have 3 vectors - which we hope are spacelike. Its not the end of the world if they aren't - as long as the spatial parts of these vectors are linearly independent, we're good to go
+Note that $i$ ranges over 1-3. We can now orthonormalise (using normal euclidian geometry) the spatial part of these vectors ($\mu$ = 1-3) to produce a new set of basis vectors - which are now roughly oriented in the directions we picked initially ($b_k$) as best as is possible. To finish up, we turn these new 3-vectors back into spacelike 4-vectors by setting the time component to $0$, and then convert them into global coordinates with our old tetrads. These form the 3 new spacelike tetrad vectors
 
-We can now orthonormalise the spatial part of these vectors ($\mu$ = 1-3) to produce a new set of spacelike basis vectors for the frame of reference. Because we're in a minkowski metric - we can use gram schmidt with a trivial 3x3 identity matrix as the metric tensor, and we guarantee that our new vectors are spacelike by discarding the time component
+### Only one vector is 'true'
 
-As you may have spotted, orthornormalising these vectors changes them - orthonormalising can only preserve the direction of a single vector (the one we start from). The correct vector to preserve is the 'up' vector that you use for your fixed mouse vertical axis - this means that the camera doesn't roll as you move it around, which is very disorienting, and preserves left-right movement for a mouse
+As you may have spotted, orthornormalising these vectors changes them - orthonormalising can only preserve the direction of a single vector (the one we start from). The correct vector to preserve is the 'up' vector that you use for your fixed mouse vertical axis - this means that the camera doesn't roll as you move it around - which is very disorienting. The new vectors are still a bit of a compromise - we're discarding the timelike component, which means that they'll still inevitably be a bit 'incorrect' as to where they point - but in practice this scheme works very well
 
-One key thing to note is that we only orient the *initial* tetrad if we're parallel transporting tetrads[^unless]
+One other thing to note is that we only orient the *initial* tetrad if we're parallel transporting tetrads[^unless]
 
-[^unless]: Unless you deliberately want to remove the effect of parallel transport on the camera's pointing direction, in which case you'll need to come up with a different scheme
+[^unless]: Unless you deliberately want to remove the effect of parallel transport on the camera's pointing direction
 
 ### Code
 
@@ -259,12 +260,16 @@ For us, we're looking to perform a Lorentz boost in an arbitrary direction, and 
 Lets imagine you have a regular good ol' velocity in 3 dimensional space. We'll scale our velocities so that $1$ represents the speed of light, and $0$ represents stationary relative to our observer. We're going to examine the difference between:
 
 1. 3-velocities parameterised by coordinate time $\frac{dx^i}{dt}$, your regular everyday concept of velocity. We will call this $v$, and its euclidian magnitude is $\vert v \vert$. $\vert v \vert = 1$ represents light
-2. 4-velocities parameterised by coordinate time $\frac{dx^\mu}{dt}$
+2. 4-velocities parameterised by coordinate time[^coordinatetime] $\frac{dx^\mu}{dt}$
 3. 4-velocities parameterised by an affine parameter $\frac{dx^\mu}{d\lambda}$
-4. 4-velocities parameterised by proper time $\frac{dx^\mu}{d\tau}$
+4. 4-velocities parameterised by proper time[^propertime] $\frac{dx^\mu}{d\tau}$
 5. Timelike vs lightlike geodesics, with all of the different parameterisations
 
 It is common to define 4-velocities as only being those velocities which are parameterised by proper time, but we're going with the generalised understanding here. Note that this segment is dealing with line elements in minkowski as that's where we'll be constructing our geodesics, and as such is special relativity. That said, the language of special relativity, and general relativity are often not very similar at all, so I'm putting this all down in our terminology
+
+[^coordinatetime]: In minkowski, we have a time coordinate $t$ that we know is always a timelike coordinate, which is one of the major reasons the tetrad formalism is so useful. In general, in general relativity in arbitrary coordinates, we only have a coordinate system $(x^0, x^1, x^2, x^3)$ and it is not necessary that any of those coordinates represent time. This is why the $t$ in Schwarzschild coordinates is very misleading - it quite literally isn't timelike everywhere in the metric
+
+[^propertime]: I'm not sure we've defined this yet: proper time is the time as experienced by you, an observer floating through space. If you're holding a clock, it is the amount of time elapsed on that clock. It has the symbol $\tau$
 
 #### Lightlike Geodesics
 
@@ -307,11 +312,15 @@ The full line element reads:
 
 $$ds^2 = -d\tau^2 = g_{\mu\nu} dx^\mu dx^\nu$$
 
-For a lightlike geodesic, $ds^2 = 0$, so $d\tau^2 = 0$ ($d\tau$ being the change in proper time). There is therefore no proper time parameterisation of a lightlike geodesic. For this reason, it is common to state that the velocity of a lightlike geodesic is not a 4-velocity, as it can never be parameterised by proper time
+For a lightlike geodesic, $ds^2 = 0$, so $d\tau^2 = 0$ ($d\tau$ being the change in proper time). There is therefore[^circular] no proper time parameterisation of a lightlike geodesic. For this reason, it is common to state that the velocity of a lightlike geodesic is not a 4-velocity, as it can never be parameterised by proper time
+
+[^circular]: An alternative (and possibly better) argument is that the derivation of $ds^2 = -d\tau^2$ relies inherently on the geodesic being timelike, so $d\tau$ is simply undefined for lightlike rays and has no relation
 
 #### Timelike Geodesics
 
-A timelike geodesic is defined as when $ds^2 < 0$. Do be aware that this is only true if we have a metric signature of [-, +, +, +] (which I use exclusively), which corresponds to the signs in our minkowski line element. If we have a metric signature of [+, -, -, -], then a timelike geodesic would be defined as $ds^2 > 0$
+A timelike geodesic is defined as when $ds^2 < 0$[^signconvention]
+
+[^signconvention]: Do be aware that this is only true if we have a metric signature of [-, +, +, +] (which we use exclusively here), which corresponds to the signs in our minkowski line element. If you have a metric signature of [+, -, -, -], then a timelike geodesic would be defined as $ds^2 > 0$
 
 ##### Coordinate time parameterisation
 
@@ -474,7 +483,7 @@ The equations for redshift in general relativity are pretty simple. First off, w
 
 $$z+1 = \frac{g_{\mu\nu} k^\mu_{emit} u^\nu_{emit}}{g_{\mu\nu} k^\mu_{obs} u^\nu_{obs}}$$
 
-Commonly also written:
+This is commonly also written:
 
 $$z+1 = \frac{k^{\mu}_{emit} u_{\mu emit}}{k^\mu_{obs} u_{\mu obs}}$$
 
@@ -496,7 +505,7 @@ $$
 I_{obs} = I_{emit} \frac{\lambda_{emit}^3}{\lambda_{obs}^3}
 $$
 
-Note that this equation is linear in terms of intensity, which is often a useful property
+This equation is linear in terms of intensity, which is often a useful property
 
 Once we have our new wavelength(s) $\lambda_{obs}$, and $I_{obs}$, in theory we have everything we need to render our our final colour. We just have two unknowns, which are our initial intensity, and the initial wavelength(s)
 
@@ -514,7 +523,7 @@ If you want the equation for transforming a radiant flux, you're looking for:[^t
 
 $$F_{obs} = \frac{F_{emit}}{(z+1)^4}$$
 
-This is often much easier to work with, and is the quantity we get out of our accretion disk model
+This is often much easier to work with, and is the quantity we get out of our accretion disk model later
 
 [^twelve]: [https://arxiv.org/pdf/gr-qc/9505010](https://arxiv.org/pdf/gr-qc/9505010) (12)
 
@@ -536,7 +545,7 @@ The key here is that we're going to discard physicality when it comes to the col
 
 $$Y = 0.2126 r + 0.7152 g + 0.0722 b$$
 
-Once we've calculated our new intensity via the intensity equation, its then time to perform our recolouring. To do this is as straightforward as interpolating between red and blue depending on the value of $z$. $z$ has a range of $[-1, +inf]$, so its easiest to split into two branches
+Once we've calculated our new intensity via the redshift equation, its then time to perform our recolouring. To do this is as straightforward as interpolating between red and blue depending on the value of $z$. $z$ has a range of $[-1, +\infty]$, so its easiest to split into two branches
 
 #### Redshift Only (z > 0)
 
@@ -820,13 +829,11 @@ $$
 
 Given that we know that our geodesic must point in the $d\phi$ direction, we can work out the $d\phi$ component as being $wr$. This means that $dt = d\phi/w = r$. We now have the 4-velocity of a geodesic on our equatorial orbit
 
-One slightly annoying aspect is that our geodesics in general will not intersect the equatorial plane at $\theta = \pi/2$, so you have to do some annoying wrapping logic to work out if it hits. This is all in the code sample below
-
 #### Physically accurate redshifting
 
 The nice thing here is that with the approximation that an accretion disk is a blackbody radiator, we can directly redshift it, and end up with an accurate visual colour out of the other end. Its fairly straightforward to do, as mentioned before, you can directly redshift the temperature of a blackbody radiator. Then, given the temperature, we can calculate the colour that it visually represents
 
-Given that this would be computationally expensive to calculate at runtime, I simply chuck the whole process precalculated into a big buffer indexed by temperature, and call it a day. In practice, an accretion disk is so wildly hot that its accurate enough to simply use a constant temperature for it when observed by a human eye, but we might as well do it properly
+Given that mapping a temperature to a colour is an expensive process, I simply chuck the whole thing precalculated into a big buffer indexed by temperature, and call it a day
 
 ##### Code
 
@@ -840,7 +847,7 @@ valuef in_end = position.z() - period_start;
 valuef min_start = min(in_start, in_end);
 valuef max_start = max(in_start, in_end);
 
-///have we hit the equatorial plane?
+///we've hit the equatorial plane
 if_e(pi/2 >= min_start && pi/2 <= max_start, [&]
 {
     valuef radial = position[1];
@@ -856,7 +863,7 @@ if_e(pi/2 >= min_start && pi/2 <= max_start, [&]
 
     valuef ds = dot_metric(observer, observer, get_metric(cposition));
 
-    ///valid timelike circular geodesic
+    ///valid timelike circular geodesic on the +r branch of kerr
     if_e(ds < 0 && radial > 0, [&]
     {
         int buffer_size = 2048;
@@ -910,9 +917,9 @@ if_e(pi/2 >= min_start && pi/2 <= max_start, [&]
 #endif
 ```
 
-## Interstellars other wormhole / Spinning black holes
+## Interstellar's other secret wormhole / Spinning black holes
 
-Interstellar contains a spinning black hole, which we can model by the Kerr (or Kerr-Newman, with charge) metric. The interior of these metrics are actually pretty interesting. In addition to a ringularity (a ring singularity), the centre of a Kerr style black hole contains a wormhole, and copious time travel - which are certainly unusal things to find[^tofind]. We're going to take a trip inside!
+A spinning black hole is generally modelled by the Kerr (or Kerr-Newman, with charge) metric. The interior of these metrics are actually pretty interesting. In addition to a ringularity (a ring singularity), the centre of a Kerr style black hole contains a wormhole, and copious time travel - which are certainly unusal things to find[^tofind]. We're going to take a trip inside!
 
 [^tofind]: I feel like at this point, physicists would be *more* happy if there were a library inside a black hole instead of singularities and time travel. I found out recently that almost no matter in a spinning black hole is actually ever able to hit the singularity - only strictly equatorial geodesics (if we're talking timelike) can hit it, all other timelike geodesics just orbit about indefinitely or escape through the wormhole. Its a very strange place in there
 
@@ -1035,7 +1042,7 @@ While I partly built this for the memes, its worth noting that the interior of a
 
 ![wes](/assets/wesoriginal.png)
 
-That's the end of this small series of rendering arbitrary analytic metric tensors - there's a lot more we could do here, and there'll be articles in the future on this topic, but they'll likely be on specific elements of this topic rather than the more broad approach we've taken here. The focus after this is largely going to be on numerical relativity - simulating the evolution of spacetime itself, and how to do that on a GPU
+That's the end of this small series of rendering arbitrary analytic metric tensors - there's a lot more we could do here and I've been really crunching these articles down to the bones (possibly a bit too much). There'll be articles in the future on this topic, but they'll likely be on specific elements of this topic rather than the more broad approach I've taken here. The focus after this is largely going to be on numerical relativity - simulating the evolution of spacetime itself, and how to do that on a GPU
 
 With that in mind, here's the current list of topics that I'm going to get to in the future:
 
