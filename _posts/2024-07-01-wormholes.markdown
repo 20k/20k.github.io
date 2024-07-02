@@ -1,11 +1,11 @@
 ---
 layout: post
-title:  "Taking a trip through Interstellar's wormholes"
+title:  "Wormholes, spinning black holes, and accretion disks"
 date:   2024-06-19 19:33:23 +0000
 categories: C++
 ---
 
-Hiyas! This article is the third in a series on rendering general relativity - if you're unfamiliar you may want to read these articles first [1](https://20k.github.io/c++/2024/05/31/schwarzschild.html), [2](https://20k.github.io/c++/2024/06/19/tetrads.html). We're going to tie up some loose ends today, and complete the steps you need to render arbitrary metric tensors in general relativity. This is the last jumbo tutorial article I'm doing in this series - after this we'll be moving onto numerical relativity, so its time to clear up a few straggler topics:
+Hiyas! This article is the third in a series on rendering general relativity - if you're unfamiliar you may want to read these articles first: [one](https://20k.github.io/c++/2024/05/31/schwarzschild.html), [two](https://20k.github.io/c++/2024/06/19/tetrads.html). We're going to tie up some loose ends today, and complete the steps you need to render arbitrary metric tensors in general relativity. This is the last jumbo tutorial article I'm doing in this series - after this we'll be moving onto numerical relativity, so its time to clear up a few straggler topics:
 
 1. Wormholes
 2. A dynamic timestep
@@ -15,7 +15,7 @@ Hiyas! This article is the third in a series on rendering general relativity - i
 6. Accretion disks
 7. Spinning black holes
 
-There will also be at least one cat in this article. If you're looking for a PhD student to work on numerical relativity, then please say hi!
+There will also be at least one cat in this article. If you're looking for a PhD student to work on numerical relativity, then I'd definitely be interested!
 
 ## The interstellar wormhole
 
@@ -215,6 +215,7 @@ if(should_orient)
     v4f dy = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sy.x(), sy.y(), sy.z()});
     v4f dz = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sz.x(), sz.y(), sz.z()});
 
+    //invert the tetrads we get from the gram-schmidt process, calculated in the usual fashion
     inverse_tetrad itet = tet.invert();
 
     v4f lx = itet.into_frame_of_reference(dx);
@@ -359,7 +360,7 @@ Like with lightlike geodesics, we can construct 'an' affine parameterisation by 
 
 We can also construct an affine time parameterisation by setting $\lambda = \tau$, where $d\tau = ds^2 = -1$. One very neat fact of proper time is that it *is* a general affine parameterisation, and so if we use a proper time parameterised geodesic and plug it through the geodesic equation specialised for the affine parameter (which is the one we use), it remains parameterised by proper time
 
-## Cat break
+### Cat break
 
 ![She lives on that bag](/assets/catbreak.jpg)
 
@@ -904,7 +905,7 @@ if_e(pi/2 >= min_start && pi/2 <= max_start, [&]
 
 ## Interstellars other wormhole
 
- Interstellar contains a spinning black hole, which we can model by the Kerr (or Kerr-Newman, with charge) metric. The interior of these metrics are actually pretty interesting. In addition to a ringularity (a ring singularity), the centre of a Kerr style black hole contains a wormhole, and copious time travel - which are certainly unusal things to find[^tofind]. We're going to take a trip inside!
+Interstellar contains a spinning black hole, which we can model by the Kerr (or Kerr-Newman, with charge) metric. The interior of these metrics are actually pretty interesting. In addition to a ringularity (a ring singularity), the centre of a Kerr style black hole contains a wormhole, and copious time travel - which are certainly unusal things to find[^tofind]. We're going to take a trip inside!
 
 [^tofind]: I feel like at this point, physicists would be *more* happy if there were a library inside a black hole instead of singularities and time travel. I found out recently that almost no matter in a spinning black hole is actually ever able to hit the singularity - only strictly equatorial geodesics (if we're talking timelike) can hit it, all other timelike geodesics just orbit about indefinitely or escape through the wormhole. Its a very strange place in there
 
@@ -1013,7 +1014,7 @@ v4f transport2(v4f what, v4f position, v4f next_position, v4f velocity, v4f next
 }
 ```
 
-## Taking a trip into kerr
+## Taking a trip into a spinning black hole
 
 The ringularity in kerr is extremely cool, and is one of my favourite things to simulate, so lets have a look at how this looks with an accretion disk!
 
