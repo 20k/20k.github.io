@@ -5,7 +5,7 @@ date:   2024-06-19 19:33:23 +0000
 categories: C++
 ---
 
-Hiyas! We're going to tie up some loose ends today, and complete the steps you need to render arbitrary metric tensors in general relativity. This is the last jumbo tutorial article I'm doing in this series - after this we'll be moving onto numerical relativity, so its time to clear up a few straggler topics:
+Hiyas! This article is the third in a series on rendering general relativity - if you're unfamiliar you may want to read these articles first [1](https://20k.github.io/c++/2024/05/31/schwarzschild.html), [2](https://20k.github.io/c++/2024/06/19/tetrads.html). We're going to tie up some loose ends today, and complete the steps you need to render arbitrary metric tensors in general relativity. This is the last jumbo tutorial article I'm doing in this series - after this we'll be moving onto numerical relativity, so its time to clear up a few straggler topics:
 
 1. Wormholes
 2. A dynamic timestep
@@ -15,18 +15,18 @@ Hiyas! We're going to tie up some loose ends today, and complete the steps you n
 6. Accretion disks
 7. Spinning black holes
 
-There will also be at least one cat in this article
+There will also be at least one cat in this article. If you're looking for a PhD student to work on numerical relativity, then please say hi!
 
 ## The interstellar wormhole
 
-The paper which describes interstellar's wormhole is [this](https://arxiv.org/pdf/1502.03809) one. We want the fully configurable smooth version, which are equations (5a-c)
+The paper which describes interstellar's wormhole is [this](https://arxiv.org/pdf/1502.03809) one. We want the configurable smooth version, which is described by equations (5a-c)
 
 Given a coordinate system $(t, l, \theta, \phi)$, and the parameters $M$ = mass, $a$ = wormhole length and $p$ = throat radius:
 
 $$
 \begin{align}
-r &= p + M(x \; atan(x) - \frac{1}{2}ln(1 + x^2)) \;\; &where \;\; &\vert l\vert > a \\
-r &= p \;\; &where \;\; &\vert l\vert < a \\
+r &= p + M(x \; atan(x) - \frac{1}{2}ln(1 + x^2)) \;\; &when \;\; &\vert l\vert > a \\
+r &= p \;\; &when \;\; &\vert l\vert < a \\
 x &= \frac{2(\vert l\vert - a)}{\pi M} \\
 \\
 ds^2 &= -(1-2\frac{M}{r}) dt^2 + \frac{dr^2}{1-2\frac{M}{r}} + r^2 (d\theta^2 + sin^2 \theta d\phi^2) \\
@@ -70,11 +70,11 @@ With almost no changes to our code (other than updating our termination conditio
 
 ![wormhole](/assets/wormhole_1.png)
 
-While the performance isn't too bad at ~70ms/frame, its definitely time to fix our timestepping - particularly to chop down on polar artifacts
+While the performance isn't too bad at ~70ms/frame, its definitely time to fix our timestepping - particularly to cut down on polar artifacts
 
 ## Dynamic Timestepping
 
-One of the simplest and most effective strategies for dynamic timestepping is to ensure that the distance[^dist] a lightray moves is limited to some constant. The simplest version of this looks something like this:
+One of the simplest and most effective strategies for dynamic timestepping is to ensure that the distance[^dist] a ray moves is limited to some constant. The simplest version of this method looks something like this:
 
 [^dist]: We're using manhatten coordinate distance. You could use more advanced schemes - and these would work well, but bear in mind that calculating the timestep has a cost in itself and can end up having a significant overhead
 
@@ -108,7 +108,7 @@ With this in place, we get this result, which looks pretty great:
 
 ![wormhole2](/assets/wormhole_2.png)
 
-The singularities are barely noticable, and our performance is 60ms/frame @ 1080p. Truly incredible. I'm joking, but interactive framerates here are pretty decent - with a better integrator, some performance improvements, and general work this can be improved singificantly
+The singularities are barely noticable, and our performance is 60ms/frame @ 1080p. Its not incredible, but interactive framerates here are workable - more advanced timestepping and some general performance improvements can improve things a lot
 
 ### Watch out for your integrator!
 
@@ -134,9 +134,11 @@ At the moment, we're constructing a tetrad directly from the underying metric. T
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/L-sXQdiCkCY?si=4Hu52YdR1hoJZBUd" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Fixing this is a bit of a pain. What we'd like to do is have our tetrads consistently point in a specific direction - any direction would do. While this isn't possible to do in the general case (because the tetrads and coordinates are inherently arbitrary), as it turns out - we actually can do this in a pretty wide variety of cases. Most coordinate systems aren't out to get you, so lets examine how to do this. This process is unfortunately going to be very coordinate dependent
+What we'd like to do is have our tetrads consistently point in a specific direction - any direction would do. While this isn't possible to do in the general case (because the tetrads and coordinates are inherently arbitrary), as it turns out - we actually can do this in a pretty wide variety of cases
 
-First off, lets define 3 vectors in cartesian, where it'd sure be ideal if our coordinate basis vectors/tetrads pointed in that direction
+The idea here is to create an overlaying cartesian coordinate system, and use that to define our new basis vectors. Then you convert these to your real coordinate system, and orthonormalise them to produce a new set of tetrad vectors
+
+First off, lets define what we'd like our basis vectors to be in cartesian coordinates:
 
 $$
 \begin{align}
@@ -146,10 +148,11 @@ b_z &= (0, 0, 1)
 \end{align}
 $$
 
-Now, our coordinate system isn't in cartesian, so we need to convert these ideal vectors into our actual coordinate system, whatever that may be. Here we have polar coordinates, so lets use that illustratively
+Now, our actual coordinate system isn't in cartesian, so we need to convert these ideal vectors into our actual 4d coordinate system, whatever that may be. For this article everything is in polar-like coordinates, so lets use that illustratively
 
 $$
 \begin{align}
+t &= 0\\
 r &= \sqrt{x^2 + y^2 + z^2}\\
 \theta &= acos(\frac{z}{r});\\
 \phi &= atan2(y, x)
@@ -162,29 +165,30 @@ We are dealing with *tangent* vectors, so we need to treat $b$ as a velocity - f
 
 $$
 \begin{align}
+dt &= 0\\
 dr &= \frac{x dx + y dy + z dz}{r}\\
 d\theta &= \frac{z dr}{r^2 \sqrt{1 - \frac{z^2}{r^2}}} - \frac{dz}{r \sqrt{1 - \frac{z^2}{r^2}}}\\
-d\phi &= \frac{x dy - y dx)}{x^2 y^2}\\
+d\phi &= \frac{x dy - y dx}{x^2 + y^2}\\
 \end{align}
 $$
 
-And we'll call these new vectors $c_k$, for our new coordinate vectors[^inpractice] after plugging our cartesian coordinates into this equation. Note that we're only working with 3d vectors at the moment, not 4d vectors. We'll need to construct 4d vectors for our next step, and we do that as following:
+Plug $b_k$ into these, and we'll get a new set of vectors in our actual coordinate system that we'll call $d_k$[^inpractice]. Note that we implicitly created 4-vectors from our 3-vectors here, by setting the time component to $0$
 
 [^inpractice]: In practice I always take a trip spherical coordinates first, to fix velocity vectors when $r < 0$ (inverting dr)
 
-$$d_k^\mu = (0, c_k^0, c_k^1, c_k^2)$$
-
-Where we hope that the 0th component is a timelike[^untested] coordinate. We now have 3 ($_k$) spatial vectors $d_k^\mu$, which have 4 components ($^\mu$) each. Now, calculate your tetrads as per the usual fashion, via gram-schmidt to get a valid tetrad frame $e_i^\mu$, followed by projecting your vectors $d_k^\mu$ into the local frame of reference (via the inverse tetrads). We'll call these projected local vectors $l_k^\mu$
+We now have 3 ($_k$) spatial vectors $d_k^\mu$, which have 4 components ($^\mu$) each. Now, calculate your tetrads as per the usual fashion, via gram-schmidt to get a valid tetrad frame $e_i^\mu$, followed by projecting your vectors $d_k^\mu$ into the local frame of reference (via the inverse tetrads). We'll call these projected local vectors $l_k^\mu$
 
 $$l_i^\mu = e^i_\mu d^\mu_i$$
 
 Note that $i$ ranges over 1-3, instead of 0-3. We now have 3 vectors - which we *hope* are spacelike. If they are - which they often will be - you can proceed
 
-We can now orthonormalise these vectors to produce a new set of spacelike basis vectors for the frame of reference. Because we're in a minkowski metric - we can use gram schmidt with a trivial 3x3 identity matrix as the metric tensor
+We can now orthonormalise the spatial part of these vectors ($\mu$ = 1-3) to produce a new set of spacelike basis vectors for the frame of reference. Because we're in a minkowski metric - we can use gram schmidt with a trivial 3x3 identity matrix as the metric tensor
 
-As you may have spotted, orthornormalising these vectors changes them - orthonormalising can only preserve a single vector (the one we start from). The correct vector to preserve is the 'up' vector that you use for your fixed mouse vertical axis - this means that as you spin the camera left and right, the axis you rotate around remains consistent, giving a reasonable compromise control scheme
+As you may have spotted, orthornormalising these vectors changes them - orthonormalising can only preserve the direction of a single vector (the one we start from). The correct vector to preserve is the 'up' vector that you use for your fixed mouse vertical axis - this means that the camera doesn't roll as you move it around, which is very disorienting, and preserves left-right movement for a mouse
 
-One key thing to note is that we only orient the *initial* tetrad if we're parallel transporting tetrads - this is one of the reasons why the technique works, often the camera ends up parallel transported into poorly behaved areas from well behaved nearly flat ones, so we only need it to work at our starting point
+One key thing to note is that we only orient the *initial* tetrad if we're parallel transporting tetrads[^unless] - this is one of the reasons why the technique works, often the camera ends up parallel transported into poorly behaved areas from well behaved nearly flat ones, so we only need it to work at our starting point
+
+[^unless]: Unless you deliberately want to remove the effect of parallel transport on the camera's pointing direction, in which case you'll need to come up with a different scheme
 
 ### Code
 
@@ -202,6 +206,7 @@ if(should_orient)
     v3f sy = convert_velocity(cartesian_to_spherical, cart, by);
     v3f sz = convert_velocity(cartesian_to_spherical, cart, bz);
 
+    //there's an extra step here through spherical coordinates, to more consistently orient the basis when r < 0. This is optional
     sx.x() = ternary(spher.y() < 0, -sx.x(), sx.x());
     sy.x() = ternary(spher.y() < 0, -sy.x(), sy.x());
     sz.x() = ternary(spher.y() < 0, -sz.x(), sz.x());
@@ -212,35 +217,21 @@ if(should_orient)
 
     inverse_tetrad itet = tet.invert();
 
-    pin(dx);
-    pin(dy);
-    pin(dz);
-
     v4f lx = itet.into_frame_of_reference(dx);
     v4f ly = itet.into_frame_of_reference(dy);
     v4f lz = itet.into_frame_of_reference(dz);
 
-    pin(lx);
-    pin(ly);
-    pin(lz);
-
+    //start normalising at the y coordinate, which I define as 'up' arbitrarily
     std::array<v3f, 3> ortho = orthonormalise(ly.yzw(), lx.yzw(), lz.yzw());
 
+    //undo the permutation above
     v4f x_basis = {0, ortho[1].x(), ortho[1].y(), ortho[1].z()};
     v4f y_basis = {0, ortho[0].x(), ortho[0].y(), ortho[0].z()};
     v4f z_basis = {0, ortho[2].x(), ortho[2].y(), ortho[2].z()};
 
-    pin(x_basis);
-    pin(y_basis);
-    pin(z_basis);
-
     v4f x_out = tet.into_coordinate_space(x_basis);
     v4f y_out = tet.into_coordinate_space(y_basis);
     v4f z_out = tet.into_coordinate_space(z_basis);
-
-    pin(x_out);
-    pin(y_out);
-    pin(z_out);
 
     tet.v[1] = x_out;
     tet.v[2] = y_out;
@@ -251,8 +242,6 @@ if(should_orient)
 ### Results
 
 This results in your metric looking like this as you fly around, making it way easier to implement camera controls, as now you have a consistent usable tetrad basis
-
-[^untested]: Its possible you may be able to come up with a consistent orientation scheme in this case, I'd love to hear it
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/lyfOMHNaLyw?si=n2Zrmubk-ux-wmzZ" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
@@ -286,11 +275,13 @@ Constructing a 4-velocity for a lightlike geodesic which is parameterised by coo
 
 $$ds^2 = 0$$
 
-We can use the line element for minkowski as such, plugging in our 3-velocity to get a 4-velocity
+We can use the line element for minkowski as such, plugging in our 3-velocity to solve for the time component of a 4-velocity
 
 $$
-ds^2 = 0 = -dt^2 + dx^2 + dy^2 + dz^2\\
--dt^2 = \vert v \vert ^2\\
+\begin{align}
+ds^2 &= 0 = -dt^2 + dx^2 + dy^2 + dz^2\\
+dt^2 &= \vert v \vert ^2
+\end{align}
 $$
 
 We know a ray of light moves with a speed of $\vert v \vert=1$, therefore
@@ -303,7 +294,9 @@ Giving us a final coordinate parameterised 4-velocity of $\frac{dx^\mu}{dt} = (\
 
 ##### Affine parameterisation
 
-This is the most common parameterisation for a geodesic, and the one we will be using. Luckily, because the parameter for a geodesic has no particularly useful interpretation, we simply set $\lambda = t$ at the moment of construction
+This is the most common parameterisation for a geodesic, and the one we will be using. Luckily, because the parameter for a lightlike geodesic has no particularly useful interpretation[^reparameterisation], we simply set $\lambda = t$ at the moment of construction
+
+[^reparameterisation]: Note, this doesn't mean you can *completely* freely reparameterise a lightlike geodesic. The equations for redshift rely on the geodesic at the start and end coordinates having the same parameterisation
 
 In minkowski, because spacetime is trivially flat, this parameterisation will always hold. In curved spacetime, this relation will only hold at the moment of construction, and then will diverge. This is because we use [different geodesic equations](https://en.wikipedia.org/wiki/Geodesics_in_general_relativity#Equivalent_mathematical_expression_using_coordinate_time_as_parameter) depending on the parameterisation we pick
 
@@ -311,9 +304,9 @@ In minkowski, because spacetime is trivially flat, this parameterisation will al
 
 The full line element reads:
 
-$$ds^2 = -d\tau^2 = g_{\mu\nu}$$
+$$ds^2 = -d\tau^2 = g_{\mu\nu} dx^\mu dx^\nu$$
 
-For a lightlike geodesic, $ds^2 = 0$, $d\tau^2 = 0$. There is therefore no proper time parameterisation of a lightlike geodesic. For this reason, it is common to state that the velocity of a lightlike geodesic is not a 4-velocity, as it can never be parameterised by proper time
+For a lightlike geodesic, $ds^2 = 0$, so $d\tau^2 = 0$ ($d\tau$ being the change in proper time). There is therefore no proper time parameterisation of a lightlike geodesic. For this reason, it is common to state that the velocity of a lightlike geodesic is not a 4-velocity, as it can never be parameterised by proper time
 
 #### Timelike Geodesics
 
@@ -321,7 +314,9 @@ A timelike geodesic is defined as when $ds^2 < 0$
 
 ##### Coordinate time parameterisation
 
-Lets first up construct a timelike 4-velocity $\frac{dx^\mu}{dt}$ parameterised by coordinate time. We know that the $dx^0/dt$ component must be $1$, as $dx^0 = dt$. Lets check if $(1, v^0, v^1, v^2)$ is timelike:
+Lets first up construct a timelike 4-velocity $\frac{dx^\mu}{dt}$ parameterised by coordinate time. We know that the $dx^0/dt$ component must be $1$, as $dx^0 = dt$[^checky]. Lets check if $(1, v^0, v^1, v^2)$ is timelike:
+
+[^checky]: Definitionally, $\frac{dx^\mu}{dt} = (\frac{dt}{dt}, \frac{dx}{dt}, \frac{dy}{dt}, \frac{dz}{dt})$
 
 $$
 ds^2 = -dt^2 + dx^2 + dy^2 + dz^2\\
@@ -362,7 +357,7 @@ Part of the reason why I'm spelling this out so explicitly is because all this n
 
 Like with lightlike geodesics, we can construct 'an' affine parameterisation by setting $\lambda = t$ at the moment of construction, after which the two parameters diverge. This however is very uncommon, and is only mentioned for completeness. When you do this, the parameterisation is hard to interpret physically
 
-We can also construct an affine time parameterisation by setting $\lambda = \tau$, where $d\tau = ds^2 = -1$ (which is true in any proper time parameterisation). One very neat fact of proper time is that it *is* a general affine parameterisation, and so if we use a proper time parameterised geodesic and plug it through the geodesic equation specialised for the affine parameter (which is the one we use), it remains parameterised by proper time
+We can also construct an affine time parameterisation by setting $\lambda = \tau$, where $d\tau = ds^2 = -1$. One very neat fact of proper time is that it *is* a general affine parameterisation, and so if we use a proper time parameterised geodesic and plug it through the geodesic equation specialised for the affine parameter (which is the one we use), it remains parameterised by proper time
 
 ## Cat break
 
@@ -478,13 +473,13 @@ $$z+1 = \frac{g_{\mu\nu} k^\mu_{emit} u^\mu_{emit}}{g_{\mu\nu} k^\mu_{obs} u^\mu
 
 $k^\mu$ represents our geodesic's velocity, and $u$ is the observer velocity. $u^\mu_{emit}$ specifically will be where our ray terminates, and $u^\mu_{obs} = e_0$ is our initial observer's velocity (after boosting!). Do note that the metric tensors are evaluated at different locations
 
-Next up, we need to work out how our light changes, from our end frame of reference (defined by u^\mu_{emit}), to our initial frame of reference. Light has two properties - frequency/wavelength, and intensity. The equation for wavelength looks like this[^linky]
+Next up, we need to work out how our light changes, from our end frame of reference (defined by $u^\mu_{emit}$), to our initial frame of reference. Light has two properties - frequency/wavelength, and intensity. The equation for wavelength looks like this[^linky]
 
 [^linky]: [https://www.astro.ljmu.ac.uk/~ikb/research/zeta/node1.html](https://www.astro.ljmu.ac.uk/~ikb/research/zeta/node1.html)
 
-$$z+1 = \frac{\lambda_{obs}}{\lambda_{em}}$$
+$$z+1 = \frac{\lambda_{obs}}{\lambda_{emit}}$$
 
-Once we have our new wavelength, we need to calculate the intensity. We can do this by calculating the lorentz invariant (constant in every frame of reference): $\frac{I_\nu}{\nu^3}$, where $\nu$ is your frequency. See [here](https://www.astro.princeton.edu/~jeremy/heap.pdf) 1.26 for details. Note that the quantity $I_\nu \lambda^3$ is also therefore lorentz invariant
+Once we have our new wavelength, we need to calculate the intensity. We can do this by calculating the lorentz invariant (constant in every frame of reference): $\frac{I_\nu}{\nu^3}$, where $\nu$ is your frequency, and $I_\nu$ is spectral radiance. See [here](https://www.astro.princeton.edu/~jeremy/heap.pdf) 1.26 for details. Note that the quantity $I_\nu \lambda^3$ is also therefore lorentz invariant
 
 So, to calculate our observed intensity, we say:
 
@@ -494,13 +489,13 @@ $$
 I_{obs} = I_{emit} \frac{\lambda_{emit}^3}{\lambda_{obs}^3}
 $$
 
-Note that this equation is linear in terms of intensity, and only depends on the ratio of our wavelengths
+Note that this equation is linear in terms of intensity, which is often a useful property
 
 Once we have our new wavelength(s) $\lambda_{obs}$, and $I_{obs}$, in theory we have everything we need to render our our final colour. We just have two unknowns, which are our initial intensity, and the initial wavelength(s)
 
 ### Spectral Radiance
 
-The $I_\nu$ that we're dealing with in these equations is called spectral radiance - it is the power per unit frequency. Terminology here is confusing:
+The $I_\nu$ that we're dealing with in these equations is called spectral radiance - it is the power per unit frequency, and is not really a quantity that you often have in practice. Terminology here is confusing:
 
 |Term | Meaning|
 |Spectral Radiant Exitance | power per unit frequency per unit area |
@@ -548,9 +543,7 @@ Redshift naturally fades to black as the intensity drops. The choice of `tanh` t
 
 ```c++
 iv1pz = (1/(1 + z)) - 1;
-
 interpolating_fraction = tanh(iv1pz);
-
 new_colour = mix(old_colour, pure_blue / 0.0722f, interpolating_fraction);
 ```
 
@@ -562,7 +555,7 @@ One problem specific to blueshift is that our energy is unbounded, and our pixel
 
 Because our colour is artificial, this doesn't matter for us, but if you wanted to physically accurately render a wavelength, here's how you'd do it:
 
-Human colour response to a frequency spectrum is defined by the LMS (long medium short - your eyes cone response) colour system. First up, you need to download the cie 1931 2 degree fov data from [here](http://www.cvrl.org/cmfs.htm). This gives you a table of colour matching functions which you can convolve against your frequency data. This convolution returns a new set of tristimulus values in the LMS colour space, which represents how much each eye cone responds to a particular frequency
+Human colour response to a frequency spectrum is defined by the LMS (long medium short - your eyes cone response) colour system. First up, you need to download the cie 1931 2 degree fov data from [here](http://www.cvrl.org/cmfs.htm). This gives you a table of colour matching functions which you can convolve against your spectral radiance, and frequency distribution. This convolution returns a new set of tristimulus values in the LMS colour space, which represents how much each eye cone responds to a particular frequency
 
 Once you have an LMS triplet, you convert that to the XYZ colour space, by calculating the inverse of [this](https://en.wikipedia.org/wiki/LMS_color_space#Hunt,_RLAB) matrix, which you use under D65 lighting
 
@@ -672,7 +665,7 @@ The retrograde ISCO is higher than the prograde ISCO, so flip the sign appropria
 
 [^iscoeq]: See [wikipedia](https://en.wikipedia.org/wiki/Innermost_stable_circular_orbit#Rotating_black_holes), or 2.21 in [this](https://articles.adsabs.harvard.edu/pdf/1972ApJ...178..347B) paper
 
-### Accretion Disk Regions
+#### Accretion Disk Regions
 
 Because orbits within the ISCO are unstable, matter depletes from this region very quickly. For this reason, accretion disks are often modelled as having a gap between the event horizon, and the ISCO - which we will follow[^alert]. For the model we're looking at, [here](https://www.emis.de/journals/LRG/Articles/lrr-2013-1/articlese5.html) equations 98-100, we have three regions for us to work with, which are called:
 
@@ -697,11 +690,11 @@ To distinguish when we transition from region 2, to region 3, we calculate the q
 
 [^pleasedonote]: You should be aware that I'm not 110% certain that this is correct
 
-### Other details
+#### Other details
 
 To be able to implement this, we first need to calculate our spatial functions $A$ $B$ $C$ $D$ $E$ $Q_0$ $Q$, as well as $y_1$ $y_2$ $y_3$, and $y_0$. While not mentioned on the page we're looking at, subscript $\_0$ variables are evaluated at the ISCO. We do have an explicit formula for $Q_0$, which means that the only other one we need is $y_0 = (\frac{r_{isco}}{M})^{\frac{1}{2}}$
 
-The meaning of the variables here are, in order
+The meaning of the variables here are:
 
 |variable|meaning|
 |F|surface radiant flux (ie brightness)|
@@ -716,7 +709,7 @@ With this, we should have everything[^onemore] we need to implement this correct
 
 [^onemore]: The equations we're implementing mention the eddington luminosity. We don't need this as we're using a fraction of it, but you may want this for yourself, check out over [here](https://www-astro.physics.ox.ac.uk/~garret/teaching/lecture7-2012.pdf) for details. I've added an implementation of this into the code sample as well
 
-### Code
+##### Code
 
 The equations here - as written, are long and complicated to implement correctly. I won't reproduce the equations in full here - it just introduces a risk of mistakes, but you can find the code for implementing this method, and producing a nice accretion disk texture over [here](https://github.com/20k/20k.github.io/blob/master/code/wormholes/accretion_disk.cpp)
 
@@ -794,9 +787,9 @@ In practice you don't need to use a 2d texture of an accretion disk - because it
 
 #### Colouring
 
-One of the values we get out of our accretion disk model is a temperature $T$. If we assume that the accretion disk is a blackbody radiator, there's a 1:1 mapping between every temperature, and the human perception of this colour. This forms a line across our colour space, and this relation from temperature to colour is known as the [plankian locus](https://en.wikipedia.org/wiki/Planckian_locus). Working this out directly is nontrivial - although an implementation is provided [here](https://github.com/20k/20k.github.io/blob/master/code/wormholes/blackbody.cpp) because I had the code lying around anyway[^hobbies], but wikipedia provides a useful approximation which you could use directly [here](https://en.wikipedia.org/wiki/Planckian_locus#Approximation). Note that this gives you a value in the [xyY colour space](https://en.wikipedia.org/wiki/CIE_1931_color_space#CIE_xy_chromaticity_diagram_and_the_CIE_xyY_color_space), where Y is brightness and is arbitrary
+One of the values we get out of our accretion disk model is a temperature $T$. If we assume that the accretion disk is a blackbody radiator, there's a 1:1 mapping between every temperature, and the human perception of this colour. This forms a line across our colour space, and this relation from temperature to colour is known as the [plankian locus](https://en.wikipedia.org/wiki/Planckian_locus). Working this out directly is nontrivial, though wikipedia also provides a useful approximation [here](https://en.wikipedia.org/wiki/Planckian_locus#Approximation). I've provided both of these methods over [here](https://github.com/20k/20k.github.io/blob/master/code/wormholes/blackbody.cpp), as I'd already implemented most of this in the past[^hobbies]
 
-[^hobbies] My hobbies may not be the same as everyone else's
+[^hobbies]: My hobbies may not be the same as everyone else's
 
 If you run the accretion disk temperatures through this process, you'll be surprised to learn the colour of a real accretion disk:
 
@@ -804,9 +797,9 @@ If you run the accretion disk temperatures through this process, you'll be surpr
 
 (M = 1, a=0.99)
 
-### Rendering
+#### Rendering
 
-Rendering the accretion disk is fairly straightforward. Because its modelled as a thin disk, you can check as a geodesic crosses the equatorial plane ($theta = n pi + pi/2$), and sample the accretion disk texture. Here, I approximate the opacity as the brightness of the texture, because we're not physically accurately raytracing this[^please], and do some very basic volumetrics on the disk
+Rendering the accretion disk is fairly straightforward. Because its modelled as a thin disk, you can check as a geodesic crosses the equatorial plane ($\theta = n\;\pi + \pi/2$), and sample the accretion disk texture. Here, I approximate the opacity as the brightness of the texture, because we're not physically accurately raytracing this[^please], and do some very basic volumetrics on the disk
 
 [^please]: you have no idea how hard I have to resist this
 
@@ -817,20 +810,20 @@ Well, in the equatorial plane for circular orbits, we know that $dr = 0$, and $d
 Luckily other people have put in the legwork [here](https://physics.stackexchange.com/questions/502796/how-to-derive-the-angular-velocity-of-circular-orbits-in-kerr-geometry), and [here](https://articles.adsabs.harvard.edu/pdf/1972ApJ...178..347B), and figured out that the angular velocity of a geodesic in the kerr spacetime is
 
 $$
-w = \frac{1}{r^{3/2} + a}
+w = \frac{\dot{\phi}}{\dot{t}} = \frac{1}{r^{3/2} + a}
 $$
 
 Given that we know that our geodesic must point in the $d\phi$ direction, we can work out the $d\phi$ component as being $wr$. This means that $dt = d\phi/w = r$. We now have the 4-velocity of a geodesic on our equatorial orbit
 
-One slightly annoying aspect is that our geodesics in general will not intersect the equatorial plane at $\theta = pi/2$, and could be any multiple of it
+One slightly annoying aspect is that our geodesics in general will not intersect the equatorial plane at $\theta = \pi/2$
 
-### Physically accurate redshifting
+#### Physically accurate redshifting
 
 The nice thing here is that with the approximation that an accretion disk is a blackbody radiator, we can directly redshift it, and end up with an accurate visual colour out of the other end. Its fairly straightforward to do, as mentioned before, you can directly redshift the temperature of a blackbody radiator. Then, given the temperature, we can calculate the colour that it visually represents
 
-Given that this would be computationally expensive to calcualte at runtime, I simply chuck the whole process precalculated into a big buffer indexed by temperature, and call it a day
+Given that this would be computationally expensive to calculate at runtime, I simply chuck the whole process precalculated into a big buffer indexed by temperature, and call it a day
 
-#### Code
+##### Code
 
 ```c++
 #ifdef HAS_ACCRETION_DISK
@@ -855,7 +848,7 @@ if_e(pi/2 >= min_start && pi/2 <= max_start, [&]
 
     valuef ds = dot_metric(observer, observer, get_metric(cposition));
 
-    ///valid circular geodesic
+    ///valid timelike circular geodesic
     if_e(ds < 0 && radial > 0, [&]
     {
         int buffer_size = 2048;
@@ -864,7 +857,9 @@ if_e(pi/2 >= min_start && pi/2 <= max_start, [&]
         valuef buffer_coordinate = (fabs(radial) / outer_boundary) * buffer_size;
         v3f disk = lookup(accretion_disk, buffer_coordinate, 0.f, valuef(buffer_size - 1));
 
+        //if we've already hit another element of the disk, dim our contribution
         disk = disk * clamp(1 - declare_e(opacity), 0.f, 1.f);
+        //add a fairly arbitrary amount of opacity to the tracing based on the brightness
         as_ref(opacity) = declare_e(opacity) + energy_of(disk) * 50;
 
         ///change the parameterisation to proper time
@@ -895,14 +890,6 @@ if_e(pi/2 >= min_start && pi/2 <= max_start, [&]
         });
         #endif
 
-        #ifdef ILLUSTRATIVE_REDSHIFT
-        valuef zp1 = get_zp1(g.position, g.velocity, initial_observer, cposition, cvelocity, observer, get_metric);
-
-        v3f shifted = do_redshift(disk, zp1);
-
-        as_ref(colour_out) = declare_e(colour_out) + shifted;
-        #endif
-
         #ifdef RAW_DISK
         as_ref(colour_out) = declare_e(colour_out) + disk;
         #endif // RAW_DISK
@@ -917,15 +904,23 @@ if_e(pi/2 >= min_start && pi/2 <= max_start, [&]
 
 ## Interstellars other wormhole
 
-So, the title wasn't a typo if a bit clickbaity. Interstellar contains a spinning black hole, which we can model by the Kerr (or Kerr-Newman, with charge) metric. The interior of these metrics are actually pretty interesting. In addition to a ringularity (a ring singularity), the centre of a Kerr style black hole contains a wormhole, and copious time travel - which are certainly unusal things to find[^tofind]. We're going to take a trip inside!
+ Interstellar contains a spinning black hole, which we can model by the Kerr (or Kerr-Newman, with charge) metric. The interior of these metrics are actually pretty interesting. In addition to a ringularity (a ring singularity), the centre of a Kerr style black hole contains a wormhole, and copious time travel - which are certainly unusal things to find[^tofind]. We're going to take a trip inside!
 
-[^tofind]: I feel like at this point, physicists would be *more* happy if there were a library inside a black hole instead of singularities and time travel. I found out recently that almost no matter in a spinning black hole is actually ever able to hit the singularity - only strictly equatorial geodesics (if we're talking timelike) can hit it, all other timelike geodesics just orbit about indefinitely or escape through the wormhole
+[^tofind]: I feel like at this point, physicists would be *more* happy if there were a library inside a black hole instead of singularities and time travel. I found out recently that almost no matter in a spinning black hole is actually ever able to hit the singularity - only strictly equatorial geodesics (if we're talking timelike) can hit it, all other timelike geodesics just orbit about indefinitely or escape through the wormhole. Its a very strange place in there
 
 The metric for a Kerr-Newman black hole in ingoing[^kerr] coordinates looks like this:
 
-[^kerr]: http://www.scholarpedia.org/article/Kerr-Newman_metric (47), with signs flipped due to the metric signature. Do note that this coordinate system is unable to cover the whole path of our geodesic, as in general it will orbit the singularity - as it starts moving away from the singularity it'll become singular. In reality we need to use multiple coordinate systems, but doing this performantly is tricky
+[^kerr]: [http://www.scholarpedia.org/article/Kerr-Newman_metric](http://www.scholarpedia.org/article/Kerr-Newman_metric) (47) (if you know a better reference than scholarpedia, please let me know - the website is a bit of a disaster), with signs flipped due to the metric signature. Do note that this coordinate system is unable to cover the whole path of our geodesic, as in general it will orbit the singularity - as it starts moving away from the singularity it'll become singular. In reality we need to use multiple coordinate systems, but doing this performantly is tricky
 
-$$ds^2 = -(1-\frac{2Mr - Q^2}{R^2}) \;dv^2 + 2 dv dr - 2 a \frac{\sin^2 \theta}{R^2}(2 M r - Q^2)\; dv d\phi - 2 a \sin^2 \theta \;dr d\phi + R^2\; d\theta^2 - \frac{\sin^2 \theta}{R^2}(\Delta a^2 \sin^2 \theta - (a^2 + r^2)^2)\; d\phi^2
+$$
+\begin{align}
+ds^2 = -(1-\frac{2Mr - Q^2}{R^2}) \;dv^2
+       + 2 dv dr
+       - 2 a \frac{\sin^2 \theta}{R^2}(2 M r - Q^2)\; dv d\phi \\
+       - 2 a \sin^2 \theta \;dr d\phi
+       + R^2\; d\theta^2
+       - \frac{\sin^2 \theta}{R^2}(\Delta a^2 \sin^2 \theta - (a^2 + r^2)^2)\; d\phi^2
+\end{align}
 $$
 
 where
@@ -958,32 +953,32 @@ metric<valuef, 4, 4> get_metric(const tensor<valuef, 4>& position) {
 
     valuef rs = 2 * M;
 
-	valuef ct = cos(theta);
-	valuef st = sin(theta);
+    valuef ct = cos(theta);
+    valuef st = sin(theta);
 
-	valuef R2 = r*r + a * a * ct * ct;
-	valuef D = r*r + a * a - rs * r;
+    valuef R2 = r*r + a * a * ct * ct;
+    valuef D = r*r + a * a - rs * r;
 
-	valuef dv = (1 - (rs * r) / R2);
-	valuef dv_dr = -2;
-	valuef dv_dphi = (2 * a * st * st / R2) * (rs * r);
-	valuef dr_dphi = 2 * a * st * st;
-	valuef dtheta = -R2;
-	valuef dphi = (st * st / R2) * (D * a * a * st * st - pow(a * a + r*r, 2.f));
+    valuef dv = -(1 - (rs * r) / R2);
+    valuef dv_dr = 2;
+    valuef dv_dphi = -(2 * a * st * st / R2) * (rs * r);
+    valuef dr_dphi = -2 * a * st * st;
+    valuef dtheta = R2;
+    valuef dphi = -(st * st / R2) * (D * a * a * st * st - pow(a * a + r*r, 2.f));
 
-	///v, r, theta, phi
-	m[0, 0] = -dv;
-	m[1, 0] = -0.5f * dv_dr;
-	m[0, 1] = -0.5f * dv_dr;
+    ///v, r, theta, phi
+    m[0, 0] = dv;
+    m[1, 0] = 0.5f * dv_dr;
+    m[0, 1] = 0.5f * dv_dr;
 
-	m[3, 0] = -0.5f * dv_dphi;
-	m[0, 3] = -0.5f * dv_dphi;
+    m[3, 0] = 0.5f * dv_dphi;
+    m[0, 3] = 0.5f * dv_dphi;
 
-	m[1, 3] = -0.5f * dr_dphi;
-	m[3, 1] = -0.5f * dr_dphi;
+    m[1, 3] = 0.5f * dr_dphi;
+    m[3, 1] = 0.5f * dr_dphi;
 
-	m[2, 2] = -dtheta;
-	m[3, 3] = -dphi;
+    m[2, 2] = dtheta;
+    m[3, 3] = dphi;
 
     return m;
 }
@@ -995,7 +990,7 @@ This gives us a pretty nice looking black hole, which looks like this when rende
 
 ### Parallel transport numerical accuracy
 
-One thing to note is that the interior of kerr is very numerically unstable, due to very high accelerations on the equatorial plane - it behaves very poorly in general. To make this article work, I had to upgrade the parallel transport code to be second order, to increase the accuracy sufficiently. This is a very basic second order integrator with nothing fancy going on whatsoever
+One thing to note is that the interior of kerr is very numerically unstable, due to very high accelerations on the equatorial plane - it behaves very poorly in general. To make this article work, I had to upgrade the parallel transport code to be second order, to increase the accuracy sufficiently. This is a very basic second order integrator with nothing fancy otherwise:
 
 ```c++
 v4f transport2(v4f what, v4f position, v4f next_position, v4f velocity, v4f next_velocity, valuef dt, auto&& get_metric)
