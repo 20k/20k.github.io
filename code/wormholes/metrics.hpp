@@ -90,26 +90,26 @@ metric<valuef, 4, 4> get_metric(const tensor<valuef, 4>& position) {
 	valuef R2 = r*r + a * a * ct * ct;
 	valuef D = r*r + a * a - rs * r;
 
-	valuef dv = (1 - (rs * r) / R2);
-	valuef dv_dr = -2;
-	valuef dv_dphi = (2 * a * st * st / R2) * (rs * r);
-	valuef dr_dphi = 2 * a * st * st;
-	valuef dtheta = -R2;
-	valuef dphi = (st * st / R2) * (D * a * a * st * st - pow(a * a + r*r, 2.f));
+	valuef dv = -(1 - (rs * r) / R2);
+	valuef dv_dr = 2;
+	valuef dv_dphi = -(2 * a * st * st / R2) * (rs * r);
+	valuef dr_dphi = -2 * a * st * st;
+	valuef dtheta = R2;
+	valuef dphi = -(st * st / R2) * (D * a * a * st * st - pow(a * a + r*r, 2.f));
 
 	///v, r, theta, phi
-	m[0, 0] = -dv;
-	m[1, 0] = -0.5f * dv_dr;
-	m[0, 1] = -0.5f * dv_dr;
+	m[0, 0] = dv;
+	m[1, 0] = 0.5f * dv_dr;
+	m[0, 1] = 0.5f * dv_dr;
 
-	m[3, 0] = -0.5f * dv_dphi;
-	m[0, 3] = -0.5f * dv_dphi;
+	m[3, 0] = 0.5f * dv_dphi;
+	m[0, 3] = 0.5f * dv_dphi;
 
-	m[1, 3] = -0.5f * dr_dphi;
-	m[3, 1] = -0.5f * dr_dphi;
+	m[1, 3] = 0.5f * dr_dphi;
+	m[3, 1] = 0.5f * dr_dphi;
 
-	m[2, 2] = -dtheta;
-	m[3, 3] = -dphi;
+	m[2, 2] = dtheta;
+	m[3, 3] = dphi;
 
     return m;
 }
