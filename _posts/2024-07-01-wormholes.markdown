@@ -139,7 +139,7 @@ At the moment, we're constructing a tetrad directly from the underying metric. T
 
 What we'd like to do is have our tetrads consistently point in a specific direction - any direction would do. While this isn't possible to do in the general case (because the tetrads and coordinates are inherently arbitrary), as it turns out - we actually can do this in a pretty wide variety of cases
 
-The idea here is to create an overlaying cartesian coordinate system, and use that to define our new basis vectors. Then you convert these to your real coordinate system, and orthonormalise them to produce a new set of tetrad vectors
+The idea here is to create an overlaying cartesian coordinate system, and use that to define our new basis vectors. Then you convert these to the real coordinate system, and orthonormalise them to produce a new set of tetrad vectors
 
 First off, lets define what we'd like our basis vectors to be in cartesian coordinates:
 
@@ -363,11 +363,13 @@ $$\begin{align}
 \end{align}
 $$
 
-Part of the reason why I'm spelling this out so explicitly is because all this notation is used to mean the same thing, so hopefully you can come back to this in the future
+Part of the reason why I'm spelling this out so explicitly is because all this notation is regularly used to mean the same thing, so hopefully you can come back to this in the future
 
 ##### Affine parameterisation
 
-Like with lightlike geodesics, we can construct 'an' affine parameterisation by setting $\lambda = t$ at the moment of construction, after which the two parameters diverge. This however is very uncommon, and is only mentioned for completeness. When you do this, the parameterisation is hard to interpret physically
+Like with lightlike geodesics, we can construct 'an' affine parameterisation by setting $\lambda = t$ at the moment of construction, after which the two parameters diverge. This however is very uncommon, and is only mentioned for completeness. When you do this, the parameterisation is hard to interpret physically[^canstillconsider]
+
+[^canstillconsider]: Because its still parameterised by an affine parameter, and proper time is an affine parameter, we can still consider it proper time - it just has a nonstandard scaling
 
 We can also construct an affine time parameterisation by setting $\lambda = \tau$, where $d\tau = ds^2 = -1$. One very neat fact of proper time is that it *is* a general affine parameterisation, and so if we use a proper time parameterised geodesic and plug it through the geodesic equation specialised for the affine parameter (which is the one we use), it remains parameterised by proper time
 
@@ -479,7 +481,7 @@ M = 0.01, p = 1, a = 0.001
 
 ## Redshift
 
-The equations for redshift in general relativity are pretty simple. First off, we define the redshift[^redshift] $z$, as follows:
+The equations for redshift in general relativity are fairly straightforward. First off, we define the redshift[^redshift] $z$, as follows:
 
 [^redshift]: [https://arxiv.org/pdf/gr-qc/9505010](https://arxiv.org/pdf/gr-qc/9505010) 13
 
@@ -543,11 +545,11 @@ For our galaxy background, we're instead going to implement *illustrative* redsh
 
 ### Illustrative redshift
 
-The key here is that we're going to discard physicality when it comes to the colour, and just show a measure of redshift. We can still calculate $z+1$ as per normal, and then transform our radiant flux directly - we only need the wavelength for working out the final colour, which we'll use $z+1$ for directly. Our intensity data is defined as the $Y$ component of the $XYZ$ colour space which represents energy, see [here](https://en.wikipedia.org/wiki/SRGB#From_sRGB_to_CIE_XYZ). Put more directly, after sampling our background colour - we convert to linear sRGB, and then calculate Y as:
+Given that accurate skymap data is hard to find, I'm going to discard physicality when it comes to the colour, and just show a measure of redshift. We can still calculate $z+1$ as per normal, and then transform our radiant flux without needing to have a specific wavelength. The only thing we actually need wavelengths for is generating a final colour, but instead we'll essentially just interpolate between red and blue with our $z$ value. When reading from a texture, our intensity data can be defined as the $Y$ component of the $XYZ$ colour space which represents energy, see [here](https://en.wikipedia.org/wiki/SRGB#From_sRGB_to_CIE_XYZ)
 
 $$Y = 0.2126 r + 0.7152 g + 0.0722 b$$
 
-Once we've calculated our new intensity via the redshift equation, its then time to perform our recolouring. To do this is as straightforward as interpolating between red and blue depending on the value of $z$. $z$ has a range of $[-1, +\infty]$, so its easiest to split into two branches
+Where $(r, g, b)$ is a linear sRGB colour. Once we've calculated our new intensity via the redshift equation, its then straightforward to perform a recolouring, and I'll show an example below. $z$ has a range of $[-1, +\infty]$, so its easiest to split into two branches
 
 #### Redshift Only (z > 0)
 
@@ -568,20 +570,6 @@ new_colour = mix(old_colour, pure_blue / 0.0722f, interpolating_fraction);
 The mapping here is more complicated to replicate the same falloff as redshift. One question you might have is where these division constants come from: notice that they're the same constants we use to calculate $Y$. This ensures that our new colour scales in brightness better - a pure white background colour will map to an equivalently bright blue colour, and darker colours will blend towards a brighter colour as our intensity increases. Without the division, a bright background colour would first darken as we mix in the visually less bright primary, before brightening again - this U bend in brightness is visually strange
 
 One problem specific to blueshift is that our energy is unbounded, and our pixels can become infinitely bright. Its therefore much more aesthetically pleasing to spill over the extra energy into white once we max out the blue colour - which is shown in the full code sample
-
-### Physically accurate wavelength rendering
-
-Because our colour is artificial, this doesn't matter for us, but if you wanted to physically accurately render a wavelength, here's how you'd do it:
-
-Human colour response to a frequency spectrum is defined by the LMS (long medium short - your eyes cone response) colour system. First up, you need to download the CIE 1931 2 degree fov data from [here](http://www.cvrl.org/cmfs.htm). This gives you a table of colour matching functions which you can convolve against your spectral radiance, and frequency distribution. This convolution returns a new set of tristimulus values in the LMS colour space, which represents how much each eye cone responds to a particular frequency
-
-Once you have an LMS triplet, you convert that to the XYZ colour space, by calculating the inverse of [this](https://en.wikipedia.org/wiki/LMS_color_space#Hunt,_RLAB) matrix, which you use under D65 lighting
-
-Then, convert that to the sRGB' linear colour space, via this [matrix](https://en.wikipedia.org/wiki/SRGB#From_CIE_XYZ_to_sRGB), before finally using the CsRGB conversion to get an sRGB value you can put on your display
-
-#### Physically accurate blackbody redshift rendering
-
-We'll get to this later, this is a lot more straightforward as it can be done directly
 
 ### Code
 
