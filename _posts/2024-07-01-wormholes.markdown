@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Implementing General Relativity: Wormholes, spinning black holes, accretion disks, and redshift"
-date:   2024-06-19 19:33:23 +0000
+date:   2024-07-02 18:33:23 +0000
 categories: C++
 ---
 
