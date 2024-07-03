@@ -42,11 +42,73 @@ struct bssn_args_mem : value_impl::single_source::argument_pack
     }
 };
 
+template<typename T>
+struct bssn_derivatives_mem : value_impl::single_source::argument_pack
+{
+    std::array<std::array<T, 3>, 6> dcY;
+    std::array<T, 3> dcA;
+    std::array<std::array<T, 3>, 3> dgB;
+    std::array<T, 3> dW;
+
+    void build(auto& in)
+    {
+        using namespace value_impl::builder;
+
+        add(dcY, in);
+        add(dcA, in);
+        add(dgB, in);
+        add(dW, in);
+    }
+};
+
+struct bssn_args
+{
+    metric<valuef, 3, 3> cY;
+    tensor<valuef, 3, 3> cA;
+    valuef K;
+    valuef W;
+    tensor<valuef, 3> cG;
+
+    valuef gA;
+    tensor<valuef, 3> gB;
+
+    bssn_args(valuei x, valuei y, valuei z, tensor<valuei, 3> dim,
+              bssn_args_mem<buffer<valuef>>& in, bssn_derivatives_mem<buffer<valuef>>& derivs)
+    {
+        valuei index = z * dim.x() * dim.y() + y * dim.x() + x;
+
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                int index_table[3][3] = {{0, 1, 2},
+                                         {1, 3, 4},
+                                         {2, 4, 5}};
+
+                cY[i, j] = in.cY[index_table[i][j]][index];
+                cA[i, j] = in.cA[index_table[i][j]][index];
+            }
+        }
+
+        K = in.K[index];
+        W = in.W[index];
+
+        for(int i=0; i < 3; i++)
+            cG[i] = in.cG[i][index];
+
+        gA = in.gA[index];
+
+        for(int i=0; i < 3; i++)
+            gB[i] = in.gB[i][index];
+    }
+};
+
 std::string make_bssn()
 {
     auto bssn_function = [&](execution_context&, bssn_args_mem<buffer<valuef>> base,
                                                  bssn_args_mem<buffer<valuef>> in,
                                                  bssn_args_mem<buffer_mut<valuef>> out,
+                                                 bssn_derivatives_mem<buffer<valuef>> derivatives,
                                                  literal<valuef> timestep) {
 
     };

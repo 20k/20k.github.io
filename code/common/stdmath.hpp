@@ -217,6 +217,7 @@ namespace stdmath
         else
             return tanh(in);
     };
+
     auto uasin = []<typename T>(const T& in)
     {
         using std::asin;
@@ -283,6 +284,13 @@ namespace stdmath
         using std::pow;
 
         return pow(v1, v2);
+    };
+
+    auto ufma = []<typename T>(const T& v1, const T& v2, const T& v3)
+    {
+        using std::fma;
+
+        return fma(v1, v2, v3);
     };
 }
 

@@ -456,6 +456,7 @@ namespace value_impl
             {LOR, "||"},
             {LAND, "&&"},
 
+            {FMA, "fma"},
             #ifdef NATIVE_OPS
             {SIN, "native_sin"},
             {COS, "native_cos"},
@@ -1221,12 +1222,14 @@ namespace value_impl
 
         template<typename T>
         requires std::is_base_of_v<single_source::argument_pack, T>
+        inline
         void add(T& pack, type_storage& result)
         {
             pack.add_struct(result);
         }
 
         template<typename T, std::size_t N>
+        inline
         void add(std::array<T, N>& arr, type_storage& result)
         {
             for(int i=0; i < (int)N; i++)

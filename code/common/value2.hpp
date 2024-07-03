@@ -44,6 +44,7 @@ namespace value_impl
             LOR,
             LAND,
 
+            FMA,
             SIN,
             COS,
             TAN,
@@ -320,6 +321,7 @@ namespace value_impl
         return optimise(make_op_with_type_function<value_base>(op::type, v1, v2, v3, func));\
     }\
 
+    DECL_VALUE_FUNC3(FMA, fma, stdmath::ufma);
     DECL_VALUE_FUNC1(SIN, sin, stdmath::usin);
     DECL_VALUE_FUNC1(COS, cos, stdmath::ucos);
     DECL_VALUE_FUNC1(TAN, tan, stdmath::utan);
@@ -404,6 +406,8 @@ namespace value_impl
             PROPAGATE_BASE2(MULTIPLY, op_multiply);
             PROPAGATE_BASE2(DIVIDE, op_divide);
             PROPAGATE_BASE1(UMINUS, op_unary_minus);
+
+            PROPAGATE_BASE3(FMA, ufma);
 
             PROPAGATE_BASE1(SIN, usin);
             PROPAGATE_BASE1(COS, ucos);
@@ -585,6 +589,8 @@ namespace value_impl
         #define REPLAY3(func, name) if(v.type == op::func) return name(replay_value_base<T>(v.args[0], handle_value), \
                                                                         replay_value_base<T>(v.args[1], handle_value),\
                                                                         replay_value_base<T>(v.args[2], handle_value));
+
+        REPLAY3(FMA, ufma);
 
         REPLAY1(SIN, usin);
         REPLAY1(COS, ucos);
@@ -1452,6 +1458,13 @@ namespace value_impl
     value<T> mix(const value<T>& v1, const value<T>& v2, const value<T>& v3)
     {
         return v1 * (1-v3) + v2 * v3;
+    }
+
+    template<typename T>
+    inline
+    value<T> fma(const value<T>& v1, const value<T>& v2, const value<T>& v3)
+    {
+         return from_base<T>(optimise(make_op<value<T>>(op::FMA, {v1, v2, v3})));
     }
 
     template<typename T>
