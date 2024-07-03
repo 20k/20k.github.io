@@ -761,7 +761,18 @@ namespace value_impl
         return function_call_or_infix(v);
     }
 
+    struct type_storage;
+
     namespace single_source {
+
+        struct argument_pack {
+            template<typename Self>
+            void add_struct(this Self&& self, type_storage& result)
+            {
+                self.build(result);
+            }
+        };
+
         struct declare_t{};
 
         static constexpr declare_t declare;
@@ -1127,7 +1138,7 @@ namespace value_impl
         }
     };
 
-    namespace impl {
+    namespace builder {
         template<typename T>
         void add(buffer<T>& buf, type_storage& result)
         {
@@ -1207,6 +1218,22 @@ namespace value_impl
 
             result.args.push_back(in);
         }
+
+        template<typename T>
+        requires std::is_base_of_v<single_source::argument_pack, T>
+        void add(T& pack, type_storage& result)
+        {
+            pack.add_struct(result);
+        }
+
+        template<typename T, std::size_t N>
+        void add(std::array<T, N>& arr, type_storage& result)
+        {
+            for(int i=0; i < (int)N; i++)
+            {
+                add(arr[i], result);
+            }
+        }
     }
 
     template<typename R, typename T, typename... Args>
@@ -1255,7 +1282,7 @@ namespace value_impl
         T& ectx = push_context<T>();
 
         std::apply([&](auto&&... expanded_args){
-            (impl::add(expanded_args, ctx.inputs), ...);
+            (builder::add(expanded_args, ctx.inputs), ...);
         }, args);
 
         std::tuple<T&> a1 = {ectx};
