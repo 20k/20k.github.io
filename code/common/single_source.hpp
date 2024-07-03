@@ -551,7 +551,32 @@ namespace value_impl
 
         //v1[v2]
         if(v.type == op::BRACKET)
-            return "(" + value_to_string(v.args.at(0)) + "[" + value_to_string(v.args.at(1)) + "])";
+        {
+            int N = std::get<int>(v.args.at(1).concrete);
+
+            if(N == 1)
+            {
+                return "(" + value_to_string(v.args.at(0)) + "[" + value_to_string(v.args.at(2)) + "])";
+            }
+
+            if(N == 3)
+            {
+                ///name, N, x, y, z, dx, dy, dz
+                value_base x = v.args.at(2);
+                value_base y = v.args.at(3);
+                value_base z = v.args.at(4);
+
+                value_base dx = v.args.at(5);
+                value_base dy = v.args.at(6);
+                value_base dz = v.args.at(7);
+
+                value_base index = z * dy * dx + y * dx + x;
+
+                return "(" + value_to_string(v.args.at(0)) + "[" + value_to_string(index) + "])";
+            }
+
+            assert(false);
+        }
 
         if(v.type == op::DECLARE){
             //v1 v2 = v3;
@@ -857,7 +882,7 @@ namespace value_impl
             {
                 value_base op;
                 op.type = op::BRACKET;
-                op.args = {name, index};
+                op.args = {name, value<int>(1), index};
                 op.concrete = get_interior_type(T());
 
                 return build_type(op, T());
@@ -881,7 +906,17 @@ namespace value_impl
             {
                 value_base op;
                 op.type = op::BRACKET;
-                op.args = {name, index};
+                op.args = {name, value<int>(1), index};
+                op.concrete = get_interior_type(T());
+
+                return build_type(op, T());
+            }
+
+            auto operator[](const tensor<value<int>, 3>& pos, const tensor<value<int>, 3>& dim)
+            {
+                value_base op;
+                op.type = op::BRACKET;
+                op.args = {name, value<int>(3), pos.x(), pos.y(), pos.z(), dim.x(), dim.y(), dim.z()};
                 op.concrete = get_interior_type(T());
 
                 return build_type(op, T());
@@ -895,6 +930,11 @@ namespace value_impl
             auto operator[](const value<int>& index)
             {
                 return apply_mutability(buffer<T>::operator[](index));
+            }
+
+            auto operator[](const tensor<value<int>, 3>& pos, const tensor<value<int>, 3>& dim)
+            {
+                return apply_mutability(buffer<T>::operator[](pos, dim));
             }
         };
 

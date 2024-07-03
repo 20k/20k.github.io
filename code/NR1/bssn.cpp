@@ -72,11 +72,9 @@ struct bssn_args
     valuef gA;
     tensor<valuef, 3> gB;
 
-    bssn_args(valuei x, valuei y, valuei z, tensor<valuei, 3> dim,
+    bssn_args(v3i pos, v3i dim,
               bssn_args_mem<buffer<valuef>>& in, bssn_derivatives_mem<buffer<valuef>>& derivs)
     {
-        valuei index = z * dim.x() * dim.y() + y * dim.x() + x;
-
         for(int i=0; i < 3; i++)
         {
             for(int j=0; j < 3; j++)
@@ -85,28 +83,28 @@ struct bssn_args
                                          {1, 3, 4},
                                          {2, 4, 5}};
 
-                cY[i, j] = in.cY[index_table[i][j]][index];
-                cA[i, j] = in.cA[index_table[i][j]][index];
+                cY[i, j] = in.cY[index_table[i][j]][pos, dim];
+                cA[i, j] = in.cA[index_table[i][j]][pos, dim];
             }
         }
 
         ///todo: full 3d index
-        K = in.K[index];
-        W = in.W[index];
+        K = in.K[pos, dim];
+        W = in.W[pos, dim];
 
         for(int i=0; i < 3; i++)
-            cG[i] = in.cG[i][index];
+            cG[i] = in.cG[i][pos, dim];
 
-        gA = in.gA[index];
+        gA = in.gA[pos, dim];
 
         for(int i=0; i < 3; i++)
-            gB[i] = in.gB[i][index];
+            gB[i] = in.gB[i][pos, dim];
     }
 };
 
 std::string make_derivatives()
 {
-    auto differentiate = [&](execution_context&, buffer<valuef> in, std::array<buffer_mut<valuef>, 3> out)
+    auto differentiate = [&](execution_context&, buffer<valuef> in, std::array<buffer_mut<valuef>, 3> out, literal<v3i> dim)
     {
 
     };
@@ -120,7 +118,8 @@ std::string make_bssn()
                                                  bssn_args_mem<buffer<valuef>> in,
                                                  bssn_args_mem<buffer_mut<valuef>> out,
                                                  bssn_derivatives_mem<buffer<valuef>> derivatives,
-                                                 literal<valuef> timestep) {
+                                                 literal<valuef> timestep,
+                                                 literal<v3i> dim) {
 
     };
 
