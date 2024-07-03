@@ -15,7 +15,6 @@ using m44f = metric<valuef, 4, 4>;
 using mut_v4f = tensor<mut<valuef>, 4>;
 using mut_v3f = tensor<mut<valuef>, 3>;
 
-
 template<typename T, int elements = 5>
 struct differentiation_context
 {
@@ -63,9 +62,9 @@ struct differentiation_context
                         value_base dy = v.args[6];
                         value_base dz = v.args[7];
 
-                        value_base next_x = old_x + offx[i];
-                        value_base next_y = old_y + offy[i];
-                        value_base next_z = old_z + offz[i];
+                        value_base next_x = old_x + valuei(offx[i]);
+                        value_base next_y = old_y + valuei(offy[i]);
+                        value_base next_z = old_z + valuei(offz[i]);
 
                         value_base op;
                         op.type = value_impl::op::BRACKET;
@@ -82,7 +81,6 @@ struct differentiation_context
     }
 };
 
-template<typename T>
 valuef diff1(const valuef& val, int direction, valuef scale)
 {
     ///second order derivatives
@@ -184,9 +182,29 @@ struct bssn_args
 
 std::string make_derivatives()
 {
-    auto differentiate = [&](execution_context&, buffer<valuef> in, std::array<buffer_mut<valuef>, 3> out, literal<v3i> dim)
+    auto differentiate = [&](execution_context&, buffer<valuef> in, std::array<buffer_mut<valuef>, 3> out, literal<v3i> dim, literal<valuef> scale)
     {
+        using namespace single_source;
 
+        valuei x = value_impl::get_global_id(0);
+        valuei y = value_impl::get_global_id(1);
+        valuei z = value_impl::get_global_id(2);
+
+        pin(x);
+        pin(y);
+        pin(z);
+
+        if_e(x >= dim.get().x() || y >= dim.get().y() || z >= dim.get().z(), [&] {
+            return_e();
+        });
+
+        tensor<valuei, 3> pos = {x, y, z};
+
+        valuef v1 = in[pos, dim.get()];
+
+        as_ref(out[0][pos, dim.get()]) = diff1(v1, 0, scale.get());
+        as_ref(out[1][pos, dim.get()]) = diff1(v1, 1, scale.get());
+        as_ref(out[2][pos, dim.get()]) = diff1(v1, 2, scale.get());
     };
 
     return value_impl::make_function(differentiate, "differentiate");

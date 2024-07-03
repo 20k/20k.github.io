@@ -1,9 +1,12 @@
 #include <iostream>
 #include <toolkit/render_window.hpp>
 #include <imgui/misc/freetype/imgui_freetype.h>
+#include "bssn.hpp"
 
 int main()
 {
+    std::cout << make_derivatives() << std::endl;
+
     render_settings sett;
     sett.width = 1280;
     sett.height = 720;
