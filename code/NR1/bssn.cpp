@@ -16,12 +16,12 @@ using mut_v4f = tensor<mut<valuef>, 4>;
 using mut_v3f = tensor<mut<valuef>, 3>;
 
 
-template<int elements = 5>
+template<typename T, int elements = 5>
 struct differentiation_context
 {
-    std::array<value_base, elements> vars;
+    std::array<T, elements> vars;
 
-    differentiation_context(const value_base& in, int idx)
+    differentiation_context(const T& in, int direction)
     {
         std::array<int, elements> offx = {};
         std::array<int, elements> offy = {};
@@ -31,11 +31,11 @@ struct differentiation_context
         {
             int offset = i - (elements - 1)/2;
 
-            if(idx == 0)
+            if(direction == 0)
                 offx[i] = offset;
-            if(idx == 1)
+            if(direction == 1)
                 offy[i] = offset;
-            if(idx == 2)
+            if(direction == 2)
                 offz[i] = offset;
         }
 
@@ -49,7 +49,7 @@ struct differentiation_context
             {
                 if(v.type == value_impl::op::BRACKET)
                 {
-                    auto get_substitution = [&i, &offx, &offy, &offz]<typename T>(const value_base& v)
+                    auto get_substitution = [&i, &offx, &offy, &offz](const value_base& v)
                     {
                         assert(v.args.size() == 8);
 
@@ -83,9 +83,16 @@ struct differentiation_context
 };
 
 template<typename T>
-valuef diff1(valuef val, int directon)
+valuef diff1(const valuef& val, int direction, valuef scale)
 {
+    ///second order derivatives
+    differentiation_context dctx(val, direction);
+    std::array<valuef, 5> vars = dctx.vars;
 
+    valuef p1 = -vars[4] + vars[0];
+    valuef p2 = valuef(8.f) * (vars[3] - vars[1]);
+
+    return (p1 + p2) / (12.f * scale);
 }
 
 template<typename T>
