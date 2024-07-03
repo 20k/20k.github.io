@@ -912,7 +912,8 @@ namespace value_impl
                 return build_type(op, T());
             }
 
-            auto operator[](const tensor<value<int>, 3>& pos, const tensor<value<int>, 3>& dim)
+            template<typename U>
+            auto operator[](const tensor<U, 3>& pos, const tensor<U, 3>& dim)
             {
                 value_base op;
                 op.type = op::BRACKET;
@@ -932,7 +933,8 @@ namespace value_impl
                 return apply_mutability(buffer<T>::operator[](index));
             }
 
-            auto operator[](const tensor<value<int>, 3>& pos, const tensor<value<int>, 3>& dim)
+            template<typename U>
+            auto operator[](const tensor<U, 3>& pos, const tensor<U, 3>& dim)
             {
                 return apply_mutability(buffer<T>::operator[](pos, dim));
             }

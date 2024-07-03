@@ -15,6 +15,79 @@ using m44f = metric<valuef, 4, 4>;
 using mut_v4f = tensor<mut<valuef>, 4>;
 using mut_v3f = tensor<mut<valuef>, 3>;
 
+
+template<int elements = 5>
+struct differentiation_context
+{
+    std::array<value_base, elements> vars;
+
+    differentiation_context(const value_base& in, int idx)
+    {
+        std::array<int, elements> offx = {};
+        std::array<int, elements> offy = {};
+        std::array<int, elements> offz = {};
+
+        for(int i=0; i < elements; i++)
+        {
+            int offset = i - (elements - 1)/2;
+
+            if(idx == 0)
+                offx[i] = offset;
+            if(idx == 1)
+                offy[i] = offset;
+            if(idx == 2)
+                offz[i] = offset;
+        }
+
+        ///for each element, ie x-2, x-1, x, x+1, x+2
+        for(int i=0; i < elements; i++)
+        {
+            ///assign to the original element, ie x
+            vars[i] = in;
+
+            vars[i].recurse([&i, &offx, &offy, &offz](value_base& v)
+            {
+                if(v.type == value_impl::op::BRACKET)
+                {
+                    auto get_substitution = [&i, &offx, &offy, &offz]<typename T>(const value_base& v)
+                    {
+                        assert(v.args.size() == 8);
+
+                        auto buf = v.args[0];
+
+                        value_base old_x = v.args[2];
+                        value_base old_y = v.args[3];
+                        value_base old_z = v.args[4];
+
+                        value_base dx = v.args[5];
+                        value_base dy = v.args[6];
+                        value_base dz = v.args[7];
+
+                        value_base next_x = old_x + offx[i];
+                        value_base next_y = old_y + offy[i];
+                        value_base next_z = old_z + offz[i];
+
+                        value_base op;
+                        op.type = value_impl::op::BRACKET;
+                        op.args = {buf, value<int>(3), next_x, next_y, next_z, dx, dy, dz};
+                        op.concrete = get_interior_type(T());
+
+                        return op;
+                    };
+
+                    v = get_substitution(v);
+                }
+            });
+        }
+    }
+};
+
+template<typename T>
+valuef diff1(valuef val, int directon)
+{
+
+}
+
 template<typename T>
 struct bssn_args_mem : value_impl::single_source::argument_pack
 {

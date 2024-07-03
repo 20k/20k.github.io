@@ -268,6 +268,17 @@ namespace value_impl
             assert(false);
         }
 
+        template<typename T>
+        void recurse(T&& func)
+        {
+            func(*this);
+
+            for(int i=0; i < (int)args.size(); i++)
+            {
+                func(args[i]);
+            }
+        }
+
         #define BASE_OPERATOR2(name, type, func) friend value_base name(const value_base& v1, const value_base& v2) {return optimise(make_op_with_type_function<value_base>(type, v1, v2, func));}
         #define BASE_OPERATOR1(name, type, func) friend value_base name(const value_base& v1) {return optimise(make_op_with_type_function<value_base>(type, v1, func));}
 
