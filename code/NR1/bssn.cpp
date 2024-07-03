@@ -90,6 +90,7 @@ struct bssn_args
             }
         }
 
+        ///todo: full 3d index
         K = in.K[index];
         W = in.W[index];
 
@@ -102,6 +103,16 @@ struct bssn_args
             gB[i] = in.gB[i][index];
     }
 };
+
+std::string make_derivatives()
+{
+    auto differentiate = [&](execution_context&, buffer<valuef> in, std::array<buffer_mut<valuef>, 3> out)
+    {
+
+    };
+
+    return value_impl::make_function(differentiate, "differentiate");
+}
 
 std::string make_bssn()
 {
