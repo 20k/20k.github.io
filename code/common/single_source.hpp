@@ -1263,23 +1263,6 @@ namespace value_impl
         std::apply(func, std::tuple_cat(a1, args));
     }
 
-
-    /*template<typename T, typename U, typename R, typename... Args>
-    void setup_kernel(R(U::*func)(T&, Args...), function_context& ctx, U&& real_type)
-    {
-        T& ectx = push_context<T>();
-
-        std::tuple<std::remove_reference_t<Args>...> args;
-
-        std::apply([&](auto&&... expanded_args){
-            (impl::add(expanded_args, ctx.inputs), ...);
-        }, args);
-
-        std::tuple<T&> a1 = {real_type, ectx};
-
-        std::apply(func, std::tuple_cat(a1, args));
-    }*/
-
     inline
     void substitute(const value_base& what, const value_base& with, value_base& modify)
     {
