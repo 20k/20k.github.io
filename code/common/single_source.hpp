@@ -8,6 +8,8 @@
 #include <assert.h>
 #include <set>
 #include <map>
+#include <array>
+#include <concepts>
 
 namespace value_impl
 {
@@ -1207,12 +1209,50 @@ namespace value_impl
         }
     }
 
-    template<typename T, typename R, typename... Args>
-    void setup_kernel(R(*func)(T&, Args...), function_context& ctx)
+    template<typename R, typename T, typename... Args>
+    inline
+    auto split_args(R(*func)(T&, Args...))
     {
-        T& ectx = push_context<T>();
+        return std::pair<T, std::tuple<Args...>>();
+    }
 
-        std::tuple<std::remove_reference_t<Args>...> args;
+    template<typename R, typename Type, typename T, typename... Args>
+    inline
+    auto split_args_lambda(R(Type::*func)(T&, Args...))
+    {
+        return std::pair<T, std::tuple<Args...>>();
+    }
+
+    template<typename R, typename Type, typename T, typename... Args>
+    inline
+    auto split_args_lambda(R(Type::*func)(T&, Args...) const)
+    {
+        return std::pair<T, std::tuple<Args...>>();
+    }
+
+    template<typename T>
+    concept Functor = requires
+    {
+        &std::remove_reference_t<T>::operator();
+    };
+
+    template<typename Lambda>
+    requires Functor<Lambda>
+    inline
+    auto split_args(Lambda&& l)
+    {
+        return split_args_lambda(&l.operator());
+    }
+
+    template<typename Callable>
+    inline
+    void setup_kernel(Callable&& func, function_context& ctx)
+    {
+        auto [ctx_type, args] = split_args(func);
+
+        using T = std::remove_reference_t<decltype(ctx_type)>;
+
+        T& ectx = push_context<T>();
 
         std::apply([&](auto&&... expanded_args){
             (impl::add(expanded_args, ctx.inputs), ...);
@@ -1223,6 +1263,22 @@ namespace value_impl
         std::apply(func, std::tuple_cat(a1, args));
     }
 
+
+    /*template<typename T, typename U, typename R, typename... Args>
+    void setup_kernel(R(U::*func)(T&, Args...), function_context& ctx, U&& real_type)
+    {
+        T& ectx = push_context<T>();
+
+        std::tuple<std::remove_reference_t<Args>...> args;
+
+        std::apply([&](auto&&... expanded_args){
+            (impl::add(expanded_args, ctx.inputs), ...);
+        }, args);
+
+        std::tuple<T&> a1 = {real_type, ectx};
+
+        std::apply(func, std::tuple_cat(a1, args));
+    }*/
 
     inline
     void substitute(const value_base& what, const value_base& with, value_base& modify)

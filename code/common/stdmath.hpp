@@ -3,6 +3,8 @@
 
 #include <cmath>
 #include <assert.h>
+#include <stdexcept>
+#include <algorithm>
 
 namespace stdmath
 {
