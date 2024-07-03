@@ -7,3 +7,9 @@
 [submodule "code/common/integration"]
 	path = code/common/integration
 	url = git@github.com:20k/integration.git
+[submodule "code/common/imgui"]
+	path = code/common/imgui
+	url = https://github.com/20k/imgui-fork
+[submodule "code/common/networking"]
+	path = code/common/networking
+	url = https://github.com/20k/networking
