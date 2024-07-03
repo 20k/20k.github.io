@@ -64,7 +64,7 @@ Unfortunately, there's a big problem
 
 Part of the reason why we're not going into this more is that - unfortunately - these equations of motion are fairly useless to us. They are *very* numerically unstable, to the point where for our purposes there's no point trying to solve them. Understanding this issue, and solving it was an outstanding problem for decades, and there is an absolutely enormous amount written in the literature on this topic. A lot of this article series is going to be dealing with the very poor character of the equations
 
-Luckily, because its not 1993, we get to skip to the part where we have a workable set of equations
+Luckily, because its not 1990 - and because the astrophysics community rocks and makes all this information public - we get to skip to the part where we have a workable set of equations
 
 ## Enter: The BSSN formalism
 
@@ -79,6 +79,8 @@ Todo: Go through phi, W^2, and X
 ## Variables
 
 ## Equations of motion
+
+## Gauge conditions
 
 ## Constraint equations
 
@@ -132,4 +134,116 @@ And we must damp the following two constraints as follows
 1. Momentum blah blah
 2. Sigma blah blah
 
+On top of this to stabilise our equations more generally, we must:
+
+1. Add kreiss oliger dissipation. There will be a segment on this, so don't worry yet
+
 This is enough to get us up and running off the ground
+
+Next up, we need to pick an integrator to integrate our PDEs with
+
+## Picking an integrator
+
+We're going to diverge from the literature significantly here, for very good reason. The BSSN equations are a classically stiff (unstable) set of equations, and they oscillate pretty wildly. Its traditional to use something similar to RK4 to integrate the equations of motion
+
+If you're familiar with solving stiff PDEs, it might seem a bit odd to use RK4 - RK4 is an explicit integrator - and as such has fairly poor stability properties when solving stiff equations. For many kinds of problem, an explicit integrator works great, but not for unstable problems like this. Instead, we're going to use an L-stable implicit integrator which has much more appropriate convergence properties - backwards euler
+
+As far as I'm aware, there's been no testing of fully implicit integration in numerical relativity - the closest is IMEX stepping from the SXS group, but it does not implicitly solve derivatives due to performance constraints
+
+### Solving implicit equations efficiently
+
+Forwards euler has the form:
+
+$$y_{n+1} = y_n + dt f(t_n, y_n)$$
+
+This is the classic 1st order, explicit integrator. It has poor stability properties, and does not have a high order of convergence
+
+Backwards euler has the form:
+
+$$y_{n+1} = y_n + dt f(t_{n+1}, y_{n+1})$$
+
+This is also a 1st order integrator, but it is implicit - we can see that we have $y_{n+1}$ on both sides of the equation. The real trick is that backwards euler is L-stable - which means that it has extremely good stability properties for solving unstable equations, which is exactly what we're looking for. On top of this, backwards euler has a very GPU-friendly form, making it very amenable to GPU architecture, while using a minimal amount of memory. In all my testing, I haven't found an integrator with better properties than this
+
+### Fixed point iteration
+
+The issue is obviously: How do we actually solve this equation? The trick is to use fixed point iteration
+
+Todo: Fixed point
+
+This also maps very well to gpu architecture, is numerically stable, and in general is extremely fast and robust. There are tricks to speed up fixed point iteration as well, which we'll get into in the future
+
+## Flow of a simulation
+
+There are three components to any good simulation here
+
+1. Initial conditions
+2. Boundary conditions
+3. Integrating our PDEs
+
+### Initial conditions
+
+We need to define on our initial slice what our variables are. Here, we're simulating an infinite field of gravitational waves, and our initial variables take the following form:
+
+### Boundary conditions
+
+We're going to be using periodic boundary conditions - at the edge of our simulation, we simply wrap our blhabbfkdfblkjkb
+
+### Integrating the PDEs
+
+Each timestep is broken up into a fixed number of substeps, as we solve the implicit equation for backwards euler. In each substep, we:
+
+1. Calculate our derivatives (todo: Think i need to segment this off more)
+2. Calculate the momentum constraint, if we're using momentum constraint damping
+3. Evolve our equations to calculate yn + f(yn+1)
+
+After each substep - once we have our final answer, we apply kreiss-oliger dissipation to the result, to remove high frequencies from our grid
+
+#### Kreiss-Oliger
+
+drerrdrfsfdd
+
+## Implementation
+
+We now have all of the theory out of the way. Lets look at the code for our initial conditions first:
+
+### Initial conditions
+
+dfdfdf
+
+### Boundary conditions
+
+The boundary conditions are implemented whenever we need to take a derivative of something, which looks like this
+
+### Evolution equations
+
+This is the real kicker
+
+#### Calculating derivatives
+
+We only need to calculate 1st derivatives and save them when we take the second derivative of something
+
+#### By Field
+
+##### cY
+
+##### cA
+
+##### dK
+
+##### dW
+
+##### dA
+
+##### dtcGi
+
+##### dtgA
+
+##### dtgB
+
+Note that structurally for backwards euler we need a buffer for our input (yn+1), one for our output (yn + f(yn+1)), and one to hold the last value (yn)
+
+### Kreiss-Oliger
+
+Finally afterwards we numerically dissipate away the noise via kreiss-oliger
+
+## Results
