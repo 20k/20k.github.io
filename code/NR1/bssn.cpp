@@ -851,6 +851,46 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
         #endif // STABILITY_SIGMA
     }
 
+    {
+        ///https://arxiv.org/pdf/gr-qc/0206072
+        #define ONE_PLUS_LOG
+        #ifdef ONE_PLUS_LOG
+        valuef bmdma = 0;
+
+        for(int i=0; i < 3; i++)
+        {
+            bmdma += args.gB[i] * diff1(args.gA, i, scale);
+        }
+
+        ret.dtgA = -2 * args.gA * args.K + bmdma;
+        #endif // ONE_PLUS_LOG
+    }
+
+    {
+        ///https://arxiv.org/pdf/gr-qc/0605030 (26)
+        #define GAMMA_DRIVER
+        #ifdef GAMMA_DRIVER
+        tensor<valuef, 3> djbjbi;
+
+        for(int i=0; i < 3; i++)
+        {
+            valuef sum = 0;
+
+            for(int j=0; j < 3; j++)
+            {
+                sum += args.gB[j] * diff1(args.gB[i], j, scale);
+            }
+
+            djbjbi[i] = sum;
+        }
+
+        ///gauge damping parameter, commonly set to 2
+        float N = 2;
+
+        ret.dtgB = (3/4.f) * args.cG + djbjbi - N * args.gB;
+        #endif // GAMMA_DRIVER
+    }
+
     return ret;
 }
 
