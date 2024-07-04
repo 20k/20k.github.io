@@ -423,11 +423,14 @@ tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, const valuef& scale)
 {
     using namespace single_source;
 
-    auto christoff1 = christoffel_symbols_1(args.cY, scale);
-    auto christoff2 = christoffel_symbols_2(args.cY.invert(), args.dcY);
-
     auto icY = args.cY.invert();
     pin(icY);
+
+    auto christoff1 = christoffel_symbols_1(args.cY, scale);
+    auto christoff2 = christoffel_symbols_2(icY, args.dcY);
+
+    pin(christoff1);
+    pin(christoff2);
 
     tensor<valuef, 3, 3> cRij;
 
