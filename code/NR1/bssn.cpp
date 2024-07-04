@@ -95,6 +95,20 @@ valuef diff1(const valuef& val, int direction, valuef scale)
     return (p1 + p2) / (12.f * scale);
 }
 
+///this uses the commutativity of partial derivatives to lopsidedly prefer differentiating dy in the x direction
+///as this is better on the memory layout
+valuef diff2(const valuef& in, int idx, int idy, const valuef& dx, const valuef& dy, const valuef& scale)
+{
+    if(idx < idy)
+    {
+        return diff1(dy, idx, scale);
+    }
+    else
+    {
+        return diff1(dx, idy, scale);
+    }
+}
+
 template<typename T>
 struct bssn_args_mem : value_impl::single_source::argument_pack
 {
@@ -245,7 +259,8 @@ std::string make_bssn()
                                                  bssn_args_mem<buffer_mut<valuef>> out,
                                                  bssn_derivatives_mem<buffer<derivative_t>> derivatives,
                                                  literal<valuef> timestep,
-                                                 literal<v3i> dim) {
+                                                 literal<v3i> dim,
+                                                 literal<valuef> scale) {
         using namespace single_source;
 
         valuei x = value_impl::get_global_id(0);
