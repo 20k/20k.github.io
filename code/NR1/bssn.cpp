@@ -805,6 +805,39 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
 
             ret.dtcG[i] = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9;
         }
+
+        #define STABILITY_SIGMA
+        #ifdef STABILITY_SIGMA
+        tensor<valuef, 3> calculated_cG;
+
+        for(int i=0; i < 3; i++)
+        {
+            valuef sum = 0;
+
+            for(int m=0; m < 3; m++)
+            {
+                for(int n=0; n < 3; n++)
+                {
+                    sum += icY[m, n] * christoff2[i, m, n];
+                }
+            }
+
+            calculated_cG[i] = sum;
+        }
+
+        tensor<valuef, 3> Gi = args.cG - calculated_cG;
+
+        valuef dmbm = 0;
+
+        for(int m=0; m < 3; m++)
+        {
+            dmbm += diff1(args.gB[m], m, scale);
+        }
+
+        float sigma = 0.25f;
+
+        ret.dtcG += sigma * Gi * dmbm;
+        #endif // STABILITY_SIGMA
     }
 
     return ret;
