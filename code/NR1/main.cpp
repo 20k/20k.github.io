@@ -245,7 +245,7 @@ int main()
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
-    mesh m(ctx, {255, 255, 255});
+    mesh m(ctx, {256, 256, 256});
     m.allocate(ctx);
     m.init(cqueue);
 

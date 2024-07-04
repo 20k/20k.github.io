@@ -1528,7 +1528,7 @@ namespace value_impl
 
         std::string base;
 
-        base += "#pragma OPENCL EXTENSION cl_khr_fp16 : enable\n\n#pragma OPENCL FP_CONTRACT OFF\n\n";
+        base += "#pragma OPENCL EXTENSION cl_khr_fp16 : enable\n\n#pragma OPENCL FP_CONTRACT ON\n\n";
 
         base += "__kernel void " + kernel_name + "(";
 

@@ -10,6 +10,8 @@ Papers:
 https://arxiv.org/pdf/1307.7391 ccz4 paper, contains some good equation references
 https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf covariant bssn
 https://www2.yukawa.kyoto-u.ac.jp/~masaru.shibata/PRD52.5428.pdf cG mentions the motivation behind the gamma term
+stability paper https://arxiv.org/pdf/0707.0339
+
 
 Ok planola time:
 
