@@ -563,7 +563,8 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
 
     ///dtcY
     {
-        ret.dtcY = lie_derivative_weight(args.gB, args.cY, scale) - 2 * args.gA * args.cA;
+        ///https://arxiv.org/pdf/1307.7391 specifically for why the trace free aspect
+        ret.dtcY = lie_derivative_weight(args.gB, args.cY, scale) - 2 * args.gA * trace_free(args.cA, args.cY, icY);
     }
 
     ///https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf 2.12 or
