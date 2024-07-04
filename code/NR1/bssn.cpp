@@ -454,6 +454,72 @@ tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, const valuef& scale)
     return cRij;
 }
 
+///https://arxiv.org/pdf/1307.7391 (9)
+///https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf 2.6
+///this calculates the quantity W^2 * Rij
+tensor<valuef, 3, 3> calculate_W2_mult_Rij(bssn_args& args, valuef scale)
+{
+    using namespace single_source;
+
+    auto icY = args.cY.invert();
+    pin(icY);
+
+    auto christoff2 = christoffel_symbols_2(icY, args.dcY);
+
+    pin(christoff2);
+
+    tensor<valuef, 3, 3> didjW;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            didjW[i, j] = double_covariant_derivative(args.W, args.dW, christoff2, scale)[j, i];
+        }
+    }
+
+    tensor<valuef, 3, 3> w2Rphiij;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            valuef v1 = args.W * didjW[i, j];
+            valuef v2 = 0;
+
+            {
+                valuef sum = 0;
+
+                auto raised = icY.raise(didjW, 0);
+
+                for(int l=0; l < 3; l++)
+                {
+                    sum += raised[l, l];
+                }
+
+                v2 = args.cY[i, j] * sum;
+            }
+
+            valuef v3 = 0;
+
+            {
+                valuef sum = 0;
+
+                for(int l=0; l < 3; l++)
+                {
+                    sum += icY.raise(args.dW)[l] * args.dW[l];
+                }
+
+                v3 = -2 * args.cY[i, j] * sum;
+            }
+
+            w2Rphiij[i, j] = v1 + v2 + v3;
+        }
+    }
+
+    return w2Rphiij + calculate_cRij(args, scale) * args.W * args.W;
+}
+
 time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
 {
     using namespace single_source;
