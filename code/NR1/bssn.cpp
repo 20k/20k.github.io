@@ -15,6 +15,8 @@ using m44f = metric<valuef, 4, 4>;
 using mut_v4f = tensor<mut<valuef>, 4>;
 using mut_v3f = tensor<mut<valuef>, 3>;
 
+using derivative_t = valuef;
+
 template<typename T, int elements = 5>
 struct differentiation_context
 {
@@ -123,8 +125,9 @@ struct bssn_args_mem : value_impl::single_source::argument_pack
 template<typename T>
 struct bssn_derivatives_mem : value_impl::single_source::argument_pack
 {
+    ///todo: swapsies?
     std::array<std::array<T, 3>, 6> dcY;
-    std::array<T, 3> dcA;
+    std::array<T, 3> dgA;
     std::array<std::array<T, 3>, 3> dgB;
     std::array<T, 3> dW;
 
@@ -133,7 +136,7 @@ struct bssn_derivatives_mem : value_impl::single_source::argument_pack
         using namespace value_impl::builder;
 
         add(dcY, in);
-        add(dcA, in);
+        add(dgA, in);
         add(dgB, in);
         add(dW, in);
     }
@@ -150,23 +153,29 @@ struct bssn_args
     valuef gA;
     tensor<valuef, 3> gB;
 
+    ///diYjk
+    tensor<derivative_t, 3, 3, 3> dcY;
+    tensor<derivative_t, 3> dgA;
+    ///digBj
+    tensor<derivative_t, 3, 3> dgB;
+    tensor<derivative_t, 3> dW;
+
     bssn_args(v3i pos, v3i dim,
-              bssn_args_mem<buffer<valuef>>& in, bssn_derivatives_mem<buffer<valuef>>& derivs)
+              bssn_args_mem<buffer<valuef>>& in, bssn_derivatives_mem<buffer<derivative_t>>& derivatives)
     {
+        int index_table[3][3] = {{0, 1, 2},
+                                 {1, 3, 4},
+                                 {2, 4, 5}};
+
         for(int i=0; i < 3; i++)
         {
             for(int j=0; j < 3; j++)
             {
-                int index_table[3][3] = {{0, 1, 2},
-                                         {1, 3, 4},
-                                         {2, 4, 5}};
-
                 cY[i, j] = in.cY[index_table[i][j]][pos, dim];
                 cA[i, j] = in.cA[index_table[i][j]][pos, dim];
             }
         }
 
-        ///todo: full 3d index
         K = in.K[pos, dim];
         W = in.W[pos, dim];
 
@@ -177,6 +186,25 @@ struct bssn_args
 
         for(int i=0; i < 3; i++)
             gB[i] = in.gB[i][pos, dim];
+
+
+        for(int k=0; k < 3; k++)
+        {
+            for(int i=0; i < 3; i++)
+            {
+                for(int j=0; j < 3; j++)
+                {
+                    int index = index_table[i][j];
+
+                    dcY[k, i, j] = derivatives.dcY[index][k][pos, dim];
+                }
+
+                dgB[k, i] = derivatives.dgB[i][k][pos, dim];
+            }
+
+            dgA[k] = derivatives.dgA[k][pos, dim];
+            dW[k] = derivatives.dW[k][pos, dim];
+        }
     }
 };
 
@@ -198,7 +226,7 @@ std::string make_derivatives()
             return_e();
         });
 
-        tensor<valuei, 3> pos = {x, y, z};
+        v3i pos = {x, y, z};
 
         valuef v1 = in[pos, dim.get()];
 
@@ -215,10 +243,26 @@ std::string make_bssn()
     auto bssn_function = [&](execution_context&, bssn_args_mem<buffer<valuef>> base,
                                                  bssn_args_mem<buffer<valuef>> in,
                                                  bssn_args_mem<buffer_mut<valuef>> out,
-                                                 bssn_derivatives_mem<buffer<valuef>> derivatives,
+                                                 bssn_derivatives_mem<buffer<derivative_t>> derivatives,
                                                  literal<valuef> timestep,
                                                  literal<v3i> dim) {
+        using namespace single_source;
 
+        valuei x = value_impl::get_global_id(0);
+        valuei y = value_impl::get_global_id(1);
+        valuei z = value_impl::get_global_id(2);
+
+        pin(x);
+        pin(y);
+        pin(z);
+
+        if_e(x >= dim.get().x() || y >= dim.get().y() || z >= dim.get().z(), [&] {
+            return_e();
+        });
+
+        v3i pos = {x, y, z};
+
+        bssn_args args(pos, dim.get(), in, derivatives);
     };
 
     return value_impl::make_function(bssn_function, "evolve");
