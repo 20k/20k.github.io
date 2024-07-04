@@ -9,6 +9,7 @@ Papers:
 
 https://arxiv.org/pdf/1307.7391 ccz4 paper, contains some good equation references
 https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf covariant bssn
+https://www2.yukawa.kyoto-u.ac.jp/~masaru.shibata/PRD52.5428.pdf cG mentions the motivation behind the gamma term
 
 Ok planola time:
 
@@ -243,9 +244,13 @@ We only need to calculate 1st derivatives and save them when we take the second 
 
 ##### G
 
-##### gA
+##### Gauge conditions
 
-##### gB
+Geodesic slicing, a = 1, b = 0
+harmonic slicing https://arxiv.org/pdf/2201.08857 a = -a^2 K
+
+1+log = -2 a K
+Gamma = blahblah
 
 Note that structurally for backwards euler we need a buffer for our input (yn+1), one for our output (yn + f(yn+1)), and one to hold the last value (yn)
 
