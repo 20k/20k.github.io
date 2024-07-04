@@ -17,6 +17,11 @@ using mut_v3f = tensor<mut<valuef>, 3>;
 
 using derivative_t = valuef;
 
+value_base positive_mod(const value_base& val, const value_base& n)
+{
+    return ((val % n) + n) % n;
+}
+
 template<typename T, int elements = 5>
 struct differentiation_context
 {
@@ -67,6 +72,13 @@ struct differentiation_context
                         value_base next_x = old_x + valuei(offx[i]);
                         value_base next_y = old_y + valuei(offy[i]);
                         value_base next_z = old_z + valuei(offz[i]);
+
+                        #define PERIODIC_BOUNDARY
+                        #ifdef PERIODIC_BOUNDARY
+                        next_x = positive_mod(next_x, dx);
+                        next_y = positive_mod(next_y, dy);
+                        next_z = positive_mod(next_z, dz);
+                        #endif // PERIODIC_BOUNDARY
 
                         value_base op;
                         op.type = value_impl::op::BRACKET;
@@ -984,3 +996,74 @@ std::string make_bssn()
 
     return value_impl::make_function(bssn_function, "evolve");
 }
+
+/*
+///https://hal.archives-ouvertes.fr/hal-00569776/document this paper implies you simply sum the directions
+///https://en.wikipedia.org/wiki/Finite_difference_coefficient according to wikipedia, this is the 6th derivative with 2nd order accuracy. I am confused, but at least I know where it came from
+value kreiss_oliger_dissipate(equation_context& ctx, const value& in, const value_i& order)
+{
+    value_i n = get_maximum_differentiation_derivative(order);
+
+    n = min(n, value_i{6});
+
+    value fin = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        fin += diffnth(ctx, in, i, n, value{1.f});
+    }
+
+    value scale = "scale";
+
+    value p = n.convert<float>() - 1;
+
+    value sign = pow(value{-1}, (p + 3)/2);
+
+    value divisor = pow(value{2}, p+1);
+
+    value prefix = sign / divisor;
+
+    return prefix * fin / scale;
+}
+
+void kreiss_oliger_unidir(equation_context& ctx, buffer<tensor<value_us, 4>> points, literal<value_i> point_count,
+                          buffer<value> buf_in, buffer<value_mut> buf_out,
+                          literal<value> eps, single_source::named_literal<value, "scale"> scale, single_source::named_literal<tensor<value_i, 4>, "dim"> idim, literal<value> timestep,
+                          buffer<value_us> order_ptr)
+{
+    using namespace dual_types::implicit;
+
+    value_i local_idx = declare(ctx, value_i{"get_global_id(0)"}, "local_idx");
+
+    if_e(local_idx >= point_count, [&]()
+    {
+        return_e();
+    });
+
+    value_i ix = declare(ctx, points[local_idx].x().convert<int>(), "ix");
+    value_i iy = declare(ctx, points[local_idx].y().convert<int>(), "iy");
+    value_i iz = declare(ctx, points[local_idx].z().convert<int>(), "iz");
+
+    v3i pos = {ix, iy, iz};
+    v3i dim = {idim.get().x(), idim.get().y(), idim.get().z()};
+
+    value_i order = declare(ctx, order_ptr[(v3i){ix, iy, iz}, dim].convert<int>(), "order");
+
+    ///note to self we're not actually doing this correctly
+    value_i is_valid_point = ((order & value_i{(int)D_LOW}) > 0) || ((order & value_i{(int)D_FULL}) > 0);
+
+    assert(buf_out.storage.is_mutable);
+
+    if_e(!is_valid_point, [&]()
+    {
+        mut(buf_out[pos, dim]) = buf_in[pos, dim];
+        return_e();
+    });
+
+    value buf_v = bidx(ctx, buf_in.name, false, false);
+
+    value v = buf_v + timestep * eps * kreiss_oliger_dissipate(ctx, buf_v, order);
+
+    mut(buf_out[(v3i){ix, iy, iz}, dim]) = v;
+}
+*/
