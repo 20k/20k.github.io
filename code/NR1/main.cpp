@@ -3,6 +3,7 @@
 #include <imgui/misc/freetype/imgui_freetype.h>
 #include "bssn.hpp"
 #include <vec/tensor.hpp>
+#include <toolkit/texture.hpp>
 
 using t3i = tensor<int, 3>;
 
@@ -99,6 +100,8 @@ struct mesh
 
     void init(cl::command_queue& cqueue)
     {
+        #define MINK
+        #ifdef MINK
         cl_float zero = 0;
         cl_float one = 1;
 
@@ -123,12 +126,27 @@ struct mesh
         pck.K.set_to_zero(cqueue);
         pck.W.fill(cqueue, one);
         pck.gA.fill(cqueue, one);
+        #endif
+
+        cl_int4 cldim = {dim.x(), dim.y(), dim.z(), 0};
+        float c_at_max = 1;
+        float scale = c_at_max / dim.x();
+
+        {
+            cl::args args;
+            buffers[0].append_to(args);
+            args.push_back(cldim);
+            args.push_back(scale);
+
+            cqueue.exec("init", args, {dim.x() * dim.y() * dim.z()}, {128});
+            cqueue.exec("init_christoffel", args, {dim.x() * dim.y() * dim.z()}, {128});
+        }
     }
 
     void step(cl::context& ctx, cl::command_queue& cqueue, float timestep)
     {
         cl_int4 cldim = {dim.x(), dim.y(), dim.z(), 0};
-        float c_at_max = 30;
+        float c_at_max = 1;
         float scale = c_at_max / dim.x();
 
         auto substep = [&](int base_idx, int in_idx, int out_idx)
@@ -221,15 +239,21 @@ int main()
 
     cl::context& ctx = win.clctx->ctx;
 
-    cl::program p1(ctx, make_derivatives(), false);
-    p1.build(ctx, "");
+    {
+        auto make_and_register = [&](const std::string& str)
+        {
+            cl::program p1(ctx, str, false);
+            p1.build(ctx, "");
 
-    ctx.register_program(p1);
+            ctx.register_program(p1);
+        };
 
-    cl::program p2(ctx, make_bssn(), false);
-    p2.build(ctx, "");
-
-    ctx.register_program(p2);
+        make_and_register(make_derivatives());
+        make_and_register(make_bssn());
+        make_and_register(make_initial_conditions());
+        make_and_register(init_christoffel());
+        make_and_register(init_debugging());
+    }
 
     cl::command_queue& cqueue = win.clctx->cqueue;
 
@@ -245,16 +269,30 @@ int main()
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
-    mesh m(ctx, {256, 256, 256});
+    t3i dim = {256, 256, 256};
+
+    mesh m(ctx, dim);
     m.allocate(ctx);
     m.init(cqueue);
+
+    texture_settings tsett;
+    tsett.width = 1280;
+    tsett.height = 720;
+    tsett.is_srgb = false;
+    tsett.generate_mipmaps = false;
+
+    texture tex;
+    tex.load_from_memory(tsett, nullptr);
+
+    cl::gl_rendertexture rtex{ctx};
+    rtex.create_from_texture(tex.handle);
 
     cqueue.block();
 
     printf("Start\n");
 
-    //while(!win.should_close())
-    for(int i=0; i < 10; i++)
+    while(!win.should_close())
+    //for(int i=0; i < 10; i++)
     {
         win.poll();
 
@@ -262,13 +300,33 @@ int main()
 
         ImGui::End();
 
+        rtex.acquire(cqueue);
+        m.step(ctx, cqueue, 0.001f);
+
+        {
+            cl_int4 cldim = {dim.x(), dim.y(), dim.z(), 0};
+            float c_at_max = 1;
+            float scale = c_at_max / dim.x();
+
+            cl::args args;
+            m.buffers[0].append_to(args);
+            args.push_back(cldim);
+            args.push_back(scale);
+            args.push_back(rtex);
+
+            cqueue.exec("debug", args, {dim.x() * dim.y() * dim.z()}, {128});
+        }
+
+        rtex.unacquire(cqueue);
+
+        cqueue.block();
+
+        ImGui::GetBackgroundDrawList()->AddImage((void*)tex.handle, ImVec2(0,0), ImVec2(1280,720));
+
         win.display();
 
         steady_timer t;
 
-        m.step(ctx, cqueue, 0.01f);
-
-        cqueue.block();
 
         std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
     }

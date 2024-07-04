@@ -66,6 +66,11 @@ namespace stdmath
         return v1 == v2;
     };
 
+    auto op_neq = []<typename T>(const T& v1, const T& v2)
+    {
+        return v1 != v2;
+    };
+
     auto op_gt = []<typename T>(const T& v1, const T& v2)
     {
         return v1 > v2;

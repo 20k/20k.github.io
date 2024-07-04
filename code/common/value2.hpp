@@ -37,9 +37,9 @@ namespace value_impl
             LT,
             LTE,
             EQ,
+            NEQ,
             GT,
             GTE,
-            NEQ,
             NOT,
             LOR,
             LAND,
@@ -292,6 +292,7 @@ namespace value_impl
         BASE_OPERATOR2(operator<, op::LT, stdmath::op_lt);
         BASE_OPERATOR2(operator<=, op::LTE, stdmath::op_lte);
         BASE_OPERATOR2(operator==, op::EQ, stdmath::op_eq);
+        BASE_OPERATOR2(operator!=, op::NEQ, stdmath::op_neq);
         BASE_OPERATOR2(operator>, op::GT, stdmath::op_gt);
         BASE_OPERATOR2(operator>=, op::GTE, stdmath::op_gte);
     };
@@ -746,6 +747,13 @@ namespace value_impl
         friend value<bool> operator==(const value<T>& v1, const value<T>& v2) {
             value<bool> result;
             result.type = op::EQ;
+            result.args = {v1, v2};
+            return result;
+        }
+
+        friend value<bool> operator!=(const value<T>& v1, const value<T>& v2) {
+            value<bool> result;
+            result.type = op::NEQ;
             result.args = {v1, v2};
             return result;
         }

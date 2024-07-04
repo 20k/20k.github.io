@@ -7,5 +7,6 @@ std::string make_derivatives();
 std::string make_bssn();
 std::string make_initial_conditions();
 std::string init_christoffel();
+std::string init_debugging();
 
 #endif // BSSN_HPP_INCLUDED

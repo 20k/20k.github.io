@@ -896,11 +896,17 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
     #define GAMMA_DRIVER
     #endif // BLACK_HOLE_GAUGE
 
-    #define WAVE_TEST
+    //#define WAVE_TEST
     #ifdef WAVE_TEST
     #define HARMONIC_SLICING
     #define ZERO_SHIFT
     #endif // WAVE_TEST
+
+    #define WAVE_TEST2
+    #ifdef WAVE_TEST2
+    #define ONE_LAPSE
+    #define ZERO_SHIFT
+    #endif
 
     {
         valuef bmdma = 0;
@@ -919,6 +925,10 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
         #ifdef HARMONIC_SLICING
         ret.dtgA = -args.gA * args.gA * args.K + bmdma;
         #endif // HARMONIC_SLICING
+
+        #ifdef ONE_LAPSE
+        ret.dtgA = 0;
+        #endif // ONE_LAPSE
     }
 
     {
@@ -1315,6 +1325,12 @@ std::string init_christoffel()
             cG[i] = -sum;
         }
 
+        /*value_base se;
+        se.type = value_impl::op::SIDE_EFFECT;
+        se.abstract_value = "printf(\"%.16f\\n\"," + value_to_string(cG[0]) + ")";
+
+        value_impl::get_context().add(se);*/
+
         for(int i=0; i < 3; i++)
         {
             as_ref(to_fill.cG[i][lid]) = cG[i];
@@ -1324,6 +1340,50 @@ std::string init_christoffel()
      return value_impl::make_function(init, "init_christoffel");
 }
 
+std::string init_debugging()
+{
+    auto dbg = [&](execution_context&, bssn_args_mem<buffer_mut<valuef>> to_fill, literal<v3i> ldim, literal<valuef> scale, write_only_image<2> write) {
+        using namespace single_source;
+
+        valuei lid = value_impl::get_global_id(0);
+
+        pin(lid);
+
+        v3i dim = ldim.get();
+
+        if_e(lid >= dim.x() * dim.y() * dim.z(), [&] {
+            return_e();
+        });
+
+        valuei x = lid % dim.x();
+        valuei y = (lid / dim.x()) % dim.y();
+        valuei z = lid / (dim.x() * dim.y());
+
+        pin(x);
+        pin(y);
+        pin(z);
+
+        v3i pos = {x, y, z};
+
+        if_e(z != valuei(128), [&] {
+            return_e();
+        });
+
+        /*value_base se;
+        se.type = value_impl::op::SIDE_EFFECT;
+        se.abstract_value = "printf(\"%.16f\\n\"," + value_to_string(to_fill.cY[3][lid]) + ")";
+
+        value_impl::get_context().add(se);*/
+
+        v4f col = {fabs((((to_fill.cY[3][lid]) - 1) / 0.1) / 2) + 0.5f, 0.f, 0.f, 1.f};
+
+        col = clamp(col, valuef(0.f), valuef(1.f));
+
+        write.write({pos.x(), pos.y()}, col);
+    };
+
+    return value_impl::make_function(dbg, "debug");
+}
 
 /*
 ///https://hal.archives-ouvertes.fr/hal-00569776/document this paper implies you simply sum the directions
