@@ -1,6 +1,7 @@
 #include "bssn.hpp"
 #include "../common/value2.hpp"
 #include "../common/single_source.hpp"
+#include <iostream>
 
 using valuef = value<float>;
 using valuei = value<int>;
@@ -10,6 +11,7 @@ using v3f = tensor<valuef, 3>;
 using v4f = tensor<valuef, 4>;
 using v2i = tensor<valuei, 2>;
 using v3i = tensor<valuei, 3>;
+using v4i = tensor<valuei, 4>;
 using m44f = metric<valuef, 4, 4>;
 
 using mut_v4f = tensor<mut<valuef>, 4>;
@@ -51,6 +53,7 @@ struct differentiation_context
             ///assign to the original element, ie x
             vars[i] = in;
 
+            #if 0
             vars[i].recurse([&i, &offx, &offy, &offz](value_base& v)
             {
                 if(v.type == value_impl::op::BRACKET)
@@ -91,6 +94,7 @@ struct differentiation_context
                     v = get_substitution(v);
                 }
             });
+            #endif
         }
     }
 };
@@ -391,7 +395,7 @@ struct bssn_args
 
 std::string make_derivatives()
 {
-    auto differentiate = [&](execution_context&, buffer<valuef> in, std::array<buffer_mut<valuef>, 3> out, literal<v3i> dim, literal<valuef> scale)
+    /*auto differentiate = [&](execution_context&, buffer<valuef> in, std::array<buffer_mut<valuef>, 3> out, literal<v3i> dim, literal<valuef> scale)
     {
         using namespace single_source;
 
@@ -409,14 +413,45 @@ std::string make_derivatives()
 
         v3i pos = {x, y, z};
 
-        valuef v1 = in[pos, dim.get()];
+        valuei index = pos.z() * dim.get().y() * dim.get().x() + pos.y() * dim.get().x() + pos.x();
 
-        as_ref(out[0][pos, dim.get()]) = diff1(v1, 0, scale.get());
-        as_ref(out[1][pos, dim.get()]) = diff1(v1, 1, scale.get());
-        as_ref(out[2][pos, dim.get()]) = diff1(v1, 2, scale.get());
+        pin(index);
+
+        valuef v1 = in[index];
+
+        as_ref(out[0][index]) = valuef(0);
+
+        //as_ref(out[0][pos, dim.get().xyz()]) = diff1(v1, 0, scale.get());
+        //as_ref(out[1][pos, dim.get()]) = diff1(v1, 1, scale.get());
+        //as_ref(out[2][pos, dim.get()]) = diff1(v1, 2, scale.get());
     };
 
-    return value_impl::make_function(differentiate, "differentiate");
+    std::string str = value_impl::make_function(differentiate, "differentiate");
+
+    std::cout << str << std::endl;
+
+    return str;*/
+
+    return R"(
+__kernel void differentiate(global float* o1, int3 dim, float scale)
+{
+    int lid = get_global_id(0);
+    //int y = get_global_id(1);
+    //int z = get_global_id(2);
+
+    int x = lid % dim.x;
+    int y = (lid - z * dim.x * dim.y) / dim.x;
+    int z = lid / (dim.x * dim.y);
+
+    if(lid >= dim.x * dim.y * dim.z)
+        return;
+
+    //printf("X %i %i %i\n", x, y, z);
+
+    o1[z * dim.x * dim.y + y * dim.x + x] = 0.f;
+}
+
+              )";
 }
 
 struct time_derivatives
