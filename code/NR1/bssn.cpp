@@ -174,6 +174,27 @@ tensor<T, N, N, N> christoffel_symbols_2(const inverse_metric<T, N, N>& inverse,
     return christoff;
 }
 
+///todo: why is this like this? make it differentiable like cs2
+template<typename T, int N>
+inline
+tensor<T, N, N, N> christoffel_symbols_1(const metric<T, N, N>& met, const valuef& scale)
+{
+    tensor<T, N, N, N> christoff;
+
+    for(int c=0; c < N; c++)
+    {
+        for(int a=0; a < N; a++)
+        {
+            for(int b=0; b < N; b++)
+            {
+                christoff[c, a, b] = 0.5f * (diff1(met[c, a], b, scale) + diff1(met[c, b], a, scale) - diff1(met[a, b], c, scale));
+            }
+        }
+    }
+
+    return christoff;
+}
+
 ///https://en.wikipedia.org/wiki/Covariant_derivative#Covariant_derivative_by_field_type
 ///a partial derivative is a lower index vector
 template<typename T, int N>
@@ -363,6 +384,76 @@ struct time_derivatives
     tensor<valuef, 3> dtgB;
 };
 
+tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, const valuef& scale)
+{
+    using namespace single_source;
+
+    auto christoff1 = christoffel_symbols_1(args.cY, scale);
+    auto christoff2 = christoffel_symbols_2(args.cY.invert(), args.dcY);
+
+    auto icY = args.cY.invert();
+    pin(icY);
+
+    tensor<valuef, 3, 3> cRij;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            valuef s1 = 0;
+
+            for(int l=0; l < 3; l++)
+            {
+                for(int m=0; m < 3; m++)
+                {
+                    s1 = s1 + -0.5f * icY[l, m] * diff2(args.cY[i, j], m, l, args.dcY[m, i, j], args.dcY[l, i, j], scale);
+                }
+            }
+
+            valuef s2 = 0;
+
+            for(int k=0; k < 3; k++)
+            {
+                s2 = s2 + 0.5f * (args.cY[k, i] * diff1(args.cG[k], j, scale) + args.cY[k, j] * diff1(args.cG[k], i, scale));
+            }
+
+            valuef s3 = 0;
+
+            for(int k=0; k < 3; k++)
+            {
+                s3 = s3 + 0.5f * args.cG[k] * (christoff1[i, j, k] + christoff1[j, i, k]);
+            }
+
+            valuef s4 = 0;
+
+            for(int m=0; m < 3; m++)
+            {
+                for(int l=0; l < 3; l++)
+                {
+                    valuef inner1 = 0;
+                    valuef inner2 = 0;
+
+                    for(int k=0; k < 3; k++)
+                    {
+                        inner1 = inner1 + 0.5f * (2 * christoff2[k, l, i] * christoff1[j, k, m] + 2 * christoff2[k, l, j] * christoff1[i, k, m]);
+                    }
+
+                    for(int k=0; k < 3; k++)
+                    {
+                        inner2 = inner2 + christoff2[k, i, m] * christoff1[k, l, j];
+                    }
+
+                    s4 = s4 + icY[l, m] * (inner1 + inner2);
+                }
+            }
+
+            cRij[i, j] = s1 + s2 + s3 + s4;
+        }
+    }
+
+    return cRij;
+}
+
 time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
 {
     using namespace single_source;
@@ -505,6 +596,37 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
 
     }
     #endif
+
+    ///dtcA
+
+    {
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                valuef v1 = lie_derivative_weight(args.gB, args.cA, scale)[i, j];
+
+                valuef v2 = args.gA * args.K * args.cA[i, j];
+
+                valuef v3 = 0;
+
+                {
+                    valuef sum = 0;
+
+                    tensor<valuef, 3, 3> raised_Aij = icY.raise(args.cA, 0);
+
+                    for(int m=0; m < 3; m++)
+                    {
+                        sum += args.cA[i, m] * raised_Aij[m, j];
+                    }
+
+                    v3 = -2 * args.gA * sum;
+                }
+
+
+            }
+        }
+    }
 
     return ret;
 }
