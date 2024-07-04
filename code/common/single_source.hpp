@@ -59,6 +59,15 @@ namespace value_impl
             });
         }
 
+        template<typename T, int... N>
+        void pin(inverse_metric<T, N...>& inout)
+        {
+            inout.for_each([&](T& v)
+            {
+                pin(v);
+            });
+        }
+
         virtual ~execution_context_base(){}
     };
 

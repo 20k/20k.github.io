@@ -109,6 +109,99 @@ valuef diff2(const valuef& in, int idx, int idy, const valuef& dx, const valuef&
     }
 }
 
+
+template<typename T, int N, typename S>
+inline
+tensor<T, N, N> lie_derivative_weight(const tensor<T, N>& B, const S& mT, const T& scale)
+{
+    tensor<T, N, N> lie;
+
+    for(int i=0; i < N; i++)
+    {
+        for(int j=0; j < N; j++)
+        {
+            T sum = 0;
+            T sum2 = 0;
+
+            for(int k=0; k < N; k++)
+            {
+                sum += B[k] * diff1(mT[i, j], k, scale);
+                sum += mT[i, k] * diff1(B[k], j, scale);
+                sum += mT[j, k] * diff1(B[k], i, scale);
+                sum2 += diff1(B[k], k, scale);
+            }
+
+            lie.idx(i, j) = sum - (2.f/3.f) * mT.idx(i, j) * sum2;
+        }
+    }
+
+    return lie;
+}
+
+///derivatives are passed in like dkMij
+///https://en.wikipedia.org/wiki/Christoffel_symbols#Christoffel_symbols_of_the_second_kind_(symmetric_definition)
+///the christoffel symbols are calculated normally in bssn with the conformal metric tensor
+template<typename T, int N>
+inline
+tensor<T, N, N, N> christoffel_symbols_2(const inverse_metric<T, N, N>& inverse, const tensor<T, N, N, N>& derivatives)
+{
+    tensor<T, N, N, N> christoff;
+
+    for(int i=0; i < N; i++)
+    {
+        for(int k=0; k < N; k++)
+        {
+            for(int l=0; l < N; l++)
+            {
+                T sum = 0;
+
+                for(int m=0; m < N; m++)
+                {
+                    T local = 0;
+
+                    local += derivatives[l, m, k];
+                    local += derivatives[k, m, l];
+                    local += -derivatives[m, k, l];
+
+                    sum += local * inverse[i, m];
+                }
+
+                christoff[i, k, l] = T(0.5f) * sum;
+            }
+        }
+    }
+
+    return christoff;
+}
+
+///https://en.wikipedia.org/wiki/Covariant_derivative#Covariant_derivative_by_field_type
+///a partial derivative is a lower index vector
+template<typename T, int N>
+inline
+tensor<T, N, N> double_covariant_derivative(const T& in, const tensor<T, N>& first_derivatives,
+                                            const tensor<T, N, N, N>& christoff2, const valuef& scale)
+{
+    tensor<T, N, N> lac;
+
+    for(int a=0; a < N; a++)
+    {
+        for(int c=0; c < N; c++)
+        {
+            T sum = 0;
+
+            for(int b=0; b < N; b++)
+            {
+                sum += christoff2[b, c, a] * diff1(in, b, scale);
+            }
+
+            lac.idx(a, c) = diff2(in, a, c, first_derivatives[a], first_derivatives[c], scale) - sum;
+        }
+    }
+
+    return lac;
+}
+
+
 ///thoughts: its a lot easier to get my hands on equations with X
 ///but W^2 is clearly a better choice
 ///I think there are two options:
@@ -258,7 +351,7 @@ std::string make_derivatives()
     return value_impl::make_function(differentiate, "differentiate");
 }
 
-struct evolution_variables
+struct time_derivatives
 {
     tensor<valuef, 3, 3> dtcY;
     tensor<valuef, 3, 3> dtcA;
@@ -270,37 +363,11 @@ struct evolution_variables
     tensor<valuef, 3> dtgB;
 };
 
-template<typename T, int N, typename S>
-inline
-tensor<T, N, N> lie_derivative_weight(const tensor<T, N>& B, const S& mT, const T& scale)
+time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
 {
-    tensor<T, N, N> lie;
+    using namespace single_source;
 
-    for(int i=0; i < N; i++)
-    {
-        for(int j=0; j < N; j++)
-        {
-            T sum = 0;
-            T sum2 = 0;
-
-            for(int k=0; k < N; k++)
-            {
-                sum += B[k] * diff1(mT[i, j], k, scale);
-                sum += mT[i, k] * diff1(B[k], j, scale);
-                sum += mT[j, k] * diff1(B[k], i, scale);
-                sum2 += diff1(B[k], k, scale);
-            }
-
-            lie.idx(i, j) = sum - (2.f/3.f) * mT.idx(i, j) * sum2;
-        }
-    }
-
-    return lie;
-}
-
-evolution_variables get_evolution_variables(bssn_args& args, const valuef& scale)
-{
-    evolution_variables ret;
+    time_derivatives ret;
 
     ///dtcY
     {
@@ -309,6 +376,7 @@ evolution_variables get_evolution_variables(bssn_args& args, const valuef& scale
 
     ///https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf 2.12 or
     ///https://arxiv.org/pdf/0709.2160
+    ///dtW
     {
         valuef dibi = 0;
 
@@ -325,6 +393,50 @@ evolution_variables get_evolution_variables(bssn_args& args, const valuef& scale
         }
 
         ret.dtW = (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw;
+    }
+
+    inverse_metric<valuef, 3, 3> icY = args.cY.invert();
+    pin(icY);
+
+    tensor<valuef, 3, 3, 3> christoff2 = christoffel_symbols_2(icY, args.dcY);
+
+    pin(christoff2);
+
+    ///W^2 = X
+    valuef X = args.W * args.W;
+    ///2 dW W = dX
+    tensor<valuef, 3> dX = 2 * args.W * args.dW;
+
+    value iX = 1/max(X, valuef(0.00001f));
+
+    tensor<valuef, 3, 3> DiDja;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            valuef v1 = double_covariant_derivative(args.gA, args.dgA, christoff2, scale)[i, j];
+
+            valuef v2 = 0.5f * iX * (dX[i] * diff1(args.gA, j, scale) + dX[j] * diff1(args.gA, i, scale));
+
+            valuef sum = 0;
+
+            for(int m=0; m < 3; m++)
+            {
+                for(int n=0; n < 3; n++)
+                {
+                    sum += icY[m, n] * dX[m] * diff1(args.gA, n, scale);
+                }
+            }
+
+            valuef v3 = 0.5f * iX * args.cY[i, j] * sum;
+
+            DiDja[i, j] = v1 + v2 + v3;
+        }
+    }
+
+    {
+
     }
 
     return ret;
