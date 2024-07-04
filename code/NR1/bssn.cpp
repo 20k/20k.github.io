@@ -915,6 +915,11 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
     return ret;
 }
 
+valuef apply_evolution(const valuef& base, const valuef& dt, valuef timestep)
+{
+    return base + dt * timestep;
+}
+
 std::string make_bssn()
 {
     auto bssn_function = [&](execution_context&, bssn_args_mem<buffer<valuef>> base,
@@ -940,7 +945,31 @@ std::string make_bssn()
 
         v3i pos = {x, y, z};
 
+        valuei linear_index = pos.z() * dim.get().y() * dim.get().x() + pos.y() * dim.get().x() + pos.x();
+
         bssn_args args(pos, dim.get(), in, derivatives);
+
+        time_derivatives in_time = get_evolution_variables(args, scale.get());
+
+        tensor<int, 2> index_table[6] = {{0, 0}, {0, 1}, {0, 2}, {1, 1}, {1, 2}, {2, 2}};
+
+        for(int i=0; i < 6; i++)
+        {
+            tensor<int, 2> idx = index_table[i];
+
+            as_ref(out.cY[i][linear_index]) = apply_evolution(base.cY[i][linear_index], in_time.dtcY[idx.x(), idx.y()], timestep.get());
+            as_ref(out.cA[i][linear_index]) = apply_evolution(base.cA[i][linear_index], in_time.dtcA[idx.x(), idx.y()], timestep.get());
+        }
+
+        for(int i=0; i < 3; i++)
+        {
+            as_ref(out.gB[i][linear_index]) = apply_evolution(base.gB[i][linear_index], in_time.dtgB[i], timestep.get());
+            as_ref(out.cG[i][linear_index]) = apply_evolution(base.cG[i][linear_index], in_time.dtcG[i], timestep.get());
+        }
+
+        as_ref(out.gA[linear_index]) = apply_evolution(base.gA[linear_index], in_time.dtgA, timestep.get());
+        as_ref(out.W[linear_index]) = apply_evolution(base.W[linear_index], in_time.dtW, timestep.get());
+        as_ref(out.K[linear_index]) = apply_evolution(base.K[linear_index], in_time.dtK, timestep.get());
     };
 
     return value_impl::make_function(bssn_function, "evolve");
