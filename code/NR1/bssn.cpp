@@ -222,6 +222,41 @@ tensor<T, N, N> double_covariant_derivative(const T& in, const tensor<T, N>& fir
     return lac;
 }
 
+///https://arxiv.org/pdf/gr-qc/9810065.pdf
+template<typename T, int N>
+inline
+T trace(const tensor<T, N, N>& mT, const inverse_metric<T, N, N>& inverse)
+{
+    T ret = 0;
+
+    for(int i=0; i < N; i++)
+    {
+        for(int j=0; j < N; j++)
+        {
+            ret = ret + inverse.idx(i, j) * mT.idx(i, j);
+        }
+    }
+
+    return ret;
+}
+
+template<typename T, int N>
+inline
+tensor<T, N, N> trace_free(const tensor<T, N, N>& mT, const metric<T, N, N>& met, const inverse_metric<T, N, N>& inverse)
+{
+    tensor<T, N, N> TF;
+    T t = trace(mT, inverse);
+
+    for(int i=0; i < N; i++)
+    {
+        for(int j=0; j < N; j++)
+        {
+            TF.idx(i, j) = mT.idx(i, j) - (1/3.f) * met.idx(i, j) * t;
+        }
+    }
+
+    return TF;
+}
 
 ///thoughts: its a lot easier to get my hands on equations with X
 ///but W^2 is clearly a better choice
@@ -406,7 +441,7 @@ tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, const valuef& scale)
             {
                 for(int m=0; m < 3; m++)
                 {
-                    s1 = s1 + -0.5f * icY[l, m] * diff2(args.cY[i, j], m, l, args.dcY[m, i, j], args.dcY[l, i, j], scale);
+                    s1 += -0.5f * icY[l, m] * diff2(args.cY[i, j], m, l, args.dcY[m, i, j], args.dcY[l, i, j], scale);
                 }
             }
 
@@ -414,14 +449,14 @@ tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, const valuef& scale)
 
             for(int k=0; k < 3; k++)
             {
-                s2 = s2 + 0.5f * (args.cY[k, i] * diff1(args.cG[k], j, scale) + args.cY[k, j] * diff1(args.cG[k], i, scale));
+                s2 += 0.5f * (args.cY[k, i] * diff1(args.cG[k], j, scale) + args.cY[k, j] * diff1(args.cG[k], i, scale));
             }
 
             valuef s3 = 0;
 
             for(int k=0; k < 3; k++)
             {
-                s3 = s3 + 0.5f * args.cG[k] * (christoff1[i, j, k] + christoff1[j, i, k]);
+                s3 += 0.5f * args.cG[k] * (christoff1[i, j, k] + christoff1[j, i, k]);
             }
 
             valuef s4 = 0;
@@ -435,15 +470,15 @@ tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, const valuef& scale)
 
                     for(int k=0; k < 3; k++)
                     {
-                        inner1 = inner1 + 0.5f * (2 * christoff2[k, l, i] * christoff1[j, k, m] + 2 * christoff2[k, l, j] * christoff1[i, k, m]);
+                        inner1 += 0.5f * (2 * christoff2[k, l, i] * christoff1[j, k, m] + 2 * christoff2[k, l, j] * christoff1[i, k, m]);
                     }
 
                     for(int k=0; k < 3; k++)
                     {
-                        inner2 = inner2 + christoff2[k, i, m] * christoff1[k, l, j];
+                        inner2 += christoff2[k, i, m] * christoff1[k, l, j];
                     }
 
-                    s4 = s4 + icY[l, m] * (inner1 + inner2);
+                    s4 += icY[l, m] * (inner1 + inner2);
                 }
             }
 
@@ -639,33 +674,10 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
         ret.dtK = v1 + v2 + v3 + v4;
     }
 
-    #if 0
-    {
-        valuef dtK = 0;
-
-        valuef v1 = lie_derivative_weight(args.gB, args.cA, scale);
-
-        valuef v2 = args.gA * args.K * args.cA;
-
-        valuef v3 = 0;
-
-        {
-            valuef sum = 0;
-
-            tensor<value, 3, 3> raised_Aij = icY.raise(args.cA, 0);
-
-            for(int m=0; m < 3; m++)
-            {
-                sum +=
-            }
-        }
-
-    }
-    #endif
-
     ///dtcA
-
     {
+        tensor<valuef, 3, 3> with_trace = args.gA * calculate_W2_mult_Rij(args, scale) - X * DiDja;
+
         for(int i=0; i < 3; i++)
         {
             for(int j=0; j < 3; j++)
@@ -689,8 +701,109 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
                     v3 = -2 * args.gA * sum;
                 }
 
+                valuef v4 = trace_free(with_trace, args.cY, icY)[i, j];
 
+                ret.dtcA[i, j] = v1 + v2 + v3 + v4;
             }
+        }
+    }
+
+    ///dtcG
+    {
+        tensor<valuef, 3, 3> icAij = icY.raise(icY.raise(args.cA, 0), 1);
+
+        tensor<valuef, 3> Yij_Kj;
+
+        for(int i=0; i < 3; i++)
+        {
+            valuef sum = 0;
+
+            for(int j=0; j < 3; j++)
+            {
+                sum += icY[i, j] * diff1(args.K, j, scale);
+            }
+
+            Yij_Kj[i] = sum;
+        }
+
+        for(int i=0; i < 3; i++)
+        {
+            valuef s1 = 0;
+
+            for(int j=0; j < 3; j++)
+            {
+                for(int k=0; k < 3; k++)
+                {
+                    s1 += 2 * args.gA * christoff2[i, j, k] * icAij[j, k];
+                }
+            }
+
+            valuef s2 = 2 * args.gA * -(2.f/3.f) * Yij_Kj[i];
+
+            valuef s3 = 0;
+
+            for(int j=0; j < 3; j++)
+            {
+                s3 += icAij[i, j] * 2 * args.dW[j];
+            }
+
+            s3 = 2 * (-1.f/4.f) * args.gA / max(args.W, valuef(0.0001f)) * 6 * s3;
+
+            valuef s4 = 0;
+
+            for(int j=0; j < 3; j++)
+            {
+                s4 += icAij[i, j] * diff1(args.gA, j, scale);
+            }
+
+            s4 = -2 * s4;
+
+            valuef s5 = 0;
+
+            for(int j=0; j < 3; j++)
+            {
+                s5 += args.gB[j] * diff1(args.cG[i], j, scale);
+            }
+
+            valuef s6 = 0;
+
+            for(int j=0; j < 3; j++)
+            {
+                s6 += -args.cG[j] * args.dgB[j, i];
+            }
+
+            valuef s7 = 0;
+
+            for(int j=0; j < 3; j++)
+            {
+                for(int k=0; k < 3; k++)
+                {
+                    s7 += icY.idx(j, k) * diff2(args.gB[i], k, j, args.dgB[k, i], args.dgB[j, i], scale);
+                }
+            }
+
+            valuef s8 = 0;
+
+            for(int j=0; j < 3; j++)
+            {
+                for(int k=0; k < 3; k++)
+                {
+                    s8 += icY[i, j] * diff2(args.gB[k], k, j, args.dgB[k, k], args.dgB[j, k], scale);
+                }
+            }
+
+            s8 = (1.f/3.f) * s8;
+
+            valuef s9 = 0;
+
+            for(int k=0; k < 3; k++)
+            {
+                s9 += args.dgB[k, k];
+            }
+
+            s9 = (2.f/3.f) * s9 * args.cG[i];
+
+            ret.dtcG[i] = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9;
         }
     }
 
