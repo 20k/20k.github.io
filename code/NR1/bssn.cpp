@@ -991,16 +991,15 @@ std::string make_bssn()
 
         time_derivatives in_time = get_evolution_variables(args, scale.get());
 
-        pin(in_time.dtcA);
+        /*pin(in_time.dtcA);
         pin(in_time.dtW);
         pin(in_time.dtK);
         pin(in_time.dtgA);
         pin(in_time.dtgB);
         pin(in_time.dtcY);
-        pin(in_time.dtcG);
+        pin(in_time.dtcG);*/
 
         tensor<int, 2> index_table[6] = {{0, 0}, {0, 1}, {0, 2}, {1, 1}, {1, 2}, {2, 2}};
-
 
         for(int i=0; i < 6; i++)
         {
@@ -1029,15 +1028,6 @@ std::string make_bssn()
         {
             as_ref(out.cG[i][linear_index]) = apply_evolution(base.cG[i][linear_index], in_time.dtcG[i], timestep.get());
         }
-
-        if_e(x == 128 && y == 128 && z == 128, [&]
-        {
-            value_base se;
-            se.type = value_impl::op::SIDE_EFFECT;
-            se.abstract_value = "printf(\"%f\\n\"," + value_to_string(in_time.dtgA) + ")";
-
-            value_impl::get_context().add(se);
-        });
 
     };
 
