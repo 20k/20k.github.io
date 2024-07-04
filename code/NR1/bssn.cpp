@@ -307,6 +307,26 @@ evolution_variables get_evolution_variables(bssn_args& args, const valuef& scale
         ret.dtcY = lie_derivative_weight(args.gB, args.cY, scale) - 2 * args.gA * args.cA;
     }
 
+    ///https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf 2.12 or
+    ///https://arxiv.org/pdf/0709.2160
+    {
+        valuef dibi = 0;
+
+        for(int i=0; i < 3; i++)
+        {
+            dibi += diff1(args.gB[i], i, scale);
+        }
+
+        valuef dibiw = 0;
+
+        for(int i=0; i < 3; i++)
+        {
+            dibiw += args.gB[i] * diff1(args.W, i, scale);
+        }
+
+        ret.dtW = (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw;
+    }
+
     return ret;
 }
 
