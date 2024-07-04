@@ -36,7 +36,7 @@ struct bssn_buffer_pack
 
         for(auto& i : cY)
             i.alloc(sizeof(cl_float) * linear_size);
-        /*for(auto& i : cA)
+        for(auto& i : cA)
             i.alloc(sizeof(cl_float) * linear_size);
         for(auto& i : cG)
             i.alloc(sizeof(cl_float) * linear_size);
@@ -45,7 +45,7 @@ struct bssn_buffer_pack
 
         K.alloc(sizeof(cl_float) * linear_size);
         W.alloc(sizeof(cl_float) * linear_size);
-        gA.alloc(sizeof(cl_float) * linear_size);*/
+        gA.alloc(sizeof(cl_float) * linear_size);
     }
 
     void append_to(cl::args& args)
@@ -104,14 +104,14 @@ struct mesh
 
         bssn_buffer_pack& pck = buffers[0];
 
-        /*pck.cY[0].fill(cqueue, one);
+        pck.cY[0].fill(cqueue, one);
         pck.cY[1].fill(cqueue, zero);
         pck.cY[2].fill(cqueue, zero);
         pck.cY[3].fill(cqueue, one);
         pck.cY[4].fill(cqueue, zero);
-        pck.cY[5].fill(cqueue, one);*/
+        pck.cY[5].fill(cqueue, one);
 
-        /*for(auto& i : pck.cA)
+        for(auto& i : pck.cA)
             i.set_to_zero(cqueue);
 
         for(auto& i : pck.cG)
@@ -122,7 +122,7 @@ struct mesh
 
         pck.K.set_to_zero(cqueue);
         pck.W.fill(cqueue, one);
-        pck.gA.fill(cqueue, one);*/
+        pck.gA.fill(cqueue, one);
     }
 
     void step(cl::context& ctx, cl::command_queue& cqueue, float timestep)
@@ -134,7 +134,7 @@ struct mesh
         auto substep = [&](int base_idx, int in_idx, int out_idx)
         {
             {
-                /*std::vector<cl::buffer> d_in {
+                std::vector<cl::buffer> d_in {
                     buffers[in_idx].cY[0],
                     buffers[in_idx].cY[1],
                     buffers[in_idx].cY[2],
@@ -146,21 +146,17 @@ struct mesh
                     buffers[in_idx].gB[1],
                     buffers[in_idx].gB[2],
                     buffers[in_idx].W,
-                };*/
-
-                printf("Hello\n");
+                };
 
                 int which_deriv = 0;
 
-                //for(cl::buffer& to_diff : d_in)
+                for(cl::buffer& to_diff : d_in)
                 {
-
-
                     cl::args args;
-                    //args.push_back(buffers[in_idx].cY[0]);
+                    args.push_back(buffers[in_idx].cY[0]);
                     args.push_back(derivatives.at(which_deriv * 3 + 0));
-                    //args.push_back(derivatives.at(which_deriv * 3 + 1));
-                    //args.push_back(derivatives.at(which_deriv * 3 + 2));
+                    args.push_back(derivatives.at(which_deriv * 3 + 1));
+                    args.push_back(derivatives.at(which_deriv * 3 + 2));
                     args.push_back(cldim);
                     args.push_back(scale);
 
@@ -168,12 +164,10 @@ struct mesh
 
                     cqueue.exec("differentiate", args, {dim.x()*dim.y()*dim.z()}, {128});
 
-                    cqueue.block();
-
                     printf("Post\n");
 
                     which_deriv++;
-                    //break;
+                    break;
                 }
             }
 

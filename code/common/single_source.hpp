@@ -780,7 +780,7 @@ namespace value_impl
         #endif
 
         #ifdef NATIVE_DIVIDE
-        if(v.type == op::DIVIDE)
+        if(v.type == op::DIVIDE && v.is_floating_point_type())
         {
             return "native_divide(" + value_to_string(v.args.at(0)) + "," + value_to_string(v.args.at(1)) + ")";
         }
