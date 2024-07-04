@@ -854,10 +854,18 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
         #endif // STABILITY_SIGMA
     }
 
+    #ifdef BLACK_HOLE_GAUGE
+    #define ONE_PLUS_LOG
+    #define GAMMA_DRIVER
+    #endif // BLACK_HOLE_GAUGE
+
+    #define WAVE_TEST
+    #ifdef WAVE_TEST
+    #define HARMONIC_SLICING
+    #define ZERO_SHIFT
+    #endif // WAVE_TEST
+
     {
-        ///https://arxiv.org/pdf/gr-qc/0206072
-        #define ONE_PLUS_LOG
-        #ifdef ONE_PLUS_LOG
         valuef bmdma = 0;
 
         for(int i=0; i < 3; i++)
@@ -865,13 +873,19 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
             bmdma += args.gB[i] * diff1(args.gA, i, scale);
         }
 
+        ///https://arxiv.org/pdf/gr-qc/0206072
+        #ifdef ONE_PLUS_LOG
         ret.dtgA = -2 * args.gA * args.K + bmdma;
         #endif // ONE_PLUS_LOG
+
+        ///https://arxiv.org/pdf/2201.08857
+        #ifdef HARMONIC_SLICING
+        ret.dtgA = -args.gA * args.gA * args.K + bmdma;
+        #endif // HARMONIC_SLICING
     }
 
     {
         ///https://arxiv.org/pdf/gr-qc/0605030 (26)
-        #define GAMMA_DRIVER
         #ifdef GAMMA_DRIVER
         tensor<valuef, 3> djbjbi;
 
@@ -892,6 +906,10 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
 
         ret.dtgB = (3/4.f) * args.cG + djbjbi - N * args.gB;
         #endif // GAMMA_DRIVER
+
+        #ifdef ZERO_SHIFT
+        ret.dtgB = {0,0,0};
+        #endif // ZERO_SHIFT
     }
 
     return ret;
