@@ -489,6 +489,8 @@ tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, const valuef& scale)
         }
     }
 
+    pin(cRij);
+
     return cRij;
 }
 
@@ -554,6 +556,8 @@ tensor<valuef, 3, 3> calculate_W2_mult_Rij(bssn_args& args, valuef scale)
             w2Rphiij[i, j] = v1 + v2 + v3;
         }
     }
+
+    pin(w2Rphiij);
 
     return w2Rphiij + calculate_cRij(args, scale) * args.W * args.W;
 }
@@ -639,6 +643,8 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
         }
     }
 
+    pin(DiDja);
+
     {
         valuef v1 = 0;
 
@@ -669,6 +675,8 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
             valuef sum = 0;
 
             tensor<valuef, 3, 3> AMN = icY.raise(icY.raise(args.cA, 0), 1);
+
+            pin(AMN);
 
             for(int m=0; m < 3; m++)
             {
@@ -725,6 +733,8 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
     ///dtcG
     {
         tensor<valuef, 3, 3> icAij = icY.raise(icY.raise(args.cA, 0), 1);
+
+        pin(icAij);
 
         tensor<valuef, 3> Yij_Kj;
 

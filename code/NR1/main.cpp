@@ -6,6 +6,7 @@
 int main()
 {
     std::cout << make_derivatives() << std::endl;
+    std::cout << make_bssn() << std::endl;
 
     render_settings sett;
     sett.width = 1280;
