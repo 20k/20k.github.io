@@ -555,16 +555,27 @@ tensor<valuef, 3, 3> calculate_W2_mult_Rij(bssn_args& args, valuef scale)
     return w2Rphiij + calculate_cRij(args, scale) * args.W * args.W;
 }
 
+float get_algebraic_damping_factor()
+{
+    return 3.f;
+}
+
 time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
 {
     using namespace single_source;
 
     time_derivatives ret;
 
+    inverse_metric<valuef, 3, 3> icY = args.cY.invert();
+    pin(icY);
+
     ///dtcY
     {
         ///https://arxiv.org/pdf/1307.7391 specifically for why the trace free aspect
+        ///https://arxiv.org/pdf/1106.2254 also see here, after 25
         ret.dtcY = lie_derivative_weight(args.gB, args.cY, scale) - 2 * args.gA * trace_free(args.cA, args.cY, icY);
+
+        ret.dtcY += -get_algebraic_damping_factor() * args.gA * args.cY.to_tensor() * log(args.cY.det());
     }
 
     ///https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf 2.12 or
@@ -587,9 +598,6 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
 
         ret.dtW = (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw;
     }
-
-    inverse_metric<valuef, 3, 3> icY = args.cY.invert();
-    pin(icY);
 
     tensor<valuef, 3, 3, 3> christoff2 = christoffel_symbols_2(icY, args.dcY);
 
@@ -707,6 +715,8 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
                 ret.dtcA[i, j] = v1 + v2 + v3 + v4;
             }
         }
+
+        ret.dtcA += -get_algebraic_damping_factor() * args.gA * args.cY.to_tensor() * trace(args.cA, icY);
     }
 
     ///dtcG
