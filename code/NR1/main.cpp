@@ -127,7 +127,7 @@ struct mesh
 
     void step(cl::context& ctx, cl::command_queue& cqueue, float timestep)
     {
-        cl_float4 cldim = {dim.x(), dim.y(), dim.z(), 0};
+        cl_int4 cldim = {dim.x(), dim.y(), dim.z(), 0};
         float c_at_max = 30;
         float scale = c_at_max / dim.x();
 
@@ -153,27 +153,20 @@ struct mesh
                 for(cl::buffer& to_diff : d_in)
                 {
                     cl::args args;
-                    args.push_back(buffers[in_idx].cY[0]);
+                    args.push_back(to_diff);
                     args.push_back(derivatives.at(which_deriv * 3 + 0));
                     args.push_back(derivatives.at(which_deriv * 3 + 1));
                     args.push_back(derivatives.at(which_deriv * 3 + 2));
                     args.push_back(cldim);
                     args.push_back(scale);
 
-                    printf("Pre\n");
-
                     cqueue.exec("differentiate", args, {dim.x()*dim.y()*dim.z()}, {128});
 
-                    printf("Post\n");
-
                     which_deriv++;
-                    break;
                 }
             }
 
-            float timestep = 0.01f;
-
-            /*cl::args args;
+            cl::args args;
             buffers[base_idx].append_to(args);
             buffers[in_idx].append_to(args);
             buffers[out_idx].append_to(args);
@@ -183,9 +176,9 @@ struct mesh
 
             args.push_back(timestep);
             args.push_back(cldim);
-            args.push_back(scale);*/
+            args.push_back(scale);
 
-            //cqueue.exec("evolve", args, {dim.x(), dim.y(), dim.z()}, {8,8,1});
+            cqueue.exec("evolve", args, {dim.x()*dim.y()*dim.z()}, {128});
         };
 
         int iterations = 2;
@@ -198,12 +191,13 @@ struct mesh
                 substep(0, 2, 1);
 
             ///we always output into buffer 1, which means that buffer 2 becomes our next input
-            std::swap(buffers[1], buffers[2]);
+            if(i != iterations - 1)
+                std::swap(buffers[1], buffers[2]);
         }
 
         ///now that we've finished, our result is in buffer[2]
 
-        std::swap(buffers[2], buffers[0]);
+        std::swap(buffers[1], buffers[0]);
     }
 };
 
@@ -251,13 +245,13 @@ int main()
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
-    mesh m(ctx, {256, 256, 256});
+    mesh m(ctx, {255, 255, 255});
     m.allocate(ctx);
     m.init(cqueue);
 
     cqueue.block();
 
-    printf("Here\n");
+    printf("Start\n");
 
     //while(!win.should_close())
     for(int i=0; i < 10; i++)

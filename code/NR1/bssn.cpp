@@ -399,7 +399,13 @@ std::string make_derivatives()
 
         valuei lid = value_impl::get_global_id(0);
 
+        pin(lid);
+
         v3i dim = ldim.get();
+
+        if_e(lid >= dim.x() * dim.y() * dim.z(), [&] {
+            return_e();
+        });
 
         valuei x = lid % dim.x();
         valuei y = (lid / dim.x()) % dim.y();
@@ -408,10 +414,6 @@ std::string make_derivatives()
         pin(x);
         pin(y);
         pin(z);
-
-        if_e(lid >= dim.x() * dim.y() * dim.z(), [&] {
-            return_e();
-        });
 
         v3i pos = {x, y, z};
 
@@ -959,52 +961,91 @@ std::string make_bssn()
                                                  bssn_args_mem<buffer_mut<valuef>> out,
                                                  bssn_derivatives_mem<buffer<derivative_t>> derivatives,
                                                  literal<valuef> timestep,
-                                                 literal<v3i> dim,
+                                                 literal<v3i> ldim,
                                                  literal<valuef> scale) {
         using namespace single_source;
 
-        valuei x = value_impl::get_global_id(0);
-        valuei y = value_impl::get_global_id(1);
-        valuei z = value_impl::get_global_id(2);
+        valuei lid = value_impl::get_global_id(0);
+
+        pin(lid);
+
+        v3i dim = ldim.get();
+
+        if_e(lid >= dim.x() * dim.y() * dim.z(), [&] {
+            return_e();
+        });
+
+        valuei x = lid % dim.x();
+        valuei y = (lid / dim.x()) % dim.y();
+        valuei z = lid / (dim.x() * dim.y());
 
         pin(x);
         pin(y);
         pin(z);
 
-        if_e(x >= dim.get().x() || y >= dim.get().y() || z >= dim.get().z(), [&] {
-            return_e();
-        });
-
         v3i pos = {x, y, z};
 
-        valuei linear_index = pos.z() * dim.get().y() * dim.get().x() + pos.y() * dim.get().x() + pos.x();
+        valuei linear_index = pos.z() * dim.y() * dim.x() + pos.y() * dim.x() + pos.x();
 
-        bssn_args args(pos, dim.get(), in, derivatives);
+        bssn_args args(pos, dim, in, derivatives);
 
         time_derivatives in_time = get_evolution_variables(args, scale.get());
 
+        pin(in_time.dtcA);
+        pin(in_time.dtW);
+        pin(in_time.dtK);
+        pin(in_time.dtgA);
+        pin(in_time.dtgB);
+        pin(in_time.dtcY);
+        pin(in_time.dtcG);
+
         tensor<int, 2> index_table[6] = {{0, 0}, {0, 1}, {0, 2}, {1, 1}, {1, 2}, {2, 2}};
+
+
+        for(int i=0; i < 6; i++)
+        {
+            tensor<int, 2> idx = index_table[i];
+
+            as_ref(out.cA[i][linear_index]) = apply_evolution(base.cA[i][linear_index], in_time.dtcA[idx.x(), idx.y()], timestep.get());
+        }
+
+        as_ref(out.W[linear_index]) = apply_evolution(base.W[linear_index], in_time.dtW, timestep.get());
+        as_ref(out.K[linear_index]) = apply_evolution(base.K[linear_index], in_time.dtK, timestep.get());
+        as_ref(out.gA[linear_index]) = apply_evolution(base.gA[linear_index], in_time.dtgA, timestep.get());
+
+        for(int i=0; i < 3; i++)
+        {
+            as_ref(out.gB[i][linear_index]) = apply_evolution(base.gB[i][linear_index], in_time.dtgB[i], timestep.get());
+        }
 
         for(int i=0; i < 6; i++)
         {
             tensor<int, 2> idx = index_table[i];
 
             as_ref(out.cY[i][linear_index]) = apply_evolution(base.cY[i][linear_index], in_time.dtcY[idx.x(), idx.y()], timestep.get());
-            as_ref(out.cA[i][linear_index]) = apply_evolution(base.cA[i][linear_index], in_time.dtcA[idx.x(), idx.y()], timestep.get());
         }
 
         for(int i=0; i < 3; i++)
         {
-            as_ref(out.gB[i][linear_index]) = apply_evolution(base.gB[i][linear_index], in_time.dtgB[i], timestep.get());
             as_ref(out.cG[i][linear_index]) = apply_evolution(base.cG[i][linear_index], in_time.dtcG[i], timestep.get());
         }
 
-        as_ref(out.gA[linear_index]) = apply_evolution(base.gA[linear_index], in_time.dtgA, timestep.get());
-        as_ref(out.W[linear_index]) = apply_evolution(base.W[linear_index], in_time.dtW, timestep.get());
-        as_ref(out.K[linear_index]) = apply_evolution(base.K[linear_index], in_time.dtK, timestep.get());
+        if_e(x == 128 && y == 128 && z == 128, [&]
+        {
+            value_base se;
+            se.type = value_impl::op::SIDE_EFFECT;
+            se.abstract_value = "printf(\"%f\\n\"," + value_to_string(in_time.dtgA) + ")";
+
+            value_impl::get_context().add(se);
+        });
+
     };
 
-    return value_impl::make_function(bssn_function, "evolve");
+    std::string str = value_impl::make_function(bssn_function, "evolve");
+
+    std::cout << str << std::endl;
+
+    return str;
 }
 
 /*
