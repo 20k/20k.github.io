@@ -109,6 +109,12 @@ valuef diff2(const valuef& in, int idx, int idy, const valuef& dx, const valuef&
     }
 }
 
+///thoughts: its a lot easier to get my hands on equations with X
+///but W^2 is clearly a better choice
+///I think there are two options:
+///1. Implement the X formalism, in terms of the W formalism
+///2. Implement the cBSSN W formalism
+///3. Put in more legwork and find a good W reference when I'm more awake
 template<typename T>
 struct bssn_args_mem : value_impl::single_source::argument_pack
 {
@@ -250,6 +256,58 @@ std::string make_derivatives()
     };
 
     return value_impl::make_function(differentiate, "differentiate");
+}
+
+struct evolution_variables
+{
+    tensor<valuef, 3, 3> dtcY;
+    tensor<valuef, 3, 3> dtcA;
+    valuef dtK;
+    valuef dtW;
+    tensor<valuef, 3> dtcG;
+
+    valuef dtgA;
+    tensor<valuef, 3> dtgB;
+};
+
+template<typename T, int N, typename S>
+inline
+tensor<T, N, N> lie_derivative_weight(const tensor<T, N>& B, const S& mT, const T& scale)
+{
+    tensor<T, N, N> lie;
+
+    for(int i=0; i < N; i++)
+    {
+        for(int j=0; j < N; j++)
+        {
+            T sum = 0;
+            T sum2 = 0;
+
+            for(int k=0; k < N; k++)
+            {
+                sum += B[k] * diff1(mT[i, j], k, scale);
+                sum += mT[i, k] * diff1(B[k], j, scale);
+                sum += mT[j, k] * diff1(B[k], i, scale);
+                sum2 += diff1(B[k], k, scale);
+            }
+
+            lie.idx(i, j) = sum - (2.f/3.f) * mT.idx(i, j) * sum2;
+        }
+    }
+
+    return lie;
+}
+
+evolution_variables get_evolution_variables(bssn_args& args, const valuef& scale)
+{
+    evolution_variables ret;
+
+    ///dtcY
+    {
+        ret.dtcY = lie_derivative_weight(args.gB, args.cY, scale) - 2 * args.gA * args.cA;
+    }
+
+    return ret;
 }
 
 std::string make_bssn()

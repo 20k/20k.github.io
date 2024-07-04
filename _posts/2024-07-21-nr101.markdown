@@ -5,6 +5,11 @@ date:   2024-07-21 18:33:23 +0000
 categories: C++
 ---
 
+Papers:
+
+https://arxiv.org/pdf/1307.7391 ccz4 paper, contains some good equation references
+https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf covariant bssn
+
 Ok planola time:
 
 1. Basic introduction to the ADM formalism. Need to cover projection, the concept of time + gauge conditions, physical interpretation of the gauge conditions as an eularian observer, and the concept of a hypersurface
@@ -74,7 +79,7 @@ However, there isn't one canonical BSSN formalism. There are instead 3 major var
 
 ## Conformal decomposition
 
-Todo: Go through phi, W^2, and X
+Todo: Go through phi, W^2, and X. Also note that people pretty clearly mix up the notation here
 
 ## Variables
 
@@ -164,9 +169,11 @@ $$y_{n+1} = y_n + dt f(t_{n+1}, y_{n+1})$$
 
 This is also a 1st order integrator, but it is implicit - we can see that we have $y_{n+1}$ on both sides of the equation. The real trick is that backwards euler is L-stable - which means that it has extremely good stability properties for solving unstable equations, which is exactly what we're looking for. On top of this, backwards euler has a very GPU-friendly form, making it very amenable to GPU architecture, while using a minimal amount of memory. In all my testing, I haven't found an integrator with better properties than this
 
+One notable feature is that with an integrator like this, we need less damping and stability modifications to make the equations work well. The downside is that we're solving our equations in a fundamentally different way to what is standard, so we now have to extensively test things to figure out the character of our solution ourselves
+
 ### Fixed point iteration
 
-The issue is obviously: How do we actually solve this equation? The trick is to use fixed point iteration
+The issue with an implicit integrator is: How do we actually solve this equation? The straightforward answer is to use fixed point iteration
 
 Todo: Fixed point
 
@@ -222,23 +229,23 @@ This is the real kicker
 
 We only need to calculate 1st derivatives and save them when we take the second derivative of something
 
-#### By Field
+#### Evolution equations by Field
 
 ##### cY
 
 ##### cA
 
-##### dK
+##### K
 
-##### dW
+##### W
 
-##### dA
+##### gA
 
-##### dtcGi
+##### G
 
-##### dtgA
+##### gA
 
-##### dtgB
+##### gB
 
 Note that structurally for backwards euler we need a buffer for our input (yn+1), one for our output (yn + f(yn+1)), and one to hold the last value (yn)
 
