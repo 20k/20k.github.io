@@ -436,8 +436,75 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
     }
 
     {
+        valuef v1 = 0;
+
+        for(int m=0; m < 3; m++)
+        {
+            v1 += args.gB[m] * diff1(args.K, m, scale);
+        }
+
+        valuef v2 = 0;
+
+        {
+            valuef sum = 0;
+
+            for(int m=0; m < 3; m++)
+            {
+                for(int n=0; n < 3; n++)
+                {
+                    sum += icY[m, n] * DiDja[m, n];
+                }
+            }
+
+            v2 = -X * sum;
+        }
+
+        valuef v3 = 0;
+
+        {
+            valuef sum = 0;
+
+            tensor<valuef, 3, 3> AMN = icY.raise(icY.raise(args.cA, 0), 1);
+
+            for(int m=0; m < 3; m++)
+            {
+                for(int n=0; n < 3; n++)
+                {
+                    sum += AMN[m, n] * args.cA[m, n];
+                }
+            }
+
+            v3 += args.gA * sum;
+        }
+
+        valuef v4 = (1/3.f) * args.gA * args.K * args.K;
+
+        ret.dtK = v1 + v2 + v3 + v4;
+    }
+
+    #if 0
+    {
+        valuef dtK = 0;
+
+        valuef v1 = lie_derivative_weight(args.gB, args.cA, scale);
+
+        valuef v2 = args.gA * args.K * args.cA;
+
+        valuef v3 = 0;
+
+        {
+            valuef sum = 0;
+
+            tensor<value, 3, 3> raised_Aij = icY.raise(args.cA, 0);
+
+            for(int m=0; m < 3; m++)
+            {
+                sum +=
+            }
+        }
 
     }
+    #endif
 
     return ret;
 }
