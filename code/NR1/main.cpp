@@ -2,6 +2,76 @@
 #include <toolkit/render_window.hpp>
 #include <imgui/misc/freetype/imgui_freetype.h>
 #include "bssn.hpp"
+#include <vec/tensor.hpp>
+
+using t3i = tensor<int, 3>;
+
+struct bssn_buffer_pack
+{
+    std::array<cl::buffer, 6> cY;
+    std::array<cl::buffer, 6> cA;
+    cl::buffer K;
+    cl::buffer W;
+    std::array<cl::buffer, 3> cG;
+
+    cl::buffer gA;
+    std::array<cl::buffer, 3> gB;
+
+    //lovely
+    bssn_buffer_pack(cl::context& ctx) :
+        cY{ctx, ctx, ctx, ctx, ctx, ctx},
+        cA{ctx, ctx, ctx, ctx, ctx, ctx},
+        K{ctx},
+        W{ctx},
+        cG{ctx, ctx, ctx},
+        gA{ctx},
+        gB{ctx, ctx, ctx}
+    {
+
+    }
+
+    void allocate(t3i size)
+    {
+        int64_t linear_size = int64_t{size.x()} * size.y() * size.z();
+
+        for(auto& i : cY)
+            i.alloc(sizeof(cl_float) * linear_size);
+        for(auto& i : cA)
+            i.alloc(sizeof(cl_float) * linear_size);
+        for(auto& i : cG)
+            i.alloc(sizeof(cl_float) * linear_size);
+        for(auto& i : gB)
+            i.alloc(sizeof(cl_float) * linear_size);
+
+        K.alloc(sizeof(cl_float) * linear_size);
+        W.alloc(sizeof(cl_float) * linear_size);
+        gA.alloc(sizeof(cl_float) * linear_size);
+    }
+};
+
+struct mesh
+{
+    std::array<bssn_buffer_pack, 3> buffers;
+    t3i dim;
+
+    mesh(cl::context& ctx, t3i _dim) : buffers{ctx, ctx, ctx}
+    {
+        dim = _dim;
+    }
+
+    void allocate()
+    {
+        for(int i=0; i < 3; i++)
+        {
+            buffers[i].allocate(dim);
+        }
+    }
+
+    void step(float timestep)
+    {
+
+    }
+};
 
 int main()
 {
