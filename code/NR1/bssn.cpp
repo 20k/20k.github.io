@@ -306,6 +306,30 @@ tensor<T, N, N> covariant_derivative_low_vec(const tensor<T, N>& v_in, const ten
     return lac;
 }
 
+template<typename T, int N>
+inline
+tensor<T, N, N> covariant_derivative_high_vec(const tensor<T, N>& v_in, const tensor<T, N, N>& derivatives, const tensor<T, N, N, N>& christoff2)
+{
+    tensor<T, N, N> lab;
+
+    for(int a=0; a < N; a++)
+    {
+        for(int b=0; b < N; b++)
+        {
+            T sum = 0;
+
+            for(int c=0; c < N; c++)
+            {
+                sum = sum + christoff2.idx(a, b, c) * v_in.idx(c);
+            }
+
+            lab.idx(a, b) = derivatives[b, a] + sum;
+        }
+    }
+
+    return lab;
+}
+
 ///thoughts: its a lot easier to get my hands on equations with X
 ///but W^2 is clearly a better choice
 ///I think there are two options:
@@ -687,7 +711,7 @@ tensor<valuef, 3, 3> calculate_W2_mult_Rij(bssn_args& args, bssn_derivatives& de
 
 float get_algebraic_damping_factor()
 {
-    return 3.f;
+    return 1.f;
 }
 
 time_derivatives get_evolution_variables(bssn_args& args, bssn_derivatives& derivs, v3f momentum_constraint, const valuef& scale)
@@ -699,6 +723,30 @@ time_derivatives get_evolution_variables(bssn_args& args, bssn_derivatives& deri
     inverse_metric<valuef, 3, 3> icY = args.cY.invert();
     pin(icY);
 
+    tensor<valuef, 3, 3, 3> christoff2 = christoffel_symbols_2(icY, derivs.dcY);
+
+    pin(christoff2);
+
+    tensor<valuef, 3> calculated_cG;
+
+    for(int i=0; i < 3; i++)
+    {
+        valuef sum = 0;
+
+        for(int m=0; m < 3; m++)
+        {
+            for(int n=0; n < 3; n++)
+            {
+                sum += icY[m, n] * christoff2[i, m, n];
+            }
+        }
+
+        calculated_cG[i] = sum;
+    }
+
+    tensor<valuef, 3> Gi = args.cG - calculated_cG;
+
+
     ///dtcY
     {
         ///https://arxiv.org/pdf/1307.7391 specifically for why the trace free aspect
@@ -706,6 +754,109 @@ time_derivatives get_evolution_variables(bssn_args& args, bssn_derivatives& deri
         ret.dtcY = lie_derivative_weight(args.gB, args.cY, scale) - 2 * args.gA * trace_free(args.cA, args.cY, icY);
 
         ret.dtcY += -get_algebraic_damping_factor() * args.gA * args.cY.to_tensor() * log(args.cY.det());
+
+        /*tensor<valuef, 3, 3> cD = covariant_derivative_low_vec(args.cY.lower(Gi), christoff2, scale);
+
+        pin(cD);
+
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                float cK = -0.035;
+
+                ret.dtcY.idx(i, j) += cK * args.gA * 0.5f * (cD.idx(i, j) + cD.idx(j, i));
+            }
+        }*/
+
+        #if 1
+        tensor<valuef, 3, 3> d_cGi;
+
+        for(int m=0; m < 3; m++)
+        {
+            tensor<dual<valuef>, 3, 3, 3> d_dcYij;
+
+            metric<dual<valuef>, 3, 3> d_cYij;
+
+            for(int i=0; i < 3; i++)
+            {
+                for(int j=0; j < 3; j++)
+                {
+                    d_cYij[i, j].real = args.cY[i, j];
+                    d_cYij[i, j].dual = derivs.dcY[m, i, j];
+                }
+            }
+
+            pin(d_cYij);
+
+            auto dicY = d_cYij.invert();
+
+            pin(dicY);
+
+            for(int k=0; k < 3; k++)
+            {
+                for(int i=0; i < 3; i++)
+                {
+                    for(int j=0; j < 3; j++)
+                    {
+                        d_dcYij[k, i, j].real = derivs.dcY[k, i, j];
+                        d_dcYij[k, i, j].dual = diff1(derivs.dcY[k, i, j], m, scale);
+                    }
+                }
+            }
+
+            pin(d_dcYij);
+
+            auto d_christoff2 = christoffel_symbols_2(dicY, d_dcYij);
+
+            pin(d_christoff2);
+
+            tensor<dual<valuef>, 3> dcGi_G;
+
+            for(int i=0; i < 3; i++)
+            {
+                dual<valuef> sum = 0;
+
+                for(int j=0; j < 3; j++)
+                {
+                    for(int k=0; k < 3; k++)
+                    {
+                        sum += dicY[j, k] * d_christoff2[i, j, k];
+                    }
+                }
+
+                dcGi_G[i] = sum;
+            }
+
+            pin(dcGi_G);
+
+            for(int i=0; i < 3; i++)
+            {
+                d_cGi[m, i] = diff1(args.cG[i], m, scale) - dcGi_G[i].dual;
+            }
+        }
+
+        tensor<valuef, 3, 3> cD = covariant_derivative_high_vec(Gi, d_cGi, christoff2);
+
+        pin(cD);
+
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                valuef sum = 0;
+
+                for(int k=0; k < 3; k++)
+                {
+                    sum += 0.5f * (args.cY[k, i] * cD[k, j] + args.cY[k, j] * cD[k, i]);
+                }
+
+                float cK = -0.055f;
+
+                ret.dtcY.idx(i, j) += cK * args.gA * sum;
+            }
+        }
+        #endif
     }
 
     ///https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf 2.12 or
@@ -728,10 +879,6 @@ time_derivatives get_evolution_variables(bssn_args& args, bssn_derivatives& deri
 
         ret.dtW = (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw;
     }
-
-    tensor<valuef, 3, 3, 3> christoff2 = christoffel_symbols_2(icY, derivs.dcY);
-
-    pin(christoff2);
 
     ///W^2 = X
     valuef X = args.W * args.W;
@@ -970,39 +1117,6 @@ time_derivatives get_evolution_variables(bssn_args& args, bssn_derivatives& deri
 
         #define STABILITY_SIGMA
         #ifdef STABILITY_SIGMA
-        tensor<valuef, 3> calculated_cG;
-
-        for(int i=0; i < 3; i++)
-        {
-            valuef sum = 0;
-
-            for(int m=0; m < 3; m++)
-            {
-                for(int n=0; n < 3; n++)
-                {
-                    sum += icY[m, n] * christoff2[i, m, n];
-                }
-            }
-
-            calculated_cG[i] = sum;
-        }
-
-        tensor<valuef, 3> cG2;
-
-        for(int i=0; i < 3; i++)
-        {
-            valuef sum = 0;
-
-            for(int j=0; j < 3; j++)
-            {
-                sum += diff1(args.cY.invert()[i, j], j, scale);
-            }
-
-            cG2[i] = -sum;
-        }
-
-        tensor<valuef, 3> Gi = args.cG - calculated_cG;
-
         valuef dmbm = 0;
 
         for(int m=0; m < 3; m++)
@@ -1010,9 +1124,15 @@ time_derivatives get_evolution_variables(bssn_args& args, bssn_derivatives& deri
             dmbm += diff1(args.gB[m], m, scale);
         }
 
-        float sigma = 0.1f;
+        float sigma = 1.333333f;
 
         ret.dtcG += -sigma * Gi * dmbm;
+
+        /*{
+            float mcGicst = -0.1f;
+
+            ret.dtcG += mcGicst * args.gA * Gi;
+        }*/
 
         /*if_e(args.pos.x() == 64 && args.pos.y() == 64 && args.pos.z() == 64, [&]{
             value_base se;
@@ -1024,12 +1144,13 @@ time_derivatives get_evolution_variables(bssn_args& args, bssn_derivatives& deri
         #endif // STABILITY_SIGMA
     }
 
+    #define BLACK_HOLE_GAUGE
     #ifdef BLACK_HOLE_GAUGE
     #define ONE_PLUS_LOG
     #define GAMMA_DRIVER
     #endif // BLACK_HOLE_GAUGE
 
-    #define WAVE_TEST
+    //#define WAVE_TEST
     #ifdef WAVE_TEST
     #define HARMONIC_SLICING
     #define ZERO_SHIFT
@@ -1148,7 +1269,7 @@ std::string make_bssn()
                                                  bssn_args_mem<buffer<valuef>> in,
                                                  bssn_args_mem<buffer_mut<valuef>> out,
                                                  bssn_derivatives_mem<buffer<derivative_t>> derivatives,
-                                                 std::array<buffer_mut<valuef>, 3> momentum_constraint,
+                                                 std::array<buffer<valuef>, 3> momentum_constraint,
                                                  literal<valuef> timestep,
                                                  literal<v3i> ldim,
                                                  literal<valuef> scale) {
@@ -1299,9 +1420,11 @@ std::string make_initial_conditions()
 
         value_impl::get_context().add(se);*/
 
+        #define GET_A 0.5f
+
         auto get_Guv = []<typename T>(const tensor<T, 4>& position)
         {
-            float A = 0.5f;
+            float A = GET_A;
             float d = 1;
 
             auto H = A * sin(2 * std::numbers::pi_v<float> * (position.y() - position.x()) / d);
@@ -1575,15 +1698,18 @@ std::string init_debugging()
 
         value_impl::get_context().add(se);*/
 
+        //valuef test_val = to_fill.cY[0][lid];
+        //valuef display = ((test_val - 1) / GET_A) * 0.5f + 0.5f;
+
+        valuef test_val = to_fill.W[lid];
+
         /*value_base se;
         se.type = value_impl::op::SIDE_EFFECT;
-        se.abstract_value = "printf(\"w %.16f %i\\n\"," + value_to_string(to_fill.cY[3][lid]) + "," + value_to_string(x) + ")";
+        se.abstract_value = "printf(\"w %.16f %i\\n\"," + value_to_string(test_val) + "," + value_to_string(x) + ")";
 
         value_impl::get_context().add(se);*/
 
-        valuef test_val = to_fill.cY[0][lid];
-
-        valuef display = ((test_val - 1) / 0.5f) * 0.5f + 0.5f;
+        valuef display = clamp(test_val, 0.f,1.f);
 
         v4f col = {display, 0.f, 0.f, 1.f};
 
@@ -1631,7 +1757,7 @@ valuef kreiss_oliger_interior(valuef in, valuef scale)
 
 std::string make_kreiss_oliger()
 {
-     auto func = [&](execution_context&, buffer<valuef> in, buffer_mut<valuef> out, literal<valuef> timestep, literal<v3i> ldim, literal<valuef> scale, literal<valuef> eps) {
+     auto func = [&](execution_context&, buffer<valuef> in, buffer_mut<valuef> inout, literal<valuef> timestep, literal<v3i> ldim, literal<valuef> scale, literal<valuef> eps) {
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);
@@ -1654,7 +1780,7 @@ std::string make_kreiss_oliger()
 
         v3i pos = {x, y, z};
 
-        as_ref(out[lid]) = declare_e(out[lid]) + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get());
+        as_ref(inout[lid]) = declare_e(in[lid]) + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get());
      };
 
      return value_impl::make_function(func, "kreiss_oliger");

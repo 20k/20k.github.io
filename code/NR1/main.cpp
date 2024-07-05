@@ -4,6 +4,7 @@
 #include "bssn.hpp"
 #include <vec/tensor.hpp>
 #include <toolkit/texture.hpp>
+#include <toolkit/fs_helpers.hpp>
 
 using t3i = tensor<int, 3>;
 
@@ -173,11 +174,83 @@ struct mesh
         }
     }
 
+    void load_from(cl::command_queue cqueue)
+    {
+        auto load = [&](cl::buffer& buf, const std::string& name)
+        {
+            std::string data = file::read(name, file::mode::BINARY);
+
+            buf.write(cqueue, data.data(), data.size());
+        };
+
+        bssn_buffer_pack& pck = buffers[0];
+
+        load(pck.cY[0], "./init/buf_cY0.bin");
+        load(pck.cY[1], "./init/buf_cY1.bin");
+        load(pck.cY[2], "./init/buf_cY2.bin");
+        load(pck.cY[3], "./init/buf_cY3.bin");
+        load(pck.cY[4], "./init/buf_cY4.bin");
+        load(pck.cY[5], "./init/buf_cY5.bin");
+
+        load(pck.cA[0], "./init/buf_cA0.bin");
+        load(pck.cA[1], "./init/buf_cA1.bin");
+        load(pck.cA[2], "./init/buf_cA2.bin");
+        load(pck.cA[3], "./init/buf_cA3.bin");
+        load(pck.cA[4], "./init/buf_cA4.bin");
+        load(pck.cA[5], "./init/buf_cA5.bin");
+
+        load(pck.gA, "./init/buf_gA.bin");
+        load(pck.gB[0], "./init/buf_gB0.bin");
+        load(pck.gB[1], "./init/buf_gB1.bin");
+        load(pck.gB[2], "./init/buf_gB2.bin");
+        load(pck.K, "./init/buf_K.bin");
+        load(pck.W, "./init/buf_X.bin");
+
+        load(pck.cG[0], "./init/buf_cGi0.bin");
+        load(pck.cG[1], "./init/buf_cGi1.bin");
+        load(pck.cG[2], "./init/buf_cGi2.bin");
+    }
+
     void step(cl::context& ctx, cl::command_queue& cqueue, float timestep)
     {
         cl_int4 cldim = {dim.x(), dim.y(), dim.z(), 0};
-        float c_at_max = 1;
+        float c_at_max = 30;
         float scale = c_at_max / dim.x();
+
+        auto kreiss = [&](int in, int inout)
+        {
+            std::vector<cl::buffer> linear_base;
+            std::vector<cl::buffer> linear_inout;
+
+            buffers[in].for_each([&](cl::buffer b)
+            {
+                linear_base.push_back(b);
+            });
+
+            buffers[inout].for_each([&](cl::buffer b)
+            {
+                linear_inout.push_back(b);
+            });
+
+            for(int i=0; i < (int)linear_base.size(); i++)
+            {
+                float eps = 0.25f;
+
+                cl::args args;
+                args.push_back(linear_base.at(i));
+                args.push_back(linear_inout.at(i));
+                args.push_back(timestep);
+                args.push_back(cldim);
+                args.push_back(scale);
+                args.push_back(eps);
+
+                cqueue.exec("kreiss_oliger", args, {dim.x() * dim.y() * dim.z()}, {128});
+            }
+        };
+
+        kreiss(0, 1);
+
+        std::swap(buffers[0], buffers[1]);
 
         auto substep = [&](int base_idx, int in_idx, int out_idx)
         {
@@ -260,37 +333,6 @@ struct mesh
         }
 
         ///now that we've finished, our result is in buffer[1]
-
-        {
-            std::vector<cl::buffer> linear_base;
-            std::vector<cl::buffer> linear_inout;
-
-            buffers[0].for_each([&](cl::buffer b)
-            {
-                linear_base.push_back(b);
-            });
-
-            buffers[1].for_each([&](cl::buffer b)
-            {
-                linear_inout.push_back(b);
-            });
-
-            for(int i=0; i < (int)linear_base.size(); i++)
-            {
-                float eps = 0.25f;
-
-                cl::args args;
-                args.push_back(linear_base.at(i));
-                args.push_back(linear_inout.at(i));
-                args.push_back(timestep);
-                args.push_back(cldim);
-                args.push_back(scale);
-                args.push_back(eps);
-
-                cqueue.exec("kreiss_oliger", args, {dim.x() * dim.y() * dim.z()}, {128});
-            }
-        }
-
         std::swap(buffers[1], buffers[0]);
     }
 };
@@ -347,11 +389,12 @@ int main()
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
-    t3i dim = {128, 128, 128};
+    t3i dim = {255, 255, 255};
 
     mesh m(ctx, dim);
     m.allocate(ctx);
     m.init(cqueue);
+    m.load_from(cqueue);
 
     texture_settings tsett;
     tsett.width = 1280;
@@ -370,7 +413,8 @@ int main()
     printf("Start\n");
 
     float elapsed_t = 0;
-    float timestep = 0.002f;
+    //float timestep = 0.001f;
+    float timestep = 0.035;
 
     while(!win.should_close())
     {
@@ -389,7 +433,7 @@ int main()
 
         {
             cl_int4 cldim = {dim.x(), dim.y(), dim.z(), 0};
-            float c_at_max = 1;
+            float c_at_max = 30;
             float scale = c_at_max / dim.x();
 
             cl::args args;
