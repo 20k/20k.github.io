@@ -1287,12 +1287,6 @@ std::string make_initial_conditions()
         metric<valuef, 3, 3> cY = W*W * Yij;
         valuef K = trace(Kij, Yij.invert());
 
-        inverse_metric<valuef, 3, 3> icY = cY.invert();
-
-        ///Kij = (1/X) * (cAij + 1/3 Yij K)
-        ///X Kij = cAij + 1/3 Yij K
-        ///X Kij - 1/3 Yij K = cAij
-
         tensor<valuef, 3, 3> cA = W*W * (Kij - (1.f/3.f) * Yij.to_tensor() * K);
 
         tensor<int, 2> index_table[6] = {{0, 0}, {0, 1}, {0, 2}, {1, 1}, {1, 2}, {2, 2}};
@@ -1314,18 +1308,6 @@ std::string make_initial_conditions()
         as_ref(to_fill.gA[lid]) = gA;
         as_ref(to_fill.W[lid]) = W;
         as_ref(to_fill.K[lid]) = K;
-
-        /*value_base se;
-        se.type = value_impl::op::SIDE_EFFECT;
-        se.abstract_value = "printf(\"%.16f %f\\n\"," + value_to_string(Kij[0, 0]) + "," + value_to_string(Kij[0, 1]) + ")";
-
-        value_impl::get_context().add(se);*/
-
-        std::cout << value_impl::value_to_string(Kij[0, 0]) << std::endl;
-        std::cout << value_impl::value_to_string(Kij[0, 1]) << std::endl;
-        std::cout << value_impl::value_to_string(Kij[0, 2]) << std::endl;
-        std::cout << value_impl::value_to_string(Kij[1, 2]) << std::endl;
-        std::cout << value_impl::value_to_string(Kij[2, 2]) << std::endl;
     };
 
     return value_impl::make_function(init, "init");
