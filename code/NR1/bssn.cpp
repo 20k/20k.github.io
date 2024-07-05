@@ -885,9 +885,9 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
             dmbm += diff1(args.gB[m], m, scale);
         }
 
-        float sigma = 0.25f;
+        float sigma = 0.5f;
 
-        ret.dtcG += sigma * Gi * dmbm;
+        ret.dtcG += -sigma * Gi * dmbm;
         #endif // STABILITY_SIGMA
     }
 
@@ -1112,9 +1112,15 @@ std::string make_initial_conditions()
 
         v3f wpos = (fpos - fcentre) * scale.get();
 
+        /*value_base se;
+        se.type = value_impl::op::SIDE_EFFECT;
+        se.abstract_value = "printf(\"w %.16f\\n\"," + value_to_string(wpos.x()) + ")";
+
+        value_impl::get_context().add(se);*/
+
         auto get_Guv = []<typename T>(const tensor<T, 4>& position)
         {
-            float A = 0.1f;
+            float A = 0.001f;
             float d = 1;
 
             auto H = A * sin(2 * std::numbers::pi_v<float> * (position.y() - position.x()) / d);
@@ -1365,7 +1371,7 @@ std::string init_debugging()
 
         v3i pos = {x, y, z};
 
-        if_e(z != valuei(128), [&] {
+        if_e(z != valuei(dim.z()/2), [&] {
             return_e();
         });
 
@@ -1375,7 +1381,17 @@ std::string init_debugging()
 
         value_impl::get_context().add(se);*/
 
-        v4f col = {fabs((((to_fill.cY[3][lid]) - 1) / 0.1) / 2) + 0.5f, 0.f, 0.f, 1.f};
+        /*value_base se;
+        se.type = value_impl::op::SIDE_EFFECT;
+        se.abstract_value = "printf(\"w %.16f %i\\n\"," + value_to_string(to_fill.cY[3][lid]) + "," + value_to_string(x) + ")";
+
+        value_impl::get_context().add(se);*/
+
+        valuef test_val = to_fill.cY[3][lid];
+
+        valuef display = ((test_val - 1) / 0.001f) * 0.5f + 0.5f;
+
+        v4f col = {display, 0.f, 0.f, 1.f};
 
         col = clamp(col, valuef(0.f), valuef(1.f));
 

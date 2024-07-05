@@ -269,7 +269,7 @@ int main()
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
-    t3i dim = {256, 256, 256};
+    t3i dim = {128, 128, 128};
 
     mesh m(ctx, dim);
     m.allocate(ctx);
@@ -300,8 +300,10 @@ int main()
 
         ImGui::End();
 
+        steady_timer t;
+
         rtex.acquire(cqueue);
-        m.step(ctx, cqueue, 0.001f);
+        m.step(ctx, cqueue, 0.002f);
 
         {
             cl_int4 cldim = {dim.x(), dim.y(), dim.z(), 0};
@@ -324,9 +326,6 @@ int main()
         ImGui::GetBackgroundDrawList()->AddImage((void*)tex.handle, ImVec2(0,0), ImVec2(1280,720));
 
         win.display();
-
-        steady_timer t;
-
 
         std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
     }
