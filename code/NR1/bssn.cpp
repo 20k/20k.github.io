@@ -601,7 +601,7 @@ tensor<valuef, 3, 3> calculate_W2_mult_Rij(bssn_args& args, valuef scale)
 
 float get_algebraic_damping_factor()
 {
-    return 0.0001f;
+    return 3.f;
 }
 
 time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)

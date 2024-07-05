@@ -292,7 +292,7 @@ int main()
     printf("Start\n");
 
     float elapsed_t = 0;
-    float timestep = 0.0005f;
+    float timestep = 0.002f;
 
     while(!win.should_close())
     {
