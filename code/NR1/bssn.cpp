@@ -413,6 +413,58 @@ struct bssn_derivatives
     }
 };
 
+tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const valuef& scale)
+{
+    valuef X = args.W*args.W;
+
+    tensor<valuef, 3> dW;
+
+    for(int i=0; i < 3; i++)
+        dW[i] = diff1(args.W, i, scale);
+
+    tensor<valuef, 3> dX = 2 * args.W * dW;
+
+    ///https://arxiv.org/pdf/1205.5111v1.pdf (54)
+    tensor<valuef, 3, 3> aij_raised = raise_index(args.cA, args.cY.invert(), 1);
+
+    tensor<valuef, 3> dPhi = -dX / (4 * max(X, valuef(0.0001f)));
+
+    tensor<valuef, 3> Mi;
+
+    for(int i=0; i < 3; i++)
+    {
+        valuef s1 = 0;
+
+        for(int j=0; j < 3; j++)
+        {
+            s1 += diff1(aij_raised[i, j], j, scale);
+        }
+
+        valuef s2 = 0;
+
+        for(int j=0; j < 3; j++)
+        {
+            for(int k=0; k < 3; k++)
+            {
+                s2 += -0.5f * args.cY.invert()[j, k] * diff1(args.cA[j, k], i, scale);
+            }
+        }
+
+        valuef s3 = 0;
+
+        for(int j=0; j < 3; j++)
+        {
+            s3 += 6 * dPhi[j] * aij_raised[i, j];
+        }
+
+        valuef p4 = -(2.f/3.f) * diff1(args.K, i, scale);
+
+        Mi[i] = s1 + s2 + s3 + p4;
+    }
+
+    return Mi;
+}
+
 std::string make_derivatives()
 {
     auto differentiate = [&](execution_context&, buffer<valuef> in, std::array<buffer_mut<valuef>, 3> out, literal<v3i> ldim, literal<valuef> scale)
