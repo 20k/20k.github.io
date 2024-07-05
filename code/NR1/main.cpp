@@ -76,6 +76,7 @@ struct mesh
     t3i dim;
 
     std::vector<cl::buffer> derivatives;
+    std::vector<cl::buffer> momentum_constraint;
 
     mesh(cl::context& ctx, t3i _dim) : buffers{ctx, ctx, ctx}
     {
@@ -87,6 +88,14 @@ struct mesh
         for(int i=0; i < 3; i++)
         {
             buffers[i].allocate(dim);
+        }
+
+        for(int i=0; i < 3; i++)
+        {
+            cl::buffer buf(ctx);
+            buf.alloc(sizeof(cl_float) * int64_t{dim.x()} * dim.y() * dim.z());
+
+            momentum_constraint.push_back(buf);
         }
 
         for(int i=0; i < 11 * 3; i++)
@@ -184,12 +193,28 @@ struct mesh
                 }
             }
 
+            {
+                cl::args args;
+                buffers[in_idx].append_to(args);
+
+                for(auto& i : momentum_constraint)
+                    args.push_back(i);
+
+                args.push_back(cldim);
+                args.push_back(scale);
+
+                cqueue.exec("momentum_constraint", args, {dim.x() * dim.y() * dim.z()}, {128});
+            }
+
             cl::args args;
             buffers[base_idx].append_to(args);
             buffers[in_idx].append_to(args);
             buffers[out_idx].append_to(args);
 
             for(auto& i : derivatives)
+                args.push_back(i);
+
+            for(auto& i : momentum_constraint)
                 args.push_back(i);
 
             args.push_back(timestep);
@@ -253,6 +278,7 @@ int main()
         make_and_register(make_initial_conditions());
         make_and_register(init_christoffel());
         make_and_register(init_debugging());
+        make_and_register(make_momentum_constraint());
     }
 
     cl::command_queue& cqueue = win.clctx->cqueue;

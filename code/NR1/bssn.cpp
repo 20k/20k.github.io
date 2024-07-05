@@ -280,6 +280,31 @@ tensor<T, N, N> trace_free(const tensor<T, N, N>& mT, const metric<T, N, N>& met
 
     return TF;
 }
+///https://en.wikipedia.org/wiki/Covariant_derivative#Covariant_derivative_by_field_type
+///for the tensor DcDa, this returns idx(a, c)
+template<typename T, int N>
+inline
+tensor<T, N, N> covariant_derivative_low_vec(const tensor<T, N>& v_in, const tensor<T, N, N, N>& christoff2, const valuef& scale)
+{
+    tensor<T, N, N> lac;
+
+    for(int a=0; a < N; a++)
+    {
+        for(int c=0; c < N; c++)
+        {
+            T sum = 0;
+
+            for(int b=0; b < N; b++)
+            {
+                sum += christoff2[b, c, a] * v_in[b];
+            }
+
+            lac[a, c] = diff1(v_in[a], c, scale) - sum;
+        }
+    }
+
+    return lac;
+}
 
 ///thoughts: its a lot easier to get my hands on equations with X
 ///but W^2 is clearly a better choice
@@ -665,7 +690,7 @@ float get_algebraic_damping_factor()
     return 3.f;
 }
 
-time_derivatives get_evolution_variables(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
+time_derivatives get_evolution_variables(bssn_args& args, bssn_derivatives& derivs, v3f momentum_constraint, const valuef& scale)
 {
     using namespace single_source;
 
@@ -826,6 +851,21 @@ time_derivatives get_evolution_variables(bssn_args& args, bssn_derivatives& deri
         }
 
         ret.dtcA += -get_algebraic_damping_factor() * args.gA * args.cY.to_tensor() * trace(args.cA, icY);
+
+        #define MOMENTUM_CONSTRAINT_DAMPING
+        #ifdef MOMENTUM_CONSTRAINT_DAMPING
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                float Ka = 0.001f;
+
+                ret.dtcA[i, j] += Ka * args.gA * 0.5f *
+                                  (covariant_derivative_low_vec(momentum_constraint, christoff2, scale)[i, j]
+                                 + covariant_derivative_low_vec(momentum_constraint, christoff2, scale)[j, i]);
+            }
+        }
+        #endif
     }
 
     ///dtcG
@@ -1060,6 +1100,47 @@ valuef apply_evolution(const valuef& base, const valuef& dt, valuef timestep)
     return base + dt * timestep;
 }
 
+std::string make_momentum_constraint()
+{
+    auto cst = [&](execution_context&, bssn_args_mem<buffer<valuef>> in,
+                                       std::array<buffer_mut<valuef>, 3> momentum_constraint,
+                                       literal<v3i> ldim,
+                                       literal<valuef> scale) {
+        using namespace single_source;
+
+        valuei lid = value_impl::get_global_id(0);
+
+        pin(lid);
+
+        v3i dim = ldim.get();
+
+        if_e(lid >= dim.x() * dim.y() * dim.z(), [&] {
+            return_e();
+        });
+
+        valuei x = lid % dim.x();
+        valuei y = (lid / dim.x()) % dim.y();
+        valuei z = lid / (dim.x() * dim.y());
+
+        pin(x);
+        pin(y);
+        pin(z);
+
+        v3i pos = {x, y, z};
+
+        bssn_args args(pos, dim, in);
+
+        auto Mi = calculate_momentum_constraint(args, scale.get());
+
+        for(int i=0; i < 3; i++)
+        {
+            as_ref(momentum_constraint[i][lid]) = Mi[i];
+        }
+    };
+
+    return value_impl::make_function(cst, "momentum_constraint");
+}
+
 ///https://arxiv.org/pdf/0709.3559 tested, appendix a.2
 std::string make_bssn()
 {
@@ -1067,6 +1148,7 @@ std::string make_bssn()
                                                  bssn_args_mem<buffer<valuef>> in,
                                                  bssn_args_mem<buffer_mut<valuef>> out,
                                                  bssn_derivatives_mem<buffer<derivative_t>> derivatives,
+                                                 std::array<buffer_mut<valuef>, 3> momentum_constraint,
                                                  literal<valuef> timestep,
                                                  literal<v3i> ldim,
                                                  literal<valuef> scale) {
@@ -1092,12 +1174,17 @@ std::string make_bssn()
 
         v3i pos = {x, y, z};
 
-        valuei linear_index = pos.z() * dim.y() * dim.x() + pos.y() * dim.x() + pos.x();
-
         bssn_args args(pos, dim, in);
         bssn_derivatives derivs(pos, dim, derivatives);
 
-        time_derivatives in_time = get_evolution_variables(args, derivs, scale.get());
+        tensor<valuef, 3> Mi;
+
+        for(int i=0; i < 3; i++)
+        {
+            Mi[i] = momentum_constraint[i][pos, dim];
+        }
+
+        time_derivatives in_time = get_evolution_variables(args, derivs, Mi, scale.get());
 
         /*pin(in_time.dtcA);
         pin(in_time.dtW);
@@ -1113,28 +1200,28 @@ std::string make_bssn()
         {
             tensor<int, 2> idx = index_table[i];
 
-            as_ref(out.cA[i][linear_index]) = apply_evolution(base.cA[i][linear_index], in_time.dtcA[idx.x(), idx.y()], timestep.get());
+            as_ref(out.cA[i][lid]) = apply_evolution(base.cA[i][lid], in_time.dtcA[idx.x(), idx.y()], timestep.get());
         }
 
-        as_ref(out.W[linear_index]) = apply_evolution(base.W[linear_index], in_time.dtW, timestep.get());
-        as_ref(out.K[linear_index]) = apply_evolution(base.K[linear_index], in_time.dtK, timestep.get());
-        as_ref(out.gA[linear_index]) = apply_evolution(base.gA[linear_index], in_time.dtgA, timestep.get());
+        as_ref(out.W[lid]) = apply_evolution(base.W[lid], in_time.dtW, timestep.get());
+        as_ref(out.K[lid]) = apply_evolution(base.K[lid], in_time.dtK, timestep.get());
+        as_ref(out.gA[lid]) = apply_evolution(base.gA[lid], in_time.dtgA, timestep.get());
 
         for(int i=0; i < 3; i++)
         {
-            as_ref(out.gB[i][linear_index]) = apply_evolution(base.gB[i][linear_index], in_time.dtgB[i], timestep.get());
+            as_ref(out.gB[i][lid]) = apply_evolution(base.gB[i][lid], in_time.dtgB[i], timestep.get());
         }
 
         for(int i=0; i < 6; i++)
         {
             tensor<int, 2> idx = index_table[i];
 
-            as_ref(out.cY[i][linear_index]) = apply_evolution(base.cY[i][linear_index], in_time.dtcY[idx.x(), idx.y()], timestep.get());
+            as_ref(out.cY[i][lid]) = apply_evolution(base.cY[i][lid], in_time.dtcY[idx.x(), idx.y()], timestep.get());
         }
 
         for(int i=0; i < 3; i++)
         {
-            as_ref(out.cG[i][linear_index]) = apply_evolution(base.cG[i][linear_index], in_time.dtcG[i], timestep.get());
+            as_ref(out.cG[i][lid]) = apply_evolution(base.cG[i][lid], in_time.dtcG[i], timestep.get());
         }
 
     };
