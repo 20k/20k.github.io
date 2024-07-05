@@ -275,7 +275,7 @@ namespace value_impl
 
             for(int i=0; i < (int)args.size(); i++)
             {
-                func(args[i]);
+                args[i].recurse(std::forward<T>(func));
             }
         }
 

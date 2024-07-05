@@ -56,6 +56,8 @@ struct differentiation_context
             ///assign to the original element, ie x
             vars[i] = in;
 
+            std::cout << "Pre " << value_to_string(in) << std::endl;
+
             vars[i].recurse([&i, &offx, &offy, &offz](value_base& v)
             {
                 if(v.type == value_impl::op::BRACKET)
@@ -78,6 +80,8 @@ struct differentiation_context
                         value_base next_y = old_y + valuei(offy[i]);
                         value_base next_z = old_z + valuei(offz[i]);
 
+                        std::cout << "Old " << value_to_string(old_x) << " dx " << value_to_string(dx) << std::endl;
+
                         #define PERIODIC_BOUNDARY
                         #ifdef PERIODIC_BOUNDARY
                         next_x = positive_mod(next_x, dx);
@@ -96,6 +100,8 @@ struct differentiation_context
                     v = get_substitution(v);
                 }
             });
+
+            std::cout << "post " << value_to_string(vars[i]) << std::endl;
         }
     }
 };
@@ -330,6 +336,8 @@ struct bssn_derivatives_mem : value_impl::single_source::argument_pack
 
 struct bssn_args
 {
+    v3i pos;
+
     metric<valuef, 3, 3> cY;
     tensor<valuef, 3, 3> cA;
     valuef K;
@@ -346,9 +354,11 @@ struct bssn_args
     tensor<derivative_t, 3, 3> dgB;
     tensor<derivative_t, 3> dW;
 
-    bssn_args(v3i pos, v3i dim,
+    bssn_args(v3i _pos, v3i dim,
               bssn_args_mem<buffer<valuef>>& in, bssn_derivatives_mem<buffer<derivative_t>>& derivatives)
     {
+        pos = _pos;
+
         int index_table[3][3] = {{0, 1, 2},
                                  {1, 3, 4},
                                  {2, 4, 5}};
@@ -591,7 +601,7 @@ tensor<valuef, 3, 3> calculate_W2_mult_Rij(bssn_args& args, valuef scale)
 
 float get_algebraic_damping_factor()
 {
-    return 3.f;
+    return 0.0001f;
 }
 
 time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
@@ -664,7 +674,7 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
                 }
             }
 
-            valuef v3 = 0.5f * iX * args.cY[i, j] * sum;
+            valuef v3 = -0.5f * iX * args.cY[i, j] * sum;
 
             DiDja[i, j] = v1 + v2 + v3;
         }
@@ -876,6 +886,22 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
             calculated_cG[i] = sum;
         }
 
+        std::cout << "HELLO " << std::endl;
+
+        tensor<valuef, 3> cG2;
+
+        for(int i=0; i < 3; i++)
+        {
+            valuef sum = 0;
+
+            for(int j=0; j < 3; j++)
+            {
+                sum += diff1(args.cY.invert()[i, j], j, scale);
+            }
+
+            cG2[i] = -sum;
+        }
+
         tensor<valuef, 3> Gi = args.cG - calculated_cG;
 
         valuef dmbm = 0;
@@ -885,9 +911,17 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
             dmbm += diff1(args.gB[m], m, scale);
         }
 
-        float sigma = 0.5f;
+        float sigma = 0.1f;
 
         ret.dtcG += -sigma * Gi * dmbm;
+
+        if_e(args.pos.x() == 64 && args.pos.y() == 64 && args.pos.z() == 64, [&]{
+            value_base se;
+            se.type = value_impl::op::SIDE_EFFECT;
+            se.abstract_value = "printf(\"w %.16f %.16f\\n\"," + value_to_string(Gi[0]) + "," + value_to_string(calculated_cG[0] - cG2[0]) + ")";
+
+            value_impl::get_context().add(se);
+        });
         #endif // STABILITY_SIGMA
     }
 
@@ -896,13 +930,13 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
     #define GAMMA_DRIVER
     #endif // BLACK_HOLE_GAUGE
 
-    //#define WAVE_TEST
+    #define WAVE_TEST
     #ifdef WAVE_TEST
     #define HARMONIC_SLICING
     #define ZERO_SHIFT
     #endif // WAVE_TEST
 
-    #define WAVE_TEST2
+    //#define WAVE_TEST2
     #ifdef WAVE_TEST2
     #define ONE_LAPSE
     #define ZERO_SHIFT
@@ -1120,16 +1154,16 @@ std::string make_initial_conditions()
 
         auto get_Guv = []<typename T>(const tensor<T, 4>& position)
         {
-            float A = 0.001f;
+            float A = 0.5f;
             float d = 1;
 
             auto H = A * sin(2 * std::numbers::pi_v<float> * (position.y() - position.x()) / d);
 
             metric<T, 4, 4> m;
-            m[0, 0] = -1;
-            m[1, 1] = 1;
-            m[2, 2] = (1 + H);
-            m[3, 3] = 1 - H;
+            m[0, 0] = -1 * (1 - H);
+            m[1, 1] = (1 - H);
+            m[2, 2] = 1;
+            m[3, 3] = 1;
 
             return m;
         };
@@ -1241,7 +1275,6 @@ std::string make_initial_conditions()
             }
         }
 
-
         valuef W = pow(Yij.det(), -1/6.f);
         metric<valuef, 3, 3> cY = W*W * Yij;
         valuef K = trace(Kij, Yij.invert());
@@ -1252,7 +1285,7 @@ std::string make_initial_conditions()
         ///X Kij = cAij + 1/3 Yij K
         ///X Kij - 1/3 Yij K = cAij
 
-        tensor<valuef, 3, 3> cA = W*W * Kij - (1.f/3.f) * cY.to_tensor() * K;
+        tensor<valuef, 3, 3> cA = W*W * (Kij - (1.f/3.f) * Yij.to_tensor() * K);
 
         tensor<int, 2> index_table[6] = {{0, 0}, {0, 1}, {0, 2}, {1, 1}, {1, 2}, {2, 2}};
 
@@ -1273,6 +1306,18 @@ std::string make_initial_conditions()
         as_ref(to_fill.gA[lid]) = gA;
         as_ref(to_fill.W[lid]) = W;
         as_ref(to_fill.K[lid]) = K;
+
+        /*value_base se;
+        se.type = value_impl::op::SIDE_EFFECT;
+        se.abstract_value = "printf(\"%.16f %f\\n\"," + value_to_string(Kij[0, 0]) + "," + value_to_string(Kij[0, 1]) + ")";
+
+        value_impl::get_context().add(se);*/
+
+        std::cout << value_impl::value_to_string(Kij[0, 0]) << std::endl;
+        std::cout << value_impl::value_to_string(Kij[0, 1]) << std::endl;
+        std::cout << value_impl::value_to_string(Kij[0, 2]) << std::endl;
+        std::cout << value_impl::value_to_string(Kij[1, 2]) << std::endl;
+        std::cout << value_impl::value_to_string(Kij[2, 2]) << std::endl;
     };
 
     return value_impl::make_function(init, "init");
@@ -1317,7 +1362,7 @@ std::string init_christoffel()
 
         auto icY = cY.invert();
 
-        tensor<valuef, 3> cG;
+        /*tensor<valuef, 3> cG;
 
         for(int i=0; i < 3; i++)
         {
@@ -1329,6 +1374,39 @@ std::string init_christoffel()
             }
 
             cG[i] = -sum;
+        }*/
+
+
+        tensor<valuef, 3, 3, 3> dcY;
+
+        for(int k=0; k < 3; k++)
+        {
+            for(int i=0; i < 3; i++)
+            {
+                for(int j=0; j < 3; j++)
+                {
+                    dcY[k, i, j] = diff1(cY[i, j], k, scale.get());
+                }
+            }
+        }
+
+        auto christoff2 = christoffel_symbols_2(icY, dcY);
+
+        tensor<valuef, 3> calculated_cG;
+
+        for(int i=0; i < 3; i++)
+        {
+            valuef sum = 0;
+
+            for(int m=0; m < 3; m++)
+            {
+                for(int n=0; n < 3; n++)
+                {
+                    sum += icY[m, n] * christoff2[i, m, n];
+                }
+            }
+
+            calculated_cG[i] = sum;
         }
 
         /*value_base se;
@@ -1339,7 +1417,7 @@ std::string init_christoffel()
 
         for(int i=0; i < 3; i++)
         {
-            as_ref(to_fill.cG[i][lid]) = cG[i];
+            as_ref(to_fill.cG[i][lid]) = calculated_cG[i];
         }
      };
 
@@ -1387,9 +1465,9 @@ std::string init_debugging()
 
         value_impl::get_context().add(se);*/
 
-        valuef test_val = to_fill.cY[3][lid];
+        valuef test_val = to_fill.cY[0][lid];
 
-        valuef display = ((test_val - 1) / 0.001f) * 0.5f + 0.5f;
+        valuef display = ((test_val - 1) / 0.5f) * 0.5f + 0.5f;
 
         v4f col = {display, 0.f, 0.f, 1.f};
 

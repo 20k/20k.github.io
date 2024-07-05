@@ -303,7 +303,7 @@ int main()
         steady_timer t;
 
         rtex.acquire(cqueue);
-        m.step(ctx, cqueue, 0.002f);
+        m.step(ctx, cqueue, 0.001f);
 
         {
             cl_int4 cldim = {dim.x(), dim.y(), dim.z(), 0};
