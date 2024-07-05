@@ -1348,32 +1348,19 @@ std::string init_christoffel()
 
         metric<valuef, 3, 3> cY;
 
-        cY[0, 0] = to_fill.cY[0][pos, dim];
-        cY[1, 0] = to_fill.cY[1][pos, dim];
-        cY[0, 1] = to_fill.cY[1][pos, dim];
-        cY[2, 0] = to_fill.cY[2][pos, dim];
-        cY[0, 2] = to_fill.cY[2][pos, dim];
-        cY[1, 1] = to_fill.cY[3][pos, dim];
-        cY[1, 2] = to_fill.cY[4][pos, dim];
-        cY[2, 1] = to_fill.cY[4][pos, dim];
-        cY[2, 2] = to_fill.cY[5][pos, dim];
-
-        auto icY = cY.invert();
-
-        /*tensor<valuef, 3> cG;
-
         for(int i=0; i < 3; i++)
         {
-            valuef sum = 0;
-
             for(int j=0; j < 3; j++)
             {
-                sum += diff1(icY[i, j], j, scale.get());
+                int index_table[3][3] = {{0, 1, 2},
+                                         {1, 3, 4},
+                                         {2, 4, 5}};
+
+                cY[i, j] = to_fill.cY[index_table[i][j]][pos, dim];
             }
+        }
 
-            cG[i] = -sum;
-        }*/
-
+        auto icY = cY.invert();
 
         tensor<valuef, 3, 3, 3> dcY;
 
