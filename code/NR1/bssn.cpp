@@ -347,15 +347,8 @@ struct bssn_args
     valuef gA;
     tensor<valuef, 3> gB;
 
-    ///diYjk
-    tensor<derivative_t, 3, 3, 3> dcY;
-    tensor<derivative_t, 3> dgA;
-    ///digBj
-    tensor<derivative_t, 3, 3> dgB;
-    tensor<derivative_t, 3> dW;
-
     bssn_args(v3i _pos, v3i dim,
-              bssn_args_mem<buffer<valuef>>& in, bssn_derivatives_mem<buffer<derivative_t>>& derivatives)
+              bssn_args_mem<buffer<valuef>>& in)
     {
         pos = _pos;
 
@@ -382,7 +375,23 @@ struct bssn_args
 
         for(int i=0; i < 3; i++)
             gB[i] = in.gB[i][pos, dim];
+    }
+};
 
+struct bssn_derivatives
+{
+    ///diYjk
+    tensor<derivative_t, 3, 3, 3> dcY;
+    tensor<derivative_t, 3> dgA;
+    ///digBj
+    tensor<derivative_t, 3, 3> dgB;
+    tensor<derivative_t, 3> dW;
+
+    bssn_derivatives(v3i pos, v3i dim, bssn_derivatives_mem<buffer<derivative_t>>& derivatives)
+    {
+        int index_table[3][3] = {{0, 1, 2},
+                                 {1, 3, 4},
+                                 {2, 4, 5}};
 
         for(int k=0; k < 3; k++)
         {
@@ -456,7 +465,7 @@ struct time_derivatives
     tensor<valuef, 3> dtgB;
 };
 
-tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, const valuef& scale)
+tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
 {
     using namespace single_source;
 
@@ -464,7 +473,7 @@ tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, const valuef& scale)
     pin(icY);
 
     auto christoff1 = christoffel_symbols_1(args.cY, scale);
-    auto christoff2 = christoffel_symbols_2(icY, args.dcY);
+    auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
 
     pin(christoff1);
     pin(christoff2);
@@ -481,7 +490,7 @@ tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, const valuef& scale)
             {
                 for(int m=0; m < 3; m++)
                 {
-                    s1 += -0.5f * icY[l, m] * diff2(args.cY[i, j], m, l, args.dcY[m, i, j], args.dcY[l, i, j], scale);
+                    s1 += -0.5f * icY[l, m] * diff2(args.cY[i, j], m, l, derivs.dcY[m, i, j], derivs.dcY[l, i, j], scale);
                 }
             }
 
@@ -534,14 +543,14 @@ tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, const valuef& scale)
 ///https://arxiv.org/pdf/1307.7391 (9)
 ///https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf 2.6
 ///this calculates the quantity W^2 * Rij
-tensor<valuef, 3, 3> calculate_W2_mult_Rij(bssn_args& args, valuef scale)
+tensor<valuef, 3, 3> calculate_W2_mult_Rij(bssn_args& args, bssn_derivatives& derivs, valuef scale)
 {
     using namespace single_source;
 
     auto icY = args.cY.invert();
     pin(icY);
 
-    auto christoff2 = christoffel_symbols_2(icY, args.dcY);
+    auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
 
     pin(christoff2);
 
@@ -551,7 +560,7 @@ tensor<valuef, 3, 3> calculate_W2_mult_Rij(bssn_args& args, valuef scale)
     {
         for(int j=0; j < 3; j++)
         {
-            didjW[i, j] = double_covariant_derivative(args.W, args.dW, christoff2, scale)[j, i];
+            didjW[i, j] = double_covariant_derivative(args.W, derivs.dW, christoff2, scale)[j, i];
         }
     }
 
@@ -584,7 +593,7 @@ tensor<valuef, 3, 3> calculate_W2_mult_Rij(bssn_args& args, valuef scale)
 
                 for(int l=0; l < 3; l++)
                 {
-                    sum += icY.raise(args.dW)[l] * args.dW[l];
+                    sum += icY.raise(derivs.dW)[l] * derivs.dW[l];
                 }
 
                 v3 = -2 * args.cY[i, j] * sum;
@@ -596,7 +605,7 @@ tensor<valuef, 3, 3> calculate_W2_mult_Rij(bssn_args& args, valuef scale)
 
     pin(w2Rphiij);
 
-    return w2Rphiij + calculate_cRij(args, scale) * args.W * args.W;
+    return w2Rphiij + calculate_cRij(args, derivs, scale) * args.W * args.W;
 }
 
 float get_algebraic_damping_factor()
@@ -604,7 +613,7 @@ float get_algebraic_damping_factor()
     return 3.f;
 }
 
-time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
+time_derivatives get_evolution_variables(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
 {
     using namespace single_source;
 
@@ -643,14 +652,14 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
         ret.dtW = (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw;
     }
 
-    tensor<valuef, 3, 3, 3> christoff2 = christoffel_symbols_2(icY, args.dcY);
+    tensor<valuef, 3, 3, 3> christoff2 = christoffel_symbols_2(icY, derivs.dcY);
 
     pin(christoff2);
 
     ///W^2 = X
     valuef X = args.W * args.W;
     ///2 dW W = dX
-    tensor<valuef, 3> dX = 2 * args.W * args.dW;
+    tensor<valuef, 3> dX = 2 * args.W * derivs.dW;
 
     value iX = 1/max(X, valuef(0.00001f));
 
@@ -660,7 +669,7 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
     {
         for(int j=0; j < 3; j++)
         {
-            valuef v1 = double_covariant_derivative(args.gA, args.dgA, christoff2, scale)[i, j];
+            valuef v1 = double_covariant_derivative(args.gA, derivs.dgA, christoff2, scale)[i, j];
 
             valuef v2 = 0.5f * iX * (dX[i] * diff1(args.gA, j, scale) + dX[j] * diff1(args.gA, i, scale));
 
@@ -733,7 +742,7 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
 
     ///dtcA
     {
-        tensor<valuef, 3, 3> with_trace = args.gA * calculate_W2_mult_Rij(args, scale) - X * DiDja;
+        tensor<valuef, 3, 3> with_trace = args.gA * calculate_W2_mult_Rij(args, derivs, scale) - X * DiDja;
 
         for(int i=0; i < 3; i++)
         {
@@ -805,7 +814,7 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
 
             for(int j=0; j < 3; j++)
             {
-                s3 += icAij[i, j] * 2 * args.dW[j];
+                s3 += icAij[i, j] * 2 * derivs.dW[j];
             }
 
             s3 = 2 * (-1.f/4.f) * args.gA / max(args.W, valuef(0.0001f)) * 6 * s3;
@@ -830,7 +839,7 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
 
             for(int j=0; j < 3; j++)
             {
-                s6 += -args.cG[j] * args.dgB[j, i];
+                s6 += -args.cG[j] * derivs.dgB[j, i];
             }
 
             valuef s7 = 0;
@@ -839,7 +848,7 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
             {
                 for(int k=0; k < 3; k++)
                 {
-                    s7 += icY.idx(j, k) * diff2(args.gB[i], k, j, args.dgB[k, i], args.dgB[j, i], scale);
+                    s7 += icY.idx(j, k) * diff2(args.gB[i], k, j, derivs.dgB[k, i], derivs.dgB[j, i], scale);
                 }
             }
 
@@ -849,7 +858,7 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
             {
                 for(int k=0; k < 3; k++)
                 {
-                    s8 += icY[i, j] * diff2(args.gB[k], k, j, args.dgB[k, k], args.dgB[j, k], scale);
+                    s8 += icY[i, j] * diff2(args.gB[k], k, j, derivs.dgB[k, k], derivs.dgB[j, k], scale);
                 }
             }
 
@@ -859,7 +868,7 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
 
             for(int k=0; k < 3; k++)
             {
-                s9 += args.dgB[k, k];
+                s9 += derivs.dgB[k, k];
             }
 
             s9 = (2.f/3.f) * s9 * args.cG[i];
@@ -1033,9 +1042,10 @@ std::string make_bssn()
 
         valuei linear_index = pos.z() * dim.y() * dim.x() + pos.y() * dim.x() + pos.x();
 
-        bssn_args args(pos, dim, in, derivatives);
+        bssn_args args(pos, dim, in);
+        bssn_derivatives derivs(pos, dim, derivatives);
 
-        time_derivatives in_time = get_evolution_variables(args, scale.get());
+        time_derivatives in_time = get_evolution_variables(args, derivs, scale.get());
 
         /*pin(in_time.dtcA);
         pin(in_time.dtW);
