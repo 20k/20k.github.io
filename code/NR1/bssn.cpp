@@ -1595,6 +1595,71 @@ std::string init_debugging()
     return value_impl::make_function(dbg, "debug");
 }
 
+valuef diff6th(valuef in, int idx, valuef scale)
+{
+    differentiation_context<valuef, 7> dctx(in, idx);
+    auto vars = dctx.vars;
+
+    valuef p1 = vars[0] + vars[6];
+    valuef p2 = -6 * (vars[1] + vars[5]);
+    valuef p3 = 15 * (vars[2] + vars[4]);
+    valuef p4 = -20 * vars[3];
+
+    return (p1 + p2 + p3 + p4);
+}
+
+valuef kreiss_oliger_interior(valuef in, valuef scale)
+{
+    valuef val = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        val += diff6th(in, i, scale);
+    }
+
+    int n = 6;
+    float p = n - 1;
+
+    int sign = pow(-1, (p + 3)/2);
+
+    int divisor = pow(2, p+1);
+
+    float prefix = (float)sign / divisor;
+
+    return (prefix / scale) * val;
+}
+
+std::string make_kreiss_oliger()
+{
+     auto func = [&](execution_context&, buffer<valuef> in, buffer_mut<valuef> out, literal<valuef> timestep, literal<v3i> ldim, literal<valuef> scale, literal<valuef> eps) {
+        using namespace single_source;
+
+        valuei lid = value_impl::get_global_id(0);
+
+        pin(lid);
+
+        v3i dim = ldim.get();
+
+        if_e(lid >= dim.x() * dim.y() * dim.z(), [&] {
+            return_e();
+        });
+
+        valuei x = lid % dim.x();
+        valuei y = (lid / dim.x()) % dim.y();
+        valuei z = lid / (dim.x() * dim.y());
+
+        pin(x);
+        pin(y);
+        pin(z);
+
+        v3i pos = {x, y, z};
+
+        as_ref(out[lid]) = declare_e(out[lid]) + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get());
+     };
+
+     return value_impl::make_function(func, "kreiss_oliger");
+}
+
 /*
 ///https://hal.archives-ouvertes.fr/hal-00569776/document this paper implies you simply sum the directions
 ///https://en.wikipedia.org/wiki/Finite_difference_coefficient according to wikipedia, this is the 6th derivative with 2nd order accuracy. I am confused, but at least I know where it came from

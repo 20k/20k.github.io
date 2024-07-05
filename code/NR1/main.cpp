@@ -49,6 +49,27 @@ struct bssn_buffer_pack
         gA.alloc(sizeof(cl_float) * linear_size);
     }
 
+    template<typename T>
+    void for_each(T&& func)
+    {
+        for(auto& i : cY)
+            func(i);
+
+        for(auto& i : cA)
+            func(i);
+
+        func(K);
+        func(W);
+
+        for(auto& i : cG)
+            func(i);
+
+        func(gA);
+
+        for(auto& i : gB)
+            func(i);
+    }
+
     void append_to(cl::args& args)
     {
         for(auto& i : cY)
@@ -238,7 +259,37 @@ struct mesh
                 std::swap(buffers[1], buffers[2]);
         }
 
-        ///now that we've finished, our result is in buffer[2]
+        ///now that we've finished, our result is in buffer[1]
+
+        {
+            std::vector<cl::buffer> linear_base;
+            std::vector<cl::buffer> linear_inout;
+
+            buffers[0].for_each([&](cl::buffer b)
+            {
+                linear_base.push_back(b);
+            });
+
+            buffers[1].for_each([&](cl::buffer b)
+            {
+                linear_inout.push_back(b);
+            });
+
+            for(int i=0; i < (int)linear_base.size(); i++)
+            {
+                float eps = 0.25f;
+
+                cl::args args;
+                args.push_back(linear_base.at(i));
+                args.push_back(linear_inout.at(i));
+                args.push_back(timestep);
+                args.push_back(cldim);
+                args.push_back(scale);
+                args.push_back(eps);
+
+                cqueue.exec("kreiss_oliger", args, {dim.x() * dim.y() * dim.z()}, {128});
+            }
+        }
 
         std::swap(buffers[1], buffers[0]);
     }
@@ -279,6 +330,7 @@ int main()
         make_and_register(init_christoffel());
         make_and_register(init_debugging());
         make_and_register(make_momentum_constraint());
+        make_and_register(make_kreiss_oliger());
     }
 
     cl::command_queue& cqueue = win.clctx->cqueue;

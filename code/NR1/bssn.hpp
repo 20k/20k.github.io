@@ -9,5 +9,6 @@ std::string make_initial_conditions();
 std::string init_christoffel();
 std::string init_debugging();
 std::string make_momentum_constraint();
+std::string make_kreiss_oliger();
 
 #endif // BSSN_HPP_INCLUDED
