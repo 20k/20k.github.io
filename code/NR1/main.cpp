@@ -291,19 +291,23 @@ int main()
 
     printf("Start\n");
 
+    float elapsed_t = 0;
+    float timestep = 0.0005f;
+
     while(!win.should_close())
-    //for(int i=0; i < 10; i++)
     {
         win.poll();
 
         ImGui::Begin("Hi");
+
+        ImGui::Text("Elapsed %f", elapsed_t);
 
         ImGui::End();
 
         steady_timer t;
 
         rtex.acquire(cqueue);
-        m.step(ctx, cqueue, 0.001f);
+        m.step(ctx, cqueue, timestep);
 
         {
             cl_int4 cldim = {dim.x(), dim.y(), dim.z(), 0};
@@ -328,5 +332,7 @@ int main()
         win.display();
 
         std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
+
+        elapsed_t += timestep;
     }
 }

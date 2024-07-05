@@ -56,7 +56,7 @@ struct differentiation_context
             ///assign to the original element, ie x
             vars[i] = in;
 
-            std::cout << "Pre " << value_to_string(in) << std::endl;
+            //std::cout << "Pre " << value_to_string(in) << std::endl;
 
             vars[i].recurse([&i, &offx, &offy, &offz](value_base& v)
             {
@@ -80,7 +80,7 @@ struct differentiation_context
                         value_base next_y = old_y + valuei(offy[i]);
                         value_base next_z = old_z + valuei(offz[i]);
 
-                        std::cout << "Old " << value_to_string(old_x) << " dx " << value_to_string(dx) << std::endl;
+                        //std::cout << "Old " << value_to_string(old_x) << " dx " << value_to_string(dx) << std::endl;
 
                         #define PERIODIC_BOUNDARY
                         #ifdef PERIODIC_BOUNDARY
@@ -101,7 +101,7 @@ struct differentiation_context
                 }
             });
 
-            std::cout << "post " << value_to_string(vars[i]) << std::endl;
+            //std::cout << "post " << value_to_string(vars[i]) << std::endl;
         }
     }
 };
@@ -886,8 +886,6 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
             calculated_cG[i] = sum;
         }
 
-        std::cout << "HELLO " << std::endl;
-
         tensor<valuef, 3> cG2;
 
         for(int i=0; i < 3; i++)
@@ -915,13 +913,13 @@ time_derivatives get_evolution_variables(bssn_args& args, const valuef& scale)
 
         ret.dtcG += -sigma * Gi * dmbm;
 
-        if_e(args.pos.x() == 64 && args.pos.y() == 64 && args.pos.z() == 64, [&]{
+        /*if_e(args.pos.x() == 64 && args.pos.y() == 64 && args.pos.z() == 64, [&]{
             value_base se;
             se.type = value_impl::op::SIDE_EFFECT;
             se.abstract_value = "printf(\"w %.16f %.16f\\n\"," + value_to_string(Gi[0]) + "," + value_to_string(calculated_cG[0] - cG2[0]) + ")";
 
             value_impl::get_context().add(se);
-        });
+        });*/
         #endif // STABILITY_SIGMA
     }
 
