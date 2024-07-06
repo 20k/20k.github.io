@@ -991,7 +991,7 @@ tensor<valuef, 3, 3> calculate_DiDja(bssn_args& args, bssn_derivatives& derivs, 
                 }
             }
 
-            valuef v3 = -0.5f * iX * icY[i, j] * sum;
+            valuef v3 = -0.5f * iX * args.cY[i, j] * sum;
 
             DiDja[i, j] = v1 + v2 + v3;
         }
