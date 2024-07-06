@@ -714,11 +714,80 @@ float get_algebraic_damping_factor()
     return 1.f;
 }
 
-time_derivatives get_evolution_variables(bssn_args& args, bssn_derivatives& derivs, v3f momentum_constraint, const valuef& scale)
+#define BLACK_HOLE_GAUGE
+#ifdef BLACK_HOLE_GAUGE
+#define ONE_PLUS_LOG
+#define GAMMA_DRIVER
+#endif // BLACK_HOLE_GAUGE
+
+//#define WAVE_TEST
+#ifdef WAVE_TEST
+#define HARMONIC_SLICING
+#define ZERO_SHIFT
+#endif // WAVE_TEST
+
+//#define WAVE_TEST2
+#ifdef WAVE_TEST2
+#define ONE_LAPSE
+#define ZERO_SHIFT
+#endif
+
+valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, valuef scale)
+{
+    valuef bmdma = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        bmdma += args.gB[i] * diff1(args.gA, i, scale);
+    }
+
+    ///https://arxiv.org/pdf/gr-qc/0206072
+    #ifdef ONE_PLUS_LOG
+    return -2 * args.gA * args.K + bmdma;
+    #endif // ONE_PLUS_LOG
+
+    ///https://arxiv.org/pdf/2201.08857
+    #ifdef HARMONIC_SLICING
+    return -args.gA * args.gA * args.K + bmdma;
+    #endif // HARMONIC_SLICING
+
+    #ifdef ONE_LAPSE
+    return 0;
+    #endif // ONE_LAPSE
+}
+
+tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, valuef scale)
+{
+    ///https://arxiv.org/pdf/gr-qc/0605030 (26)
+    #ifdef GAMMA_DRIVER
+    tensor<valuef, 3> djbjbi;
+
+    for(int i=0; i < 3; i++)
+    {
+        valuef sum = 0;
+
+        for(int j=0; j < 3; j++)
+        {
+            sum += args.gB[j] * diff1(args.gB[i], j, scale);
+        }
+
+        djbjbi[i] = sum;
+    }
+
+    ///gauge damping parameter, commonly set to 2
+    float N = 2;
+
+    return (3/4.f) * args.cG + djbjbi - N * args.gB;
+    #endif // GAMMA_DRIVER
+
+    #ifdef ZERO_SHIFT
+    return {0,0,0};
+    #endif // ZERO_SHIFT
+}
+
+tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, valuef scale)
 {
     using namespace single_source;
-
-    time_derivatives ret;
 
     inverse_metric<valuef, 3, 3> icY = args.cY.invert();
     pin(icY);
@@ -746,14 +815,15 @@ time_derivatives get_evolution_variables(bssn_args& args, bssn_derivatives& deri
 
     tensor<valuef, 3> Gi = args.cG - calculated_cG;
 
+    tensor<valuef, 3, 3> dtcY;
 
     ///dtcY
     {
         ///https://arxiv.org/pdf/1307.7391 specifically for why the trace free aspect
         ///https://arxiv.org/pdf/1106.2254 also see here, after 25
-        ret.dtcY = lie_derivative_weight(args.gB, args.cY, scale) - 2 * args.gA * trace_free(args.cA, args.cY, icY);
+        dtcY = lie_derivative_weight(args.gB, args.cY, scale) - 2 * args.gA * trace_free(args.cA, args.cY, icY);
 
-        ret.dtcY += -get_algebraic_damping_factor() * args.gA * args.cY.to_tensor() * log(args.cY.det());
+        dtcY += -get_algebraic_damping_factor() * args.gA * args.cY.to_tensor() * log(args.cY.det());
 
         /*tensor<valuef, 3, 3> cD = covariant_derivative_low_vec(args.cY.lower(Gi), christoff2, scale);
 
@@ -769,7 +839,7 @@ time_derivatives get_evolution_variables(bssn_args& args, bssn_derivatives& deri
             }
         }*/
 
-        #if 1
+        #if 0
         tensor<valuef, 3, 3> d_cGi;
 
         for(int m=0; m < 3; m++)
@@ -853,32 +923,46 @@ time_derivatives get_evolution_variables(bssn_args& args, bssn_derivatives& deri
 
                 float cK = -0.055f;
 
-                ret.dtcY.idx(i, j) += cK * args.gA * sum;
+                dtcY.idx(i, j) += cK * args.gA * sum;
             }
         }
         #endif
     }
 
-    ///https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf 2.12 or
-    ///https://arxiv.org/pdf/0709.2160
-    ///dtW
+    return dtcY;
+}
+
+///https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf 2.12 or
+///https://arxiv.org/pdf/0709.2160
+valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
+{
+    valuef dibi = 0;
+
+    for(int i=0; i < 3; i++)
     {
-        valuef dibi = 0;
-
-        for(int i=0; i < 3; i++)
-        {
-            dibi += diff1(args.gB[i], i, scale);
-        }
-
-        valuef dibiw = 0;
-
-        for(int i=0; i < 3; i++)
-        {
-            dibiw += args.gB[i] * diff1(args.W, i, scale);
-        }
-
-        ret.dtW = (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw;
+        dibi += diff1(args.gB[i], i, scale);
     }
+
+    valuef dibiw = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        dibiw += args.gB[i] * diff1(args.W, i, scale);
+    }
+
+    return (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw;
+}
+
+tensor<valuef, 3, 3> calculate_DiDja(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
+{
+    using namespace single_source;
+
+    auto icY = args.cY.invert();
+    pin(icY);
+
+    auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
+
+    pin(christoff2);
 
     ///W^2 = X
     valuef X = args.W * args.W;
@@ -907,113 +991,183 @@ time_derivatives get_evolution_variables(bssn_args& args, bssn_derivatives& deri
                 }
             }
 
-            valuef v3 = -0.5f * iX * args.cY[i, j] * sum;
+            valuef v3 = -0.5f * iX * icY[i, j] * sum;
 
             DiDja[i, j] = v1 + v2 + v3;
         }
     }
 
+    return DiDja;
+}
+
+valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
+{
+    using namespace single_source;
+
+    auto icY = args.cY.invert();
+    pin(icY);
+
+    valuef X = args.W * args.W;
+
+    tensor<valuef, 3, 3> DiDja = calculate_DiDja(args, derivs, scale);
+
     pin(DiDja);
 
+    valuef v1 = 0;
+
+    for(int m=0; m < 3; m++)
     {
-        valuef v1 = 0;
+        v1 += args.gB[m] * diff1(args.K, m, scale);
+    }
+
+    valuef v2 = 0;
+
+    {
+        valuef sum = 0;
 
         for(int m=0; m < 3; m++)
         {
-            v1 += args.gB[m] * diff1(args.K, m, scale);
-        }
-
-        valuef v2 = 0;
-
-        {
-            valuef sum = 0;
-
-            for(int m=0; m < 3; m++)
+            for(int n=0; n < 3; n++)
             {
-                for(int n=0; n < 3; n++)
-                {
-                    sum += icY[m, n] * DiDja[m, n];
-                }
+                sum += icY[m, n] * DiDja[m, n];
             }
-
-            v2 = -X * sum;
         }
 
-        valuef v3 = 0;
-
-        {
-            valuef sum = 0;
-
-            tensor<valuef, 3, 3> AMN = icY.raise(icY.raise(args.cA, 0), 1);
-
-            pin(AMN);
-
-            for(int m=0; m < 3; m++)
-            {
-                for(int n=0; n < 3; n++)
-                {
-                    sum += AMN[m, n] * args.cA[m, n];
-                }
-            }
-
-            v3 += args.gA * sum;
-        }
-
-        valuef v4 = (1/3.f) * args.gA * args.K * args.K;
-
-        ret.dtK = v1 + v2 + v3 + v4;
+        v2 = -X * sum;
     }
 
-    ///dtcA
+    valuef v3 = 0;
+
     {
-        tensor<valuef, 3, 3> with_trace = args.gA * calculate_W2_mult_Rij(args, derivs, scale) - X * DiDja;
+        valuef sum = 0;
 
-        for(int i=0; i < 3; i++)
+        tensor<valuef, 3, 3> AMN = icY.raise(icY.raise(args.cA, 0), 1);
+
+        pin(AMN);
+
+        for(int m=0; m < 3; m++)
         {
-            for(int j=0; j < 3; j++)
+            for(int n=0; n < 3; n++)
             {
-                valuef v1 = lie_derivative_weight(args.gB, args.cA, scale)[i, j];
+                sum += AMN[m, n] * args.cA[m, n];
+            }
+        }
 
-                valuef v2 = args.gA * args.K * args.cA[i, j];
+        v3 += args.gA * sum;
+    }
 
-                valuef v3 = 0;
+    valuef v4 = (1/3.f) * args.gA * args.K * args.K;
 
+    return v1 + v2 + v3 + v4;
+}
+
+tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f momentum_constraint, const valuef& scale)
+{
+    using namespace single_source;
+
+    auto icY = args.cY.invert();
+    pin(icY);
+
+    valuef X = args.W * args.W;
+
+    auto DiDja = calculate_DiDja(args, derivs, scale);
+    pin(DiDja);
+
+    tensor<valuef, 3, 3> with_trace = args.gA * calculate_W2_mult_Rij(args, derivs, scale) - X * DiDja;
+
+    tensor<valuef, 3, 3> dtcA;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            valuef v1 = lie_derivative_weight(args.gB, args.cA, scale)[i, j];
+
+            valuef v2 = args.gA * args.K * args.cA[i, j];
+
+            valuef v3 = 0;
+
+            {
+                valuef sum = 0;
+
+                tensor<valuef, 3, 3> raised_Aij = icY.raise(args.cA, 0);
+
+                for(int m=0; m < 3; m++)
                 {
-                    valuef sum = 0;
-
-                    tensor<valuef, 3, 3> raised_Aij = icY.raise(args.cA, 0);
-
-                    for(int m=0; m < 3; m++)
-                    {
-                        sum += args.cA[i, m] * raised_Aij[m, j];
-                    }
-
-                    v3 = -2 * args.gA * sum;
+                    sum += args.cA[i, m] * raised_Aij[m, j];
                 }
 
-                valuef v4 = trace_free(with_trace, args.cY, icY)[i, j];
-
-                ret.dtcA[i, j] = v1 + v2 + v3 + v4;
+                v3 = -2 * args.gA * sum;
             }
+
+            valuef v4 = trace_free(with_trace, args.cY, icY)[i, j];
+
+            dtcA[i, j] = v1 + v2 + v3 + v4;
         }
-
-        ret.dtcA += -get_algebraic_damping_factor() * args.gA * args.cY.to_tensor() * trace(args.cA, icY);
-
-        #define MOMENTUM_CONSTRAINT_DAMPING
-        #ifdef MOMENTUM_CONSTRAINT_DAMPING
-        for(int i=0; i < 3; i++)
-        {
-            for(int j=0; j < 3; j++)
-            {
-                float Ka = 0.001f;
-
-                ret.dtcA[i, j] += Ka * args.gA * 0.5f *
-                                  (covariant_derivative_low_vec(momentum_constraint, christoff2, scale)[i, j]
-                                 + covariant_derivative_low_vec(momentum_constraint, christoff2, scale)[j, i]);
-            }
-        }
-        #endif
     }
+
+    dtcA += -get_algebraic_damping_factor() * args.gA * args.cY.to_tensor() * trace(args.cA, icY);
+
+    #define MOMENTUM_CONSTRAINT_DAMPING
+    #ifdef MOMENTUM_CONSTRAINT_DAMPING
+
+    auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
+    pin(christoff2);
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            float Ka = 0.001f;
+
+            dtcA[i, j] += Ka * args.gA * 0.5f *
+                              (covariant_derivative_low_vec(momentum_constraint, christoff2, scale)[i, j]
+                             + covariant_derivative_low_vec(momentum_constraint, christoff2, scale)[j, i]);
+        }
+    }
+    #endif
+
+    return dtcA;
+}
+
+tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
+{
+    using namespace single_source;
+
+    inverse_metric<valuef, 3, 3> icY = args.cY.invert();
+    pin(icY);
+
+    tensor<valuef, 3, 3, 3> christoff2 = christoffel_symbols_2(icY, derivs.dcY);
+
+    pin(christoff2);
+
+    tensor<valuef, 3> calculated_cG;
+
+    for(int i=0; i < 3; i++)
+    {
+        valuef sum = 0;
+
+        for(int m=0; m < 3; m++)
+        {
+            for(int n=0; n < 3; n++)
+            {
+                sum += icY[m, n] * christoff2[i, m, n];
+            }
+        }
+
+        calculated_cG[i] = sum;
+    }
+
+    tensor<valuef, 3> Gi = args.cG - calculated_cG;
+
+    ///W^2 = X
+    valuef X = args.W * args.W;
+    ///2 dW W = dX
+    tensor<valuef, 3> dX = 2 * args.W * derivs.dW;
+
+    value iX = 1/max(X, valuef(0.00001f));
+
+    tensor<valuef, 3> dtcG;
 
     ///dtcG
     {
@@ -1112,7 +1266,7 @@ time_derivatives get_evolution_variables(bssn_args& args, bssn_derivatives& deri
 
             s9 = (2.f/3.f) * s9 * args.cG[i];
 
-            ret.dtcG[i] = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9;
+            dtcG[i] = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9;
         }
 
         #define STABILITY_SIGMA
@@ -1126,7 +1280,7 @@ time_derivatives get_evolution_variables(bssn_args& args, bssn_derivatives& deri
 
         float sigma = 1.333333f;
 
-        ret.dtcG += -sigma * Gi * dmbm;
+        dtcG += -sigma * Gi * dmbm;
 
         /*{
             float mcGicst = -0.1f;
@@ -1144,76 +1298,7 @@ time_derivatives get_evolution_variables(bssn_args& args, bssn_derivatives& deri
         #endif // STABILITY_SIGMA
     }
 
-    #define BLACK_HOLE_GAUGE
-    #ifdef BLACK_HOLE_GAUGE
-    #define ONE_PLUS_LOG
-    #define GAMMA_DRIVER
-    #endif // BLACK_HOLE_GAUGE
-
-    //#define WAVE_TEST
-    #ifdef WAVE_TEST
-    #define HARMONIC_SLICING
-    #define ZERO_SHIFT
-    #endif // WAVE_TEST
-
-    //#define WAVE_TEST2
-    #ifdef WAVE_TEST2
-    #define ONE_LAPSE
-    #define ZERO_SHIFT
-    #endif
-
-    {
-        valuef bmdma = 0;
-
-        for(int i=0; i < 3; i++)
-        {
-            bmdma += args.gB[i] * diff1(args.gA, i, scale);
-        }
-
-        ///https://arxiv.org/pdf/gr-qc/0206072
-        #ifdef ONE_PLUS_LOG
-        ret.dtgA = -2 * args.gA * args.K + bmdma;
-        #endif // ONE_PLUS_LOG
-
-        ///https://arxiv.org/pdf/2201.08857
-        #ifdef HARMONIC_SLICING
-        ret.dtgA = -args.gA * args.gA * args.K + bmdma;
-        #endif // HARMONIC_SLICING
-
-        #ifdef ONE_LAPSE
-        ret.dtgA = 0;
-        #endif // ONE_LAPSE
-    }
-
-    {
-        ///https://arxiv.org/pdf/gr-qc/0605030 (26)
-        #ifdef GAMMA_DRIVER
-        tensor<valuef, 3> djbjbi;
-
-        for(int i=0; i < 3; i++)
-        {
-            valuef sum = 0;
-
-            for(int j=0; j < 3; j++)
-            {
-                sum += args.gB[j] * diff1(args.gB[i], j, scale);
-            }
-
-            djbjbi[i] = sum;
-        }
-
-        ///gauge damping parameter, commonly set to 2
-        float N = 2;
-
-        ret.dtgB = (3/4.f) * args.cG + djbjbi - N * args.gB;
-        #endif // GAMMA_DRIVER
-
-        #ifdef ZERO_SHIFT
-        ret.dtgB = {0,0,0};
-        #endif // ZERO_SHIFT
-    }
-
-    return ret;
+    return dtcG;
 }
 
 valuef apply_evolution(const valuef& base, const valuef& dt, valuef timestep)
@@ -1305,15 +1390,8 @@ std::string make_bssn()
             Mi[i] = momentum_constraint[i][pos, dim];
         }
 
-        time_derivatives in_time = get_evolution_variables(args, derivs, Mi, scale.get());
 
-        /*pin(in_time.dtcA);
-        pin(in_time.dtW);
-        pin(in_time.dtK);
-        pin(in_time.dtgA);
-        pin(in_time.dtgB);
-        pin(in_time.dtcY);
-        pin(in_time.dtcG);*/
+        tensor<valuef, 3, 3> dtcA = get_dtcA(args, derivs, Mi, scale.get());
 
         tensor<int, 2> index_table[6] = {{0, 0}, {0, 1}, {0, 2}, {1, 1}, {1, 2}, {2, 2}};
 
@@ -1321,28 +1399,39 @@ std::string make_bssn()
         {
             tensor<int, 2> idx = index_table[i];
 
-            as_ref(out.cA[i][lid]) = apply_evolution(base.cA[i][lid], in_time.dtcA[idx.x(), idx.y()], timestep.get());
+            as_ref(out.cA[i][lid]) = apply_evolution(base.cA[i][lid], dtcA[idx.x(), idx.y()], timestep.get());
         }
 
-        as_ref(out.W[lid]) = apply_evolution(base.W[lid], in_time.dtW, timestep.get());
-        as_ref(out.K[lid]) = apply_evolution(base.K[lid], in_time.dtK, timestep.get());
-        as_ref(out.gA[lid]) = apply_evolution(base.gA[lid], in_time.dtgA, timestep.get());
+        valuef dtW = get_dtW(args, derivs, scale.get());
+        as_ref(out.W[lid]) = apply_evolution(base.W[lid], dtW, timestep.get());
+
+        valuef dtK = get_dtK(args, derivs, scale.get());
+        as_ref(out.K[lid]) = apply_evolution(base.K[lid], dtK, timestep.get());
+
+        valuef dtgA = get_dtgA(args, derivs, scale.get());
+        as_ref(out.gA[lid]) = apply_evolution(base.gA[lid], dtgA, timestep.get());
+
+        auto dtgB = get_dtgB(args, derivs, scale.get());
 
         for(int i=0; i < 3; i++)
         {
-            as_ref(out.gB[i][lid]) = apply_evolution(base.gB[i][lid], in_time.dtgB[i], timestep.get());
+            as_ref(out.gB[i][lid]) = apply_evolution(base.gB[i][lid], dtgB[i], timestep.get());
         }
+
+        auto dtcY = get_dtcY(args, derivs, scale.get());
 
         for(int i=0; i < 6; i++)
         {
             tensor<int, 2> idx = index_table[i];
 
-            as_ref(out.cY[i][lid]) = apply_evolution(base.cY[i][lid], in_time.dtcY[idx.x(), idx.y()], timestep.get());
+            as_ref(out.cY[i][lid]) = apply_evolution(base.cY[i][lid], dtcY[idx.x(), idx.y()], timestep.get());
         }
+
+        auto dtcG = get_dtcG(args, derivs, scale.get());
 
         for(int i=0; i < 3; i++)
         {
-            as_ref(out.cG[i][lid]) = apply_evolution(base.cG[i][lid], in_time.dtcG[i], timestep.get());
+            as_ref(out.cG[i][lid]) = apply_evolution(base.cG[i][lid], dtcG[i], timestep.get());
         }
 
     };

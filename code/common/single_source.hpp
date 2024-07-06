@@ -1,6 +1,7 @@
 #ifndef SINGLE_SOURCE_HPP_INCLUDED
 #define SINGLE_SOURCE_HPP_INCLUDED
 
+#include "../common/vec/dual.hpp"
 #include "../common/value2.hpp"
 #include <string>
 #include <vector>
@@ -57,6 +58,13 @@ namespace value_impl
             {
                 pin(v);
             });
+        }
+
+        template<typename T>
+        void pin(dual_types::dual_v<T>& in)
+        {
+            pin(in.real);
+            pin(in.dual);
         }
 
         template<typename T, int... N>
