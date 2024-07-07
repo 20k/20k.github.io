@@ -179,21 +179,21 @@ Because of this, the $W^2$ formalism is clearly the best choice for us. Do note 
 
 ## Variables
 
-The root variables we derive BSSN from for ADM are still $\gamma_{ij}$, but instead of $\pi_{ij}$ we use the extrinsic curvature tensor $K_{ij}$, TODO I HAVE NO IDEA IF THEY'RE THE SAME. We still keep the same gauge variables $\alpha$, and $\beta^i$, and their definition is unchanged. Conformal variables in general have a tilde over them, and have their indices raised and lowered with the conformal metric tensor
+The root variables we derive BSSN from for ADM are still $\gamma_{ij}$, but instead of $\pi_{ij}$ we use the extrinsic curvature tensor $K_{ij}$, TODO I HAVE NO IDEA IF THEY'RE THE SAME. We still keep the same gauge variables $\alpha$, and $\beta^i$, and their definition is unchanged. Conformal variables in general have a tilde over them, and have their indices are raised and lowered with the conformal metric tensor
 
 The BSSN variables are then as follows:
 
 $$
 \begin{align}
-\tilde{\gamma}_{ij} &= W^2 \gamma_{ij}\\
-\tilde{A}_{ij} &= W^2 (K_{ij} - \frac{1}{3} \gamma_{ij} K)\\
-K &= \gamma^{mn} K_{mn}\\
-W^2 &= det(\gamma)^{-1/6}\\
-\tilde{\Gamma}^i &= \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}\\
+&\tilde{\gamma}_{ij} &&= W^2 \gamma_{ij}\\
+&\tilde{A}_{ij} &&= W^2 (K_{ij} - \frac{1}{3} \gamma_{ij} K)\\
+&K &&= \gamma^{mn} K_{mn}\\
+&W^2 &&= det(\gamma)^{-1/6}\\
+&\tilde{\Gamma}^i &&= \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}\\
 \end{align}
 $$
 
-The last one, $\tilde{\Gamma}^i$, is analytically equal to the RHS, but is evolved dynamically. This is because $\partial_k \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$ is too numerically unstable TODO: CITE
+The last one, $\tilde{\Gamma}^i$, is analytically equal to $\tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$, but is evolved numerically instead. This is because $\partial_k \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$ is too numerically unstable TODO: CITE
 
 We end up with the following constraints, that ideally are satisfied for all time:
 
@@ -223,33 +223,49 @@ $$
 
 This is the part of the article I've been looking forward to least
 
+Todo: fun
 
 ## Gauge conditions
 
-## Constraint equations
+Here are the common gauge conditions we'll run into:
 
-## Analysis
+### Lapse
 
-### The BSSN equations of motion are bad
+#### Geodesic slicing
 
-So, as written, the BSSN equations of motion are - drumroll - very numerically unstable. The BSSN formalism, as mentioned, has the following constraints:
+$$\alpha = 1, \beta^i = 0$$
 
-These two are known as the algebraic constraints
+#### Harmonic
 
-$$\tilde{\gamma} = 1 \\
-\tilde{\gamma}^{mn} \tilde{A}_{mn} = 0
-$$
+$$\partial_t \alpha = - 2 \alpha^2 K + \beta^m \partial_m \alpha$$
 
-This constraint is the christoffel symbol constraint:
+#### 1+log
 
-$$G^i = \tilde{\Gamma}^i - \tilde{\gamma}^{mn}\tilde{\Gamma}^i_{mn} = 0$$
+$$\partial_t \alpha = - \alpha K + \beta^m \partial_m \alpha$$
 
-These two constraints are the hamiltonian constraint, and the momentum constraint respectively, and originate from the lagrangian derivation of the equations of motion
+### Shift
 
-$$H = whatever = 0\\
-M_i = whatever = 0$$
+#### Zero shift
 
-I'll summarise two decades of the conventional wisdom from stability analysis here:
+This is quite common in these tests, where
+
+$$\beta^i = 0$$
+
+#### Gamma driver
+
+So called because it drives $\partial_t\tilde{\Gamma} = 0$
+
+$$\partial_t \beta^i = \frac{3}{4} \tilde{\Gamma}^i + \beta^j \partial_j \beta^i - n \beta^i$$
+
+$n$ is a damping parameter, that is generally set to $2$
+
+### Gauge condition summary
+
+In the test we will be looking at today, we'll be using the harmonic gauge condition, with zero shift. The binary black hole gauge is 1+log + Gamma driver, and will be used virtually exclusively in future articles
+
+## The BSSN equations of motion are bad
+
+So, as written, the BSSN equations of motion are - drumroll - very numerically unstable. I'll summarise two decades of the conventional wisdom from stability analysis here:
 
 1. If the second algebraic constraint is violated, ie the trace of the trace-free extrinsic curvature != 0, the violation blows up and your simulation will immediately fail
 2. The christoffel symbol constraint is very important to damp, and can lead to less direct simulation failures
@@ -262,27 +278,28 @@ Additionally:
 1. Hamiltonian constraint violations are completely unimportant for stability purposes, and seem to be largely irrelevant for physical accuracy beyond a reasonably justified paranoia
 2. The first algebraic constraint is relatively unimportant to enforce, but its easy to do - so we may as well
 
-I have some of my own thoughts here, and I'm not entirely convinced by some of what I've been presented in the literature, but we'll get to that when it becomes relevant
-
 ### Stabilising the BSSN equations of motion
 
-This is an enormous topic in itself, and we're going to get into this a lot. As-is, I'm going to present the bare minimum we need to get up off the ground for this article, because in the future we're going to be directly testing all of this. The goal is to make as general of a simulation as possible, so we're not going to use many of the tricks common in the literature - its pretty common to tailor stability modifications to certain scenarios, or dynamically adjust your constants
+This is an enormous topic in itself, and we're going to get into this a lot. As-is, I'm going to present the bare minimum we need to get up off the ground for this article, because in the future we're going to be directly testing all of this. The goal is to make as general of a simulation as possible, so we're going to avoid some of the most ad-hoc tricks - its pretty common to tailor stability modifications to certain scenarios, or dynamically adjust your constants
 
-After each timestep, the following constraints should be enforced:
+The following constraints *must* be enforced:
 
-1. Gamma blah blah. Either do the det, or damp
-2. Algebraic blah blah. Either do the det, or damp with the TF
+1. Aij Algebraic blah blah. Either do the det, or damp with the TF
 
-And we must damp the following two constraints as follows
+And we may need to damp the following two constraints as follows
 
 1. Momentum blah blah
-2. Sigma blah blah
+2. Gamma blah blah
 
 On top of this to stabilise our equations more generally, we must:
 
 1. Add kreiss oliger dissipation. There will be a segment on this, so don't worry yet
 
-This is enough to get us up and running off the ground
+And we'll do this modification because we may as well increase our correctness
+
+1. Gamma blah blah. Either do the det, or damp
+
+This is enough to get us up and running off the ground. When we hit binary black holes we'll need to update this list with an extra stability modification
 
 Next up, we need to pick an integrator to integrate our PDEs with
 

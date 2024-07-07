@@ -211,10 +211,9 @@ struct mesh
         load(pck.cG[2], "./init/buf_cGi2.bin");
     }
 
-    void step(cl::context& ctx, cl::command_queue& cqueue, float timestep)
+    void step(cl::context& ctx, cl::command_queue& cqueue, float timestep, float c_at_max)
     {
         cl_int4 cldim = {dim.x(), dim.y(), dim.z(), 0};
-        float c_at_max = 30;
         float scale = c_at_max / dim.x();
 
         auto kreiss = [&](int in, int inout)
@@ -300,6 +299,7 @@ struct mesh
                 cqueue.exec("momentum_constraint", args, {dim.x() * dim.y() * dim.z()}, {128});
             }
 
+
             cl::args args;
             buffers[base_idx].append_to(args);
             buffers[in_idx].append_to(args);
@@ -316,6 +316,8 @@ struct mesh
             args.push_back(scale);
 
             cqueue.exec("evolve", args, {dim.x()*dim.y()*dim.z()}, {128});
+
+            //kreiss(base_idx, out_idx);
         };
 
         int iterations = 2;
@@ -389,12 +391,12 @@ int main()
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
-    t3i dim = {255, 255, 255};
+    t3i dim = {100, 100, 100};
 
     mesh m(ctx, dim);
     m.allocate(ctx);
     m.init(cqueue);
-    m.load_from(cqueue);
+    //m.load_from(cqueue);
 
     texture_settings tsett;
     tsett.width = 1280;
@@ -414,7 +416,9 @@ int main()
 
     float elapsed_t = 0;
     //float timestep = 0.001f;
-    float timestep = 0.035;
+    float timestep = 0.001;
+
+    float c_at_max = 1;
 
     while(!win.should_close())
     {
@@ -429,11 +433,10 @@ int main()
         steady_timer t;
 
         rtex.acquire(cqueue);
-        m.step(ctx, cqueue, timestep);
+        m.step(ctx, cqueue, timestep, c_at_max);
 
         {
             cl_int4 cldim = {dim.x(), dim.y(), dim.z(), 0};
-            float c_at_max = 30;
             float scale = c_at_max / dim.x();
 
             cl::args args;
