@@ -644,7 +644,7 @@ tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, bssn_derivatives& derivs, c
 ///https://arxiv.org/pdf/1307.7391 (9)
 ///https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf 2.6
 ///this calculates the quantity W^2 * Rij
-tensor<valuef, 3, 3> calculate_W2_mult_Rij(bssn_args& args, bssn_derivatives& derivs, valuef scale)
+tensor<valuef, 3, 3> calculate_W2_mult_Rij(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
 {
     using namespace single_source;
 
@@ -707,6 +707,34 @@ tensor<valuef, 3, 3> calculate_W2_mult_Rij(bssn_args& args, bssn_derivatives& de
     pin(w2Rphiij);
 
     return w2Rphiij + calculate_cRij(args, derivs, scale) * args.W * args.W;
+}
+
+valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
+{
+    using namespace single_source;
+
+    auto W2Rij = calculate_W2_mult_Rij(args, derivs, scale);
+
+    auto icY = args.cY.invert();
+    pin(icY);
+
+    value iW = 1/max(args.W, valuef(0.00001f));
+
+    valuef R = trace(W2Rij * iW * iW, icY);
+
+    tensor<valuef, 3, 3> AMN = icY.raise(icY.raise(args.cA, 0), 1);
+
+    valuef AMN_Amn = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            AMN_Amn += AMN[i, j] * args.cA[i, j];
+        }
+    }
+
+    return R + (2.f/3.f) * args.K * args.K - AMN_Amn;
 }
 
 float get_algebraic_damping_factor()
