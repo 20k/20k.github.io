@@ -571,11 +571,7 @@ valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& deriv
     auto icY = args.cY.invert();
     pin(icY);
 
-    auto iYij = args.W * args.W * icY;
-
-    value iW = 1/max(args.W, valuef(0.00001f));
-
-    valuef R = trace(W2Rij * iW * iW, iYij);
+    valuef R = trace(W2Rij, icY);
 
     tensor<valuef, 3, 3> AMN = icY.raise(icY.raise(args.cA, 0), 1);
 
@@ -706,6 +702,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, valuef 
         ///https://arxiv.org/pdf/1106.2254 also see here, after 25
         dtcY = lie_derivative_weight(args.gB, args.cY, scale) - 2 * args.gA * trace_free(args.cA, args.cY, icY);
 
+        ///https://arxiv.org/pdf/gr-qc/0204002
         dtcY += -get_algebraic_damping_factor() * args.gA * args.cY.to_tensor() * log(args.cY.det());
 
         //dtcY += 0.005f * args.gA * args.cY.to_tensor() * -calculate_hamiltonian_constraint(args, derivs, scale);
