@@ -100,11 +100,11 @@ struct mesh
 
     std::vector<cl::buffer> derivatives;
     std::vector<cl::buffer> momentum_constraint;
-    cl::buffer hamiltonian;
-    cl::buffer hamiltonian_summed;
+    cl::buffer temporary_buffer;
+    cl::buffer temporary_single;
     std::vector<double> hamiltonian_error;
 
-    mesh(cl::context& ctx, t3i _dim) : buffers{ctx, ctx, ctx}, hamiltonian(ctx), hamiltonian_summed(ctx)
+    mesh(cl::context& ctx, t3i _dim) : buffers{ctx, ctx, ctx}, temporary_buffer(ctx), temporary_single(ctx)
     {
         dim = _dim;
     }
@@ -132,8 +132,8 @@ struct mesh
             derivatives.push_back(buf);
         }
 
-        hamiltonian.alloc(sizeof(cl_float) * uint64_t{dim.x()} * dim.y() * dim.z());
-        hamiltonian_summed.alloc(sizeof(cl_ulong));
+        temporary_buffer.alloc(sizeof(cl_float) * uint64_t{dim.x()} * dim.y() * dim.z());
+        temporary_single.alloc(sizeof(cl_ulong));
     }
 
     void init(cl::command_queue& cqueue)
@@ -180,7 +180,8 @@ struct mesh
             cqueue.exec("init_christoffel", args, {dim.x() * dim.y() * dim.z()}, {128});
         }
 
-        hamiltonian.set_to_zero(cqueue);
+        temporary_buffer.set_to_zero(cqueue);
+        temporary_single.set_to_zero(cqueue);
     }
 
     void load_from(cl::command_queue cqueue)
@@ -304,7 +305,7 @@ struct mesh
                     for(auto& i : derivatives)
                         args.push_back(i);
 
-                    args.push_back(hamiltonian);
+                    args.push_back(temporary_buffer);
                     args.push_back(cldim);
                     args.push_back(scale);
 
@@ -312,18 +313,18 @@ struct mesh
                 }
 
                 {
-                    hamiltonian_summed.set_to_zero(cqueue);
+                    temporary_single.set_to_zero(cqueue);
 
                     uint32_t len = dim.x() * dim.y() * dim.z();
 
                     cl::args args;
-                    args.push_back(hamiltonian);
-                    args.push_back(hamiltonian_summed);
+                    args.push_back(temporary_buffer);
+                    args.push_back(temporary_single);
                     args.push_back(len);
 
                     cqueue.exec("sum", args, {dim.x() * dim.y() * dim.z()}, {128});
 
-                    int64_t summed = hamiltonian_summed.read<int64_t>(cqueue).at(0);
+                    int64_t summed = temporary_single.read<int64_t>(cqueue).at(0);
                     double dsummed = (double)summed / pow(10., 8.);
 
                     hamiltonian_error.push_back(dsummed);
