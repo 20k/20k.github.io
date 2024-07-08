@@ -155,6 +155,7 @@ struct bssn_derivatives
 };
 
 valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& derivs, const valuef& scale);
+tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const valuef& scale);
 
 std::string make_derivatives();
 std::string make_bssn();

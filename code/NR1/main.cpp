@@ -100,8 +100,11 @@ struct mesh
 
     std::vector<cl::buffer> derivatives;
     std::vector<cl::buffer> momentum_constraint;
+    cl::buffer hamiltonian;
+    cl::buffer hamiltonian_summed;
+    std::vector<double> hamiltonian_error;
 
-    mesh(cl::context& ctx, t3i _dim) : buffers{ctx, ctx, ctx}
+    mesh(cl::context& ctx, t3i _dim) : buffers{ctx, ctx, ctx}, hamiltonian(ctx), hamiltonian_summed(ctx)
     {
         dim = _dim;
     }
@@ -128,6 +131,9 @@ struct mesh
 
             derivatives.push_back(buf);
         }
+
+        hamiltonian.alloc(sizeof(cl_float) * uint64_t{dim.x()} * dim.y() * dim.z());
+        hamiltonian_summed.alloc(sizeof(cl_ulong));
     }
 
     void init(cl::command_queue& cqueue)
@@ -173,6 +179,8 @@ struct mesh
             cqueue.exec("init", args, {dim.x() * dim.y() * dim.z()}, {128});
             cqueue.exec("init_christoffel", args, {dim.x() * dim.y() * dim.z()}, {128});
         }
+
+        hamiltonian.set_to_zero(cqueue);
     }
 
     void load_from(cl::command_queue cqueue)
@@ -252,7 +260,7 @@ struct mesh
 
         std::swap(buffers[0], buffers[1]);
 
-        auto substep = [&](int base_idx, int in_idx, int out_idx)
+        auto substep = [&](int iteration, int base_idx, int in_idx, int out_idx)
         {
             {
                 std::vector<cl::buffer> d_in {
@@ -284,6 +292,41 @@ struct mesh
                     cqueue.exec("differentiate", args, {dim.x()*dim.y()*dim.z()}, {128});
 
                     which_deriv++;
+                }
+            }
+
+            if(iteration == 0)
+            {
+                {
+                    cl::args args;
+                    buffers[in_idx].append_to(args);
+
+                    for(auto& i : derivatives)
+                        args.push_back(i);
+
+                    args.push_back(hamiltonian);
+                    args.push_back(cldim);
+                    args.push_back(scale);
+
+                    cqueue.exec("calculate_hamiltonian", args, {dim.x() * dim.y() * dim.z()}, {128});
+                }
+
+                {
+                    hamiltonian_summed.set_to_zero(cqueue);
+
+                    uint32_t len = dim.x() * dim.y() * dim.z();
+
+                    cl::args args;
+                    args.push_back(hamiltonian);
+                    args.push_back(hamiltonian_summed);
+                    args.push_back(len);
+
+                    cqueue.exec("sum", args, {dim.x() * dim.y() * dim.z()}, {128});
+
+                    int64_t summed = hamiltonian_summed.read<int64_t>(cqueue).at(0);
+                    double dsummed = (double)summed / pow(10., 8.);
+
+                    hamiltonian_error.push_back(dsummed);
                 }
             }
 
@@ -326,9 +369,9 @@ struct mesh
         for(int i=0; i < iterations; i++)
         {
             if(i == 0)
-                substep(0, 0, 1);
+                substep(i, 0, 0, 1);
             else
-                substep(0, 2, 1);
+                substep(i, 0, 2, 1);
 
             ///we always output into buffer 1, which means that buffer 2 becomes our next input
             if(i != iterations - 1)
@@ -432,6 +475,13 @@ int main()
         ImGui::Begin("Hi");
 
         ImGui::Text("Elapsed %f", elapsed_t);
+
+        std::vector<float> lines;
+
+        for(auto& i : m.hamiltonian_error)
+            lines.push_back(i);
+
+        ImGui::PlotLines("H", lines.data(), lines.size());
 
         ImGui::End();
 

@@ -965,7 +965,7 @@ namespace value_impl
                 return apply_mutability(buffer<T>::operator[](pos, dim));
             }
 
-            T atom_add(const value<int>& index, const T& in)
+            T atom_add_b(const value<int>& index, const T& in)
             {
                 value_base op;
                 op.type = op::ATOM_ADD;
@@ -973,6 +973,11 @@ namespace value_impl
                 op.concrete = get_interior_type(T());
 
                 return build_type(op, T());
+            }
+
+            T atom_add_e(const value<int>& index, const T& in)
+            {
+                return declare_e(get_context(), atom_add_b(index, in));
             }
         };
 

@@ -45,12 +45,52 @@ std::string make_hamiltonian_error()
     return value_impl::make_function(func, "calculate_hamiltonian");
 }
 
+std::string make_momentum_error(int idx)
+{
+    auto func = [&](execution_context&,
+                    bssn_args_mem<buffer<valuef>> args_in,
+                    bssn_derivatives_mem<buffer<derivative_t>> derivatives,
+                    buffer_mut<valuef> out,
+                    literal<v3i> ldim, literal<valuef> scale) {
+        using namespace single_source;
+
+        valuei lid = value_impl::get_global_id(0);
+
+        pin(lid);
+
+        v3i dim = ldim.get();
+
+        if_e(lid >= dim.x() * dim.y() * dim.z(), [&] {
+            return_e();
+        });
+
+        ///todo: genericise
+        valuei x = lid % dim.x();
+        valuei y = (lid / dim.x()) % dim.y();
+        valuei z = lid / (dim.x() * dim.y());
+
+        pin(x);
+        pin(y);
+        pin(z);
+
+        v3i pos = {x, y, z};
+
+        bssn_args args(pos, dim, args_in);
+
+        tensor<valuef, 3> Mi = calculate_momentum_constraint(args, scale.get());
+
+        as_ref(out[pos, dim]) = Mi[idx];
+    };
+
+    return value_impl::make_function(func, "calculate_Mi" + std::to_string(idx));
+}
+
 std::string make_global_sum()
 {
      auto func = [&](execution_context&,
-                    buffer<valuef> in,
-                    buffer_mut<value<std::int64_t>> sum,
-                    literal<valuei> num) {
+                     buffer<valuef> in,
+                     buffer_mut<value<std::int64_t>> sum,
+                     literal<valuei> num) {
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);
@@ -61,12 +101,33 @@ std::string make_global_sum()
             return_e();
         });
 
-        valued as_double = ((valued)in[lid]) * pow(10., 8.);
+        valued as_double = ((valued)fabs(in[lid])) * pow(10., 8.);
+
+
+        /*if_e(lid == 6555, [&]{
+            value_base se;
+            se.type = value_impl::op::SIDE_EFFECT;
+            se.abstract_value = "printf(\"w %.16f\\n\"," + value_to_string(as_double) + ")";
+
+            value_impl::get_context().add(se);
+        });*/
 
         value<std::int64_t> as_uint = (value<std::int64_t>)as_double;
 
-        sum.atom_add(0, as_uint);
+        /*if_e(lid == 6555, [&]{
+            value_base se;
+            se.type = value_impl::op::SIDE_EFFECT;
+            se.abstract_value = "printf(\"w %i\\n\"," + value_to_string(as_uint) + ")";
+
+            value_impl::get_context().add(se);
+        });*/
+
+        sum.atom_add_e(0, as_uint);
     };
 
-    return value_impl::make_function(func, "sum");
+    std::string str = value_impl::make_function(func, "sum");
+
+    std::cout << str << std::endl;
+
+    return str;
 }
