@@ -835,7 +835,7 @@ valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
     return (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw;
 }
 
-tensor<valuef, 3, 3> calculate_DiDja(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
+tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
 {
     using namespace single_source;
 
@@ -851,17 +851,15 @@ tensor<valuef, 3, 3> calculate_DiDja(bssn_args& args, bssn_derivatives& derivs, 
     ///2 dW W = dX
     tensor<valuef, 3> dX = 2 * args.W * derivs.dW;
 
-    value iX = 1/max(X, valuef(0.00001f));
-
-    tensor<valuef, 3, 3> DiDja;
+    tensor<valuef, 3, 3> W2DiDja;
 
     for(int i=0; i < 3; i++)
     {
         for(int j=0; j < 3; j++)
         {
-            valuef v1 = double_covariant_derivative(args.gA, derivs.dgA, christoff2, scale)[i, j];
+            valuef v1 = X * double_covariant_derivative(args.gA, derivs.dgA, christoff2, scale)[i, j];
 
-            valuef v2 = 0.5f * iX * (dX[i] * diff1(args.gA, j, scale) + dX[j] * diff1(args.gA, i, scale));
+            valuef v2 = 0.5f * (dX[i] * diff1(args.gA, j, scale) + dX[j] * diff1(args.gA, i, scale));
 
             valuef sum = 0;
 
@@ -873,13 +871,13 @@ tensor<valuef, 3, 3> calculate_DiDja(bssn_args& args, bssn_derivatives& derivs, 
                 }
             }
 
-            valuef v3 = -0.5f * iX * args.cY[i, j] * sum;
+            valuef v3 = -0.5f * args.cY[i, j] * sum;
 
-            DiDja[i, j] = v1 + v2 + v3;
+            W2DiDja[i, j] = v1 + v2 + v3;
         }
     }
 
-    return DiDja;
+    return W2DiDja;
 }
 
 valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
@@ -891,9 +889,9 @@ valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
 
     valuef X = args.W * args.W;
 
-    tensor<valuef, 3, 3> DiDja = calculate_DiDja(args, derivs, scale);
+    tensor<valuef, 3, 3> W2DiDja = calculate_W2DiDja(args, derivs, scale);
 
-    pin(DiDja);
+    pin(W2DiDja);
 
     valuef v1 = 0;
 
@@ -911,11 +909,11 @@ valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
         {
             for(int n=0; n < 3; n++)
             {
-                sum += icY[m, n] * DiDja[m, n];
+                sum += icY[m, n] * W2DiDja[m, n];
             }
         }
 
-        v2 = -X * sum;
+        v2 = -sum;
     }
 
     valuef v3 = 0;
@@ -950,12 +948,10 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
     auto icY = args.cY.invert();
     pin(icY);
 
-    valuef X = args.W * args.W;
+    auto W2DiDja = calculate_W2DiDja(args, derivs, scale);
+    pin(W2DiDja);
 
-    auto DiDja = calculate_DiDja(args, derivs, scale);
-    pin(DiDja);
-
-    tensor<valuef, 3, 3> with_trace = args.gA * calculate_W2_mult_Rij(args, derivs, scale) - X * DiDja;
+    tensor<valuef, 3, 3> with_trace = args.gA * calculate_W2_mult_Rij(args, derivs, scale) - W2DiDja;
 
     tensor<valuef, 3, 3> dtcA;
 
