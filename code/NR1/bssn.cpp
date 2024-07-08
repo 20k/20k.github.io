@@ -706,9 +706,10 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, valuef 
         ///https://arxiv.org/pdf/1106.2254 also see here, after 25
         dtcY = lie_derivative_weight(args.gB, args.cY, scale) - 2 * args.gA * trace_free(args.cA, args.cY, icY);
 
+        ///https://arxiv.org/pdf/gr-qc/0204002
         dtcY += -get_algebraic_damping_factor() * args.gA * args.cY.to_tensor() * log(args.cY.det());
 
-        //dtcY += 0.005f * args.gA * args.cY.to_tensor() * -calculate_hamiltonian_constraint(args, derivs, scale);
+        dtcY += 0.001f * args.gA * args.cY.to_tensor() * -calculate_hamiltonian_constraint(args, derivs, scale);
 
         /*tensor<valuef, 3, 3> cD = covariant_derivative_low_vec(args.cY.lower(Gi), christoff2, scale);
 
@@ -885,7 +886,7 @@ tensor<valuef, 3, 3> calculate_DiDja(bssn_args& args, bssn_derivatives& derivs, 
     return DiDja;
 }
 
-valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
+valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, v3f momentum_constraint, const valuef& scale)
 {
     using namespace single_source;
 
@@ -943,7 +944,24 @@ valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
 
     valuef v4 = (1/3.f) * args.gA * args.K * args.K;
 
-    return v1 + v2 + v3 + v4;
+    auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
+    pin(christoff2);
+
+    tensor<valuef, 3, 3> MkDj = covariant_derivative_low_vec(momentum_constraint, christoff2, scale);
+
+    pin(MkDj);
+
+    valuef sum = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            sum += icY[i, j] * MkDj[j, i];
+        }
+    }
+
+    return v1 + v2 + v3 + v4 + -0.0001f * args.gA * sum;
 }
 
 tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f momentum_constraint, const valuef& scale)
@@ -993,9 +1011,8 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
 
     dtcA += -get_algebraic_damping_factor() * args.gA * args.cY.to_tensor() * trace(args.cA, icY);
 
-    #define MOMENTUM_CONSTRAINT_DAMPING
+    //#define MOMENTUM_CONSTRAINT_DAMPING
     #ifdef MOMENTUM_CONSTRAINT_DAMPING
-
     auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
     pin(christoff2);
 
@@ -1003,7 +1020,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
     {
         for(int j=0; j < 3; j++)
         {
-            float Ka = 0.001f;
+            float Ka = 0.0001f;
 
             dtcA[i, j] += Ka * args.gA * 0.5f *
                               (covariant_derivative_low_vec(momentum_constraint, christoff2, scale)[i, j]
@@ -1011,6 +1028,34 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
         }
     }
     #endif
+
+    {
+        auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
+        pin(christoff2);
+
+        tensor<valuef, 3, 3> dkmk;
+
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                dkmk[i, j] = covariant_derivative_low_vec(momentum_constraint, christoff2, scale)[j, i];
+            }
+        }
+
+        pin(dkmk);
+
+        auto raised = icY.raise(dkmk, 0);
+
+        valuef sum = 0;
+
+        for(int k=0; k < 3; k++)
+        {
+            sum += raised[k, k];
+        }
+
+        dtcA += 0.0002f * args.gA * args.cY.to_tensor() * sum;
+    }
 
     return dtcA;
 }
@@ -1289,7 +1334,7 @@ std::string make_bssn()
         valuef dtW = get_dtW(args, derivs, scale.get());
         as_ref(out.W[lid]) = apply_evolution(base.W[lid], dtW, timestep.get());
 
-        valuef dtK = get_dtK(args, derivs, scale.get());
+        valuef dtK = get_dtK(args, derivs, Mi, scale.get());
         as_ref(out.K[lid]) = apply_evolution(base.K[lid], dtK, timestep.get());
 
         valuef dtgA = get_dtgA(args, derivs, scale.get());

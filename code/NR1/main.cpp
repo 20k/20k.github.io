@@ -501,14 +501,14 @@ int main()
         for(auto& i : m.hamiltonian_error)
             lines.push_back(i);
 
-        ImGui::PlotLines("H", lines.data(), lines.size());
+        ImGui::PlotLines("H", lines.data(), lines.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 100));
 
         std::vector<float> Mis;
 
         for(auto& i : m.Mi_error)
             Mis.push_back(i);
 
-        ImGui::PlotLines("Mi", Mis.data(), Mis.size());
+        ImGui::PlotLines("Mi", Mis.data(), Mis.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 100));
 
         ImGui::End();
 
