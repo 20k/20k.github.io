@@ -244,7 +244,7 @@ struct mesh
 
             for(int i=0; i < (int)linear_base.size(); i++)
             {
-                float eps = 0.25f;
+                float eps = 0.05f;
 
                 cl::args args;
                 args.push_back(linear_base.at(i));
@@ -257,10 +257,6 @@ struct mesh
                 cqueue.exec("kreiss_oliger", args, {dim.x() * dim.y() * dim.z()}, {128});
             }
         };
-
-        kreiss(0, 1);
-
-        std::swap(buffers[0], buffers[1]);
 
         auto substep = [&](int iteration, int base_idx, int in_idx, int out_idx)
         {
@@ -347,7 +343,7 @@ struct mesh
                 }
             }
 
-            {
+            /*{
                 cl::args args;
                 buffers[in_idx].append_to(args);
 
@@ -358,7 +354,7 @@ struct mesh
                 args.push_back(scale);
 
                 cqueue.exec("momentum_constraint", args, {dim.x() * dim.y() * dim.z()}, {128});
-            }
+            }*/
 
 
             cl::args args;
@@ -397,6 +393,9 @@ struct mesh
 
         ///now that we've finished, our result is in buffer[1]
         std::swap(buffers[1], buffers[0]);
+
+        kreiss(0, 1);
+        std::swap(buffers[0], buffers[1]);
     }
 };
 

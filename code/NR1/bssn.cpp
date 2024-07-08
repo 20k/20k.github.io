@@ -709,7 +709,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, valuef 
         ///https://arxiv.org/pdf/gr-qc/0204002
         dtcY += -get_algebraic_damping_factor() * args.gA * args.cY.to_tensor() * log(args.cY.det());
 
-        dtcY += 0.001f * args.gA * args.cY.to_tensor() * -calculate_hamiltonian_constraint(args, derivs, scale);
+        dtcY += 0.00001f * args.gA * args.cY.to_tensor() * -calculate_hamiltonian_constraint(args, derivs, scale);
 
         /*tensor<valuef, 3, 3> cD = covariant_derivative_low_vec(args.cY.lower(Gi), christoff2, scale);
 
@@ -961,7 +961,7 @@ valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, v3f momentum_constrain
         }
     }
 
-    return v1 + v2 + v3 + v4 + -0.0001f * args.gA * sum;
+    return v1 + v2 + v3 + v4;
 }
 
 tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f momentum_constraint, const valuef& scale)
@@ -1011,6 +1011,8 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
 
     dtcA += -get_algebraic_damping_factor() * args.gA * args.cY.to_tensor() * trace(args.cA, icY);
 
+    //dtcA += -0.001f * args.gA * args.cA * calculate_hamiltonian_constraint(args, derivs, scale);
+
     //#define MOMENTUM_CONSTRAINT_DAMPING
     #ifdef MOMENTUM_CONSTRAINT_DAMPING
     auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
@@ -1020,7 +1022,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
     {
         for(int j=0; j < 3; j++)
         {
-            float Ka = 0.0001f;
+            float Ka = 0.001f;
 
             dtcA[i, j] += Ka * args.gA * 0.5f *
                               (covariant_derivative_low_vec(momentum_constraint, christoff2, scale)[i, j]
@@ -1054,7 +1056,44 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
             sum += raised[k, k];
         }
 
-        dtcA += 0.0002f * args.gA * args.cY.to_tensor() * sum;
+        //dtcA += 0.0002f * args.gA * args.cY.to_tensor() * sum;
+    }
+
+    {
+
+        tensor<valuef, 3, 3> symmetric_momentum_deriv;
+
+        {
+            tensor<valuef, 3, 3> momentum_deriv;
+
+            for(int i=0; i < 3; i++)
+            {
+                for(int j=0; j < 3; j++)
+                {
+                    momentum_deriv.idx(i, j) = diff1(momentum_constraint.idx(i), j, scale);
+                }
+            }
+
+            for(int i=0; i < 3; i++)
+            {
+                for(int j=0; j < 3; j++)
+                {
+                    symmetric_momentum_deriv.idx(i, j) = 0.5f * (momentum_deriv.idx(i, j) + momentum_deriv.idx(j, i));
+                }
+            }
+
+            pin(symmetric_momentum_deriv);
+        }
+
+        {
+            valuef F_a = scale;
+
+            //if(true)
+            //    F_a = scale * args.gA;
+
+                ///https://arxiv.org/pdf/1205.5111v1.pdf (56)
+            //dtcA += 0.1f * F_a * trace_free(symmetric_momentum_deriv, args.cY, icY);
+        }
     }
 
     return dtcA;
@@ -1226,6 +1265,10 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const valu
             value_impl::get_context().add(se);
         });*/
         #endif // STABILITY_SIGMA
+
+        /*float mcGicst = -0.5f;
+
+        dtcG += mcGicst * args.gA * Gi;*/
     }
 
     return dtcG;
@@ -1752,16 +1795,74 @@ valuef diff6th(valuef in, int idx, valuef scale)
     return (p1 + p2 + p3 + p4);
 }
 
+
+valuef diffnth(const valuef& in, int idx, int nth, const valuef& scale)
+{
+    ///1 with accuracy 2
+    if(nth == 1)
+    {
+        assert(false);
+
+        differentiation_context<valuef, 3> dctx(in, idx);
+        auto vars = dctx.vars;
+
+        return (vars[2] - vars[0]) / 2;
+    }
+
+    ///2 with accuracy 2
+    if(nth == 2)
+    {
+        differentiation_context<valuef, 3> dctx(in, idx);
+        auto vars = dctx.vars;
+
+        value p1 = vars[0] + vars[2];
+        value p2 = -2 * vars[1];
+
+        return (p1 + p2);
+    }
+
+
+    ///4 with accuracy 2
+    if(nth == 4)
+    {
+        differentiation_context<valuef, 5> dctx(in, idx);
+        auto vars = dctx.vars;
+
+        value p1 = vars[0] + vars[4];
+        value p2 = -4 * (vars[1] + vars[3]);
+        value p3 = 6 * vars[2];
+
+        return (p1 + p2 + p3);
+    }
+
+    ///6 with accuracy 2
+    if(nth == 6)
+    {
+        differentiation_context<valuef, 7> dctx(in, idx);
+        auto vars = dctx.vars;
+
+        value p1 = vars[0] + vars[6];
+        value p2 = -6 * (vars[1] + vars[5]);
+        value p3 = 15 * (vars[2] + vars[4]);
+        value p4 = -20 * vars[3];
+
+        return (p1 + p2 + p3 + p4);
+    }
+
+    assert(false);
+}
+
 valuef kreiss_oliger_interior(valuef in, valuef scale)
 {
     valuef val = 0;
 
+    int n = 2;
+
     for(int i=0; i < 3; i++)
     {
-        val += diff6th(in, i, scale);
+        val += diffnth(in, i, n, scale);
     }
 
-    int n = 6;
     float p = n - 1;
 
     int sign = pow(-1, (p + 3)/2);
