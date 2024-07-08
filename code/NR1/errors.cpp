@@ -62,6 +62,10 @@ std::string make_global_sum()
         });
 
         valued as_double = ((valued)in[lid]) * pow(10., 8.);
+
+        value<std::int64_t> as_uint = (value<std::int64_t>)as_double;
+
+        sum.atom_add(0, as_uint);
     };
 
     return value_impl::make_function(func, "sum");

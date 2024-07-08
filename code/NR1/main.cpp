@@ -5,6 +5,7 @@
 #include <vec/tensor.hpp>
 #include <toolkit/texture.hpp>
 #include <toolkit/fs_helpers.hpp>
+#include "errors.hpp"
 
 using t3i = tensor<int, 3>;
 
@@ -344,6 +345,7 @@ int main()
     //std::cout << make_derivatives() << std::endl;
     //std::cout << make_bssn() << std::endl;
 
+
     render_settings sett;
     sett.width = 1280;
     sett.height = 720;
@@ -358,6 +360,7 @@ int main()
     assert(win.clctx);
 
     cl::context& ctx = win.clctx->ctx;
+    std::cout << cl::get_extensions(ctx) << std::endl;
 
     {
         auto make_and_register = [&](const std::string& str)
@@ -375,6 +378,8 @@ int main()
         make_and_register(init_debugging());
         make_and_register(make_momentum_constraint());
         make_and_register(make_kreiss_oliger());
+        make_and_register(make_hamiltonian_error());
+        make_and_register(make_global_sum());
     }
 
     cl::command_queue& cqueue = win.clctx->cqueue;

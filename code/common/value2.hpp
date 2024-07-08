@@ -35,6 +35,8 @@ namespace value_impl
             DIVIDE,
             MOD,
 
+            ATOM_ADD,
+
             LT,
             LTE,
             EQ,

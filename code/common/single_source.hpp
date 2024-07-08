@@ -803,6 +803,13 @@ namespace value_impl
             return "select(" + value_to_string(v.args.at(2)) + "," + value_to_string(v.args.at(1)) + "," + value_to_string(v.args.at(0)) + ")";
         }
 
+        if(v.type == op::ATOM_ADD)
+        {
+            value_base offset = v.args.at(0) + v.args.at(1);
+
+            return "atom_add(" + value_to_string(offset) + "," + value_to_string(v.args.at(2)) + ")";
+        }
+
         return function_call_or_infix(v);
     }
 
@@ -956,6 +963,16 @@ namespace value_impl
             auto operator[](const tensor<U, 3>& pos, const tensor<U, 3>& dim)
             {
                 return apply_mutability(buffer<T>::operator[](pos, dim));
+            }
+
+            T atom_add(const value<int>& index, const T& in)
+            {
+                value_base op;
+                op.type = op::ATOM_ADD;
+                op.args = {this->name, index, in};
+                op.concrete = get_interior_type(T());
+
+                return build_type(op, T());
             }
         };
 

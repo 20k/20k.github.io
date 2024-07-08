@@ -3,7 +3,7 @@
 
 #include <string>
 
-std::string make_momentum_constraint();
-std::string make_kreiss_oliger();
+std::string make_hamiltonian_error();
+std::string make_global_sum();
 
 #endif // ERRORS_HPP_INCLUDED
