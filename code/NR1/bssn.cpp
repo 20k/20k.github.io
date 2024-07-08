@@ -718,9 +718,11 @@ valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& deriv
     auto icY = args.cY.invert();
     pin(icY);
 
+    auto iYij = args.W * args.W * icY;
+
     value iW = 1/max(args.W, valuef(0.00001f));
 
-    valuef R = trace(W2Rij * iW * iW, icY);
+    valuef R = trace(W2Rij * iW * iW, iYij);
 
     tensor<valuef, 3, 3> AMN = icY.raise(icY.raise(args.cA, 0), 1);
 
@@ -852,6 +854,8 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, valuef 
         dtcY = lie_derivative_weight(args.gB, args.cY, scale) - 2 * args.gA * trace_free(args.cA, args.cY, icY);
 
         dtcY += -get_algebraic_damping_factor() * args.gA * args.cY.to_tensor() * log(args.cY.det());
+
+        //dtcY += 0.005f * args.gA * args.cY.to_tensor() * -calculate_hamiltonian_constraint(args, derivs, scale);
 
         /*tensor<valuef, 3, 3> cD = covariant_derivative_low_vec(args.cY.lower(Gi), christoff2, scale);
 
@@ -1418,7 +1422,6 @@ std::string make_bssn()
             Mi[i] = momentum_constraint[i][pos, dim];
         }
 
-
         tensor<valuef, 3, 3> dtcA = get_dtcA(args, derivs, Mi, scale.get());
 
         tensor<int, 2> index_table[6] = {{0, 0}, {0, 1}, {0, 2}, {1, 1}, {1, 2}, {2, 2}};
@@ -1901,4 +1904,66 @@ std::string make_kreiss_oliger()
      };
 
      return value_impl::make_function(func, "kreiss_oliger");
+}
+
+std::string make_hamiltonian_error()
+{
+    auto func = [&](execution_context&,
+                    bssn_args_mem<buffer<valuef>> args_in,
+                    bssn_derivatives_mem<buffer<derivative_t>> derivatives,
+                    buffer_mut<valuef> out,
+                    literal<v3i> ldim, literal<valuef> scale) {
+        using namespace single_source;
+
+        valuei lid = value_impl::get_global_id(0);
+
+        pin(lid);
+
+        v3i dim = ldim.get();
+
+        if_e(lid >= dim.x() * dim.y() * dim.z(), [&] {
+            return_e();
+        });
+
+        ///todo: genericise
+        valuei x = lid % dim.x();
+        valuei y = (lid / dim.x()) % dim.y();
+        valuei z = lid / (dim.x() * dim.y());
+
+        pin(x);
+        pin(y);
+        pin(z);
+
+        v3i pos = {x, y, z};
+
+        bssn_args args(pos, dim, args_in);
+        bssn_derivatives derivs(pos, dim, derivatives);
+
+        valuef hamiltonian = calculate_hamiltonian_constraint(args, derivs, scale.get());
+
+        as_ref(out[pos, dim]) = hamiltonian;
+    };
+
+    return value_impl::make_function(func, "calculate_hamiltonian");
+}
+
+std::string make_global_sum()
+{
+     auto func = [&](execution_context&,
+                    buffer<valuef> in,
+                    buffer_mut<value<std::int64_t>> sum,
+                    literal<valuei> num) {
+        using namespace single_source;
+
+        valuei lid = value_impl::get_global_id(0);
+
+        pin(lid);
+
+        if_e(lid >= num.get(), [&]
+        {
+            return_e();
+        });
+    };
+
+    return value_impl::make_function(func, "sum");
 }

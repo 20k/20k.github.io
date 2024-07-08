@@ -145,13 +145,18 @@ namespace stdmath
 
     auto ufabs = []<typename T>(const T& in)
     {
-        using std::fabs;
-        using std::abs;
-
-        if constexpr(std::is_integral_v<T>)
-            return abs(in);
+        if constexpr(std::is_unsigned_v<T> || std::is_same_v<T, bool>)
+            return in;
         else
-            return fabs(in);
+        {
+            using std::fabs;
+            using std::abs;
+
+            if constexpr(std::is_integral_v<T>)
+                return abs(in);
+            else
+                return fabs(in);
+        }
     };
 
     auto usqrt = []<typename T>(const T& in)

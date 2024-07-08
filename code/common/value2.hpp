@@ -4,6 +4,7 @@
 #include <string>
 #include <variant>
 #include <vector>
+#include <cstdint>
 #include "stdmath.hpp"
 #include "../common/vec/tensor.hpp"
 
@@ -106,7 +107,7 @@ namespace value_impl
         return std::variant<decltype(f(Ts()))...>();
     }
 
-    using supported_types = std::variant<double, float, float16, int, bool>;
+    using supported_types = std::variant<double, float, float16, int, bool, std::uint64_t, std::int64_t>;
 
     struct value_base;
 
@@ -1621,6 +1622,18 @@ namespace value_impl
 
         else if constexpr(std::is_same_v<T, bool>)
             return "bool";
+
+        else if constexpr(std::is_same_v<T, std::uint64_t>)
+            return "ulong";
+
+        else if constexpr(std::is_same_v<T, value<std::uint64_t>>)
+            return "ulong";
+
+        else if constexpr(std::is_same_v<T, std::int64_t>)
+            return "long";
+
+        else if constexpr(std::is_same_v<T, value<std::int64_t>>)
+            return "long";
 
         else
         {
