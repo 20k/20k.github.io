@@ -103,6 +103,7 @@ struct mesh
     cl::buffer temporary_buffer;
     cl::buffer temporary_single;
     std::vector<double> hamiltonian_error;
+    std::vector<double> Mi_error;
 
     mesh(cl::context& ctx, t3i _dim) : buffers{ctx, ctx, ctx}, temporary_buffer(ctx), temporary_single(ctx)
     {
@@ -298,20 +299,7 @@ struct mesh
 
             if(iteration == 0)
             {
-                {
-                    cl::args args;
-                    buffers[in_idx].append_to(args);
-
-                    for(auto& i : derivatives)
-                        args.push_back(i);
-
-                    args.push_back(temporary_buffer);
-                    args.push_back(cldim);
-                    args.push_back(scale);
-
-                    cqueue.exec("calculate_hamiltonian", args, {dim.x() * dim.y() * dim.z()}, {128});
-                }
-
+                auto sum_over = [&](cl::buffer buf)
                 {
                     temporary_single.set_to_zero(cqueue);
 
@@ -327,7 +315,35 @@ struct mesh
                     int64_t summed = temporary_single.read<int64_t>(cqueue).at(0);
                     double dsummed = (double)summed / pow(10., 8.);
 
-                    hamiltonian_error.push_back(dsummed);
+                    return dsummed;
+                };
+
+                {
+                    cl::args args;
+                    buffers[in_idx].append_to(args);
+
+                    for(auto& i : derivatives)
+                        args.push_back(i);
+
+                    args.push_back(temporary_buffer);
+                    args.push_back(cldim);
+                    args.push_back(scale);
+
+                    cqueue.exec("calculate_hamiltonian", args, {dim.x() * dim.y() * dim.z()}, {128});
+                    hamiltonian_error.push_back(sum_over(temporary_buffer));
+
+                    double Mi = 0;
+
+                    cqueue.exec("calculate_Mi0", args, {dim.x() * dim.y() * dim.z()}, {128});
+                    Mi += fabs(sum_over(temporary_buffer));
+
+                    cqueue.exec("calculate_Mi1", args, {dim.x() * dim.y() * dim.z()}, {128});
+                    Mi += fabs(sum_over(temporary_buffer));
+
+                    cqueue.exec("calculate_Mi2", args, {dim.x() * dim.y() * dim.z()}, {128});
+                    Mi += fabs(sum_over(temporary_buffer));
+
+                    Mi_error.push_back(Mi);
                 }
             }
 
@@ -424,6 +440,9 @@ int main()
         make_and_register(make_kreiss_oliger());
         make_and_register(make_hamiltonian_error());
         make_and_register(make_global_sum());
+        make_and_register(make_momentum_error(0));
+        make_and_register(make_momentum_error(1));
+        make_and_register(make_momentum_error(2));
     }
 
     cl::command_queue& cqueue = win.clctx->cqueue;
@@ -483,6 +502,13 @@ int main()
             lines.push_back(i);
 
         ImGui::PlotLines("H", lines.data(), lines.size());
+
+        std::vector<float> Mis;
+
+        for(auto& i : m.Mi_error)
+            Mis.push_back(i);
+
+        ImGui::PlotLines("Mi", Mis.data(), Mis.size());
 
         ImGui::End();
 
