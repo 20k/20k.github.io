@@ -451,6 +451,7 @@ namespace value_impl
     //#define NATIVE_RECIP
 
     ///handles function calls, and infix operators
+    inline
     std::string function_call_or_infix(const value_base& v)
     {
         using namespace op;
@@ -532,6 +533,7 @@ namespace value_impl
         return "(" + table.at(v.type) + "(" + args + "))";
     }
 
+    inline
     std::string value_to_string(const value_base& v)
     {
         if(v.type == op::VALUE) {
@@ -1530,6 +1532,7 @@ namespace value_impl
         return {ret, decls};*/
     }
 
+    inline
     std::string generate_kernel_string(function_context& kctx, const std::string& kernel_name)
     {
         execution_context_base& ctx = get_context();

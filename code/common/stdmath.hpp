@@ -8,79 +8,94 @@
 
 namespace stdmath
 {
+    constexpr
     auto usin = []<typename T>(const T& in)
     {
         using std::sin;
         return sin(in);
     };
 
+    constexpr
     auto ucos = []<typename T>(const T& in)
     {
         using std::cos;
         return cos(in);
     };
 
+    constexpr
     auto utan = []<typename T>(const T& in)
     {
         using std::tan;
         return tan(in);
     };
 
+    constexpr
     auto op_plus = []<typename T>(const T& v1, const T& v2)
     {
         return v1 + v2;
     };
 
+    constexpr
     auto op_minus = []<typename T>(const T& v1, const T& v2)
     {
         return v1 - v2;
     };
 
+    constexpr
     auto op_unary_minus = []<typename T>(const T& v1)
     {
         return -v1;
     };
 
+    constexpr
     auto op_multiply = []<typename T>(const T& v1, const T& v2)
     {
         return v1 * v2;
     };
 
+    constexpr
     auto op_divide = []<typename T>(const T& v1, const T& v2)
     {
         return v1 / v2;
     };
 
+    constexpr
     auto op_lt = []<typename T>(const T& v1, const T& v2)
     {
         return v1 < v2;
     };
 
+    constexpr
     auto op_lte = []<typename T>(const T& v1, const T& v2)
     {
         return v1 <= v2;
     };
 
+    constexpr
     auto op_eq = []<typename T>(const T& v1, const T& v2)
     {
         return v1 == v2;
     };
 
+    constexpr
     auto op_neq = []<typename T>(const T& v1, const T& v2)
     {
         return v1 != v2;
     };
 
+    constexpr
     auto op_gt = []<typename T>(const T& v1, const T& v2)
     {
         return v1 > v2;
     };
 
+    constexpr
     auto op_gte = []<typename T>(const T& v1, const T& v2)
     {
         return v1 >= v2;
     };
 
+    constexpr
     auto usign = []<typename T>(T in)
     {
         if constexpr(std::is_same_v<T, bool>)
@@ -111,6 +126,7 @@ namespace stdmath
         throw std::runtime_error("Bad sign function");
     };
 
+    constexpr
     auto uisfinite = []<typename T>(const T& in)
     {
         using std::isfinite;
@@ -121,18 +137,21 @@ namespace stdmath
             return isfinite(in);
     };
 
+    constexpr
     auto ufloor = []<typename T>(const T& in)
     {
         using std::floor;
         return floor(in);
     };
 
+    constexpr
     auto uceil = []<typename T>(const T& in)
     {
         using std::ceil;
         return ceil(in);
     };
 
+    constexpr
     auto ufmod = []<typename T>(const T& v1, const T& v2)
     {
         using std::fmod;
@@ -143,6 +162,7 @@ namespace stdmath
             return fmod(v1, v2);
     };
 
+    constexpr
     auto ufabs = []<typename T>(const T& in)
     {
         if constexpr(std::is_unsigned_v<T> || std::is_same_v<T, bool>)
@@ -159,6 +179,7 @@ namespace stdmath
         }
     };
 
+    constexpr
     auto usqrt = []<typename T>(const T& in)
     {
         using std::sqrt;
@@ -169,17 +190,20 @@ namespace stdmath
             return sqrt(in);
     };
 
+    constexpr
     auto uinverse_sqrt = []<typename T>(const T& in)
     {
         return 1/usqrt(in);
     };
 
     template<typename U>
+    constexpr
     auto ucast = []<typename T>(const T& in)
     {
         return (U)in;
     };
 
+    constexpr
     auto ulog = []<typename T>(const T& in)
     {
         using std::log;
@@ -190,6 +214,7 @@ namespace stdmath
             return log(in);
     };
 
+    constexpr
     auto uternary = []<typename T, typename U>(const T& condition, const U& if_true, const U& if_false)
     {
         if constexpr(std::is_arithmetic_v<U>)
@@ -198,6 +223,7 @@ namespace stdmath
             return ternary(condition, if_true, if_false);
     };
 
+    constexpr
     auto usinh = []<typename T>(const T& in)
     {
         using std::sinh;
@@ -208,6 +234,7 @@ namespace stdmath
             return sinh(in);
     };
 
+    constexpr
     auto ucosh = []<typename T>(const T& in)
     {
         using std::cosh;
@@ -218,6 +245,7 @@ namespace stdmath
             return cosh(in);
     };
 
+    constexpr
     auto utanh = []<typename T>(const T& in)
     {
         using std::tanh;
@@ -228,6 +256,7 @@ namespace stdmath
             return tanh(in);
     };
 
+    constexpr
     auto uasin = []<typename T>(const T& in)
     {
         using std::asin;
@@ -238,6 +267,7 @@ namespace stdmath
             return asin(in);
     };
 
+    constexpr
     auto uacos = []<typename T>(const T& in)
     {
         using std::acos;
@@ -248,6 +278,7 @@ namespace stdmath
             return acos(in);
     };
 
+    constexpr
     auto uatan = []<typename T>(const T& in)
     {
         using std::atan;
@@ -258,6 +289,7 @@ namespace stdmath
             return atan(in);
     };
 
+    constexpr
     auto uatan2 = []<typename T>(const T& y, const T& x)
     {
         using std::atan2;
@@ -268,6 +300,7 @@ namespace stdmath
             return atan2(y, x);
     };
 
+    constexpr
     auto umin = []<typename T>(const T& v1, const T& v2)
     {
         using std::min;
@@ -275,6 +308,7 @@ namespace stdmath
         return min(v1, v2);
     };
 
+    constexpr
     auto umax = []<typename T>(const T& v1, const T& v2)
     {
         using std::max;
@@ -282,6 +316,7 @@ namespace stdmath
         return max(v1, v2);
     };
 
+    constexpr
     auto uclamp = []<typename T>(const T& v1, const T& v2, const T& v3)
     {
         using std::clamp;
@@ -289,6 +324,7 @@ namespace stdmath
         return clamp(v1, v2, v3);
     };
 
+    constexpr
     auto upow = []<typename T>(const T& v1, const T& v2)
     {
         using std::pow;
@@ -296,6 +332,7 @@ namespace stdmath
         return pow(v1, v2);
     };
 
+    constexpr
     auto ufma = []<typename T>(const T& v1, const T& v2, const T& v3)
     {
         using std::fma;

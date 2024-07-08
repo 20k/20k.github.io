@@ -687,6 +687,12 @@ namespace value_impl
             static_cast<value_base&>(*this) = in;
         }
 
+        template<typename U>
+        explicit operator value<U>()
+        {
+            return this->to<U>();
+        }
+
         friend value<T> operator%(const value<T>& v1, const value<T>& v2) {
             value<T> result;
             result.type = op::MOD;
