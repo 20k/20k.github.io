@@ -575,7 +575,7 @@ valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& deriv
 
     value iW = 1/max(args.W, valuef(0.00001f));
 
-    valuef R = trace(W2Rij * iW * iW, iYij);
+    valuef R = trace(W2Rij, icY);
 
     tensor<valuef, 3, 3> AMN = icY.raise(icY.raise(args.cA, 0), 1);
 
