@@ -313,9 +313,7 @@ struct mesh
                     cqueue.exec("sum", args, {dim.x() * dim.y() * dim.z()}, {128});
 
                     int64_t summed = temporary_single.read<int64_t>(cqueue).at(0);
-                    double dsummed = (double)summed / pow(10., 8.);
-
-                    return dsummed;
+                    return (double)summed / pow(10., 8.);
                 };
 
                 {
