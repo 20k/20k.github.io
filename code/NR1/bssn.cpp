@@ -7,11 +7,6 @@
 template<typename T>
 using dual = dual_types::dual_v<T>;
 
-value_base positive_mod(const value_base& val, const value_base& n)
-{
-    return ((val % n) + n) % n;
-}
-
 template<typename T, int elements = 5>
 struct differentiation_context
 {
@@ -40,8 +35,6 @@ struct differentiation_context
         {
             ///assign to the original element, ie x
             vars[i] = in;
-
-            //std::cout << "Pre " << value_to_string(in) << std::endl;
 
             vars[i].recurse([&i, &offx, &offy, &offz](value_base& v)
             {
@@ -97,8 +90,6 @@ struct differentiation_context
                     v = get_substitution(v);
                 }
             });
-
-            //std::cout << "post " << value_to_string(vars[i]) << std::endl;
         }
     }
 };
