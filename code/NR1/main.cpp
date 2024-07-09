@@ -6,6 +6,7 @@
 #include <toolkit/texture.hpp>
 #include <toolkit/fs_helpers.hpp>
 #include "errors.hpp"
+#include "init.hpp"
 
 using t3i = tensor<int, 3>;
 
