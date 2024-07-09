@@ -1,7 +1,6 @@
 #include "errors.hpp"
 #include "../common/value2.hpp"
 #include "../common/single_source.hpp"
-#include <iostream>
 #include "bssn.hpp"
 
 std::string make_hamiltonian_error()
@@ -23,16 +22,7 @@ std::string make_hamiltonian_error()
             return_e();
         });
 
-        ///todo: genericise
-        valuei x = lid % dim.x();
-        valuei y = (lid / dim.x()) % dim.y();
-        valuei z = lid / (dim.x() * dim.y());
-
-        pin(x);
-        pin(y);
-        pin(z);
-
-        v3i pos = {x, y, z};
+        v3i pos = get_coordinate(lid, dim);
 
         bssn_args args(pos, dim, args_in);
         bssn_derivatives derivs(pos, dim, derivatives);
@@ -64,16 +54,7 @@ std::string make_momentum_error(int idx)
             return_e();
         });
 
-        ///todo: genericise
-        valuei x = lid % dim.x();
-        valuei y = (lid / dim.x()) % dim.y();
-        valuei z = lid / (dim.x() * dim.y());
-
-        pin(x);
-        pin(y);
-        pin(z);
-
-        v3i pos = {x, y, z};
+        v3i pos = get_coordinate(lid, dim);
 
         bssn_args args(pos, dim, args_in);
 
@@ -108,9 +89,5 @@ std::string make_global_sum()
         sum.atom_add_e(0, as_uint);
     };
 
-    std::string str = value_impl::make_function(func, "sum");
-
-    std::cout << str << std::endl;
-
-    return str;
+    return value_impl::make_function(func, "sum");
 }

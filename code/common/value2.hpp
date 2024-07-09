@@ -692,7 +692,7 @@ namespace value_impl
         }
 
         template<typename U>
-        explicit operator value<U>()
+        explicit operator value<U>() const
         {
             return this->to<U>();
         }
@@ -815,7 +815,7 @@ namespace value_impl
         }
 
         template<typename U>
-        value<U> to()
+        value<U> to() const
         {
             value_base out_type = name_type(U());
 

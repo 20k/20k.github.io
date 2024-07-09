@@ -9,6 +9,21 @@
 template<typename T>
 using dual = dual_types::dual_v<T>;
 
+v3i get_coordinate(valuei id, v3i dim)
+{
+    using namespace single_source;
+
+    valuei x = id % dim.x();
+    valuei y = (id / dim.x()) % dim.y();
+    valuei z = id / (dim.x() * dim.y());
+
+    pin(x);
+    pin(y);
+    pin(z);
+
+    return {x, y, z};
+}
+
 tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const valuef& scale)
 {
     valuef X = args.W*args.W;
@@ -77,15 +92,7 @@ std::string make_derivatives()
             return_e();
         });
 
-        valuei x = lid % dim.x();
-        valuei y = (lid / dim.x()) % dim.y();
-        valuei z = lid / (dim.x() * dim.y());
-
-        pin(x);
-        pin(y);
-        pin(z);
-
-        v3i pos = {x, y, z};
+        v3i pos = get_coordinate(lid, dim);
 
         valuef v1 = in[pos, dim];
 
@@ -441,8 +448,6 @@ valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
     auto icY = args.cY.invert();
     pin(icY);
 
-    valuef X = args.W * args.W;
-
     tensor<valuef, 3, 3> W2DiDja = calculate_W2DiDja(args, derivs, scale);
 
     pin(W2DiDja);
@@ -733,15 +738,7 @@ std::string make_momentum_constraint()
             return_e();
         });
 
-        valuei x = lid % dim.x();
-        valuei y = (lid / dim.x()) % dim.y();
-        valuei z = lid / (dim.x() * dim.y());
-
-        pin(x);
-        pin(y);
-        pin(z);
-
-        v3i pos = {x, y, z};
+        v3i pos = get_coordinate(lid, dim);
 
         bssn_args args(pos, dim, in);
 
@@ -773,23 +770,13 @@ std::string make_bssn(const tensor<int, 3>& idim)
 
         pin(lid);
 
-        //v3i dim = ldim.get();
-
         v3i dim = {idim.x(), idim.y(), idim.z()};
 
         if_e(lid >= dim.x() * dim.y() * dim.z(), [&] {
             return_e();
         });
 
-        valuei x = lid % dim.x();
-        valuei y = (lid / dim.x()) % dim.y();
-        valuei z = lid / (dim.x() * dim.y());
-
-        pin(x);
-        pin(y);
-        pin(z);
-
-        v3i pos = {x, y, z};
+        v3i pos = get_coordinate(lid, dim);
 
         bssn_args args(pos, dim, in);
         bssn_derivatives derivs(pos, dim, derivatives);
@@ -853,7 +840,6 @@ std::string make_bssn(const tensor<int, 3>& idim)
     return str;
 }
 
-
 auto diff_analytic(auto&& func, const v4f& position, int direction) {
     auto pinned = position;
     single_source::pin(pinned);
@@ -896,20 +882,12 @@ std::string make_initial_conditions()
             return_e();
         });
 
-        valuei x = lid % dim.x();
-        valuei y = (lid / dim.x()) % dim.y();
-        valuei z = lid / (dim.x() * dim.y());
-
-        pin(x);
-        pin(y);
-        pin(z);
-
-        v3i pos = {x, y, z};
+        v3i pos = get_coordinate(lid, dim);
 
         v3i centre = dim / 2;
 
-        v3f fpos = {x.to<float>(), y.to<float>(), z.to<float>()};
-        v3f fcentre = {centre.x().to<float>(), centre.y().to<float>(), centre.z().to<float>()};
+        v3f fpos = (v3f)pos;
+        v3f fcentre = (v3f)centre;
 
         v3f wpos = (fpos - fcentre) * scale.get();
 
@@ -1083,15 +1061,7 @@ std::string init_christoffel()
             return_e();
         });
 
-        valuei x = lid % dim.x();
-        valuei y = (lid / dim.x()) % dim.y();
-        valuei z = lid / (dim.x() * dim.y());
-
-        pin(x);
-        pin(y);
-        pin(z);
-
-        v3i pos = {x, y, z};
+        v3i pos = get_coordinate(lid, dim);
 
         metric<valuef, 3, 3> cY;
 
@@ -1165,17 +1135,9 @@ std::string init_debugging()
             return_e();
         });
 
-        valuei x = lid % dim.x();
-        valuei y = (lid / dim.x()) % dim.y();
-        valuei z = lid / (dim.x() * dim.y());
+        v3i pos = get_coordinate(lid, dim);
 
-        pin(x);
-        pin(y);
-        pin(z);
-
-        v3i pos = {x, y, z};
-
-        if_e(z != valuei(dim.z()/2), [&] {
+        if_e(pos.z() != valuei(dim.z()/2), [&] {
             return_e();
         });
 
@@ -1228,15 +1190,7 @@ std::string make_kreiss_oliger()
             return_e();
         });
 
-        valuei x = lid % dim.x();
-        valuei y = (lid / dim.x()) % dim.y();
-        valuei z = lid / (dim.x() * dim.y());
-
-        pin(x);
-        pin(y);
-        pin(z);
-
-        v3i pos = {x, y, z};
+        v3i pos = get_coordinate(lid, dim);
 
         as_ref(inout[lid]) = declare_e(in[lid]) + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get());
      };

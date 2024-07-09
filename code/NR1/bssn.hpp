@@ -22,6 +22,8 @@ using m44f = metric<valuef, 4, 4>;
 using mut_v4f = tensor<mut<valuef>, 4>;
 using mut_v3f = tensor<mut<valuef>, 3>;
 
+v3i get_coordinate(valuei id, v3i dim);
+
 ///thoughts: its a lot easier to get my hands on equations with X
 ///but W^2 is clearly a better choice
 ///I think there are two options:
