@@ -17,7 +17,9 @@ namespace value_impl
     struct execution_context_base
     {
         std::vector<value_base> to_execute;
+        std::vector<std::pair<value_base, value_base>> aliases;
         virtual void add(const value_base& in) = 0;
+        virtual void alias(const value_base& check, const value_base& to) = 0;
         virtual int next_id() = 0;
 
         template<typename T, int... N>
@@ -82,6 +84,11 @@ namespace value_impl
     struct execution_context : execution_context_base
     {
         int id = 0;
+
+        void alias(const value_base& check, const value_base& to) override
+        {
+            aliases.push_back({check, to});
+        }
 
         void add(const value_base& in) override
         {
@@ -410,6 +417,12 @@ namespace value_impl
         auto pin(T& in)
         {
             return get_context().pin(in);
+        }
+
+        template<typename T>
+        auto alias(const T& check, const T& to)
+        {
+            return get_context().alias(check, to);
         }
     }
 
@@ -1582,6 +1595,23 @@ namespace value_impl
 
         std::vector<std::vector<value_base>> blocks;
         blocks.emplace_back();
+
+        #define ALIASES
+        #ifdef ALIASES
+        for(auto& v : ctx.to_execute)
+        {
+            for(auto& [check, sub] : ctx.aliases)
+            {
+                v.recurse([&](value_base& in)
+                {
+                    if(equivalent(in, check))
+                    {
+                        in = sub;
+                    }
+                });
+            }
+        }
+        #endif
 
         for(auto& v : ctx.to_execute)
         {

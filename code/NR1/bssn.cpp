@@ -107,12 +107,20 @@ valuef diff1(const valuef& val, int direction, valuef scale)
 ///as this is better on the memory layout
 valuef diff2(const valuef& in, int idx, int idy, const valuef& dx, const valuef& dy, const valuef& scale)
 {
+    using namespace single_source;
+
     if(idx < idy)
     {
+        ///we must use dy, therefore swap all instances of diff1 in idy -> dy
+        alias(diff1(in, idy, scale), dy);
+
         return diff1(dy, idx, scale);
     }
     else
     {
+        ///we must use dx, therefore swap all instances of diff1 in idx -> dx
+        alias(diff1(in, idx, scale), dx);
+
         return diff1(dx, idy, scale);
     }
 }
@@ -406,18 +414,6 @@ std::string make_derivatives()
 
     return str;
 }
-
-struct time_derivatives
-{
-    tensor<valuef, 3, 3> dtcY;
-    tensor<valuef, 3, 3> dtcA;
-    valuef dtK;
-    valuef dtW;
-    tensor<valuef, 3> dtcG;
-
-    valuef dtgA;
-    tensor<valuef, 3> dtgB;
-};
 
 tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
 {
