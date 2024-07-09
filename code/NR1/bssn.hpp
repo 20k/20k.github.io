@@ -6,7 +6,7 @@
 #include "../common/value2.hpp"
 #include "../common/single_source.hpp"
 
-using derivative_t = value<float>;
+using derivative_t = value<float16>;
 using valuef = value<float>;
 using valued = value<double>;
 using valuei = value<int>;
@@ -122,11 +122,11 @@ struct bssn_args
 struct bssn_derivatives
 {
     ///diYjk
-    tensor<derivative_t, 3, 3, 3> dcY;
-    tensor<derivative_t, 3> dgA;
+    tensor<valuef, 3, 3, 3> dcY;
+    tensor<valuef, 3> dgA;
     ///digBj
-    tensor<derivative_t, 3, 3> dgB;
-    tensor<derivative_t, 3> dW;
+    tensor<valuef, 3, 3> dgB;
+    tensor<valuef, 3> dW;
 
     bssn_derivatives(v3i pos, v3i dim, bssn_derivatives_mem<buffer<derivative_t>>& derivatives)
     {
@@ -142,14 +142,14 @@ struct bssn_derivatives
                 {
                     int index = index_table[i][j];
 
-                    dcY[k, i, j] = derivatives.dcY[index][k][pos, dim];
+                    dcY[k, i, j] = (valuef)derivatives.dcY[index][k][pos, dim];
                 }
 
-                dgB[k, i] = derivatives.dgB[i][k][pos, dim];
+                dgB[k, i] = (valuef)derivatives.dgB[i][k][pos, dim];
             }
 
-            dgA[k] = derivatives.dgA[k][pos, dim];
-            dW[k] = derivatives.dW[k][pos, dim];
+            dgA[k] = (valuef)derivatives.dgA[k][pos, dim];
+            dW[k] = (valuef)derivatives.dW[k][pos, dim];
         }
     }
 };

@@ -377,7 +377,7 @@ tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const valuef& s
 
 std::string make_derivatives()
 {
-    auto differentiate = [&](execution_context&, buffer<valuef> in, std::array<buffer_mut<valuef>, 3> out, literal<v3i> ldim, literal<valuef> scale)
+    auto differentiate = [&](execution_context&, buffer<valuef> in, std::array<buffer_mut<derivative_t>, 3> out, literal<v3i> ldim, literal<valuef> scale)
     {
         using namespace single_source;
 
@@ -403,9 +403,9 @@ std::string make_derivatives()
 
         valuef v1 = in[pos, dim];
 
-        as_ref(out[0][pos, dim]) = diff1(v1, 0, scale.get());
-        as_ref(out[1][pos, dim]) = diff1(v1, 1, scale.get());
-        as_ref(out[2][pos, dim]) = diff1(v1, 2, scale.get());
+        as_ref(out[0][pos, dim]) = (derivative_t)diff1(v1, 0, scale.get());
+        as_ref(out[1][pos, dim]) = (derivative_t)diff1(v1, 1, scale.get());
+        as_ref(out[2][pos, dim]) = (derivative_t)diff1(v1, 2, scale.get());
     };
 
     std::string str = value_impl::make_function(differentiate, "differentiate");
