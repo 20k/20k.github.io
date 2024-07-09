@@ -667,29 +667,6 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, valuef 
     inverse_metric<valuef, 3, 3> icY = args.cY.invert();
     pin(icY);
 
-    tensor<valuef, 3, 3, 3> christoff2 = christoffel_symbols_2(icY, derivs.dcY);
-
-    pin(christoff2);
-
-    tensor<valuef, 3> calculated_cG;
-
-    for(int i=0; i < 3; i++)
-    {
-        valuef sum = 0;
-
-        for(int m=0; m < 3; m++)
-        {
-            for(int n=0; n < 3; n++)
-            {
-                sum += icY[m, n] * christoff2[i, m, n];
-            }
-        }
-
-        calculated_cG[i] = sum;
-    }
-
-    tensor<valuef, 3> Gi = args.cG - calculated_cG;
-
     tensor<valuef, 3, 3> dtcY;
 
     ///dtcY
@@ -700,111 +677,6 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, valuef 
 
         ///https://arxiv.org/pdf/gr-qc/0204002
         dtcY += -get_algebraic_damping_factor() * args.gA * args.cY.to_tensor() * log(args.cY.det());
-
-        //dtcY += 0.005f * args.gA * args.cY.to_tensor() * -calculate_hamiltonian_constraint(args, derivs, scale);
-
-        /*tensor<valuef, 3, 3> cD = covariant_derivative_low_vec(args.cY.lower(Gi), christoff2, scale);
-
-        pin(cD);
-
-        for(int i=0; i < 3; i++)
-        {
-            for(int j=0; j < 3; j++)
-            {
-                float cK = -0.035;
-
-                ret.dtcY.idx(i, j) += cK * args.gA * 0.5f * (cD.idx(i, j) + cD.idx(j, i));
-            }
-        }*/
-
-        #if 0
-        tensor<valuef, 3, 3> d_cGi;
-
-        for(int m=0; m < 3; m++)
-        {
-            tensor<dual<valuef>, 3, 3, 3> d_dcYij;
-
-            metric<dual<valuef>, 3, 3> d_cYij;
-
-            for(int i=0; i < 3; i++)
-            {
-                for(int j=0; j < 3; j++)
-                {
-                    d_cYij[i, j].real = args.cY[i, j];
-                    d_cYij[i, j].dual = derivs.dcY[m, i, j];
-                }
-            }
-
-            pin(d_cYij);
-
-            auto dicY = d_cYij.invert();
-
-            pin(dicY);
-
-            for(int k=0; k < 3; k++)
-            {
-                for(int i=0; i < 3; i++)
-                {
-                    for(int j=0; j < 3; j++)
-                    {
-                        d_dcYij[k, i, j].real = derivs.dcY[k, i, j];
-                        d_dcYij[k, i, j].dual = diff1(derivs.dcY[k, i, j], m, scale);
-                    }
-                }
-            }
-
-            pin(d_dcYij);
-
-            auto d_christoff2 = christoffel_symbols_2(dicY, d_dcYij);
-
-            pin(d_christoff2);
-
-            tensor<dual<valuef>, 3> dcGi_G;
-
-            for(int i=0; i < 3; i++)
-            {
-                dual<valuef> sum = 0;
-
-                for(int j=0; j < 3; j++)
-                {
-                    for(int k=0; k < 3; k++)
-                    {
-                        sum += dicY[j, k] * d_christoff2[i, j, k];
-                    }
-                }
-
-                dcGi_G[i] = sum;
-            }
-
-            pin(dcGi_G);
-
-            for(int i=0; i < 3; i++)
-            {
-                d_cGi[m, i] = diff1(args.cG[i], m, scale) - dcGi_G[i].dual;
-            }
-        }
-
-        tensor<valuef, 3, 3> cD = covariant_derivative_high_vec(Gi, d_cGi, christoff2);
-
-        pin(cD);
-
-        for(int i=0; i < 3; i++)
-        {
-            for(int j=0; j < 3; j++)
-            {
-                valuef sum = 0;
-
-                for(int k=0; k < 3; k++)
-                {
-                    sum += 0.5f * (args.cY[k, i] * cD[k, j] + args.cY[k, j] * cD[k, i]);
-                }
-
-                float cK = -0.055f;
-
-                dtcY.idx(i, j) += cK * args.gA * sum;
-            }
-        }
-        #endif
     }
 
     return dtcY;
@@ -1011,27 +883,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const valu
     pin(icY);
 
     tensor<valuef, 3, 3, 3> christoff2 = christoffel_symbols_2(icY, derivs.dcY);
-
     pin(christoff2);
-
-    tensor<valuef, 3> calculated_cG;
-
-    for(int i=0; i < 3; i++)
-    {
-        valuef sum = 0;
-
-        for(int m=0; m < 3; m++)
-        {
-            for(int n=0; n < 3; n++)
-            {
-                sum += icY[m, n] * christoff2[i, m, n];
-            }
-        }
-
-        calculated_cG[i] = sum;
-    }
-
-    tensor<valuef, 3> Gi = args.cG - calculated_cG;
 
     tensor<valuef, 3> dtcG;
 
@@ -1137,6 +989,25 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const valu
 
         //#define STABILITY_SIGMA
         #ifdef STABILITY_SIGMA
+        tensor<valuef, 3> calculated_cG;
+
+        for(int i=0; i < 3; i++)
+        {
+            valuef sum = 0;
+
+            for(int m=0; m < 3; m++)
+            {
+                for(int n=0; n < 3; n++)
+                {
+                    sum += icY[m, n] * christoff2[i, m, n];
+                }
+            }
+
+            calculated_cG[i] = sum;
+        }
+
+        tensor<valuef, 3> Gi = args.cG - calculated_cG;
+
         valuef dmbm = 0;
 
         for(int m=0; m < 3; m++)
@@ -1147,20 +1018,6 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const valu
         float sigma = 1.333333f;
 
         dtcG += -sigma * Gi * dmbm;
-
-        /*{
-            float mcGicst = -0.1f;
-
-            ret.dtcG += mcGicst * args.gA * Gi;
-        }*/
-
-        /*if_e(args.pos.x() == 64 && args.pos.y() == 64 && args.pos.z() == 64, [&]{
-            value_base se;
-            se.type = value_impl::op::SIDE_EFFECT;
-            se.abstract_value = "printf(\"w %.16f %.16f\\n\"," + value_to_string(Gi[0]) + "," + value_to_string(calculated_cG[0] - cG2[0]) + ")";
-
-            value_impl::get_context().add(se);
-        });*/
         #endif // STABILITY_SIGMA
     }
 
@@ -1367,12 +1224,6 @@ std::string make_initial_conditions()
         v3f fcentre = {centre.x().to<float>(), centre.y().to<float>(), centre.z().to<float>()};
 
         v3f wpos = (fpos - fcentre) * scale.get();
-
-        /*value_base se;
-        se.type = value_impl::op::SIDE_EFFECT;
-        se.abstract_value = "printf(\"w %.16f\\n\"," + value_to_string(wpos.x()) + ")";
-
-        value_impl::get_context().add(se);*/
 
         #define GET_A 0.1f
 
@@ -1602,12 +1453,6 @@ std::string init_christoffel()
             calculated_cG[i] = sum;
         }
 
-        /*value_base se;
-        se.type = value_impl::op::SIDE_EFFECT;
-        se.abstract_value = "printf(\"%.16f\\n\"," + value_to_string(cG[0]) + ")";
-
-        value_impl::get_context().add(se);*/
-
         for(int i=0; i < 3; i++)
         {
             as_ref(to_fill.cG[i][lid]) = calculated_cG[i];
@@ -1646,24 +1491,8 @@ std::string init_debugging()
             return_e();
         });
 
-        /*value_base se;
-        se.type = value_impl::op::SIDE_EFFECT;
-        se.abstract_value = "printf(\"%.16f\\n\"," + value_to_string(to_fill.cY[3][lid]) + ")";
-
-        value_impl::get_context().add(se);*/
-
         valuef test_val = to_fill.cY[0][lid];
         valuef display = ((test_val - 1) / GET_A) * 0.5f + 0.5f;
-
-        //valuef test_val = to_fill.W[lid];
-
-        /*value_base se;
-        se.type = value_impl::op::SIDE_EFFECT;
-        se.abstract_value = "printf(\"w %.16f %i\\n\"," + value_to_string(test_val) + "," + value_to_string(x) + ")";
-
-        value_impl::get_context().add(se);*/
-
-        //valuef display = clamp(test_val, 0.f,1.f);
 
         v4f col = {display, 0.f, 0.f, 1.f};
 

@@ -455,7 +455,7 @@ int main()
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
-    t3i dim = {100, 100, 100};
+    t3i dim = {180, 180, 180};
 
     mesh m(ctx, dim);
     m.allocate(ctx);
