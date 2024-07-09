@@ -645,7 +645,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const valu
             {
                 for(int k=0; k < 3; k++)
                 {
-                    s7 += icY.idx(j, k) * diff2(args.gB[i], k, j, derivs.dgB[k, i], derivs.dgB[j, i], scale);
+                    s7 += icY[j, k] * diff2(args.gB[i], k, j, derivs.dgB[k, i], derivs.dgB[j, i], scale);
                 }
             }
 
