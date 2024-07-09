@@ -1037,13 +1037,6 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const valu
 
     tensor<valuef, 3> Gi = args.cG - calculated_cG;
 
-    ///W^2 = X
-    valuef X = args.W * args.W;
-    ///2 dW W = dX
-    tensor<valuef, 3> dX = 2 * args.W * derivs.dW;
-
-    value iX = 1/max(X, valuef(0.00001f));
-
     tensor<valuef, 3> dtcG;
 
     ///dtcG

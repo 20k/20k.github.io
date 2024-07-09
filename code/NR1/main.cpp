@@ -258,10 +258,6 @@ struct mesh
             }
         };
 
-        kreiss(0, 1);
-
-        std::swap(buffers[0], buffers[1]);
-
         auto substep = [&](int iteration, int base_idx, int in_idx, int out_idx)
         {
             {
@@ -395,6 +391,10 @@ struct mesh
 
         ///now that we've finished, our result is in buffer[1]
         std::swap(buffers[1], buffers[0]);
+
+        kreiss(0, 1);
+        std::swap(buffers[0], buffers[1]);
+
     }
 };
 
