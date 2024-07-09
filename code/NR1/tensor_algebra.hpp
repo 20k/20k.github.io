@@ -25,7 +25,7 @@ tensor<T, N, N> lie_derivative_weight(const tensor<T, N>& B, const S& mT, const 
                 sum2 += diff1(B[k], k, scale);
             }
 
-            lie.idx(i, j) = sum - (2.f/3.f) * mT.idx(i, j) * sum2;
+            lie[i, j] = sum - (2.f/3.f) * mT[i, j] * sum2;
         }
     }
 
@@ -108,7 +108,7 @@ tensor<T, N, N> double_covariant_derivative(const T& in, const tensor<T, N>& fir
                 sum += christoff2[b, c, a] * diff1(in, b, scale);
             }
 
-            lac.idx(a, c) = diff2(in, a, c, first_derivatives[a], first_derivatives[c], scale) - sum;
+            lac[a, c] = diff2(in, a, c, first_derivatives[a], first_derivatives[c], scale) - sum;
         }
     }
 
@@ -126,7 +126,7 @@ T trace(const tensor<T, N, N>& mT, const inverse_metric<T, N, N>& inverse)
     {
         for(int j=0; j < N; j++)
         {
-            ret = ret + inverse.idx(i, j) * mT.idx(i, j);
+            ret += inverse[i, j] * mT[i, j];
         }
     }
 
@@ -144,7 +144,7 @@ tensor<T, N, N> trace_free(const tensor<T, N, N>& mT, const metric<T, N, N>& met
     {
         for(int j=0; j < N; j++)
         {
-            TF.idx(i, j) = mT.idx(i, j) - (1/3.f) * met.idx(i, j) * t;
+            TF[i, j] = mT[i, j] - (1/3.f) * met[i, j] * t;
         }
     }
 
@@ -190,10 +190,10 @@ tensor<T, N, N> covariant_derivative_high_vec(const tensor<T, N>& v_in, const te
 
             for(int c=0; c < N; c++)
             {
-                sum = sum + christoff2.idx(a, b, c) * v_in.idx(c);
+                sum += christoff2[a, b, c] * v_in[c];
             }
 
-            lab.idx(a, b) = derivatives[b, a] + sum;
+            lab[a, b] = derivatives[b, a] + sum;
         }
     }
 
