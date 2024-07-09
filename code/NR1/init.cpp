@@ -75,7 +75,6 @@ std::string make_initial_conditions()
 
         v3f wpos = (fpos - fcentre) * scale.get();
 
-
         metric<valuef, 4, 4> Guv = wave_function((v4f){0, wpos.x(), wpos.y(), wpos.z()});
 
         tensor<valuef, 4, 4, 4> dGuv;
