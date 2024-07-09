@@ -371,8 +371,6 @@ struct mesh
             args.push_back(scale);
 
             cqueue.exec("evolve", args, {dim.x()*dim.y()*dim.z()}, {128});
-
-            //kreiss(base_idx, out_idx);
         };
 
         int iterations = 2;
