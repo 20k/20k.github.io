@@ -65,13 +65,25 @@ struct differentiation_context
                         value_base next_y = old_y + valuei(offy[i]);
                         value_base next_z = old_z + valuei(offz[i]);
 
-                        //std::cout << "Old " << value_to_string(old_x) << " dx " << value_to_string(dx) << std::endl;
-
                         #define PERIODIC_BOUNDARY
                         #ifdef PERIODIC_BOUNDARY
-                        next_x = positive_mod(next_x, dx);
-                        next_y = positive_mod(next_y, dy);
-                        next_z = positive_mod(next_z, dz);
+                        if(offx[i] > 0)
+                            next_x = ternary(next_x >= dx, next_x - dx, next_x);
+
+                        if(offy[i] > 0)
+                            next_y = ternary(next_y >= dy, next_y - dy, next_y);
+
+                        if(offz[i] > 0)
+                            next_z = ternary(next_z >= dz, next_z - dz, next_z);
+
+                        if(offx[i] < 0)
+                            next_x = ternary(next_x < valuei(0), next_x + dx, next_x);
+
+                        if(offy[i] < 0)
+                            next_y = ternary(next_y < valuei(0), next_y + dy, next_y);
+
+                        if(offz[i] < 0)
+                            next_z = ternary(next_z < valuei(0), next_z + dz, next_z);
                         #endif // PERIODIC_BOUNDARY
 
                         value_base op;
@@ -1071,7 +1083,7 @@ std::string make_momentum_constraint()
 }
 
 ///https://arxiv.org/pdf/0709.3559 tested, appendix a.2
-std::string make_bssn()
+std::string make_bssn(const tensor<int, 3>& idim)
 {
     auto bssn_function = [&](execution_context&, bssn_args_mem<buffer<valuef>> base,
                                                  bssn_args_mem<buffer<valuef>> in,
@@ -1087,7 +1099,9 @@ std::string make_bssn()
 
         pin(lid);
 
-        v3i dim = ldim.get();
+        //v3i dim = ldim.get();
+
+        v3i dim = {idim.x(), idim.y(), idim.z()};
 
         if_e(lid >= dim.x() * dim.y() * dim.z(), [&] {
             return_e();

@@ -674,6 +674,8 @@ namespace value_impl
 
     template<typename T>
     struct value : value_base {
+        using interior_type = T;
+
         value() {
             value_base::type = op::VALUE;
             value_base::concrete = T{};

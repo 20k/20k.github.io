@@ -128,7 +128,7 @@ struct mesh
         for(int i=0; i < 11 * 3; i++)
         {
             cl::buffer buf(ctx);
-            buf.alloc(sizeof(cl_float) * int64_t{dim.x()} * dim.y() * dim.z());
+            buf.alloc(sizeof(derivative_t::interior_type) * int64_t{dim.x()} * dim.y() * dim.z());
 
             derivatives.push_back(buf);
         }
@@ -229,6 +229,9 @@ struct mesh
 
         auto kreiss = [&](int in, int inout)
         {
+            //std::swap(buffers[in], buffers[inout]);
+            //return;
+
             std::vector<cl::buffer> linear_base;
             std::vector<cl::buffer> linear_inout;
 
@@ -293,6 +296,7 @@ struct mesh
                 }
             }
 
+            #ifdef CALCULATE_CONSTRAINT_ERRORS
             if(iteration == 0)
             {
                 auto sum_over = [&](cl::buffer buf)
@@ -340,7 +344,10 @@ struct mesh
                     Mi_error.push_back(Mi);
                 }
             }
+            #endif
 
+            //#define CALCULATE_MOMENTUM_CONSTRAINT
+            #ifdef CALCULATE_MOMENTUM_CONSTRAINT
             {
                 cl::args args;
                 buffers[in_idx].append_to(args);
@@ -353,7 +360,7 @@ struct mesh
 
                 cqueue.exec("momentum_constraint", args, {dim.x() * dim.y() * dim.z()}, {128});
             }
-
+            #endif
 
             cl::args args;
             buffers[base_idx].append_to(args);
@@ -418,6 +425,8 @@ int main()
     cl::context& ctx = win.clctx->ctx;
     std::cout << cl::get_extensions(ctx) << std::endl;
 
+    t3i dim = {256, 256, 256};
+
     {
         auto make_and_register = [&](const std::string& str)
         {
@@ -428,7 +437,7 @@ int main()
         };
 
         make_and_register(make_derivatives());
-        make_and_register(make_bssn());
+        make_and_register(make_bssn(dim));
         make_and_register(make_initial_conditions());
         make_and_register(init_christoffel());
         make_and_register(init_debugging());
@@ -441,7 +450,7 @@ int main()
         make_and_register(make_momentum_error(2));
     }
 
-    cl::command_queue& cqueue = win.clctx->cqueue;
+    cl::command_queue cqueue(ctx, (1<<9));
 
     ImFontAtlas* atlas = ImGui::GetIO().Fonts;
     atlas->FontBuilderFlags = ImGuiFreeTypeBuilderFlags_LCD | ImGuiFreeTypeBuilderFlags_FILTER_DEFAULT | ImGuiFreeTypeBuilderFlags_LoadColor;
@@ -454,8 +463,6 @@ int main()
 
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
-
-    t3i dim = {180, 180, 180};
 
     mesh m(ctx, dim);
     m.allocate(ctx);
