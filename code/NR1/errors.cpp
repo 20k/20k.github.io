@@ -103,24 +103,7 @@ std::string make_global_sum()
 
         valued as_double = ((valued)fabs(in[lid])) * pow(10., 8.);
 
-
-        /*if_e(lid == 6555, [&]{
-            value_base se;
-            se.type = value_impl::op::SIDE_EFFECT;
-            se.abstract_value = "printf(\"w %.16f\\n\"," + value_to_string(as_double) + ")";
-
-            value_impl::get_context().add(se);
-        });*/
-
         value<std::int64_t> as_uint = (value<std::int64_t>)as_double;
-
-        /*if_e(lid == 6555, [&]{
-            value_base se;
-            se.type = value_impl::op::SIDE_EFFECT;
-            se.abstract_value = "printf(\"w %i\\n\"," + value_to_string(as_uint) + ")";
-
-            value_impl::get_context().add(se);
-        });*/
 
         sum.atom_add_e(0, as_uint);
     };
