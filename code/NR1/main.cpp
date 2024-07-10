@@ -297,6 +297,7 @@ struct mesh
                 }
             }
 
+            #define CALCULATE_CONSTRAINT_ERRORS
             #ifdef CALCULATE_CONSTRAINT_ERRORS
             if(iteration == 0)
             {
@@ -406,10 +407,6 @@ struct mesh
 
 int main()
 {
-    //std::cout << make_derivatives() << std::endl;
-    //std::cout << make_bssn() << std::endl;
-
-
     render_settings sett;
     sett.width = 1280;
     sett.height = 720;
@@ -426,7 +423,7 @@ int main()
     cl::context& ctx = win.clctx->ctx;
     std::cout << cl::get_extensions(ctx) << std::endl;
 
-    t3i dim = {256, 256, 256};
+    t3i dim = {300, 300, 300};
 
     {
         auto make_and_register = [&](const std::string& str)
