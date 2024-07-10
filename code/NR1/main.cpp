@@ -380,7 +380,7 @@ struct mesh
             cqueue.exec("evolve", args, {dim.x()*dim.y()*dim.z()}, {128});
         };
 
-        int iterations = 2;
+        int iterations = 4;
 
         for(int i=0; i < iterations; i++)
         {

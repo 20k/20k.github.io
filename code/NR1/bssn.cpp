@@ -275,7 +275,7 @@ valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& deriv
 
 float get_algebraic_damping_factor()
 {
-    return 1.f;
+    return 100.f;
 }
 
 //#define BLACK_HOLE_GAUGE
