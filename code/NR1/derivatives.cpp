@@ -97,10 +97,12 @@ valuef diff1(const valuef& val, int direction, const valuef& scale)
     differentiation_context dctx(val, direction);
     std::array<valuef, 5> vars = dctx.vars;
 
-    valuef p1 = -vars[4] + vars[0];
+    /*valuef p1 = -vars[4] + vars[0];
     valuef p2 = valuef(8.f) * (vars[3] - vars[1]);
 
-    return (p1 + p2) / (12.f * scale);
+    return (p1 + p2) / (12.f * scale);*/
+
+    return 0.5f * (vars[3] - vars[1]) / scale;
 }
 
 ///this uses the commutativity of partial derivatives to lopsidedly prefer differentiating dy in the x direction

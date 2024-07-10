@@ -389,7 +389,7 @@ valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
         dibiw += args.gB[i] * diff1(args.W, i, scale);
     }
 
-    return (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw;
+    return (1/3.f) * args.W * (args.gA * args.K - dibi * 0) + dibiw * 0;
 }
 
 tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
@@ -857,14 +857,46 @@ std::string init_debugging()
             return_e();
         });
 
-        valuef test_val = to_fill.cY[0][lid];
-        valuef display = ((test_val - 1) / 0.1f) * 0.5f + 0.5f;
+        //valuef test_val = to_fill.cY[0][lid];
+        //valuef display = ((test_val - 1) / 0.1f) * 0.5f + 0.5f;
 
-        v4f col = {display, 0.f, 0.f, 1.f};
+        int which = 0;
 
-        col = clamp(col, valuef(0.f), valuef(1.f));
+        auto poke = [&](valuef v)
+        {
+            v4f col = {v, 0.f, 0.f, 1.f};
 
-        write.write({pos.x(), pos.y()}, col);
+            col = clamp(col, valuef(0.f), valuef(1.f));
+
+            write.write({pos.x(), pos.y() + which * 32}, col);
+
+            which++;
+        };
+
+        //valuef test_val = fabs(to_fill.cA[0][lid]) * 5;
+        //valuef display = test_val;
+
+        poke(fabs(to_fill.cA[0][lid]) * 5);
+        poke(fabs(to_fill.cA[1][lid]) * 5);
+        poke(fabs(to_fill.cA[2][lid]) * 5);
+        poke(fabs(to_fill.cA[3][lid]) * 5);
+        poke(fabs(to_fill.cA[4][lid]) * 5);
+        poke(fabs(to_fill.cA[5][lid]) * 5);
+        poke(fabs((to_fill.cY[0][lid] - 1) * 5));
+        poke(fabs(to_fill.cY[1][lid]) * 5);
+        poke(fabs(to_fill.cY[2][lid]) * 5);
+        poke(fabs((to_fill.cY[3][lid] - 1) * 5));
+        poke(fabs(to_fill.cY[4][lid]) * 5);
+        poke(fabs((to_fill.cY[5][lid] - 1) * 5));
+        poke(fabs((to_fill.K[lid]) * 5));
+        poke(fabs((to_fill.W[lid] - 1) * 5));
+        poke(fabs((to_fill.gA[lid] - 1) * 2));
+
+        poke(fabs((to_fill.cG[0][lid]) * 3));
+        poke(fabs((to_fill.cG[1][lid]) * 3));
+        poke(fabs((to_fill.cG[2][lid]) * 3));
+
+
     };
 
     return value_impl::make_function(dbg, "debug");

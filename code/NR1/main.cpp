@@ -295,7 +295,7 @@ struct mesh
                 }
             }
 
-            //#define CALCULATE_CONSTRAINT_ERRORS
+            #define CALCULATE_CONSTRAINT_ERRORS
             #ifdef CALCULATE_CONSTRAINT_ERRORS
             if(iteration == 0)
             {
@@ -421,7 +421,7 @@ int main()
     cl::context& ctx = win.clctx->ctx;
     std::cout << cl::get_extensions(ctx) << std::endl;
 
-    t3i dim = {300, 300, 300};
+    t3i dim = {33, 33, 33};
 
     {
         auto make_and_register = [&](const std::string& str)
@@ -537,7 +537,7 @@ int main()
 
         win.display();
 
-        std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
+        //std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
 
         elapsed_t += timestep;
     }

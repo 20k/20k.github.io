@@ -7,34 +7,6 @@
 template<typename T>
 using dual = dual_types::dual_v<T>;
 
-auto diff_analytic(auto&& func, const v4f& position, int direction) {
-    auto pinned = position;
-    single_source::pin(pinned);
-
-    m44f metric = func(pinned);
-
-    tensor<valuef, 4, 4> differentiated;
-
-    for(int i=0; i < 4; i++)
-    {
-        for(int j=0; j < 4; j++)
-        {
-            dual<value_base> as_dual = replay_value_base<dual<value_base>>(metric[i, j], [&](const value_base& in)
-            {
-                if(equivalent(in, pinned[direction]))
-                    return dual<value_base>(in, in.make_constant_of_type(1.f));
-                else
-                    return dual<value_base>(in, in.make_constant_of_type(0.f));
-            });
-
-            differentiated[i, j].set_from_base(as_dual.dual);
-        }
-    }
-
-    return differentiated;
-}
-
-
 auto wave_function = []<typename T>(const tensor<T, 4>& position)
 {
     float A = 0.1f;
@@ -68,7 +40,21 @@ std::string make_initial_conditions()
 
         v3i pos = get_coordinate(lid, dim);
 
-        v3i centre = dim / 2;
+        ///ok so. 0 = -c_at_max/2
+        ///dim-1 = -c_at_max/2
+        ///but is that right? for periodic boundaries, I want
+        ///ok, lets say dim is 32
+        ///dim/2 = 16
+        ///each row has dim.x pixels in it
+        ///we define 0 as being at -c_at_max/2
+        ///we define pixel dim.x-1 as being at c_at_max/2
+        ///the pixel at the centre is (dim.x-1)/2
+
+        ///lets say dim is 33
+        ///pixel 32 is at right
+        ///0 is at left
+        ///centre pixel is pixel 16
+        v3i centre = (dim - (v3i){1,1,1}) / 2;
 
         v3f fpos = (v3f)pos;
         v3f fcentre = (v3f)centre;

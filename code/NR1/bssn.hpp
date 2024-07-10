@@ -79,8 +79,6 @@ struct bssn_derivatives_mem : value_impl::single_source::argument_pack
 
 struct bssn_args
 {
-    v3i pos;
-
     metric<value<float>, 3, 3> cY;
     tensor<value<float>, 3, 3> cA;
     value<float> K;
@@ -90,11 +88,11 @@ struct bssn_args
     value<float> gA;
     tensor<value<float>, 3> gB;
 
-    bssn_args(v3i _pos, v3i dim,
+    bssn_args(){}
+
+    bssn_args(v3i pos, v3i dim,
               bssn_args_mem<buffer<value<float>>>& in)
     {
-        pos = _pos;
-
         int index_table[3][3] = {{0, 1, 2},
                                  {1, 3, 4},
                                  {2, 4, 5}};
