@@ -260,8 +260,25 @@ struct mesh
             }
         };
 
+        auto enforce_constraints = [&](int idx)
+        {
+            cl::args args;
+
+            for(int i=0; i < 6; i++)
+                args.push_back(buffers[idx].cY[i]);
+            for(int i=0; i < 6; i++)
+                args.push_back(buffers[idx].cA[i]);
+
+            args.push_back(cldim);
+
+            cqueue.exec("enforce_algebraic_constraints", args, {dim.x() * dim.y() * dim.z()}, {128});
+        };
+
         auto substep = [&](int iteration, int base_idx, int in_idx, int out_idx)
         {
+            ///this assumes that in_idx == base_idx for iteration 0, so that they are both constraint enforced
+            enforce_constraints(in_idx);
+
             {
                 std::vector<cl::buffer> d_in {
                     buffers[in_idx].cY[0],
@@ -361,19 +378,6 @@ struct mesh
                 cqueue.exec("momentum_constraint", args, {dim.x() * dim.y() * dim.z()}, {128});
             }
             #endif
-
-            {
-                cl::args args;
-
-                for(int i=0; i < 6; i++)
-                    args.push_back(buffers[in_idx].cY[i]);
-                for(int i=0; i < 6; i++)
-                    args.push_back(buffers[in_idx].cA[i]);
-
-                args.push_back(cldim);
-
-                cqueue.exec("enforce_algebraic_constraints", args, {dim.x() * dim.y() * dim.z()}, {128});
-            }
 
             cl::args args;
             buffers[base_idx].append_to(args);
