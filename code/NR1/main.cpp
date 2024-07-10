@@ -7,6 +7,7 @@
 #include <toolkit/fs_helpers.hpp>
 #include "errors.hpp"
 #include "init.hpp"
+#include "kreiss_oliger.hpp"
 
 using t3i = tensor<int, 3>;
 
@@ -294,7 +295,7 @@ struct mesh
                 }
             }
 
-            #define CALCULATE_CONSTRAINT_ERRORS
+            //#define CALCULATE_CONSTRAINT_ERRORS
             #ifdef CALCULATE_CONSTRAINT_ERRORS
             if(iteration == 0)
             {

@@ -163,6 +163,5 @@ std::string make_derivatives();
 std::string make_bssn(const tensor<int, 3>& dim);
 std::string init_debugging();
 std::string make_momentum_constraint();
-std::string make_kreiss_oliger();
 
 #endif // BSSN_HPP_INCLUDED
