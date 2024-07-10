@@ -542,7 +542,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
 
     dtcA += -get_algebraic_damping_factor() * args.gA * args.cY.to_tensor() * trace(args.cA, icY);
 
-    //#define MOMENTUM_CONSTRAINT_DAMPING
+    #define MOMENTUM_CONSTRAINT_DAMPING
     #ifdef MOMENTUM_CONSTRAINT_DAMPING
     auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
     pin(christoff2);
@@ -551,7 +551,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
     {
         for(int j=0; j < 3; j++)
         {
-            float Ka = 0.001f;
+            float Ka = 0.1f;
 
             dtcA[i, j] += Ka * args.gA * 0.5f *
                               (covariant_derivative_low_vec(momentum_constraint, christoff2, scale)[i, j]
@@ -861,7 +861,6 @@ std::string make_bssn(const tensor<int, 3>& idim)
             as_ref(out.gB[i][lid]) = apply_evolution(base.gB[i][lid], dtgB[i], timestep.get());
         }
 
-
         for(int i=0; i < 6; i++)
         {
             tensor<int, 2> idx = index_table[i];
@@ -877,6 +876,30 @@ std::string make_bssn(const tensor<int, 3>& idim)
             as_ref(out.cG[i][lid]) = apply_evolution(base.cG[i][lid], dtcG[i], timestep.get());
         }
 
+        auto cA_err = fixed_cA - bssn.cA;
+        auto K_err = out.K[lid] - bssn.K;
+        auto gA_err = out.gA[lid] - bssn.gA;
+        auto cY_err = fixed_cY - bssn.cY.to_tensor();
+        auto W_err = out.W[lid] - bssn.W;
+
+        if_e(pos.x() == 16 && pos.y() == 16 && pos.z() == 16, [&]
+        {
+            auto pf = [&](const std::string& prefix, valuef v)
+            {
+                value_base se;
+                se.type = value_impl::op::SIDE_EFFECT;
+                se.abstract_value = "printf(\"" + prefix + " %f\\n\"," + value_to_string(v) + ")";
+
+                value_impl::get_context().add(se);
+            };
+
+            pf("cA00", cA_err[0, 0]);
+            pf("cA11", cA_err[1, 1]);
+            pf("cA22", cA_err[2, 2]);
+            pf("K", K_err);
+            pf("gA", gA_err);
+            pf("W", W_err);
+        });
     };
 
     std::string str = value_impl::make_function(bssn_function, "evolve");

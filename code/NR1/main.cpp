@@ -347,7 +347,7 @@ struct mesh
             }
             #endif
 
-            //#define CALCULATE_MOMENTUM_CONSTRAINT
+            #define CALCULATE_MOMENTUM_CONSTRAINT
             #ifdef CALCULATE_MOMENTUM_CONSTRAINT
             {
                 cl::args args;
@@ -379,14 +379,14 @@ struct mesh
             args.push_back(scale);
 
             if(iteration == 0)
-                args.push_back(elapsed + timestep);
+                args.push_back(elapsed);
             else
                 args.push_back(elapsed + timestep);
 
             cqueue.exec("evolve", args, {dim.x()*dim.y()*dim.z()}, {128});
         };
 
-        int iterations = 2;
+        int iterations = 4;
 
         for(int i=0; i < iterations; i++)
         {
