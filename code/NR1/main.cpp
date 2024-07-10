@@ -230,9 +230,6 @@ struct mesh
 
         auto kreiss = [&](int in, int inout)
         {
-            //std::swap(buffers[in], buffers[inout]);
-            //return;
-
             std::vector<cl::buffer> linear_base;
             std::vector<cl::buffer> linear_inout;
 
