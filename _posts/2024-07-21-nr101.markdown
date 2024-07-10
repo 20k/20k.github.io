@@ -11,6 +11,7 @@ https://arxiv.org/pdf/1307.7391 ccz4 paper, contains some good equation referenc
 https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf covariant bssn
 https://www2.yukawa.kyoto-u.ac.jp/~masaru.shibata/PRD52.5428.pdf cG mentions the motivation behind the gamma term
 stability paper https://arxiv.org/pdf/0707.0339
+http://wwwteor.mi.infn.it/~molinari/TESI/Danieli_tesi.pdf 4.27 relates conjugate momentum and extrinsic curvature
 
 
 Ok planola time:
@@ -33,7 +34,7 @@ These kinds of simulations are traditionally run on supercomputers, but luckily 
 
 [^specs]: You'll need 8+ GB of vram. This article was written and implemented on a 6700xt, but previous work was on an r9 390
 
-This article is not going to assume you know all that much about general relativity, beyond how to manipulate indices
+This article is not going to assume you know all that much about general relativity, but it does require a lot of implementing
 
 # Time in general relativity
 
@@ -145,11 +146,11 @@ There isn't one canonical BSSN formalism however, so its time to run through our
 
 ## Conformal decomposition
 
-The two ADM variables are:
+The two ADM variables are: $\gamma_{ij}$ the metric tensor, and $\pi_{ij}$ the generalised conjugate momentum. The BSSN formalism swaps $\pi_{ij}$ for the related variable $K_{ij}$[^reffy], the extrinsic curvature tensor, as its root variable for ADM
 
-$\gamma_{ij}$ the metric tensor, and $\pi_{ij}$ the generalised conjugate momentum
+[^reffy]: [Reference](http://wwwteor.mi.infn.it/~molinari/TESI/Danieli_tesi.pdf) 4.27
 
-One of the insights of the BSSN formalism is that we can perform a 'conformal decomposition' of these variables. The conformal metric tensor is called $\tilde{\gamma}_{ij}$, and is related to the regular metric tensor by a conformal transform. There are three conformal transforms I know of which are in use:
+One of the insights of the BSSN formalism is that we can perform a 'conformal decomposition' of our variables $\gamma_{ij}$ and $K_{ij}$, which renders the equations more numerically stable. The conformal metric tensor is called $\tilde{\gamma}_{ij}$, and is related to the regular metric tensor by a conformal transform - We'll get back to $K_{ij}$. There are three conformal transforms I know of which are in use:
 
 $$
 \begin{align}
@@ -159,11 +160,7 @@ $$
 \end{align}
 $$
 
-where
-
-$$e^{-4\phi} = \chi = W^2$$
-
-Ie, they all define the same conformal metric. To calculate them is as follows:
+All defining the same conformal metric. The definition of the conformal variables in these schemes is as follows:
 
 $$
 \begin{align}
@@ -173,15 +170,36 @@ W &= det(\gamma)^{-1/6}\\
 \end{align}
 $$
 
-The $\phi$ version was the first to be used, but it tends to infinity at the singularity which makes it not ideal. The second version to be used was $\chi$ (range, [0,1]) which tends to 0 at the singularity, and is relatively widespread in more modern code. Lastly $W^2$ entered the picture - ostensibly it has better convergence [TODO PAPER LINK] than $\chi$, but the really neat part about it is that renders the equations of motion of BSSN in a much less singular form. It also does not suffer from some of the issues that X has, like unphysical negative values
+With this definition, the determinant of our conformal metric tensor is $\tilde{\gamma} = 1$. The inverse of the metric tensors follow a similar relation:
 
-Because of this, the $W^2$ formalism is clearly the best choice for us. Do note that some papers interchange notation here unfortunately, and eg $\phi$ is sometimes used to mean *any* conformal factor
+$$
+\begin{align}
+e^{-4\phi} &\tilde{\gamma}^{ij} &= \gamma^{ij}\\
+\chi &\tilde{\gamma}^{ij} &= \gamma^{ij}\\
+W^2 &\tilde{\gamma}^{ij} &= \gamma^{ij}\\
+\end{align}
+$$
+
+The $\phi$ conformal decomposition was the first to be used, but it tends to infinity at the singularity which makes it not ideal - and appears to be falling out of use. The second version to be used was $\chi$ (range, [0,1]) which tends to 0 at the singularity, and is relatively widespread in more modern code. Lastly $W^2$ entered the picture - ostensibly it has better convergence[^converge] than $\chi$, but the really neat part about it is that renders the equations of motion of BSSN in a much less singular form. It also does not suffer from some of the issues that X has, like unphysical negative values
+
+[^converge]: See [High-spin binary black hole mergers](https://arxiv.org/pdf/0709.2160) for this line of reasoning
+
+Because of this, the $W^2$ formalism is clearly the best choice for us. Do note that some papers interchange notation here unfortunately, and eg $\phi$ and $\chi$ are sometimes used to mean *any* conformal factor
+
+## Notation
+
+$\tilde{D}_i$ = The covariant derivative, calculated in the [usual fashion](https://en.wikipedia.org/wiki/Covariant_derivative#Covariant_derivative_by_field_type) from the conformal metric tensor $\tilde{\gamma}_{ij}$. $D_i$ is the covariant derivative associated with $\gamma_{ij}$. Tilde's are very load bearing in the BSSN formalism
+
+$\tilde{\Gamma}^i_{jk}$ are the conformal christoffel symbols of the second kind, calculated in the usual fashion from $\tilde{\gamma_{ij}}$. $\Gamma^i_{jk}$ are the christoffel symbols associated with $\gamma_{ij}$
+
+$\tilde{D}^i$, is used to mean $\tilde{\gamma}^{ij} \tilde{D}_j$. Similarly, $D^i$, is used to mean $\gamma^{ij} D_j$, which is equivalent to $W^2\tilde{\gamma}^{ij} D_j$
+
+While non specific to BSSN, the symmetrising operator $_{()}$ crops up here unintuitively. This is defined as $A_{(ij)}$ = $0.5 (A_{ij} + A_{ji})$. A more complex example is $2\tilde{\Gamma}^k_{m(i} \tilde{\Gamma}_{j)kn} = 0.5 * 2 (\tilde{\Gamma}^k_{mi} \tilde{\Gamma}_{jkn} + \tilde{\Gamma}^k_{mj} \tilde{\Gamma}_{ikn})$
+
 
 ## Variables
 
-The root variables we derive BSSN from for ADM are still $\gamma_{ij}$, but instead of $\pi_{ij}$ we use the extrinsic curvature tensor $K_{ij}$, TODO I HAVE NO IDEA IF THEY'RE THE SAME. We still keep the same gauge variables $\alpha$, and $\beta^i$, and their definition is unchanged. Conformal variables in general have a tilde over them, and have their indices are raised and lowered with the conformal metric tensor
-
-The BSSN variables are then as follows:
+The BSSN variables are defined as a conformal decomposition of the ADM variables, $\gamma_{ij}$ and $K_{ij}$, via a conformal factor (here $W^2$). Our full set of variables is defined as follows:
 
 $$
 \begin{align}
@@ -190,12 +208,16 @@ $$
 &K &&= \gamma^{mn} K_{mn}\\
 &W^2 &&= det(\gamma)^{-1/6}\\
 &\tilde{\Gamma}^i &&= \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}\\
+&\alpha_{bssn} &&= \alpha_{adm}\\
+&\beta^i_{bssn} &&= \beta^i_{adm}\\
 \end{align}
 $$
 
-The last one, $\tilde{\Gamma}^i$, is analytically equal to $\tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$, but is evolved numerically instead. This is because $\partial_k \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$ is too numerically unstable TODO: CITE
+Conformal variables in general have a tilde over them, and have their indices are raised and lowered with the conformal metric tensor. In this definition, the trace of the conformal metric is $1$, and $\tilde{A}_{ij}$ is trace-free. $K$ is the trace of $K_{ij}$
 
-We end up with the following constraints, that ideally are satisfied for all time:
+$\tilde{\Gamma}^i$ is analytically equal to $\tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$, but is evolved numerically instead. This is because $\partial_k \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$ is numerically unstable TODO: CITE
+
+In total, we have ended up with the following constraints, that ideally are satisfied for all time, but in practice will be numerically violated
 
 The momentum constraint:
 
@@ -218,6 +240,8 @@ And the christoffel symbol constraint:
 $$
 \tilde{\Gamma}^i - \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn} = 0
 $$
+
+Constraint damping is critical to the BSSN formalism, so we'll get back to these
 
 ## Equations of motion
 
