@@ -161,6 +161,7 @@ tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const valuef& s
 
 std::string make_derivatives();
 std::string make_bssn(const tensor<int, 3>& dim);
+std::string enforce_algebraic_constraints();
 std::string init_debugging();
 std::string make_momentum_constraint();
 

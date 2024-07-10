@@ -362,6 +362,19 @@ struct mesh
             }
             #endif
 
+            {
+                cl::args args;
+
+                for(int i=0; i < 6; i++)
+                    args.push_back(buffers[in_idx].cY[i]);
+                for(int i=0; i < 6; i++)
+                    args.push_back(buffers[in_idx].cA[i]);
+
+                args.push_back(cldim);
+
+                cqueue.exec("enforce_algebraic_constraints", args, {dim.x() * dim.y() * dim.z()}, {128});
+            }
+
             cl::args args;
             buffers[base_idx].append_to(args);
             buffers[in_idx].append_to(args);
@@ -444,6 +457,7 @@ int main()
         make_and_register(make_momentum_error(0));
         make_and_register(make_momentum_error(1));
         make_and_register(make_momentum_error(2));
+        make_and_register(enforce_algebraic_constraints());
     }
 
     cl::command_queue cqueue(ctx, (1<<9));

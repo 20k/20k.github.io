@@ -275,7 +275,7 @@ valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& deriv
 
 float get_algebraic_damping_factor()
 {
-    return 100.f;
+    return 0.f;
 }
 
 //#define BLACK_HOLE_GAUGE
@@ -834,6 +834,63 @@ std::string make_bssn(const tensor<int, 3>& idim)
     std::cout << str << std::endl;
 
     return str;
+}
+
+std::string enforce_algebraic_constraints()
+{
+    auto func = [&](execution_context&, std::array<buffer_mut<valuef>, 6> mcY, std::array<buffer_mut<valuef>, 6> mcA, literal<v3i> idim)
+    {
+        using namespace single_source;
+
+        valuei lid = value_impl::get_global_id(0);
+
+        pin(lid);
+
+        v3i dim = {idim.get().x(), idim.get().y(), idim.get().z()};
+
+        if_e(lid >= dim.x() * dim.y() * dim.z(), [&] {
+            return_e();
+        });
+
+        v3i pos = get_coordinate(lid, dim);
+
+        metric<valuef, 3, 3> cY;
+        tensor<valuef, 3, 3> cA;
+
+        {
+            int index_table[3][3] = {{0, 1, 2},
+                                     {1, 3, 4},
+                                     {2, 4, 5}};
+
+            for(int i=0; i < 3; i++)
+            {
+                for(int j=0; j < 3; j++)
+                {
+                    int idx = index_table[i][j];
+
+                    cY[i, j] = mcY[idx][lid];
+                    cA[i, j] = mcA[idx][lid];
+                }
+            }
+        }
+
+        valuef det_cY_pow = pow(cY.det(), 1.f/3.f);
+
+        metric<valuef, 3, 3> fixed_cY = cY / det_cY_pow;
+        tensor<valuef, 3, 3> fixed_cA = trace_free(cA, fixed_cY, fixed_cY.invert());
+
+        tensor<int, 2> index_table[6] = {{0, 0}, {0, 1}, {0, 2}, {1, 1}, {1, 2}, {2, 2}};
+
+        for(int i=0; i < 6; i++)
+        {
+            tensor<int, 2> idx = index_table[i];
+
+            as_ref(mcY[i][lid]) = fixed_cY[idx.x(), idx.y()];
+            as_ref(mcA[i][lid]) = fixed_cA[idx.x(), idx.y()];
+        }
+    };
+
+    return value_impl::make_function(func, "enforce_algebraic_constraints");
 }
 
 std::string init_debugging()
