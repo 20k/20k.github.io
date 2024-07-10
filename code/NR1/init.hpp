@@ -40,6 +40,23 @@ auto diff_analytic(auto&& func, const v4f& position, int direction) {
     return differentiated;
 }
 
+inline
+auto wave_function = []<typename T>(const tensor<T, 4>& position)
+{
+    float A = 0.1f;
+    float d = 1;
+
+    auto H = A * sin(2 * std::numbers::pi_v<float> * (position.y() - position.x()) / d);
+
+    metric<T, 4, 4> m;
+    m[0, 0] = -1 * (1 - H);
+    m[1, 1] = (1 - H);
+    m[2, 2] = 1;
+    m[3, 3] = 1;
+
+    return m;
+};
+
 template<typename T>
 inline
 bssn_args metric_to_bssn(T&& func, v4f pos, v3i dim, valuef scale)
@@ -55,13 +72,13 @@ bssn_args metric_to_bssn(T&& func, v4f pos, v3i dim, valuef scale)
 
     v3f wpos = (fpos - fcentre) * scale;
 
-    metric<valuef, 4, 4> Guv = func((v4f){pos.x() * scale, wpos.x(), wpos.y(), wpos.z()});
+    metric<valuef, 4, 4> Guv = func((v4f){pos.x(), wpos.x(), wpos.y(), wpos.z()});
 
     tensor<valuef, 4, 4, 4> dGuv;
 
     for(int k=0; k < 4; k++)
     {
-        auto ldguv = diff_analytic(func, (v4f){pos.x() * scale, wpos.x(), wpos.y(), wpos.z()}, k);
+        auto ldguv = diff_analytic(func, (v4f){pos.x(), wpos.x(), wpos.y(), wpos.z()}, k);
 
         for(int i=0; i < 4; i++)
         {

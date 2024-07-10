@@ -4,6 +4,7 @@
 #include "tensor_algebra.hpp"
 #include "derivatives.hpp"
 #include <iostream>
+#include "init.hpp"
 
 v3i get_coordinate(valuei id, v3i dim)
 {
@@ -275,7 +276,7 @@ valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& deriv
 
 float get_algebraic_damping_factor()
 {
-    return 1.f;
+    return 0.f;
 }
 
 //#define BLACK_HOLE_GAUGE
@@ -759,7 +760,8 @@ std::string make_bssn(const tensor<int, 3>& idim)
                                                  std::array<buffer<valuef>, 3> momentum_constraint,
                                                  literal<valuef> timestep,
                                                  literal<v3i> ldim,
-                                                 literal<valuef> scale) {
+                                                 literal<valuef> scale,
+                                                 literal<valuef> elapsed_time) {
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);
@@ -784,22 +786,70 @@ std::string make_bssn(const tensor<int, 3>& idim)
             Mi[i] = momentum_constraint[i][pos, dim];
         }
 
+        auto bssn = metric_to_bssn(wave_function, (v4f){elapsed_time.get(), (valuef)pos.x(), (valuef)pos.y(), (valuef)pos.z()}, dim, scale.get());
+
         tensor<valuef, 3, 3> dtcA = get_dtcA(args, derivs, Mi, scale.get());
 
         tensor<int, 2> index_table[6] = {{0, 0}, {0, 1}, {0, 2}, {1, 1}, {1, 2}, {2, 2}};
+
+        auto dtcY = get_dtcY(args, derivs, scale.get());
+
+        bssn_args baseargs(pos, dim, base);
+
+        auto next_cA = baseargs.cA + timestep.get() * dtcA;
+        auto next_cY = baseargs.cY.to_tensor() + timestep.get() * dtcY;
+
+        pin(next_cY);
+
+        metric<valuef, 3, 3> ccy;
+
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                ccy[i, j] = next_cY[i, j];
+            }
+        }
+
+        valuef det_cY_pow = pow(ccy.det(), 1.f/3.f);
+
+        pin(det_cY_pow);
+
+        ///it occurs to me here that the error is extremely non trivial
+        ///and that rather than discarding it entirely, it could be applied to X as that is itself a scaling factor
+        ///for cY
+        tensor<valuef, 3, 3> fixed_cY = next_cY / det_cY_pow;
+
+        metric<valuef, 3, 3> fccy;
+
+
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                fccy[i, j] = fixed_cY[i, j];
+            }
+        }
+
+        pin(fccy);
+
+        tensor<valuef, 3, 3> fixed_cA = trace_free(next_cA, fccy, fccy.invert());
 
         for(int i=0; i < 6; i++)
         {
             tensor<int, 2> idx = index_table[i];
 
-            as_ref(out.cA[i][lid]) = apply_evolution(base.cA[i][lid], dtcA[idx.x(), idx.y()], timestep.get());
+            //as_ref(out.cA[i][lid]) = bssn.cA[idx.x(), idx.y()];
+            as_ref(out.cA[i][lid]) = fixed_cA[idx.x(), idx.y()];
         }
 
         valuef dtW = get_dtW(args, derivs, scale.get());
+        //as_ref(out.W[lid]) = bssn.W;
         as_ref(out.W[lid]) = apply_evolution(base.W[lid], dtW, timestep.get());
 
         valuef dtK = get_dtK(args, derivs, scale.get());
         as_ref(out.K[lid]) = apply_evolution(base.K[lid], dtK, timestep.get());
+        //as_ref(out.K[lid]) = bssn.K;
 
         valuef dtgA = get_dtgA(args, derivs, scale.get());
         as_ref(out.gA[lid]) = apply_evolution(base.gA[lid], dtgA, timestep.get());
@@ -811,13 +861,13 @@ std::string make_bssn(const tensor<int, 3>& idim)
             as_ref(out.gB[i][lid]) = apply_evolution(base.gB[i][lid], dtgB[i], timestep.get());
         }
 
-        auto dtcY = get_dtcY(args, derivs, scale.get());
 
         for(int i=0; i < 6; i++)
         {
             tensor<int, 2> idx = index_table[i];
 
-            as_ref(out.cY[i][lid]) = apply_evolution(base.cY[i][lid], dtcY[idx.x(), idx.y()], timestep.get());
+            //as_ref(out.cY[i][lid]) = bssn.cY[idx.x(), idx.y()];
+            as_ref(out.cY[i][lid]) = fixed_cY[idx.x(), idx.y()];
         }
 
         auto dtcG = get_dtcG(args, derivs, scale.get());

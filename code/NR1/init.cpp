@@ -7,22 +7,6 @@
 template<typename T>
 using dual = dual_types::dual_v<T>;
 
-auto wave_function = []<typename T>(const tensor<T, 4>& position)
-{
-    float A = 0.1f;
-    float d = 1;
-
-    auto H = A * sin(2 * std::numbers::pi_v<float> * (position.y() - position.x()) / d);
-
-    metric<T, 4, 4> m;
-    m[0, 0] = -1 * (1 - H);
-    m[1, 1] = (1 - H);
-    m[2, 2] = 1;
-    m[3, 3] = 1;
-
-    return m;
-};
-
 std::string make_initial_conditions()
 {
     auto init = [&](execution_context&, bssn_args_mem<buffer_mut<valuef>> to_fill, literal<v3i> ldim, literal<valuef> scale) {

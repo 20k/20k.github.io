@@ -106,6 +106,7 @@ struct mesh
     cl::buffer temporary_single;
     std::vector<double> hamiltonian_error;
     std::vector<double> Mi_error;
+    float elapsed = 0;
 
     mesh(cl::context& ctx, t3i _dim) : buffers{ctx, ctx, ctx}, temporary_buffer(ctx), temporary_single(ctx)
     {
@@ -377,6 +378,11 @@ struct mesh
             args.push_back(cldim);
             args.push_back(scale);
 
+            if(iteration == 0)
+                args.push_back(elapsed + timestep);
+            else
+                args.push_back(elapsed + timestep);
+
             cqueue.exec("evolve", args, {dim.x()*dim.y()*dim.z()}, {128});
         };
 
@@ -400,6 +406,7 @@ struct mesh
         kreiss(0, 1);
         std::swap(buffers[0], buffers[1]);
 
+        elapsed += timestep;
     }
 };
 
