@@ -68,7 +68,7 @@ std::string make_initial_conditions()
 
         v3i pos = get_coordinate(lid, dim);
 
-        v3i centre = dim / 2;
+        v3i centre = (dim - (v3i){1,1,1}) / 2;
 
         v3f fpos = (v3f)pos;
         v3f fcentre = (v3f)centre;

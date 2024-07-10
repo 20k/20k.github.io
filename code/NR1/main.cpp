@@ -295,7 +295,7 @@ struct mesh
                 }
             }
 
-            //#define CALCULATE_CONSTRAINT_ERRORS
+            #define CALCULATE_CONSTRAINT_ERRORS
             #ifdef CALCULATE_CONSTRAINT_ERRORS
             if(iteration == 0)
             {
@@ -346,7 +346,7 @@ struct mesh
             }
             #endif
 
-            //#define CALCULATE_MOMENTUM_CONSTRAINT
+            #define CALCULATE_MOMENTUM_CONSTRAINT
             #ifdef CALCULATE_MOMENTUM_CONSTRAINT
             {
                 cl::args args;
@@ -421,7 +421,7 @@ int main()
     cl::context& ctx = win.clctx->ctx;
     std::cout << cl::get_extensions(ctx) << std::endl;
 
-    t3i dim = {300, 300, 300};
+    t3i dim = {33, 33, 33};
 
     {
         auto make_and_register = [&](const std::string& str)
