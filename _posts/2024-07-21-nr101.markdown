@@ -539,9 +539,8 @@ We only need to calculate 1st derivatives and save them when we take the second 
 ##### $\tilde{\Gamma}^i$
 
 ##### $\alpha$
+
 ##### $\beta^i$
-
-
 
 Note that structurally for backwards euler we need a buffer for our input (yn+1), one for our output (yn + f(yn+1)), and one to hold the last value (yn)
 
