@@ -266,17 +266,27 @@ With the secondary expressions:
 $$
 \begin{align}
 \mathcal{R}_{ij} &= \tilde{\mathcal{R}}_{ij} + \mathcal{R}^W_{ij}\\
-\mathcal{R}^W_{ij} &= \frac{1}{W^2} (W (\tilde{D}_i \tilde{D}_j W + \tilde{\gamma}_{ij} \tilde{D}^m \tilde{D}_m W) - 2 \tilde{\gamma}_{ij} \tilde{D}^m W \tilde{D}_m W)\\
+\mathcal{R}^W_{ij} &= \frac{1}{W^2} (W (\tilde{D}_i \tilde{D}_j W + \tilde{\gamma}_{ij} \tilde{D}^m \tilde{D}_m W) - 2 \tilde{\gamma}_{ij} \partial^m W \partial_m W)\\
 \tilde{\mathcal{R}}_{ij} &= -\frac{1}{2} \tilde{\gamma}^{mn} \partial_m \partial_n \tilde{\gamma}_{ij} + \tilde{\gamma}_{m(i} \partial _{j)} \tilde{\Gamma}^m + \tilde{\Gamma}^m \tilde{\Gamma}_{(ij)m}+ \tilde{\gamma}^{mn} (2 \tilde{\Gamma}^k_{m(i} \tilde{\Gamma}_{j)kn} + \tilde{\Gamma}^k_{im} \tilde{\Gamma}_{kjn})\\
 D_iD_j\alpha &= \tilde{D}_i \tilde{D}_j \alpha + \frac{2}{W} \partial_{(i} W \partial_{j)} \alpha\ - \frac{1}{W} \tilde{\gamma}_{ij} \tilde{\gamma}^{mn} \partial_m W \partial_n \alpha
 \end{align}
 $$
 
-Todo: fun
+### Implementation considerations
 
-The BSSN equations do not specify the evolution equations for the lapse and shift, as these are arbitrary. We must pick appropriate gauge conditions for our problem
+1. The quantity $D_i D_j \alpha$ is never used without being multiplied by $W^2$, which means we can eliminate the divisions by $W$
+
+2. The quantity $\mathcal{R}^W_{ij}$ is also multiplied by $W^2$, allowing us to remove the division
+
+3. The variables which have second derivatives taken of them are: $\tilde{\gamma}_{ij}$, $\alpha$, $\beta^i$, and $W$, and so require precalculated first derivatives
+
+#2 is unique to the $W^2$ formalism, and is a very nice feature of it. In this version of BSSN, there is only one division by $W$, in the $\tilde{\Gamma}^i$ evolution equation, and you must guard against divisions by zero by clamping $W$ to a small value (eg $10^{-4}$)[^technically]
+
+[^technically]: Technically, as $\alpha$ is expected to tend to 0 faster than $W$ tends to 0, the quantity $\frac{\alpha}{W}$ is considered regular. In practice, clamping the conformal factor appears to be the accepted technique, though alarmingly I've found that the exact clamp value can make a large difference to your simulation
 
 ## Gauge conditions
+
+The BSSN equations do not specify the evolution equations for the lapse and shift, as these are arbitrary. We must pick appropriate gauge conditions for our problem
 
 Different evolution equations for the gauge conditions are called for in different situations. Here are the common gauge conditions we'll run into in short order:
 
@@ -317,6 +327,8 @@ $n$ is a damping parameter, that is generally set to $2$
 In the test we will be looking at today, we'll be using the harmonic gauge condition, with zero shift. The binary black hole gauge is 1+log + Gamma driver, and will be used virtually exclusively in future articles
 
 ## Implementation considerations
+
+The self advection terms for both lapse and shift are often disabled, ie $\beta^m \partial_m \alpha$ and $\beta^j \partial_j \beta^i$
 
 ## The BSSN equations of motion are bad
 
