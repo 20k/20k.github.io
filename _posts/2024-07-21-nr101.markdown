@@ -196,6 +196,7 @@ $\tilde{D}^i$, is used to mean $\tilde{\gamma}^{ij} \tilde{D}_j$. Similarly, $D^
 
 While non specific to BSSN, the symmetrising operator $_{()}$ crops up here unintuitively. This is defined as $A_{(ij)}$ = $0.5 (A_{ij} + A_{ji})$. A more complex example is $2\tilde{\Gamma}^k_{m(i} \tilde{\Gamma}_{j)kn} = 0.5 * 2 (\tilde{\Gamma}^k_{mi} \tilde{\Gamma}_{jkn} + \tilde{\Gamma}^k_{mj} \tilde{\Gamma}_{ikn})$
 
+$^{TF}$ is used to denote the trace free part of a tensor. $Q_{ij}^{TF} = Q_{ij} - \frac{1}{3} g_{ij} g^{mn} Q_{mn}$. Note that for some scalar $A$, $(AQ)^{TF} == A(Q^{TF})$, and it does not matter if you use the conformal metric, or the non conformal metric as the metric tensor here - as the conformal factor cancels out
 
 ## Variables
 
@@ -213,7 +214,7 @@ $$
 \end{align}
 $$
 
-Conformal variables in general have a tilde over them, and have their indices are raised and lowered with the conformal metric tensor. In this definition, the trace of the conformal metric is $\tilde{\gamma} = 1$, and $\tilde{A}_{ij}$ is trace-free. $K$ is the trace of $K_{ij}$
+Conformal variables in general have a tilde over them, and have their indices are raised and lowered with the conformal metric tensor. In this definition, the trace of the conformal metric is $\tilde{\gamma} = 1$, and $\tilde{A}_{ij}$ is trace-free. $K$ is the trace of $K_{ij}$. $K_{ij}$, $\gamma_{ij}$, $\tilde{A}_{ij}$, and $\tilde{\gamma}_{ij}$ are all symmetric
 
 $\tilde{\Gamma}^i$ is analytically equal to $\tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$, but is evolved numerically instead. This is because $\partial_k \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$ is numerically unstable TODO: CITE
 
@@ -221,7 +222,7 @@ In total, we have ended up with the following constraints, that ideally are sati
 
 The momentum constraint:
 
-$$M_i = \tilde{\gamma}^{mn} \tilde{D}_m \tilde{A}_{ni} - \frac{2}{3} \partial_i K - \frac{3}{2} \tilde{A}^m_{\;\;i} \frac{\partial_m \chi}{\chi} = 0$$
+$$\mathcal{M}_i = \tilde{\gamma}^{mn} \tilde{D}_m \tilde{A}_{ni} - \frac{2}{3} \partial_i K - \frac{3}{2} \tilde{A}^m_{\;\;i} \frac{\partial_m \chi}{\chi} = 0$$
 
 The hamiltonian constraint:
 
@@ -247,19 +248,36 @@ Constraint damping is critical to the BSSN formalism, so we'll get back to these
 
 This is the part of the article I've been looking forward to least
 
+$$
+\begin{align}
+\partial_t W &= \beta^m \partial_m W + \frac{1}{3} W (\alpha K - \partial_m \beta^m) \\
+\partial_t \tilde{\gamma}_{ij} &= \beta^m \partial_m \tilde{\gamma}_{ij}+ 2 \tilde{\gamma}_{m(i} \partial_{j)} \beta^m - \frac{2}{3} \tilde{\gamma}_{ij} \partial_m \beta^m - 2 \alpha \tilde{A}_{ij} \\
+\partial_t K &= \beta^m \partial_m K - W^2 \tilde{\gamma}^{mn} D_m D_n \alpha + \alpha \tilde{A}^{mn} \tilde{A}_{mn} + \frac{1}{3} \alpha K^2\\
+\partial_t \tilde{A}_{ij} &= \beta^m \partial_m \tilde{A}_{ij}+ 2 \tilde{A}_{m(i} \partial_{j)} \beta^m - \frac{2}{3} \tilde{A}_{ij} \partial_m \beta^m + \alpha K \tilde{A}_{ij} \\&- 2 \alpha \tilde{A}_{im} \tilde{A}^m_{\;\;j} + W^2 (\alpha \mathcal{R}_{ij} - D_i D_j \alpha)^{TF} \\
+\partial_t \tilde{\Gamma}^i &= \beta^m \partial_m \tilde{\Gamma}^i + \frac{2}{3} \tilde{\Gamma}^i \partial_m \beta^m - \tilde{\Gamma}^m \partial_m \beta^i + \tilde{\gamma}^{mn} \partial_m \partial_n \beta^i + \frac{1}{3} \tilde{\gamma}^{im} \partial_m \partial_n \beta^n \\
+&-\tilde{A}^{im}(6\alpha \frac{\partial_m W}{W} + 2 \partial_m \alpha) + 2 \alpha \tilde{\Gamma}^i_{mn} - \frac{4}{3} \alpha \tilde{\gamma}^{im} \partial_m K
+\end{align}
+$$
+
 Todo: fun
+
+The BSSN equations do not specify the evolution equations for the lapse and shift, as these are arbitrary. We must pick appropriate gauge conditions for our problem
 
 ## Gauge conditions
 
 Different evolution equations for the gauge conditions are called for in different situations. Here are the common gauge conditions we'll run into in short order:
 
-### Lapse
+### General
 
 #### Geodesic slicing
 
 $$\alpha = 1, \beta^i = 0$$
 
-#### Harmonic
+### Lapse ($\alpha$)
+
+#### Harmonic[^harmy]
+
+[^harmy]: [Ref](https://arxiv.org/pdf/2201.08857)
 
 $$\partial_t \alpha = - 2 \alpha^2 K + \beta^m \partial_m \alpha$$
 
@@ -267,7 +285,7 @@ $$\partial_t \alpha = - 2 \alpha^2 K + \beta^m \partial_m \alpha$$
 
 $$\partial_t \alpha = - \alpha K + \beta^m \partial_m \alpha$$
 
-### Shift
+### Shift ($\beta^i$)
 
 #### Zero shift
 
@@ -291,9 +309,9 @@ So, as written, the BSSN equations of motion are - drumroll - very numerically u
 
 [^stabilityanalysis]: This footnote could (and likely will) be an entire article in the future, where we'll test out dozens of modifications. Until then, consider checking out [this](https://arxiv.org/pdf/gr-qc/0204002), [this](https://arxiv.org/pdf/0707.0339), and [the ccz4](https://arxiv.org/pdf/1106.2254) paper (a similar, constraint damped formalism) for more information. There's a lot of decent analysis spread over the literature
 
-1. If the second algebraic constraint is violated, ie the trace of the trace-free extrinsic curvature != 0, the violation blows up and your simulation will immediately fail
-2. The christoffel symbol constraint is very important to damp, and can lead to less direct simulation failures
-3. Correcting momentum constraint violations is very important
+1. If the second algebraic constraint $\mathcal{A}$ is violated, ie the trace of the trace-free extrinsic curvature != 0, the violation blows up and your simulation will immediately fail
+2. Correcting momentum constraint $\mathcal{M}_i$ violations is very important
+3. The christoffel symbol constraint $\mathcal{G}_i$ is quite important to damp
 4. The quantity $\partial_k\tilde{\Gamma}^i_{mn}$ is numerically unstable, though the quantity $\tilde{\Gamma}^i_{mn}$ is not
 5. The BSSN formalism inherently generates constraint violations under certain conditions, leading to self-blowup
 
@@ -302,30 +320,33 @@ Additionally:
 1. Hamiltonian constraint violations are completely unimportant for stability purposes, and seem to be largely irrelevant for physical accuracy beyond a reasonably justified paranoia
 2. The first algebraic constraint is relatively unimportant to enforce, but its easy to do - so we may as well
 
-### Stabilising the BSSN equations of motion
+### The algebraic constraints
 
-This is an enormous topic in itself, and we're going to get into this a lot. As-is, I'm going to present the bare minimum we need to get up off the ground for this article, because in the future we're going to be directly testing all of this. The goal is to make as general of a simulation as possible, so we're going to avoid some of the most ad-hoc tricks - its pretty common to tailor stability modifications to certain scenarios, or dynamically adjust your constants
+There are three methods of enforcing the algebraic constraints
 
-The following constraints *must* be enforced:
+1. Directly
+2. Damping
+3. Solving
 
-1. Aij Algebraic blah blah. Either do the det, or damp with the TF
+#### Directly
 
-And we may need to damp the following two constraints as follows
+#### Damping
 
-1. Momentum blah blah
-2. Gamma blah blah
+#### Solving
 
-On top of this to stabilise our equations more generally, we must:
+### The momentum constraint
 
-1. Add kreiss oliger dissipation. There will be a segment on this, so don't worry yet
+The most direct and common way of enforcing this is as follows:
 
-And we'll do this modification because we may as well increase our correctness
+todo:
 
-1. Gamma blah blah. Either do the det, or damp
+### Other constraints
 
-This is enough to get us up and running off the ground. When we hit binary black holes we'll need to update this list with an extra stability modification
+Enforcing the other constraints is unnecessary in this article, so we'll save them for the future
 
-Next up, we need to pick an integrator to integrate our PDEs with
+### Dissipating Numerical Noise
+
+Even with all the constraint damping, the equations can still be numerically unstable - the last tool in our toolbox is kreiss-oliger dissipation
 
 ## Picking an integrator
 
@@ -348,8 +369,6 @@ Backwards euler has the form:
 $$y_{n+1} = y_n + dt f(t_{n+1}, y_{n+1})$$
 
 This is also a 1st order integrator, but it is implicit - we can see that we have $y_{n+1}$ on both sides of the equation. The real trick is that backwards euler is L-stable - which means that it has extremely good stability properties for solving unstable equations, which is exactly what we're looking for. On top of this, backwards euler has a very GPU-friendly form, making it very amenable to GPU architecture, while using a minimal amount of memory. In all my testing, I haven't found an integrator with better properties than this
-
-One notable feature is that with an integrator like this, we need less damping and stability modifications to make the equations work well. The downside is that we're solving our equations in a fundamentally different way to what is standard, so we now have to extensively test things to figure out the character of our solution ourselves
 
 ### Fixed point iteration
 
@@ -379,15 +398,12 @@ We're going to be using periodic boundary conditions - at the edge of our simula
 
 Each timestep is broken up into a fixed number of substeps, as we solve the implicit equation for backwards euler. In each substep, we:
 
-1. Calculate our derivatives (todo: Think i need to segment this off more)
-2. Calculate the momentum constraint, if we're using momentum constraint damping
-3. Evolve our equations to calculate yn + f(yn+1)
+1. Enforce the algebraic constraints
+2. Calculate the derivatives (todo: Think i need to segment this off more)
+3. Calculate the momentum constraint
+4. Evolve our equations to calculate yn + f(yn+1)
 
 After each substep - once we have our final answer, we apply kreiss-oliger dissipation to the result, to remove high frequencies from our grid
-
-#### Kreiss-Oliger
-
-drerrdrfsfdd
 
 ## Implementation
 

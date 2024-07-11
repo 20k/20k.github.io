@@ -656,6 +656,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const valu
             {
                 for(int k=0; k < 3; k++)
                 {
+                    //??
                     s8 += icY[i, j] * diff2(args.gB[k], k, j, derivs.dgB[k, k], derivs.dgB[j, k], scale);
                 }
             }
