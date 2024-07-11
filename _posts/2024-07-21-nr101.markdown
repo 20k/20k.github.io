@@ -196,7 +196,7 @@ $\tilde{D}^i$, is used to mean $\tilde{\gamma}^{ij} \tilde{D}_j$. Similarly, $D^
 
 While non specific to BSSN, the symmetrising operator $_{()}$ crops up here unintuitively. This is defined as $A_{(ij)}$ = $0.5 (A_{ij} + A_{ji})$. A more complex example is $2\tilde{\Gamma}^k_{m(i} \tilde{\Gamma}_{j)kn} = 0.5 * 2 (\tilde{\Gamma}^k_{mi} \tilde{\Gamma}_{jkn} + \tilde{\Gamma}^k_{mj} \tilde{\Gamma}_{ikn})$
 
-$^{TF}$ is used to denote the trace free part of a tensor. $Q_{ij}^{TF} = Q_{ij} - \frac{1}{3} g_{ij} g^{mn} Q_{mn}$. Note that for some scalar $A$, $(AQ)^{TF} == A(Q^{TF})$, and it does not matter if you use the conformal metric, or the non conformal metric as the metric tensor here - as the conformal factor cancels out
+$^{TF}$ is used to denote the trace free part of a tensor. $Q_{ij}^{TF} = Q_{ij} - \frac{1}{3} g_{ij} g^{mn} Q_{mn}$. Note that for some scalar $A$, $(AQ)^{TF} == A(Q^{TF})$, and it does not matter if you use the conformal metric, or the non conformal metric as the metric tensor here - as the conformal factor cancels out. This is also sometimes notated $Q_{<ij>}$
 
 todo: note that we always mean the christoffel symbol, never the analytic, but note the substitution
 
@@ -222,23 +222,25 @@ $\tilde{\Gamma}^i$ is analytically equal to $\tilde{\gamma}^{mn} \tilde{\Gamma}^
 
 In total, we have ended up with the following constraints, that ideally are satisfied for all time, but in practice will be numerically violated
 
-### The Momentum Constraint
+### Constraints
+
+#### Momentum
 
 $$\mathcal{M}_i = \tilde{\gamma}^{mn} \tilde{D}_m \tilde{A}_{ni} - \frac{2}{3} \partial_i K - \frac{3}{2} \tilde{A}^m_{\;\;i} \frac{\partial_m \chi}{\chi} = 0$$
 
-### The Hamiltonian constraint
+#### Hamiltonian
 
 $$H = R + \frac{2}{3} K^2 - \tilde{A}^{mn} \tilde{A}_{mn} = 0$$
 
-### The Algebraic constraints
+#### Algebraic
 
 $$\begin{align}
-\mathcal{S} &= \tilde{\gamma} &= 1\\
+\mathcal{S} &= \tilde{\gamma} - 1 &= 0\\
 \mathcal{A} &= \tilde{\gamma}^{mn} \tilde{A}_{mn} &= 0
 \end{align}
 $$
 
-### The Christoffel symbol constraint
+#### Christoffel symbol
 
 $$
 \mathcal{G}_i = \tilde{\Gamma}^i - \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn} = 0
@@ -248,7 +250,7 @@ Constraint damping is critical to the BSSN formalism, so we'll get back to these
 
 ## Equations of motion
 
-This is the part of the article I've been looking forward to least
+I'm going to present to you the canonical form of the BSSN equations, and then discuss how you might want to rearrange them a bit in practice below
 
 $$
 \begin{align}
@@ -286,9 +288,9 @@ $$
 
 ## Gauge conditions
 
-The BSSN equations do not specify the evolution equations for the lapse and shift, as these are arbitrary. We must pick appropriate gauge conditions for our problem
+The BSSN equations do not specify the evolution equations for the lapse and shift, as these are arbitrary. Despite in theory being arbitrary, in practice you have to very carefully pick your gauge conditions for the kind of problem you're trying to solve
 
-Different evolution equations for the gauge conditions are called for in different situations. Here are the common gauge conditions we'll run into in short order:
+Here are some common gauge conditions:
 
 ### General
 
@@ -320,21 +322,30 @@ So called because it drives $\partial_t\tilde{\Gamma} = 0$
 
 $$\partial_t \beta^i = \frac{3}{4} \tilde{\Gamma}^i + \beta^j \partial_j \beta^i - n \beta^i$$
 
-$n$ is a damping parameter, that is generally set to $2$
+$n$ is a damping parameter, that is generally set to $2$, or $2M$ where $M$ is the mass of whatever you have in your spacetime
 
-Todo: the other one
+The alternative form of this gauge condition is:
 
-### Gauge condition summary
+$$
+\begin{align}
+\partial_t \beta^i &= \beta^m \partial_m \beta^i + \frac{3}{4} B^i\\
+\partial_t B^i &= \beta^m \partial_m B^i + \partial_t \tilde{\Gamma}^i - \beta^m \partial_m \tilde{\Gamma}^i - n B^i
+\end{align}
+$$
 
-In the test we will be looking at today, we'll be using the harmonic gauge condition, with zero shift. The binary black hole gauge is 1+log + Gamma driver, and will be used virtually exclusively in future articles
+As far as I know, nobody has ever really found a compelling reason to use this form of the gamma driver gauge condition (and it is slower and requires more memory), so I'm really only mentioning it because it shows up in the literature
 
 ## Implementation considerations
 
 The self advection terms for both lapse and shift are optional and often are disabled, ie $\beta^m \partial_m \alpha$ and $\beta^j \partial_j \beta^i$
 
+### Gauge condition summary
+
+In the test we will be looking at today, we'll be using the harmonic gauge condition, with zero shift. The binary black hole gauge (often called the moving puncture gauge) is 1+log + Gamma driver, and will be used virtually exclusively in future articles
+
 ## The BSSN equations of motion are bad
 
-So, as written, the BSSN equations of motion are - drumroll - very numerically unstable. I'll attempt to briefly summarise two decades of the conventional wisdom from stability analysis here[^stabilityanalysis]:
+So, as written, the BSSN equations of motion are - drumroll - very numerically unstable, and attempting to directly implement the PDEs listed above will result in nothing working. I'll attempt to briefly summarise two decades of the conventional wisdom from stability analysis here[^stabilityanalysis] on how to fix this:
 
 [^stabilityanalysis]: This footnote could (and likely will) be an entire article in the future, where we'll test out dozens of modifications. Until then, consider checking out [this](https://arxiv.org/pdf/gr-qc/0204002), [this](https://arxiv.org/pdf/0707.0339), and [the ccz4](https://arxiv.org/pdf/1106.2254) paper (a similar, constraint damped formalism) for more information. There's a lot of decent analysis spread over the literature
 
@@ -346,7 +357,7 @@ So, as written, the BSSN equations of motion are - drumroll - very numerically u
 Additionally:
 
 1. Hamiltonian constraint violations are essentially unimportant for stability purposes, and seem to be largely irrelevant for physical accuracy beyond a reasonably justified paranoia
-2. The first algebraic constraint is relatively unimportant to enforce, but its easy to do - so we may as well
+2. The first algebraic constraint $\mathcal{S}$ is relatively unimportant to enforce, but its easy to do - so we may as well
 
 Because only the derivatives of $\partial_k \tilde{\Gamma}^{i}_{mn}$ are numerically unstable, expressions involving undifferentiated $\tilde{\Gamma}^i$'s are frequently replaced in the literature with the analytic equivalent. This is one technique to enforce the $\mathcal{G}^i$ constraint, though it is somewhat 'old fashioned'[^interestingy], and I will be avoiding it other than for testing in the future
 
@@ -364,29 +375,79 @@ There are three methods of enforcing the algebraic constraints
 
 #### Directly
 
+This is by far the most common method of handling the algebraic constraints. To do this, you enforce the relation $\tilde{\gamma} = 1$ and $\tilde{\gamma}^{mn} \tilde{A}_{mn} = 0$ directly, by applying the following expressions
+
+$$
+\begin{align}
+\tilde{\gamma}_{ij} &= \frac{\tilde{\gamma}_{ij}}{\tilde{\gamma}^\frac{1}{3}} \\
+\tilde{A}_{ij} &= \tilde{A}_{ij}^{TF}
+\end{align}
+$$
+
+This is what will be used in the article. It is important to apply the algebraic constraints *after* numerical dissipation, otherwise numerical dissipation will cause the constraints to be violated again
+
 #### Damping
 
+This method has been floating around in the literature for a while, and damps the algebraic constraints. [This](https://arxiv.org/pdf/1106.2254) paper contains a discussion of the idea (before 26), and we'll be using the specific form provided by [this paper](https://arxiv.org/pdf/gr-qc/0204002) in the appendix. This means that we modify our evolution equations as follows
+
+$$\begin{align}
+\partial_t \tilde{\gamma}_{ij} &= \partial_t \tilde{\gamma}_{ij} + k_1\alpha \tilde{\gamma}_{ij} \mathcal{S}\\
+\partial_t \tilde{A}_{ij} &= \partial_t \tilde{A}_{ij} + k_2\alpha \tilde{\gamma}_{ij} \mathcal{A}
+\end{align}
+$$
+
+Where k1 < 0, k2 < 0, and the constraints are evaluated from the relevant constraint expressions
+
+Note that because this only damps the $\mathcal{A}$ constraint instead of elimiating it, we must also modify the evolution equation for $\tilde{\gamma}_{ij}$ as follows, to prevent things from blowing up:
+
+$$
+\partial_t \tilde{\gamma}_{ij} = \beta^m \partial_m \tilde{\gamma}_{ij}+ 2 \tilde{\gamma}_{m(i} \partial_{j)} \beta^m - \frac{2}{3} \tilde{\gamma}_{ij} \partial_m \beta^m - 2 \alpha \tilde{A}^{TF}_{ij} \\
+$$
+
+This formulation works well, but you must be careful about your choice of damping factor. Too low and constraint errors pile up, too high and you overcorrect - oscillating wildly. Still, because its integrated into your evolution equations (rather than a separate step), its a fair bit faster than enforcing the constraint directly
+
 #### Solving
+
+I'll mention this in passing: The constraints can also be seen to reduce the number of free components for $\tilde{\gamma}_{ij}$ and $\tilde{A}_{ij}$ from 6 to 5, and instead of enforcing or damping the constraints, we can use them to solve for one of the components instead. For more discussion on this approach, please see [this paper](https://arxiv.org/pdf/1205.5111) (36-37)
+
+While it may seem attractive to reduce the number of evolution equations, on a GPU you will be limited by memory bandwidth, and you're still going to be accessing all of the evolution variables anyway. This only actually saves us two memory writes, and significantly complicates the calculation of derivatives - leading to register/code size blowup which can cause performance problems
 
 ### The momentum constraint
 
 The most direct and common way of enforcing this is as follows:
 
-todo:
+$$
+\partial_t \tilde{A}_{ij}  = \partial_t \tilde{A}_{ij} + k_3 \alpha \tilde{D}_{(i} \mathcal{M}_{j)}
+$$
+
+Where $k_3$ > 0
+
+### Christoffel symbol constraint
+
+The most straightforward way to apply this is by applying the $\mathcal{G}^i$ constraint as followsw:
+
+$$\partial_t \tilde{\Gamma}^i = \partial_t \tilde{\Gamma}^i - \sigma \mathcal{G}^i \partial_m \beta^m
+$$
+
+Where $\sigma$ > 0. This modification is not used in this paper
 
 ### Other constraints
 
-Enforcing the other constraints is unnecessary in this article, so we'll save them for the future
+Damping the hamiltonian constraint is unnecessary here, but [this](https://arxiv.org/pdf/gr-qc/0204002) paper contains some ideas that work
 
 ### Dissipating Numerical Noise
 
 Even with all the constraint damping, the equations can still be numerically unstable - the last tool in our toolbox is kreiss-oliger dissipation
 
+todo:
+
 ## Picking an integrator
 
-We're going to diverge from the literature significantly here, for very good reason. The BSSN equations are a classically stiff (unstable) set of equations, and they oscillate pretty wildly. Its traditional to use something similar to RK4 to integrate the equations of motion
+We're going to diverge from the literature significantly here, for very good reason. The BSSN equations are a classically [stiff](https://en.wikipedia.org/wiki/Stiff_equation) (unstable) set of equations, and they oscillate pretty wildly. Its traditional to use something similar to RK4 to integrate the equations of motion
 
-If you're familiar with solving stiff PDEs, it might seem a bit odd to use RK4 - RK4 is an explicit integrator - and as such has fairly poor stability properties when solving stiff equations. For many kinds of problem, an explicit integrator works great, but not for unstable problems like this. Instead, we're going to use an L-stable implicit integrator which has much more appropriate convergence properties - backwards euler
+If you're familiar with solving stiff PDEs, it might seem a bit odd to use RK4 - RK4 is an explicit integrator - and as such has fairly poor stability properties when solving stiff equations. For many kinds of problem, an explicit integrator works great, but not really for unstable problems like this. Instead, we're going to use an L-stable implicit integrator which has much more appropriate convergence properties - backwards euler
+
+Backwards euler has a very GPU-friendly form, making it very amenable to GPU architecture, while using a minimal amount of memory. In all my testing, I haven't found an integrator with better properties than this. Despite the 1st order convergence, it tends to provide better results than RK4 in my experience, but in the future we'll get into the data
 
 As far as I'm aware, there's been no testing of fully implicit integration in numerical relativity - the closest is IMEX stepping from the SXS group, but it does not implicitly solve derivatives due to performance constraints
 
@@ -402,7 +463,7 @@ Backwards euler has the form:
 
 $$y_{n+1} = y_n + dt f(t_{n+1}, y_{n+1})$$
 
-This is also a 1st order integrator, but it is implicit - we can see that we have $y_{n+1}$ on both sides of the equation. The real trick is that backwards euler is L-stable - which means that it has extremely good stability properties for solving unstable equations, which is exactly what we're looking for. On top of this, backwards euler has a very GPU-friendly form, making it very amenable to GPU architecture, while using a minimal amount of memory. In all my testing, I haven't found an integrator with better properties than this
+This is also a 1st order integrator, but it is implicit - we can see that we have $y_{n+1}$ on both sides of the equation.
 
 ### Fixed point iteration
 
@@ -424,9 +485,13 @@ There are three components to any good simulation here
 
 We need to define on our initial slice what our variables are. Here, we're simulating an infinite field of gravitational waves, and our initial variables take the following form:
 
+todo
+
 ### Boundary conditions
 
 We're going to be using periodic boundary conditions - at the edge of our simulation, we simply wrap our blhabbfkdfblkjkb
+
+todo
 
 ### Integrating the PDEs
 
@@ -447,11 +512,13 @@ We now have all of the theory out of the way. Lets look at the code for our init
 
 dfdfdf
 
-### Boundary conditions
+### Algebraic constraint enforcement
+
+### Derivatives + Boundary conditions
 
 The boundary conditions are implemented whenever we need to take a derivative of something, which looks like this
 
-### Evolution equations
+### Evolution
 
 This is the real kicker
 
@@ -461,25 +528,20 @@ We only need to calculate 1st derivatives and save them when we take the second 
 
 #### Evolution equations by Field
 
-##### cY
+##### $\tilde{\gamma}_{ij}$
 
-##### cA
+##### $\tilde{A}_{ij}$
 
-##### K
+##### $K$
 
-##### W
+##### $W$
 
-##### gA
+##### $\tilde{\Gamma}^i$
 
-##### G
+##### $\alpha$
+##### $\beta^i$
 
-##### Gauge conditions
 
-Geodesic slicing, a = 1, b = 0
-harmonic slicing https://arxiv.org/pdf/2201.08857 a = -a^2 K
-
-1+log = -2 a K
-Gamma = blahblah
 
 Note that structurally for backwards euler we need a buffer for our input (yn+1), one for our output (yn + f(yn+1)), and one to hold the last value (yn)
 
@@ -488,3 +550,19 @@ Note that structurally for backwards euler we need a buffer for our input (yn+1)
 Finally afterwards we numerically dissipate away the noise via kreiss-oliger
 
 ## Results
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
