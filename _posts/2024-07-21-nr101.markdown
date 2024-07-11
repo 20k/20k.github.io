@@ -483,15 +483,34 @@ There are three components to any good simulation here
 
 ### Initial conditions
 
-We need to define on our initial slice what our variables are. Here, we're simulating an infinite field of gravitational waves, and our initial variables take the following form:
+We need to define on our initial slice what our variables are. For this article, to check everything's working we're going to implement a gauge wave test case, which we can find [here](https://arxiv.org/pdf/1106.2254) (28-29), or [here](https://arxiv.org/pdf/0709.3559) (A.10 + A.6). The metric for this is as follows
 
-todo
+$$ds^2 = (1 - H) (-dt^2 + dx^2) + dy^2 + dz^2$$
 
-### Boundary conditions
+where
 
-We're going to be using periodic boundary conditions - at the edge of our simulation, we simply wrap our blhabbfkdfblkjkb
+$$H = A \sin(\frac{2 \pi (x - t)}{d})$$
 
-todo
+$d$ is the wavelength of our wave, which is set to 1 (our simulation width), and $A$ is the amplitude of the wave which is set to $0.1$. On our initial slice, $t=0$. This defines a 4-metric $g_{\mu\nu}$. While these papers do provide analytic expressions for our initial 3-variables - but where's the joy in that?
+
+#### Generic initial conditions
+
+Given a metric $g_{\mu\nu}$, we want to calculate the ADM variables $\gamma_{ij}$, $K_{ij}$[^kijnotes], $\alpha$, and $\beta^i$. From there, we know how to take a conformal decomposition for the BSSN formalism
+
+[^kijnotes]: Where I found $K_{ij}$ from is [here](https://clas.ucdenver.edu/math-clinic/sites/default/files/attached-files/master_project_mach_.pdf) 4-19a, although its a bit of a random source
+
+$$\begin{align}
+\gamma_{ij} &= g_{ij}\\
+\beta_i &= g_{0i} \\
+K_{ij} &= \frac{1}{2 \alpha} (D_i \beta_j + D_j \beta_i - \frac{\partial g_{ij}}{\partial_t})\\
+\alpha &= \sqrt{-g_{00} + \beta^m \beta_m}
+\end{align}$$
+
+All latin indices run from 1-3, and all greek indices run from 0-3. Note that we find $\beta_i$ not $\beta^i$, which you can find by raising with $\gamma^{ij}$. To initialise our christoffel symbol $\tilde{\Gamma}^i$, simply calculate it analytically once we have $\tilde{\gamma}_{ij}$
+
+### Boundary conditions / Differentiation
+
+In this simulation, we're discretising our data onto a grid, which brings up the question of how we take derivatives at the edge of the grid (as taking derivatives involves adjacent grid cells) - this question is our boundary conditions. In this article we're going to be using periodic boundary conditions. To implement this, when implementing derivatives, you simply wrap your coordinates to the other edge of the domain
 
 ### Integrating the PDEs
 
@@ -516,7 +535,7 @@ dfdfdf
 
 ### Derivatives + Boundary conditions
 
-The boundary conditions are implemented whenever we need to take a derivative of something, which looks like this
+The boundary conditions are implemented whenever we need to take a derivative of something, which looks like this.
 
 ### Evolution
 
