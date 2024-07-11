@@ -403,20 +403,15 @@ tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs
 
     pin(christoff2);
 
-    ///W^2 = X
-    valuef X = args.W * args.W;
-    ///2 dW W = dX
-    tensor<valuef, 3> dX = 2 * args.W * derivs.dW;
-
     tensor<valuef, 3, 3> W2DiDja;
 
     for(int i=0; i < 3; i++)
     {
         for(int j=0; j < 3; j++)
         {
-            valuef v1 = X * double_covariant_derivative(args.gA, derivs.dgA, christoff2, scale)[i, j];
+            valuef v1 = args.W * args.W * double_covariant_derivative(args.gA, derivs.dgA, christoff2, scale)[i, j];
 
-            valuef v2 = 0.5f * (dX[i] * diff1(args.gA, j, scale) + dX[j] * diff1(args.gA, i, scale));
+            valuef v2 = args.W * (derivs.dW[i] * diff1(args.gA, j, scale) + derivs.dW[j] * diff1(args.gA, i, scale));
 
             valuef sum = 0;
 
@@ -424,7 +419,7 @@ tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs
             {
                 for(int n=0; n < 3; n++)
                 {
-                    sum += icY[m, n] * dX[m] * diff1(args.gA, n, scale);
+                    sum += icY[m, n] * 2 * args.W * derivs.dW[m] * diff1(args.gA, n, scale);
                 }
             }
 

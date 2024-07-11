@@ -198,6 +198,8 @@ While non specific to BSSN, the symmetrising operator $_{()}$ crops up here unin
 
 $^{TF}$ is used to denote the trace free part of a tensor. $Q_{ij}^{TF} = Q_{ij} - \frac{1}{3} g_{ij} g^{mn} Q_{mn}$. Note that for some scalar $A$, $(AQ)^{TF} == A(Q^{TF})$, and it does not matter if you use the conformal metric, or the non conformal metric as the metric tensor here - as the conformal factor cancels out
 
+todo: note that we always mean the christoffel symbol, never the analytic, but note the substitution
+
 ## Variables
 
 The BSSN variables are defined as a conformal decomposition of the ADM variables, $\gamma_{ij}$ and $K_{ij}$, via a conformal factor (here $W^2$). Our full set of variables is defined as follows:
@@ -259,6 +261,17 @@ $$
 \end{align}
 $$
 
+With the secondary expressions:
+
+$$
+\begin{align}
+\mathcal{R}_{ij} &= \tilde{\mathcal{R}}_{ij} + \mathcal{R}^W_{ij}\\
+\mathcal{R}^W_{ij} &= \frac{1}{W^2} (W (\tilde{D}_i \tilde{D}_j W + \tilde{\gamma}_{ij} \tilde{D}^m \tilde{D}_m W) - 2 \tilde{\gamma}_{ij} \tilde{D}^m W \tilde{D}_m W)\\
+\tilde{\mathcal{R}}_{ij} &= -\frac{1}{2} \tilde{\gamma}^{mn} \partial_m \partial_n \tilde{\gamma}_{ij} + \tilde{\gamma}_{m(i} \partial _{j)} \tilde{\Gamma}^m + \tilde{\Gamma}^m \tilde{\Gamma}_{(ij)m}+ \tilde{\gamma}^{mn} (2 \tilde{\Gamma}^k_{m(i} \tilde{\Gamma}_{j)kn} + \tilde{\Gamma}^k_{im} \tilde{\Gamma}_{kjn})\\
+D_iD_j\alpha &= \tilde{D}_i \tilde{D}_j \alpha + \frac{2}{W} \partial_{(i} W \partial_{j)} \alpha\ - \frac{1}{W} \tilde{\gamma}_{ij} \tilde{\gamma}^{mn} \partial_m W \partial_n \alpha
+\end{align}
+$$
+
 Todo: fun
 
 The BSSN equations do not specify the evolution equations for the lapse and shift, as these are arbitrary. We must pick appropriate gauge conditions for our problem
@@ -303,6 +316,8 @@ $n$ is a damping parameter, that is generally set to $2$
 
 In the test we will be looking at today, we'll be using the harmonic gauge condition, with zero shift. The binary black hole gauge is 1+log + Gamma driver, and will be used virtually exclusively in future articles
 
+## Implementation considerations
+
 ## The BSSN equations of motion are bad
 
 So, as written, the BSSN equations of motion are - drumroll - very numerically unstable. I'll summarise two decades of the conventional wisdom from stability analysis here[^stabilityanalysis]:
@@ -319,6 +334,8 @@ Additionally:
 
 1. Hamiltonian constraint violations are completely unimportant for stability purposes, and seem to be largely irrelevant for physical accuracy beyond a reasonably justified paranoia
 2. The first algebraic constraint is relatively unimportant to enforce, but its easy to do - so we may as well
+
+Note/todo, the substitution of $\Gamma$
 
 ### The algebraic constraints
 
