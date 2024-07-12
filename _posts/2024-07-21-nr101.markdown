@@ -32,7 +32,7 @@ Hi there! Today we're going to be getting into numerical relativity, which is th
 
 These kinds of simulations are traditionally run on supercomputers, but luckily you likely have a supercomputer in the form of a GPU[^specs] in your PC. The amount of extra performance we can get over a traditional CPU based implementation is often a few orders of magnitude better than normal
 
-[^specs]: You'll need 8+ GB of vram. This article was written and implemented on a 6700xt, but previous work was on an r9 390
+[^specs]: You'll need 8+ GB of vram for future bbh collisions, though you can get away with minimal specs for this article. This was written and tested on a 6700xt, but previous work was on an r9 390. Any OpenCL 1.2 compatible device will work here, though I do use 64-bit atomics for accumulating diagnostics
 
 This article is not going to assume you know all that much about general relativity, but it does require a lot of implementing
 
@@ -478,7 +478,7 @@ This also maps very well to gpu architecture, is numerically stable, and in gene
 There are three components to any good simulation here
 
 1. Initial conditions
-2. Boundary conditions
+2. The boundary condition (which is tied to how we perform differentiation)
 3. Integrating our PDEs
 
 ### Initial conditions
@@ -491,7 +491,7 @@ where
 
 $$H = A \sin(\frac{2 \pi (x - t)}{d})$$
 
-$d$ is the wavelength of our wave, which is set to 1 (our simulation width), and $A$ is the amplitude of the wave which is set to $0.1$. On our initial slice, $t=0$. This defines a 4-metric $g_{\mu\nu}$. While these papers do provide analytic expressions for our initial 3-variables - but where's the joy in that?
+$d$ is the wavelength of our wave, which is set to 1 (our simulation width), and $A$ is the amplitude of the wave which is set to $0.1$. On our initial slice, $t=0$. This defines a 4-metric $g_{\mu\nu}$. While these papers do provide analytic expressions for our initial 3-variables - where's the joy in that?
 
 #### Generic initial conditions
 
@@ -508,20 +508,56 @@ K_{ij} &= \frac{1}{2 \alpha} (D_i \beta_j + D_j \beta_i - \frac{\partial g_{ij}}
 
 All latin indices run from 1-3, and all greek indices run from 0-3. Note that we find $\beta_i$ not $\beta^i$, which you can find by raising with $\gamma^{ij}$. To initialise our christoffel symbol $\tilde{\Gamma}^i$, simply calculate it analytically once we have $\tilde{\gamma}_{ij}$
 
+You will need to be able to differentiate your metric tensor - either numerically, or analytically, for this to work
+
 ### Boundary conditions / Differentiation
 
-In this simulation, we're discretising our data onto a grid, which brings up the question of how we take derivatives at the edge of the grid (as taking derivatives involves adjacent grid cells) - this question is our boundary conditions. In this article we're going to be using periodic boundary conditions. To implement this, when implementing derivatives, you simply wrap your coordinates to the other edge of the domain
+Here, we're going to use fourth order[^orderconvergence] finite differentiation on a grid. If you remember, to approximate a derivative, mathematically we can do
+
+[^orderconvergence]: In general, the order of convergence dictates the rate at which our algorithm improves the answer, when eg increasing our grid resolution
+
+$$\frac{\partial f} {\partial x} = \frac{f(x+1) - f(x)}{h}$$
+
+The factor of $h$ is omitted, because we're indexing grid cells. Numerically this is terrible, and instead we'll use fourth order differentiation, with coefficients which we can look up [here](https://en.wikipedia.org/wiki/Finite_difference_coefficient):
+
+$$\frac{\partial f} {\partial x} = \frac{\frac{1}{12} f(x - 2) - \frac{2}{3} f(x - 1) + \frac{2}{3} f(x + 1) - \frac{1}{12} f(x + 2)}{h}$$
+
+This tends to produce a decent tradeoff of accuracy vs performance. In this simulation, because we're discretising our data onto a grid, this brings up the question of how we take derivatives at the edge of the grid (as taking derivatives involves adjacent grid cells) - solving this question defines the boundary conditions
+
+In this article we're going to be using periodic boundary conditions. To implement this, when implementing derivatives, you simply wrap your coordinates to the other edge of the domain
+
+#### Implementation Considerations
+
+##### Modulo operator
+
+Do be aware that I discovered a pretty sizeable performance bug/compiler limitation when implementing this, where modulo operations are not optimised (even by a constant power of 2!) - which ate nearly all the runtime, so use branches instead
+
+##### Second derivatives
+
+When calculating second derivatives, while you could directly apply a 2d stencil, it is much more efficient to first calculate the first derivatives, store them somewhere, and then calculate the second derivatives from those stored derivatives (by taking the first derivative[^ivesaid] of them). This means that you should only precalculate 1st derivatives for variables for which we take second derivatives, which are the following:
+
+[^ivesaid]: I've said the word derivative too many times. I'm going to go pet my cat
+
+$$\tilde{\gamma}_{ij}, \alpha, \beta^i, W$$
+
+##### Second derivative performance tricks
+
+Second derivatives commute. This means that $\partial_i \partial_j == \partial_j \partial_i$. This is also true for the second covariant derivative of a scalar - though only in that circumstance for covariant derivatives. This brings up a good opportunity for performance improvements - when calculating partial derivatives, consider reordering them so that you lopsidedly differentiate on one variable - this can bring sizeable performance improvements
+
+That is to say, consider implementing: $\partial_{min(i, j)} \partial_{max(i, j)}$ as a general second order differentiation system. This is good for cache (repeatedly accessing the same memory), increasing the amount of eliminateable duplicate code, and ensuring that we maximise the amount we differentiate in the $_0$th direction, which is the fastest due to memory layout
+
+Eg, if we precalculate the first derivative $\partial_i \alpha$, calculating $\partial_0 \partial_i \alpha$ will always be faster than calculating $\partial_i \partial_0 \alpha$. Partly because of memory layout (differentiating in the x direction is virtually free, as its all in cache), and partly because if we *always* do this, we improve our cache hit rate. This is worth about 20% of our runtime
 
 ### Integrating the PDEs
 
-Each timestep is broken up into a fixed number of substeps, as we solve the implicit equation for backwards euler. In each substep, we:
+Each timestep is broken up into a fixed number of substeps, as we solve the implicit equation for backwards euler via fixed point iteration. In each substep, we:
 
 1. Enforce the algebraic constraints
 2. Calculate the derivatives (todo: Think i need to segment this off more)
 3. Calculate the momentum constraint
-4. Evolve our equations to calculate yn + f(yn+1)
+4. Evolve our equations to calculate yn + f(yn+1), the result of the substep
 
-After each substep - once we have our final answer, we apply kreiss-oliger dissipation to the result, to remove high frequencies from our grid
+After we've performed a fixed number of iterations, I apply kreiss-oliger dissipation to remove numerical noise
 
 ## Implementation
 
@@ -568,6 +604,19 @@ Note that structurally for backwards euler we need a buffer for our input (yn+1)
 Finally afterwards we numerically dissipate away the noise via kreiss-oliger
 
 ## Results
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 
