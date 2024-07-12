@@ -73,7 +73,11 @@ std::string make_initial_conditions()
         v3f fpos = (v3f)pos;
         v3f fcentre = (v3f)centre;
 
-        v3f wpos = (fpos - fcentre) * scale.get();
+        valuef simulation_width = scale.get() * ((valuef)dim.x());
+
+        ///intentionally stretching wpos to force periodicity correctly
+        v3f wpos = (fpos / (v3f)dim) * simulation_width;
+        //v3f wpos = (fpos - fcentre) * scale.get();
 
         metric<valuef, 4, 4> Guv = wave_function((v4f){0, wpos.x(), wpos.y(), wpos.z()});
 

@@ -28,7 +28,7 @@ Ok planola time:
 10. Gauge condition evolution
 11. Some kind of diagnostic (semi analytic tests?)
 
-Hi there! Today we're going to be getting into numerical relativity, which is the art of simulating the evolution of spacetime itself. While there a quite a few known solutions to the equations of general relativity at this point (eg Schwarzschild), many of the most interesting regions of general relativity can only be explored by exploring how spacetime itself evolves dynamically. Binary black hole collisions are one of the most directly relevant applications of this
+Hi there! Today we're going to be getting into numerical relativity, which is the art of simulating the evolution of spacetime itself. While there a quite a few known solutions to the equations of general relativity at this point (eg Schwarzschild), many of the most interesting regions of general relativity can only be explored by exploring how spacetime itself evolves dynamically. Binary black hole collisions are one of the most directly relevant applications of this, and this article is the direct foundation for us colliding black holes together
 
 These kinds of simulations are traditionally run on supercomputers, but luckily you likely have a supercomputer in the form of a GPU[^specs] in your PC. The amount of extra performance we can get over a traditional CPU based implementation is often a few orders of magnitude better than normal
 
@@ -279,8 +279,6 @@ $$
 1. The quantity $D_i D_j \alpha$ is never used without being multiplied by $W^2$, which means we can eliminate the divisions by $W$
 
 2. The quantity $\mathcal{R}^W_{ij}$ is also multiplied by $W^2$, allowing us to remove the division
-
-3. The variables which have second derivatives taken of them are: $\tilde{\gamma}_{ij}$, $\alpha$, $\beta^i$, and $W$, and so require precalculated first derivatives (assuming you are looking for reasonable performance)
 
 #2 is unique to the $W^2$ formalism, and is a very nice feature of it. In this version of BSSN, there is only one division by $W$, in the $\tilde{\Gamma}^i$ evolution equation, and you must guard against divisions by zero by clamping $W$ to a small value (eg $10^{-4}$)[^technically]
 

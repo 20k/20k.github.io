@@ -95,6 +95,12 @@ struct bssn_buffer_pack
     }
 };
 
+///this would be dim.x() - 1 if we weren't doing periodic conditions
+float get_scale(float simulation_width, t3i dim)
+{
+    return simulation_width / (dim.x());
+}
+
 struct mesh
 {
     std::array<bssn_buffer_pack, 3> buffers;
@@ -224,10 +230,10 @@ struct mesh
         load(pck.cG[2], "./init/buf_cGi2.bin");
     }
 
-    void step(cl::context& ctx, cl::command_queue& cqueue, float timestep, float c_at_max)
+    void step(cl::context& ctx, cl::command_queue& cqueue, float timestep, float simulation_width)
     {
         cl_int4 cldim = {dim.x(), dim.y(), dim.z(), 0};
-        float scale = c_at_max / dim.x();
+        float scale = get_scale(simulation_width, dim);
 
         auto kreiss = [&](int in, int inout)
         {
@@ -503,7 +509,7 @@ int main()
     //float timestep = 0.001f;
     float timestep = 0.001;
 
-    float c_at_max = 1;
+    float simulation_width = 1;
 
     while(!win.should_close())
     {
@@ -532,11 +538,11 @@ int main()
         steady_timer t;
 
         rtex.acquire(cqueue);
-        m.step(ctx, cqueue, timestep, c_at_max);
+        m.step(ctx, cqueue, timestep, simulation_width);
 
         {
             cl_int4 cldim = {dim.x(), dim.y(), dim.z(), 0};
-            float scale = c_at_max / dim.x();
+            float scale = get_scale(simulation_width, dim);
 
             cl::args args;
             m.buffers[0].append_to(args);
