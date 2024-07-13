@@ -37,25 +37,13 @@ These kinds of simulations are traditionally run on supercomputers, but luckily 
 
 This article is not going to assume you know all that much about general relativity, but it does require a lot of implementing
 
-# The Einstein Field Equations Aren't Very Simulateable
+# The ADM (Arnowitt–Deser–Misner) formalism
 
-The equations for general relativity are known as the [Einstein field equations](https://en.wikipedia.org/wiki/Einstein_field_equations#Mathematical_form) (EFEs). These equations are somewhat unique - they simply dictate how 4 dimensional spacetime should look declaratively - but do not provide a way to evolve a given slice of spacetime (which we might call 'now') forwards into the future. On top of that, unlike in virtually every other theory where time is a background parameter - in general relativity there isn't any independent notion of time or forwards as such[^timeorientable]. Time itself is part of the equations
+The [Einstein field equations](https://en.wikipedia.org/wiki/Einstein_field_equations#Mathematical_form) (EFEs) are what defines the structure of spacetime, but as-is they aren't especially useful. The basic problem is that they are declarative, and so don't give you a set of equations that you can evolve forwards in time
 
-[^timeorientable]: While we're looking at relatively well behaved spacetimes, in the general case relativistic manifolds are not necessarily time orientable, or simply connected - like a wormhole. These are both our of reach where we're going
+The ADM formalism is the most widespread approach for handling this. It consists of slicing a 4d spacetime explicitly into a series (foliation) of 3d spacelike slices, and separates out a timelike dimension - and so is often referred to as a "3+1" formalism. The direction of forwards in time in the ADM formalism is defined by two variables - called gauge variables. These are $\alpha$, and $\beta^i$[^lapseshift] (a 3-vector). These represent a degree of freedom, and are arbitrary (in theory)
 
-The puzzle is how to extract some concept of forwards in time from the equations of general relativity to figure out how we head forwards from one moment to the next, so we can construct a system of partial differential equations that can be evolved
-
-Here we'll be looking at the ADM (Arnowitt–Deser–Misner) formalism. It splits up a 4d spacetime into a 3+1 split: three spatial dimensions, and it singles out a time dimension in a specific way. Do note that this isn't the only way of doing it, and there are a number of successful formalisms, but ADM is the one with the most available information (and the most understandable in my opinion)
-
-## 3+1 split
-
-The idea is that we split our 4d spacetime into a series of 3d[^nd] surfaces (a 'foliation'), then define how one sheet evolves into the next. This evolution is defined by two variables: the lapse $\alpha$, and the shift $\beta^i$[^lapseshift], which together define our concept of forwards in time. These are known as the gauge variables. The basics of the adm formalism is to define how spacetime evolves in the direction pointed to by the gauge variables
-
-From now on, all latin indices $_{ijk}$ have the value 1-3, and refer to quantities on our 3d slice, whereas greek indices $_{\mu\nu\kappa}$ take on the value 0-3 and refer to quantities in our 4d spacetime
-
-ADM also introduces two other variables: The 3-metric $\gamma_{ij}$, and the extrinsic curvature $K_{ij}$. $\gamma_{ij}$ is the metric tensor associated with the 3d slice of spacetime, and specifies its curvature in 3d space. $K_{ij}$ represents how that 3d slice is embedded into our 4d spacetime. It is related to the 'velocity' of the metric tensor, and can be thought of as momentum variable
-
-The evolution equations for ADM are then defined by taking the derivatives of $\gamma_{ij}$, and $K_{ij}$, in the direction pointed to by our lapse and shift
+Each 3d[^nd] slice has its own metric associated with it called $\gamma_{ij}$, which operates as a normal metric tensor on any quantities on the 3d slice. We also have a variable $K_{ij}$ known as the extrinsic curvature, which represents the embedding of the slice into the larger 4d spacetime. It is directly related to the evolution of $\gamma_{ij}$ in time, and can be thought of as a momentum term
 
 [^nd]: Everything here is also applicable to N dimensional spacetimes, but I know very little about anything other than 4d general relativity
 
@@ -63,9 +51,11 @@ The evolution equations for ADM are then defined by taking the derivatives of $\
 
 ### Details
 
+From now on, all latin indices $_{ijk}$ have the value 1-3, and refer to quantities on our 3d slice, whereas greek indices $_{\mu\nu\kappa}$ take on the value 0-3 and refer to quantities in our 4d spacetime
+
 The general line element in ADM is this:
 
-$$ds^2 = -\alpha^2 dt^2 + \gamma_{ij} (dx^i + \beta^i dt)(dx^j + \beta^j)$$
+$$ds^2 = -\alpha^2 dt^2 + \gamma_{ij} (dx^i + \beta^i dt)(dx^j + \beta^jdt)$$
 
 $\gamma_{ij}$ is used as a regular metric tensor on any quantity in our 3d slice. That is to say, if we have some quantity $Q_i$, we can raise and lower its indices with $\gamma_{ij}$ as follows
 
@@ -76,37 +66,26 @@ If our 4-metric is $g_{\mu\nu}$, then our 3-metric is $\gamma_{ij} = g_{ij}$, ie
 
 ### Definitions
 
-The 3-metric, aka the induced metric
+The 3-metric, sometimes called the induced metric
 
 $$\gamma_{ij} = g_{ij}$$
 
 We can recover the 4-metric as such:
 
-https://indico.cern.ch/event/505595/contributions/1183661/attachments/1332828/2003830/sperhake.pdf
+|$g_{\mu\nu}$|$0$|$i$|
+|-|-|-|
+|$0$|$-\alpha^2 + \beta_m \beta^m$|$\beta_i$|
+|$j$|$\beta_j$|$\gamma_{ij}$|
 
-Todo: ate without table
 
-$$
-\begin{align}
-g_{00} &= -\alpha + \beta_m \beta^m \\
-g_{i0} &= \beta_i\\
-g_{0j} &= \beta_j\\
-g_{ij} &= \gamma_{ij}\\
-\end{align}
-$$
-
-$$
-\begin{align}
-g^{00} &= -\alpha^2 \\
-g^{i0} &= \alpha^{-2} \beta^i\\
-g^{0j} &= \alpha^{-2} \beta^j\\
-g^{ij} &= \gamma^{ij} - \alpha^{-2} \beta^i \beta^j\\
-\end{align}
-$$
+|$g^{\mu\nu}$|$0$|$i$|
+|-|-|-|
+|$0$|$-\alpha^2$|$\alpha^{-2} \beta^i$|
+|$j$|$\alpha^{-2} \beta^j$|$\gamma^{ij} - \alpha^{-2} \beta^i \beta^j$|
 
 $\Sigma_t$ = spatial hypersurface
 
-Timelike normal:
+Hypersurface normal:
 
 $$
 \begin{align}
@@ -115,7 +94,7 @@ n_\mu &= (-\alpha, 0, 0, 0)
 \end{align}
 $$
 
-Our partial derivative operator in time:
+The partial derivative operator in time:
 
 $$(\partial_t)^\mu = \alpha n^\mu + \beta^\mu$$
 
@@ -149,7 +128,7 @@ Luckily, because its not the early 2000s - and because the astrophysics communit
 
 ## Enter: The BSSN formalism
 
-The BSSN formalism is the most widely used formalism - it directly derived from the ADM formalism, and most practical formalisms are substantially similar to the BSSN formalism. It was the first very successful formalism to enter the picture - though it was unclear precisely why it worked so well for a long time[^seehere]
+The BSSN formalism is the most widely used formalism - it is directly derived from the ADM formalism, and most practical formalisms are substantially similar to the BSSN formalism. It was the first very successful formalism to enter the picture - though it was unclear precisely why it worked so well for a long time[^seehere]
 
 [^seehere]: [https://arxiv.org/pdf/0707.0339](https://arxiv.org/pdf/0707.0339) this paper contains a lot of useful details, but the short version is that the BSSN equations are a partially constrained evolution system, and managing the constraints is critical to a correct evolution scheme
 
@@ -157,11 +136,11 @@ There isn't one canonical BSSN formalism however, so its time to run through our
 
 ## Conformal decomposition
 
-The two ADM variables are: $\gamma_{ij}$ the metric tensor, and $\pi_{ij}$ the generalised conjugate momentum. The BSSN formalism swaps $\pi_{ij}$ for the related variable $K_{ij}$[^reffy], the extrinsic curvature tensor, as its root variable for ADM
+The two ADM variables are: $\gamma_{ij}$ the metric tensor, and $K_{ij}$, the extrinsic curvature
 
 [^reffy]: [Reference](http://wwwteor.mi.infn.it/~molinari/TESI/Danieli_tesi.pdf) 4.27
 
-One of the insights of the BSSN formalism is that we can perform a 'conformal decomposition' of our variables $\gamma_{ij}$ and $K_{ij}$, which renders the equations more numerically stable. The conformal metric tensor is called $\tilde{\gamma}_{ij}$, and is related to the regular metric tensor by a conformal transform - We'll get back to $K_{ij}$. There are three conformal transforms I know of which are in use:
+One of the insights of the BSSN formalism is that we can perform a 'conformal decomposition' of the variables $\gamma_{ij}$ and $K_{ij}$, which renders the equations more numerically stable. The conformal metric tensor is called $\tilde{\gamma}_{ij}$, and is related to the regular metric tensor by a 'conformal transform' (a multiplication by a scalar). There are three conformal variables I know of which are in use:
 
 $$
 \begin{align}
@@ -181,7 +160,7 @@ W &= det(\gamma)^{-1/6}\\
 \end{align}
 $$
 
-With this definition, the determinant of our conformal metric tensor is $\tilde{\gamma} = 1$. The inverse of the metric tensors follow a similar relation:
+With this definition, the determinant of our conformal metric tensor is $\tilde{\gamma} = 1$. The inverse of the metric tensor follows a similar relation:
 
 $$
 \begin{align}
@@ -191,7 +170,11 @@ W^2 &\tilde{\gamma}^{ij} &= \gamma^{ij}\\
 \end{align}
 $$
 
-The $\phi$ conformal decomposition was the first to be used, but it tends to infinity at the singularity which makes it not ideal - and appears to be falling out of use. The second version to be used was $\chi$ (range, [0,1]) which tends to 0 at the singularity, and is relatively widespread in more modern code. Lastly $W^2$ entered the picture - ostensibly it has better convergence[^converge] than $\chi$, but the really neat part about it is that renders the equations of motion of BSSN in a much less singular form. It also does not suffer from some of the issues that X has, like unphysical negative values
+$\phi$: This was the first to be used, but it tends to infinity at a black hole's singularity which makes it not ideal - and appears to be falling out of use.
+
+$\chi$: This version tends to 0 at the singularity and in general behaves much better than the $\phi$ version - and is relatively widespread in more modern code.
+
+$W^2$: Ostensibly it has better convergence[^converge] than $\chi$, but the really neat part about it is that renders the equations of motion of BSSN in a much less singular form. It also does not suffer from some of the issues that $\chi$ has, like unphysical negative values
 
 [^converge]: See [High-spin binary black hole mergers](https://arxiv.org/pdf/0709.2160) for this line of reasoning
 
@@ -207,13 +190,13 @@ $\tilde{D}^i$, is used to mean $\tilde{\gamma}^{ij} \tilde{D}_j$. Similarly, $D^
 
 While non specific to BSSN, the symmetrising operator $_{()}$ crops up here unintuitively. This is defined as $A_{(ij)}$ = $0.5 (A_{ij} + A_{ji})$. A more complex example is $2\tilde{\Gamma}^k_{m(i} \tilde{\Gamma}_{j)kn} = 0.5 * 2 (\tilde{\Gamma}^k_{mi} \tilde{\Gamma}_{jkn} + \tilde{\Gamma}^k_{mj} \tilde{\Gamma}_{ikn})$
 
-$^{TF}$ is used to denote the trace free part of a tensor. $Q_{ij}^{TF} = Q_{ij} - \frac{1}{3} g_{ij} g^{mn} Q_{mn}$. Note that for some scalar $A$, $(AQ)^{TF} == A(Q^{TF})$, and it does not matter if you use the conformal metric, or the non conformal metric as the metric tensor here - as the conformal factor cancels out. This is also sometimes notated $Q_{<ij>}$
+$^{TF}$ is used to denote the trace free part of a tensor. $Q_{ij}^{TF} = Q_{ij} - \frac{1}{3} g_{ij} g^{mn} Q_{mn}$. Note that for some scalar $A$, $(AQ)^{TF} == A(Q^{TF})$, and it does not matter if you use the conformal metric, or the non conformal metric as the metric tensor here - the conformal factor cancels out. This is also sometimes notated $Q_{<ij>}$
 
 todo: note that we always mean the christoffel symbol, never the analytic, but note the substitution
 
 ## Variables
 
-The BSSN variables are defined as a conformal decomposition of the ADM variables, $\gamma_{ij}$ and $K_{ij}$, via a conformal factor (here $W^2$). Our full set of variables is defined as follows:
+The full set of BSSN variables after conformally decomposing $\gamma_{ij}$ and $K_{ij}$ is as follows:
 
 $$
 \begin{align}
@@ -227,11 +210,11 @@ $$
 \end{align}
 $$
 
-Conformal variables in general have a tilde over them, and have their indices are raised and lowered with the conformal metric tensor. In this definition, the trace of the conformal metric is $\tilde{\gamma} = 1$, and $\tilde{A}_{ij}$ is trace-free. $K$ is the trace of $K_{ij}$. $K_{ij}$, $\gamma_{ij}$, $\tilde{A}_{ij}$, and $\tilde{\gamma}_{ij}$ are all symmetric
+Conformal variables have a tilde over them, and have their indices are raised and lowered with the conformal metric tensor. In this definition, the trace of the conformal metric is $\tilde{\gamma} = 1$, and $\tilde{A}_{ij}$ is trace-free. $K$ is the trace of $K_{ij}$. $K_{ij}$, $\gamma_{ij}$, $\tilde{A}_{ij}$, and $\tilde{\gamma}_{ij}$ are all symmetric
 
 $\tilde{\Gamma}^i$ is analytically equal to $\tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$, but is evolved numerically instead. This is because $\partial_k \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$ is numerically unstable TODO: CITE
 
-In total, we have ended up with the following constraints, that ideally are satisfied for all time, but in practice will be numerically violated
+There are also a number of constraints that must be satisfied for the BSSN formalism to be well posed. The momentum and hamiltonian constraints come from this being derived from a lagragrian approach, and the others are specific to the BSSN formalism
 
 ### Constraints
 
@@ -254,10 +237,10 @@ $$
 #### Christoffel symbol
 
 $$
-\mathcal{G}_i = \tilde{\Gamma}^i - \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn} = 0
+\mathcal{G}^i = \tilde{\Gamma}^i - \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn} = 0
 $$
 
-Constraint damping is critical to the BSSN formalism, so we'll get back to these
+Ensuring that the constraints don't blow up numerically is key to making the BSSN formalism work, so we'll get back to these
 
 ## Equations of motion
 
@@ -297,7 +280,7 @@ $$
 
 ## Gauge conditions
 
-The BSSN equations do not specify the evolution equations for the lapse and shift, as these are arbitrary. Despite in theory being arbitrary, in practice you have to very carefully pick your gauge conditions for the kind of problem you're trying to solve
+The ADM/BSSN formalism does not uniquely specify the evolution equations for the lapse and shift, and there is a freedom of choice here. Despite in theory being arbitrary, in practice you have to very carefully pick your gauge conditions for the kind of problem you're trying to solve
 
 Here are some common gauge conditions:
 
@@ -309,13 +292,13 @@ $$\alpha = 1, \beta^i = 0$$
 
 ### Lapse ($\alpha$)
 
-#### Harmonic[^harmy]
+#### Harmonic slicing[^harmy]
 
 [^harmy]: [Ref](https://arxiv.org/pdf/2201.08857)
 
 $$\partial_t \alpha = - 2 \alpha^2 K + \beta^m \partial_m \alpha$$
 
-#### 1+log
+#### 1+log slicing
 
 $$\partial_t \alpha = - \alpha K + \beta^m \partial_m \alpha$$
 
@@ -360,7 +343,7 @@ So, as written, the BSSN equations of motion are - drumroll - very numerically u
 
 1. If the second algebraic constraint $\mathcal{A}$ is violated, ie the trace of the trace-free extrinsic curvature != 0, the violation blows up and your simulation will immediately fail
 2. Correcting momentum constraint $\mathcal{M}_i$ violations is very important
-3. The christoffel symbol constraint $\mathcal{G}_i$ is quite important to damp
+3. The christoffel symbol constraint $\mathcal{G}^i$ is quite important to damp
 4. The quantity $\partial_k\tilde{\Gamma}^i_{mn}$ is numerically unstable, though the quantity $\tilde{\Gamma}^i_{mn}$ is not
 
 Additionally:
@@ -368,9 +351,7 @@ Additionally:
 1. Hamiltonian constraint violations are essentially unimportant for stability purposes, and seem to be largely irrelevant for physical accuracy beyond a reasonably justified paranoia
 2. The first algebraic constraint $\mathcal{S}$ is relatively unimportant to enforce, but its easy to do - so we may as well
 
-Because only the derivatives of $\partial_k \tilde{\Gamma}^{i}_{mn}$ are numerically unstable, expressions involving undifferentiated $\tilde{\Gamma}^i$'s are frequently replaced in the literature with the analytic equivalent. This is one technique to enforce the $\mathcal{G}^i$ constraint, though it is somewhat 'old fashioned'[^interestingy], and I will be avoiding it other than for testing in the future
-
-[^interestingy]: I don't mean this in a derogatory way, and I find the stability analysis here absolutely fascinating. This substitution appears to somewhat restrict what kinds of spacetimes you are able to simulate, and is often quoted as only being good for octant symmetry specifically. My own experience of this is that while its good for the $\mathcal{G}$ constraint, it is also more numerically unstable than alternatives
+Because only the derivatives of $\partial_k \tilde{\Gamma}^{i}_{mn}$ are numerically unstable, expressions involving undifferentiated $\tilde{\Gamma}^i$'s are frequently replaced in the literature with the analytic equivalent. This is one technique to enforce the $\mathcal{G}^i$ constraint, though we're going to avoid this approach because it is a bit limited
 
 Its time to deal with constraint stability directly now
 
@@ -397,7 +378,7 @@ This is what will be used in the article. It is important to apply the algebraic
 
 #### Damping
 
-This method has been floating around in the literature for a while, and damps the algebraic constraints. [This](https://arxiv.org/pdf/1106.2254) paper contains a discussion of the idea (before 26), and we'll be using the specific form provided by [this paper](https://arxiv.org/pdf/gr-qc/0204002) in the appendix. This means that we modify our evolution equations as follows
+This method has been floating around in the literature for a while, and damps the algebraic constraints. [This](https://arxiv.org/pdf/1106.2254) paper contains a discussion of the idea (before 26), and you can use the specific form provided by [this paper](https://arxiv.org/pdf/gr-qc/0204002) in the appendix. This means that the evolution equations are modified as follows:
 
 $$\begin{align}
 \partial_t \tilde{\gamma}_{ij} &= \partial_t \tilde{\gamma}_{ij} + k_1\alpha \tilde{\gamma}_{ij} \mathcal{S}\\
@@ -407,21 +388,21 @@ $$
 
 Where k1 < 0, k2 < 0, and the constraints are evaluated from the relevant constraint expressions
 
-Note that because this only damps the $\mathcal{A}$ constraint instead of elimiating it, we must also modify the evolution equation for $\tilde{\gamma}_{ij}$ as follows, to prevent things from blowing up:
+Note that because this only damps the $\mathcal{A}$ constraint instead of eliminating it, you must also modify the evolution equation for $\tilde{\gamma}_{ij}$ as follows, to prevent things from blowing up:
 
 $$
 \partial_t \tilde{\gamma}_{ij} = \beta^m \partial_m \tilde{\gamma}_{ij}+ 2 \tilde{\gamma}_{m(i} \partial_{j)} \beta^m - \frac{2}{3} \tilde{\gamma}_{ij} \partial_m \beta^m - 2 \alpha \tilde{A}^{TF}_{ij} \\
 $$
 
-This formulation works well, but you must be careful about your choice of damping factor. Too low and constraint errors pile up, too high and you overcorrect - oscillating wildly. Still, because its integrated into your evolution equations (rather than a separate step), its a fair bit faster than enforcing the constraint directly
+This formulation works well, but you must be careful about your choice of damping factor. Too low and constraint errors pile up, too high and you overcorrect - oscillating wildly. Still, because its integrated into the evolution equations (rather than as a separate step), its a fair bit faster than enforcing the constraints directly
 
 #### Solving
 
-I'll mention this in passing: The constraints can also be seen to reduce the number of free components for $\tilde{\gamma}_{ij}$ and $\tilde{A}_{ij}$ from 6 to 5, and instead of enforcing or damping the constraints, we can use them to solve for one of the components instead. For more discussion on this approach, please see [this paper](https://arxiv.org/pdf/1205.5111) (36-37)
+I'll mention this in passing: The constraints can also be seen to reduce the number of free components for $\tilde{\gamma}_{ij}$ and $\tilde{A}_{ij}$ from 6 to 5, and instead of enforcing or damping the constraints, you can use them to solve for one of the components instead. For more discussion on this approach, please see [this paper](https://arxiv.org/pdf/1205.5111) (36-37)
 
-While it may seem attractive to reduce the number of evolution equations, on a GPU you will be limited by memory bandwidth, and you're still going to be accessing all of the evolution variables anyway. This only actually saves us two memory writes, and significantly complicates the calculation of derivatives - leading to register/code size blowup which can cause performance problems
+While it may seem attractive to reduce the number of evolution equations, on a GPU you will be limited by memory bandwidth, and you're still going to be accessing all of the evolution variables anyway. This only actually saves us two memory writes, and significantly complicates the calculation of derivatives - leading to register/code size blowup
 
-### The momentum constraint
+### The Momentum constraint
 
 The most direct and common way of enforcing this is as follows:
 
@@ -431,14 +412,14 @@ $$
 
 Where $k_3$ > 0
 
-### Christoffel symbol constraint
+### The Christoffel symbol constraint
 
-The most straightforward way to apply this is by applying the $\mathcal{G}^i$ constraint as followsw:
+The most straightforward way to apply this is by applying the $\mathcal{G}^i$ constraint as follows:
 
 $$\partial_t \tilde{\Gamma}^i = \partial_t \tilde{\Gamma}^i - \sigma \mathcal{G}^i \partial_m \beta^m
 $$
 
-Where $\sigma$ > 0. This modification is not used in this paper
+Where $\sigma$ > 0. This modification is not used in this article, partly as it is unnecessary, and partly because $\beta^i = 0$ here
 
 ### Other constraints
 
@@ -446,15 +427,32 @@ Damping the hamiltonian constraint is unnecessary here, but [this](https://arxiv
 
 ### Dissipating Numerical Noise
 
-Even with all the constraint damping, the equations can still be numerically unstable - the last tool in our toolbox is kreiss-oliger dissipation
+Even with all the constraint damping, the equations can still be numerically unstable - the last tool in the toolbox is called Kreiss-Oliger dissipation. This essentially is a blur on your data - it extracts a certain order of frequencies from your simulation grid, and damps them. The [einstein toolkit](https://einsteintoolkit.org/thornguide/CactusNumerical/Dissipation/documentation.html) website gives this definition[^original] - which I always found somewhat confusing personally:
 
-todo:
+[^original]: I do not have access to the linked paper
+
+$$\partial_t U = \partial_t U + (-1)^{(p+3)/2} \epsilon \frac{h^p}{2^{p+1}} (\frac{\partial^{p+1}}{\partial x^{p+1}} + \frac{\partial^{p+1}}{\partial y^{p+1}} + \frac{\partial^{p+1}}{\partial z^{p+1}})U$$
+
+$\epsilon$ is a damping factor (eg $0.25$), and $h$ is the grid spacing. $p$ is the order of the dissipation, although there appears to be some confusion about what it means[^notclear]. 6th order derivatives are common to use, here I'm going to set $p=5$
+
+[^notclear]: It is not clear to me when people refer to the order of kreiss-oliger dissipation if they mean the derivatives, or $p$. eg in [this](https://authors.library.caltech.edu/8284/1/RINcqg07.pdf) paper, B.4 is called 4th order kreiss-oliger, whereas the cactus toolkit contradicts that definition
+
+$$\partial_t U = \partial_t U + \epsilon \frac{h^5}{64} (\frac{\partial^6}{\partial x^6} + \frac{\partial^6}{\partial y^6} + \frac{\partial^6}{\partial z^6})U$$
+
+There are two major ways of implementing this:
+
+1. Modifying the evolution equations
+2. As a pure numerical filter, modifying a set of variables as a single pass
+
+Ie, do you use the extracted frequency from your inputs and add it to your evolution equations, or instead apply it to the same buffer the frequencies were extracted from? I pick #2, as it can be implemented more efficiently
+
+Note, 6th derivatives imply a division by $h^6$ - which is then immediately multiplied by $h^5$, and you may not want to do this numerically
 
 ## Picking an integrator
 
-We're going to diverge from the literature significantly here, for very good reason. The BSSN equations are a classically [stiff](https://en.wikipedia.org/wiki/Stiff_equation) (unstable) set of equations, and they oscillate pretty wildly. Its traditional to use something similar to RK4 to integrate the equations of motion
+We're going to diverge from the literature significantly here, for very good reason. The BSSN equations are a classically [stiff](https://en.wikipedia.org/wiki/Stiff_equation) (unstable) set of equations, which means that integrators can have a hard time providing accurate results. Its traditional to use something similar to RK4 to integrate the equations of motion
 
-If you're familiar with solving stiff PDEs, it might seem a bit odd to use RK4 - RK4 is an explicit integrator - and as such has fairly poor stability properties when solving stiff equations. For many kinds of problem, an explicit integrator works great, but not really for unstable problems like this. Instead, we're going to use an L-stable implicit integrator which has much more appropriate convergence properties - backwards euler
+If you're familiar with solving stiff PDEs, it might seem a bit odd to use RK4 - RK4 is an explicit integrator - and as such has fairly poor stability properties when solving stiff equations. For many kinds of problem, an explicit integrator works great, but not really for unstable problems like this. Instead, we're going to use an L-stable implicit integrator which has excellent convergence properties - backwards euler
 
 Backwards euler has a very GPU-friendly form, making it very amenable to GPU architecture, while using a minimal amount of memory. In all my testing, I haven't found an integrator with better properties than this. Despite the 1st order convergence, it tends to provide better results than RK4 in my experience, but in the future we'll get into the data
 
