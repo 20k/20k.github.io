@@ -12,7 +12,8 @@ https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf covariant bssn
 https://www2.yukawa.kyoto-u.ac.jp/~masaru.shibata/PRD52.5428.pdf cG mentions the motivation behind the gamma term
 stability paper https://arxiv.org/pdf/0707.0339
 http://wwwteor.mi.infn.it/~molinari/TESI/Danieli_tesi.pdf 4.27 relates conjugate momentum and extrinsic curvature
-
+https://arxiv.org/pdf/2210.10103 adm stuff
+https://arxiv.org/pdf/gr-qc/0604035 adm evolution equations
 
 Ok planola time:
 
@@ -28,46 +29,52 @@ Ok planola time:
 10. Gauge condition evolution
 11. Some kind of diagnostic (semi analytic tests?)
 
-Hi there! Today we're going to be getting into numerical relativity, which is the art of simulating the evolution of spacetime itself. While there a quite a few known solutions to the equations of general relativity at this point (eg Schwarzschild), many of the most interesting regions of general relativity can only be explored by exploring how spacetime itself evolves dynamically. Binary black hole collisions are one of the most directly relevant applications of this, and this article is the direct foundation for us colliding black holes together
+Hi there! Today we're going to be getting into numerical relativity, which is the art of simulating the evolution of spacetime itself. While there a quite a few known solutions to the equations of general relativity at this point (eg the Schwarzschild metric), many of the most interesting regions of general relativity can only be explored by exploring how spacetime itself evolves dynamically through simulations. Binary black hole collisions are a perfect example of this, and are a big part of the reason why we're building this
 
-These kinds of simulations are traditionally run on supercomputers, but luckily you likely have a supercomputer in the form of a GPU[^specs] in your PC. The amount of extra performance we can get over a traditional CPU based implementation is often a few orders of magnitude better than normal
+These kinds of simulations are traditionally run on supercomputers, but luckily you likely have a supercomputer in the form of a GPU[^specs] in your PC. The amount of extra performance we can get over a traditional CPU based implementation is likely to be a few orders of magnitude higher if you know what you're doing, so in this article I'm going to present to you how to get this done
 
 [^specs]: You'll need 8+ GB of vram for future bbh collisions, though you can get away with minimal specs for this article. This was written and tested on a 6700xt, but previous work was on an r9 390. Any OpenCL 1.2 compatible device will work here, though I do use 64-bit atomics for accumulating diagnostics
 
 This article is not going to assume you know all that much about general relativity, but it does require a lot of implementing
 
-# Time in general relativity
+# The Einstein Field Equations Aren't Very Simulateable
 
-The key issue for simulating general relativity is that of time, and how we handle this is going to crop up all over the place. The einstein field equations simply dictate how 4 dimensional spacetime should look declaratively - but they do not have any concept of forwards in time. Unlike in virtually every other theory where time is a background parameter, in general relativity there literally isn't any independent notion of time[^timeorientable]
+The equations for general relativity are known as the [Einstein field equations](https://en.wikipedia.org/wiki/Einstein_field_equations#Mathematical_form) (EFEs). These equations are somewhat unique - they simply dictate how 4 dimensional spacetime should look declaratively - but do not provide a way to evolve a given slice of spacetime (which we might call 'now') forwards into the future. On top of that, unlike in virtually every other theory where time is a background parameter - in general relativity there isn't any independent notion of time or forwards as such[^timeorientable]. Time itself is part of the equations
 
-[^timeorientable]: While we're looking at relatively well behaved spacetimes, in the general case relativistic manifolds are not necessarily time orientable, or simply connected - like a wormhole. These are both off the table for us sadly
+[^timeorientable]: While we're looking at relatively well behaved spacetimes, in the general case relativistic manifolds are not necessarily time orientable, or simply connected - like a wormhole. These are both our of reach where we're going
 
-The puzzle is how to extract some concept of forwards in time from the equations of general relativity, so we can construct a system of partial differential equations, and evolve them forwards to hit an end state
+The puzzle is how to extract some concept of forwards in time from the equations of general relativity to figure out how we head forwards from one moment to the next, so we can construct a system of partial differential equations that can be evolved
 
-Here we'll be looking at the ADM (Arnowitt–Deser–Misner) formalism. It splits up a 4d spacetime into a 3+1 split: three spatial dimensions, and it singles out a single time dimension. Do note that this isn't the only way of doing it, and there are a number of successful formalisms, but ADM is the one with the most available information (and the most understandable in my opinion)
+Here we'll be looking at the ADM (Arnowitt–Deser–Misner) formalism. It splits up a 4d spacetime into a 3+1 split: three spatial dimensions, and it singles out a time dimension in a specific way. Do note that this isn't the only way of doing it, and there are a number of successful formalisms, but ADM is the one with the most available information (and the most understandable in my opinion)
 
 ## 3+1 split
 
-The idea is that we take a series of 3d[^nd] spatial slices through our 4d spacetime - each through a 'moment' in time. The time coordinate is arbitrary (and we'll get back to it), but this spatial slicing is fairly arbitrary. From now on, all latin indices $_{ijk}$ have the value 1-3, and refer to quantities on our 3d slice, whereas greek indices $_{\mu\nu\kappa}$ take on the value 0-3 and refer to quantities in our 4d spacetime
+The idea is that we split our 4d spacetime into a series of 3d[^nd] surfaces (a 'foliation'), then define how one sheet evolves into the next. This evolution is defined by two variables: the lapse $\alpha$, and the shift $\beta^i$[^lapseshift], which together define our concept of forwards in time. These are known as the gauge variables. The basics of the adm formalism is to define how spacetime evolves in the direction pointed to by the gauge variables
+
+From now on, all latin indices $_{ijk}$ have the value 1-3, and refer to quantities on our 3d slice, whereas greek indices $_{\mu\nu\kappa}$ take on the value 0-3 and refer to quantities in our 4d spacetime
+
+ADM also introduces two other variables: The 3-metric $\gamma_{ij}$, and the extrinsic curvature $K_{ij}$. $\gamma_{ij}$ is the metric tensor associated with the 3d slice of spacetime, and specifies its curvature in 3d space. $K_{ij}$ represents how that 3d slice is embedded into our 4d spacetime. It is related to the 'velocity' of the metric tensor, and can be thought of as momentum variable
+
+The evolution equations for ADM are then defined by taking the derivatives of $\gamma_{ij}$, and $K_{ij}$, in the direction pointed to by our lapse and shift
 
 [^nd]: Everything here is also applicable to N dimensional spacetimes, but I know very little about anything other than 4d general relativity
 
-The way we chop up our spacetime into 3d slices is known as the foliation, and with this we'll introduce our first piece of ADM specific notation: $\alpha$, the lapse, and $\beta^i$, the shift, a 3 component vector. These are also often sometimes labelled $N$ and $N^i$ respectively. Together, these point forwards in time, and make up a 'normal' vector to the 3d surface we're working with
+[^lapseshift]: These are also often frequently labelled $N$, for the lapse, and $N^i$, for the shift
 
-These variables are called the gauge variables, which dictates the foliation of spacetime. They are in general arbitrary, and represent an extra degree of freedom. The general line element in ADM is this:
+### Details
+
+The general line element in ADM is this:
 
 $$ds^2 = -\alpha^2 dt^2 + \gamma_{ij} (dx^i + \beta^i dt)(dx^j + \beta^j)$$
 
-$\gamma_{ij}$ is the 3-metric (often called the induced metric) which is used on any quantity in our 3d slice, and operates like a regular metric tensor. That is to say, if we have some quantity $Q_i$ on our 3d slice, we can raise and lower its indices with $\gamma_{ij}$ as follows
+$\gamma_{ij}$ is used as a regular metric tensor on any quantity in our 3d slice. That is to say, if we have some quantity $Q_i$, we can raise and lower its indices with $\gamma_{ij}$ as follows
 
 $$Q^i = \gamma^{ij} Q_j\\
 Q_i = \gamma_{ij} Q^j$$
 
 If our 4-metric is $g_{\mu\nu}$, then our 3-metric is $\gamma_{ij} = g_{ij}$, ie the spatial parts. While $\gamma^{ij} = (\gamma_{ij})^{-1}$, $\gamma^{ij} \neq g^{ij}$
 
-Lets examine some definitions that fall out of this information dump
-
-## Definitions
+### Definitions
 
 The 3-metric, aka the induced metric
 
@@ -120,25 +127,29 @@ Also sometimes called $\gamma^\mu_{\;\;\nu}$
 
 ## Equations of motion
 
-Once we have this foliation, it is possible to define a lagrangian[^mechanics] for the evolution from one 3d slice to the next. A lagrangian directly leads to a hamiltonian formalism, and equations of motion, and you can see these equations over here:
+Once everything is said and done, the ADM equations of motion can be brought into the following form[^reffyadm]:
 
-[^mechanics]: If you don't know lagrangian or hamiltonian mechanics, its not especially important. The only thing to really be aware of is that it introduces some terms known as constraints: The hamiltonian constraint $H=0$, and the momentum constraint $M_i = 0$. These must both be satisfied as our simulation progresses
+[^reffyadm]: [https://arxiv.org/pdf/gr-qc/0604035](https://arxiv.org/pdf/gr-qc/0604035) 5
 
-https://en.wikipedia.org/wiki/ADM_formalism#Lagrangian_formulation
+$$\begin{align}
+\partial_t \gamma_{ij} &= \mathcal{L}_\beta \gamma_{ij} - 2 \alpha K_{ij}\\
+\partial_t K_{ij} &= \mathcal{L}_\beta K_{ij} - D_i D_j \alpha + \alpha (R_{ij} - 2 K_{il} K^l_j + K K_{ij})
+\end{align}
+$$
 
-We end up with two differential equations - one for our metric $\gamma_{ij}$, and one for our 'conjugate momentum', $\pi^{ij}$. On top of this, we must also supply evolution equations for the lapse and shift - these are both arbitrary (in theory), and any choice within reason will lead to a valid evolution - we could pick $1$ and $(0,0,0)$ respectively (and this slicing is sometimes used)
+We must also provide adequate gauge conditions (evolution equations for the gauge variables), and then in theory we have a fully working formalism for evolving spacetime
 
-Unfortunately, there's a big problem
+Unfortunately, there's a small problem
 
 # The ADM equations of motion are bad
 
-Part of the reason why we're not going into this more is that - unfortunately - these equations of motion are fairly useless to us. They are *very* numerically unstable, to the point where for our purposes there's no point trying to solve them. Understanding this issue, and solving it was an outstanding problem for decades, and there is an absolutely enormous amount written in the literature on this topic. A lot of this article series is going to be dealing with the very poor character of the equations
+Part of the reason why we're not going into this more is that - unfortunately - these equations of motion are unusable to us. They are *very* numerically unstable, to the point where for our purposes there's no point trying to solve them. Understanding this issue, and solving it was an outstanding problem for decades, and there is an absolutely enormous amount written in the literature on this topic. A lot of this article series is going to be dealing with the very poor character of the equations
 
-Luckily, because its not 1990 - and because the astrophysics community rocks and makes all this information public - we get to skip to the part where we have a workable set of equations
+Luckily, because its not the early 2000s - and because the astrophysics community rocks and makes all this information public - we get to skip to the part where we have a workable set of equations
 
 ## Enter: The BSSN formalism
 
-The BSSN formalism is the most widely used formalism - its an ADM derivative, and most practical formalisms are substantially similar to the BSSN formalism. It was the first very successful formalism to enter the picture - though it was unclear precisely why it worked so well for a long time[^seehere]
+The BSSN formalism is the most widely used formalism - it is a direct derivative of the ADM formalism (which is why we spent time on this at all!), and most practical formalisms are substantially similar to the BSSN formalism. It was the first very successful formalism to enter the picture - though it was unclear precisely why it worked so well for a long time[^seehere]
 
 [^seehere]: [https://arxiv.org/pdf/0707.0339](https://arxiv.org/pdf/0707.0339) this paper contains a lot of useful details, but the short version is that the BSSN equations are a partially constrained evolution system, and managing the constraints is critical to a correct evolution scheme
 
@@ -331,7 +342,7 @@ $$
 \end{align}
 $$
 
-As far as I know, nobody has ever really found a compelling reason to use this form of the gamma driver gauge condition (and it is slower and requires more memory), so I'm really only mentioning it because it shows up in the literature
+As far as I know, nobody has ever really found a compelling reason to use this form of the gamma driver gauge condition (plus, it is slower and requires more memory), so I'm really only mentioning it because it shows up in the literature. The single variable form of the gamma driver condition is the integrated form of the two-variable expression
 
 ## Implementation considerations
 

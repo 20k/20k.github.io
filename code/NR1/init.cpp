@@ -71,7 +71,7 @@ std::string make_initial_conditions()
         v3i centre = (dim - (v3i){1,1,1}) / 2;
 
         v3f fpos = (v3f)pos;
-        v3f fcentre = (v3f)centre;
+        //v3f fcentre = (v3f)centre;
 
         valuef simulation_width = scale.get() * ((valuef)dim.x());
 
