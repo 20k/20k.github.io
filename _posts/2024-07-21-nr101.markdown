@@ -149,7 +149,7 @@ Luckily, because its not the early 2000s - and because the astrophysics communit
 
 ## Enter: The BSSN formalism
 
-The BSSN formalism is the most widely used formalism - it is a direct derivative of the ADM formalism (which is why we spent time on this at all!), and most practical formalisms are substantially similar to the BSSN formalism. It was the first very successful formalism to enter the picture - though it was unclear precisely why it worked so well for a long time[^seehere]
+The BSSN formalism is the most widely used formalism - it directly derived from the ADM formalism, and most practical formalisms are substantially similar to the BSSN formalism. It was the first very successful formalism to enter the picture - though it was unclear precisely why it worked so well for a long time[^seehere]
 
 [^seehere]: [https://arxiv.org/pdf/0707.0339](https://arxiv.org/pdf/0707.0339) this paper contains a lot of useful details, but the short version is that the BSSN equations are a partially constrained evolution system, and managing the constraints is critical to a correct evolution scheme
 
@@ -220,7 +220,7 @@ $$
 &\tilde{\gamma}_{ij} &&= W^2 \gamma_{ij}\\
 &\tilde{A}_{ij} &&= W^2 (K_{ij} - \frac{1}{3} \gamma_{ij} K)\\
 &K &&= \gamma^{mn} K_{mn}\\
-&W^2 &&= det(\gamma)^{-1/6}\\
+&W &&= det(\gamma)^{-1/6}\\
 &\tilde{\Gamma}^i &&= \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}\\
 &\alpha_{bssn} &&= \alpha_{adm}\\
 &\beta^i_{bssn} &&= \beta^i_{adm}\\
