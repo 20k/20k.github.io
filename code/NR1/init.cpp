@@ -51,6 +51,109 @@ auto wave_function = []<typename T>(const tensor<T, 4>& position)
     return m;
 };
 
+struct adm_variables
+{
+    metric<valuef, 3, 3> Yij;
+    tensor<valuef, 3, 3> Kij;
+    valuef gA;
+    tensor<valuef, 3> gB;
+};
+
+template<typename T>
+adm_variables make_adm_variables(T&& func, v4f position)
+{
+    using namespace single_source;
+
+    adm_variables adm;
+
+    metric<valuef, 4, 4> Guv = func(position);
+
+    tensor<valuef, 4, 4, 4> dGuv;
+
+    for(int k=0; k < 4; k++)
+    {
+        auto ldguv = diff_analytic(func, position, k);
+
+        for(int i=0; i < 4; i++)
+        {
+            for(int j=0; j < 4; j++)
+            {
+                dGuv[k, i, j] = ldguv[i, j];
+            }
+        }
+    }
+
+    metric<valuef, 3, 3> Yij;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            Yij[i, j] = Guv[i+1, j+1];
+        }
+    }
+
+    tensor<valuef, 3, 3, 3> Yij_derivatives;
+
+    for(int k=0; k < 3; k++)
+    {
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                Yij_derivatives[k, i, j] = dGuv[k+1, i+1, j+1];
+            }
+        }
+    }
+
+    tensor<valuef, 3, 3, 3> Yij_christoffel = christoffel_symbols_2(Yij.invert(), Yij_derivatives);
+
+    pin(Yij_christoffel);
+
+    tensor<valuef, 3> gB_lower;
+    tensor<valuef, 3, 3> dgB_lower;
+
+    for(int i=0; i < 3; i++)
+    {
+        gB_lower[i] = Guv[0, i+1];
+
+        for(int k=0; k < 3; k++)
+        {
+            dgB_lower[k, i] = dGuv[k+1, 0, i+1];
+        }
+    }
+
+    tensor<valuef, 3> gB = raise_index(gB_lower, Yij.invert(), 0);
+
+    pin(gB);
+
+    valuef gB_sum = sum_multiply(gB, gB_lower);
+
+    valuef gA = sqrt(-Guv[0, 0] + gB_sum);
+
+    ///https://clas.ucdenver.edu/math-clinic/sites/default/files/attached-files/master_project_mach_.pdf 4-19a
+    tensor<valuef, 3, 3> gBjDi = covariant_derivative_low_vec(gB_lower, dgB_lower, Yij_christoffel);
+
+    pin(gBjDi);
+
+    tensor<valuef, 3, 3> Kij;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            Kij[i, j] = (1/(2 * gA)) * (gBjDi[j, i] + gBjDi[i, j] - dGuv[0, i+1, j+1]);
+        }
+    }
+
+    adm.Yij = Yij;
+    adm.Kij = Kij;
+    adm.gA = gA;
+    adm.gB = gB;
+
+    return adm;
+}
+
 std::string make_initial_conditions()
 {
     auto init = [&](execution_context&, bssn_args_mem<buffer_mut<valuef>> to_fill, literal<v3i> ldim, literal<valuef> scale) {
@@ -70,91 +173,13 @@ std::string make_initial_conditions()
 
         v3f wpos = ((v3f)pos) * scale.get();
 
-        metric<valuef, 4, 4> Guv = wave_function((v4f){0, wpos.x(), wpos.y(), wpos.z()});
+        adm_variables adm = make_adm_variables(wave_function, {0, wpos.x(), wpos.y(), wpos.z()});
 
-        tensor<valuef, 4, 4, 4> dGuv;
+        valuef W = pow(adm.Yij.det(), -1/6.f);
+        metric<valuef, 3, 3> cY = W*W * adm.Yij;
+        valuef K = trace(adm.Kij, adm.Yij.invert());
 
-        for(int k=0; k < 4; k++)
-        {
-            auto ldguv = diff_analytic(wave_function, (v4f){0, wpos.x(), wpos.y(), wpos.z()}, k);
-
-            for(int i=0; i < 4; i++)
-            {
-                for(int j=0; j < 4; j++)
-                {
-                    dGuv[k, i, j] = ldguv[i, j];
-                }
-            }
-        }
-
-        metric<valuef, 3, 3> Yij;
-
-        for(int i=0; i < 3; i++)
-        {
-            for(int j=0; j < 3; j++)
-            {
-                Yij[i, j] = Guv[i+1, j+1];
-            }
-        }
-
-        tensor<valuef, 3, 3, 3> Yij_derivatives;
-
-        for(int k=0; k < 3; k++)
-        {
-            for(int i=0; i < 3; i++)
-            {
-                for(int j=0; j < 3; j++)
-                {
-                    Yij_derivatives[k, i, j] = dGuv[k+1, i+1, j+1];
-                }
-            }
-        }
-
-        tensor<valuef, 3, 3, 3> Yij_christoffel = christoffel_symbols_2(Yij.invert(), Yij_derivatives);
-
-        pin(Yij_christoffel);
-
-        tensor<valuef, 3> gB_lower;
-        tensor<valuef, 3, 3> dgB_lower;
-
-        for(int i=0; i < 3; i++)
-        {
-            gB_lower[i] = Guv[0, i+1];
-
-            for(int k=0; k < 3; k++)
-            {
-                dgB_lower[k, i] = dGuv[k+1, 0, i+1];
-            }
-        }
-
-        tensor<valuef, 3> gB = raise_index(gB_lower, Yij.invert(), 0);
-
-        pin(gB);
-
-        valuef gB_sum = sum_multiply(gB, gB_lower);
-
-        valuef gA = sqrt(-Guv[0, 0] + gB_sum);
-
-        ///https://clas.ucdenver.edu/math-clinic/sites/default/files/attached-files/master_project_mach_.pdf 4-19a
-        tensor<valuef, 3, 3> gBjDi = covariant_derivative_low_vec(gB_lower, dgB_lower, Yij_christoffel);
-
-        pin(gBjDi);
-
-        tensor<valuef, 3, 3> Kij;
-
-        for(int i=0; i < 3; i++)
-        {
-            for(int j=0; j < 3; j++)
-            {
-                Kij[i, j] = (1/(2 * gA)) * (gBjDi[j, i] + gBjDi[i, j] - dGuv[0, i+1, j+1]);
-            }
-        }
-
-        valuef W = pow(Yij.det(), -1/6.f);
-        metric<valuef, 3, 3> cY = W*W * Yij;
-        valuef K = trace(Kij, Yij.invert());
-
-        tensor<valuef, 3, 3> cA = W*W * (Kij - (1.f/3.f) * Yij.to_tensor() * K);
+        tensor<valuef, 3, 3> cA = W*W * (adm.Kij - (1.f/3.f) * adm.Yij.to_tensor() * K);
 
         tensor<int, 2> index_table[6] = {{0, 0}, {0, 1}, {0, 2}, {1, 1}, {1, 2}, {2, 2}};
 
@@ -169,10 +194,10 @@ std::string make_initial_conditions()
         for(int i=0; i < 3; i++)
         {
             as_ref(to_fill.cG[i][lid]) = valuef(0);
-            as_ref(to_fill.gB[i][lid]) = gB[i];
+            as_ref(to_fill.gB[i][lid]) = adm.gB[i];
         }
 
-        as_ref(to_fill.gA[lid]) = gA;
+        as_ref(to_fill.gA[lid]) = adm.gA;
         as_ref(to_fill.W[lid]) = W;
         as_ref(to_fill.K[lid]) = K;
     };

@@ -548,7 +548,7 @@ After we've performed a fixed number of iterations, I apply kreiss-oliger dissip
 
 ## Implementation
 
-We now have all of the theory out of the way, phew. Its time to get into the code. I'm going to try and limit the discussion here to anything which isn't just 1:1 translating equations into code, because there are some subtleties
+We now have all of the theory out of the way, phew. Its time to get into the code. I'm going to try and limit the discussion here to anything which isn't just 1:1 translating equations into code
 
 ### Initial conditions
 
