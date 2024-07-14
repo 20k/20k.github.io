@@ -133,10 +133,6 @@ std::string make_initial_conditions()
 
         valuef gB_sum = sum_multiply(gB, gB_lower);
 
-        ///g00 = nini - n^2
-        ///g00 - nini = -n^2
-        ///-g00 + nini = n^2
-        ///n = sqrt(-g00 + nini)
         valuef gA = sqrt(-Guv[0, 0] + gB_sum);
 
         ///https://clas.ucdenver.edu/math-clinic/sites/default/files/attached-files/master_project_mach_.pdf 4-19a
