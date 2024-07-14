@@ -98,7 +98,7 @@ struct bssn_buffer_pack
 ///this would be dim.x() - 1 if we weren't doing periodic conditions
 float get_scale(float simulation_width, t3i dim)
 {
-    return simulation_width / (dim.x());
+    return simulation_width / dim.x();
 }
 
 struct mesh

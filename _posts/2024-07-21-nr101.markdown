@@ -466,11 +466,11 @@ where
 
 $$H = A \sin(\frac{2 \pi (x - t)}{d})$$
 
-$d$ is the wavelength of our wave, which is set to 1 (our simulation width), and $A$ is the amplitude of the wave which is set to $0.1$. On our initial slice, $t=0$. This defines a 4-metric $g_{\mu\nu}$. While these papers do provide analytic expressions for our initial 3-variables - where's the joy in that?
+$d$ is the wavelength of our wave, which is set to 1 (our simulation width), and $A$ is the amplitude of the wave which is set to $0.1$. On our initial slice, $t=0$. This defines a 4-metric $g_{\mu\nu}$. While these papers do provide analytic expressions for our initial ADM variables - where's the joy in that?
 
 #### Generic initial conditions
 
-Given a metric $g_{\mu\nu}$, we want to calculate the ADM variables $\gamma_{ij}$, $K_{ij}$, $\alpha$, and $\beta^i$. From there, we already know how to take a conformal decomposition for the BSSN formalism. The relation between the ADM variables, and a regular 4d metric tensor is as follows:
+Given a metric $g_{\mu\nu}$, we want to calculate the ADM variables $\gamma_{ij}$, $K_{ij}$, $\alpha$, and $\beta^i$. From there, we already know how to take a conformal decomposition for the BSSN formalism. The relation between the ADM variables, and a regular 4d metric tensor can be deduced from the line element, but I'm going to stick it in a table for convenience:
 
 |$g_{\mu\nu}$|$0$|$i$|
 |-|-|-|
@@ -548,7 +548,7 @@ After we've performed a fixed number of iterations, I apply kreiss-oliger dissip
 
 ## Implementation
 
-We now have all of the theory out of the way. Lets look at the code for our initial conditions first:
+We now have all of the theory out of the way, phew. Its time to get into the code. I'm going to try and limit the discussion here to anything which isn't just 1:1 translating equations into code, because there are some subtleties
 
 ### Initial conditions
 

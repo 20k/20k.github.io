@@ -150,6 +150,7 @@ tensor<T, N, N> trace_free(const tensor<T, N, N>& mT, const metric<T, N, N>& met
 
     return TF;
 }
+
 ///https://en.wikipedia.org/wiki/Covariant_derivative#Covariant_derivative_by_field_type
 ///for the tensor DcDa, this returns idx(a, c)
 template<typename T, int N>
@@ -170,6 +171,32 @@ tensor<T, N, N> covariant_derivative_low_vec(const tensor<T, N>& v_in, const ten
             }
 
             lac[a, c] = diff1(v_in[a], c, scale) - sum;
+        }
+    }
+
+    return lac;
+}
+
+///https://en.wikipedia.org/wiki/Covariant_derivative#Covariant_derivative_by_field_type
+///for the tensor DcDa, this returns idx(a, c)
+template<typename T, int N>
+inline
+tensor<T, N, N> covariant_derivative_low_vec(const tensor<T, N>& v_in, const tensor<T, N, N>& d_v_in, const tensor<T, N, N, N>& christoff2)
+{
+    tensor<T, N, N> lac;
+
+    for(int a=0; a < N; a++)
+    {
+        for(int c=0; c < N; c++)
+        {
+            T sum = 0;
+
+            for(int b=0; b < N; b++)
+            {
+                sum += christoff2[b, c, a] * v_in[b];
+            }
+
+            lac[a, c] = d_v_in[c, a] - sum;
         }
     }
 

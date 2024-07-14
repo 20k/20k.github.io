@@ -68,16 +68,7 @@ std::string make_initial_conditions()
 
         v3i pos = get_coordinate(lid, dim);
 
-        v3i centre = (dim - (v3i){1,1,1}) / 2;
-
-        v3f fpos = (v3f)pos;
-        //v3f fcentre = (v3f)centre;
-
-        valuef simulation_width = scale.get() * ((valuef)dim.x());
-
-        ///intentionally stretching wpos to force periodicity correctly
-        v3f wpos = (fpos / (v3f)dim) * simulation_width;
-        //v3f wpos = (fpos - fcentre) * scale.get();
+        v3f wpos = ((v3f)pos) * scale.get();
 
         metric<valuef, 4, 4> Guv = wave_function((v4f){0, wpos.x(), wpos.y(), wpos.z()});
 
@@ -123,29 +114,6 @@ std::string make_initial_conditions()
 
         pin(Yij_christoffel);
 
-        auto covariant_derivative_low_vec_e = [&](const tensor<valuef, 3>& lo, const tensor<valuef, 3, 3>& dlo)
-        {
-            ///DcXa
-            tensor<valuef, 3, 3> ret;
-
-            for(int a=0; a < 3; a++)
-            {
-                for(int c=0; c < 3; c++)
-                {
-                    valuef sum = 0;
-
-                    for(int b=0; b < 3; b++)
-                    {
-                        sum += Yij_christoffel[b, c, a] * lo[b];
-                    }
-
-                    ret[c, a] = dlo[c, a] - sum;
-                }
-            }
-
-            return ret;
-        };
-
         tensor<valuef, 3> gB_lower;
         tensor<valuef, 3, 3> dgB_lower;
 
@@ -172,9 +140,9 @@ std::string make_initial_conditions()
         valuef gA = sqrt(-Guv[0, 0] + gB_sum);
 
         ///https://clas.ucdenver.edu/math-clinic/sites/default/files/attached-files/master_project_mach_.pdf 4-19a
-        tensor<valuef, 3, 3> DigBj = covariant_derivative_low_vec_e(gB_lower, dgB_lower);
+        tensor<valuef, 3, 3> gBjDi = covariant_derivative_low_vec(gB_lower, dgB_lower, Yij_christoffel);
 
-        pin(DigBj);
+        pin(gBjDi);
 
         tensor<valuef, 3, 3> Kij;
 
@@ -182,7 +150,7 @@ std::string make_initial_conditions()
         {
             for(int j=0; j < 3; j++)
             {
-                Kij[i, j] = (1/(2 * gA)) * (DigBj[i, j] + DigBj[j, i] - dGuv[0, i+1, j+1]);
+                Kij[i, j] = (1/(2 * gA)) * (gBjDi[j, i] + gBjDi[i, j] - dGuv[0, i+1, j+1]);
             }
         }
 
