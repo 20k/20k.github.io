@@ -39,11 +39,13 @@ This article is not going to assume you know all that much about general relativ
 
 # The ADM (Arnowitt–Deser–Misner) formalism
 
-The [Einstein field equations](https://en.wikipedia.org/wiki/Einstein_field_equations#Mathematical_form) (EFEs) are what defines the structure of spacetime, but as-is they aren't especially useful. The basic problem is that they are declarative, and so don't give you a set of equations that you can evolve forwards in time
+The [Einstein field equations](https://en.wikipedia.org/wiki/Einstein_field_equations#Mathematical_form)[^fieldequations] (EFE's) are what defines the structure of spacetime, but as-is they aren't especially useful for simulating spacetime. The basic problem is that they are declarative, and so don't give you a set of equations that you can evolve forwards in time
 
-The ADM formalism is the most widespread approach for handling this. It consists of slicing a 4d spacetime explicitly into a series (foliation) of 3d spacelike slices, and separates out a timelike dimension - and so is often referred to as a "3+1" formalism. The direction of forwards in time in the ADM formalism is defined by two variables - called gauge variables. These are $\alpha$, and $\beta^i$[^lapseshift] (a 3-vector). These represent a degree of freedom, and are arbitrary (in theory)
+[^fieldequations]: When I was younger, I thought that these were equations that you deployed in an emergency. You know, *in the field*
 
-Each 3d[^nd] slice has its own metric associated with it called $\gamma_{ij}$, which operates as a normal metric tensor on any quantities on the 3d slice. We also have a variable $K_{ij}$ known as the extrinsic curvature, which represents the embedding of the slice into the larger 4d spacetime. It is directly related to the evolution of $\gamma_{ij}$ in time, and can be thought of as a momentum term
+The ADM formalism is the most widespread approach for handling this. It consists of slicing a 4d spacetime explicitly into a series (foliation) of 3d spacelike slices, and separates out a timelike dimension. It is often referred to as a "3+1" formalism as a result. The direction of forwards in time in the ADM formalism is defined by two variables - called gauge variables. These are $\alpha$, and $\beta^i$[^lapseshift] (a 3-vector). These represent a degree of freedom, and are arbitrary (in theory)
+
+Each 3d[^nd] slice has its own metric associated with it called $\gamma_{ij}$, which operates as a metric tensor on any quantities associated with that slice. We also have a variable $K_{ij}$ known as the extrinsic curvature, which represents the embedding of the slice into the larger 4d spacetime. It is directly related to the evolution of $\gamma_{ij}$ in time, and can be thought of as a momentum term
 
 [^nd]: Everything here is also applicable to N dimensional spacetimes, but I know very little about anything other than 4d general relativity
 
@@ -51,7 +53,7 @@ Each 3d[^nd] slice has its own metric associated with it called $\gamma_{ij}$, w
 
 ### Details
 
-From now on, all latin indices $_{ijk}$ have the value 1-3, and refer to quantities on our 3d slice, whereas greek indices $_{\mu\nu\kappa}$ take on the value 0-3 and refer to quantities in our 4d spacetime
+From now on, all latin indices $_{ijk}$ have the value 1-3, and generally denotes quantities on our 3d slice, whereas greek indices $_{\mu\nu\kappa}$ take on the value 0-3 and deontes quantities in our 4d spacetime
 
 The general line element in ADM is this:
 
@@ -62,47 +64,7 @@ $\gamma_{ij}$ is used as a regular metric tensor on any quantity in our 3d slice
 $$Q^i = \gamma^{ij} Q_j\\
 Q_i = \gamma_{ij} Q^j$$
 
-If our 4-metric is $g_{\mu\nu}$, then our 3-metric is $\gamma_{ij} = g_{ij}$, ie the spatial parts. While $\gamma^{ij} = (\gamma_{ij})^{-1}$, $\gamma^{ij} \neq g^{ij}$
-
-### Definitions
-
-The 3-metric, sometimes called the induced metric
-
-$$\gamma_{ij} = g_{ij}$$
-
-We can recover the 4-metric as such:
-
-|$g_{\mu\nu}$|$0$|$i$|
-|-|-|-|
-|$0$|$-\alpha^2 + \beta_m \beta^m$|$\beta_i$|
-|$j$|$\beta_j$|$\gamma_{ij}$|
-
-
-|$g^{\mu\nu}$|$0$|$i$|
-|-|-|-|
-|$0$|$-\alpha^2$|$\alpha^{-2} \beta^i$|
-|$j$|$\alpha^{-2} \beta^j$|$\gamma^{ij} - \alpha^{-2} \beta^i \beta^j$|
-
-$\Sigma_t$ = spatial hypersurface
-
-Hypersurface normal:
-
-$$
-\begin{align}
-n^\mu &= (\frac{1}{\alpha}, -\frac{\beta^i}{\alpha})\\
-n_\mu &= (-\alpha, 0, 0, 0)
-\end{align}
-$$
-
-The partial derivative operator in time:
-
-$$(\partial_t)^\mu = \alpha n^\mu + \beta^\mu$$
-
-ADM projector, used for taking a 4-quantity and finding the associated projected quantity on the 3-surface ($\delta$ is the kronecker delta):
-
-$$\bot^\mu_{\;\;\nu} = \delta^\mu_{\;\;\nu} + n^\mu n_{\nu}$$
-
-Also sometimes called $\gamma^\mu_{\;\;\nu}$
+If our 4-metric is $g_{\mu\nu}$, then our 3-metric is $\gamma_{ij} = g_{ij}$, ie the spatial parts. While $\gamma^{ij} = (\gamma_{ij})^{-1}$ (the 3x3 matrix inverse), $\gamma^{ij} \neq g^{ij}$
 
 ## Equations of motion
 
@@ -116,7 +78,7 @@ $$\begin{align}
 \end{align}
 $$
 
-We must also provide adequate gauge conditions (evolution equations for the gauge variables), and then in theory we have a fully working formalism for evolving spacetime
+Where $\mathcal{L}_\beta$ is a lie derivative. We must also provide adequate gauge conditions (evolution equations for the gauge variables), and then in theory we have a fully working formalism for evolving spacetime
 
 Unfortunately, there's a small problem
 
@@ -464,33 +426,39 @@ Forwards euler has the form:
 
 $$y_{n+1} = y_n + dt f(t_n, y_n)$$
 
-This is the classic 1st order, explicit integrator. It has poor stability properties, and does not have a high order of convergence
+Where $dt$ is a timestep, and $y_n$ is our current set of variables. This is the classic 1st order, explicit integrator. It has poor stability properties, and has first order convergence
 
 Backwards euler has the form:
 
 $$y_{n+1} = y_n + dt f(t_{n+1}, y_{n+1})$$
 
-This is also a 1st order integrator, but it is implicit - we can see that we have $y_{n+1}$ on both sides of the equation.
+This is also a first order integrator, but it is implicit - we can see that we have $y_{n+1}$ on both sides of the equation - and it is L stable which is great for us
 
 ### Fixed point iteration
 
-The issue with an implicit integrator is: How do we actually solve this equation? The straightforward answer is to use fixed point iteration
+The issue with an implicit integrator is: How do we actually solve this equation? The straightforward answer is to use fixed point iteration. In essence, you feed your output to your input repeatedly. Ie, if f(x) gives you your next guess, you iterate the sequence $f(x)$, $f(f(x))$, $f(f(f(x)))$, until you reach your desired accuracy
 
-Todo: Fixed point
+For our purposes, we'll iterate the sequence:
 
-This also maps very well to gpu architecture, is numerically stable, and in general is extremely fast and robust. There are tricks to speed up fixed point iteration as well, which we'll get into in the future
+$$y_{n+1, k+1} = y_n + dt f(y_{k,n+1})$$
+
+Over our iteration variable $k$. To initialise the fixed point iteration, $y_{0, n+1} = y_{n}$. This makes the first step/guess regular euler
+
+This form of fixed point iteration maps very well to being implemented on a GPU, is numerically stable, and in general is extremely fast and robust. There are tricks[^newton] to speed up fixed point iteration as well, which we'll get into in the future
+
+[^newton]: Note that its common to use Newton-Raphson or a full root finding method here for solving implicit equations, and I've had nothing but poor results. The issue is that it is not a massively stable algorithm, and the complexity of evaluating a Newton-Raphson iteration outweighs the increase in convergence when dealing with a small number of iterations (eg 2-3 here). Fixed point iteration can be directly sped up by rearranging it as a relaxation problem, and then successively over relaxing
 
 ## Flow of a simulation
 
-There are three components to any good simulation here
+There are three components to any good simulation
 
 1. Initial conditions
-2. The boundary condition (which is tied to how we perform differentiation)
+2. The boundary conditions (which is tied to how we perform differentiation)
 3. Integrating our PDEs
 
 ### Initial conditions
 
-We need to define on our initial slice what our variables are. For this article, to check everything's working we're going to implement a gauge wave test case, which we can find [here](https://arxiv.org/pdf/1106.2254) (28-29), or [here](https://arxiv.org/pdf/0709.3559) (A.10 + A.6). The metric for this is as follows
+We need to define on our initial slice what our variables are. For this article, to check everything's working we're going to implement a gauge wave test case, which you can find [here](https://arxiv.org/pdf/1106.2254) (28-29), or [here](https://arxiv.org/pdf/0709.3559) (A.10 + A.6, this is what we're actually implementing). The metric for this is as follows
 
 $$ds^2 = (1 - H) (-dt^2 + dx^2) + dy^2 + dz^2$$
 
@@ -502,7 +470,19 @@ $d$ is the wavelength of our wave, which is set to 1 (our simulation width), and
 
 #### Generic initial conditions
 
-Given a metric $g_{\mu\nu}$, we want to calculate the ADM variables $\gamma_{ij}$, $K_{ij}$[^kijnotes], $\alpha$, and $\beta^i$. From there, we know how to take a conformal decomposition for the BSSN formalism
+Given a metric $g_{\mu\nu}$, we want to calculate the ADM variables $\gamma_{ij}$, $K_{ij}$, $\alpha$, and $\beta^i$. From there, we already know how to take a conformal decomposition for the BSSN formalism. The relation between the ADM variables, and a regular 4d metric tensor is as follows:
+
+|$g_{\mu\nu}$|$0$|$i$|
+|-|-|-|
+|$0$|$-\alpha^2 + \beta_m \beta^m$|$\beta_i$|
+|$j$|$\beta_j$|$\gamma_{ij}$|
+
+|$g^{\mu\nu}$|$0$|$i$|
+|-|-|-|
+|$0$|$-\alpha^2$|$\alpha^{-2} \beta^i$|
+|$j$|$\alpha^{-2} \beta^j$|$\gamma^{ij} - \alpha^{-2} \beta^i \beta^j$|
+
+With the addition of a definition for $K_{ij}$[^kijnotes], we end up with the following relations for our ADM variables:
 
 [^kijnotes]: Where I found $K_{ij}$ from is [here](https://clas.ucdenver.edu/math-clinic/sites/default/files/attached-files/master_project_mach_.pdf) 4-19a, although its a bit of a random source
 
@@ -513,19 +493,19 @@ K_{ij} &= \frac{1}{2 \alpha} (D_i \beta_j + D_j \beta_i - \frac{\partial g_{ij}}
 \alpha &= \sqrt{-g_{00} + \beta^m \beta_m}
 \end{align}$$
 
-All latin indices run from 1-3, and all greek indices run from 0-3. Note that we find $\beta_i$ not $\beta^i$, which you can find by raising with $\gamma^{ij}$. To initialise our christoffel symbol $\tilde{\Gamma}^i$, simply calculate it analytically once we have $\tilde{\gamma}_{ij}$
+Note that we find $\beta_i$ not $\beta^i$, which you can find by raising with $\gamma^{ij}$. To initialise the christoffel symbol $\tilde{\Gamma}^i$, simply calculate it analytically once you have $\tilde{\gamma}_{ij}$
 
 You will need to be able to differentiate your metric tensor - either numerically, or analytically, for this to work
 
 ### Boundary conditions / Differentiation
 
-Here, we're going to use fourth order[^orderconvergence] finite differentiation on a grid. If you remember, to approximate a derivative, mathematically we can do
+Here, we're going to use fourth order[^orderconvergence] finite differentiation on a grid. If you remember, to approximate a derivative, mathematically you can do:
 
 [^orderconvergence]: In general, the order of convergence dictates the rate at which our algorithm improves the answer, when eg increasing our grid resolution
 
 $$\frac{\partial f} {\partial x} = \frac{f(x+1) - f(x)}{h}$$
 
-The factor of $h$ is omitted, because we're indexing grid cells. Numerically this is terrible, and instead we'll use fourth order differentiation, with coefficients which we can look up [here](https://en.wikipedia.org/wiki/Finite_difference_coefficient):
+The factor of $h$ is omitted, because we're indexing grid cells. Numerically this is not ideal, and instead we'll use symmetric fourth order differentiation, with coefficients which we can look up [here](https://en.wikipedia.org/wiki/Finite_difference_coefficient):
 
 $$\frac{\partial f} {\partial x} = \frac{\frac{1}{12} f(x - 2) - \frac{2}{3} f(x - 1) + \frac{2}{3} f(x + 1) - \frac{1}{12} f(x + 2)}{h}$$
 
@@ -549,11 +529,11 @@ $$\tilde{\gamma}_{ij}, \alpha, \beta^i, W$$
 
 ##### Second derivative performance tricks
 
-Second derivatives commute. This means that $\partial_i \partial_j == \partial_j \partial_i$. This is also true for the second covariant derivative of a scalar - though only in that circumstance for covariant derivatives. This brings up a good opportunity for performance improvements - when calculating partial derivatives, consider reordering them so that you lopsidedly differentiate on one variable - this can bring sizeable performance improvements
+Second derivatives commute. This means that $\partial_i \partial_j == \partial_j \partial_i$. This is also true for the second covariant derivative of a scalar - though only in that circumstance for covariant derivatives. This brings up a good opportunity for performance improvements - when calculating partial derivatives, consider reordering them so that you lopsidedly differentiate on one variable
 
 That is to say, consider implementing: $\partial_{min(i, j)} \partial_{max(i, j)}$ as a general second order differentiation system. This is good for cache (repeatedly accessing the same memory), increasing the amount of eliminateable duplicate code, and ensuring that we maximise the amount we differentiate in the $_0$th direction, which is the fastest due to memory layout
 
-Eg, if we precalculate the first derivative $\partial_i \alpha$, calculating $\partial_0 \partial_i \alpha$ will always be faster than calculating $\partial_i \partial_0 \alpha$. Partly because of memory layout (differentiating in the x direction is virtually free, as its all in cache), and partly because if we *always* do this, we improve our cache hit rate. This is worth about 20% of our runtime
+Eg, if we precalculate the first derivative $\partial_i \alpha$, calculating $\partial_0 \partial_i \alpha$ will always be faster than calculating $\partial_i \partial_0 \alpha$. Partly because of memory layout (differentiating in the x direction is virtually free, as it is very cache friendly), and partly because if we *always* do this, we improve our cache hit rate. This is worth about a 20% performance bump
 
 ### Integrating the PDEs
 
