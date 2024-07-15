@@ -86,13 +86,13 @@ Where $\mathcal{L}_\beta$ is a lie derivative. We must also provide adequate gau
 
 Unfortunately, there's a small problem
 
-# The ADM equations of motion are bad
+## The ADM equations of motion are bad
 
 Part of the reason why we're not going into this more is that - unfortunately - these equations of motion are unusable to us. They are *very* numerically unstable, to the point where for our purposes there's no point trying to solve them. Understanding this issue, and solving it was an outstanding problem for decades, and there is an absolutely enormous amount written in the literature on this topic. A lot of this article series is going to be dealing with the very poor character of the equations
 
 Luckily, because its not the early 2000s - and because the astrophysics community rocks and makes all this information public - we get to skip to the part where we have a workable set of equations
 
-## Enter: The BSSN formalism
+# Enter: The BSSN formalism
 
 The BSSN formalism is the most widely used formalism - it is directly derived from the ADM formalism, and most practical formalisms are substantially similar to the BSSN formalism. It was the first very successful formalism to enter the picture - though it was unclear precisely why it worked so well for a long time[^seehere]
 
@@ -266,11 +266,13 @@ $$\alpha = 1, \beta^i = 0$$
 
 ### Lapse ($\alpha$)
 
-#### Harmonic slicing[^harmy]
+#### Harmonic slicing
 
-[^harmy]: [Ref](https://arxiv.org/pdf/2201.08857)
+Ref[^harmy]
 
 $$\partial_t \alpha = - 2 \alpha^2 K + \beta^m \partial_m \alpha$$
+
+[^harmy]: [Ref](https://arxiv.org/pdf/2201.08857)
 
 #### 1+log slicing
 
@@ -301,7 +303,7 @@ $$
 
 As far as I know, nobody has ever really found a compelling reason to use this form of the gamma driver gauge condition (plus, it is slower and requires more memory), so I'm really only mentioning it because it shows up in the literature. The single variable form of the gamma driver condition is the integrated form of the two-variable expression
 
-## Implementation considerations
+### Implementation considerations
 
 The self advection terms for both lapse and shift are optional and often are disabled, ie $\beta^m \partial_m \alpha$ and $\beta^j \partial_j \beta^i$
 
@@ -405,7 +407,7 @@ Where $\sigma$ > 0. This modification is not used in this article, partly as it 
 
 Damping the hamiltonian constraint is unnecessary here, but [this](https://arxiv.org/pdf/gr-qc/0204002) paper contains some ideas that work
 
-#### Dissipating Numerical Noise
+### Dissipating Numerical Noise
 
 Even with all the constraint damping, the equations can still be numerically unstable - the last tool in the toolbox is called Kreiss-Oliger dissipation. This essentially is a blur on your data - it extracts a certain order of frequencies from your simulation grid, and damps them. The [einstein toolkit](https://einsteintoolkit.org/thornguide/CactusNumerical/Dissipation/documentation.html) website gives this definition[^original] - which I always found somewhat confusing personally:
 
