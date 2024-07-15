@@ -4,9 +4,9 @@
 #include "../common/value2.hpp"
 #include "derivatives.hpp"
 
-template<typename T, int N, typename S>
+template<typename T, int N>
 inline
-tensor<T, N, N> lie_derivative_weight(const tensor<T, N>& B, const S& mT, const T& scale)
+tensor<T, N, N> lie_derivative_weight(const tensor<T, N>& B, const tensor<T, N, N>& mT, const T& scale)
 {
     tensor<T, N, N> lie;
 

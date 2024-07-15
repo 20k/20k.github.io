@@ -947,11 +947,55 @@ This is stored in a buffer, and will be used to damp the evolution equations
 
 ### Evolution
 
-This section is going to get very fun
-
 #### Evolution equations by Field
 
 ##### $\tilde{\gamma}_{ij}$
+
+```c++
+tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, valuef scale)
+{
+    using namespace single_source;
+
+    inverse_metric<valuef, 3, 3> icY = args.cY.invert();
+    pin(icY);
+
+    ///https://arxiv.org/pdf/1307.7391 specifically for why the trace free aspect
+    ///https://arxiv.org/pdf/1106.2254 also see here, after 25
+    return lie_derivative_weight(args.gB, args.cY.to_tensor(), scale) - 2 * args.gA * trace_free(args.cA, args.cY, icY);
+}
+```
+
+The lie derivative function is worth examining. The metric, and trace free curvature are both tensor densities, and the first terms in both equations are actually a [lie derivative](https://en.wikipedia.org/wiki/Lie_derivative#Coordinate_expressions). The definition is for a tensor density with weight $-\frac{2}{3}$
+
+```c++
+template<typename T, int N>
+inline
+tensor<T, N, N> lie_derivative_weight(const tensor<T, N>& B, const tensor<T, N, N>& mT, const T& scale)
+{
+    tensor<T, N, N> lie;
+
+    for(int i=0; i < N; i++)
+    {
+        for(int j=0; j < N; j++)
+        {
+            T sum = 0;
+            T sum2 = 0;
+
+            for(int k=0; k < N; k++)
+            {
+                sum += B[k] * diff1(mT[i, j], k, scale);
+                sum += mT[i, k] * diff1(B[k], j, scale);
+                sum += mT[j, k] * diff1(B[k], i, scale);
+                sum2 += diff1(B[k], k, scale);
+            }
+
+            lie[i, j] = sum - (2.f/3.f) * mT[i, j] * sum2;
+        }
+    }
+
+    return lie;
+}
+```
 
 ##### $\tilde{A}_{ij}$
 

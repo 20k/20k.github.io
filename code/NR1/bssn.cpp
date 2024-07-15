@@ -353,7 +353,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, valuef 
 
     ///https://arxiv.org/pdf/1307.7391 specifically for why the trace free aspect
     ///https://arxiv.org/pdf/1106.2254 also see here, after 25
-    return lie_derivative_weight(args.gB, args.cY, scale) - 2 * args.gA * trace_free(args.cA, args.cY, icY);
+    return lie_derivative_weight(args.gB, args.cY.to_tensor(), scale) - 2 * args.gA * trace_free(args.cA, args.cY, icY);
 }
 
 ///https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf 2.12 or
