@@ -999,6 +999,197 @@ tensor<T, N, N> lie_derivative_weight(const tensor<T, N>& B, const tensor<T, N, 
 
 ##### $\tilde{A}_{ij}$
 
+```c++
+tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f momentum_constraint, const valuef& scale)
+{
+    using namespace single_source;
+
+    auto icY = args.cY.invert();
+    pin(icY);
+
+    auto W2DiDja = calculate_W2DiDja(args, derivs, scale);
+    pin(W2DiDja);
+
+    tensor<valuef, 3, 3> with_trace = args.gA * calculate_W2Rij(args, derivs, scale) - W2DiDja;
+
+    tensor<valuef, 3, 3> aij_amj;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            tensor<valuef, 3, 3> raised_Aij = icY.raise(args.cA, 0);
+
+            valuef sum = 0;
+
+            for(int m=0; m < 3; m++)
+            {
+                sum += args.cA[i, m] * raised_Aij[m, j];
+            }
+
+            aij_amj[i, j] = sum;
+        }
+    }
+
+    tensor<valuef, 3, 3> dtcA = lie_derivative_weight(args.gB, args.cA, scale)
+                                + args.gA * args.K * args.cA
+                                - 2 * args.gA * aij_amj
+                                + trace_free(with_trace, args.cY, icY);
+
+    #define MOMENTUM_CONSTRAINT_DAMPING
+    #ifdef MOMENTUM_CONSTRAINT_DAMPING
+    auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
+    pin(christoff2);
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            float Ka = 0.1f;
+
+            dtcA[i, j] += Ka * args.gA * 0.5f *
+                              (covariant_derivative_low_vec(momentum_constraint, christoff2, scale)[i, j]
+                             + covariant_derivative_low_vec(momentum_constraint, christoff2, scale)[j, i]);
+        }
+    }
+    #endif
+
+    return dtcA;
+}
+```
+
+So, there's several parts here which are slightly different to the equations as written
+
+1. I've moved the $W^2$ term inside the trace free operation
+2. We're calculating $W^2 D_i D_j \alpha$
+3. We're calculating $W^2 \mathcal{R}_{ij}$
+
+Here's the definitions for these:
+
+```c++
+tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
+{
+    using namespace single_source;
+
+    auto icY = args.cY.invert();
+    pin(icY);
+
+    auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
+
+    pin(christoff2);
+
+    tensor<valuef, 3, 3> W2DiDja;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            valuef v1 = args.W * args.W * double_covariant_derivative(args.gA, derivs.dgA, christoff2, scale)[i, j];
+
+            valuef v2 = args.W * (derivs.dW[i] * diff1(args.gA, j, scale) + derivs.dW[j] * diff1(args.gA, i, scale));
+
+            valuef sum = 0;
+
+            for(int m=0; m < 3; m++)
+            {
+                for(int n=0; n < 3; n++)
+                {
+                    sum += icY[m, n] * 2 * args.W * derivs.dW[m] * diff1(args.gA, n, scale);
+                }
+            }
+
+            valuef v3 = -0.5f * args.cY[i, j] * sum;
+
+            W2DiDja[i, j] = v1 + v2 + v3;
+        }
+    }
+
+    return W2DiDja;
+}
+```
+
+And the curvature tensor:
+
+```c++
+
+tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
+{
+    using namespace single_source;
+
+    auto icY = args.cY.invert();
+    pin(icY);
+
+    auto christoff1 = christoffel_symbols_1(derivs.dcY);
+    auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
+
+    pin(christoff1);
+    pin(christoff2);
+
+    tensor<valuef, 3, 3> cRij;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            valuef s1 = 0;
+
+            for(int l=0; l < 3; l++)
+            {
+                for(int m=0; m < 3; m++)
+                {
+                    s1 += -0.5f * icY[l, m] * diff2(args.cY[i, j], m, l, derivs.dcY[m, i, j], derivs.dcY[l, i, j], scale);
+                }
+            }
+
+            valuef s2 = 0;
+
+            for(int k=0; k < 3; k++)
+            {
+                s2 += 0.5f * (args.cY[k, i] * diff1(args.cG[k], j, scale) + args.cY[k, j] * diff1(args.cG[k], i, scale));
+            }
+
+            valuef s3 = 0;
+
+            for(int k=0; k < 3; k++)
+            {
+                s3 += 0.5f * args.cG[k] * (christoff1[i, j, k] + christoff1[j, i, k]);
+            }
+
+            valuef s4 = 0;
+
+            for(int m=0; m < 3; m++)
+            {
+                for(int l=0; l < 3; l++)
+                {
+                    valuef inner1 = 0;
+                    valuef inner2 = 0;
+
+                    for(int k=0; k < 3; k++)
+                    {
+                        inner1 += 0.5f * (2 * christoff2[k, l, i] * christoff1[j, k, m] + 2 * christoff2[k, l, j] * christoff1[i, k, m]);
+                    }
+
+                    for(int k=0; k < 3; k++)
+                    {
+                        inner2 += christoff2[k, i, m] * christoff1[k, l, j];
+                    }
+
+                    s4 += icY[l, m] * (inner1 + inner2);
+                }
+            }
+
+            cRij[i, j] = s1 + s2 + s3 + s4;
+        }
+    }
+
+    pin(cRij);
+
+    return cRij;
+}
+```
+
+deep joy
+
 ##### $K$
 
 ##### $W$
