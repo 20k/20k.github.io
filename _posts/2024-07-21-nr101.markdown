@@ -43,7 +43,7 @@ This article is not going to assume you know all that much about general relativ
 
 # The ADM (Arnowitt–Deser–Misner) formalism
 
-The [Einstein field equations](https://en.wikipedia.org/wiki/Einstein_field_equations#Mathematical_form)[^fieldequations] (EFE's) are what defines the structure of spacetime, but as-is they aren't especially useful for simulating spacetime. The basic problem is that they are declarative, and so don't give you a set of equations that you can evolve forwards in time
+The [Einstein field equations](https://en.wikipedia.org/wiki/Einstein_field_equations#Mathematical_form)[^fieldequations] (EFE's) are what defines the structure of spacetime. In general, people have come up with many analytic solutions to these (with a great deal of effort), including Schwarzschild, Kerr, and a variety of others. As-is they aren't especially useful for simulating spacetime itself however - the basic problem is that they are declarative, and so don't give you a set of equations that you can evolve forwards in time
 
 [^fieldequations]: When I was younger, I thought that these were equations that you deployed in an emergency. You know, *in the field*
 
@@ -57,7 +57,7 @@ Each 3d[^nd] slice has its own metric associated with it called $\gamma_{ij}$, w
 
 ## Details
 
-From now on, all latin indices $$_{ijk}$$ have the value 1-3, and generally denotes quantities on our 3d slice, whereas greek indices $$_{\mu\nu\kappa}$$ take on the value 0-3 and deontes quantities in our 4d spacetime
+From now on, all latin indices $$_{ijk}$$ have the value 1-3, and generally denotes quantities on our 3d slice, whereas greek indices $$_{\mu\nu\kappa}$$ take on the value 0-3 and denotes quantities in our 4d spacetime
 
 The general line element in ADM is this:
 
@@ -98,15 +98,22 @@ The BSSN formalism is the most widely used formalism - it is directly derived fr
 
 [^seehere]: [https://arxiv.org/pdf/0707.0339](https://arxiv.org/pdf/0707.0339) this paper contains a lot of useful details, but the short version is that the BSSN equations are a partially constrained evolution system, and managing the constraints is critical to a correct evolution scheme
 
-There isn't one canonical BSSN formalism however, so its time to run through our options
+There are 4 main ingredients to get the BSSN equations from the ADM equations:
+
+1. You perform what's called a conformal transform - the metric $\gamma_{ij}$ is split into a metric with unit determinant $$\tilde{\gamma}_{ij}$$, and a conformal (scalar) factor (more on this soon)
+2. The extrinsic curvature $K_{ij}$ is split up into its trace: $K$, and the conformally transformed trace free part of the extrinsic curvature, $$\tilde{A}_{ij}$$
+3. A new redundant variable $$\tilde{\Gamma}^i = \tilde{\gamma}^{mn} \tilde{\Gamma}^{i}_{mn}$$ is introduced and evolved dynamically, which eliminates a major source of numerical instabilities
+4. The hamiltonian constraint is substituted in to eliminate numerically unstable quantities
+
+With all this applied, we end up with the BSSN formalism. We'll go through some of the relevant elements of this now:
 
 ## Conformal decomposition
 
-The two ADM variables are: $\gamma_{ij}$ the metric tensor, and $K_{ij}$, the extrinsic curvature
+The main two ADM variables are: $\gamma_{ij}$ the metric tensor, and $K_{ij}$, the extrinsic curvature
 
 [^reffy]: [Reference](http://wwwteor.mi.infn.it/~molinari/TESI/Danieli_tesi.pdf) 4.27
 
-One of the insights of the BSSN formalism is that we can perform a 'conformal decomposition' of the variables $\gamma_{ij}$ and $K_{ij}$, which renders the equations more numerically stable. The conformal metric tensor is called $\tilde{\gamma}_{ij}$, and is related to the regular metric tensor by a 'conformal transform' (a multiplication by a scalar). There are three conformal variables I know of which are in use:
+As mentioned previously, one of the insights of the BSSN formalism is that we can perform a 'conformal decomposition' of the variables $\gamma_{ij}$ and $K_{ij}$, which renders the equations more numerically stable. The conformal metric tensor is called $\tilde{\gamma}_{ij}$, and is related to the regular metric tensor by a 'conformal transform' (a multiplication by a scalar). There are three conformal variables I know of which are in use:
 
 $$
 \begin{align}
@@ -146,6 +153,7 @@ $W^2$: Ostensibly it has better convergence[^converge] than $\chi$, but the real
 
 Because of this, the $W^2$ formalism is clearly the best choice for us. Do note that some papers interchange notation here unfortunately, and eg $\phi$ and $\chi$ are sometimes used to mean *any* conformal factor
 
+///This segment, where go?
 ## Notation
 
 $$\tilde{D}_i$$ = The covariant derivative, calculated in the [usual fashion](https://en.wikipedia.org/wiki/Covariant_derivative#Covariant_derivative_by_field_type) from the conformal metric tensor $$\tilde{\gamma}_{ij}$$. $D_i$ is the covariant derivative associated with $\gamma_{ij}$. Tilde's are very load bearing in the BSSN formalism
@@ -182,17 +190,17 @@ $$\tilde{\Gamma}^i$$ is analytically equal to $$\tilde{\gamma}^{mn} \tilde{\Gamm
 
 There are also a number of constraints that must be satisfied for the BSSN formalism to be well posed. The momentum and hamiltonian constraints come from this being derived from a lagragrian approach, and the others are specific to the BSSN formalism
 
-### Constraints
+## Constraints
 
-#### Momentum
+### Momentum
 
 $$\mathcal{M}_i = \tilde{\gamma}^{mn} \tilde{D}_m \tilde{A}_{ni} - \frac{2}{3} \partial_i K - \frac{3}{2} \tilde{A}^m_{\;\;i} \frac{\partial_m \chi}{\chi} = 0$$
 
-#### Hamiltonian
+### Hamiltonian
 
 $$H = R + \frac{2}{3} K^2 - \tilde{A}^{mn} \tilde{A}_{mn} = 0$$
 
-#### Algebraic
+### Algebraic
 
 $$\begin{align}
 \mathcal{S} &= \tilde{\gamma} - 1 &= 0\\
@@ -200,7 +208,7 @@ $$\begin{align}
 \end{align}
 $$
 
-#### Christoffel symbol
+### Christoffel symbol
 
 $$
 \mathcal{G}^i = \tilde{\Gamma}^i - \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn} = 0
@@ -319,9 +327,15 @@ Additionally:
 
 Because only the derivatives of $\partial_k \tilde{\Gamma}^{i}_{mn}$ are numerically unstable, expressions involving undifferentiated $\tilde{\Gamma}^i$'s are frequently replaced in the literature with the analytic equivalent. This is one technique to enforce the $\mathcal{G}^i$ constraint, though we're going to avoid this approach because it is a bit limited
 
-Its time to deal with constraint stability directly now
+### Fixing the BSSN equations
 
-### The algebraic constraints
+Before we can even get off the ground, we're going to have to at minimum implement the following three things
+
+1. Algebraic constraints enforcement
+2. Momentum constraint damping
+3. Numerical dissipation
+
+#### The algebraic constraints
 
 There are three methods of enforcing the algebraic constraints
 
@@ -329,7 +343,7 @@ There are three methods of enforcing the algebraic constraints
 2. Damping
 3. Solving
 
-#### Directly
+##### Directly
 
 This is by far the most common method of handling the algebraic constraints. To do this, you enforce the relation $\tilde{\gamma} = 1$ and $\tilde{\gamma}^{mn} \tilde{A}_{mn} = 0$ directly, by applying the following expressions
 
@@ -342,7 +356,7 @@ $$
 
 This is what will be used in the article. It is important to apply the algebraic constraints *after* numerical dissipation, otherwise numerical dissipation will cause the constraints to be violated again
 
-#### Damping
+##### Damping
 
 This method has been floating around in the literature for a while, and damps the algebraic constraints. [This](https://arxiv.org/pdf/1106.2254) paper contains a discussion of the idea (before 26), and you can use the specific form provided by [this paper](https://arxiv.org/pdf/gr-qc/0204002) in the appendix. This means that the evolution equations are modified as follows:
 
@@ -362,13 +376,13 @@ $$
 
 This formulation works well, but you must be careful about your choice of damping factor. Too low and constraint errors pile up, too high and you overcorrect - oscillating wildly. Still, because its integrated into the evolution equations (rather than as a separate step), its a fair bit faster than enforcing the constraints directly
 
-#### Solving
+##### Solving
 
 I'll mention this in passing: The constraints can also be seen to reduce the number of free components for $$\tilde{\gamma}_{ij}$$ and $$\tilde{A}_{ij}$$ from 6 to 5, and instead of enforcing or damping the constraints, you can use them to solve for one of the components instead. For more discussion on this approach, please see [this paper](https://arxiv.org/pdf/1205.5111) (36-37)
 
 While it may seem attractive to reduce the number of evolution equations, on a GPU you will be limited by memory bandwidth, and you're still going to be accessing all of the evolution variables anyway. This only actually saves us two memory writes, and significantly complicates the calculation of derivatives - leading to register/code size blowup
 
-### The Momentum constraint
+#### The Momentum constraint
 
 The most direct and common way of enforcing this is as follows:
 
@@ -378,7 +392,7 @@ $$
 
 Where $k_3$ > 0
 
-### The Christoffel symbol constraint
+#### The Christoffel symbol constraint
 
 The most straightforward way to apply this is by applying the $\mathcal{G}^i$ constraint as follows:
 
@@ -387,11 +401,11 @@ $$
 
 Where $\sigma$ > 0. This modification is not used in this article, partly as it is unnecessary, and partly because $\beta^i = 0$ here
 
-### Other constraints
+#### Other constraints
 
 Damping the hamiltonian constraint is unnecessary here, but [this](https://arxiv.org/pdf/gr-qc/0204002) paper contains some ideas that work
 
-### Dissipating Numerical Noise
+#### Dissipating Numerical Noise
 
 Even with all the constraint damping, the equations can still be numerically unstable - the last tool in the toolbox is called Kreiss-Oliger dissipation. This essentially is a blur on your data - it extracts a certain order of frequencies from your simulation grid, and damps them. The [einstein toolkit](https://einsteintoolkit.org/thornguide/CactusNumerical/Dissipation/documentation.html) website gives this definition[^original] - which I always found somewhat confusing personally:
 
