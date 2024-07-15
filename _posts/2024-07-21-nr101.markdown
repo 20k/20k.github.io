@@ -51,7 +51,7 @@ Each 3d[^nd] slice has its own metric associated with it called $\gamma_{ij}$, w
 
 [^lapseshift]: These are also often frequently labelled $N$, for the lapse, and $N^i$, for the shift
 
-### Details
+## Details
 
 From now on, all latin indices $_{ijk}$ have the value 1-3, and generally denotes quantities on our 3d slice, whereas greek indices $_{\mu\nu\kappa}$ take on the value 0-3 and deontes quantities in our 4d spacetime
 
@@ -144,15 +144,15 @@ Because of this, the $W^2$ formalism is clearly the best choice for us. Do note 
 
 ## Notation
 
-$\tilde{D}_i$ = The covariant derivative, calculated in the [usual fashion](https://en.wikipedia.org/wiki/Covariant_derivative#Covariant_derivative_by_field_type) from the conformal metric tensor $\tilde{\gamma}_{ij}$. $D_i$ is the covariant derivative associated with $\gamma_{ij}$. Tilde's are very load bearing in the BSSN formalism
+$$\tilde{D}_i$$ = The covariant derivative, calculated in the [usual fashion](https://en.wikipedia.org/wiki/Covariant_derivative#Covariant_derivative_by_field_type) from the conformal metric tensor $$\tilde{\gamma}_{ij}$$. $D_i$ is the covariant derivative associated with $\gamma_{ij}$. Tilde's are very load bearing in the BSSN formalism
 
 $\tilde{\Gamma}^i_{jk}$ are the conformal christoffel symbols of the second kind, calculated in the usual fashion from $\tilde{\gamma_{ij}}$. $\Gamma^i_{jk}$ are the christoffel symbols associated with $\gamma_{ij}$
 
 $\tilde{D}^i$, is used to mean $\tilde{\gamma}^{ij} \tilde{D}_j$. Similarly, $D^i$, is used to mean $\gamma^{ij} D_j$, which is equivalent to $W^2\tilde{\gamma}^{ij} D_j$
 
-While non specific to BSSN, the symmetrising operator $_{()}$ crops up here unintuitively. This is defined as $A_{(ij)}$ = $0.5 (A_{ij} + A_{ji})$. A more complex example is $2\tilde{\Gamma}^k_{m(i} \tilde{\Gamma}_{j)kn} = 0.5 * 2 (\tilde{\Gamma}^k_{mi} \tilde{\Gamma}_{jkn} + \tilde{\Gamma}^k_{mj} \tilde{\Gamma}_{ikn})$
+While non specific to BSSN, the symmetrising operator crops up here unintuitively. This is defined as $A_{(ij)}$ = $0.5 (A_{ij} + A_{ji})$. A more complex example is $$2\tilde{\Gamma}^k_{m(i} \tilde{\Gamma}_{j)kn} = 0.5 * 2 (\tilde{\Gamma}^k_{mi} \tilde{\Gamma}_{jkn} + \tilde{\Gamma}^k_{mj} \tilde{\Gamma}_{ikn})$$
 
-$^{TF}$ is used to denote the trace free part of a tensor. $Q_{ij}^{TF} = Q_{ij} - \frac{1}{3} g_{ij} g^{mn} Q_{mn}$. Note that for some scalar $A$, $(AQ)^{TF} == A(Q^{TF})$, and it does not matter if you use the conformal metric, or the non conformal metric as the metric tensor here - the conformal factor cancels out. This is also sometimes notated $Q_{<ij>}$
+$^{TF}$ is used to denote the trace free part of a tensor. $Q_{ij}^{TF} = Q_{ij} - \frac{1}{3} g_{ij} g^{mn} Q_{mn}$. Note that for some scalar $A$, $(AQ)^{TF} == A(Q^{TF})$, and it does not matter if you use the conformal metric, or the non conformal metric as the metric tensor here - the conformal factor cancels out. This is also sometimes notated $Q_{\langle ij \rangle}$
 
 todo: note that we always mean the christoffel symbol, never the analytic, but note the substitution
 
@@ -172,9 +172,9 @@ $$
 \end{align}
 $$
 
-Conformal variables have a tilde over them, and have their indices are raised and lowered with the conformal metric tensor. In this definition, the trace of the conformal metric is $\tilde{\gamma} = 1$, and $\tilde{A}_{ij}$ is trace-free. $K$ is the trace of $K_{ij}$. $K_{ij}$, $\gamma_{ij}$, $\tilde{A}_{ij}$, and $\tilde{\gamma}_{ij}$ are all symmetric
+Conformal variables have a tilde over them, and have their indices are raised and lowered with the conformal metric tensor. In this definition, the trace of the conformal metric is $$\tilde{\gamma} = 1$$, and $$\tilde{A}_{ij}$$ is trace-free. $K$ is the trace of $K_{ij}$. $K_{ij}$, $\gamma_{ij}$, $$\tilde{A}_{ij}$$, and $$\tilde{\gamma}_{ij}$$ are all symmetric
 
-$\tilde{\Gamma}^i$ is analytically equal to $\tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$, but is evolved numerically instead. This is because $\partial_k \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$ is numerically unstable TODO: CITE
+$$\tilde{\Gamma}^i$$ is analytically equal to $$\tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$$, but is evolved numerically instead. This is because $$\partial_k \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$$ is numerically unstable TODO: CITE
 
 There are also a number of constraints that must be satisfied for the BSSN formalism to be well posed. The momentum and hamiltonian constraints come from this being derived from a lagragrian approach, and the others are specific to the BSSN formalism
 
@@ -360,7 +360,7 @@ This formulation works well, but you must be careful about your choice of dampin
 
 #### Solving
 
-I'll mention this in passing: The constraints can also be seen to reduce the number of free components for $\tilde{\gamma}_{ij}$ and $\tilde{A}_{ij}$ from 6 to 5, and instead of enforcing or damping the constraints, you can use them to solve for one of the components instead. For more discussion on this approach, please see [this paper](https://arxiv.org/pdf/1205.5111) (36-37)
+I'll mention this in passing: The constraints can also be seen to reduce the number of free components for $$\tilde{\gamma}_{ij}$$ and $$\tilde{A}_{ij}$$ from 6 to 5, and instead of enforcing or damping the constraints, you can use them to solve for one of the components instead. For more discussion on this approach, please see [this paper](https://arxiv.org/pdf/1205.5111) (36-37)
 
 While it may seem attractive to reduce the number of evolution equations, on a GPU you will be limited by memory bandwidth, and you're still going to be accessing all of the evolution variables anyway. This only actually saves us two memory writes, and significantly complicates the calculation of derivatives - leading to register/code size blowup
 
@@ -669,6 +669,8 @@ Eg, if we precalculate the first derivative $\partial_i \alpha$, calculating $\p
 
 #### Code
 
+This is how I generate the adjacent grid cells, so we can apply finite difference coefficients to them:
+
 ```c++
 ///takes a memory access like v[pos, dim], and generates the sequence
 ///v[pos - {2, 0, 0}, dim], v[pos - {1, 0, 0}, dim], v[pos, dim], v[pos + {1, 0, 0}, dim], v[pos + {2, 0, 0}, dim]
@@ -733,7 +735,11 @@ auto get_differentiation_variables(const T& in, int direction)
 
     return vars;
 }
+```
 
+Then this is a traditional finite difference scheme:
+
+```c++
 valuef diff1(const valuef& in, int direction, const valuef& scale)
 {
     ///4th order derivatives
@@ -757,6 +763,7 @@ valuef diff2(const valuef& in, int idx, int idy, const valuef& dx, const valuef&
         ///we must use dy, therefore swap all instances of diff1 in idy -> dy
         alias(diff1(in, idy, scale), dy);
 
+        return diff1(dy, idx, scale);
     }
     else
     {
@@ -766,6 +773,7 @@ valuef diff2(const valuef& in, int idx, int idy, const valuef& dx, const valuef&
         return diff1(dx, idy, scale);
     }
 }
+
 ```
 
 The way that this is implemented code-wise is slightly unusual. All variables in our simulation are generally bound to a particular grid location, `cY` as a 3x3 tensor is, under the hood, tied to a specific coordinate - ie `cY = cY_buffer[pos, dim]`. This is to minimise the complexity of the equations

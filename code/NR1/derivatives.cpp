@@ -76,6 +76,7 @@ valuef diff2(const valuef& in, int idx, int idy, const valuef& dx, const valuef&
         ///we must use dy, therefore swap all instances of diff1 in idy -> dy
         alias(diff1(in, idy, scale), dy);
 
+        return diff1(dy, idx, scale);
     }
     else
     {
