@@ -883,7 +883,7 @@ Which is pretty neat
 
 ### Momentum constraint
 
-The specific form of the momentum constraint I listed earlier - while the canonical one - involves calculating covariant derivatives which is a bit more of a pain[^linky]
+The specific form of the momentum constraint I listed earlier - while the canonical one - involves calculating covariant derivatives which is unnecessary, we can use a slightly better form[^linky]
 
 [^link]: [here](https://arxiv.org/pdf/1205.5111v1.pdf) (54)
 
@@ -943,9 +943,11 @@ tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const valuef& s
 }
 ```
 
+This is stored in a buffer, and will be used to damp the evolution equations
+
 ### Evolution
 
-This is the real kicker
+This section is going to get very fun
 
 #### Evolution equations by Field
 

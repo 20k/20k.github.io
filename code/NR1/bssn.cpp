@@ -273,11 +273,6 @@ valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& deriv
     return R + (2.f/3.f) * args.K * args.K - AMN_Amn;
 }
 
-float get_algebraic_damping_factor()
-{
-    return 0.f;
-}
-
 //#define BLACK_HOLE_GAUGE
 #ifdef BLACK_HOLE_GAUGE
 #define ONE_PLUS_LOG
@@ -356,19 +351,9 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, valuef 
     inverse_metric<valuef, 3, 3> icY = args.cY.invert();
     pin(icY);
 
-    tensor<valuef, 3, 3> dtcY;
-
-    ///dtcY
-    {
-        ///https://arxiv.org/pdf/1307.7391 specifically for why the trace free aspect
-        ///https://arxiv.org/pdf/1106.2254 also see here, after 25
-        dtcY = lie_derivative_weight(args.gB, args.cY, scale) - 2 * args.gA * trace_free(args.cA, args.cY, icY);
-
-        ///https://arxiv.org/pdf/gr-qc/0204002
-        dtcY += -get_algebraic_damping_factor() * args.gA * args.cY.to_tensor() * log(args.cY.det());
-    }
-
-    return dtcY;
+    ///https://arxiv.org/pdf/1307.7391 specifically for why the trace free aspect
+    ///https://arxiv.org/pdf/1106.2254 also see here, after 25
+    return lie_derivative_weight(args.gB, args.cY, scale) - 2 * args.gA * trace_free(args.cA, args.cY, icY);
 }
 
 ///https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf 2.12 or
@@ -533,8 +518,6 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
             dtcA[i, j] = v1 + v2 + v3 + v4;
         }
     }
-
-    dtcA += -get_algebraic_damping_factor() * args.gA * args.cY.to_tensor() * trace(args.cA, icY);
 
     #define MOMENTUM_CONSTRAINT_DAMPING
     #ifdef MOMENTUM_CONSTRAINT_DAMPING
