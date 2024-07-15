@@ -742,6 +742,15 @@ for(int i=0; i < 3; i++)
 
 ### Algebraic constraint enforcement
 
+This is very straightforward:
+
+```c++
+valuef det_cY_pow = pow(cY.det(), 1.f/3.f);
+
+metric<valuef, 3, 3> fixed_cY = cY / det_cY_pow;
+tensor<valuef, 3, 3> fixed_cA = trace_free(cA, fixed_cY, fixed_cY.invert());
+```
+
 ### Derivatives + Boundary conditions
 
 The boundary conditions are implemented whenever we need to take a derivative of something, and so the two topics are tied together
