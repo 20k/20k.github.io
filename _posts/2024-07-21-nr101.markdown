@@ -720,7 +720,7 @@ From here, its straightforward to perform the conformal decomposition, and recov
     tensor<valuef, 3, 3> cA = W*W * (adm.Kij - (1.f/3.f) * adm.Yij.to_tensor() * K);
 ```
 
-Calculating the christoffel symbol is left as a separate post processing step (because differentiating $\gamma_{ij}$ is a bit troublesome), but is directly calculated from the metric tensor:
+Calculating the christoffel symbol is left as a separate post processing step (because differentiating $$\tilde{\gamma}_{ij}$$ is a bit troublesome), but is directly calculated from the metric tensor:
 
 ```c++
 tensor<valuef, 3, 3, 3> dcY;
@@ -901,9 +901,9 @@ Which is pretty neat
 
 The specific form of the momentum constraint I listed earlier - while the canonical one - involves calculating covariant derivatives which is unnecessary, we can use a slightly better form[^linky]
 
-[^link]: [here](https://arxiv.org/pdf/1205.5111v1.pdf) (54)
+[^linky]: [here](https://arxiv.org/pdf/1205.5111v1.pdf) (54)
 
-$$\mathcal{M_i} = \partial_j \tilde{A}_i^j - \frac{1}{2} \tilde{\gamma}^{jk} \tilde{A}){jk,i} + 6 \partial_j \phi \tilde{A}_i^j - \frac{2}{3} \partial_i K$$
+$$\mathcal{M_i} = \partial_j \tilde{A}_i^j - \frac{1}{2} \tilde{\gamma}^{jk} \tilde{A}_{jk,i} + 6 \partial_j \phi \tilde{A}_i^j - \frac{2}{3} \partial_i K$$
 
 ```c++
 tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const valuef& scale)
