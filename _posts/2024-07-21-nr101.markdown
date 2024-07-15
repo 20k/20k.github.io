@@ -29,6 +29,10 @@ Ok planola time:
 10. Gauge condition evolution
 11. Some kind of diagnostic (semi analytic tests?)
 
+hmm, i'm not convinced that mixing code in is a good idea. I am tired but really what we want is to maintain a relatively good flow, atm dumping code in is distracting the overarching goals
+
+There are quite a few tangents in here: sections which contain sidebars about eg the conformal variables: do i stick this in discussion segments at the end?
+
 Hi there! Today we're going to be getting into numerical relativity, which is the art of simulating the evolution of spacetime itself. While there a quite a few known solutions to the equations of general relativity at this point (eg the Schwarzschild metric), many of the most interesting regions of general relativity can only be explored by exploring how spacetime itself evolves dynamically through simulations. Binary black hole collisions are a perfect example of this, and are a big part of the reason why we're building this
 
 These kinds of simulations are traditionally run on supercomputers, but luckily you likely have a supercomputer in the form of a GPU[^specs] in your PC. The amount of extra performance we can get over a traditional CPU based implementation is likely to be a few orders of magnitude higher if you know what you're doing, so in this article I'm going to present to you how to get this done
@@ -53,7 +57,7 @@ Each 3d[^nd] slice has its own metric associated with it called $\gamma_{ij}$, w
 
 ## Details
 
-From now on, all latin indices $_{ijk}$ have the value 1-3, and generally denotes quantities on our 3d slice, whereas greek indices $_{\mu\nu\kappa}$ take on the value 0-3 and deontes quantities in our 4d spacetime
+From now on, all latin indices $$_{ijk}$$ have the value 1-3, and generally denotes quantities on our 3d slice, whereas greek indices $$_{\mu\nu\kappa}$$ take on the value 0-3 and deontes quantities in our 4d spacetime
 
 The general line element in ADM is this:
 
@@ -467,27 +471,7 @@ where
 $$H = A \sin(\frac{2 \pi (x - t)}{d})$$
 
 
-$d$ is the wavelength of our wave, which is set to 1 (our simulation width), and $A$ is the amplitude of the wave which is set to $0.1$. On our initial slice, $t=0$. Implementing this code-wise is pretty straightforward:
-
-```c++
-auto wave_function = []<typename T>(const tensor<T, 4>& position)
-{
-    float A = 0.1f;
-    float d = 1;
-
-    auto H = A * sin(2 * std::numbers::pi_v<float> * (position.y() - position.x()) / d);
-
-    metric<T, 4, 4> m;
-    m[0, 0] = -1 * (1 - H);
-    m[1, 1] = (1 - H);
-    m[2, 2] = 1;
-    m[3, 3] = 1;
-
-    return m;
-};
-```
-
-This defines a 4-metric $g_{\mu\nu}$. While these papers do provide analytic expressions for our initial ADM variables - where's the joy in that?
+$d$ is the wavelength of our wave, which is set to 1 (our simulation width), and $A$ is the amplitude of the wave which is set to $0.1$. On our initial slice, $t=0$. This defines a 4-metric $g_{\mu\nu}$. While these papers do provide analytic expressions for our initial ADM variables - where's the joy in that?
 
 #### Generic initial conditions
 
@@ -516,7 +500,88 @@ K_{ij} &= \frac{1}{2 \alpha} (D_i \beta_j + D_j \beta_i - \frac{\partial g_{ij}}
 
 Note that we find $\beta_i$ not $\beta^i$, which you can find by raising with $\gamma^{ij}$. To initialise the christoffel symbol $\tilde{\Gamma}^i$, simply calculate it analytically once you have $\tilde{\gamma}_{ij}$
 
-#### Code
+### Boundary conditions / Differentiation
+
+Here, we're going to use fourth order[^orderconvergence] finite differentiation on a grid. If you remember, to approximate a derivative, mathematically you can do:
+
+[^orderconvergence]: In general, the order of convergence dictates the rate at which our algorithm improves the answer, when eg increasing our grid resolution
+
+$$\frac{\partial f} {\partial x} = \frac{f(x+1) - f(x)}{h}$$
+
+The factor of $h$ is omitted, because we're indexing grid cells. Numerically this is not ideal, and instead we'll use symmetric fourth order differentiation, with coefficients which we can look up [here](https://en.wikipedia.org/wiki/Finite_difference_coefficient):
+
+$$\frac{\partial f} {\partial x} = \frac{\frac{1}{12} f(x - 2) - \frac{2}{3} f(x - 1) + \frac{2}{3} f(x + 1) - \frac{1}{12} f(x + 2)}{h}$$
+
+This tends to produce a decent tradeoff of accuracy vs performance. In this simulation, because we're discretising our data onto a grid, this brings up the question of how we take derivatives at the edge of the grid (as taking derivatives involves adjacent grid cells) - solving this question defines the boundary conditions
+
+In this article we're going to be using periodic boundary conditions. To implement this, when implementing derivatives, you simply wrap your coordinates to the other edge of the domain
+
+#### Implementation Considerations
+
+##### Modulo operator
+
+Do be aware that I discovered a pretty sizeable performance bug/compiler limitation when implementing this, where modulo operations are not optimised (even by a constant power of 2!) - which ate nearly all the runtime, so use branches instead
+
+##### Second derivatives
+
+When calculating second derivatives, while you could directly apply a 2d stencil, it is much more efficient to first calculate the first derivatives, store them somewhere, and then calculate the second derivatives from those stored derivatives (by taking the first derivative[^ivesaid] of them). This means that you should only precalculate 1st derivatives for variables for which we take second derivatives, which are the following:
+
+[^ivesaid]: I've said the word derivative too many times. I'm going to go pet my cat
+
+$$\tilde{\gamma}_{ij}, \alpha, \beta^i, W$$
+
+##### Second derivative performance tricks
+
+Second derivatives commute. This means that $\partial_i \partial_j == \partial_j \partial_i$. This is also true for the second covariant derivative of a scalar - though only in that circumstance for covariant derivatives. This brings up a good opportunity for performance improvements - when calculating partial derivatives, consider reordering them so that you lopsidedly differentiate on one variable
+
+That is to say, consider implementing: $\partial_{min(i, j)} \partial_{max(i, j)}$ as a general second order differentiation system. This is good for cache (repeatedly accessing the same memory), increasing the amount of eliminateable duplicate code, and ensuring that we maximise the amount we differentiate in the $_0$th direction, which is the fastest due to memory layout
+
+Eg, if we precalculate the first derivative $\partial_i \alpha$, calculating $\partial_0 \partial_i \alpha$ will always be faster than calculating $\partial_i \partial_0 \alpha$. Partly because of memory layout (differentiating in the x direction is virtually free, as it is very cache friendly), and partly because if we *always* do this, we improve our cache hit rate. This is worth about a 20% performance bump[^perfnotes]:
+
+[^perfnotes]: This performance increase is difficult to interpret. In this test case, we use slightly more vGPRs (vector general purpose registers, what you might think of as a traditional cpu register), but significantly reduce our code instruction footprint from 35KB (over the icache size of 32KB), to below our maximum cache size (AMD don't report it annoyingly). This reduces icache stalls, and appears to be very related to the performance increase. Its a big win, as there's 0% chance of us hitting a better vGPR budget[^budget] (as we're in the low 200s)
+
+[^budget]: If you're unfamiliar, the number of threads we can execute on a GPU simultaneously is limited by the number of registers we use, and is known as occupancy (high occupancy = more threads executing). Traditional reasoning is that high occupancy = good as it hides memory latency, although low occupancy can have
+
+### Integrating the PDEs
+
+Each timestep is broken up into a fixed number of substeps, as we solve the implicit equation for backwards euler via fixed point iteration. In each substep, we:
+
+1. Enforce the algebraic constraints
+2. Calculate the derivatives (todo: Think i need to segment this off more)
+3. Calculate the momentum constraint
+4. Evolve our equations to calculate yn + f(yn+1), the result of the substep
+
+After we've performed a fixed number of iterations, I apply kreiss-oliger dissipation to remove numerical noise
+
+## Implementation
+
+We now have all of the theory out of the way, phew. Its time to get into the code
+
+### Initial conditions
+
+The code for the initial conditions can be found at todo:s
+
+This is the actual metric tensor we're using, with a generic argument so that its easy to plug dual numbers (which is how I differentiate things here):
+
+```c++
+auto wave_function = []<typename T>(const tensor<T, 4>& position)
+{
+    float A = 0.1f;
+    float d = 1;
+
+    auto H = A * sin(2 * std::numbers::pi_v<float> * (position.y() - position.x()) / d);
+
+    metric<T, 4, 4> m;
+    m[0, 0] = -1 * (1 - H);
+    m[1, 1] = (1 - H);
+    m[2, 2] = 1;
+    m[3, 3] = 1;
+
+    return m;
+};
+```
+
+#### Building the ADM variables
 
 This isn't too complicated to implement, though you will need the ability to differentiate your metric tensor (either numerically, or analytically). Here I'm using dual numbers to implement differentiation, via the replay mechanism implemented in previous articles:
 
@@ -625,51 +690,63 @@ adm_variables make_adm_variables(T&& func, v4f position)
 }
 ```
 
-### Boundary conditions / Differentiation
+#### Building the BSSN variables
 
-Here, we're going to use fourth order[^orderconvergence] finite differentiation on a grid. If you remember, to approximate a derivative, mathematically you can do:
+From here, its straightforward to perform the conformal decomposition, and recover our BSSN variables
 
-[^orderconvergence]: In general, the order of convergence dictates the rate at which our algorithm improves the answer, when eg increasing our grid resolution
+```c++
+    adm_variables adm = make_adm_variables(wave_function, {0, wpos.x(), wpos.y(), wpos.z()});
 
-$$\frac{\partial f} {\partial x} = \frac{f(x+1) - f(x)}{h}$$
+    valuef W = pow(adm.Yij.det(), -1/6.f);
+    metric<valuef, 3, 3> cY = W*W * adm.Yij;
+    valuef K = trace(adm.Kij, adm.Yij.invert());
 
-The factor of $h$ is omitted, because we're indexing grid cells. Numerically this is not ideal, and instead we'll use symmetric fourth order differentiation, with coefficients which we can look up [here](https://en.wikipedia.org/wiki/Finite_difference_coefficient):
+    tensor<valuef, 3, 3> cA = W*W * (adm.Kij - (1.f/3.f) * adm.Yij.to_tensor() * K);
+```
 
-$$\frac{\partial f} {\partial x} = \frac{\frac{1}{12} f(x - 2) - \frac{2}{3} f(x - 1) + \frac{2}{3} f(x + 1) - \frac{1}{12} f(x + 2)}{h}$$
+Calculating the christoffel symbol is left as a separate post processing step (because differentiating $\gamma_{ij}$ is a bit troublesome), but is directly calculated from the metric tensor:
 
-This tends to produce a decent tradeoff of accuracy vs performance. In this simulation, because we're discretising our data onto a grid, this brings up the question of how we take derivatives at the edge of the grid (as taking derivatives involves adjacent grid cells) - solving this question defines the boundary conditions
+```c++
+tensor<valuef, 3, 3, 3> dcY;
 
-In this article we're going to be using periodic boundary conditions. To implement this, when implementing derivatives, you simply wrap your coordinates to the other edge of the domain
+for(int k=0; k < 3; k++)
+{
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            dcY[k, i, j] = diff1(cY[i, j], k, scale.get());
+        }
+    }
+}
 
-#### Implementation Considerations
+auto christoff2 = christoffel_symbols_2(icY, dcY);
 
-##### Modulo operator
+tensor<valuef, 3> calculated_cG;
 
-Do be aware that I discovered a pretty sizeable performance bug/compiler limitation when implementing this, where modulo operations are not optimised (even by a constant power of 2!) - which ate nearly all the runtime, so use branches instead
+for(int i=0; i < 3; i++)
+{
+    valuef sum = 0;
 
-##### Second derivatives
+    for(int m=0; m < 3; m++)
+    {
+        for(int n=0; n < 3; n++)
+        {
+            sum += icY[m, n] * christoff2[i, m, n];
+        }
+    }
 
-When calculating second derivatives, while you could directly apply a 2d stencil, it is much more efficient to first calculate the first derivatives, store them somewhere, and then calculate the second derivatives from those stored derivatives (by taking the first derivative[^ivesaid] of them). This means that you should only precalculate 1st derivatives for variables for which we take second derivatives, which are the following:
+    calculated_cG[i] = sum;
+}
+```
 
-[^ivesaid]: I've said the word derivative too many times. I'm going to go pet my cat
+### Algebraic constraint enforcement
 
-$$\tilde{\gamma}_{ij}, \alpha, \beta^i, W$$
+### Derivatives + Boundary conditions
 
-##### Second derivative performance tricks
+The boundary conditions are implemented whenever we need to take a derivative of something, and so the two topics are tied together
 
-Second derivatives commute. This means that $\partial_i \partial_j == \partial_j \partial_i$. This is also true for the second covariant derivative of a scalar - though only in that circumstance for covariant derivatives. This brings up a good opportunity for performance improvements - when calculating partial derivatives, consider reordering them so that you lopsidedly differentiate on one variable
-
-That is to say, consider implementing: $\partial_{min(i, j)} \partial_{max(i, j)}$ as a general second order differentiation system. This is good for cache (repeatedly accessing the same memory), increasing the amount of eliminateable duplicate code, and ensuring that we maximise the amount we differentiate in the $_0$th direction, which is the fastest due to memory layout
-
-Eg, if we precalculate the first derivative $\partial_i \alpha$, calculating $\partial_0 \partial_i \alpha$ will always be faster than calculating $\partial_i \partial_0 \alpha$. Partly because of memory layout (differentiating in the x direction is virtually free, as it is very cache friendly), and partly because if we *always* do this, we improve our cache hit rate. This is worth about a 20% performance bump[^perfnotes]:
-
-[^perfnotes]: This performance increase is difficult to interpret. In this test case, we use slightly more vGPRs (vector general purpose registers, what you might think of as a traditional cpu register), but significantly reduce our code instruction footprint from 35KB (over the icache size of 32KB), to below our maximum cache size (AMD don't report it annoyingly). This reduces icache stalls, and appears to be very related to the performance increase. Its a big win, as there's 0% chance of us hitting a better vGPR budget[^budget] (as we're in the low 200s)
-
-[^budget]: If you're unfamiliar, the number of threads we can execute on a GPU simultaneously is limited by the number of registers we use, and is known as occupancy (high occupancy = more threads executing). Traditional reasoning is that high occupancy = good as it hides memory latency, although low occupancy can have
-
-#### Code
-
-This is how I generate the adjacent grid cells, so we can apply finite difference coefficients to them:
+Below is how I generate the adjacent grid cells, so we can apply finite difference coefficients to them. This is a slightly unusual way to do this, so its worth going over
 
 ```c++
 ///takes a memory access like v[pos, dim], and generates the sequence
@@ -737,7 +814,7 @@ auto get_differentiation_variables(const T& in, int direction)
 }
 ```
 
-Then this is a traditional finite difference scheme:
+Then this is a traditional 4th order finite difference scheme:
 
 ```c++
 valuef diff1(const valuef& in, int direction, const valuef& scale)
@@ -773,7 +850,6 @@ valuef diff2(const valuef& in, int idx, int idy, const valuef& dx, const valuef&
         return diff1(dx, idy, scale);
     }
 }
-
 ```
 
 The way that this is implemented code-wise is slightly unusual. All variables in our simulation are generally bound to a particular grid location, `cY` as a 3x3 tensor is, under the hood, tied to a specific coordinate - ie `cY = cY_buffer[pos, dim]`. This is to minimise the complexity of the equations
@@ -795,31 +871,6 @@ cY[x + 2] * cA[x + 2]
 ```
 
 Which is pretty neat
-
-### Integrating the PDEs
-
-Each timestep is broken up into a fixed number of substeps, as we solve the implicit equation for backwards euler via fixed point iteration. In each substep, we:
-
-1. Enforce the algebraic constraints
-2. Calculate the derivatives (todo: Think i need to segment this off more)
-3. Calculate the momentum constraint
-4. Evolve our equations to calculate yn + f(yn+1), the result of the substep
-
-After we've performed a fixed number of iterations, I apply kreiss-oliger dissipation to remove numerical noise
-
-## Implementation
-
-We now have all of the theory out of the way, phew. Its time to get into the code
-
-Todo: Do i intermingle code in the other segments? I suppose if people want the full overview they may as well just go to the github, so really we're only putting code in to illustrate the concrete implementaiton details vs the theory
-
-### Initial conditions
-
-### Algebraic constraint enforcement
-
-### Derivatives + Boundary conditions
-
-The boundary conditions are implemented whenever we need to take a derivative of something, which looks like this.
 
 ### Evolution
 
