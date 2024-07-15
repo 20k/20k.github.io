@@ -11,26 +11,17 @@ struct differentiation_context
 
     differentiation_context(const T& in, int direction)
     {
-        std::array<int, elements> offsets = {};
-
-        for(int i=0; i < elements; i++)
-        {
-            int offset = i - (elements - 1)/2;
-
-            offsets[i] = offset;
-        }
-
         ///for each element, ie x-2, x-1, x, x+1, x+2
         for(int i=0; i < elements; i++)
         {
             ///assign to the original element, ie x
             vars[i] = in;
 
-            vars[i].recurse([&i, &offsets, direction](value_base& v)
+            vars[i].recurse([&i, direction](value_base& v)
             {
                 if(v.type == value_impl::op::BRACKET)
                 {
-                    auto get_substitution = [&i, &offsets, direction](const value_base& v)
+                    auto get_substitution = [&i, direction](const value_base& v)
                     {
                         assert(v.args.size() == 8);
 
@@ -39,12 +30,14 @@ struct differentiation_context
                         std::array<value_base, 3> pos = {v.args[2], v.args[3], v.args[4]};
                         std::array<value_base, 3> dim = {v.args[5], v.args[6], v.args[7]};
 
-                        pos[direction] = pos[direction] + valuei(offsets[i]);
+                        int offset = i - (elements - 1)/2;
 
-                        if(offsets[i] > 0)
+                        pos[direction] = pos[direction] + valuei(offset);
+
+                        if(offset > 0)
                             pos[direction] = ternary(pos[direction] >= dim[direction], pos[direction] - dim[direction], pos[direction]);
 
-                        if(offsets[i] < 0)
+                        if(offset < 0)
                             pos[direction] = ternary(pos[direction] < valuei(0), pos[direction] + dim[direction], pos[direction]);
 
                         value_base op;
