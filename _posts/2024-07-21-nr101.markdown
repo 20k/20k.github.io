@@ -466,7 +466,28 @@ where
 
 $$H = A \sin(\frac{2 \pi (x - t)}{d})$$
 
-$d$ is the wavelength of our wave, which is set to 1 (our simulation width), and $A$ is the amplitude of the wave which is set to $0.1$. On our initial slice, $t=0$. This defines a 4-metric $g_{\mu\nu}$. While these papers do provide analytic expressions for our initial ADM variables - where's the joy in that?
+
+$d$ is the wavelength of our wave, which is set to 1 (our simulation width), and $A$ is the amplitude of the wave which is set to $0.1$. On our initial slice, $t=0$. Implementing this code-wise is pretty straightforward:
+
+```c++
+auto wave_function = []<typename T>(const tensor<T, 4>& position)
+{
+    float A = 0.1f;
+    float d = 1;
+
+    auto H = A * sin(2 * std::numbers::pi_v<float> * (position.y() - position.x()) / d);
+
+    metric<T, 4, 4> m;
+    m[0, 0] = -1 * (1 - H);
+    m[1, 1] = (1 - H);
+    m[2, 2] = 1;
+    m[3, 3] = 1;
+
+    return m;
+};
+```
+
+This defines a 4-metric $g_{\mu\nu}$. While these papers do provide analytic expressions for our initial ADM variables - where's the joy in that?
 
 #### Generic initial conditions
 
@@ -495,7 +516,114 @@ K_{ij} &= \frac{1}{2 \alpha} (D_i \beta_j + D_j \beta_i - \frac{\partial g_{ij}}
 
 Note that we find $\beta_i$ not $\beta^i$, which you can find by raising with $\gamma^{ij}$. To initialise the christoffel symbol $\tilde{\Gamma}^i$, simply calculate it analytically once you have $\tilde{\gamma}_{ij}$
 
-You will need to be able to differentiate your metric tensor - either numerically, or analytically, for this to work
+#### Code
+
+This isn't too complicated to implement, though you will need the ability to differentiate your metric tensor (either numerically, or analytically). Here I'm using dual numbers to implement differentiation, via the replay mechanism implemented in previous articles:
+
+```c++
+struct adm_variables
+{
+    metric<valuef, 3, 3> Yij;
+    tensor<valuef, 3, 3> Kij;
+    valuef gA;
+    tensor<valuef, 3> gB;
+};
+
+template<typename T>
+adm_variables make_adm_variables(T&& func, v4f position)
+{
+    using namespace single_source;
+
+    adm_variables adm;
+
+    metric<valuef, 4, 4> Guv = func(position);
+
+    tensor<valuef, 4, 4, 4> dGuv;
+
+    for(int k=0; k < 4; k++)
+    {
+        auto ldguv = diff_analytic(func, position, k);
+
+        for(int i=0; i < 4; i++)
+        {
+            for(int j=0; j < 4; j++)
+            {
+                dGuv[k, i, j] = ldguv[i, j];
+            }
+        }
+    }
+
+    metric<valuef, 3, 3> Yij;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            Yij[i, j] = Guv[i+1, j+1];
+        }
+    }
+
+    tensor<valuef, 3, 3, 3> Yij_derivatives;
+
+    for(int k=0; k < 3; k++)
+    {
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                Yij_derivatives[k, i, j] = dGuv[k+1, i+1, j+1];
+            }
+        }
+    }
+
+    tensor<valuef, 3, 3, 3> Yij_christoffel = christoffel_symbols_2(Yij.invert(), Yij_derivatives);
+
+    pin(Yij_christoffel);
+
+    tensor<valuef, 3> gB_lower;
+    tensor<valuef, 3, 3> dgB_lower;
+
+    for(int i=0; i < 3; i++)
+    {
+        gB_lower[i] = Guv[0, i+1];
+
+        for(int k=0; k < 3; k++)
+        {
+            dgB_lower[k, i] = dGuv[k+1, 0, i+1];
+        }
+    }
+
+    tensor<valuef, 3> gB = raise_index(gB_lower, Yij.invert(), 0);
+
+    pin(gB);
+
+    valuef gB_sum = sum_multiply(gB, gB_lower);
+
+    valuef gA = sqrt(-Guv[0, 0] + gB_sum);
+
+    ///https://clas.ucdenver.edu/math-clinic/sites/default/files/attached-files/master_project_mach_.pdf 4-19a
+    tensor<valuef, 3, 3> gBjDi = covariant_derivative_low_vec(gB_lower, dgB_lower, Yij_christoffel);
+
+    pin(gBjDi);
+
+    tensor<valuef, 3, 3> Kij;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            Kij[i, j] = (1/(2 * gA)) * (gBjDi[j, i] + gBjDi[i, j] - dGuv[0, i+1, j+1]);
+        }
+    }
+
+    adm.Yij = Yij;
+    adm.Kij = Kij;
+    adm.gA = gA;
+    adm.gB = gB;
+
+    return adm;
+}
+```
 
 ### Boundary conditions / Differentiation
 
@@ -535,6 +663,10 @@ That is to say, consider implementing: $\partial_{min(i, j)} \partial_{max(i, j)
 
 Eg, if we precalculate the first derivative $\partial_i \alpha$, calculating $\partial_0 \partial_i \alpha$ will always be faster than calculating $\partial_i \partial_0 \alpha$. Partly because of memory layout (differentiating in the x direction is virtually free, as it is very cache friendly), and partly because if we *always* do this, we improve our cache hit rate. This is worth about a 20% performance bump
 
+#### Code
+
+Todo
+
 ### Integrating the PDEs
 
 Each timestep is broken up into a fixed number of substeps, as we solve the implicit equation for backwards euler via fixed point iteration. In each substep, we:
@@ -548,11 +680,11 @@ After we've performed a fixed number of iterations, I apply kreiss-oliger dissip
 
 ## Implementation
 
-We now have all of the theory out of the way, phew. Its time to get into the code. I'm going to try and limit the discussion here to anything which isn't just 1:1 translating equations into code
+We now have all of the theory out of the way, phew. Its time to get into the code
+
+Todo: Do i intermingle code in the other segments? I suppose if people want the full overview they may as well just go to the github, so really we're only putting code in to illustrate the concrete implementaiton details vs the theory
 
 ### Initial conditions
-
-dfdfdf
 
 ### Algebraic constraint enforcement
 

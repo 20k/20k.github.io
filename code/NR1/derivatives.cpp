@@ -11,20 +11,13 @@ struct differentiation_context
 
     differentiation_context(const T& in, int direction)
     {
-        std::array<int, elements> offx = {};
-        std::array<int, elements> offy = {};
-        std::array<int, elements> offz = {};
+        std::array<int, elements> offsets = {};
 
         for(int i=0; i < elements; i++)
         {
             int offset = i - (elements - 1)/2;
 
-            if(direction == 0)
-                offx[i] = offset;
-            if(direction == 1)
-                offy[i] = offset;
-            if(direction == 2)
-                offz[i] = offset;
+            offsets[i] = offset;
         }
 
         ///for each element, ie x-2, x-1, x, x+1, x+2
@@ -33,52 +26,30 @@ struct differentiation_context
             ///assign to the original element, ie x
             vars[i] = in;
 
-            vars[i].recurse([&i, &offx, &offy, &offz](value_base& v)
+            vars[i].recurse([&i, &offsets, direction](value_base& v)
             {
                 if(v.type == value_impl::op::BRACKET)
                 {
-                    auto get_substitution = [&i, &offx, &offy, &offz](const value_base& v)
+                    auto get_substitution = [&i, &offsets, direction](const value_base& v)
                     {
                         assert(v.args.size() == 8);
 
                         auto buf = v.args[0];
 
-                        value_base old_x = v.args[2];
-                        value_base old_y = v.args[3];
-                        value_base old_z = v.args[4];
+                        std::array<value_base, 3> pos = {v.args[2], v.args[3], v.args[4]};
+                        std::array<value_base, 3> dim = {v.args[5], v.args[6], v.args[7]};
 
-                        value_base dx = v.args[5];
-                        value_base dy = v.args[6];
-                        value_base dz = v.args[7];
+                        pos[direction] = pos[direction] + valuei(offsets[i]);
 
-                        value_base next_x = old_x + valuei(offx[i]);
-                        value_base next_y = old_y + valuei(offy[i]);
-                        value_base next_z = old_z + valuei(offz[i]);
+                        if(offsets[i] > 0)
+                            pos[direction] = ternary(pos[direction] >= dim[direction], pos[direction] - dim[direction], pos[direction]);
 
-                        #define PERIODIC_BOUNDARY
-                        #ifdef PERIODIC_BOUNDARY
-                        if(offx[i] > 0)
-                            next_x = ternary(next_x >= dx, next_x - dx, next_x);
-
-                        if(offy[i] > 0)
-                            next_y = ternary(next_y >= dy, next_y - dy, next_y);
-
-                        if(offz[i] > 0)
-                            next_z = ternary(next_z >= dz, next_z - dz, next_z);
-
-                        if(offx[i] < 0)
-                            next_x = ternary(next_x < valuei(0), next_x + dx, next_x);
-
-                        if(offy[i] < 0)
-                            next_y = ternary(next_y < valuei(0), next_y + dy, next_y);
-
-                        if(offz[i] < 0)
-                            next_z = ternary(next_z < valuei(0), next_z + dz, next_z);
-                        #endif // PERIODIC_BOUNDARY
+                        if(offsets[i] < 0)
+                            pos[direction] = ternary(pos[direction] < valuei(0), pos[direction] + dim[direction], pos[direction]);
 
                         value_base op;
                         op.type = value_impl::op::BRACKET;
-                        op.args = {buf, value<int>(3), next_x, next_y, next_z, dx, dy, dz};
+                        op.args = {buf, value<int>(3), pos[0], pos[1], pos[2], dim[0], dim[1], dim[2]};
                         op.concrete = get_interior_type(T());
 
                         return op;
