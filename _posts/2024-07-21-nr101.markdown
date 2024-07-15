@@ -661,11 +661,132 @@ Second derivatives commute. This means that $\partial_i \partial_j == \partial_j
 
 That is to say, consider implementing: $\partial_{min(i, j)} \partial_{max(i, j)}$ as a general second order differentiation system. This is good for cache (repeatedly accessing the same memory), increasing the amount of eliminateable duplicate code, and ensuring that we maximise the amount we differentiate in the $_0$th direction, which is the fastest due to memory layout
 
-Eg, if we precalculate the first derivative $\partial_i \alpha$, calculating $\partial_0 \partial_i \alpha$ will always be faster than calculating $\partial_i \partial_0 \alpha$. Partly because of memory layout (differentiating in the x direction is virtually free, as it is very cache friendly), and partly because if we *always* do this, we improve our cache hit rate. This is worth about a 20% performance bump
+Eg, if we precalculate the first derivative $\partial_i \alpha$, calculating $\partial_0 \partial_i \alpha$ will always be faster than calculating $\partial_i \partial_0 \alpha$. Partly because of memory layout (differentiating in the x direction is virtually free, as it is very cache friendly), and partly because if we *always* do this, we improve our cache hit rate. This is worth about a 20% performance bump[^perfnotes]:
+
+[^perfnotes]: This performance increase is difficult to interpret. In this test case, we use slightly more vGPRs (vector general purpose registers, what you might think of as a traditional cpu register), but significantly reduce our code instruction footprint from 35KB (over the icache size of 32KB), to below our maximum cache size (AMD don't report it annoyingly). This reduces icache stalls, and appears to be very related to the performance increase. Its a big win, as there's 0% chance of us hitting a better vGPR budget[^budget] (as we're in the low 200s)
+
+[^budget]: If you're unfamiliar, the number of threads we can execute on a GPU simultaneously is limited by the number of registers we use, and is known as occupancy (high occupancy = more threads executing). Traditional reasoning is that high occupancy = good as it hides memory latency, although low occupancy can have
 
 #### Code
 
-Todo
+```c++
+///takes a memory access like v[pos, dim], and generates the sequence
+///v[pos - {2, 0, 0}, dim], v[pos - {1, 0, 0}, dim], v[pos, dim], v[pos + {1, 0, 0}, dim], v[pos + {2, 0, 0}, dim]
+///though in the grid direction pointed to by "direction"
+template<std::size_t elements = 5, typename T>
+auto get_differentiation_variables(const T& in, int direction)
+{
+    std::array<T, elements> vars;
+
+    ///for each element, ie x-2, x-1, x, x+1, x+2
+    for(int i=0; i < elements; i++)
+    {
+        ///assign to the original element, ie x
+        vars[i] = in;
+
+        ///for every argument, and ourselves
+        vars[i].recurse([&i, direction](value_base& v)
+        {
+            ///check if we're indexing a memory location
+            if(v.type == value_impl::op::BRACKET)
+            {
+                //if so, substitute our memory access with an offset one, for whichever coefficent we want
+                auto get_substitution = [&i, direction](const value_base& v)
+                {
+                    assert(v.args.size() == 8);
+
+                    ///the encoding format for the bracket operator is
+                    ///buffer name, argument number, pos[0], pos[1], pos[2], dim[0], dim[1], dim[2]
+                    auto buf = v.args[0];
+
+                    ///pull out the position
+                    std::array<value_base, 3> pos = {v.args[2], v.args[3], v.args[4]};
+                    ///pull out the array dimensions
+                    std::array<value_base, 3> dim = {v.args[5], v.args[6], v.args[7]};
+
+                    ///generates the sequence -2, -1, 0, 1, 2 for elements=5, ie grid index offsets
+                    int offset = i - (elements - 1)/2;
+
+                    ///update our position
+                    pos[direction] = pos[direction] + valuei(offset);
+
+                    ///implement the periodic boundary
+                    if(offset > 0)
+                        pos[direction] = ternary(pos[direction] >= dim[direction], pos[direction] - dim[direction], pos[direction]);
+
+                    if(offset < 0)
+                        pos[direction] = ternary(pos[direction] < valuei(0), pos[direction] + dim[direction], pos[direction]);
+
+                    ///create a new memory indexing operation with our new position
+                    value_base op;
+                    op.type = value_impl::op::BRACKET;
+                    op.args = {buf, value<int>(3), pos[0], pos[1], pos[2], dim[0], dim[1], dim[2]};
+                    op.concrete = get_interior_type(T());
+
+                    return op;
+                };
+
+                v = get_substitution(v);
+            }
+        });
+    }
+
+    return vars;
+}
+
+valuef diff1(const valuef& in, int direction, const valuef& scale)
+{
+    ///4th order derivatives
+    std::array<valuef, 5> vars = get_differentiation_variables(in, direction);
+
+    ///implemented like this, so that we have floating point symmetry in a symmetric grid
+    valuef p1 = -vars[4] + vars[0];
+    valuef p2 = valuef(8.f) * (vars[3] - vars[1]);
+
+    return (p1 + p2) / (12.f * scale);
+}
+
+///this uses the commutativity of partial derivatives to lopsidedly prefer differentiating dy in the x direction
+///as this is better on the memory layout
+valuef diff2(const valuef& in, int idx, int idy, const valuef& dx, const valuef& dy, const valuef& scale)
+{
+    using namespace single_source;
+
+    if(idx < idy)
+    {
+        ///we must use dy, therefore swap all instances of diff1 in idy -> dy
+        alias(diff1(in, idy, scale), dy);
+
+    }
+    else
+    {
+        ///we must use dx, therefore swap all instances of diff1 in idx -> dx
+        alias(diff1(in, idx, scale), dx);
+
+        return diff1(dx, idy, scale);
+    }
+}
+```
+
+The way that this is implemented code-wise is slightly unusual. All variables in our simulation are generally bound to a particular grid location, `cY` as a 3x3 tensor is, under the hood, tied to a specific coordinate - ie `cY = cY_buffer[pos, dim]`. This is to minimise the complexity of the equations
+
+Because of this, instead of having a buffer and a position for us to differentiate at, we have a variable which is derived from a buffer, and an expression tree containing a bracket operator - with our initial position and dimension as arguments. The huge upside of this is that we can differentiate compound expressions, like this:
+
+```c++
+diff1(cY * cA, 0, scale);
+```
+
+You can look through all the internal buffer accesses, and perform the substitution on all of them to correctly differentiate this. To illustrate this in one dimension, you end up with this:
+
+```c++
+cY[x - 2] * cA[x - 2]
+cY[x - 1] * cA[x - 1]
+cY[x] * cA[x]
+cY[x + 1] * cA[x + 1]
+cY[x + 2] * cA[x + 2]
+```
+
+Which is pretty neat
 
 ### Integrating the PDEs
 
