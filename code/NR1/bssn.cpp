@@ -182,7 +182,7 @@ tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, bssn_derivatives& derivs, c
 ///https://arxiv.org/pdf/1307.7391 (9)
 ///https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf 2.6
 ///this calculates the quantity W^2 * Rij
-tensor<valuef, 3, 3> calculate_W2_mult_Rij(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
+tensor<valuef, 3, 3> calculate_W2Rij(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
 {
     using namespace single_source;
 
@@ -251,7 +251,7 @@ valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& deriv
 {
     using namespace single_source;
 
-    auto W2Rij = calculate_W2_mult_Rij(args, derivs, scale);
+    auto W2Rij = calculate_W2Rij(args, derivs, scale);
 
     auto icY = args.cY.invert();
     pin(icY);
@@ -486,38 +486,31 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
     auto W2DiDja = calculate_W2DiDja(args, derivs, scale);
     pin(W2DiDja);
 
-    tensor<valuef, 3, 3> with_trace = args.gA * calculate_W2_mult_Rij(args, derivs, scale) - W2DiDja;
+    tensor<valuef, 3, 3> with_trace = args.gA * calculate_W2Rij(args, derivs, scale) - W2DiDja;
 
-    tensor<valuef, 3, 3> dtcA;
+    tensor<valuef, 3, 3> aij_amj;
 
     for(int i=0; i < 3; i++)
     {
         for(int j=0; j < 3; j++)
         {
-            valuef v1 = lie_derivative_weight(args.gB, args.cA, scale)[i, j];
+            tensor<valuef, 3, 3> raised_Aij = icY.raise(args.cA, 0);
 
-            valuef v2 = args.gA * args.K * args.cA[i, j];
+            valuef sum = 0;
 
-            valuef v3 = 0;
-
+            for(int m=0; m < 3; m++)
             {
-                valuef sum = 0;
-
-                tensor<valuef, 3, 3> raised_Aij = icY.raise(args.cA, 0);
-
-                for(int m=0; m < 3; m++)
-                {
-                    sum += args.cA[i, m] * raised_Aij[m, j];
-                }
-
-                v3 = -2 * args.gA * sum;
+                sum += args.cA[i, m] * raised_Aij[m, j];
             }
 
-            valuef v4 = trace_free(with_trace, args.cY, icY)[i, j];
-
-            dtcA[i, j] = v1 + v2 + v3 + v4;
+            aij_amj[i, j] = sum;
         }
     }
+
+    tensor<valuef, 3, 3> dtcA = lie_derivative_weight(args.gB, args.cA, scale)
+                                + args.gA * args.K * args.cA
+                                - 2 * args.gA * aij_amj
+                                + trace_free(with_trace, args.cY, icY);
 
     #define MOMENTUM_CONSTRAINT_DAMPING
     #ifdef MOMENTUM_CONSTRAINT_DAMPING
