@@ -425,8 +425,10 @@ valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
     pin(icY);
 
     tensor<valuef, 3, 3> W2DiDja = calculate_W2DiDja(args, derivs, scale);
-
     pin(W2DiDja);
+
+    tensor<valuef, 3, 3> AMN = icY.raise(icY.raise(args.cA, 0), 1);
+    pin(AMN);
 
     valuef v1 = 0;
 
@@ -435,45 +437,9 @@ valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
         v1 += args.gB[m] * diff1(args.K, m, scale);
     }
 
-    valuef v2 = 0;
-
-    {
-        valuef sum = 0;
-
-        for(int m=0; m < 3; m++)
-        {
-            for(int n=0; n < 3; n++)
-            {
-                sum += icY[m, n] * W2DiDja[m, n];
-            }
-        }
-
-        v2 = -sum;
-    }
-
-    valuef v3 = 0;
-
-    {
-        valuef sum = 0;
-
-        tensor<valuef, 3, 3> AMN = icY.raise(icY.raise(args.cA, 0), 1);
-
-        pin(AMN);
-
-        for(int m=0; m < 3; m++)
-        {
-            for(int n=0; n < 3; n++)
-            {
-                sum += AMN[m, n] * args.cA[m, n];
-            }
-        }
-
-        v3 += args.gA * sum;
-    }
-
-    valuef v4 = (1/3.f) * args.gA * args.K * args.K;
-
-    return v1 + v2 + v3 + v4;
+    return v1 - sum_multiply(icY.to_tensor(), W2DiDja)
+              + args.gA * sum_multiply(AMN, args.cA)
+              + (1/3.f) * args.gA * args.K * args.K;
 }
 
 tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f momentum_constraint, const valuef& scale)
