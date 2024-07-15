@@ -1318,7 +1318,6 @@ ez pz
 ##### $\tilde{\Gamma}^i$
 
 ```c++
-
 tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
 {
     using namespace single_source;
@@ -1507,9 +1506,52 @@ Note that structurally for backwards euler we need a buffer for our input (yn+1)
 
 ### Kreiss-Oliger
 
-Finally afterwards we numerically dissipate away the noise via kreiss-oliger
+There are two parts to Kreiss-Oliger
+
+```c++
+valuef diff6th(const valuef& in, int idx, const valuef& scale)
+{
+    auto vars = get_differentiation_variables<7>(in, idx);
+
+    valuef p1 = vars[0] + vars[6];
+    valuef p2 = -6 * (vars[1] + vars[5]);
+    valuef p3 = 15 * (vars[2] + vars[4]);
+    valuef p4 = -20 * vars[3];
+
+    return p1 + p2 + p3 + p4;
+}
+```
+
+The 6th derivative with second order accuracy: note as mentioned previously I'm omitting the scale factor here, because its redundant
+
+```c++
+valuef kreiss_oliger_interior(valuef in, valuef scale)
+{
+    valuef val = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        val += diff6th(in, i, scale);
+    }
+
+    int n = 6;
+    float p = n - 1;
+
+    int sign = pow(-1, (p + 3)/2);
+
+    int divisor = pow(2, p+1);
+
+    float prefix = (float)sign / divisor;
+
+    return (prefix / scale) * val;
+}
+```
+
+Because of the omitted scale factor, we end up with a single division by the scale
 
 ## Results
+
+The full code for this article can be found over at todo:
 
 
 
