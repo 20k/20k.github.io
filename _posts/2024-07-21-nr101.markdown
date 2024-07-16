@@ -45,10 +45,10 @@ This article is not going to assume you know all that much about general relativ
 
 # Preamble
 
-In this article we'll be using the Einstein summation convention, as well as as assuming you know how to raise and lower indices. See [this](https://20k.github.io/c++/2024/05/31/schwarzschild.html) article for more details, but the short version is:
+In this article we'll be using the Einstein summation convention, and I'm going to assume you know how to raise and lower indices. See [this](https://20k.github.io/c++/2024/05/31/schwarzschild.html) article for more details, but the short version is:
 
 1. Repeated indices are summed, eg $v^\mu v_\mu == v^0 v_0 + v^1 v_1 + v^2 v_2 + v^3 v_3$
-2. Indices can be raised and lowered by the metric tensor, eg $v^\mu = g^{\mu\nu} v_\nu$
+2. Indices can be raised and lowered by the metric tensor, eg $v^\mu = g^{\mu\nu} v_\nu$, and $v_\mu = g_{\mu\nu} v^\nu$
 
 # The ADM (Arnowitt–Deser–Misner) formalism
 
@@ -66,13 +66,13 @@ Each 3d[^nd] slice has its own metric associated with it called $\gamma_{ij}$, w
 
 ## Details
 
-From now on, all latin indices $$_{ijk}$$ have the value 1-3, and generally denotes quantities on our 3d slice, whereas greek indices $$_{\mu\nu\kappa}$$ take on the value 0-3 and denotes quantities in our 4d spacetime
+From now on, all latin indices $$_{ijk}$$ have the value 1-3, and generally denote quantities on our 3d slice, whereas greek indices $$_{\mu\nu\kappa}$$ take on the value 0-3 and denote quantities in our 4d spacetime
 
 The general line element in ADM is this:
 
 $$ds^2 = -\alpha^2 dt^2 + \gamma_{ij} (dx^i + \beta^i dt)(dx^j + \beta^jdt)$$
 
-$\gamma_{ij}$ is used as a regular metric tensor on any quantity in our 3d slice. That is to say, if we have some quantity $Q_i$, we can raise and lower its indices with $\gamma_{ij}$ as follows
+$\gamma_{ij}$ is used as a regular metric tensor on any quantity in our 3d slice. That is to say, if we have some quantity $Q_i$ on a 3d slice, we can raise and lower its indices with $\gamma_{ij}$ as follows
 
 $$
 \begin{align}
@@ -1458,46 +1458,11 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const valu
 
             dtcG[i] = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9;
         }
-
-        //#define STABILITY_SIGMA
-        #ifdef STABILITY_SIGMA
-        tensor<valuef, 3> calculated_cG;
-
-        for(int i=0; i < 3; i++)
-        {
-            valuef sum = 0;
-
-            for(int m=0; m < 3; m++)
-            {
-                for(int n=0; n < 3; n++)
-                {
-                    sum += icY[m, n] * christoff2[i, m, n];
-                }
-            }
-
-            calculated_cG[i] = sum;
-        }
-
-        tensor<valuef, 3> Gi = args.cG - calculated_cG;
-
-        valuef dmbm = 0;
-
-        for(int m=0; m < 3; m++)
-        {
-            dmbm += diff1(args.gB[m], m, scale);
-        }
-
-        float sigma = 1.333333f;
-
-        dtcG += -sigma * Gi * dmbm;
-        #endif // STABILITY_SIGMA
     }
 
     return dtcG;
 }
 ```
-
-I've included the sigma modification here as mentioned previously, so you can use this code to solve more demanding problems if you'd like
 
 ##### $\alpha$
 
