@@ -483,6 +483,9 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
     auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
     pin(christoff2);
 
+    auto cd_low = covariant_derivative_low_vec(momentum_constraint, christoff2, scale);
+    pin(cd_low);
+
     for(int i=0; i < 3; i++)
     {
         for(int j=0; j < 3; j++)
@@ -490,8 +493,8 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
             float Ka = 0.1f;
 
             dtcA[i, j] += Ka * args.gA * 0.5f *
-                              (covariant_derivative_low_vec(momentum_constraint, christoff2, scale)[i, j]
-                             + covariant_derivative_low_vec(momentum_constraint, christoff2, scale)[j, i]);
+                              (cd_low[i, j]
+                             + cd_low[j, i]);
         }
     }
     #endif

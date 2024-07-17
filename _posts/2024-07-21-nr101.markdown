@@ -1495,8 +1495,6 @@ tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, valuef sca
 }
 ```
 
-Note that structurally for backwards euler we need a buffer for our input (yn+1), one for our output (yn + f(yn+1)), and one to hold the last value (yn)
-
 ### Kreiss-Oliger
 
 There are two parts to Kreiss-Oliger
@@ -1542,18 +1540,26 @@ valuef kreiss_oliger_interior(valuef in, valuef scale)
 
 Because of the omitted scale factor, we end up with a single division by the scale
 
+Todo: Implicit solving?
+
 ## Results
 
 The full code for this article can be found over at todo:
 
 To evaluate how well this is working, we want to check two things
 
-1. Do we preserve the wave reasonably  well?
+1. Do we preserve the wave reasonably well?
 2. Are the constraint errors bounded?
 
+<iframe width="560" height="315" src="https://www.youtube.com/embed/j5i8MsSqX9Y?si=rT_OMCH4CoWm6LcM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
+This is for a 128^3 sized simulation, a timestep of 0.001, and with video capturing software that can't handle sRGB correctly. $kA$ for the momentum constraint damping is set to $0.025$. The precision of our variables in memory is 32-bit floats, and 16-bit[^bit16] floats are used for precalculated derivatives. We can see here that the momentum constraint errors are decreasing, the hamiltonian constraint errors don't blow up horribly, and the nature of the wave we're simulating is preserved - though it does slowly dissipate. Oddly, we do way better here than we should do, according to [this](https://arxiv.org/pdf/1106.2254) paper the bssn formalism should have failed with unbounded constraint errors - but what can you do
 
+[^bit16]: This might seem a slightly surprising choice in software intended to be scientific, but amazingly enough it has 0 bearing on the evolution results. It is however easily swappable for exactly this reason, to facilitate testing - and I have extensively tested this with BBH sims. Given that the range of derivatives is inherently small in a smooth solution, fixed point might provide better results than 16-bit floats
 
+The hamiltonian constraint could be damped, but its not really worth it - and in practice makes little difference
+
+Performance here is excellent - with diagnostics (which are not at all optimised) disabled, it takes 16ms/tick, and 29ms/tick with them enabled
 
 
 

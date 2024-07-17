@@ -444,7 +444,7 @@ int main()
     cl::context& ctx = win.clctx->ctx;
     std::cout << cl::get_extensions(ctx) << std::endl;
 
-    t3i dim = {33, 33, 33};
+    t3i dim = {32, 32, 32};
 
     {
         auto make_and_register = [&](const std::string& str)
@@ -470,7 +470,11 @@ int main()
         make_and_register(enforce_algebraic_constraints());
     }
 
+    #ifdef FAST_CL
     cl::command_queue cqueue(ctx, (1<<9));
+    #else
+    cl::command_queue cqueue(ctx);
+    #endif
 
     ImFontAtlas* atlas = ImGui::GetIO().Fonts;
     atlas->FontBuilderFlags = ImGuiFreeTypeBuilderFlags_LCD | ImGuiFreeTypeBuilderFlags_FILTER_DEFAULT | ImGuiFreeTypeBuilderFlags_LoadColor;
@@ -490,8 +494,8 @@ int main()
     //m.load_from(cqueue);
 
     texture_settings tsett;
-    tsett.width = 1280;
-    tsett.height = 720;
+    tsett.width = 600;
+    tsett.height = 300;
     tsett.is_srgb = false;
     tsett.generate_mipmaps = false;
 
