@@ -24,12 +24,6 @@ using mut_v3f = tensor<mut<valuef>, 3>;
 
 v3i get_coordinate(valuei id, v3i dim);
 
-///thoughts: its a lot easier to get my hands on equations with X
-///but W^2 is clearly a better choice
-///I think there are two options:
-///1. Implement the X formalism, in terms of the W formalism
-///2. Implement the cBSSN W formalism
-///3. Put in more legwork and find a good W reference when I'm more awake
 template<typename T>
 struct bssn_args_mem : value_impl::single_source::argument_pack
 {
@@ -60,7 +54,6 @@ struct bssn_args_mem : value_impl::single_source::argument_pack
 template<typename T>
 struct bssn_derivatives_mem : value_impl::single_source::argument_pack
 {
-    ///todo: swapsies?
     std::array<std::array<T, 3>, 6> dcY;
     std::array<T, 3> dgA;
     std::array<std::array<T, 3>, 3> dgB;
