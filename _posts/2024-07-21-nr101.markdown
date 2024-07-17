@@ -560,7 +560,7 @@ $$\tilde{\gamma}_{ij}, \alpha, \beta^i, W$$
 
 ##### Second derivative performance tricks
 
-Second derivatives commute. This means that $\partial_i \partial_j == \partial_j \partial_i$. This is also true for the second covariant derivative of a scalar - though only in that circumstance for covariant derivatives. This brings up a good opportunity for performance improvements - when calculating partial derivatives, consider reordering them so that you lopsidedly differentiate on one variable
+Second derivatives commute. This means that $\partial_i \partial_j == \partial_j \partial_i$. This is also true for the second covariant derivative of a scalar - though only in that circumstance for covariant derivatives. This brings up a good opportunity for performance improvements - when calculating partial derivatives, consider reordering them so that you lopsidedly differentiate in one direction
 
 That is to say, consider implementing: $\partial_{min(i, j)} \partial_{max(i, j)}$ as a general second order differentiation system. This is good for cache (repeatedly accessing the same memory), increasing the amount of eliminateable duplicate code, and ensuring that we maximise the amount we differentiate in the $_0$th direction, which is the fastest due to memory layout
 
@@ -1555,16 +1555,11 @@ To evaluate how well this is working, we want to check two things
 
 This is for a 128^3 sized simulation, a timestep of 0.001, and with video capturing software that can't handle sRGB correctly. $kA$ for the momentum constraint damping is set to $0.025$. The precision of our variables in memory is 32-bit floats, and 16-bit[^bit16] floats are used for precalculated derivatives. We can see here that the momentum constraint errors are decreasing, the hamiltonian constraint errors don't blow up horribly, and the nature of the wave we're simulating is preserved - though it does slowly dissipate. Oddly, we do way better here than we should do, according to [this](https://arxiv.org/pdf/1106.2254) paper the bssn formalism should have failed with unbounded constraint errors - but what can you do
 
-[^bit16]: This might seem a slightly surprising choice in software intended to be scientific, but amazingly enough it has 0 bearing on the evolution results. It is however easily swappable for exactly this reason, to facilitate testing - and I have extensively tested this with BBH sims. Given that the range of derivatives is inherently small in a smooth solution, fixed point might provide better results than 16-bit floats
+[^bit16]: This might seem a slightly surprising choice in software intended to be scientific, but amazingly enough it has very little bearing on the evolution results. It is however easily swappable for exactly this reason, to facilitate testing - and I have extensively tested this with BBH sims. Given that the range of derivatives is inherently small in a smooth solution, fixed point might provide better results than 16-bit floats. The main advantage of 16-bit floats is the reduced memory usage, which will enable us to simulate higher resolution spacetimes in the future
 
 The hamiltonian constraint could be damped, but its not really worth it - and in practice makes little difference
 
-Performance here is excellent - with diagnostics (which are not at all optimised) disabled, it takes 16ms/tick, and 29ms/tick with them enabled
-
-
-
-
-
+Performance here is excellent - with diagnostics (which are not at all optimised) disabled, it takes 16ms/tick (on a 6700xt), and 29ms/tick with them enabled. This is about the same as what I get in the other version of this software - which I extensively tuned for performance - though I've copied and outlined a lot of the optimisations it takes to get here
 
 
 
