@@ -489,7 +489,7 @@ The issue with an implicit integrator is: How do we actually solve this equation
 
 For our purposes, we'll iterate the sequence:
 
-$$y_{n+1, k+1} = y_n + dt f(y_{k,n+1})$$
+$$y_{k+1, n+1} = y_n + dt f(y_{k,n+1})$$
 
 Over our iteration variable $k$. To initialise the fixed point iteration, $y_{0, n+1} = y_{n}$. This makes the first step/guess regular euler
 
