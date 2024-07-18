@@ -1538,7 +1538,11 @@ valuef kreiss_oliger_interior(valuef in, valuef scale)
 }
 ```
 
-Because of the omitted scale factor, we end up with a single division by the scale
+Because of the omitted scale factor, we end up with a single division by the scale. After this, simply accumulate into your buffer, and multiply by the timestep and the strength:
+
+```c++
+as_ref(inout[lid]) = in[lid] + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get());
+```
 
 Todo: Implicit solving?
 
@@ -1553,14 +1557,17 @@ To evaluate how well this is working, we want to check two things
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/j5i8MsSqX9Y?si=rT_OMCH4CoWm6LcM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-This is for a 128^3 sized simulation, a timestep of 0.001, and with video capturing software that can't handle sRGB correctly. $kA$ for the momentum constraint damping is set to $0.025$. The precision of our variables in memory is 32-bit floats, and 16-bit[^bit16] floats are used for precalculated derivatives. We can see here that the momentum constraint errors are decreasing, the hamiltonian constraint errors don't blow up horribly, and the nature of the wave we're simulating is preserved - though it does slowly dissipate. Oddly, we do way better here than we should do, according to [this](https://arxiv.org/pdf/1106.2254) paper the bssn formalism should have failed with unbounded constraint errors - but what can you do
+This is for a 128^3 sized simulation, a timestep of 0.001, and with video capturing software that can't handle sRGB correctly. $kA$ for the momentum constraint damping is set to $0.025$. The precision of our variables in memory is 32-bit floats, and 16-bit[^bit16] floats are used for precalculated derivatives. We can see here that the momentum constraint errors are decreasing, the hamiltonian constraint errors don't blow up horribly, and the nature of the wave we're simulating is preserved - though it does slowly dissipate. Oddly, we do way better here than we should do, according to [this](https://arxiv.org/pdf/1106.2254) paper the bssn formalism should have failed with unbounded constraint errors - but I won't complain too much about things going well
 
 [^bit16]: This might seem a slightly surprising choice in software intended to be scientific, but amazingly enough it has very little bearing on the evolution results. It is however easily swappable for exactly this reason, to facilitate testing - and I have extensively tested this with BBH sims. Given that the range of derivatives is inherently small in a smooth solution, fixed point might provide better results than 16-bit floats. The main advantage of 16-bit floats is the reduced memory usage, which will enable us to simulate higher resolution spacetimes in the future
 
-The hamiltonian constraint could be damped, but its not really worth it - and in practice makes little difference
+Performance here is excellent - with diagnostics (which are not at all optimised) disabled, it takes 16ms/tick (on a 6700xt), and 29ms/tick with them enabled. This is about the same as what I get in the other version of this software - though I've copied and outlined a lot of the optimisations it takes to get here
 
-Performance here is excellent - with diagnostics (which are not at all optimised) disabled, it takes 16ms/tick (on a 6700xt), and 29ms/tick with them enabled. This is about the same as what I get in the other version of this software - which I extensively tuned for performance - though I've copied and outlined a lot of the optimisations it takes to get here
+All in all: Great success
 
+# Next time
+
+This article is fairly dry with unexciting results - for good reason. If we tried to cram black hole collisions in here, it'd be even longer, as we have to deal with more complex initial conditions. Luckily, future articles should be a *lot* simpler than this one - we've gotten the bulk of the technical work out of the way, which leaves us free to implement cool stuff
 
 
 

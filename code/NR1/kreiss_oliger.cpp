@@ -43,7 +43,7 @@ std::string make_kreiss_oliger()
 
         v3i pos = get_coordinate(lid, dim);
 
-        as_ref(inout[lid]) = declare_e(in[lid]) + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get());
+        as_ref(inout[lid]) = in[lid] + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get());
      };
 
      return value_impl::make_function(func, "kreiss_oliger");
