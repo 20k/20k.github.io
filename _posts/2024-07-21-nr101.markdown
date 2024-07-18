@@ -33,6 +33,8 @@ hmm, i'm not convinced that mixing code in is a good idea. I am tired but really
 
 There are quite a few tangents in here: sections which contain sidebars about eg the conformal variables: do i stick this in discussion segments at the end?
 
+Todo: Provide a reference/paper section
+
 Hi there! Today we're going to be getting into numerical relativity, which is the art of simulating the evolution of spacetime itself. While there a quite a few known solutions to the equations of general relativity at this point (eg the Schwarzschild metric), many of the most interesting regions of general relativity can only be explored by exploring how spacetime itself evolves dynamically through simulations. Binary black hole collisions are a perfect example of this, and are a big part of the reason why we're building this
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/CSpo2S9IVjY?si=3N_d-7cRyzeqi1fS" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
@@ -96,7 +98,7 @@ If our 4-metric is $g_{\mu\nu}$, then our 3-metric is $\gamma_{ij} = g_{ij}$, ie
 
 ## Equations of motion
 
-The ADM formalism has equations of motion associated with it by - defining the evolution of the metric, and extrinsic curvture. This can be done by defining a Lagrangian, and then sorting out the resulting mismash of equations. Once that's all done, the ADM equations of motion can be brought into the following form[^reffyadm]:
+The ADM formalism has equations of motion associated with it by - defining the evolution of the metric and extrinsic curvture in time. These can be derived by defining a Lagrangian, and then sorting out the resulting mismash of equations. Once that's all done, the ADM equations of motion can be brought into the following form[^reffyadm]:
 
 [^reffyadm]: [https://arxiv.org/pdf/gr-qc/0604035](https://arxiv.org/pdf/gr-qc/0604035) (5). There are other forms of these equations, but these are the most common form in numerical relativity
 
@@ -106,7 +108,7 @@ $$\begin{align}
 \end{align}
 $$
 
-Where $\mathcal{L}_\beta$ is a lie derivative, and $D_i$ is the covariant derivative associated with $$\gamma_{ij}$$. We must also provide adequate gauge conditions (evolution equations for the gauge variables), and then in theory we have a fully working formalism for evolving a slice of spacetime into the future
+Where $\mathcal{L}_\beta$ is a [lie derivative](https://en.wikipedia.org/wiki/Lie_derivative), and $D_i$ is the [covariant derivative](https://en.wikipedia.org/wiki/Covariant_derivative) associated with $$\gamma_{ij}$$. We must also provide adequate gauge conditions (evolution equations for the gauge variables), and then in theory we have a fully working formalism for evolving a slice of spacetime into the future
 
 Unfortunately, there's a small problem
 
@@ -221,7 +223,7 @@ $$\begin{align}
 \end{align}
 $$
 
-Where $$\tilde{\gamma}$$ is the determinant of the metric
+Where $$\tilde{\gamma}$$ is the determinant of the metric. These constraints mean that the determinant of the metric should be $1$, and the trace of $$\tilde{A}_{ij}$$ should be 0
 
 ### Christoffel symbol
 
@@ -233,7 +235,9 @@ Ensuring that the constraints don't blow up numerically is key to making the BSS
 
 ## Equations of motion
 
-I'm going to present to you the canonical form of the BSSN equations, and then discuss how you might want to rearrange them a bit in practice afterwards
+I'm going to present to you the[^canonical] canonical form of the BSSN equations, and then discuss how you might want to rearrange them a bit in practice afterwards
+
+[^canonical]: There's no real single form of the BSSN equations. I've copied these from slide [37](https://indico.cern.ch/event/505595/contributions/1183661/attachments/1332828/2003830/sperhake.pdf), and taken the expression for the curvature tensor from [here](https://arxiv.org/pdf/1106.2254) (12). Because the slides use a different conformal decomposition, I've performed the substitution manually, as the $W^2$ formalism *tends* to be used in newer non bssn formalisms. There may be a better reference for $W^2$, but I don't have one off-hand as this is the first time I've implemented $W^2$ entirely from scratch as the root conformal variable, rather than ad-hoc'ing it into an existing $\chi$ formalism
 
 $$
 \begin{align}
@@ -933,19 +937,15 @@ $$\mathcal{M_i} = \partial_j \tilde{A}_i^j - \frac{1}{2} \tilde{\gamma}^{jk} \ti
 ```c++
 tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const valuef& scale)
 {
-    valuef X = args.W*args.W;
-
     tensor<valuef, 3> dW;
 
     for(int i=0; i < 3; i++)
         dW[i] = diff1(args.W, i, scale);
 
-    tensor<valuef, 3> dX = 2 * args.W * dW;
-
     ///https://arxiv.org/pdf/1205.5111v1.pdf (54)
     tensor<valuef, 3, 3> aij_raised = raise_index(args.cA, args.cY.invert(), 1);
 
-    tensor<valuef, 3> dPhi = -dX / (4 * max(X, valuef(0.0001f)));
+    tensor<valuef, 3> dPhi = -2 * dW / (4 * max(args.W, valuef(0.0001f)));
 
     tensor<valuef, 3> Mi;
 
@@ -982,6 +982,7 @@ tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const valuef& s
 
     return Mi;
 }
+
 ```
 
 This is stored in a buffer, and will be used to damp the evolution equations

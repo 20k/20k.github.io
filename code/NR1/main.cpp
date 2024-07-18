@@ -559,8 +559,6 @@ int main()
 
         rtex.unacquire(cqueue);
 
-        cqueue.block();
-
         ImGui::GetBackgroundDrawList()->AddImage((void*)tex.handle, ImVec2(0,0), ImVec2(1280,720));
 
         win.display();

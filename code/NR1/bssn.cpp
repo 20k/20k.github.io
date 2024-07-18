@@ -22,19 +22,15 @@ v3i get_coordinate(valuei id, v3i dim)
 
 tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const valuef& scale)
 {
-    valuef X = args.W*args.W;
-
     tensor<valuef, 3> dW;
 
     for(int i=0; i < 3; i++)
         dW[i] = diff1(args.W, i, scale);
 
-    tensor<valuef, 3> dX = 2 * args.W * dW;
-
     ///https://arxiv.org/pdf/1205.5111v1.pdf (54)
     tensor<valuef, 3, 3> aij_raised = raise_index(args.cA, args.cY.invert(), 1);
 
-    tensor<valuef, 3> dPhi = -dX / (4 * max(X, valuef(0.0001f)));
+    tensor<valuef, 3> dPhi = -2 * dW / (4 * max(args.W, valuef(0.0001f)));
 
     tensor<valuef, 3> Mi;
 
