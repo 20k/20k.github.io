@@ -25,7 +25,7 @@ Ok planola time:
 6. Talk through the high level flow
 7. Initial conditions: waves
 8. Boundary conditions: periodic
-9. Evolution equations: Bssn, momentum constraint damping, algebraic constraints, kreiss-oliger dissipation
+9. Evolution equations: Bssn, momentum constraint damping, algebraic constraints, Kreiss-Oliger dissipation
 10. Gauge condition evolution
 11. Some kind of diagnostic (semi analytic tests?)
 
@@ -49,16 +49,27 @@ In this article we'll be using the Einstein summation convention, and I'm going 
 
 1. Repeated indices are summed, eg $v^\mu v_\mu == v^0 v_0 + v^1 v_1 + v^2 v_2 + v^3 v_3$
 2. Indices can be raised and lowered by the metric tensor, eg $v^\mu = g^{\mu\nu} v_\nu$, and $v_\mu = g_{\mu\nu} v^\nu$
+3. The inverse of the metric $g_{\mu\nu}$ - that is $g^{\mu\nu}$ - is calculated via a matrix inverse, ie $g^{\mu\nu} = (g_{\mu\nu})^{-1}$
 
 # The ADM (Arnowitt–Deser–Misner) formalism
 
-The [Einstein field equations](https://en.wikipedia.org/wiki/Einstein_field_equations#Mathematical_form)[^fieldequations] (EFE's) are what defines the structure of spacetime. In general, people have come up with many analytic solutions to these (with a great deal of effort), including Schwarzschild, Kerr, and a variety of others. As-is they aren't especially useful for simulating spacetime itself however - the basic problem is that they are declarative, and so don't give you a set of equations that you can evolve forwards in time
+The [Einstein field equations](https://en.wikipedia.org/wiki/Einstein_field_equations#Mathematical_form)[^fieldequations] (EFE's) are what defines the structure of spacetime. In general, people have come up with many analytic solutions to these (with a great deal of effort), including Schwarzschild, Kerr, and a variety of others
+
+![schwarzs](/assets/schwarzs.png)
+
+As-is, the Einstein field equations aren't especially useful for *simulating* spacetime, as they are declarative, and simply describe how a full 4d spacetime should look. In the past, we've taken a known, fixed spacetime like Schwarzschild, and fired rays around it to find out what it looks like - but what if we don't already know the future and past of our spacetime - because we aren't time travelling wizards?
 
 [^fieldequations]: When I was younger, I thought that these were equations that you deployed in an emergency. You know, *in the field*
 
-The ADM formalism is the most widespread approach for handling this. It consists of slicing a 4d spacetime explicitly into a series (foliation) of 3d spacelike slices, and separates out a timelike dimension. It is often referred to as a "3+1" formalism as a result. The direction of forwards in time in the ADM formalism is defined by two variables - called gauge variables. These are $\alpha$, and $\beta^i$[^lapseshift] (a 3-vector). These represent a degree of freedom, and are arbitrary (in theory)
+The ADM formalism is the most widespread approach for handling this. It consists of slicing a 4d spacetime explicitly into a series (foliation) of 3d spacelike slices, and separates out a timelike dimension. It is often referred to as a "3+1" formalism as a result. You can imagine this like a series of stacked sheets that you can traverse
 
-Each 3d[^nd] slice has its own metric associated with it called $\gamma_{ij}$, which operates as a metric tensor on any quantities associated with that slice. We also have a variable $K_{ij}$ known as the extrinsic curvature, which represents the embedding of the slice into the larger 4d spacetime. It is directly related to the evolution of $\gamma_{ij}$ in time, and can be thought of as a momentum term
+![foliation](/assets/pathy.png)
+
+The direction of forwards in time in the ADM formalism is defined by two variables - called gauge variables. These are $\alpha$ (the lapse), and $\beta^i$[^lapseshift] (a 3-vector, called the shift). These represent a degree of freedom, and are arbitrary (in theory)
+
+Each 3d[^nd] slice has its own metric tensor associated with it called $\gamma_{ij}$ - which works as you'd expect[^expecto] - and is derived from our 4d metric $g_{\mu\nu}$. We also have a variable $K_{ij}$ known as the extrinsic curvature, which represents the embedding of the slice into the larger 4d spacetime. It is directly related to the evolution of $\gamma_{ij}$ in time, and can be thought of as a momentum term
+
+[^expecto]: If you're coming into this with no knowledge of GR, a metric tensor is used to measure distances, and angles, and defines the warping of a manifold. $\gamma_{ij}$ is used on this 3d space, whereas a 4-metric called $g_{\mu\nu}$ is used on a 4d spacetime
 
 [^nd]: Everything here is also applicable to N dimensional spacetimes, but I know very little about anything other than 4d general relativity
 
@@ -72,7 +83,7 @@ The general line element in ADM is this:
 
 $$ds^2 = -\alpha^2 dt^2 + \gamma_{ij} (dx^i + \beta^i dt)(dx^j + \beta^jdt)$$
 
-$\gamma_{ij}$ is used as a regular metric tensor on any quantity in our 3d slice. That is to say, if we have some quantity $Q_i$ on a 3d slice, we can raise and lower its indices with $\gamma_{ij}$ as follows
+$\gamma_{ij}$ can be used to raise and lower indices on a 3d slice as per usual. Eg, given a tensor $Q_i$
 
 $$
 \begin{align}
@@ -85,7 +96,7 @@ If our 4-metric is $g_{\mu\nu}$, then our 3-metric is $\gamma_{ij} = g_{ij}$, ie
 
 ## Equations of motion
 
-Once everything is said and done, the ADM equations of motion can be brought into the following form[^reffyadm]:
+The ADM formalism can give you equations of motion, by defining a Lagrangian, doing a bunch of maths on it, and then hoping you don't go totally mad. Once that's all done, the ADM equations of motion can be brought into the following form[^reffyadm]:
 
 [^reffyadm]: [https://arxiv.org/pdf/gr-qc/0604035](https://arxiv.org/pdf/gr-qc/0604035) 5
 
@@ -120,7 +131,7 @@ There are 4 main ingredients to get the BSSN equations from the ADM equations:
 
 [^conformalchristoffel]: $\tilde{\Gamma}^i_{jk}$ are the conformal christoffel symbols of the second kind, calculated in the usual fashion from $\tilde{\gamma_{ij}}$. $\Gamma^i_{jk}$ are the christoffel symbols associated with $\gamma_{ij}$
 
-With all this applied, we end up with the BSSN formalism. We'll go through some of the relevant elements of this now:
+With all this applied, we end up with the BSSN formalism. We'll go through some of the relevant elements of this now
 
 ## Conformal decomposition
 
@@ -188,7 +199,7 @@ Conformal variables have a tilde over them, and have their indices are raised an
 
 $$\tilde{\Gamma}^i$$ is analytically equal to $$\tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$$, but is evolved numerically instead. This is because $$\partial_k \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$$ is numerically unstable TODO: CITE
 
-There are also a number of constraints that must be satisfied for the BSSN formalism to be well posed. The momentum and hamiltonian constraints come from this being derived from a lagragrian approach, and the others are specific to the BSSN formalism
+There are also a number of constraints that must be satisfied for the BSSN formalism to be well posed. The momentum and hamiltonian constraints come from this being derived from a Lagrangian approach, and the others are specific to the BSSN formalism
 
 ## Constraints
 
@@ -209,6 +220,8 @@ $$\begin{align}
 \mathcal{A} &= \tilde{\gamma}^{mn} \tilde{A}_{mn} &= 0
 \end{align}
 $$
+
+Where $$\tilde{\gamma}$$ is the determinant of the metric
 
 ### Christoffel symbol
 
@@ -568,7 +581,7 @@ Eg, if we precalculate the first derivative $\partial_i \alpha$, calculating $\p
 
 [^perfnotes]: This performance increase is difficult to interpret. In this test case, we use slightly more vGPRs (vector general purpose registers, what you might think of as a traditional cpu register), but significantly reduce our code instruction footprint from 35KB (over the icache size of 32KB), to below our maximum cache size (AMD don't report it annoyingly). This reduces icache stalls, and appears to be very related to the performance increase. Its a big win, as there's 0% chance of us hitting a better vGPR budget[^budget] (as we're in the low 200s)
 
-[^budget]: If you're unfamiliar, the number of threads we can execute on a GPU simultaneously is limited by the number of registers we use, and is known as occupancy (high occupancy = more threads executing). Traditional reasoning is that high occupancy = good as it hides memory latency, although low occupancy can have
+[^budget]: If you're unfamiliar, the number of threads we can execute on a GPU simultaneously is limited by the number of registers we use, and is known as occupancy (high occupancy = more threads executing). Traditional reasoning is that high occupancy = good as it hides memory latency, although low occupancy can have have performance benefits in some circumstances. GPUs are a pain
 
 ### Integrating the PDEs
 
@@ -579,7 +592,7 @@ Each timestep is broken up into a fixed number of substeps, as we solve the impl
 3. Calculate the momentum constraint
 4. Evolve our equations to calculate yn + f(yn+1), the result of the substep
 
-After we've performed a fixed number of iterations, I apply kreiss-oliger dissipation to remove numerical noise
+After we've performed a fixed number of iterations, I apply Kreiss-Oliger dissipation to remove numerical noise
 
 ## Implementation
 
@@ -1536,7 +1549,7 @@ tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, valuef sca
 }
 ```
 
-### Kreiss-Oliger
+### Kreiss-Oliger dissipation
 
 $$\partial_t U = \partial_t U + \epsilon \frac{h^5}{64} (\frac{\partial^6}{\partial x^6} + \frac{\partial^6}{\partial y^6} + \frac{\partial^6}{\partial z^6})U$$
 
@@ -1606,7 +1619,7 @@ This is for a 128^3 sized simulation, a timestep of 0.001, and with video captur
 
 [^bit16]: This might seem a slightly surprising choice in software intended to be scientific, but amazingly enough it has very little bearing on the evolution results. It is however easily swappable for exactly this reason, to facilitate testing - and I have extensively tested this with BBH sims. Given that the range of derivatives is inherently small in a smooth solution, fixed point might provide better results than 16-bit floats. The main advantage of 16-bit floats is the reduced memory usage, which will enable us to simulate higher resolution spacetimes in the future. In general, the appropriate storage format for these problems is an interesting question, as floating point wastes a huge amount of precision when we have variables with a known range
 
-Performance here is excellent - with diagnostics (which are not at all optimised) disabled, it takes 16ms/tick (on a 6700xt), and 29ms/tick with them enabled. This is about the same as what I get in the other version of this software - though I've copied and outlined a lot of the optimisations it takes to get here
+Performance here is excellent - with diagnostics (which are not at all optimised) disabled, it takes 16ms/tick (on a 6700xt), and 29ms/tick with them enabled. This is very competitive with a different simulator I wrote for binary black hole collisions, so we're in a good spot for the future
 
 All in all: Great success
 
