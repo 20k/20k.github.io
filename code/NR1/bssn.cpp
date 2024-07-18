@@ -30,7 +30,7 @@ tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const valuef& s
     ///https://arxiv.org/pdf/1205.5111v1.pdf (54)
     tensor<valuef, 3, 3> aij_raised = raise_index(args.cA, args.cY.invert(), 1);
 
-    tensor<valuef, 3> dPhi = -2 * dW / (4 * max(args.W, valuef(0.0001f)));
+    tensor<valuef, 3> dPhi = -dW / (2 * max(args.W, valuef(0.0001f)));
 
     tensor<valuef, 3> Mi;
 
