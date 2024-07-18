@@ -979,6 +979,9 @@ This is stored in a buffer, and will be used to damp the evolution equations
 
 ##### $\tilde{\gamma}_{ij}$
 
+$$\partial_t \tilde{\gamma}_{ij} = \beta^m \partial_m \tilde{\gamma}_{ij}+ 2 \tilde{\gamma}_{m(i} \partial_{j)} \beta^m - \frac{2}{3} \tilde{\gamma}_{ij} \partial_m \beta^m - 2 \alpha \tilde{A}_{ij}$$
+
+
 ```c++
 tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, valuef scale)
 {
@@ -1026,6 +1029,12 @@ tensor<T, N, N> lie_derivative_weight(const tensor<T, N>& B, const tensor<T, N, 
 ```
 
 ##### $\tilde{A}_{ij}$
+
+$$
+\begin{align}
+\partial_t \tilde{A}_{ij} &= \beta^m \partial_m \tilde{A}_{ij}+ 2 \tilde{A}_{m(i} \partial_{j)} \beta^m - \frac{2}{3} \tilde{A}_{ij} \partial_m \beta^m + \alpha K \tilde{A}_{ij} \\&- 2 \alpha \tilde{A}_{im} \tilde{A}^m_{\;\;j} + W^2 (\alpha \mathcal{R}_{ij} - D_i D_j \alpha)^{TF} \\&+ k_3 \alpha \tilde{D}_{(i} \mathcal{M}_{j)}
+\end{align}
+$$
 
 ```c++
 tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f momentum_constraint, const valuef& scale)
@@ -1089,10 +1098,12 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
 So, there's several parts here which are slightly different to the equations as written
 
 1. I've moved the $W^2$ term inside the trace free operation
-2. We're calculating $W^2 D_i D_j \alpha$
-3. We're calculating $W^2 \mathcal{R}_{ij}$
+2. $W^2 D_i D_j \alpha$ is calculated, instead of $D_i D_j \alpha$
+3. $$W^2 \mathcal{R}_{ij}$$ is calculated instead of $$\mathcal{R}_{ij}$$
 
-Here's the definitions for these:
+###### $$W^2 D_iD_j\alpha$$
+
+$$W^2 D_iD_j\alpha = W^2 \tilde{D}_i \tilde{D}_j \alpha + 1W \partial_{(i} W \partial_{j)} \alpha\ - W \tilde{\gamma}_{ij} \tilde{\gamma}^{mn} \partial_m W \partial_n \alpha$$
 
 ```c++
 tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
@@ -1136,10 +1147,15 @@ tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs
 }
 ```
 
-And the curvature tensor:
+###### $$\tilde{\mathcal{R}}_{ij}$$
+
+The curvature tensor:
+
+$$
+\tilde{\mathcal{R}}_{ij} = -\frac{1}{2} \tilde{\gamma}^{mn} \partial_m \partial_n \tilde{\gamma}_{ij} + \tilde{\gamma}_{m(i} \partial _{j)} \tilde{\Gamma}^m + \tilde{\Gamma}^m \tilde{\Gamma}_{(ij)m}+ \tilde{\gamma}^{mn} (2 \tilde{\Gamma}^k_{m(i} \tilde{\Gamma}_{j)kn} + \tilde{\Gamma}^k_{im} \tilde{\Gamma}_{kjn})
+$$
 
 ```c++
-
 tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
 {
     using namespace single_source;
@@ -1214,7 +1230,18 @@ tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, bssn_derivatives& derivs, c
 
     return cRij;
 }
+```
 
+###### $$W^2 \mathcal{R}_{ij}$$
+
+$$
+\begin{align}
+W^2 \mathcal{R}^W_{ij} &= W (\tilde{D}_i \tilde{D}_j W + \tilde{\gamma}_{ij} \tilde{D}^m \tilde{D}_m W) - 2 \tilde{\gamma}_{ij} \partial^m W \partial_m W \\
+W^2 \mathcal{R}_{ij} &= W^2 \tilde{\mathcal{R}}_{ij} + W^2 \mathcal{R}^W_{ij}
+\end{align}
+$$
+
+```c++
 ///https://arxiv.org/pdf/1307.7391 (9)
 ///https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf 2.6
 ///this calculates the quantity W^2 * Rij
@@ -1287,7 +1314,11 @@ tensor<valuef, 3, 3> calculate_W2Rij(bssn_args& args, bssn_derivatives& derivs, 
 deep joy, but this is the most complex variable to implement
 
 ##### $K$
-This is a simple one
+
+This is a simple one:
+
+$$\partial_t K = \beta^m \partial_m K - W^2 \tilde{\gamma}^{mn} D_m D_n \alpha + \alpha \tilde{A}^{mn} \tilde{A}_{mn} + \frac{1}{3} \alpha K^2
+$$
 
 ```c++
 valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
@@ -1318,6 +1349,8 @@ valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
 
 ##### $W$
 
+$$\partial_t W = \beta^m \partial_m W + \frac{1}{3} W (\alpha K - \partial_m \beta^m) $$
+
 ```c++
 ///https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf 2.12 or
 ///https://arxiv.org/pdf/0709.2160
@@ -1344,6 +1377,11 @@ valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
 ez pz
 
 ##### $\tilde{\Gamma}^i$
+
+This one translates least well into code, as it doesn't really boil down into abstractions that we could really implement. So its just a pure loopy approach
+
+$$\partial_t \tilde{\Gamma}^i = \beta^m \partial_m \tilde{\Gamma}^i + \frac{2}{3} \tilde{\Gamma}^i \partial_m \beta^m - \tilde{\Gamma}^m \partial_m \beta^i + \tilde{\gamma}^{mn} \partial_m \partial_n \beta^i + \frac{1}{3} \tilde{\gamma}^{im} \partial_m \partial_n \beta^n
+$$
 
 ```c++
 tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
@@ -1440,7 +1478,6 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const valu
             {
                 for(int k=0; k < 3; k++)
                 {
-                    //??
                     s8 += icY[i, j] * diff2(args.gB[k], k, j, derivs.dgB[k, k], derivs.dgB[j, k], scale);
                 }
             }
@@ -1468,6 +1505,8 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const valu
 
 The harmonic gauge condition:
 
+$$\partial_t \alpha = - 2 \alpha^2 K + \beta^m \partial_m \alpha$$
+
 ```c++
 valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, valuef scale)
 {
@@ -1488,6 +1527,8 @@ Note that bmdma is always 0, because we use a 0 shift gauge
 
 Unsurprisingly: This is not complicated
 
+$$\beta^i = 0$$
+
 ```c++
 tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, valuef scale)
 {
@@ -1496,6 +1537,8 @@ tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, valuef sca
 ```
 
 ### Kreiss-Oliger
+
+$$\partial_t U = \partial_t U + \epsilon \frac{h^5}{64} (\frac{\partial^6}{\partial x^6} + \frac{\partial^6}{\partial y^6} + \frac{\partial^6}{\partial z^6})U$$
 
 There are two parts to Kreiss-Oliger
 
@@ -1557,9 +1600,11 @@ To evaluate how well this is working, we want to check two things
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/j5i8MsSqX9Y?si=rT_OMCH4CoWm6LcM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-This is for a 128^3 sized simulation, a timestep of 0.001, and with video capturing software that can't handle sRGB correctly. $kA$ for the momentum constraint damping is set to $0.025$. The precision of our variables in memory is 32-bit floats, and 16-bit[^bit16] floats are used for precalculated derivatives. We can see here that the momentum constraint errors are decreasing, the hamiltonian constraint errors don't blow up horribly, and the nature of the wave we're simulating is preserved - though it does slowly dissipate. Oddly, we do way better here than we should do, according to [this](https://arxiv.org/pdf/1106.2254) paper the bssn formalism should have failed with unbounded constraint errors - but I won't complain too much about things going well
+This is for a 128^3 sized simulation, a timestep of 0.001, and with video capturing software that can't handle sRGB correctly. $k_3$ for the momentum constraint damping is set to $0.025$. The precision of our variables in memory is 32-bit floats, and 16-bit[^bit16] floats are used for precalculated derivatives. We can see here that the momentum constraint errors are decreasing, the hamiltonian constraint errors don't blow up horribly, and the nature of the wave we're simulating is preserved - though it does slowly dissipate. Oddly, we do way better here than we should do, according to [this](https://arxiv.org/pdf/1106.2254) paper the bssn formalism should have failed with unbounded constraint errors - but I won't complain too much about things going well
 
-[^bit16]: This might seem a slightly surprising choice in software intended to be scientific, but amazingly enough it has very little bearing on the evolution results. It is however easily swappable for exactly this reason, to facilitate testing - and I have extensively tested this with BBH sims. Given that the range of derivatives is inherently small in a smooth solution, fixed point might provide better results than 16-bit floats. The main advantage of 16-bit floats is the reduced memory usage, which will enable us to simulate higher resolution spacetimes in the future
+![constraints](/assets/constraintsfinally.png)
+
+[^bit16]: This might seem a slightly surprising choice in software intended to be scientific, but amazingly enough it has very little bearing on the evolution results. It is however easily swappable for exactly this reason, to facilitate testing - and I have extensively tested this with BBH sims. Given that the range of derivatives is inherently small in a smooth solution, fixed point might provide better results than 16-bit floats. The main advantage of 16-bit floats is the reduced memory usage, which will enable us to simulate higher resolution spacetimes in the future. In general, the appropriate storage format for these problems is an interesting question, as floating point wastes a huge amount of precision when we have variables with a known range
 
 Performance here is excellent - with diagnostics (which are not at all optimised) disabled, it takes 16ms/tick (on a 6700xt), and 29ms/tick with them enabled. This is about the same as what I get in the other version of this software - though I've copied and outlined a lot of the optimisations it takes to get here
 
@@ -1567,10 +1612,9 @@ All in all: Great success
 
 # Next time
 
-This article is fairly dry with unexciting results - for good reason. If we tried to cram black hole collisions in here, it'd be even longer, as we have to deal with more complex initial conditions. Luckily, future articles should be a *lot* simpler than this one - we've gotten the bulk of the technical work out of the way, which leaves us free to implement cool stuff
+This article is fairly dry with unexciting results - for good reason. If we tried to cram black hole collisions in here, it'd be even longer and I suspect no amount of cat pictures would save us from the sheer length of this piece. Luckily, future articles should be a *lot* simpler than this one - we've gotten the bulk of the technical work out of the way, which leaves us free to implement cool stuff
 
-
-
+If you have any questions about this, or you get lost - please feel free to contact me. This is one of those areas that's brutally difficult to get into as there are no guides, and I'm very happy to help people implement stuff
 
 
 
