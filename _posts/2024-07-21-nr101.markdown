@@ -1605,7 +1605,7 @@ Todo: Implicit solving?
 
 ## Results
 
-The full code for this article can be found over at todo:
+The full code for this article can be found over [here](https://github.com/20k/20k.github.io/tree/master/code/NR1)
 
 To evaluate how well this is working, we want to check two things
 
