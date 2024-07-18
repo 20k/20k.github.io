@@ -96,9 +96,9 @@ If our 4-metric is $g_{\mu\nu}$, then our 3-metric is $\gamma_{ij} = g_{ij}$, ie
 
 ## Equations of motion
 
-The ADM formalism can give you equations of motion, by defining a Lagrangian, doing a bunch of maths on it, and then hoping you don't go totally mad. Once that's all done, the ADM equations of motion can be brought into the following form[^reffyadm]:
+The ADM formalism has equations of motion associated with it by - defining the evolution of the metric, and extrinsic curvture. This can be done by defining a Lagrangian, and then sorting out the resulting mismash of equations. Once that's all done, the ADM equations of motion can be brought into the following form[^reffyadm]:
 
-[^reffyadm]: [https://arxiv.org/pdf/gr-qc/0604035](https://arxiv.org/pdf/gr-qc/0604035) 5
+[^reffyadm]: [https://arxiv.org/pdf/gr-qc/0604035](https://arxiv.org/pdf/gr-qc/0604035) (5). There are other forms of these equations, but these are the most common form in numerical relativity
 
 $$\begin{align}
 \partial_t \gamma_{ij} &= \mathcal{L}_\beta \gamma_{ij} - 2 \alpha K_{ij}\\
