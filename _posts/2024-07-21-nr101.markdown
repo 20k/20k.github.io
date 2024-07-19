@@ -602,6 +602,8 @@ After we've performed a fixed number of iterations, I apply Kreiss-Oliger dissip
 
 We now have all of the theory out of the way, phew. Its time to get into the code
 
+Todo: I've made the executive decision that there's too much code. Delete at minimum the evolution equations
+
 ### Initial conditions
 
 The code for the initial conditions can be found at todo:s
