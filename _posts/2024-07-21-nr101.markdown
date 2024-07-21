@@ -35,7 +35,7 @@ There are quite a few tangents in here: sections which contain sidebars about eg
 
 Todo: Provide a reference/paper section
 
-Hi there! Today we're going to be getting into numerical relativity, which is the art of simulating the evolution of spacetime itself. While there a quite a few known solutions to the equations of general relativity at this point (eg the Schwarzschild metric), many of the most interesting regions of general relativity can only be explored by exploring how spacetime itself evolves dynamically through simulations. Binary black hole collisions are a perfect example of this, and are a big part of the reason why we're building this
+Hi there! Today we're going to be getting into numerical relativity, which is the art of simulating the evolution of spacetime itself. While there a quite a few known solutions to the equations of general relativity at this point (eg the Schwarzschild metric), many of the most interesting regions of general relativity can only be explored by directly simulating how spacetime itself evolves dynamically. Binary black hole collisions are a perfect example of this, and are a big part of the reason why we're building this
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/CSpo2S9IVjY?si=3N_d-7cRyzeqi1fS" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
@@ -53,13 +53,15 @@ In this article we'll be using the Einstein summation convention, and I'm going 
 2. Indices can be raised and lowered by the metric tensor, eg $v^\mu = g^{\mu\nu} v_\nu$, and $v_\mu = g_{\mu\nu} v^\nu$
 3. The inverse of the metric $g_{\mu\nu}$ - that is $g^{\mu\nu}$ - is calculated via a matrix inverse, ie $g^{\mu\nu} = (g_{\mu\nu})^{-1}$
 
+You don't necessarily need to understand any of this to work with the equations, just bear in mind that you can transform between the raised and lowered index forms of an object with a matrix multiplication
+
 # The ADM (Arnowitt–Deser–Misner) formalism
 
-The [Einstein field equations](https://en.wikipedia.org/wiki/Einstein_field_equations#Mathematical_form)[^fieldequations] (EFE's) are what defines the structure of spacetime. In general, people have come up with many analytic solutions to these (with a great deal of effort), including Schwarzschild, Kerr, and a variety of others
+The [Einstein field equations](https://en.wikipedia.org/wiki/Einstein_field_equations#Mathematical_form)[^fieldequations] (EFE's) are what defines the structure of spacetime. In general, people have come up with a variety of interesting analytic solutions to these (with a great deal of effort), including Schwarzschild, Kerr, and more
 
 ![schwarzs](/assets/schwarzs.png)
 
-As-is, the Einstein field equations aren't especially useful for *simulating* spacetime, as they are declarative, and simply describe how a full 4d spacetime should look. In the past, we've taken a known, fixed spacetime like Schwarzschild, and fired rays around it to find out what it looks like - but what if we don't already know the future and past of our spacetime - because we aren't time travelling wizards?
+With that said, the Einstein field equations aren't especially useful for *simulating* spacetime, as they are declarative, and simply describe how a full 4d spacetime should look. In the past, we've taken a known, fixed spacetime like Schwarzschild, and fired rays around it to find out what it looks like - but what do you do if you want to simulate spacetime itself?
 
 [^fieldequations]: When I was younger, I thought that these were equations that you deployed in an emergency. You know, *in the field*
 
@@ -98,7 +100,7 @@ If our 4-metric is $g_{\mu\nu}$, then our 3-metric is $\gamma_{ij} = g_{ij}$, ie
 
 ## Equations of motion
 
-The ADM formalism has equations of motion associated with it by - defining the evolution of the metric and extrinsic curvture in time. These can be derived by defining a Lagrangian, and then sorting out the resulting mismash of equations. Once that's all done, the ADM equations of motion can be brought into the following form[^reffyadm]:
+The ADM formalism has equations of motion associated with it by - defining the evolution of the metric and extrinsic curvature in time. These can be derived by defining a Lagrangian, and using standard techniques on it. Once that's all done, the ADM equations of motion can be brought into the following form[^reffyadm]:
 
 [^reffyadm]: [https://arxiv.org/pdf/gr-qc/0604035](https://arxiv.org/pdf/gr-qc/0604035) (5). There are other forms of these equations, but these are the most common form in numerical relativity
 
@@ -126,7 +128,7 @@ The BSSN formalism is the most widely used formalism - it is directly derived fr
 
 There are 4 main ingredients to get the BSSN equations from the ADM equations:
 
-1. You perform what's called a conformal transform - the metric $\gamma_{ij}$ is split into a metric with unit determinant $$\tilde{\gamma}_{ij}$$, and a conformal (scalar) factor (more on this soon)
+1. You perform a conformal transform - the metric $\gamma_{ij}$ is split into a metric with unit determinant $$\tilde{\gamma}_{ij}$$, and a conformal (scalar) factor (Here, $W$)
 2. The extrinsic curvature $K_{ij}$ is split up into its trace: $K$, and the conformally transformed trace free part of the extrinsic curvature, $$\tilde{A}_{ij}$$
 3. A new redundant variable $$\tilde{\Gamma}^i = \tilde{\gamma}^{mn} \tilde{\Gamma}^{i}_{mn}$$[^conformalchristoffel] is introduced and evolved dynamically, which eliminates a major source of numerical instabilities
 4. The hamiltonian constraint is substituted in to eliminate numerically unstable quantities
@@ -332,7 +334,7 @@ $$
 
 As far as I know, nobody has ever really found a compelling reason to use this form of the gamma driver gauge condition (plus, it is slower and requires more memory), so I'm really only mentioning it because it shows up in the literature. The single variable form of the gamma driver condition is the integrated form of the two-variable expression
 
-### Implementation considerations
+### Alternate forms
 
 The self advection terms for both lapse and shift are optional and often are disabled, ie $\beta^m \partial_m \alpha$ and $\beta^j \partial_j \beta^i$
 
@@ -405,17 +407,15 @@ $$
 \partial_t \tilde{\gamma}_{ij} = \beta^m \partial_m \tilde{\gamma}_{ij}+ 2 \tilde{\gamma}_{m(i} \partial_{j)} \beta^m - \frac{2}{3} \tilde{\gamma}_{ij} \partial_m \beta^m - 2 \alpha \tilde{A}^{TF}_{ij} \\
 $$
 
-This formulation works well, but you must be careful about your choice of damping factor. Too low and constraint errors pile up, too high and you overcorrect - oscillating wildly. Still, because its integrated into the evolution equations (rather than as a separate step), its a fair bit faster than enforcing the constraints directly
+This works well, though you must be careful about your choice of damping factor. Too low and constraint errors pile up, too high and you overcorrect - causing errors
 
 ##### Solving
 
-I'll mention this in passing: The constraints can also be seen to reduce the number of free components for $$\tilde{\gamma}_{ij}$$ and $$\tilde{A}_{ij}$$ from 6 to 5, and instead of enforcing or damping the constraints, you can use them to solve for one of the components instead. For more discussion on this approach, please see [this paper](https://arxiv.org/pdf/1205.5111) (36-37)
-
-While it may seem attractive to reduce the number of evolution equations, on a GPU you will be limited by memory bandwidth, and you're still going to be accessing all of the evolution variables anyway. This only actually saves us two memory writes, and significantly complicates the calculation of derivatives - leading to register/code size blowup
+The constraints can also be seen to reduce the number of free components for $$\tilde{\gamma}_{ij}$$ and $$\tilde{A}_{ij}$$ from 6 to 5, and instead of enforcing or damping the constraints, you can use them to solve for one of the components instead. For more discussion on this approach, please see [this paper](https://arxiv.org/pdf/1205.5111) (36-37)
 
 #### The Momentum constraint
 
-The most direct and common way of enforcing this is as follows:
+The most common way of damping momentum constraint errors is as follows:
 
 $$
 \partial_t \tilde{A}_{ij}  = \partial_t \tilde{A}_{ij} + k_3 \alpha \tilde{D}_{(i} \mathcal{M}_{j)}
@@ -430,7 +430,7 @@ The most straightforward way to apply this is by applying the $\mathcal{G}^i$ co
 $$\partial_t \tilde{\Gamma}^i = \partial_t \tilde{\Gamma}^i - \sigma \mathcal{G}^i \partial_m \beta^m
 $$
 
-Where $\sigma$ > 0. This modification is not used in this article, partly as it is unnecessary, and partly because $\beta^i = 0$ here
+Where $\sigma$ > 0. This modification is not used in this article because $\beta^i = 0$
 
 #### Other constraints
 
@@ -463,11 +463,9 @@ Note, 6th derivatives imply a division by $h^6$ - which is then immediately mult
 
 We're going to diverge from the literature significantly here, for very good reason. The BSSN equations are a classically [stiff](https://en.wikipedia.org/wiki/Stiff_equation) (unstable) set of equations, which means that integrators can have a hard time providing accurate results. Its traditional to use something similar to RK4 to integrate the equations of motion
 
-If you're familiar with solving stiff PDEs, it might seem a bit odd to use RK4 - RK4 is an explicit integrator - and as such has fairly poor stability properties when solving stiff equations. For many kinds of problem, an explicit integrator works great, but not really for unstable problems like this. Instead, we're going to use an L-stable implicit integrator which has excellent convergence properties - backwards euler
+If you're familiar with solving stiff PDEs, it might seem a bit odd to use RK4 - RK4 is an explicit integrator - and as such has fairly poor stability properties when solving stiff equations. Instead, we're going to use an L-stable implicit integrator which has excellent convergence properties - backwards euler
 
-Backwards euler has a very GPU-friendly form, making it very amenable to GPU architecture, while using a minimal amount of memory. In all my testing, I haven't found an integrator with better properties than this. Despite the 1st order convergence, it tends to provide better results than RK4 in my experience, but in the future we'll get into the data
-
-As far as I'm aware, there's been minimal testing of fully implicit integration in numerical relativity - the closest is [IMEX stepping](https://arxiv.org/pdf/1105.3922) from the SXS group, but relies on splitting equations into explicit, and implicit segments. Here, we're just going to solve the entire set of equations implicitly because its easier. We're limited by memory bandwidth on the GPU, which means that there's less benefit to reducing computational crunch - if our implicit segment contains a full set of memory accesses for every variable, we may as well fully implicitly solve everything
+Backwards euler also has a very GPU-friendly form, making it very amenable to a high performance implementation, while using a minimal amount of memory - this means that the performance/step size is very favourable
 
 ### Solving implicit equations efficiently
 
@@ -481,7 +479,7 @@ Backwards euler has the form:
 
 $$y_{n+1} = y_n + dt f(t_{n+1}, y_{n+1})$$
 
-This is also a first order integrator, but it is implicit - we can see that we have $y_{n+1}$ on both sides of the equation - and it is L stable which is great for us
+This is also a first order integrator, but it is implicit - we can see that we have $y_{n+1}$ on both sides of the equation
 
 ### Fixed point iteration
 
@@ -491,7 +489,7 @@ For our purposes, we'll iterate the sequence:
 
 $$y_{k+1, n+1} = y_n + dt f(y_{k,n+1})$$
 
-Over our iteration variable $k$. To initialise the fixed point iteration, $y_{0, n+1} = y_{n}$. This makes the first step/guess regular euler
+Over our iteration variable $k$. To initialise the fixed point iteration, $y_{0, n+1} = y_{n}$. This makes the first step forwards euler
 
 This form of fixed point iteration maps very well to being implemented on a GPU, is numerically stable, and in general is extremely fast and robust. There are tricks[^newton] to speed up fixed point iteration as well, which we'll get into in the future
 
@@ -503,11 +501,11 @@ There are three components to any good simulation
 
 1. Initial conditions
 2. The boundary conditions (which is tied to how we perform differentiation)
-3. Integrating our PDEs
+3. Integrating the PDEs
 
 ### Initial conditions
 
-We need to define on our initial slice what our variables are. For this article, to check everything's working we're going to implement a gauge wave test case, which you can find [here](https://arxiv.org/pdf/1106.2254) (28-29), or [here](https://arxiv.org/pdf/0709.3559) (A.10 + A.6, this is what we're actually implementing). The metric for this is as follows
+We need to define on an initial slice what our variables are. For this article, to check everything's working we're going to implement a gauge wave test case, which you can find [here](https://arxiv.org/pdf/1106.2254) (28-29), or [here](https://arxiv.org/pdf/0709.3559) (A.10 + A.6, this is what we're actually implementing). The metric for this is as follows
 
 $$ds^2 = (1 - H) (-dt^2 + dx^2) + dy^2 + dz^2$$
 
@@ -559,33 +557,7 @@ $$\frac{\partial f} {\partial x} = \frac{\frac{1}{12} f(x - 2) - \frac{2}{3} f(x
 
 This tends to produce a decent tradeoff of accuracy vs performance. In this simulation, because we're discretising our data onto a grid, this brings up the question of how we take derivatives at the edge of the grid (as taking derivatives involves adjacent grid cells) - solving this question defines the boundary conditions
 
-In this article we're going to be using periodic boundary conditions. To implement this, when implementing derivatives, you simply wrap your coordinates to the other edge of the domain
-
-#### Implementation Considerations
-
-##### Modulo operator
-
-Do be aware that I discovered a pretty sizeable performance bug/compiler limitation when implementing this, where modulo operations are not optimised (even by a constant power of 2!) - which ate nearly all the runtime, so use branches instead
-
-##### Second derivatives
-
-When calculating second derivatives, while you could directly apply a 2d stencil, it is much more efficient to first calculate the first derivatives, store them somewhere, and then calculate the second derivatives from those stored derivatives (by taking the first derivative[^ivesaid] of them). This means that you should only precalculate 1st derivatives for variables for which we take second derivatives, which are the following:
-
-[^ivesaid]: I've said the word derivative too many times. I'm going to go pet my cat
-
-$$\tilde{\gamma}_{ij}, \alpha, \beta^i, W$$
-
-##### Second derivative performance tricks
-
-Second derivatives commute. This means that $\partial_i \partial_j == \partial_j \partial_i$. This is also true for the second covariant derivative of a scalar - though only in that circumstance for covariant derivatives. This brings up a good opportunity for performance improvements - when calculating partial derivatives, consider reordering them so that you lopsidedly differentiate in one direction
-
-That is to say, consider implementing: $\partial_{min(i, j)} \partial_{max(i, j)}$ as a general second order differentiation system. This is good for cache (repeatedly accessing the same memory), increasing the amount of eliminateable duplicate code, and ensuring that we maximise the amount we differentiate in the $_0$th direction, which is the fastest due to memory layout
-
-Eg, if we precalculate the first derivative $\partial_i \alpha$, calculating $\partial_0 \partial_i \alpha$ will always be faster than calculating $\partial_i \partial_0 \alpha$. Partly because of memory layout (differentiating in the x direction is virtually free, as it is very cache friendly), and partly because if we *always* do this, we improve our cache hit rate. This is worth about a 20% performance bump[^perfnotes]:
-
-[^perfnotes]: This performance increase is difficult to interpret. In this test case, we use slightly more vGPRs (vector general purpose registers, what you might think of as a traditional cpu register), but significantly reduce our code instruction footprint from 35KB (over the icache size of 32KB), to below our maximum cache size (AMD don't report it annoyingly). This reduces icache stalls, and appears to be very related to the performance increase. Its a big win, as there's 0% chance of us hitting a better vGPR budget[^budget] (as we're in the low 200s)
-
-[^budget]: If you're unfamiliar, the number of threads we can execute on a GPU simultaneously is limited by the number of registers we use, and is known as occupancy (high occupancy = more threads executing). Traditional reasoning is that high occupancy = good as it hides memory latency, although low occupancy can have have performance benefits in some circumstances. GPUs are a pain
+In this article we're going to be using periodic boundary conditions. To implement this, when implementing derivatives, you simply wrap your coordinates to the other edge of the domain. Some performance considerations are discussed at the end of this article
 
 ### Integrating the PDEs
 
@@ -687,12 +659,6 @@ Is what we're actually implementing. There are several modifications made here:
 ###### $$W^2 D_iD_j\alpha$$
 
 $$W^2 D_iD_j\alpha = W^2 \tilde{D}_i \tilde{D}_j \alpha + 1W \partial_{(i} W \partial_{j)} \alpha\ - W \tilde{\gamma}_{ij} \tilde{\gamma}^{mn} \partial_m W \partial_n \alpha$$
-
-###### $$\tilde{\mathcal{R}}_{ij}$$
-
-$$
-\tilde{\mathcal{R}}_{ij} = -\frac{1}{2} \tilde{\gamma}^{mn} \partial_m \partial_n \tilde{\gamma}_{ij} + \tilde{\gamma}_{m(i} \partial _{j)} \tilde{\Gamma}^m + \tilde{\Gamma}^m \tilde{\Gamma}_{(ij)m}+ \tilde{\gamma}^{mn} (2 \tilde{\Gamma}^k_{m(i} \tilde{\Gamma}_{j)kn} + \tilde{\Gamma}^k_{im} \tilde{\Gamma}_{kjn})
-$$
 
 ###### $$W^2 \mathcal{R}_{ij}$$
 
@@ -1079,6 +1045,31 @@ This article is fairly dry with unexciting results - for good reason. If we trie
 
 If you have any questions about this, or you get lost - please feel free to contact me. This is one of those areas that's brutally difficult to get into as there are no guides, and I'm very happy to help people implement stuff
 
+# Misc Discussion: Boundary conditions + Derivatives Performance
+
+## Modulo operator
+
+Do be aware that I discovered a pretty sizeable performance bug/compiler limitation when implementing this, where modulo operations are not optimised (even by a constant power of 2!) - which ate nearly all the runtime, so use branches instead
+
+## Second derivatives
+
+When calculating second derivatives, while you could directly apply a 2d stencil, it is much more efficient to first calculate the first derivatives, store them somewhere, and then calculate the second derivatives from those stored derivatives (by taking the first derivative[^ivesaid] of them). This means that you should only precalculate 1st derivatives for variables for which we take second derivatives, which are the following:
+
+[^ivesaid]: I've said the word derivative too many times. I'm going to go pet my cat
+
+$$\tilde{\gamma}_{ij}, \alpha, \beta^i, W$$
+
+## Second derivative performance tricks
+
+Second derivatives commute. This means that $\partial_i \partial_j == \partial_j \partial_i$. This is also true for the second covariant derivative of a scalar - though only in that circumstance for covariant derivatives. This brings up a good opportunity for performance improvements - when calculating partial derivatives, consider reordering them so that you lopsidedly differentiate in one direction
+
+That is to say, consider implementing: $\partial_{min(i, j)} \partial_{max(i, j)}$ as a general second order differentiation system. This is good for cache (repeatedly accessing the same memory), increasing the amount of eliminateable duplicate code, and ensuring that we maximise the amount we differentiate in the $_0$th direction, which is the fastest due to memory layout
+
+Eg, if we precalculate the first derivative $\partial_i \alpha$, calculating $\partial_0 \partial_i \alpha$ will always be faster than calculating $\partial_i \partial_0 \alpha$. Partly because of memory layout (differentiating in the x direction is virtually free, as it is very cache friendly), and partly because if we *always* do this, we improve our cache hit rate. This is worth about a 20% performance bump[^perfnotes]:
+
+[^perfnotes]: This performance increase is difficult to interpret. In this test case, we use slightly more vGPRs (vector general purpose registers, what you might think of as a traditional cpu register), but significantly reduce our code instruction footprint from 35KB (over the icache size of 32KB), to below our maximum cache size (AMD don't report it annoyingly). This reduces icache stalls, and appears to be very related to the performance increase. Its a big win, as there's 0% chance of us hitting a better vGPR budget[^budget] (as we're in the low 200s)
+
+[^budget]: If you're unfamiliar, the number of threads we can execute on a GPU simultaneously is limited by the number of registers we use, and is known as occupancy (high occupancy = more threads executing). Traditional reasoning is that high occupancy = good as it hides memory latency, although low occupancy can have have performance benefits in some circumstances. GPUs are a pain
 
 
 
