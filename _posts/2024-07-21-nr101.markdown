@@ -716,7 +716,7 @@ tensor<valuef, 3, 3> fixed_cA = trace_free(cA, fixed_cY, fixed_cY.invert());
 
 ### Initial conditions
 
-The code for the initial conditions can be found at todo:s
+The code for the initial conditions can be found at todo:
 
 This is the actual metric tensor we're using, with a generic argument so that its easy to plug dual numbers (which is how I differentiate things here):
 
@@ -740,7 +740,7 @@ auto wave_function = []<typename T>(const tensor<T, 4>& position)
 
 #### Building the ADM variables
 
-This isn't too complicated to implement, though you will need the ability to differentiate your metric tensor (either numerically, or analytically). Here I'm using dual numbers to implement differentiation, via the replay mechanism implemented in previous articles:
+This isn't too complicated to implement, though you will need the ability to differentiate your metric tensor (either numerically, or analytically via something like dual numbers)
 
 ```c++
 struct adm_variables
@@ -861,41 +861,7 @@ From here, its straightforward to perform the conformal decomposition, and recov
     tensor<valuef, 3, 3> cA = W*W * (adm.Kij - (1.f/3.f) * adm.Yij.to_tensor() * K);
 ```
 
-Calculating the christoffel symbol is left as a separate post processing step (because differentiating $$\tilde{\gamma}_{ij}$$ is a bit troublesome), but is directly calculated from the metric tensor:
-
-```c++
-tensor<valuef, 3, 3, 3> dcY;
-
-for(int k=0; k < 3; k++)
-{
-    for(int i=0; i < 3; i++)
-    {
-        for(int j=0; j < 3; j++)
-        {
-            dcY[k, i, j] = diff1(cY[i, j], k, scale.get());
-        }
-    }
-}
-
-auto christoff2 = christoffel_symbols_2(icY, dcY);
-
-tensor<valuef, 3> calculated_cG;
-
-for(int i=0; i < 3; i++)
-{
-    valuef sum = 0;
-
-    for(int m=0; m < 3; m++)
-    {
-        for(int n=0; n < 3; n++)
-        {
-            sum += icY[m, n] * christoff2[i, m, n];
-        }
-    }
-
-    calculated_cG[i] = sum;
-}
-```
+Calculating the christoffel symbol is left as a separate post processing step (because directly differentiating $$\tilde{\gamma}_{ij}$$ is a bit troublesome in the scheme I've got set up, but there's no theoretical reason for it)
 
 ### Derivatives + Boundary conditions
 
@@ -1047,7 +1013,6 @@ valuef diff6th(const valuef& in, int idx, const valuef& scale)
 }
 ```
 
-
 The 6th derivative with second order accuracy: note as mentioned previously I'm omitting the scale factor here, because its redundant
 
 ```c++
@@ -1070,7 +1035,20 @@ Because of the omitted scale factor, we end up with a single division by the sca
 as_ref(inout[lid]) = in[lid] + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get());
 ```
 
-Todo: Implicit solving?
+### Sequence of steps for evolving the equations
+
+Here's the exact structure to use:
+
+1. Iterate every substep
+2. Apply kreiss oliger dissipation to the output
+
+For each substep, we have 3 buffers. In, out, and the output of the last step (which I call base, as it corresponds to $y_n$). For our first iteration/substep, set In = Base
+
+1. First off, enforce the algebraic constraints on your input buffer
+2. Calculate the derivatives from the input
+3. Calculate the momentum constraint from the input
+4. Calculate your evolution equations as f(input), and store out = base + f(input)
+4. Swap the input and output
 
 ## Results
 

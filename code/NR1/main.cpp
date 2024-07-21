@@ -147,34 +147,6 @@ struct mesh
 
     void init(cl::command_queue& cqueue)
     {
-        #define MINK
-        #ifdef MINK
-        cl_float zero = 0;
-        cl_float one = 1;
-
-        bssn_buffer_pack& pck = buffers[0];
-
-        pck.cY[0].fill(cqueue, one);
-        pck.cY[1].fill(cqueue, zero);
-        pck.cY[2].fill(cqueue, zero);
-        pck.cY[3].fill(cqueue, one);
-        pck.cY[4].fill(cqueue, zero);
-        pck.cY[5].fill(cqueue, one);
-
-        for(auto& i : pck.cA)
-            i.set_to_zero(cqueue);
-
-        for(auto& i : pck.cG)
-            i.set_to_zero(cqueue);
-
-        for(auto& i : pck.gB)
-            i.set_to_zero(cqueue);
-
-        pck.K.set_to_zero(cqueue);
-        pck.W.fill(cqueue, one);
-        pck.gA.fill(cqueue, one);
-        #endif
-
         cl_int4 cldim = {dim.x(), dim.y(), dim.z(), 0};
         float c_at_max = 1;
         float scale = c_at_max / dim.x();
@@ -191,43 +163,6 @@ struct mesh
 
         temporary_buffer.set_to_zero(cqueue);
         temporary_single.set_to_zero(cqueue);
-    }
-
-    void load_from(cl::command_queue cqueue)
-    {
-        auto load = [&](cl::buffer& buf, const std::string& name)
-        {
-            std::string data = file::read(name, file::mode::BINARY);
-
-            buf.write(cqueue, data.data(), data.size());
-        };
-
-        bssn_buffer_pack& pck = buffers[0];
-
-        load(pck.cY[0], "./init/buf_cY0.bin");
-        load(pck.cY[1], "./init/buf_cY1.bin");
-        load(pck.cY[2], "./init/buf_cY2.bin");
-        load(pck.cY[3], "./init/buf_cY3.bin");
-        load(pck.cY[4], "./init/buf_cY4.bin");
-        load(pck.cY[5], "./init/buf_cY5.bin");
-
-        load(pck.cA[0], "./init/buf_cA0.bin");
-        load(pck.cA[1], "./init/buf_cA1.bin");
-        load(pck.cA[2], "./init/buf_cA2.bin");
-        load(pck.cA[3], "./init/buf_cA3.bin");
-        load(pck.cA[4], "./init/buf_cA4.bin");
-        load(pck.cA[5], "./init/buf_cA5.bin");
-
-        load(pck.gA, "./init/buf_gA.bin");
-        load(pck.gB[0], "./init/buf_gB0.bin");
-        load(pck.gB[1], "./init/buf_gB1.bin");
-        load(pck.gB[2], "./init/buf_gB2.bin");
-        load(pck.K, "./init/buf_K.bin");
-        load(pck.W, "./init/buf_X.bin");
-
-        load(pck.cG[0], "./init/buf_cGi0.bin");
-        load(pck.cG[1], "./init/buf_cGi1.bin");
-        load(pck.cG[2], "./init/buf_cGi2.bin");
     }
 
     void step(cl::context& ctx, cl::command_queue& cqueue, float timestep, float simulation_width)
@@ -412,17 +347,13 @@ struct mesh
             else
                 substep(i, 0, 2, 1);
 
-            ///we always output into buffer 1, which means that buffer 2 becomes our next input
-            if(i != iterations - 1)
-                std::swap(buffers[1], buffers[2]);
+            ///always swap buffer 1 to buffer 2, which means that buffer 2 becomes our next input
+            std::swap(buffers[1], buffers[2]);
         }
 
-        ///now that we've finished, our result is in buffer[1]
-        std::swap(buffers[1], buffers[0]);
-
-        kreiss(0, 1);
-        std::swap(buffers[0], buffers[1]);
-
+        ///at the end of our iterations, our output is in buffer[2], and we want our result to end up in buffer[0]
+        ///for this to work, kreiss must execute over every pixel unconditionally
+        kreiss(2, 0);
     }
 };
 
@@ -470,11 +401,7 @@ int main()
         make_and_register(enforce_algebraic_constraints());
     }
 
-    #ifdef FAST_CL
-    cl::command_queue cqueue(ctx, (1<<9));
-    #else
     cl::command_queue cqueue(ctx);
-    #endif
 
     ImFontAtlas* atlas = ImGui::GetIO().Fonts;
     atlas->FontBuilderFlags = ImGuiFreeTypeBuilderFlags_LCD | ImGuiFreeTypeBuilderFlags_FILTER_DEFAULT | ImGuiFreeTypeBuilderFlags_LoadColor;
