@@ -421,7 +421,7 @@ $$
 \partial_t \tilde{A}_{ij}  = \partial_t \tilde{A}_{ij} + k_3 \alpha \tilde{D}_{(i} \mathcal{M}_{j)}
 $$
 
-Where $k_3$ > 0
+Where $k_3$ > 0. Do be aware that this is a scale dependent parameter, so if you double your resolution you'll need to halve it
 
 #### The Christoffel symbol constraint
 
@@ -973,9 +973,9 @@ valuef diff2(const valuef& in, int idx, int idy, const valuef& dx, const valuef&
 }
 ```
 
-The way that this is implemented code-wise is slightly unusual. All variables in our simulation are generally bound to a particular grid location, `cY` as a 3x3 tensor is, under the hood, tied to a specific coordinate - ie `cY = cY_buffer[pos, dim]`. This is to minimise the complexity of the equations
+The way that this is implemented code-wise is slightly unusual. All variables in this simulation are bound to a particular grid location, `cY` as a 3x3 tensor is, under the hood, tied to a specific coordinate - ie `cY = cY_buffer[pos, dim]`. This is to minimise the complexity of the equations
 
-Because of this, instead of having a buffer and a position for us to differentiate at, we have a variable which is derived from a buffer, and an expression tree containing a bracket operator - with our initial position and dimension as arguments. The huge upside of this is that we can differentiate compound expressions, like this:
+Because of this, instead of having a buffer and a position for us to differentiate at, we have a variable which is derived from a buffer, and an expression tree containing a bracket operator - with our indexing position and dimension as arguments. The huge upside of this is that we can differentiate compound expressions, like this:
 
 ```c++
 diff1(cY * cA, 0, scale);
@@ -1048,7 +1048,9 @@ For each substep, we have 3 buffers. In, out, and the output of the last step (w
 2. Calculate the derivatives from the input
 3. Calculate the momentum constraint from the input
 4. Calculate your evolution equations as f(input), and store out = base + f(input)
-4. Swap the input and output
+5. Swap the input and output
+
+The host code driving this can be found over todo here:
 
 ## Results
 
