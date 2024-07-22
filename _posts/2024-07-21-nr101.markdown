@@ -143,6 +143,8 @@ The main two ADM variables are: $\gamma_{ij}$ the metric tensor, and $K_{ij}$, t
 
 [^reffy]: [Reference](http://wwwteor.mi.infn.it/~molinari/TESI/Danieli_tesi.pdf) 4.27
 
+Todo: I'm going to move the discussion of other conformal variables to the end
+
 As mentioned previously, one of the insights of the BSSN formalism is that we can perform a 'conformal decomposition' of the variables $\gamma_{ij}$ and $K_{ij}$, which renders the equations more numerically stable. The conformal metric tensor is called $\tilde{\gamma}_{ij}$, and is related to the regular metric tensor by a scalar, called the conformal factor/variable. There are three conformal variables I know of which are in use:
 
 $$
@@ -369,6 +371,8 @@ Before we can even get off the ground, we're going to have to at minimum impleme
 3. Numerical dissipation
 
 #### The algebraic constraints
+
+Todo: I'm going to move the discussion to the end of the article
 
 There are three methods of enforcing the algebraic constraints
 
