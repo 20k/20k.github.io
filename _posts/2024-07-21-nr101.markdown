@@ -249,18 +249,6 @@ Additionally:
 
 [^tfnotes]: Note that for some scalar $A$, $(AQ)^{TF} == A(Q^{TF})$, and it does not matter if you use the conformal metric, or the non conformal metric as the metric tensor here - the conformal factor cancels out. This is also sometimes notated $Q_{\langle ij \rangle}$
 
-### Implementation considerations
-
-Todo: Perhaps migrate this into the implementation section
-
-1. The quantity $D_i D_j \alpha$ is never used without being multiplied by $W^2$, which means we can eliminate the divisions by $W$
-
-2. The quantity $\mathcal{R}^W_{ij}$ is also multiplied by $W^2$, allowing us to remove the division
-
-#2 is unique to the $W^2$ formalism, and is a very nice feature of it. In this version of BSSN, there is only one division by $W$, in the $\tilde{\Gamma}^i$ evolution equation, and you must guard against divisions by zero by clamping $W$ to a small value (eg $10^{-4}$)[^technically]
-
-[^technically]: Technically, as $\alpha$ is expected to tend to 0 faster than $W$ tends to 0, the quantity $\frac{\alpha}{W}$ is considered regular. In practice, clamping the conformal factor appears to be the accepted technique, though alarmingly I've found that the exact clamp value can make a large difference to your simulation
-
 ## Gauge conditions
 
 The ADM/BSSN formalism does not uniquely specify the evolution equations for the lapse and shift, and there is a freedom of choice here. Despite in theory being arbitrary, in practice you have to very carefully pick your gauge conditions for the kind of problem you're trying to solve
@@ -587,7 +575,17 @@ Where
 
 $$\partial_i \phi = -\frac{\partial_i W}{2 W}$$
 
-#### Evolving $\tilde{A}_{ij}$
+#### Evolution equations
+
+1. The quantity $D_i D_j \alpha$ is never used without being multiplied by $W^2$, which means we can eliminate the divisions by $W$
+
+2. The quantity $\mathcal{R}^W_{ij}$ is also multiplied by $W^2$, allowing us to remove the division
+
+#2 is unique to the $W^2$ formalism, and is a very nice feature of it. In this version of BSSN, there is only one division by $W$, in the $\tilde{\Gamma}^i$ evolution equation, and you must guard against divisions by zero by clamping $W$ to a small value (eg $10^{-4}$)[^technically]
+
+[^technically]: Technically, as $\alpha$ is expected to tend to 0 faster than $W$ tends to 0, the quantity $\frac{\alpha}{W}$ is considered regular. In practice, clamping the conformal factor appears to be the accepted technique, though alarmingly I've found that the exact clamp value can make a large difference to your simulation
+
+##### Evolving $\tilde{A}_{ij}$
 
 $$
 \begin{align}
@@ -944,7 +942,7 @@ valuef kreiss_oliger_interior(valuef in, valuef scale)
 Because of the omitted scale factor, we end up with a single division by the scale. After this, simply accumulate into your buffer, and multiply by the timestep and the strength:
 
 ```c++
-as_ref(inout[lid]) = in[lid] + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get());
+as_ref(out[lid]) = in[lid] + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get());
 ```
 
 ### Sequence of steps for evolving the equations

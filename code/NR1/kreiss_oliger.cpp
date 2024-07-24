@@ -28,7 +28,7 @@ valuef kreiss_oliger_interior(valuef in, valuef scale)
 
 std::string make_kreiss_oliger()
 {
-     auto func = [&](execution_context&, buffer<valuef> in, buffer_mut<valuef> inout, literal<valuef> timestep, literal<v3i> ldim, literal<valuef> scale, literal<valuef> eps) {
+     auto func = [&](execution_context&, buffer<valuef> in, buffer_mut<valuef> out, literal<valuef> timestep, literal<v3i> ldim, literal<valuef> scale, literal<valuef> eps) {
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);
@@ -43,7 +43,7 @@ std::string make_kreiss_oliger()
 
         v3i pos = get_coordinate(lid, dim);
 
-        as_ref(inout[lid]) = in[lid] + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get());
+        as_ref(out[lid]) = in[lid] + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get());
      };
 
      return value_impl::make_function(func, "kreiss_oliger");
