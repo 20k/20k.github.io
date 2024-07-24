@@ -141,7 +141,7 @@ With all this applied, we end up with the BSSN formalism. We'll go through some 
 
 The two non-gauge ADM variables are: $\gamma_{ij}$ the metric tensor, and $K_{ij}$, the extrinsic curvature
 
-As mentioned previously, one of the insights of the BSSN formalism is that we can perform a 'conformal decomposition' of the variables $\gamma_{ij}$ and $K_{ij}$, which renders the equations more numerically stable. The conformal metric tensor is called $\tilde{\gamma}_{ij}$, and is related to the regular metric tensor by a scalar, called the conformal factor/variable. For us, we're going to be using what's called the $W^2$ conformal factor as follows
+As mentioned previously, one of the insights of the BSSN formalism is that we can perform a 'conformal decomposition' of the variables $\gamma_{ij}$ and $K_{ij}$, which renders the equations more numerically stable. The conformal metric tensor is called $\tilde{\gamma}_{ij}$, and is related to the regular metric tensor by a scalar, called the conformal factor/variable. For us, we're going to be using what's called the $W^2$ conformal factor as follows:
 
 $$\tilde{\gamma}_{ij} = W^2 \gamma_{ij}$$
 
@@ -151,7 +151,7 @@ $$W^2 \tilde{\gamma}^{ij} = \gamma^{ij}$$
 
 $$K_{ij}$$ is then split into its trace $K = \gamma^{mn} K_{mn}$, and the conformal trace-free part called $$\tilde{A}_{ij}$$
 
-$$\tilde{A}_{ij} = W^2 (K_{ij} - \frac{1}{3} \gamma_{ij} K)$$
+$$\tilde{A}_{ij} = W^2 (K_{ij} - \frac{1}{3} \gamma_{ij} K) = W^2 (K_{ij})^{TF}$$
 
 If you're wondering why we're using $W^2$ rather than a non squared conformal variable (which *is* used in the literature), please see the discussion on conformal factors at the end of this article
 
@@ -183,11 +183,13 @@ There are also a number of constraints that must be satisfied for the BSSN forma
 
 $$\mathcal{M}_i = \tilde{\gamma}^{mn} \tilde{D}_m \tilde{A}_{ni} - \frac{2}{3} \partial_i K - \frac{3}{2} \tilde{A}^m_{\;\;i} \frac{\partial_m \chi}{\chi} = 0$$
 
-Where $$\tilde{D}_i$$ is the covariant derivative associated with $$\tilde{\gamma}_{ij}$$, calculated in the usual fashion
+Where $$\tilde{D}_i$$ is the covariant derivative associated with $$\tilde{\gamma}_{ij}$$, calculated in the usual fashion. $$\chi = W^2$$
 
 ### Hamiltonian
 
-$$H = R + \frac{2}{3} K^2 - \tilde{A}^{mn} \tilde{A}_{mn} = 0$$
+$$H = \mathcal{R} + \frac{2}{3} K^2 - \tilde{A}^{mn} \tilde{A}_{mn} = 0$$
+
+Where $\mathcal{R}$ is the trace of $$\mathcal{R}_{ij}$$ with respect to $$\gamma_{ij}$$ (ie $$\mathcal{R}_{ij} \gamma^{ij}$$), and will be introduced in full later
 
 ### Algebraic
 
@@ -205,7 +207,9 @@ $$
 \mathcal{G}^i = \tilde{\Gamma}^i - \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn} = 0
 $$
 
-Ensuring that the constraints don't blow up numerically is key to making the BSSN formalism work, so we'll get back to these
+### Constraint summary
+
+Ensuring that the constraints don't blow up numerically is key to making the BSSN formalism work, so we'll be getting back to all of these. The only one you can largely ignore is the hamiltonian constraint - and for this article, the christoffel symbol constraint is unused
 
 ## Equations of motion
 
@@ -237,7 +241,7 @@ $$
 
 Additionally:
 
-1. $$^{TF}$$ means to take the trace free part of a tensor, calculated as $$Q_{ij}^{TF} = Q_{ij} - \frac{1}{3} \tilde{\gamma}_{ij} \tilde{\gamma}^{mn} Q_{mn}$$.[^tfnotes]
+1. $$^{TF}$$ means to take the trace free part of a tensor, calculated as $$Q_{ij}^{TF} = Q_{ij} - \frac{1}{3} \tilde{\gamma}_{ij} \tilde{\gamma}^{mn} Q_{mn} = Q_{ij} - \frac{1}{3} \tilde{\gamma}_{ij} Q$$.[^tfnotes]
 
 2. The symmetrising operator crops up here unintuitively. This is defined as $A_{(ij)}$ = $0.5 (A_{ij} + A_{ji})$. A more complex example is $$2\tilde{\Gamma}^k_{m(i} \tilde{\Gamma}_{j)kn} = 0.5 * 2 (\tilde{\Gamma}^k_{mi} \tilde{\Gamma}_{jkn} + \tilde{\Gamma}^k_{mj} \tilde{\Gamma}_{ikn})$$
 
@@ -246,6 +250,8 @@ Additionally:
 [^tfnotes]: Note that for some scalar $A$, $(AQ)^{TF} == A(Q^{TF})$, and it does not matter if you use the conformal metric, or the non conformal metric as the metric tensor here - the conformal factor cancels out. This is also sometimes notated $Q_{\langle ij \rangle}$
 
 ### Implementation considerations
+
+Todo: Perhaps migrate this into the implementation section
 
 1. The quantity $D_i D_j \alpha$ is never used without being multiplied by $W^2$, which means we can eliminate the divisions by $W$
 
