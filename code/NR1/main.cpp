@@ -215,111 +215,83 @@ struct mesh
             cqueue.exec("enforce_algebraic_constraints", args, {dim.x() * dim.y() * dim.z()}, {128});
         };
 
-        auto substep = [&](int iteration, int base_idx, int in_idx, int out_idx)
+        auto diff = [&](cl::buffer buf, int buffer_idx)
         {
-            ///this assumes that in_idx == base_idx for iteration 0, so that they are both constraint enforced
-            enforce_constraints(in_idx);
+            cl::args args;
+            args.push_back(buf);
+            args.push_back(derivatives.at(buffer_idx * 3 + 0));
+            args.push_back(derivatives.at(buffer_idx * 3 + 1));
+            args.push_back(derivatives.at(buffer_idx * 3 + 2));
+            args.push_back(cldim);
+            args.push_back(scale);
 
+            cqueue.exec("differentiate", args, {dim.x()*dim.y()*dim.z()}, {128});
+        };
+
+        auto calculate_constraint_errors = [&](int pack_idx)
+        {
+            auto sum_over = [&](cl::buffer buf)
             {
-                std::vector<cl::buffer> d_in {
-                    buffers[in_idx].cY[0],
-                    buffers[in_idx].cY[1],
-                    buffers[in_idx].cY[2],
-                    buffers[in_idx].cY[3],
-                    buffers[in_idx].cY[4],
-                    buffers[in_idx].cY[5],
-                    buffers[in_idx].gA,
-                    buffers[in_idx].gB[0],
-                    buffers[in_idx].gB[1],
-                    buffers[in_idx].gB[2],
-                    buffers[in_idx].W,
-                };
+                temporary_single.set_to_zero(cqueue);
 
-                int which_deriv = 0;
+                uint32_t len = dim.x() * dim.y() * dim.z();
 
-                for(cl::buffer& to_diff : d_in)
-                {
-                    cl::args args;
-                    args.push_back(to_diff);
-                    args.push_back(derivatives.at(which_deriv * 3 + 0));
-                    args.push_back(derivatives.at(which_deriv * 3 + 1));
-                    args.push_back(derivatives.at(which_deriv * 3 + 2));
-                    args.push_back(cldim);
-                    args.push_back(scale);
+                cl::args args;
+                args.push_back(temporary_buffer);
+                args.push_back(temporary_single);
+                args.push_back(len);
 
-                    cqueue.exec("differentiate", args, {dim.x()*dim.y()*dim.z()}, {128});
+                cqueue.exec("sum", args, {dim.x() * dim.y() * dim.z()}, {128});
 
-                    which_deriv++;
-                }
-            }
+                int64_t summed = temporary_single.read<int64_t>(cqueue).at(0);
+                return (double)summed / pow(10., 8.);
+            };
 
-            #define CALCULATE_CONSTRAINT_ERRORS
-            #ifdef CALCULATE_CONSTRAINT_ERRORS
-            if(iteration == 0)
-            {
-                auto sum_over = [&](cl::buffer buf)
-                {
-                    temporary_single.set_to_zero(cqueue);
-
-                    uint32_t len = dim.x() * dim.y() * dim.z();
-
-                    cl::args args;
-                    args.push_back(temporary_buffer);
-                    args.push_back(temporary_single);
-                    args.push_back(len);
-
-                    cqueue.exec("sum", args, {dim.x() * dim.y() * dim.z()}, {128});
-
-                    int64_t summed = temporary_single.read<int64_t>(cqueue).at(0);
-                    return (double)summed / pow(10., 8.);
-                };
-
-                {
-                    cl::args args;
-                    buffers[in_idx].append_to(args);
-
-                    for(auto& i : derivatives)
-                        args.push_back(i);
-
-                    args.push_back(temporary_buffer);
-                    args.push_back(cldim);
-                    args.push_back(scale);
-
-                    cqueue.exec("calculate_hamiltonian", args, {dim.x() * dim.y() * dim.z()}, {128});
-                    hamiltonian_error.push_back(sum_over(temporary_buffer));
-
-                    double Mi = 0;
-
-                    cqueue.exec("calculate_Mi0", args, {dim.x() * dim.y() * dim.z()}, {128});
-                    Mi += fabs(sum_over(temporary_buffer));
-
-                    cqueue.exec("calculate_Mi1", args, {dim.x() * dim.y() * dim.z()}, {128});
-                    Mi += fabs(sum_over(temporary_buffer));
-
-                    cqueue.exec("calculate_Mi2", args, {dim.x() * dim.y() * dim.z()}, {128});
-                    Mi += fabs(sum_over(temporary_buffer));
-
-                    Mi_error.push_back(Mi);
-                }
-            }
-            #endif
-
-            #define CALCULATE_MOMENTUM_CONSTRAINT
-            #ifdef CALCULATE_MOMENTUM_CONSTRAINT
             {
                 cl::args args;
-                buffers[in_idx].append_to(args);
+                buffers[pack_idx].append_to(args);
 
-                for(auto& i : momentum_constraint)
+                for(auto& i : derivatives)
                     args.push_back(i);
 
+                args.push_back(temporary_buffer);
                 args.push_back(cldim);
                 args.push_back(scale);
 
-                cqueue.exec("momentum_constraint", args, {dim.x() * dim.y() * dim.z()}, {128});
-            }
-            #endif
+                cqueue.exec("calculate_hamiltonian", args, {dim.x() * dim.y() * dim.z()}, {128});
+                hamiltonian_error.push_back(sum_over(temporary_buffer));
 
+                double Mi = 0;
+
+                cqueue.exec("calculate_Mi0", args, {dim.x() * dim.y() * dim.z()}, {128});
+                Mi += fabs(sum_over(temporary_buffer));
+
+                cqueue.exec("calculate_Mi1", args, {dim.x() * dim.y() * dim.z()}, {128});
+                Mi += fabs(sum_over(temporary_buffer));
+
+                cqueue.exec("calculate_Mi2", args, {dim.x() * dim.y() * dim.z()}, {128});
+                Mi += fabs(sum_over(temporary_buffer));
+
+                Mi_error.push_back(Mi);
+            }
+        };
+
+        auto calculate_momentum_constraint_for = [&](int pack_idx)
+        {
+            cl::args args;
+            buffers[pack_idx].append_to(args);
+
+            for(auto& i : momentum_constraint)
+                args.push_back(i);
+
+            args.push_back(cldim);
+            args.push_back(scale);
+
+            cqueue.exec("momentum_constraint", args, {dim.x() * dim.y() * dim.z()}, {128});
+        };
+
+        auto evolve_step = [&](int base_idx, int in_idx, int out_idx)
+        {
             cl::args args;
             buffers[base_idx].append_to(args);
             buffers[in_idx].append_to(args);
@@ -336,6 +308,46 @@ struct mesh
             args.push_back(scale);
 
             cqueue.exec("evolve", args, {dim.x()*dim.y()*dim.z()}, {128});
+        };
+
+        auto substep = [&](int iteration, int base_idx, int in_idx, int out_idx)
+        {
+            ///this assumes that in_idx == base_idx for iteration 0, so that they are both constraint enforced
+            enforce_constraints(in_idx);
+
+            {
+                std::vector<cl::buffer> to_diff {
+                    buffers[in_idx].cY[0],
+                    buffers[in_idx].cY[1],
+                    buffers[in_idx].cY[2],
+                    buffers[in_idx].cY[3],
+                    buffers[in_idx].cY[4],
+                    buffers[in_idx].cY[5],
+                    buffers[in_idx].gA,
+                    buffers[in_idx].gB[0],
+                    buffers[in_idx].gB[1],
+                    buffers[in_idx].gB[2],
+                    buffers[in_idx].W,
+                };
+
+                for(int i=0; i < (int)to_diff.size(); i++)
+                {
+                    diff(to_diff[i], i);
+                }
+            }
+
+            #define CALCULATE_CONSTRAINT_ERRORS
+            #ifdef CALCULATE_CONSTRAINT_ERRORS
+            if(iteration == 0)
+                calculate_constraint_errors(in_idx);
+            #endif
+
+            #define CALCULATE_MOMENTUM_CONSTRAINT
+            #ifdef CALCULATE_MOMENTUM_CONSTRAINT
+            calculate_momentum_constraint_for(in_idx);
+            #endif
+
+            evolve_step(base_idx, in_idx, out_idx);
         };
 
         int iterations = 2;
@@ -375,7 +387,7 @@ int main()
     cl::context& ctx = win.clctx->ctx;
     std::cout << cl::get_extensions(ctx) << std::endl;
 
-    t3i dim = {128, 128, 128};
+    t3i dim = {32, 32, 32};
 
     {
         auto make_and_register = [&](const std::string& str)
