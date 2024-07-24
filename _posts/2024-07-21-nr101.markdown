@@ -1020,7 +1020,7 @@ for(int i=0; i < iterations; i++) {
 kreiss(2, 0);
 ```
 
-Implementation wise I've attempted to make this as neutral as possible, each one of the undeclared functions invokes OpenCL kernels and does nothing exciting otherwise. A pack of BSSN arguments is referred to by index for flexibility, as down the line things get complicated
+I've attempted to make this as backend-neutral as possible, each one of the undeclared functions invokes OpenCL kernels and does nothing exciting otherwise. A pack of BSSN arguments is referred to by index for flexibility, as down the line things get complicated
 
 ## Results
 
