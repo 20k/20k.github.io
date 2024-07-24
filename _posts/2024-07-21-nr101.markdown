@@ -372,17 +372,7 @@ Before we can even get off the ground, we're going to have to at minimum impleme
 
 #### The algebraic constraints
 
-Todo: I'm going to move the discussion to the end of the article
-
-There are three methods of enforcing the algebraic constraints
-
-1. Directly
-2. Damping
-3. Solving
-
-##### Directly
-
-This is by far the most common method of handling the algebraic constraints. To do this, you enforce the relation $\tilde{\gamma} = 1$ and $\tilde{\gamma}^{mn} \tilde{A}_{mn} = 0$ directly, by applying the following expressions
+The most common technique for dealing with the algebraic constraints is to enforce the relation $\tilde{\gamma} = 1$ and $\tilde{\gamma}^{mn} \tilde{A}_{mn} = 0$ directly. This is easily done by applying the following expressions
 
 $$
 \begin{align}
@@ -391,31 +381,7 @@ $$
 \end{align}
 $$
 
-This is what will be used in the article. It is important to apply the algebraic constraints just before our evolution step, otherwise numerical dissipation will cause the constraints to become violated again
-
-##### Damping
-
-This method involves damping the algebraic constraints over time. [This](https://arxiv.org/pdf/1106.2254) paper contains a discussion of the idea (before 26), and you can use the specific form provided by [this paper](https://arxiv.org/pdf/gr-qc/0204002) in the appendix. This means that the evolution equations are modified as follows:
-
-$$\begin{align}
-\partial_t \tilde{\gamma}_{ij} &= \partial_t \tilde{\gamma}_{ij} + k_1\alpha \tilde{\gamma}_{ij} \mathcal{S}\\
-\partial_t \tilde{A}_{ij} &= \partial_t \tilde{A}_{ij} + k_2\alpha \tilde{\gamma}_{ij} \mathcal{A}
-\end{align}
-$$
-
-Where $k_1$ < 0, $k_2$ < 0, and the constraints are evaluated from the relevant constraint expressions
-
-Note that because this only damps the $\mathcal{A}$ constraint instead of eliminating it, you must also modify the evolution equation for $\tilde{\gamma}_{ij}$ as follows, to prevent everything from blowing up:
-
-$$
-\partial_t \tilde{\gamma}_{ij} = \beta^m \partial_m \tilde{\gamma}_{ij}+ 2 \tilde{\gamma}_{m(i} \partial_{j)} \beta^m - \frac{2}{3} \tilde{\gamma}_{ij} \partial_m \beta^m - 2 \alpha \tilde{A}^{TF}_{ij} \\
-$$
-
-This works well, though you must be careful about your choice of damping factor. Too low and constraint errors pile up, too high and you overcorrect - causing errors
-
-##### Solving
-
-The constraints can also be seen to reduce the number of free components for $$\tilde{\gamma}_{ij}$$ and $$\tilde{A}_{ij}$$ from 6 to 5, and instead of enforcing or damping the constraints, you can use them to solve for one of the components instead. For more discussion on this approach, please see [this paper](https://arxiv.org/pdf/1205.5111) (36-37)
+Its important to do this just before you use these variables (ie don't numerically dissipate them after), otherwise you end up with small constraint violations. There's some discussion about alternatives at the end of this article
 
 #### The Momentum constraint
 
@@ -1049,7 +1015,35 @@ This article is fairly dry with unexciting results - for good reason. If we trie
 
 If you have any questions about this, or you get lost - please feel free to contact me. This is one of those areas that's brutally difficult to get into as there are no guides, and I'm very happy to help people implement stuff
 
-# Misc Discussion: Boundary conditions + Derivatives Performance
+# Discussion: Algebraic Constraint Enforcement
+
+Here I'll run through some alternatives you might find in the literature for managing the algebraic constraints, though they're less common
+
+## Damping
+
+This method involves damping the algebraic constraints over time. [This](https://arxiv.org/pdf/1106.2254) paper contains a discussion of the idea (before 26), and you can use the specific form provided by [this paper](https://arxiv.org/pdf/gr-qc/0204002) in the appendix. This means that the evolution equations are modified as follows:
+
+$$\begin{align}
+\partial_t \tilde{\gamma}_{ij} &= \partial_t \tilde{\gamma}_{ij} + k_1\alpha \tilde{\gamma}_{ij} \mathcal{S}\\
+\partial_t \tilde{A}_{ij} &= \partial_t \tilde{A}_{ij} + k_2\alpha \tilde{\gamma}_{ij} \mathcal{A}
+\end{align}
+$$
+
+Where $k_1$ < 0, $k_2$ < 0, and the constraints are evaluated from the relevant constraint expressions
+
+Note that because this only damps the $\mathcal{A}$ constraint instead of eliminating it, you must also modify the evolution equation for $\tilde{\gamma}_{ij}$ as follows, to prevent everything from blowing up:
+
+$$
+\partial_t \tilde{\gamma}_{ij} = \beta^m \partial_m \tilde{\gamma}_{ij}+ 2 \tilde{\gamma}_{m(i} \partial_{j)} \beta^m - \frac{2}{3} \tilde{\gamma}_{ij} \partial_m \beta^m - 2 \alpha \tilde{A}^{TF}_{ij} \\
+$$
+
+This works well, though you must be careful about your choice of damping factor. Too low and constraint errors pile up, too high and you overcorrect - causing errors
+
+## Solving
+
+The constraints can also be seen to reduce the number of free components for $$\tilde{\gamma}_{ij}$$ and $$\tilde{A}_{ij}$$ from 6 to 5, and instead of enforcing or damping the constraints, you can use them to solve for one of the components instead. For more discussion on this approach, please see [this paper](https://arxiv.org/pdf/1205.5111) (36-37)
+
+# Discussion: Boundary conditions + Derivatives Performance
 
 ## Modulo operator
 
