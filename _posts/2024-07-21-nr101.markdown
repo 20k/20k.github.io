@@ -952,13 +952,15 @@ Here's the exact structure to use:
 1. Iterate every substep
 2. Apply kreiss oliger dissipation to the output
 
-For each substep, we have 3 buffers. In, out, and the output of the last step (which I call base, as it corresponds to $y_n$). For our first iteration/substep, set In = Base
+For each substep, we have 3 buffers: In, out, and the output of the last step (which I call base, as it corresponds to $y_n$). For our first iteration/substep, set In = Base
 
 1. First off, enforce the algebraic constraints on your input buffer
 2. Calculate the derivatives from the input
 3. Calculate the momentum constraint from the input
 4. Calculate your evolution equations as f(input), and store out = base + f(input)
 5. Swap the input and output
+
+Todo: rework down the host code so that it can pasted in, as just the driving code
 
 The host code driving this can be found over todo here:
 
