@@ -400,11 +400,11 @@ tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs
             {
                 for(int n=0; n < 3; n++)
                 {
-                    sum += icY[m, n] * 2 * args.W * derivs.dW[m] * diff1(args.gA, n, scale);
+                    sum += icY[m, n] * args.W * derivs.dW[m] * diff1(args.gA, n, scale);
                 }
             }
 
-            valuef v3 = -0.5f * args.cY[i, j] * sum;
+            valuef v3 = -args.cY[i, j] * sum;
 
             W2DiDja[i, j] = v1 + v2 + v3;
         }

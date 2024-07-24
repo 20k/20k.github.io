@@ -604,7 +604,7 @@ Is what we're actually implementing. There are several modifications made here:
 
 ###### $$W^2 D_iD_j\alpha$$
 
-$$W^2 D_iD_j\alpha = W^2 \tilde{D}_i \tilde{D}_j \alpha + 1W \partial_{(i} W \partial_{j)} \alpha\ - W \tilde{\gamma}_{ij} \tilde{\gamma}^{mn} \partial_m W \partial_n \alpha$$
+$$W^2 D_iD_j\alpha = W^2 \tilde{D}_i \tilde{D}_j \alpha + 2W \partial_{(i} W \partial_{j)} \alpha\ - W \tilde{\gamma}_{ij} \tilde{\gamma}^{mn} \partial_m W \partial_n \alpha$$
 
 ###### $$W^2 \mathcal{R}_{ij}$$
 
