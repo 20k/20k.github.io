@@ -960,9 +960,67 @@ For each substep, we have 3 buffers: In, out, and the output of the last step (w
 4. Calculate your evolution equations as f(input), and store out = base + f(input)
 5. Swap the input and output
 
-Todo: rework down the host code so that it can pasted in, as just the driving code
+Implementation wise, this looks as follows, which may be clearer:
 
-The host code driving this can be found over todo here:
+```c++
+auto substep = [&](int iteration, int base_idx, int in_idx, int out_idx)
+{
+    ///this assumes that in_idx == base_idx for iteration 0, so that they are both constraint enforced. This deals with the algebraic constraints
+    enforce_constraints(in_idx);
+
+    {
+        std::vector<cl::buffer> to_diff {
+            buffers[in_idx].cY[0],
+            buffers[in_idx].cY[1],
+            buffers[in_idx].cY[2],
+            buffers[in_idx].cY[3],
+            buffers[in_idx].cY[4],
+            buffers[in_idx].cY[5],
+            buffers[in_idx].gA,
+            buffers[in_idx].gB[0],
+            buffers[in_idx].gB[1],
+            buffers[in_idx].gB[2],
+            buffers[in_idx].W,
+        };
+
+        for(int i=0; i < (int)to_diff.size(); i++) {
+            //This calculates the derivatives in 3 directions for each passed in buffer, and effectively appends the output to a list of derivatives
+            //I need the index "i" for implementation reasons, so I know where to put the output
+            diff(to_diff[i], i);
+        }
+    }
+
+    //optional
+    if(iteration == 0)
+        calculate_constraint_errors(in_idx);
+
+    //and stores it in a buffer
+    calculate_momentum_constraint_for(in_idx);
+
+    //needs the derivatives that were calculated, and the momentum constraint
+    evolve_step(base_idx, in_idx, out_idx);
+};
+
+int iterations = 2;
+
+for(int i=0; i < iterations; i++) {
+    //buffer 1 is always the designated output buffer
+    //on the first iteration, we make the first step euler, which means that in == base == 0
+    if(i == 0)
+        substep(i, 0, 0, 1);
+    else
+        substep(i, 0, 2, 1);
+
+    ///always swap buffer 1 to buffer 2, which means that buffer 2 becomes our next input
+    std::swap(buffers[1], buffers[2]);
+}
+
+///at the end of our iterations, our output is in buffer[2], and we want our result to end up in buffer[0]
+///for this to work, kreiss must execute over every pixel unconditionally
+kreiss(2, 0);
+```
+
+Implementation wise I've attempted to make this as neutral as possible, each one of the undeclared functions invokes OpenCL kernels and does nothing exciting otherwise. A pack of BSSN arguments is referred to by index for flexibility, as down the line things get complicated
 
 ## Results
 

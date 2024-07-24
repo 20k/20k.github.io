@@ -387,7 +387,7 @@ int main()
     cl::context& ctx = win.clctx->ctx;
     std::cout << cl::get_extensions(ctx) << std::endl;
 
-    t3i dim = {32, 32, 32};
+    t3i dim = {128, 128, 128};
 
     {
         auto make_and_register = [&](const std::string& str)
