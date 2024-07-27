@@ -1141,6 +1141,8 @@ $$\partial_t \alpha = - 2 \alpha^2 K + \beta^m \partial_m \alpha$$
 
 ### 1+log slicing
 
+Todo: I need a reference
+
 $$\partial_t \alpha = - \alpha K + \beta^m \partial_m \alpha$$
 
 ## Shift ($\beta^i$)
@@ -1150,6 +1152,8 @@ $$\partial_t \alpha = - \alpha K + \beta^m \partial_m \alpha$$
 $$\beta^i = 0$$
 
 ### Gamma driver (sometimes called Gamma freezing)
+
+Todo: I need a reference
 
 So called because it drives $\partial_t\tilde{\Gamma} = 0$
 
