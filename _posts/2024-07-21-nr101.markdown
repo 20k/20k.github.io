@@ -61,7 +61,7 @@ The [Einstein field equations](https://en.wikipedia.org/wiki/Einstein_field_equa
 
 ![schwarzs](/assets/schwarzs.png)
 
-Solutions to the Einstein field equations are dictated by an object called the metric tensor. For our purposes, you can think of this as a 4x4 matrix[^coordinatefree]. For a Schwarzschild black hole, that looks like this:
+Solutions to the Einstein field equations are described in their entirety by an object called the metric tensor. For our purposes, you can think of this as a 4x4 matrix[^coordinatefree]. For a Schwarzschild black hole, that looks like this:
 
 [^coordinatefree]: This statement comes with caveats about GR being a coordinate free theory. The formalism we're going to get into - BSSN - is not a coordinate free theory, and coordinate free versions of it in general appear to be less numerically stable. For this reason, we're not going to dip into coordinate free territory at all
 
@@ -72,9 +72,9 @@ Solutions to the Einstein field equations are dictated by an object called the m
 |2|0|0|$r^2$|0|
 |3|0|0|0|$r^2 sin^2(\theta)$|
 
-Its notable that this solution describes spacetime both in the future, and in the past - it is defined over all time. This brings up the fundamental question that we need to solve: What happens if we only have a solution for 'now', and we want to instead simulate what the future would look like?
+Its notable that this solution describes spacetime both in the future, and in the past - relative to whenever you exist - it is defined over all time. This brings up the fundamental question that we need to solve: What happens if we only have a solution for 'now', and we want to instead simulate what the future would look like?
 
-The ADM formalism is the most widespread approach for handling this. It consists of slicing a 4d spacetime explicitly into a series (foliation) of 3d spacelike slices, and separates out a timelike dimension. It is often referred to as a "3+1" formalism as a result. You can imagine this like a series of stacked sheets that you can traverse
+The ADM formalism is the most widespread approach for handling this. It consists of slicing a 4d spacetime explicitly into a series (foliation) of 3d spacelike slices, and separates out a timelike dimension which traverses these. It is often referred to as a "3+1" formalism as a result. You can imagine this like a series of stacked sheets that you can traverse
 
 ![foliation](/assets/pathy.png)
 
@@ -99,15 +99,18 @@ This is the most general form of the ADM metric, and dictates how we chop up our
 
 [^generalism]: That said, the ADM formalism *is* more restricted in what it can represent. Notably, our spacetime's topology cannot change, which means that the formation of wormholes cannot be simulated in the ADM formalism
 
-$\gamma_{ij}$: the metric tensor on our 3d slice, sometimes called the 'induced' metric
-
-$K_{ij}$: the extrinsic curvature, and represents the embedding of our 3d slice in the larger 4d spacetime. It can be thought of as a momentum term for $\gamma_{ij}$
-
-$\alpha$ and $\beta^i$: the gauge variables, called the lapse and shift respectively.[^lapseshift] These: Insert definition
-
-[^lapseshift]: These are also often frequently labelled $N$, for the lapse, and $N^i$, for the shift
+|Variable|Definition|
+|-|-|
+|$\gamma_{ij}$| The metric tensor on our 3d slice, sometimes called the 'induced' metric|
+|$K_{ij}$|The extrinsic curvature. It represents the embedding of our 3d slice in the larger 4d spacetime. It can be thought of as a momentum term for $\gamma_{ij}$|
+|$\alpha$[^lapseshift]| The lapse, a gauge variable, which is related to the separation between slices[^reffygauge]|
+|$\beta^i$[^lapseshift]| The shift, another gauge variable, related to how a point moves from one slice to the next[^reffygauge]|
 
 $\gamma_{ij}$ can be used to raise and lower indices on a 3d slice as per usual[^expecto]. Eg, given a tensor $Q_i$
+
+[^reffygauge]: See [Introduction to the ADM Formalism](https://arxiv.org/pdf/2210.10103) page 3. Frankly this document gives a better description of the ADM formalism than I ever could
+
+[^lapseshift]: These are also often frequently labelled $N$, for the lapse, and $N^i$, for the shift
 
 [^expecto]: If you're coming into this with no knowledge of GR, a metric tensor is used to measure distances, and angles, and defines the warping of spacetime. $\gamma_{ij}$ is used on this 3d space, whereas a 4-metric called $g_{\mu\nu}$ is used on a 4d spacetime
 
@@ -122,7 +125,7 @@ If our 4-metric is $g_{\mu\nu}$, then our 3-metric is $\gamma_{ij} = g_{ij}$, ie
 
 ## Equations of motion
 
-The ADM formalism has equations of motion associated with it by - defining the evolution of the metric and extrinsic curvature in time. These can be derived by defining a Lagrangian, and using standard techniques on it. Once that's all done, the ADM equations of motion can be brought into the following form[^reffyadm]:
+The ADM formalism has equations of motion associated with it - defining the evolution of the metric and extrinsic curvature in time. These can be derived by defining a Lagrangian, and using standard techniques on it. Once that's all done, the ADM equations of motion can be brought into the following form[^reffyadm]:
 
 [^reffyadm]: [https://arxiv.org/pdf/gr-qc/0604035](https://arxiv.org/pdf/gr-qc/0604035) (5). There are other forms of these equations, but these are the most common form in numerical relativity
 
@@ -132,7 +135,7 @@ $$\begin{align}
 \end{align}
 $$
 
-Where $\mathcal{L}_\beta$ is a [lie derivative](https://en.wikipedia.org/wiki/Lie_derivative), and $D_i$ is the [covariant derivative](https://en.wikipedia.org/wiki/Covariant_derivative) associated with $$\gamma_{ij}$$. We must also provide adequate gauge conditions (evolution equations for the gauge variables), and then in theory we have a fully working formalism for evolving a slice of spacetime into the future
+Where $\mathcal{L}_\beta$ is a [lie derivative](https://en.wikipedia.org/wiki/Lie_derivative), and $D_i$ is the [covariant derivative](https://en.wikipedia.org/wiki/Covariant_derivative) associated with $$\gamma_{ij}$$. We must also provide adequate gauge conditions (evolution equations for the gauge variables), and then in theory you have a fully working formalism for evolving a slice of spacetime into the future
 
 Unfortunately, there's a small problem
 
@@ -287,7 +290,7 @@ $$\begin{align}
 \end{align}
 $$
 
-See the end of the article for more discussion around gauge conditions
+The reason why we're using this specific form is just to replicate paper results - we're glossing over gauge conditions a bit here because they'll become much more relevant when we collide black holes together, which is when we'll get into this in detail. See the end of the article for more discussion around gauge conditions
 
 ## The BSSN equations of motion are bad
 
@@ -1118,7 +1121,7 @@ Eg, if we precalculate the first derivative $\partial_i \alpha$, calculating $\p
 
 # Discussion: Gauge conditions
 
-To chop down on unnecessary side tracking, I'm putting some other examples of gauge conditions here
+To chop down on unnecessary side tracking, I'm putting some other examples of gauge conditions here at the end
 
 ## Geodesic slicing
 
