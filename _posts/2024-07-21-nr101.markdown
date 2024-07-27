@@ -166,11 +166,13 @@ There are 4 main ingredients to get the BSSN equations from the ADM equations:
 
 [^conformalchristoffel]: $\tilde{\Gamma}^i_{jk}$ are the conformal christoffel symbols of the second kind, calculated in the usual fashion from $\tilde{\gamma_{ij}}$. $\Gamma^i_{jk}$ are the christoffel symbols associated with $\gamma_{ij}$
 
-With all this applied, we end up with the BSSN formalism. We'll go through some of the relevant elements of this now
+With all this applied, we end up with the BSSN formalism. We'll go through the relevant elements of this now
 
 ## Conformal decomposition
 
-The two non-gauge ADM variables are: $\gamma_{ij}$ the metric tensor, and $K_{ij}$, the extrinsic curvature, and these are what we'll split up, via what's called the $W^2$ conformal factor. This is used to define the conformal metric tensor as follows:
+The two non-gauge ADM variables are: $\gamma_{ij}$ the metric tensor, and $K_{ij}$, the extrinsic curvature, and these are what we'll split up, via what's called the $W^2$ conformal factor. This is used to define the conformal metric tensor[^technicallydensity] as follows:
+
+[^technicallydensity]: Technically the conformal metric is a tensor *density* with weight $-frac{2}{3}$
 
 $$\tilde{\gamma}_{ij} = W^2 \gamma_{ij}$$
 
