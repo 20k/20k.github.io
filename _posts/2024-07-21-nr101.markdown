@@ -202,7 +202,7 @@ $$
 \end{align}
 $$
 
-Conformal variables have a tilde over them, and have their indices are raised and lowered with the conformal metric tensor. In this definition, the determinant of the conformal metric is $$\tilde{\gamma} = 1$$, and $$\tilde{A}_{ij}$$ is trace-free. $K$ is the trace of $K_{ij}$. $K_{ij}$, $\gamma_{ij}$, $$\tilde{A}_{ij}$$, and $$\tilde{\gamma}_{ij}$$ are all symmetric
+Conformal variables have a tilde over them, and have their indices raised and lowered with the conformal metric tensor. In this definition, the determinant of the conformal metric is $$\tilde{\gamma} = 1$$, and $$\tilde{A}_{ij}$$ is trace-free. $K$ is the trace of $K_{ij}$. $K_{ij}$, $\gamma_{ij}$, $$\tilde{A}_{ij}$$, and $$\tilde{\gamma}_{ij}$$ are all symmetric
 
 $$\tilde{\Gamma}^i$$ is analytically equal to $$\tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$$, but is evolved numerically instead. This is because $$\partial_k \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$$ is numerically unstable TODO: CITE
 
@@ -287,16 +287,18 @@ This is fairly dense as things go, and if you're going to implement this there i
 The ADM/BSSN formalism does not uniquely specify the evolution equations for the lapse and shift, and there is a freedom of choice here. Despite in theory being arbitrary, in practice you have to very carefully pick your gauge conditions for the kind of problem you're trying to solve. For today, we're going to be picking what's called the harmonic gauge (aka harmonic slicing), with 0 shift:
 
 $$\begin{align}
-\partial_t \alpha &= - 2 \alpha^2 K + \beta^m \partial_m \alpha
+\partial_t \alpha &= - 2 \alpha^2 K + \beta^m \partial_m \alpha\\
 \beta^i &= 0
 \end{align}
 $$
 
-The reason why we're using this specific form is just to replicate paper results - we're glossing over gauge conditions a bit here because they'll become much more relevant when we collide black holes together, which is when we'll get into this in detail. See the end of the article for more discussion around gauge conditions
+The reason why we're using this specific form is just to replicate paper results - and we're glossing over gauge conditions a bit here because they'll become much more relevant when we collide black holes together, which is when we'll get into this in detail. See the end of the article for more discussion around gauge conditions
 
 ## The BSSN equations of motion are bad
 
-So, as written, the BSSN equations of motion are - drumroll - very numerically unstable, and attempting to directly implement the PDEs listed above will result in nothing working. I'll attempt to briefly summarise two decades of the conventional wisdom from stability analysis here[^stabilityanalysis] on how to fix this:
+Todo: The adm equations of motion bad picture, but more angry
+
+So, as written, the BSSN equations of motion are - drumroll - very numerically unstable, and attempting to directly implement the PDEs listed above will result in nothing working. I'll attempt to briefly summarise several decades of the conventional wisdom from stability analysis here[^stabilityanalysis] on how to fix this:
 
 [^stabilityanalysis]: This footnote could (and likely will) be an entire article in the future, where we'll test out dozens of modifications. Until then, consider checking out [this](https://arxiv.org/pdf/gr-qc/0204002), [this](https://arxiv.org/pdf/0707.0339), and [the ccz4](https://arxiv.org/pdf/1106.2254) paper (a similar, constraint damped formalism) for more information. There's a lot of decent analysis spread over the literature
 
@@ -310,7 +312,7 @@ Additionally:
 1. Hamiltonian constraint violations are essentially unimportant for stability purposes, and seem to be largely irrelevant for physical accuracy beyond a reasonably justified paranoia
 2. The first algebraic constraint $\mathcal{S}$ is relatively unimportant to enforce, but its easy to do - so we may as well
 
-Because only the derivatives of $\partial_k \tilde{\Gamma}^{i}_{mn}$ are numerically unstable, expressions involving undifferentiated $\tilde{\Gamma}^i$'s are frequently replaced in the literature with the analytic equivalent $$\tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$$. This is one technique to enforce the $\mathcal{G}^i$ constraint, though we're going to avoid this approach because it is a bit limited
+Because only the derivatives $\partial_k \tilde{\Gamma}^{i}_{mn}$ are numerically unstable, expressions involving undifferentiated $\tilde{\Gamma}^i$'s are frequently replaced in the literature with the analytic equivalent $$\tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$$. This is one technique to enforce the $\mathcal{G}^i$ constraint, though we're going to avoid this approach because it isn't the most effective technique
 
 ### Fixing the BSSN equations
 
@@ -474,7 +476,7 @@ The factor of $h$ is omitted, because we're indexing grid cells. Numerically thi
 
 $$\frac{\partial f} {\partial x} = \frac{\frac{1}{12} f(x - 2) - \frac{2}{3} f(x - 1) + \frac{2}{3} f(x + 1) - \frac{1}{12} f(x + 2)}{h}$$
 
-This tends to produce a decent tradeoff of accuracy vs performance. In this simulation, because the data is discretised onto a grid, this brings up the question of how to take derivatives at the edge of the grid (as taking derivatives involves adjacent grid cells) - solving this question defines the boundary conditions
+To take a second derivative, calculate the first derivative, then repeat the differentiation on it. 4th order differentiation tends to produce a decent tradeoff of accuracy vs performance. In this simulation, because the data is discretised onto a grid, this brings up the question of how to take derivatives at the edge of the grid (as taking derivatives involves adjacent grid cells) - solving this question defines the boundary conditions
 
 In this test - a gauge wave - the boundary conditions are periodic, which are the simplest kind luckily. To implement this, when implementing derivatives, you wrap your coordinates to the other edge of the domain. Some performance considerations are discussed at the end of this article
 
@@ -513,8 +515,6 @@ In general, the equations are all just a very long sum of products. A slightly m
 $$\partial_t W = \beta^m \partial_m W + \frac{1}{3} W (\alpha K - \partial_m \beta^m) $$
 
 ```c++
-///https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf 2.12 or
-///https://arxiv.org/pdf/0709.2160
 valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
 {
     valuef dibi = 0;
@@ -592,9 +592,9 @@ $$
 This is straightforward:
 
 ```c++
-valuef det_cY_pow = pow(cY.det(), 1.f/3.f);
+valuef det_cY = pow(cY.det(), 1.f/3.f);
 
-metric<valuef, 3, 3> fixed_cY = cY / det_cY_pow;
+metric<valuef, 3, 3> fixed_cY = cY / det_cY;
 tensor<valuef, 3, 3> fixed_cA = trace_free(cA, fixed_cY, fixed_cY.invert());
 ```
 
@@ -829,7 +829,7 @@ valuef diff1(const valuef& in, int direction, const valuef& scale)
 
     ///implemented like this, so that we have floating point symmetry in a symmetric grid
     valuef p1 = -vars[4] + vars[0];
-    valuef p2 = valuef(8.f) * (vars[3] - vars[1]);
+    valuef p2 = 8.f * (vars[3] - vars[1]);
 
     return (p1 + p2) / (12.f * scale);
 }
@@ -857,9 +857,9 @@ valuef diff2(const valuef& in, int idx, int idy, const valuef& dx, const valuef&
 }
 ```
 
-The way that this is implemented code-wise is slightly unusual. All variables in this simulation are bound to a particular grid location, eg `K` isl under the hood, tied to a specific coordinate - ie `K = K_buffer[pos, dim]`. This is to minimise the complexity of the equations
+The way that this is implemented code-wise is slightly unusual. All variables in this simulation are bound to a particular grid location - eg `K = K_buffer[pos, dim]`. This is to minimise the complexity of the equations
 
-Because of this, instead of having a buffer and a position for us to differentiate at, we have a variable which is derived from a buffer, and an expression tree containing a bracket operator - with our indexing position and dimension as arguments. The huge upside of this is that we can differentiate compound expressions, like this:
+Because of this, instead of having a buffer and a position to differentiate at, I have a variable which is derived from a buffer, and an expression tree containing a bracket operator - with the indexing position and dimension as arguments. The huge upside of this is that we can differentiate compound expressions, like this:
 
 ```c++
 diff1(cY * cA, 0, scale);
@@ -1023,7 +1023,7 @@ All in all: Great success
 
 This article is fairly dry with unexciting results - for good reason. If we tried to cram black hole collisions in here, it'd be even longer and I suspect no amount of cat pictures would save us from the sheer length of this piece. Luckily, future articles should be a *lot* simpler than this one - we've gotten the bulk of the technical work out of the way, which leaves us free to implement cool stuff
 
-If you have any questions about this, or you get lost - please feel free to contact me. This is one of those areas that's brutally difficult to get into as there are no guides, and I'm very happy to help people implement stuff
+If you have any questions about this, or you get stuck/lost - please feel free to contact me. This is one of those areas that's brutally difficult to get into as there are no guides, and I'm very happy to help people implement stuff
 
 # Discussion: Conformal factors
 
@@ -1041,7 +1041,7 @@ All defining the same conformal metric. The definition of the conformal variable
 
 $$
 \begin{align}
-\phi &= TODO\\
+\phi &= \frac{1}{12} ln(det(\gamma))\\
 \chi &= det(\gamma)^{-1/3}\\
 W &= det(\gamma)^{-1/6}\\
 \end{align}
@@ -1176,7 +1176,7 @@ The self advection terms for both lapse and shift are optional and often are dis
 
 In the test we will be looking at today, the time coordinate is defined as being harmonic, which is why we're sticking with it. The binary black hole gauge (often called the moving puncture gauge) is 1+log + Gamma driver, and will be used virtually exclusively in future articles
 
-
+One important feature of gauge conditions is that they ideally tend towards $\alpha = 1$, and $\beta^i = 0$ as you move towards flat spacetime. This simplifies things like gravitational wave extraction, or mass calculation down the line
 
 
 

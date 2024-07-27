@@ -60,7 +60,7 @@ valuef diff1(const valuef& in, int direction, const valuef& scale)
     std::array<valuef, 5> vars = get_differentiation_variables(in, direction);
 
     valuef p1 = -vars[4] + vars[0];
-    valuef p2 = valuef(8.f) * (vars[3] - vars[1]);
+    valuef p2 = 8.f * (vars[3] - vars[1]);
 
     return (p1 + p2) / (12.f * scale);
 }
