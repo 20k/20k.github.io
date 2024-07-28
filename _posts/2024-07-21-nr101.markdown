@@ -482,7 +482,7 @@ In this test - a gauge wave - the boundary conditions are periodic, which are th
 
 ## Implementation
 
-The actual code for implementing all of this can be found over at TODO. Pasting it all in here wouldn't really serve much purpose (because you can just go and browse the source), so this segment is going to show:
+The actual code for implementing all of this can be found over [here](https://github.com/20k/20k.github.io/tree/master/code/NR1). Pasting it all in here wouldn't really serve much purpose (because you can just go and browse the source), so this segment is going to show:
 
 1. An example of how to implement these equations
 2. How to differentiate things
@@ -600,7 +600,7 @@ tensor<valuef, 3, 3> fixed_cA = trace_free(cA, fixed_cY, fixed_cY.invert());
 
 ### Initial conditions
 
-The code for the initial conditions can be found at todo:
+The code for the initial conditions can be found [here](https://github.com/20k/20k.github.io/tree/master/code/NR1/init.cpp):
 
 This is the actual metric tensor we're using, with a generic argument so that its easy to plug dual numbers (which is how I differentiate things here):
 
@@ -1141,7 +1141,9 @@ $$\partial_t \alpha = - 2 \alpha^2 K + \beta^m \partial_m \alpha$$
 
 ### 1+log slicing
 
-Todo: I need a reference
+ref[^lapse]
+
+[^lapse]: [Gauge conditions for long-term numerical black hole evolutions without excision](https://arxiv.org/pdf/gr-qc/0206072) 33 + 34
 
 $$\partial_t \alpha = - \alpha K + \beta^m \partial_m \alpha$$
 
@@ -1153,7 +1155,10 @@ $$\beta^i = 0$$
 
 ### Gamma driver (sometimes called Gamma freezing)
 
-Todo: I need a reference
+ref[^gamma]
+
+[^gamma]: [How to move a black hole without excision: gauge conditions for the numerical
+evolution of a moving puncture](https://arxiv.org/pdf/gr-qc/0605030) 26
 
 So called because it drives $\partial_t\tilde{\Gamma} = 0$
 
