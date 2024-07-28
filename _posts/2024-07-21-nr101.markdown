@@ -141,7 +141,7 @@ Unfortunately, there's a small problem
 
 ## The ADM equations of motion are bad
 
-Todo: Some sort of frowny cat picture
+![testo](/assets/sadkrat.png)
 
 Part of the reason why we're not going into this more is that - unfortunately - these equations of motion are unusable to us. They are *very* numerically unstable, to the point where for our purposes[^purposes] there's no point trying to solve them. Understanding this issue, and solving it was an outstanding problem for decades, and there is an absolutely enormous amount written in the literature on this topic. A lot of this article series is going to be dealing with the very poor character of the equations
 
@@ -296,7 +296,7 @@ The reason why we're using this specific form is just to replicate paper results
 
 ## The BSSN equations of motion are bad
 
-Todo: The adm equations of motion bad picture, but more angry
+![sadderkrat](/assets/sadderkrat.png)
 
 So, as written, the BSSN equations of motion are - drumroll - very numerically unstable, and attempting to directly implement the PDEs listed above will result in nothing working. I'll attempt to briefly summarise several decades of the conventional wisdom from stability analysis here[^stabilityanalysis] on how to fix this:
 
