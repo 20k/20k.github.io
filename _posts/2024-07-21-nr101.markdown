@@ -14,6 +14,7 @@ stability paper https://arxiv.org/pdf/0707.0339
 http://wwwteor.mi.infn.it/~molinari/TESI/Danieli_tesi.pdf 4.27 relates conjugate momentum and extrinsic curvature
 https://arxiv.org/pdf/2210.10103 adm stuff
 https://arxiv.org/pdf/gr-qc/0604035 adm evolution equations
+https://imprs-gw-lectures.aei.mpg.de/2022-computational-methods/wp-content/uploads/sites/6/2022/04/Lecturenote.NR2022_v2.pdf timelike normal, other biz
 
 Ok planola time:
 
@@ -155,14 +156,21 @@ Todo: Some kind of thanks astrophysics picture
 
 The BSSN formalism is the most widely used formalism - it is directly derived from the ADM formalism, and most practical formalisms are substantially similar to the BSSN formalism. It was the first very successful formalism to enter the picture - though it was unclear precisely why it worked so well for a long time[^seehere]
 
-[^seehere]: [https://arxiv.org/pdf/0707.0339](https://arxiv.org/pdf/0707.0339) this paper contains a lot of useful details, but the short version is that the BSSN equations are a partially constrained evolution system, and managing the constraints is critical to a correct evolution scheme
+[^seehere]: [https://arxiv.org/pdf/0707.0339](https://arxiv.org/pdf/0707.0339) this paper contains a lot of useful details, but the short version is that the BSSN equations are a partially constrained evolution system[^constrained], and managing the constraints is critical to a correct evolution scheme
+
+[^constrained]: [See Conclusion](https://ar5iv.labs.arxiv.org/html/0707.0339)
 
 There are 4 main ingredients to get the BSSN equations from the ADM equations:
 
 1. You perform a conformal transform - the metric $\gamma_{ij}$ is split into a metric with unit determinant $$\tilde{\gamma}_{ij}$$, and a conformal (scalar) factor
 2. The extrinsic curvature $K_{ij}$ is split up into its trace: $K$, and the conformal trace free part of the extrinsic curvature, $$\tilde{A}_{ij}$$
-3. A new redundant variable $$\tilde{\Gamma}^i = \tilde{\gamma}^{mn} \tilde{\Gamma}^{i}_{mn}$$[^conformalchristoffel] is introduced and evolved dynamically, which eliminates a major source of numerical instabilities
-4. The hamiltonian constraint is substituted in to eliminate numerically unstable quantities
+3. A new redundant variable $$\tilde{\Gamma}^i = \tilde{\gamma}^{mn} \tilde{\Gamma}^{i}_{mn}$$[^conformalchristoffel] is introduced and evolved dynamically, which eliminates a major source of numerical instabilities[^symbolly]
+4. The momentum constraint is substituted in to eliminate numerically unstable quantities[^reffymomentum]
+5. The hamiltonian constraint is also substituted in
+
+[^reffymomentum]: [14](https://ar5iv.labs.arxiv.org/html/0707.0339)
+
+[^symbolly]: For a lot of detail on why and how the christoffel symbol exists, see [this](https://imprs-gw-lectures.aei.mpg.de/2022-computational-methods/wp-content/uploads/sites/6/2022/04/Lecturenote.NR2022_v2.pdf) page 47 onwards, and [here](https://www2.yukawa.kyoto-u.ac.jp/~yuichiro.sekiguchi/3+1.pdf) page 58 onwards
 
 [^conformalchristoffel]: $\tilde{\Gamma}^i_{jk}$ are the conformal christoffel symbols of the second kind, calculated in the usual fashion from $\tilde{\gamma_{ij}}$. $\Gamma^i_{jk}$ are the christoffel symbols associated with $\gamma_{ij}$
 
@@ -305,14 +313,13 @@ So, as written, the BSSN equations of motion are - drumroll - very numerically u
 1. If the second algebraic constraint $\mathcal{A}$ is violated, ie the trace of the trace-free extrinsic curvature != 0, the violation blows up and your simulation will immediately fail
 2. Correcting momentum constraint $\mathcal{M}_i$ violations is very important
 3. The christoffel symbol constraint $\mathcal{G}^i$ is quite important to damp
-4. The quantity $\partial_k\tilde{\Gamma}^i_{mn}$ is numerically unstable, though the quantity $\tilde{\Gamma}^i_{mn}$ is not
 
 Additionally:
 
 1. Hamiltonian constraint violations are essentially unimportant for stability purposes, and seem to be largely irrelevant for physical accuracy beyond a reasonably justified paranoia
 2. The first algebraic constraint $\mathcal{S}$ is relatively unimportant to enforce, but its easy to do - so we may as well
 
-Because only the derivatives $\partial_k \tilde{\Gamma}^{i}_{mn}$ are numerically unstable, expressions involving undifferentiated $\tilde{\Gamma}^i$'s are frequently replaced in the literature with the analytic equivalent $$\tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$$. This is one technique to enforce the $\mathcal{G}^i$ constraint, though we're going to avoid this approach because it isn't the most effective technique
+Expressions involving undifferentiated $\tilde{\Gamma}^i$'s are frequently replaced in the literature with the analytic equivalent $$\tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$$. This is one technique to enforce the $\mathcal{G}^i$ constraint, though we're going to avoid this approach because it only really works well in specific circumstances (that we'll get into)
 
 ### Fixing the BSSN equations
 
