@@ -46,6 +46,8 @@ These kinds of simulations are traditionally run on supercomputers, but luckily 
 
 This article is not going to assume you know all that much about general relativity, but it does require a lot of implementing
 
+Todo: Plug
+
 # Preamble
 
 In this article we'll be using the Einstein summation convention, and I'm going to assume you know how to raise and lower indices. See [this](https://20k.github.io/c++/2024/05/31/schwarzschild.html) article for more details, but the short version is:
@@ -166,8 +168,7 @@ There are 4 main ingredients to get the BSSN equations from the ADM equations:
 1. You perform a conformal transform - the metric $\gamma_{ij}$ is split into a metric with unit determinant $$\tilde{\gamma}_{ij}$$, and a conformal (scalar) factor
 2. The extrinsic curvature $K_{ij}$ is split up into its trace: $K$, and the conformal trace free part of the extrinsic curvature, $$\tilde{A}_{ij}$$
 3. A new redundant variable $$\tilde{\Gamma}^i = \tilde{\gamma}^{mn} \tilde{\Gamma}^{i}_{mn}$$[^conformalchristoffel] is introduced and evolved dynamically, which eliminates a major source of numerical instabilities[^symbolly]
-4. The momentum constraint is substituted in to eliminate numerically unstable quantities[^reffymomentum]
-5. The hamiltonian constraint is also substituted in
+4. The constraints are substituted in to eliminate numerically unstable quantities[^reffymomentum]
 
 [^reffymomentum]: [14](https://ar5iv.labs.arxiv.org/html/0707.0339)
 
@@ -175,11 +176,11 @@ There are 4 main ingredients to get the BSSN equations from the ADM equations:
 
 [^conformalchristoffel]: $\tilde{\Gamma}^i_{jk}$ are the conformal christoffel symbols of the second kind, calculated in the usual fashion from $\tilde{\gamma_{ij}}$. $\Gamma^i_{jk}$ are the christoffel symbols associated with $\gamma_{ij}$
 
-With all this applied, we end up with the BSSN formalism. We'll go through the relevant elements of this now
+With all this applied, you end up with the BSSN formalism. We'll go through the relevant elements of this now
 
 ## Conformal decomposition
 
-The two non-gauge ADM variables are: $\gamma_{ij}$ the metric tensor, and $K_{ij}$, the extrinsic curvature, and these are what we'll split up, via what's called the $W^2$ conformal factor. This is used to define the conformal metric tensor[^technicallydensity] as follows:
+The two non-gauge ADM variables are: $\gamma_{ij}$ the metric tensor, and $K_{ij}$, the extrinsic curvature, and these are what we'll split up - via what's called the $W^2$ conformal factor. This is used to define the conformal metric tensor[^technicallydensity] as follows:
 
 [^technicallydensity]: Technically the conformal metric is a tensor *density* with weight $-frac{2}{3}$
 
@@ -187,7 +188,11 @@ $$\tilde{\gamma}_{ij} = W^2 \gamma_{ij}$$
 
 The inverse of the metric is also straightforward:
 
-$$W^2 \tilde{\gamma}^{ij} = \gamma^{ij}$$
+$$
+\begin{align}
+W^2 \tilde{\gamma}^{ij} &= \gamma^{ij}\\
+\tilde{\gamma}^{ij} &= (\tilde{\gamma}_{ij})^{-1}
+\end{align}$$
 
 $$K_{ij}$$ is split into its trace $K = \gamma^{mn} K_{mn}$, and the conformal trace-free part called $$\tilde{A}_{ij}$$
 
@@ -211,9 +216,9 @@ $$
 \end{align}
 $$
 
-Conformal variables have a tilde over them, and have their indices raised and lowered with the conformal metric tensor. In this definition, the determinant of the conformal metric is $$\tilde{\gamma} = 1$$, and $$\tilde{A}_{ij}$$ is trace-free. $K$ is the trace of $K_{ij}$. $K_{ij}$, $\gamma_{ij}$, $$\tilde{A}_{ij}$$, and $$\tilde{\gamma}_{ij}$$ are all symmetric
+Phew. Conformal variables have a tilde over them, and have their indices raised and lowered with the conformal metric tensor. In this definition, the determinant of the conformal metric is $$\tilde{\gamma} = 1$$, and $$\tilde{A}_{ij}$$ is trace-free. $K$ is the trace of $K_{ij}$. $K_{ij}$, $\gamma_{ij}$, $$\tilde{A}_{ij}$$, and $$\tilde{\gamma}_{ij}$$ are all symmetric
 
-$$\tilde{\Gamma}^i$$ is analytically equal to $$\tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$$, but is evolved numerically instead
+$$\tilde{\Gamma}^i$$ is analytically equal to $$\tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$$, but is evolved numerically instead, as it is more numerically stable to do it this way
 
 There are also a number of constraints that must be satisfied for the BSSN formalism to be well posed. The momentum and hamiltonian constraints come from this being derived from a Lagrangian approach, and the others are specific to the BSSN formalism
 
@@ -311,20 +316,20 @@ So, as written, the BSSN equations of motion are - drumroll - very numerically u
 
 [^stabilityanalysis]: This footnote could (and likely will) be an entire article in the future, where we'll test out dozens of modifications. Until then, consider checking out [this](https://arxiv.org/pdf/gr-qc/0204002), [this](https://arxiv.org/pdf/0707.0339), and [the ccz4](https://arxiv.org/pdf/1106.2254) paper (a similar, constraint damped formalism) for more information. There's a lot of decent analysis spread over the literature
 
-1. If the second algebraic constraint $\mathcal{A}$ is violated, ie the trace of the trace-free extrinsic curvature != 0, the violation blows up and your simulation will immediately fail
+1. If the second algebraic constraint $\mathcal{A}$ is violated, ie the trace of the trace-free extrinsic curvature != 0, the violation blows up and your simulation will virtually immediately fail
 2. Correcting momentum constraint $\mathcal{M}_i$ violations is very important
 3. The christoffel symbol constraint $\mathcal{G}^i$ is quite important to damp
 
 Additionally:
 
-1. Hamiltonian constraint violations are essentially unimportant for stability purposes, and seem to be largely irrelevant for physical accuracy beyond a reasonably justified paranoia
+1. Hamiltonian constraint violations are essentially unimportant for stability purposes, and damping this seems to be largely irrelevant for physical accuracy
 2. The first algebraic constraint $\mathcal{S}$ is relatively unimportant to enforce, but its easy to do - so we may as well
 
 Expressions involving undifferentiated $\tilde{\Gamma}^i$'s are frequently replaced in the literature with the analytic equivalent $$\tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$$. This is one technique to enforce the $\mathcal{G}^i$ constraint, though we're going to avoid this approach because it only really works well in specific circumstances (that we'll get into)
 
 ### Fixing the BSSN equations
 
-Before we can even get off the ground, we're going to have to at minimum implement the following three things
+Before we can get off the ground, we're going to have to at minimum implement the following three things
 
 1. Algebraic constraint enforcement
 2. Momentum constraint damping
@@ -348,10 +353,10 @@ Its important to do this just before you use these variables (ie don't numerical
 The most common way of damping momentum constraint errors is as follows:
 
 $$
-\partial_t \tilde{A}_{ij}  = \partial_t \tilde{A}_{ij} + k_3 \alpha \tilde{D}_{(i} \mathcal{M}_{j)}
+\partial_t \tilde{A}_{ij}  = \partial_t \tilde{A}_{ij} + k_m \alpha \tilde{D}_{(i} \mathcal{M}_{j)}
 $$
 
-Where $k_3$ > 0. Do be aware that this is a scale dependent parameter, so if you double your resolution you'll need to halve it
+Where $k_m$ > 0. Do be aware that this is a scale dependent parameter, so if you double your resolution you'll need to halve it
 
 #### The Christoffel symbol constraint
 
@@ -567,11 +572,11 @@ $$\partial_i \phi = -\frac{\partial_i W}{2 W}$$
 
 [^technically]: Technically, as $\alpha$ is expected to tend to 0 faster than $W$ tends to 0, the quantity $\frac{\alpha}{W}$ is considered regular. In practice, clamping the conformal factor appears to be the accepted technique, though alarmingly I've found that the exact clamp value can make a large difference to your simulation
 
-##### Evolving $\tilde{A}_{ij}$
+#### Evolving $\tilde{A}_{ij}$
 
 $$
 \begin{align}
-\partial_t \tilde{A}_{ij} &= \beta^m \partial_m \tilde{A}_{ij}+ 2 \tilde{A}_{m(i} \partial_{j)} \beta^m - \frac{2}{3} \tilde{A}_{ij} \partial_m \beta^m + \alpha K \tilde{A}_{ij} \\&- 2 \alpha \tilde{A}_{im} \tilde{A}^m_{\;\;j} + (\alpha W^2 \mathcal{R}_{ij} - W^2 D_i D_j \alpha)^{TF} \\&+ k_3 \alpha \tilde{D}_{(i} \mathcal{M}_{j)}
+\partial_t \tilde{A}_{ij} &= \beta^m \partial_m \tilde{A}_{ij}+ 2 \tilde{A}_{m(i} \partial_{j)} \beta^m - \frac{2}{3} \tilde{A}_{ij} \partial_m \beta^m + \alpha K \tilde{A}_{ij} \\&- 2 \alpha \tilde{A}_{im} \tilde{A}^m_{\;\;j} + (\alpha W^2 \mathcal{R}_{ij} - W^2 D_i D_j \alpha)^{TF} \\&+ k_m \alpha \tilde{D}_{(i} \mathcal{M}_{j)}
 \end{align}
 $$
 
@@ -582,11 +587,11 @@ Is what we're actually implementing. There are several modifications made here:
 3. $$W^2 \mathcal{R}_{ij}$$ is calculated instead of $$\mathcal{R}_{ij}$$
 4. Momentum constraint damping has been added
 
-###### $$W^2 D_iD_j\alpha$$
+##### $$W^2 D_iD_j\alpha$$
 
 $$W^2 D_iD_j\alpha = W^2 \tilde{D}_i \tilde{D}_j \alpha + 2W \partial_{(i} W \partial_{j)} \alpha\ - W \tilde{\gamma}_{ij} \tilde{\gamma}^{mn} \partial_m W \partial_n \alpha$$
 
-###### $$W^2 \mathcal{R}_{ij}$$
+##### $$W^2 \mathcal{R}_{ij}$$
 
 $$
 \begin{align}
@@ -759,7 +764,7 @@ Calculating the christoffel symbol is left as a separate post processing step (b
 
 The boundary conditions are implemented whenever we need to take a derivative of something, and so the two topics are tied together
 
-Below is how I generate the adjacent grid cells, so we can apply finite difference coefficients to them. This is a slightly unusual way to do this, so its worth going over
+Below is how I generate the adjacent grid cells, so we can apply finite difference coefficients to them. The scheme I've set up for doing this is worth going over
 
 ```c++
 ///takes a memory access like v[pos, dim], and generates the sequence
@@ -1017,7 +1022,7 @@ To evaluate how well this is working, we want to check two things
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/j5i8MsSqX9Y?si=rT_OMCH4CoWm6LcM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-This is for a 128^3 sized simulation, a timestep of 0.001, and with video capturing software that can't handle sRGB correctly. $k_3$ for the momentum constraint damping is set to $0.025$. The precision of variables in memory is 32-bit floats, and 16-bit[^bit16] floats are used for precalculated derivatives. We can see here that the momentum constraint errors are decreasing, the hamiltonian constraint errors don't blow up horribly, and the nature of the wave we're simulating is preserved - though it does slowly dissipate. Oddly, we do way better here than we should do, according to [this](https://arxiv.org/pdf/1106.2254) paper the bssn formalism should have failed with unbounded constraint errors - but I won't complain too much about things going well
+This is for a 128^3 sized simulation, a timestep of 0.001, and with video capturing software that can't handle sRGB correctly. $k_m$ for the momentum constraint damping is set to $0.025$. The precision of variables in memory is 32-bit floats, and 16-bit[^bit16] floats are used for precalculated derivatives. We can see here that the momentum constraint errors are decreasing, the hamiltonian constraint errors don't blow up horribly, and the nature of the wave we're simulating is preserved - though it does slowly dissipate. Oddly, we do way better here than we should do, according to [this](https://arxiv.org/pdf/1106.2254) paper the bssn formalism should have failed with unbounded constraint errors - but I won't complain too much about things going well
 
 ![constraints](/assets/constraintsfinally.png)
 
@@ -1032,6 +1037,8 @@ All in all: Great success
 This article is fairly dry with unexciting results - for good reason. If we tried to cram black hole collisions in here, it'd be even longer and I suspect no amount of cat pictures would save us from the sheer length of this piece. Luckily, future articles should be a *lot* simpler than this one - we've gotten the bulk of the technical work out of the way, which leaves us free to implement cool stuff
 
 If you have any questions about this, or you get stuck/lost - please feel free to contact me. This is one of those areas that's brutally difficult to get into as there are no guides, and I'm very happy to help people implement stuff
+
+Until Then: Todo, wesley
 
 # Discussion: Conformal factors
 
@@ -1055,7 +1062,7 @@ W &= det(\gamma)^{-1/6}\\
 \end{align}
 $$
 
-With this definition, the determinant of our conformal metric tensor is $\tilde{\gamma} = 1$. The inverse of the metric tensor follows a similar relation:
+With this definition, the determinant of our conformal metric tensor is always $\tilde{\gamma} = 1$. The inverse of the metric tensor follows a similar relation:
 
 $$
 \begin{align}
