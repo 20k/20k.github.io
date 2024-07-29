@@ -192,7 +192,7 @@ $$K_{ij}$$ is split into its trace $K = \gamma^{mn} K_{mn}$, and the conformal t
 
 $$\tilde{A}_{ij} = W^2 (K_{ij} - \frac{1}{3} \gamma_{ij} K) = W^2 (K_{ij})^{TF}$$
 
-If you're wondering why we're using $W^2$ rather than a non squared conformal variable (which *is* used in the literature), please see the discussion on conformal factors at the end of this article
+If you're wondering why we're using $W^2$ rather than a non squared conformal variable (which *is* used in the literature), please see the discussion on conformal factors at the end of this article for a discussion on the alternatives
 
 ## Variables
 
@@ -1064,9 +1064,11 @@ W^2 &\tilde{\gamma}^{ij} &= \gamma^{ij}\\
 \end{align}
 $$
 
-$\phi$: This was the first to be used, but it tends to infinity at a black hole's singularity which makes it not ideal - and appears to be falling out of use.
+$\phi$[^phiref]: This was the first to be used, but it tends to infinity at a black hole's singularity which makes it not ideal - and appears to be falling out of use.
 
-$\chi$: This version tends to 0 at the singularity and in general behaves much better than the $\phi$ version - and is relatively widespread in more modern code.
+[^phiref]: There wasn't a good place to put this footnote in, here's an example of the equations and definitions with a phi scheme [Numerical experiments of adjusted BSSN systems for controlling constraint violations](https://arxiv.org/pdf/0711.3575v2)
+
+$\chi$: This version tends to 0 at the singularity and in general behaves much better than the $\phi$ version - it is relatively widespread in more modern code.
 
 $W^2$: Ostensibly it has better convergence[^converge] than $\chi$, but the really neat part about it is that renders the equations of motion of BSSN in a much less singular form. It also does not suffer from some of the issues that $\chi$ has, like unphysical negative values
 
@@ -1148,7 +1150,7 @@ $$\partial_t \alpha = - 2 \alpha^2 K + \beta^m \partial_m \alpha$$
 
 ### 1+log slicing
 
-ref[^lapse]
+Ref[^lapse]
 
 [^lapse]: [Gauge conditions for long-term numerical black hole evolutions without excision](https://arxiv.org/pdf/gr-qc/0206072) 33 + 34
 
@@ -1162,10 +1164,9 @@ $$\beta^i = 0$$
 
 ### Gamma driver (sometimes called Gamma freezing)
 
-ref[^gamma]
+Ref[^gamma]
 
-[^gamma]: [How to move a black hole without excision: gauge conditions for the numerical
-evolution of a moving puncture](https://arxiv.org/pdf/gr-qc/0605030) 26
+[^gamma]: [How to move a black hole without excision: gauge conditions for the numerical evolution of a moving puncture](https://arxiv.org/pdf/gr-qc/0605030) 26
 
 So called because it drives $\partial_t\tilde{\Gamma} = 0$
 
