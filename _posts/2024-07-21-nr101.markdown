@@ -50,11 +50,12 @@ This article is not going to assume you know all that much about general relativ
 
 In this article we'll be using the Einstein summation convention, and I'm going to assume you know how to raise and lower indices. See [this](https://20k.github.io/c++/2024/05/31/schwarzschild.html) article for more details, but the short version is:
 
-1. Repeated indices are summed, eg $v^\mu v_\mu == v^0 v_0 + v^1 v_1 + v^2 v_2 + v^3 v_3$
-2. Indices can be raised and lowered by the metric tensor, eg $v^\mu = g^{\mu\nu} v_\nu$, and $v_\mu = g_{\mu\nu} v^\nu$
-3. The inverse of the metric $g_{\mu\nu}$ - that is $g^{\mu\nu}$ - is calculated via a matrix inverse, ie $g^{\mu\nu} = (g_{\mu\nu})^{-1}$
+1. Objects can have raised or lowered indices, eg $v^\mu$ or $v_\mu$. These are two representations of the same object
+2. Repeated indices are summed, eg $v^\mu v_\mu == v^0 v_0 + v^1 v_1 + v^2 v_2 + v^3 v_3$
+3. Indices can be raised and lowered by the metric tensor, eg $v^\mu = g^{\mu\nu} v_\nu$, and $v_\mu = g_{\mu\nu} v^\nu$
+4. The inverse of the metric $g_{\mu\nu}$ - that is $g^{\mu\nu}$ - is calculated via a matrix inverse, ie $g^{\mu\nu} = (g_{\mu\nu})^{-1}$
 
-You don't necessarily need to understand any of this to work with the equations, just bear in mind that you can transform between the raised and lowered index forms of an object with a matrix multiplication
+You don't necessarily need to understand any of this to work with the equations, just bear in mind that you can transform between the raised and lowered index forms of an object with a matrix multiplication - via the metric tensor. The metric tensor fully describes a spacetime
 
 # The ADM (Arnowitt–Deser–Misner) formalism
 
