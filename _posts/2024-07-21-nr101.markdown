@@ -297,7 +297,7 @@ This is fairly dense as things go, and if you're going to implement this there i
 The ADM/BSSN formalism does not uniquely specify the evolution equations for the lapse and shift, and there is a freedom of choice here. Despite in theory being arbitrary, in practice you have to very carefully pick your gauge conditions for the kind of problem you're trying to solve. For today, we're going to be picking what's called the harmonic gauge (aka harmonic slicing), with 0 shift:
 
 $$\begin{align}
-\partial_t \alpha &= - 2 \alpha^2 K + \beta^m \partial_m \alpha\\
+\partial_t \alpha &= - \alpha^2 K + \beta^m \partial_m \alpha\\
 \beta^i &= 0
 \end{align}
 $$
@@ -501,7 +501,7 @@ The actual code for implementing all of this can be found over [here](https://gi
 
 The harmonic gauge condition is this:
 
-$$\partial_t \alpha = - 2 \alpha^2 K + \beta^m \partial_m \alpha$$
+$$\partial_t \alpha = - \alpha^2 K + \beta^m \partial_m \alpha$$
 
 Which translates directly to this:
 
@@ -1146,7 +1146,7 @@ $$\alpha = 1, \beta^i = 0$$
 
 Ref[^harmy]
 
-$$\partial_t \alpha = - 2 \alpha^2 K + \beta^m \partial_m \alpha$$
+$$\partial_t \alpha = - \alpha^2 K + \beta^m \partial_m \alpha$$
 
 [^harmy]: [Ref](https://arxiv.org/pdf/2201.08857)
 
@@ -1156,7 +1156,7 @@ Ref[^lapse]
 
 [^lapse]: [Gauge conditions for long-term numerical black hole evolutions without excision](https://arxiv.org/pdf/gr-qc/0206072) 33 + 34
 
-$$\partial_t \alpha = - \alpha K + \beta^m \partial_m \alpha$$
+$$\partial_t \alpha = - 2 \alpha K + \beta^m \partial_m \alpha$$
 
 ## Shift ($\beta^i$)
 
