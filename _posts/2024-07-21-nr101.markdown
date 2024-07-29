@@ -82,7 +82,7 @@ The ADM formalism is the most widespread approach for handling this. It consists
 
 Each sheet represents one slice that we can call 'now', although we're stretching the terminology a lot here. The slices themselves can be pretty arbitrary - the important thing is that you can define how one slice changes into the next, and so work out how spacetime evolves into the future
 
-Realistically, I'm not very good at art, so if you want a good intuitive picture to refer back to, I'd recommend ][page 12](https://imprs-gw-lectures.aei.mpg.de/2022-computational-methods/wp-content/uploads/sites/6/2022/04/Lecturenote.NR2022_v2.pdf)
+Realistically, I'm not very good at art, so if you want a good intuitive picture to refer back to, I'd recommend [page 12](https://imprs-gw-lectures.aei.mpg.de/2022-computational-methods/wp-content/uploads/sites/6/2022/04/Lecturenote.NR2022_v2.pdf)
 
 ## Details
 
@@ -125,7 +125,7 @@ Q_i &= \gamma_{ij} Q^j
 \end{align}
 $$
 
-If our 4-metric is $g_{\mu\nu}$, then our 3-metric is $\gamma_{ij} = g_{ij}$, ie the spatial parts. While $\gamma^{ij} = (\gamma_{ij})^{-1}$ (the 3x3 matrix inverse), $\gamma^{ij} \neq g^{ij}$
+If our 4-metric is $g_{\mu\nu}$, then the 3-metric is $\gamma_{ij} = g_{ij}$, ie the spatial parts. While $\gamma^{ij} = (\gamma_{ij})^{-1}$ (the 3x3 matrix inverse), $\gamma^{ij} \neq g^{ij}$
 
 ## Equations of motion
 
@@ -152,8 +152,6 @@ Part of the reason why we're not going into this more is that - unfortunately - 
 [^purposes]: Its not true that the ADM formalism is useless in general, but if you want to simulate binary black hole collisions, then it won't work. We're also going to get into neutron stars collapsing into black holes, which is even less numerically stable
 
 Luckily, because its not the early 2000s - and because the astrophysics community rocks and makes all this information public - we get to skip to the part where we have a workable set of equations
-
-Todo: Some kind of thanks astrophysics picture
 
 # Enter: The BSSN formalism
 
@@ -215,7 +213,7 @@ $$
 
 Conformal variables have a tilde over them, and have their indices raised and lowered with the conformal metric tensor. In this definition, the determinant of the conformal metric is $$\tilde{\gamma} = 1$$, and $$\tilde{A}_{ij}$$ is trace-free. $K$ is the trace of $K_{ij}$. $K_{ij}$, $\gamma_{ij}$, $$\tilde{A}_{ij}$$, and $$\tilde{\gamma}_{ij}$$ are all symmetric
 
-$$\tilde{\Gamma}^i$$ is analytically equal to $$\tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$$, but is evolved numerically instead. This is because $$\partial_k \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$$ is numerically unstable TODO: CITE
+$$\tilde{\Gamma}^i$$ is analytically equal to $$\tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$$, but is evolved numerically instead
 
 There are also a number of constraints that must be satisfied for the BSSN formalism to be well posed. The momentum and hamiltonian constraints come from this being derived from a Lagrangian approach, and the others are specific to the BSSN formalism
 
