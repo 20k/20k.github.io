@@ -73,13 +73,15 @@ Solutions to the Einstein field equations are described in their entirety by an 
 |2|0|0|$r^2$|0|
 |3|0|0|0|$r^2 sin^2(\theta)$|
 
-Its notable that this solution describes spacetime both in the future, and in the past - relative to whenever you exist - it is defined over all time. This brings up the fundamental question that we need to solve: What happens if we only have a solution for 'now', and we want to instead simulate what the future would look like?
+With a coordinate system $(t, r, \theta, \phi)$. Its notable that this solution describes spacetime both in the future, and in the past - relative to whenever you exist - it is defined over all time. This brings up the fundamental question that we need to solve: What happens if we only have a solution for 'now', and we want to instead simulate what the future would look like?
 
 The ADM formalism is the most widespread approach for handling this. It consists of slicing a 4d spacetime explicitly into a series (foliation) of 3d spacelike slices, and separates out a timelike dimension which traverses these. It is often referred to as a "3+1" formalism as a result. You can imagine this like a series of stacked sheets that you can traverse
 
 ![foliation](/assets/pathy.png)
 
 Each sheet represents one slice that we can call 'now', although we're stretching the terminology a lot here. The slices themselves can be pretty arbitrary - the important thing is that you can define how one slice changes into the next, and so work out how spacetime evolves into the future
+
+Realistically, I'm not very good at art, so if you want a good intuitive picture to refer back to, I'd recommend ][page 12](https://imprs-gw-lectures.aei.mpg.de/2022-computational-methods/wp-content/uploads/sites/6/2022/04/Lecturenote.NR2022_v2.pdf)
 
 ## Details
 
