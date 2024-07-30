@@ -24,7 +24,7 @@ In this article we'll be using the Einstein summation convention, and I'm going 
 3. Indices can be raised and lowered by the metric tensor, eg $v^\mu = g^{\mu\nu} v_\nu$, and $v_\mu = g_{\mu\nu} v^\nu$
 4. The inverse of the metric $g_{\mu\nu}$ - that is $g^{\mu\nu}$ - is calculated via a matrix inverse, ie $g^{\mu\nu} = (g_{\mu\nu})^{-1}$
 
-You don't necessarily need to understand any of this to work with the equations, just bear in mind that you can transform between the raised and lowered index forms of an object with a matrix multiplication - via the metric tensor. The metric tensor fully describes a spacetime
+You don't necessarily need to understand any of this to work with the equations, just bear in mind that you can transform between the raised and lowered index forms of an object with a matrix multiplication - via the metric tensor. The (4d) metric tensor fully describes a spacetime
 
 # The ADM (Arnowitt–Deser–Misner) formalism
 
