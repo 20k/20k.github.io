@@ -17,7 +17,7 @@ If anyone's looking for a PhD student to smash black holes together, then I'd lo
 
 # Preamble
 
-In this article we'll be using the Einstein summation convention, and I'm going to assume you know how to raise and lower indices. See [this](https://20k.github.io/c++/2024/05/31/schwarzschild.html) article for more details, but the short version is:
+In this article we'll be using the Einstein summation convention, and I'm going to assume you know how to raise and lower indices. See [this](https://20k.github.io/c++/2024/05/31/schwarzschild.html) article or [wikipedia](https://en.wikipedia.org/wiki/Einstein_notation) for more details, but the short version is:
 
 1. Objects can have raised or lowered indices, eg $v^\mu$ or $v_\mu$. These are two representations of the same object
 2. Repeated indices are summed, eg $v^\mu v_\mu == v^0 v_0 + v^1 v_1 + v^2 v_2 + v^3 v_3$
