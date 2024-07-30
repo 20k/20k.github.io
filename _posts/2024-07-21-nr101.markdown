@@ -40,7 +40,7 @@ Hi there! Today we're going to be getting into numerical relativity, which is th
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/CSpo2S9IVjY?si=3N_d-7cRyzeqi1fS" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-These kinds of simulations are traditionally run on supercomputers, but luckily you likely have a supercomputer in the form of a GPU[^specs] in your PC. The amount of extra performance we can get over a traditional CPU based implementation is likely to be a few orders of magnitude higher if you know what you're doing, so in this article I'm going to present to you how to get this done
+These kinds of simulations are traditionally run on supercomputers, but luckily you likely have a supercomputer in the form of a GPU[^specs] in your PC. The amount of extra performance we can get over a traditional CPU based implementation is likely to be a few orders of magnitude higher if you know what you're doing, so in this article I'm going to present to you how to get this done. Surprisingly, you don't really need to know much about general relativity for any of this, but it will reuqire a lot of implementing to get it done
 
 [^specs]: You'll need 8+ GB of vram for future bbh collisions, though you can get away with minimal specs for this article. This was written and tested on a 6700xt, but previous work was on an r9 390. Any OpenCL 1.2 compatible device will work here, though I do use 64-bit atomics for accumulating diagnostics
 
