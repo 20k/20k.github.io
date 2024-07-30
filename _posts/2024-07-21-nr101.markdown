@@ -44,9 +44,7 @@ These kinds of simulations are traditionally run on supercomputers, but luckily 
 
 [^specs]: You'll need 8+ GB of vram for future bbh collisions, though you can get away with minimal specs for this article. This was written and tested on a 6700xt, but previous work was on an r9 390. Any OpenCL 1.2 compatible device will work here, though I do use 64-bit atomics for accumulating diagnostics
 
-This article is not going to assume you know all that much about general relativity, but it does require a lot of implementing
-
-Todo: Plug
+If anyone's looking for a PhD student to smash black holes together, then I'd love that
 
 # Preamble
 
@@ -464,7 +462,7 @@ Given a metric $g_{\mu\nu}$, we want to calculate the ADM variables $\gamma_{ij}
 |$0$|$-\alpha^2$|$\alpha^{-2} \beta^i$|
 |$j$|$\alpha^{-2} \beta^j$|$\gamma^{ij} - \alpha^{-2} \beta^i \beta^j$|
 
-With the addition of a definition for $K_{ij}$[^kijnotes], we end up with the following relations for our ADM variables by solving from the first table (eg, $g_{00} = -\alpha^2 + \beta_m \beta^m$):
+With the addition of a definition for $K_{ij}$[^kijnotes], you end up with the following relations for our ADM variables by solving from the first table (eg, $g_{00} = -\alpha^2 + \beta_m \beta^m$):
 
 [^kijnotes]: Where I found $K_{ij}$ from is [here](https://clas.ucdenver.edu/math-clinic/sites/default/files/attached-files/master_project_mach_.pdf) 4-19a, although its a bit of a random source
 
@@ -941,7 +939,7 @@ Here's the exact structure to use:
 1. Iterate every substep
 2. Apply kreiss oliger dissipation to the output
 
-For each substep, we have 3 buffers: In, out, and the output of the last step (which I call base, as it corresponds to $y_n$). For our first iteration/substep, set In = Base
+For each substep, you'll need 3 buffers: In, out, and the output of the last step (which I call base, as it corresponds to $y_n$). For our first iteration/substep, set In = Base
 
 1. First off, enforce the algebraic constraints on your input buffer
 2. Calculate the derivatives from the input
@@ -954,10 +952,11 @@ Implementation wise, this looks as follows, which may be clearer:
 ```c++
 auto substep = [&](int iteration, int base_idx, int in_idx, int out_idx)
 {
-    ///this assumes that in_idx == base_idx for iteration 0, so that they are both constraint enforced. This deals with the algebraic constraints
+    //this assumes that in_idx == base_idx for iteration 0, so that they are both constraint enforced. This deals with the algebraic constraints
     enforce_constraints(in_idx);
 
     {
+        //these are variables which we'll be taking second derivatives of
         std::vector<cl::buffer> to_diff {
             buffers[in_idx].cY[0],
             buffers[in_idx].cY[1],
@@ -1000,12 +999,12 @@ for(int i=0; i < iterations; i++) {
     else
         substep(i, 0, 2, 1);
 
-    ///always swap buffer 1 to buffer 2, which means that buffer 2 becomes our next input
+    //always swap buffer 1 to buffer 2, which means that buffer 2 becomes our next input
     std::swap(buffers[1], buffers[2]);
 }
 
-///at the end of our iterations, our output is in buffer[2], and we want our result to end up in buffer[0]
-///for this to work, kreiss must execute over every pixel unconditionally
+//at the end of our iterations, our output is in buffer[2], and we want our result to end up in buffer[0]
+//for this to work, kreiss must execute over every pixel unconditionally
 kreiss(2, 0);
 ```
 
@@ -1038,7 +1037,9 @@ This article is fairly dry with unexciting results - for good reason. If we trie
 
 If you have any questions about this, or you get stuck/lost - please feel free to contact me. This is one of those areas that's brutally difficult to get into as there are no guides, and I'm very happy to help people implement stuff
 
-Until Then: Todo, wesley
+Until then:
+
+![wes](/assets/sofawesley.jpg)
 
 # Discussion: Conformal factors
 
