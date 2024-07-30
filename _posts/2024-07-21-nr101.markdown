@@ -13,7 +13,7 @@ These kinds of simulations are traditionally run on supercomputers, but luckily 
 
 [^specs]: You'll need 8+ GB of vram for future bbh collisions, though you can get away with minimal specs for this article. This was written and tested on a 6700xt, but previous work was on an r9 390. Any OpenCL 1.2 compatible device will work here, though I do use 64-bit atomics for accumulating diagnostics
 
-If anyone's looking for a PhD student to smash black holes together, then I'd love that
+If anyone's looking for a PhD student to smash black holes together, then I'd love that. As usual this article comes with code, which you can find over [here](https://github.com/20k/20k.github.io/tree/master/code/NR1). I would highly recommend looking at it for this article
 
 # Preamble
 
@@ -49,7 +49,7 @@ The ADM formalism is the most widespread approach for handling this. It consists
 
 ![foliation](/assets/pathy.png)
 
-Each sheet represents one slice that we can call 'now', although we're stretching the terminology a lot here. The slices themselves can be pretty arbitrary - the important thing is that you can define how one slice changes into the next, and so work out how spacetime evolves into the future
+Each sheet represents one slice that we can call 'now', although that's stretching the terminology a bit. The slices themselves can be pretty arbitrary - the important thing is that you can define how one slice changes into the next, and so work out how spacetime evolves into the future if we're able to fully determine the structure of any individual slice
 
 Realistically, I'm not very good at art, so if you want a good intuitive picture to refer back to, I'd recommend [page 12](https://imprs-gw-lectures.aei.mpg.de/2022-computational-methods/wp-content/uploads/sites/6/2022/04/Lecturenote.NR2022_v2.pdf)
 
@@ -132,7 +132,7 @@ The BSSN formalism is the most widely used formalism - it is directly derived fr
 
 There are 4 main ingredients to get the BSSN equations from the ADM equations:
 
-1. You perform a conformal transform - the metric $\gamma_{ij}$ is split into a metric with unit determinant $$\tilde{\gamma}_{ij}$$, and a conformal (scalar) factor
+1. The metric $\gamma_{ij}$ is split into a metric with unit determinant $$\tilde{\gamma}_{ij}$$, and a conformal (scalar) factor. This is called a conformal decomposition
 2. The extrinsic curvature $K_{ij}$ is split up into its trace: $K$, and the conformal trace free part of the extrinsic curvature, $$\tilde{A}_{ij}$$
 3. A new redundant variable $$\tilde{\Gamma}^i = \tilde{\gamma}^{mn} \tilde{\Gamma}^{i}_{mn}$$[^conformalchristoffel] is introduced and evolved dynamically, which eliminates a major source of numerical instabilities[^symbolly]
 4. The constraints are substituted in to eliminate numerically unstable quantities[^reffymomentum]
@@ -257,15 +257,15 @@ Additionally:
 
 2. The symmetrising operator crops up here unintuitively. This is defined as $A_{(ij)}$ = $0.5 (A_{ij} + A_{ji})$. A more complex example is $$2\tilde{\Gamma}^k_{m(i} \tilde{\Gamma}_{j)kn} = 0.5 * 2 (\tilde{\Gamma}^k_{mi} \tilde{\Gamma}_{jkn} + \tilde{\Gamma}^k_{mj} \tilde{\Gamma}_{ikn})$$
 
-3. Raised indices on covariant derivatives mean this: $$\tilde{D}^i = \tilde{\gamma}^{ij} \tilde{D}_j$$
+3. Raised indices on covariant derivatives mean this: $$\tilde{D}^i = \tilde{\gamma}^{ij} \tilde{D}_j$$. The same is true for partial derivatives, ie $$\partial^i = \tilde{\gamma}^{ij} \partial_j$$
 
 [^tfnotes]: Note that for some scalar $A$, $(AQ)^{TF} == A(Q^{TF})$, and it does not matter if you use the conformal metric, or the non conformal metric as the metric tensor here - the conformal factor cancels out. This is also sometimes notated $Q_{\langle ij \rangle}$
 
-This is fairly dense as things go, and if you're going to implement this there isn't really a solid strategy other than to just dig in and make a bunch of mistakes translating it into code. This is a big part of the reason why this article comes with a lot of code
+This is fairly dense as things go, and if you're going to implement this there isn't really a solid strategy other than to just dig in and make a bunch of mistakes translating it into code. This is a big part of the reason why this article comes with a complete implementation
 
 ## Gauge conditions
 
-The ADM/BSSN formalism does not uniquely specify the evolution equations for the lapse and shift, and there is a freedom of choice here. Despite in theory being arbitrary, in practice you have to very carefully pick your gauge conditions for the kind of problem you're trying to solve. For today, we're going to be picking what's called the harmonic gauge (aka harmonic slicing), with 0 shift:
+The ADM/BSSN formalism does not uniquely specify the evolution equations for the lapse and shift, and there is a freedom of choice here. Despite in theory being fairly arbitrary, in practice you have to very carefully pick your gauge conditions for the kind of problem you're trying to solve. For today, we're going to be picking what's called the harmonic gauge (aka harmonic slicing), with 0 shift:
 
 $$\begin{align}
 \partial_t \alpha &= - \alpha^2 K + \beta^m \partial_m \alpha\\
@@ -292,7 +292,7 @@ Additionally:
 1. Hamiltonian constraint violations are essentially unimportant for stability purposes, and damping this seems to be largely irrelevant for physical accuracy
 2. The first algebraic constraint $\mathcal{S}$ is relatively unimportant to enforce, but its easy to do - so we may as well
 
-Expressions involving undifferentiated $\tilde{\Gamma}^i$'s are frequently replaced in the literature with the analytic equivalent $$\tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$$. This is one technique to enforce the $\mathcal{G}^i$ constraint, though we're going to avoid this approach because it only really works well in specific circumstances (that we'll get into)
+Expressions involving undifferentiated $\tilde{\Gamma}^i$'s are frequently replaced in the literature with the analytic equivalent $$\tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$$. This is one technique to enforce the $\mathcal{G}^i$ constraint, though we're going to avoid this approach because it only really works well in specific circumstances (that we'll get into in the future)
 
 ### Fixing the BSSN equations
 
@@ -304,7 +304,7 @@ Before we can get off the ground, we're going to have to at minimum implement th
 
 #### The algebraic constraints
 
-The most common technique for dealing with the algebraic constraints is to enforce the relation $\tilde{\gamma} = 1$ and $\tilde{\gamma}^{mn} \tilde{A}_{mn} = 0$ directly. This is easily done by applying the following expressions
+The most common technique for dealing with the algebraic constraints is to enforce the relation $\tilde{\gamma} = 1$ and $\tilde{\gamma}^{mn} \tilde{A}_{mn} = 0$ directly. This is easily done by applying the following expressions:
 
 $$
 \begin{align}
@@ -313,7 +313,7 @@ $$
 \end{align}
 $$
 
-Its important to do this just before you use these variables (ie don't numerically dissipate them after enforcing the constraints), otherwise you end up with small constraint violations. There's some discussion about alternatives at the end of this article
+There's some discussion about alternatives at the end of this article
 
 #### The Momentum constraint
 
@@ -361,9 +361,17 @@ I pick #2, as it can be implemented more efficiently, and it makes a bit more se
 
 Note, 6th derivatives imply a division by $h^6$ - which is then immediately multiplied by $h^5$, and you may not want to do this numerically
 
+# Simulating the equations
+
+To actually simulate the equations, we're going to need a few more things
+
+1. An integrator to integrate the equations of motion
+2. Initial conditions
+3. Boundary conditions
+
 ## Picking an integrator
 
-We're going to diverge from the literature significantly here, for very good reason. The BSSN equations are a classically [stiff](https://en.wikipedia.org/wiki/Stiff_equation) (unstable) set of equations, which means that integrators can have a hard time providing accurate results. Its traditional to use something similar to RK4 to integrate the equations of motion
+The BSSN equations are a classically [stiff](https://en.wikipedia.org/wiki/Stiff_equation) (unstable) set of equations, which means that integrators can have a hard time providing accurate results. Its traditional to use something similar to RK4 to integrate the equations of motion
 
 If you're familiar with solving stiff PDEs, it might seem a bit odd to use RK4 - RK4 is an explicit integrator - and as such has fairly poor stability properties when solving stiff equations. Instead, we're going to use an L-stable implicit integrator which has excellent convergence properties - backwards euler
 
@@ -371,21 +379,15 @@ Backwards euler also has a very GPU-friendly form, making it amenable to a high 
 
 ### Solving implicit equations efficiently
 
-Forwards euler has the form:
-
-$$y_{n+1} = y_n + dt f(t_n, y_n)$$
-
-Where $dt$ is a timestep, and $y_n$ is our current set of variables. This is the classic 1st order, explicit integrator. It has poor stability properties, and has first order convergence
-
 Backwards euler has the form:
 
 $$y_{n+1} = y_n + dt f(t_{n+1}, y_{n+1})$$
 
-This is also a first order integrator, but it is implicit - we can see that we have $y_{n+1}$ on both sides of the equation
+Where $dt$ is a timestep, and $y_n$ is our current set of variables. This is a first order integrator, and it is implicit - we have $y_{n+1}$ on both sides of the equation
 
 ### Fixed point iteration
 
-The issue with an implicit integrator is: How do we actually solve this equation? The straightforward answer is to use fixed point iteration. In essence, you feed your output to your input repeatedly. Ie, if $f(x)$ gives you your next guess, you iterate the sequence $f(x)$, $f(f(x))$, $f(f(f(x)))$, until you reach your desired accuracy
+The issue with an implicit integrator is: How do we actually solve this equation? The straightforward answer is to use [fixed point iteration](https://en.wikipedia.org/wiki/Fixed-point_iteration). In essence, you feed your output to your input repeatedly. Ie, if $f(x)$ gives you your next guess, you iterate the sequence $f(x)$, $f(f(x))$, $f(f(f(x)))$, until you reach your desired accuracy
 
 For our purposes, we'll iterate the sequence:
 
@@ -397,15 +399,7 @@ This form of fixed point iteration maps very well to being implemented on a GPU,
 
 [^newton]: Note that its common to use Newton-Raphson or a full root finding method here for solving implicit equations, and I've had nothing but poor results. The issue is that it is not a massively stable algorithm, and the complexity of evaluating a Newton-Raphson iteration outweighs the increase in convergence when dealing with a small number of iterations (eg 2-3 here). Fixed point iteration can be directly sped up by rearranging it as a relaxation problem, and then successively over relaxing
 
-## Flow of a simulation
-
-There are three components to any good simulation
-
-1. Initial conditions
-2. The boundary conditions (which is tied to how you perform differentiation)
-3. Integrating the PDEs
-
-### Initial conditions
+## Initial conditions
 
 We need to define on an initial slice what our variables are. For this article, to check everything's working we're going to implement a gauge wave test case, which you can find [here](https://arxiv.org/pdf/1106.2254) (28-29), or [here](https://arxiv.org/pdf/0709.3559) (A.10 + A.6, this is what we're actually implementing). The metric for this is as follows -
 
@@ -417,7 +411,7 @@ $$H = A \sin(\frac{2 \pi (x - t)}{d})$$
 
 $d$ is the wavelength of our wave, which is set to 1 (our simulation width), and $A$ is the amplitude of the wave which is set to $0.1$. On our initial slice, $t=0$. This defines a 4-metric $g_{\mu\nu}$. While these papers do provide analytic expressions for our initial ADM variables - where's the joy in that?
 
-#### Generic initial conditions
+### Generic initial conditions
 
 Given a metric $g_{\mu\nu}$, we want to calculate the ADM variables $\gamma_{ij}$, $K_{ij}$, $\alpha$, and $\beta^i$. From there, we already know how to take a conformal decomposition for the BSSN formalism. The relation between the ADM variables, and a regular 4d metric tensor can be deduced from the line element, but I'm going to stick it in a table for convenience:
 
@@ -444,7 +438,7 @@ K_{ij} &= \frac{1}{2 \alpha} (D_i \beta_j + D_j \beta_i - \frac{\partial g_{ij}}
 
 Note that we find $\beta_i$ not $\beta^i$, which you can find by raising with $\gamma^{ij}$. To initialise the christoffel symbol $\tilde{\Gamma}^i$, simply calculate it analytically once you have $\tilde{\gamma}_{ij}$
 
-### Boundary conditions / Differentiation
+## Boundary conditions / Differentiation
 
 Here, we're going to use fourth order[^orderconvergence] finite differentiation on a grid. If you remember, to approximate a derivative, mathematically you can do:
 
@@ -460,15 +454,15 @@ To take a second derivative, calculate the first derivative, then repeat the dif
 
 In this test - a gauge wave - the boundary conditions are periodic, which are the simplest kind luckily. To implement this, when implementing derivatives, you wrap your coordinates to the other edge of the domain. Some performance considerations are discussed at the end of this article
 
-## Implementation
+# Implementation
 
-The actual code for implementing all of this can be found over [here](https://github.com/20k/20k.github.io/tree/master/code/NR1). Pasting it all in here wouldn't really serve much purpose (because you can just go and browse the source), so this segment is going to show:
+At this point, all the theory is done, so its time to get to implementing stuff. The actual code for implementing all of this can be found over [here](https://github.com/20k/20k.github.io/tree/master/code/NR1). Pasting it all in here wouldn't really serve much purpose (because you can just go and browse the source), so this segment is going to show:
 
 1. An example of how to implement these equations
 2. How to differentiate things
 3. What equations we're actually implementing, rather than the canonical ones
 
-### Example
+## Example
 
 The harmonic gauge condition is this:
 
@@ -515,9 +509,9 @@ valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
 }
 ```
 
-### Where should you diverge from the canonical equations?
+## Where should you diverge from the canonical equations?
 
-#### Momentum constraint
+### Momentum constraint
 
 The specific form of the momentum constraint I listed earlier - while the canonical one - involves calculating covariant derivatives which is unnecessary. A slightly better form is this:[^linky]
 
@@ -529,7 +523,7 @@ Where
 
 $$\partial_i \phi = -\frac{\partial_i W}{2 W}$$
 
-#### Evolution equations
+### Evolution equations
 
 1. The quantity $D_i D_j \alpha$ is never used without being multiplied by $W^2$, which means we can eliminate the divisions by $W$
 
@@ -539,7 +533,7 @@ $$\partial_i \phi = -\frac{\partial_i W}{2 W}$$
 
 [^technically]: Technically, as $\alpha$ is expected to tend to 0 faster than $W$ tends to 0, the quantity $\frac{\alpha}{W}$ is considered regular. In practice, clamping the conformal factor appears to be the accepted technique, though alarmingly I've found that the exact clamp value can make a large difference to your simulation
 
-#### Evolving $\tilde{A}_{ij}$
+### Evolving $\tilde{A}_{ij}$
 
 $$
 \begin{align}
@@ -554,11 +548,11 @@ Is what we're actually implementing. There are several modifications made here:
 3. $$W^2 \mathcal{R}_{ij}$$ is calculated instead of $$\mathcal{R}_{ij}$$
 4. Momentum constraint damping has been added
 
-##### $$W^2 D_iD_j\alpha$$
+#### $$W^2 D_iD_j\alpha$$
 
 $$W^2 D_iD_j\alpha = W^2 \tilde{D}_i \tilde{D}_j \alpha + 2W \partial_{(i} W \partial_{j)} \alpha\ - W \tilde{\gamma}_{ij} \tilde{\gamma}^{mn} \partial_m W \partial_n \alpha$$
 
-##### $$W^2 \mathcal{R}_{ij}$$
+#### $$W^2 \mathcal{R}_{ij}$$
 
 $$
 \begin{align}
@@ -567,7 +561,7 @@ W^2 \mathcal{R}_{ij} &= W^2 \tilde{\mathcal{R}}_{ij} + W^2 \mathcal{R}^W_{ij}
 \end{align}
 $$
 
-### Algebraic constraint enforcement
+## Algebraic constraint enforcement
 
 This is straightforward:
 
@@ -578,7 +572,7 @@ metric<valuef, 3, 3> fixed_cY = cY / det_cY;
 tensor<valuef, 3, 3> fixed_cA = trace_free(cA, fixed_cY, fixed_cY.invert());
 ```
 
-### Initial conditions
+## Initial conditions
 
 The code for the initial conditions can be found [here](https://github.com/20k/20k.github.io/tree/master/code/NR1/init.cpp):
 
@@ -602,7 +596,7 @@ auto wave_function = []<typename T>(const tensor<T, 4>& position)
 };
 ```
 
-#### Building the ADM variables
+### Building the ADM variables
 
 This isn't too complicated to implement, though you will need the ability to differentiate your metric tensor (either numerically, or analytically via something like dual numbers)
 
@@ -711,7 +705,7 @@ adm_variables make_adm_variables(T&& func, v4f position)
 }
 ```
 
-#### Building the BSSN variables
+### Building the BSSN variables
 
 Once you have the ADM variables, its straightforward to perform the conformal decomposition, and calculate the BSSN variables
 
@@ -727,7 +721,7 @@ Once you have the ADM variables, its straightforward to perform the conformal de
 
 Calculating the christoffel symbol is left as a separate post processing step (because directly differentiating $$\tilde{\gamma}_{ij}$$ is a bit troublesome in the scheme I've got set up, but there's no theoretical reason for it)
 
-### Derivatives + Boundary conditions
+## Derivatives + Boundary conditions
 
 The boundary conditions are implemented whenever we need to take a derivative of something, and so the two topics are tied together
 
@@ -839,7 +833,7 @@ valuef diff2(const valuef& in, int idx, int idy, const valuef& dx, const valuef&
 
 The way that this is implemented code-wise is slightly unusual. All variables in this simulation are bound to a particular grid location - eg `K = K_buffer[pos, dim]`. This is to minimise the complexity of the equations
 
-Because of this, instead of having a buffer and a position to differentiate at, I have a variable which is derived from a buffer, and an expression tree containing a bracket operator - with the indexing position and dimension as arguments. The huge upside of this is that we can differentiate compound expressions, like this:
+Because of this, instead of having a buffer and a position to differentiate at, I have a variable which is derived from a buffer, and an expression tree containing a bracket operator - with the indexing position and dimension as arguments. The huge upside of this is being able to differentiate compound expressions, like this:
 
 ```c++
 diff1(cY * cA, 0, scale);
@@ -857,7 +851,7 @@ cY[x + 2] * cA[x + 2]
 
 Which is pretty neat
 
-### Kreiss-Oliger dissipation
+## Kreiss-Oliger dissipation
 
 $$\partial_t U = \partial_t U + \epsilon \frac{h^5}{64} (\frac{\partial^6}{\partial x^6} + \frac{\partial^6}{\partial y^6} + \frac{\partial^6}{\partial z^6})U$$
 
@@ -901,7 +895,7 @@ as_ref(out[lid]) = in[lid] + eps.get() * timestep.get() * kreiss_oliger_interior
 
 I use `eps = 0.25`
 
-### Sequence of steps for evolving the equations
+## Sequence of steps for evolving the equations
 
 Here's the exact structure to use:
 
@@ -979,7 +973,7 @@ kreiss(2, 0);
 
 I've attempted to make this as backend-neutral as possible for clarity (as I use a custom OpenCL wrapper - which will not be very useful to you). Each one of the undeclared functions invokes OpenCL kernels and does nothing exciting otherwise. A pack of BSSN arguments is referred to by index for flexibility, as down the line things get complicated
 
-## Results
+# Results
 
 The full code for this article can be found over [here](https://github.com/20k/20k.github.io/tree/master/code/NR1)
 
