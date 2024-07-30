@@ -1138,6 +1138,12 @@ Eg, if we precalculate the first derivative $\partial_i \alpha$, calculating $\p
 
 [^budget]: If you're unfamiliar, the number of threads we can execute on a GPU simultaneously is limited by the number of registers we use, and is known as occupancy (high occupancy = more threads executing). Traditional reasoning is that high occupancy = good as it hides memory latency, although low occupancy can have have performance benefits in some circumstances. GPUs are a pain
 
+## Where exactly is the boundary?
+
+One fairly key point that may not immediately obvious is how to lay out your initial conditions in a periodic system vs a non periodic system. Lets say we have a physical width of 1, and a grid width of 128, with periodic initial conditions. We want grid cell 0, and grid cell 128 + 1 (ie the wrapped coordinate) to both exactly represent the same point. This means that grid cell 0 exists at at the coordinate 0, and the virtual cell 129 exists at the coordinate 1. The scale is 1/128
+
+In a non periodic system, things are different - I normally use odd grid sizes so that there's a central grid cell. So given a size of 127, the centre is (127 - 1)/2. We want the rightmost grid cell to map to the coordinate 1, and the leftmost gridcell to map to the coordinate 0. This is notably different to the periodic initial conditions setup, as the coordinate distance between our cells is now structurally not the same - its 1/(127-1)
+
 # Discussion: Gauge conditions
 
 To chop down on unnecessary side tracking, I'm putting some other examples of gauge conditions here at the end
