@@ -5,37 +5,6 @@ date:   2024-07-21 18:33:23 +0000
 categories: C++
 ---
 
-Papers:
-
-https://arxiv.org/pdf/1307.7391 ccz4 paper, contains some good equation references
-https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf covariant bssn
-https://www2.yukawa.kyoto-u.ac.jp/~masaru.shibata/PRD52.5428.pdf cG mentions the motivation behind the gamma term
-stability paper https://arxiv.org/pdf/0707.0339
-http://wwwteor.mi.infn.it/~molinari/TESI/Danieli_tesi.pdf 4.27 relates conjugate momentum and extrinsic curvature
-https://arxiv.org/pdf/2210.10103 adm stuff
-https://arxiv.org/pdf/gr-qc/0604035 adm evolution equations
-https://imprs-gw-lectures.aei.mpg.de/2022-computational-methods/wp-content/uploads/sites/6/2022/04/Lecturenote.NR2022_v2.pdf timelike normal, other biz
-
-Ok planola time:
-
-1. Basic introduction to the ADM formalism. Need to cover projection, the concept of time + gauge conditions, physical interpretation of the gauge conditions as an eularian observer, and the concept of a hypersurface
-2. Introduce the adm equations
-3. Introduce the vanilla BSSN equations
-4. Talk through all the notation
-5. Swap to structuring a simulation
-6. Talk through the high level flow
-7. Initial conditions: waves
-8. Boundary conditions: periodic
-9. Evolution equations: Bssn, momentum constraint damping, algebraic constraints, Kreiss-Oliger dissipation
-10. Gauge condition evolution
-11. Some kind of diagnostic (semi analytic tests?)
-
-hmm, i'm not convinced that mixing code in is a good idea. I am tired but really what we want is to maintain a relatively good flow, atm dumping code in is distracting the overarching goals
-
-There are quite a few tangents in here: sections which contain sidebars about eg the conformal variables: do i stick this in discussion segments at the end?
-
-Todo: Provide a reference/paper section
-
 Hi there! Today we're going to be getting into numerical relativity, which is the art of simulating the evolution of spacetime itself. While there a quite a few known solutions to the equations of general relativity at this point (eg the Schwarzschild metric), many of the most interesting regions of general relativity can only be explored by directly simulating how spacetime itself evolves dynamically. Binary black hole collisions are a perfect example of this, and are a big part of the reason why we're building this
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/CSpo2S9IVjY?si=3N_d-7cRyzeqi1fS" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
