@@ -4,6 +4,7 @@
 #include <string>
 #include <variant>
 #include <vector>
+#include <cstdint>
 #include "stdmath.hpp"
 #include "../common/vec/tensor.hpp"
 
@@ -34,16 +35,19 @@ namespace value_impl
             DIVIDE,
             MOD,
 
+            ATOM_ADD,
+
             LT,
             LTE,
             EQ,
+            NEQ,
             GT,
             GTE,
-            NEQ,
             NOT,
             LOR,
             LAND,
 
+            FMA,
             SIN,
             COS,
             TAN,
@@ -105,7 +109,7 @@ namespace value_impl
         return std::variant<decltype(f(Ts()))...>();
     }
 
-    using supported_types = std::variant<double, float, float16, int, bool>;
+    using supported_types = std::variant<double, float, float16, int, bool, std::uint64_t, std::int64_t>;
 
     struct value_base;
 
@@ -267,6 +271,17 @@ namespace value_impl
             assert(false);
         }
 
+        template<typename T>
+        void recurse(T&& func)
+        {
+            func(*this);
+
+            for(int i=0; i < (int)args.size(); i++)
+            {
+                args[i].recurse(std::forward<T>(func));
+            }
+        }
+
         #define BASE_OPERATOR2(name, type, func) friend value_base name(const value_base& v1, const value_base& v2) {return optimise(make_op_with_type_function<value_base>(type, v1, v2, func));}
         #define BASE_OPERATOR1(name, type, func) friend value_base name(const value_base& v1) {return optimise(make_op_with_type_function<value_base>(type, v1, func));}
 
@@ -280,6 +295,7 @@ namespace value_impl
         BASE_OPERATOR2(operator<, op::LT, stdmath::op_lt);
         BASE_OPERATOR2(operator<=, op::LTE, stdmath::op_lte);
         BASE_OPERATOR2(operator==, op::EQ, stdmath::op_eq);
+        BASE_OPERATOR2(operator!=, op::NEQ, stdmath::op_neq);
         BASE_OPERATOR2(operator>, op::GT, stdmath::op_gt);
         BASE_OPERATOR2(operator>=, op::GTE, stdmath::op_gte);
     };
@@ -320,6 +336,7 @@ namespace value_impl
         return optimise(make_op_with_type_function<value_base>(op::type, v1, v2, v3, func));\
     }\
 
+    DECL_VALUE_FUNC3(FMA, fma, stdmath::ufma);
     DECL_VALUE_FUNC1(SIN, sin, stdmath::usin);
     DECL_VALUE_FUNC1(COS, cos, stdmath::ucos);
     DECL_VALUE_FUNC1(TAN, tan, stdmath::utan);
@@ -404,6 +421,8 @@ namespace value_impl
             PROPAGATE_BASE2(MULTIPLY, op_multiply);
             PROPAGATE_BASE2(DIVIDE, op_divide);
             PROPAGATE_BASE1(UMINUS, op_unary_minus);
+
+            PROPAGATE_BASE3(FMA, ufma);
 
             PROPAGATE_BASE1(SIN, usin);
             PROPAGATE_BASE1(COS, ucos);
@@ -586,6 +605,8 @@ namespace value_impl
                                                                         replay_value_base<T>(v.args[1], handle_value),\
                                                                         replay_value_base<T>(v.args[2], handle_value));
 
+        REPLAY3(FMA, ufma);
+
         REPLAY1(SIN, usin);
         REPLAY1(COS, ucos);
         REPLAY1(TAN, utan);
@@ -653,6 +674,8 @@ namespace value_impl
 
     template<typename T>
     struct value : value_base {
+        using interior_type = T;
+
         value() {
             value_base::type = op::VALUE;
             value_base::concrete = T{};
@@ -666,6 +689,12 @@ namespace value_impl
         void set_from_base(const value_base& in)
         {
             static_cast<value_base&>(*this) = in;
+        }
+
+        template<typename U>
+        explicit operator value<U>() const
+        {
+            return this->to<U>();
         }
 
         friend value<T> operator%(const value<T>& v1, const value<T>& v2) {
@@ -733,6 +762,13 @@ namespace value_impl
             return result;
         }
 
+        friend value<bool> operator!=(const value<T>& v1, const value<T>& v2) {
+            value<bool> result;
+            result.type = op::NEQ;
+            result.args = {v1, v2};
+            return result;
+        }
+
         friend value<bool> operator>(const value<T>& v1, const value<T>& v2) {
             value<bool> result;
             result.type = op::GT;
@@ -779,7 +815,7 @@ namespace value_impl
         }
 
         template<typename U>
-        value<U> to()
+        value<U> to() const
         {
             value_base out_type = name_type(U());
 
@@ -1456,6 +1492,13 @@ namespace value_impl
 
     template<typename T>
     inline
+    value<T> fma(const value<T>& v1, const value<T>& v2, const value<T>& v3)
+    {
+         return from_base<T>(optimise(make_op<value<T>>(op::FMA, {v1, v2, v3})));
+    }
+
+    template<typename T>
+    inline
     std::string name_type(T tag)
     {
         if constexpr(std::is_same_v<T, float>)
@@ -1589,6 +1632,18 @@ namespace value_impl
 
         else if constexpr(std::is_same_v<T, bool>)
             return "bool";
+
+        else if constexpr(std::is_same_v<T, std::uint64_t>)
+            return "ulong";
+
+        else if constexpr(std::is_same_v<T, value<std::uint64_t>>)
+            return "ulong";
+
+        else if constexpr(std::is_same_v<T, std::int64_t>)
+            return "long";
+
+        else if constexpr(std::is_same_v<T, value<std::int64_t>>)
+            return "long";
 
         else
         {

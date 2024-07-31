@@ -1,6 +1,7 @@
 #ifndef SINGLE_SOURCE_HPP_INCLUDED
 #define SINGLE_SOURCE_HPP_INCLUDED
 
+#include "../common/vec/dual.hpp"
 #include "../common/value2.hpp"
 #include <string>
 #include <vector>
@@ -8,13 +9,17 @@
 #include <assert.h>
 #include <set>
 #include <map>
+#include <array>
+#include <concepts>
 
 namespace value_impl
 {
     struct execution_context_base
     {
         std::vector<value_base> to_execute;
+        std::vector<std::pair<value_base, value_base>> aliases;
         virtual void add(const value_base& in) = 0;
+        virtual void alias(const value_base& check, const value_base& to) = 0;
         virtual int next_id() = 0;
 
         template<typename T, int... N>
@@ -57,12 +62,33 @@ namespace value_impl
             });
         }
 
+        template<typename T>
+        void pin(dual_types::dual_v<T>& in)
+        {
+            pin(in.real);
+            pin(in.dual);
+        }
+
+        template<typename T, int... N>
+        void pin(inverse_metric<T, N...>& inout)
+        {
+            inout.for_each([&](T& v)
+            {
+                pin(v);
+            });
+        }
+
         virtual ~execution_context_base(){}
     };
 
     struct execution_context : execution_context_base
     {
         int id = 0;
+
+        void alias(const value_base& check, const value_base& to) override
+        {
+            aliases.push_back({check, to});
+        }
 
         void add(const value_base& in) override
         {
@@ -392,6 +418,12 @@ namespace value_impl
         {
             return get_context().pin(in);
         }
+
+        template<typename T>
+        auto alias(const T& check, const T& to)
+        {
+            return get_context().alias(check, to);
+        }
     }
 
     template<typename T>
@@ -432,6 +464,7 @@ namespace value_impl
     //#define NATIVE_RECIP
 
     ///handles function calls, and infix operators
+    inline
     std::string function_call_or_infix(const value_base& v)
     {
         using namespace op;
@@ -447,13 +480,14 @@ namespace value_impl
             {LT, "<"},
             {LTE, "<="},
             {EQ, "=="},
+            {NEQ, "!="},
             {GT, ">"},
             {GTE, ">="},
-            {NEQ, "!="},
             {NOT, "!"},
             {LOR, "||"},
             {LAND, "&&"},
 
+            {FMA, "fma"},
             #ifdef NATIVE_OPS
             {SIN, "native_sin"},
             {COS, "native_cos"},
@@ -512,6 +546,7 @@ namespace value_impl
         return "(" + table.at(v.type) + "(" + args + "))";
     }
 
+    inline
     std::string value_to_string(const value_base& v)
     {
         if(v.type == op::VALUE) {
@@ -548,7 +583,32 @@ namespace value_impl
 
         //v1[v2]
         if(v.type == op::BRACKET)
-            return "(" + value_to_string(v.args.at(0)) + "[" + value_to_string(v.args.at(1)) + "])";
+        {
+            int N = std::get<int>(v.args.at(1).concrete);
+
+            if(N == 1)
+            {
+                return "(" + value_to_string(v.args.at(0)) + "[" + value_to_string(v.args.at(2)) + "])";
+            }
+
+            if(N == 3)
+            {
+                ///name, N, x, y, z, dx, dy, dz
+                value_base x = v.args.at(2);
+                value_base y = v.args.at(3);
+                value_base z = v.args.at(4);
+
+                value_base dx = v.args.at(5);
+                value_base dy = v.args.at(6);
+                value_base dz = v.args.at(7);
+
+                value_base index = z * dy * dx + y * dx + x;
+
+                return "(" + value_to_string(v.args.at(0)) + "[" + value_to_string(index) + "])";
+            }
+
+            assert(false);
+        }
 
         if(v.type == op::DECLARE){
             //v1 v2 = v3;
@@ -743,7 +803,7 @@ namespace value_impl
         #endif
 
         #ifdef NATIVE_DIVIDE
-        if(v.type == op::DIVIDE)
+        if(v.type == op::DIVIDE && v.is_floating_point_type())
         {
             return "native_divide(" + value_to_string(v.args.at(0)) + "," + value_to_string(v.args.at(1)) + ")";
         }
@@ -756,10 +816,28 @@ namespace value_impl
             return "select(" + value_to_string(v.args.at(2)) + "," + value_to_string(v.args.at(1)) + "," + value_to_string(v.args.at(0)) + ")";
         }
 
+        if(v.type == op::ATOM_ADD)
+        {
+            value_base offset = v.args.at(0) + v.args.at(1);
+
+            return "atom_add(" + value_to_string(offset) + "," + value_to_string(v.args.at(2)) + ")";
+        }
+
         return function_call_or_infix(v);
     }
 
+    struct type_storage;
+
     namespace single_source {
+
+        struct argument_pack {
+            template<typename Self>
+            void add_struct(this Self&& self, type_storage& result)
+            {
+                self.build(result);
+            }
+        };
+
         struct declare_t{};
 
         static constexpr declare_t declare;
@@ -843,7 +921,7 @@ namespace value_impl
             {
                 value_base op;
                 op.type = op::BRACKET;
-                op.args = {name, index};
+                op.args = {name, value<int>(1), index};
                 op.concrete = get_interior_type(T());
 
                 return build_type(op, T());
@@ -867,7 +945,18 @@ namespace value_impl
             {
                 value_base op;
                 op.type = op::BRACKET;
-                op.args = {name, index};
+                op.args = {name, value<int>(1), index};
+                op.concrete = get_interior_type(T());
+
+                return build_type(op, T());
+            }
+
+            template<typename U>
+            auto operator[](const tensor<U, 3>& pos, const tensor<U, 3>& dim)
+            {
+                value_base op;
+                op.type = op::BRACKET;
+                op.args = {name, value<int>(3), pos.x(), pos.y(), pos.z(), dim.x(), dim.y(), dim.z()};
                 op.concrete = get_interior_type(T());
 
                 return build_type(op, T());
@@ -881,6 +970,27 @@ namespace value_impl
             auto operator[](const value<int>& index)
             {
                 return apply_mutability(buffer<T>::operator[](index));
+            }
+
+            template<typename U>
+            auto operator[](const tensor<U, 3>& pos, const tensor<U, 3>& dim)
+            {
+                return apply_mutability(buffer<T>::operator[](pos, dim));
+            }
+
+            T atom_add_b(const value<int>& index, const T& in)
+            {
+                value_base op;
+                op.type = op::ATOM_ADD;
+                op.args = {this->name, index, in};
+                op.concrete = get_interior_type(T());
+
+                return build_type(op, T());
+            }
+
+            T atom_add_e(const value<int>& index, const T& in)
+            {
+                return declare_e(get_context(), atom_add_b(index, in));
             }
         };
 
@@ -1125,7 +1235,7 @@ namespace value_impl
         }
     };
 
-    namespace impl {
+    namespace builder {
         template<typename T>
         void add(buffer<T>& buf, type_storage& result)
         {
@@ -1205,24 +1315,79 @@ namespace value_impl
 
             result.args.push_back(in);
         }
+
+        template<typename T>
+        requires std::is_base_of_v<single_source::argument_pack, T>
+        inline
+        void add(T& pack, type_storage& result)
+        {
+            pack.add_struct(result);
+        }
+
+        template<typename T, std::size_t N>
+        inline
+        void add(std::array<T, N>& arr, type_storage& result)
+        {
+            for(int i=0; i < (int)N; i++)
+            {
+                add(arr[i], result);
+            }
+        }
     }
 
-    template<typename T, typename R, typename... Args>
-    void setup_kernel(R(*func)(T&, Args...), function_context& ctx)
+    template<typename R, typename T, typename... Args>
+    inline
+    auto split_args(R(*func)(T&, Args...))
     {
+        return std::pair<T, std::tuple<Args...>>();
+    }
+
+    template<typename R, typename Type, typename T, typename... Args>
+    inline
+    auto split_args_lambda(R(Type::*func)(T&, Args...))
+    {
+        return std::pair<T, std::tuple<Args...>>();
+    }
+
+    template<typename R, typename Type, typename T, typename... Args>
+    inline
+    auto split_args_lambda(R(Type::*func)(T&, Args...) const)
+    {
+        return std::pair<T, std::tuple<Args...>>();
+    }
+
+    template<typename T>
+    concept Functor = requires
+    {
+        &std::remove_reference_t<T>::operator();
+    };
+
+    template<typename Lambda>
+    requires Functor<Lambda>
+    inline
+    auto split_args(Lambda&& l)
+    {
+        return split_args_lambda(&l.operator());
+    }
+
+    template<typename Callable>
+    inline
+    void setup_kernel(Callable&& func, function_context& ctx)
+    {
+        auto [ctx_type, args] = split_args(func);
+
+        using T = std::remove_reference_t<decltype(ctx_type)>;
+
         T& ectx = push_context<T>();
 
-        std::tuple<std::remove_reference_t<Args>...> args;
-
         std::apply([&](auto&&... expanded_args){
-            (impl::add(expanded_args, ctx.inputs), ...);
+            (builder::add(expanded_args, ctx.inputs), ...);
         }, args);
 
         std::tuple<T&> a1 = {ectx};
 
         std::apply(func, std::tuple_cat(a1, args));
     }
-
 
     inline
     void substitute(const value_base& what, const value_base& with, value_base& modify)
@@ -1402,13 +1567,14 @@ namespace value_impl
         return {ret, decls};*/
     }
 
+    inline
     std::string generate_kernel_string(function_context& kctx, const std::string& kernel_name)
     {
         execution_context_base& ctx = get_context();
 
         std::string base;
 
-        base += "#pragma OPENCL EXTENSION cl_khr_fp16 : enable\n\n#pragma OPENCL FP_CONTRACT OFF\n\n";
+        base += "#pragma OPENCL EXTENSION cl_khr_fp16 : enable\n\n#pragma OPENCL FP_CONTRACT ON\n\n";
 
         base += "__kernel void " + kernel_name + "(";
 
@@ -1429,6 +1595,23 @@ namespace value_impl
 
         std::vector<std::vector<value_base>> blocks;
         blocks.emplace_back();
+
+        #define ALIASES
+        #ifdef ALIASES
+        for(auto& v : ctx.to_execute)
+        {
+            for(auto& [check, sub] : ctx.aliases)
+            {
+                v.recurse([&](value_base& in)
+                {
+                    if(equivalent(in, check))
+                    {
+                        in = sub;
+                    }
+                });
+            }
+        }
+        #endif
 
         for(auto& v : ctx.to_execute)
         {
