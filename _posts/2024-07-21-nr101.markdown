@@ -986,7 +986,7 @@ To evaluate how well this is working, we want to check two things
 
 This is for a 128^3 sized simulation, a timestep of 0.001, and with video capturing software that can't handle sRGB correctly. $k_m$ for the momentum constraint damping is set to $0.025$. The precision of variables in memory is 32-bit floats, and 16-bit[^bit16] floats are used for precalculated derivatives. We can see here that the momentum constraint errors are decreasing, the hamiltonian constraint errors don't blow up horribly, and the nature of the wave we're simulating is preserved - though it does slowly dissipate. Oddly, we do way better here than we should do, according to [this](https://arxiv.org/pdf/1106.2254) paper the bssn formalism should have failed with unbounded constraint errors - but I won't complain too much about things going well
 
-![constraints](/assets/constraintsfinally.png)
+![constraints](/assets/constraintsfinally2.png)
 
 [^bit16]: This might seem a slightly surprising choice in software intended to be scientific, but amazingly enough it has very little bearing on the evolution results. It is however easily swappable for exactly this reason, to facilitate testing - and I have extensively tested this with BBH sims. Given that the range of derivatives is inherently small in a smooth solution, fixed point might provide better results than 16-bit floats. The main advantage of 16-bit floats is the reduced memory usage, which will enable us to simulate higher resolution spacetimes in the future. In general, the appropriate storage format for these problems is an interesting question, as floating point wastes a huge amount of precision when we have variables with a known range
 
