@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Numerical Relativity 101: How to simulate spacetime itself"
+title:  "Numerical Relativity 101: Simulating spacetime on the GPU"
 date:   2024-07-21 18:33:23 +0000
 categories: C++
 ---
@@ -9,11 +9,11 @@ Hi there! Today we're going to be getting into numerical relativity, which is th
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/CSpo2S9IVjY?si=3N_d-7cRyzeqi1fS" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-These kinds of simulations are traditionally run on supercomputers, but luckily you likely have a supercomputer in the form of a GPU[^specs] in your PC. The amount of extra performance we can get over a traditional CPU based implementation is likely to be a few orders of magnitude higher if you know what you're doing, so in this article I'm going to present to you how to get this done. Surprisingly, you don't really need to know much about general relativity for any of this, but it will reuqire a lot of implementing to get it done
+These kinds of simulations are traditionally run on supercomputers, but luckily you likely have a supercomputer in the form of a GPU[^specs] in your PC. The amount of extra performance we can get over a traditional CPU based implementation is likely to be a few orders of magnitude higher if you know what you're doing, so in this article I'm going to present to you how to get this done
 
 [^specs]: You'll need 8+ GB of vram for future bbh collisions, though you can get away with minimal specs for this article. This was written and tested on a 6700xt, but previous work was on an r9 390. Any OpenCL 1.2 compatible device will work here, though I do use 64-bit atomics for accumulating diagnostics
 
-If anyone's looking for a PhD student to smash black holes together, then I'd love that. As usual this article comes with code, which you can find over [here](https://github.com/20k/20k.github.io/tree/master/code/NR1). I would highly recommend looking at it for this article
+If anyone's looking for a PhD student to smash black holes together, then I'd love that. This article comes with code, which you can find over [here](https://github.com/20k/20k.github.io/tree/master/code/NR1). I would highly recommend looking at it for this article
 
 # Preamble
 
@@ -45,7 +45,7 @@ Solutions to the Einstein field equations are described in their entirety by an 
 
 With a coordinate system $(t, r, \theta, \phi)$. Its notable that this solution describes spacetime both in the future, and in the past - relative to whenever you exist - it is defined over all time. This brings up the fundamental question that we need to solve: What happens if we only have a solution for 'now', and we want to instead simulate what the future would look like?
 
-The ADM formalism is the most widespread approach for handling this. It consists of slicing a 4d spacetime explicitly into a series (foliation) of 3d spacelike slices, and separates out a timelike dimension which traverses these. It is often referred to as a "3+1" formalism as a result. You can imagine this like a series of stacked sheets that you can traverse
+The ADM formalism is the most widespread approach for handling this. It consists of slicing a 4d spacetime explicitly into a series (foliation) of 3d spacelike slices (hypersurfaces), and separates out a timelike dimension which traverses these. It is often referred to as a "3+1" formalism as a result. You can imagine this like a series of stacked sheets that you can traverse
 
 ![foliation](/assets/pathy.png)
 
@@ -124,7 +124,7 @@ Luckily, because its not the early 2000s - and because the astrophysics communit
 
 # Enter: The BSSN formalism
 
-The BSSN formalism is the most widely used formalism - it is directly derived from the ADM formalism, and most practical formalisms are substantially similar to the BSSN formalism. It was the first very successful formalism to enter the picture - though it was unclear precisely why it worked so well for a long time[^seehere]
+The BSSN formalism is the most widely used formalism and what we'll actually be implementing - it is directly derived from the ADM formalism, and most practical formalisms are substantially similar to the BSSN formalism. It was the first very successful formalism to enter the picture - though it was unclear precisely why it worked so well for a long time[^seehere]
 
 [^seehere]: [https://arxiv.org/pdf/0707.0339](https://arxiv.org/pdf/0707.0339) this paper contains a lot of useful details, but the short version is that the BSSN equations are a partially constrained evolution system[^constrained], and managing the constraints is critical to a correct evolution scheme
 
@@ -165,7 +165,7 @@ $$K_{ij}$$ is split into its trace $K = \gamma^{mn} K_{mn}$, and the conformal t
 
 $$\tilde{A}_{ij} = W^2 (K_{ij} - \frac{1}{3} \gamma_{ij} K) = W^2 (K_{ij})^{TF}$$
 
-If you're wondering why we're using $W^2$ rather than a non squared conformal variable (which *is* used in the literature), please see the discussion on conformal factors at the end of this article for a discussion on the alternatives
+If you're wondering $W$ is squared rather than a non squared conformal variable (which *is* used in the literature), please see the discussion on conformal factors at the end of this article for a discussion on the alternatives
 
 ## Variables
 
@@ -184,8 +184,6 @@ $$
 $$
 
 Phew. Conformal variables have a tilde over them, and have their indices raised and lowered with the conformal metric tensor. In this definition, the determinant of the conformal metric is $$\tilde{\gamma} = 1$$, and $$\tilde{A}_{ij}$$ is trace-free. $K$ is the trace of $K_{ij}$. $K_{ij}$, $\gamma_{ij}$, $$\tilde{A}_{ij}$$, and $$\tilde{\gamma}_{ij}$$ are all symmetric
-
-$$\tilde{\Gamma}^i$$ is analytically equal to $$\tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn}$$, but is evolved numerically instead, as it is more numerically stable to do it this way
 
 There are also a number of constraints that must be satisfied for the BSSN formalism to be well posed. The momentum and hamiltonian constraints come from this being derived from a Lagrangian approach, and the others are specific to the BSSN formalism
 
@@ -273,7 +271,7 @@ $$\begin{align}
 \end{align}
 $$
 
-The reason why we're using this specific form is just to replicate paper results - and we're glossing over gauge conditions a bit here because they'll become much more relevant when we collide black holes together, which is when we'll get into this in detail. See the end of the article for more discussion around gauge conditions
+The reason to use this specific form is just to replicate paper results for today's test case - and I'm glossing over gauge conditions a bit here because they'll become much more relevant when we collide black holes together. See the end of the article for more discussion around gauge conditions
 
 ## The BSSN equations of motion are bad
 
@@ -340,7 +338,7 @@ Damping the hamiltonian constraint is unnecessary here, but [this](https://arxiv
 
 ### Dissipating Numerical Noise
 
-Even with all the constraint damping, the equations can still be numerically unstable - the last tool in the toolbox is called Kreiss-Oliger dissipation. This essentially is a blur on your data - it extracts a certain order of frequencies from your simulation grid, and damps them. The [einstein toolkit](https://einsteintoolkit.org/thornguide/CactusNumerical/Dissipation/documentation.html) website gives this definition[^original] - which I always found somewhat confusing personally:
+Even with all the constraint damping, the equations can still be numerically unstable - the last tool in the toolbox is called Kreiss-Oliger dissipation. This essentially is a blur on your data - it extracts a certain order of frequencies from your simulation grid, and damps them. The [Einstein Toolkit](https://einsteintoolkit.org/thornguide/CactusNumerical/Dissipation/documentation.html) site gives this definition[^original]:
 
 [^original]: I do not have access to the linked paper sadly
 
@@ -357,7 +355,7 @@ There are two major ways of implementing this:
 1. Modifying the evolution equations as written above
 2. As a pure numerical filter, ie as a frequency removal pass over your data
 
-I pick #2, as it can be implemented more efficiently, and it makes a bit more sense to me
+I pick #2, as it can be implemented more efficiently, but really both work nearly identically
 
 Note, 6th derivatives imply a division by $h^6$ - which is then immediately multiplied by $h^5$, and you may not want to do this numerically
 
@@ -395,13 +393,15 @@ $$y_{k+1, n+1} = y_n + dt f(y_{k,n+1})$$
 
 Over our iteration variable $k$. To initialise the fixed point iteration, $y_{0, n+1} = y_{n}$. This makes the first step forwards euler
 
-This form of fixed point iteration maps very well to being implemented on a GPU, is numerically stable, and in general is extremely fast and robust. There are tricks[^newton] to speed up fixed point iteration as well, which we'll get into in the future
+This form of fixed point iteration maps very well to being implemented on a GPU, is numerically stable, and in general is extremely fast and robust. There are tricks[^newton] to speed up fixed point iteration as well
 
 [^newton]: Note that its common to use Newton-Raphson or a full root finding method here for solving implicit equations, and I've had nothing but poor results. The issue is that it is not a massively stable algorithm, and the complexity of evaluating a Newton-Raphson iteration outweighs the increase in convergence when dealing with a small number of iterations (eg 2-3 here). Fixed point iteration can be directly sped up by rearranging it as a relaxation problem, and then successively over relaxing
 
 ## Initial conditions
 
-We need to define on an initial slice what our variables are. For this article, to check everything's working we're going to implement a gauge wave test case, which you can find [here](https://arxiv.org/pdf/1106.2254) (28-29), or [here](https://arxiv.org/pdf/0709.3559) (A.10 + A.6, this is what we're actually implementing). The metric for this is as follows -
+We need to define on an initial slice what our variables are. For this article, to check everything's working we're going to implement a gauge wave test case, which you can find [here](https://arxiv.org/pdf/1106.2254) (28-29), or [here](https://arxiv.org/pdf/0709.3559) (A.10 + A.6, this is what we're actually implementing). The metric for this is as follows[^reading] -
+
+[^reading]: If you're unfamiliar with this syntax, its called a line element. I go into this in a lot more detail in the [Schwarzschild article](https://20k.github.io/c++/2024/05/31/schwarzschild.html)
 
 $$ds^2 = (1 - H) (-dt^2 + dx^2) + dy^2 + dz^2$$
 
@@ -513,7 +513,7 @@ valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
 
 ### Momentum constraint
 
-The specific form of the momentum constraint I listed earlier - while the canonical one - involves calculating covariant derivatives which is unnecessary. A slightly better form is this:[^linky]
+The specific form of the momentum constraint I listed earlier - while a common form - involves calculating covariant derivatives which is unnecessary. A slightly better form is this:[^linky]
 
 [^linky]: [here](https://arxiv.org/pdf/1205.5111v1.pdf) (54)
 
@@ -576,7 +576,7 @@ tensor<valuef, 3, 3> fixed_cA = trace_free(cA, fixed_cY, fixed_cY.invert());
 
 The code for the initial conditions can be found [here](https://github.com/20k/20k.github.io/tree/master/code/NR1/init.cpp):
 
-This is the actual metric tensor we're using, with a generic argument so that its easy to plug dual numbers (which is how I differentiate things here):
+This is the actual metric tensor we're using, with a generic argument so that its easy to plug in dual numbers (which is how I differentiate things here):
 
 ```c++
 auto wave_function = []<typename T>(const tensor<T, 4>& position)
@@ -598,7 +598,7 @@ auto wave_function = []<typename T>(const tensor<T, 4>& position)
 
 ### Building the ADM variables
 
-This isn't too complicated to implement, though you will need the ability to differentiate your metric tensor (either numerically, or analytically via something like dual numbers)
+This isn't too complicated to implement, though you will need the ability to differentiate your metric tensor (either numerically, or analytically)
 
 ```c++
 struct adm_variables
