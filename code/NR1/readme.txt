@@ -1,4 +1,4 @@
-To build, add ../common to the include search paths. You'll also need to link against:
+To build, add ../common and ../common/imgui to the include search paths. You'll also need to link against:
 
 ../common/
     clock.cpp
@@ -17,6 +17,9 @@ To build, add ../common to the include search paths. You'll also need to link ag
 ../common/imgui/backends
     imgui_impl_glfw.cpp
     imgui_impl_opengl3.cpp
+    
+../common/imgui/misc/freetype
+    imgui_freetype.cpp
 
 As well as the main files for this project:
     bssn.cpp
@@ -28,13 +31,16 @@ As well as the main files for this project:
 
 Link libraries are:
 
--lsfml-window
--lsfml-system
--lsfml-graphics
--lglew32
--lopengl32
--lopencl
-
+    -lmingw32
+    -lglfw3
+    -lglew32
+    -lsfml-graphics
+    -lsfml-window
+    -lsfml-system
+    -lfreetype
+    -lharfbuzz
+    -lopengl32
+    -limm32
 
 The following defines are used:
 
