@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Numerical Relativity 101: Simulating spacetime on the GPU"
-date:   2024-07-21 18:33:23 +0000
+date:   2024-07-31 12:33:23 +0000
 categories: C++
 ---
 
