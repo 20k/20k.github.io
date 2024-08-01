@@ -5,4 +5,4 @@
 layout: home
 ---
 
-There'll be content here as soon as i figure out how the internet works
+There'll be content here as soon as i figure out how the internet works. Rss available [here](https://20k.github.io/feed.xml)
