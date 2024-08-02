@@ -1,0 +1,8 @@
+---
+layout: post
+title:  "Numerical Relativity 102: Simulating binary black hole collisions, quickly"
+date:   2024-08-15 12:33:23 +0000
+categories: C++
+---
+
+Hello! Today's article is
