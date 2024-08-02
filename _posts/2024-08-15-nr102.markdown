@@ -7,6 +7,8 @@ categories: C++
 
 Hello! Today we're going to do one of the coolest things in all of physics in my opinion, which is simulating the collision of two black holes. Last time round, we implemented most of what we'll need to implement this, so today's job is to capitalise on that and finally smash some black holes together
 
+The complicated part of this article is going to be the initial conditions, which means that most of this article is actually going to be how to solve Laplacians quickly on a GPU
+
 # Astrophysics Context
 
 Its worth understanding for this article what we're actually trying to simulate. A black hole is an object that is so dense that light can't escape - once this happens, nothing that prevent all the matter that made up the precursor object from reaching the singularity
@@ -46,13 +48,129 @@ To perform this matching, as far as I know there's no better way than simply bru
 M1: The mass of the first black hole
 M2: The mass of the second black hole
 S1: The spin direction - a 3-vector - of the first black hole, normalised
-S2: The spin directionof the second black hole
+S2: The spin direction of the second black hole
 X1: The spin constant of the first black hole
 X2: The spin constant of the second black hole
 e: The orbital eccentricity
 
-This is a lot of parameters to bruteforce
+This is a lot of parameters to bruteforce, and why non circular orbits are such a gigantic pain, because it adds a whole extra dimension to bruteforce
+
+Traditional simulations in this area can take weeks to months, which you'll be glad to know is not going to be the case for us
+
+# What's the plan?
+
+We need a few things to get this to work
+
+1. A new set of initial conditions
+2. New boundary conditions
+3. Some modifications to the evolution equations
+
+Of all of these, the initial conditions are by far the most complicated part, so lets get to it
+
+# Initial conditions
+
+I'm going to present you with the easiest set of initial conditions to implement, and we're going to really dig into it. Some discussion about alternatives is at the end of this article
+
+The paper we're going to implement today is called [A simple construction of initial data for multiple black holes](https://arxiv.org/pdf/gr-qc/9703066). This represents an extremely traditional and widespread way to construct black hole initial conditions - its also a very good paper that you should read. There are a few things that we need to learn right off the bat
+
+1. This doesn't actually make black holes, it makes objects that collapse into black holes
+2. There is no way of a-priori specifying the mass of a black hole
+3. There is a maximum value of spin that can be expressed with this technique
+
+Lets get into it
+
+## Implementing
+
+To take a step back, we're trying to solve initial conditions for the following ADM variables:
+
+$$\gamma_{ij}\\
+K_{ij}\\
+\alpha\\
+\beta^i
+$$
+
+This technique solves for $\gamma_{ij}$ and $K_{ij}$, and leaves us to guess $\alpha$ and $\beta^i$. It falls under the class of initial conditions known as 'conformally flat'. This means it decomposes the metric tensor into a flat conformal metric, and a conformal factor $\psi$, and decomposes the extrinsic curvature $K^{ph}_{ij}$ into a trace $K=0$, and a trace free part which this paper calls $K_{ij}$ (and other papers often call $$\tilde{A}_{ij}$$). The notation for numerical relativity has changed a lot over the years
+
+The basic idea here is that with the conformally flat + trace free constraint, the momentum constraint becomes linear, allowing you to calculate the extrinsic curvature as a sum of each individual black hole's curvature, to calculate the final (conformal) curvature. The shape of the conformal factor is a *guess*, which is then corrected to be physical via a hopefully small correction, by solving the laplacian (9) + (10)
+
+## Details
+
+This method has the following parameters:
+
+$m_i$ bare mass of each black hole
+$P_i$ the momentum vector of each black hole
+$S_i$ the spin (angular momentum) of each black hole
+
+Note that bare mass is not the same thing as mass, it only correlates to it. A black hole's spin contributes to its mass as well. On top of this, in the general case, the mass of a black hole in a binary pair isn't possible to define: see the end of this article for more details
+
+## Extrinsic curvature
+
+This is very easy. For every black hole in our spacetinme, we calculate the quantity (5), and then sum all of them. I then store this in a single buffer, $K^{ab} K_{ab}$ as a scalar
+
+asdfasdf
+
+## Correction
+
+The conformal factor $\psi$ here is listed as:
+
+$$\psi = \frac{1}{\alpha} + u$$
+
+Where $u > 1$. We're going to deviate a little from this, and instead calculate the correction as:
+
+$$\psi = \frac{1}{\alpha} + u + 1$$
+
+Where $u > 0$. This is because you have a lot more precision to work with for floating point near zero vs near $1$, so this lets us solve for much smaller corrections without needing to resort to double precision. This doesn't actually change the structure of any of the equations we solve, it only changes the boundary condition
+
+### Solving laplacians
+
+Equations (9) + (10) are a classic laplacian, and I'm now going to present to you how to solve it. We're extremely lucky in that we're going to be running this on a GPU, so we don't have to do anything too fancy to solve this very quickly
+
+i'm too hungry to write any more sensibly, but tl;dr
+
+write the general form of the equation Du = whatevz
+discretise the left hand side to get ye olde stencil
+rearrange to get the fixed point iteration
+present the basic fixed point iteration solution
+introduce red-black
+introduce multigrid
+
+## Fin
+
+With the laplacian solved, you calculated $\psi$, and the construct the ADM variables blahblah. From there we have the BSSN variables
+
+### Gauge
+
+Innit
+
+# Boundary conditions
+
+Radiative
+
+# Stability modifications
+
+Rawr
+
+# Results
+
+Look! Black holes!
 
 
-# Moving punctures conspiracy theories
+# Black holes do not really have mass
 
+There's an unfortunate truth for black holes, which is that there is no unique definition of the mass of a black hole. Its very easy to work out how much mass there is for something like the earth - because we can calculate how much *matter* is present, but black holes here are a vacuum solution - there's no matter of any description present. This means that we have to work out what the effect on spacetime a black hole has equivalent to a certain amount of mass
+
+There are multiple definitions of mass that we can use:
+
+1. Bare mass, which has no physical meaning. Higher = more mass, but that's about it
+2. ADM mass, which is measured at 'infinity', and measures how much energy is present in the spacetime. Only valid in asymptotically flat spacetimes
+3. Komar mass - defined in stationary spacetimes
+4. Horizon mass, determined by the area of the event horizon[^notruehorizon]
+5. Puncture mass, determined by the size of the correction factor $\psi$ at the puncture, which approximates the ADM mass
+
+[^notruehorizon]: If you were thinking this definition seems very straightforward, note that in a technical sense our numerical black holes don't have an event horizon. An event horizon is the 4d surface which light rays cannot escape from, but as our black holes are not eternal (and are formed by the collapse of a precursor object with no horizon), an event horizon is not present in our spacetime. If you trace a ray backwards in time, it will never become trapped in a black hole
+
+    In the literature, a surface which is hoped to be equivalent/similar is used called the 'marginally outer trapped surface' (MOTS), which is defined locally on a specific slice. It is not the same thing as an event horizon, which can only truly be determined by tracing geodesics around in a 4-spacetime. You could also define a point in time to be approximately the 'start' of our black holes after they've formed from the precursor objects, and use that to approximate an enernal black hole (and so define a true event horizon) while tracing geodesics. I'm not aware of anyone doing this though
+
+Black holes are a form of energy stored in spacetime and are a global phenomenon. Two black holes which are nearby each other store a significant amount of energy in the spacetime between them, increasing their mass (essentially further delocalising them). This makes it hard to pin down exactly how much 'mass' an individual black hole has in a binary pair, because they aren't truly separate phenonema. This means that all of these definitions of mass can disagree
+
+Despite this, its very common to use ADM mass via puncture mass, and horizon mass with an approximation to its event horizon[^notruehorizon]. We'll be using the former
