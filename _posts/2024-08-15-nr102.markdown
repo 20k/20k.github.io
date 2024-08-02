@@ -5,4 +5,54 @@ date:   2024-08-15 12:33:23 +0000
 categories: C++
 ---
 
-Hello! Today's article is
+Hello! Today we're going to do one of the coolest things in all of physics in my opinion, which is simulating the collision of two black holes. Last time round, we implemented most of what we'll need to implement this, so today's job is to capitalise on that and finally smash some black holes together
+
+# Astrophysics Context
+
+Its worth understanding for this article what we're actually trying to simulate. A black hole is an object that is so dense that light can't escape - once this happens, nothing that prevent all the matter that made up the precursor object from reaching the singularity
+
+Eg, consider a star collapsing into a black hole. All the matter essentially shrinks to a point (or, in the case of a spinning black hole: a ring) past the event horizon, until it reaches a singularity. In pure general relativity, this singularity is inevitable, and all the black holes we're dealing with today will always contain a singularity. Its also true that the singularity is - mathematically - very poorly behaved and by definition causes all the maths to explode. This makes simulating it a bit tricky. There are two approaches to handling this
+
+## Excision
+
+A black holes interior, and exterior are causally disconnected. This means that the interior of a black hole has no effect on the wider universe, and as such - you don't actually need to simulate it. This is the excision technique for handling a black hole's interior, and involves specifying a boundary condition somewhere inside the event horizon
+
+This also directly leads to one of my favourite papers, the turducken, where you stuff the interior with meaningless junk
+
+## Moving punctures
+
+This is the technique we'll actually be using, and involves a bit of trickery. In the ADM formalism, the gauge conditions define the coordinate system of what you're working with. So the trick is to make sure that the coordinates never actually meet the singularity, and its treated as a puncture/hole in your simulation grid. This puncture is able to move around with the correct gauge conditions, and so we have a singularity that is never actually quite reprsented
+
+In practice, its a lot trickier than this, and I personally have some skepticism that that's actually what's happening. I'm going to keep the crackpot conspiracy theories to the end of this article
+
+## Circular Orbits
+
+The conventional wisdom is that black holes merge after a long inspiralling process, where the nature of gravitational wave emissions slowly circularises the orbits. This means that binary black hole orbits should be nearly perfectly circular by the time the black hole's merge
+
+Unfortunately, this turned out not to be the case, and it appears that there is a significant amount of eccentricity (non circularity) when black holes merge. This really complicates the amount of simulating you have to do
+
+## Unequal mass binaries
+
+With the assumption of circular orbits, equal mass/spin binaries, and the black hole spin being aligned with the plane of the orbit, you can use octant symmetry - ie your simulation is fully symmetric and can be chopped into 8 chunks, with only one of the chunks actually being simulated
+
+Personally I'm interested in a very general simulator which can handle anything, so we're going to avoid this octant symmetry reduction - but given its prevalence in the literature, its worth mentioning here
+
+## Gravitational waves
+
+The primary purpose of a black hole merger simulator is to find out what the gravitational waves look like, because LIGO (a big gravitational wave detector) can detect certain mass ranges of mergers. We're not going to be pulling out gravitational waves today, but it does mean we need to be careful to be as physical as possible
+
+To perform this matching, as far as I know there's no better way than simply bruteforcing the entire parameter space. For a pair of black holes, you have the following parameters:
+
+M1: The mass of the first black hole
+M2: The mass of the second black hole
+S1: The spin direction - a 3-vector - of the first black hole, normalised
+S2: The spin directionof the second black hole
+X1: The spin constant of the first black hole
+X2: The spin constant of the second black hole
+e: The orbital eccentricity
+
+This is a lot of parameters to bruteforce
+
+
+# Moving punctures conspiracy theories
+
