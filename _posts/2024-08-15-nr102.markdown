@@ -45,6 +45,8 @@ The primary purpose of a black hole merger simulator is to find out what the gra
 
 To perform this matching, as far as I know there's no better way than simply bruteforcing the entire parameter space. For a pair of black holes, you have the following parameters:
 
+todo: no
+
 M1: The mass of the first black hole
 M2: The mass of the second black hole
 S1: The spin direction - a 3-vector - of the first black hole, normalised
@@ -69,11 +71,11 @@ Of all of these, the initial conditions are by far the most complicated part, so
 
 # Initial conditions
 
-I'm going to present you with the easiest set of initial conditions to implement, and we're going to really dig into it. Some discussion about alternatives is at the end of this article
+I'm going to present you with the easiest set of initial conditions to implement, and we're going to really dig into it. Some discussion about alternatives and further context is given at the end of this article
 
 The paper we're going to implement today is called [A simple construction of initial data for multiple black holes](https://arxiv.org/pdf/gr-qc/9703066). This represents an extremely traditional and widespread way to construct black hole initial conditions - its also a very good paper that you should read. There are a few things that we need to learn right off the bat
 
-1. This doesn't actually make black holes, it makes objects that collapse into black holes
+1. This doesn't actually make black holes, it makes objects that collapse into black holes. They have no event horizon, or apparent horizon
 2. There is no way of a-priori specifying the mass of a black hole
 3. There is a maximum value of spin that can be expressed with this technique
 
@@ -89,7 +91,7 @@ K_{ij}\\
 \beta^i
 $$
 
-This technique solves for $\gamma_{ij}$ and $K_{ij}$, and leaves us to guess $\alpha$ and $\beta^i$. It falls under the class of initial conditions known as 'conformally flat'. This means it decomposes the metric tensor into a flat conformal metric, and a conformal factor $\psi$, and decomposes the extrinsic curvature $K^{ph}_{ij}$ into a trace $K=0$, and a trace free part which this paper calls $K_{ij}$ (and other papers often call $$\tilde{A}_{ij}$$). The notation for numerical relativity has changed a lot over the years
+This technique solves for $\gamma_{ij}$ and $K_{ij}$, and leaves us to guess $\alpha$ and $\beta^i$. It falls under the class of initial conditions known as 'conformally flat'. This means it decomposes the metric tensor into a flat conformal metric (an identity matrix), and a conformal factor $\psi$. It also decomposes the extrinsic curvature $K^{ph}_{ij}$ ('physical', this is our $K_{ij}$) into a trace $K=0$, and a trace free part which this paper calls $K_{ij}$ (and other papers often call $$\bar{A}_{ij}$$). The notation for numerical relativity has changed a lot over the years
 
 The basic idea here is that with the conformally flat + trace free constraint, the momentum constraint becomes linear, allowing you to calculate the extrinsic curvature as a sum of each individual black hole's curvature, to calculate the final (conformal) curvature. The shape of the conformal factor is a *guess*, which is then corrected to be physical via a hopefully small correction, by solving the laplacian (9) + (10)
 
@@ -97,33 +99,66 @@ The basic idea here is that with the conformally flat + trace free constraint, t
 
 This method has the following parameters:
 
-$m_i$ bare mass of each black hole
+$m_i$ bare mass parameter of each black hole
 $P_i$ the momentum vector of each black hole
 $S_i$ the spin (angular momentum) of each black hole
+$x_i$ the position of a black hole
 
-Note that bare mass is not the same thing as mass, it only correlates to it. A black hole's spin contributes to its mass as well. On top of this, in the general case, the mass of a black hole in a binary pair isn't possible to define: see the end of this article for more details
+Note that bare mass is not the same thing as mass (here: ADM mass), it only correlates to it. A black hole's spin contributes to its mass as well. On top of this, in the general case, the mass of a black hole in a binary pair is of questionable physicalness: see the end of this article for more details
 
-## Extrinsic curvature
+I'm going to be using the notation $\bar{A}^{ij}$ to mean what this paper calls $K^{ij}$, because its simply too confusing otherwise. I'm also going to be using $\bar{\gamma}_{ij}$ to mean the conformally flat metric instead of $g_{ab}$, for the same reason
 
-This is very easy. For every black hole in our spacetinme, we calculate the quantity (5), and then sum all of them. I then store this in a single buffer, $K^{ab} K_{ab}$ as a scalar
+## Conformal extrinsic curvature
 
-asdfasdf
+This is straightforward. For every black hole in our spacetime, we calculate the quantity (5), and then sum all of them. After accumulating all of these, I store $\bar{A}^{ab} \bar{A}_{ab}$ as a scalar
 
-## Correction
+For a single black hole, we have this:
+
+$$
+\begin{align}
+\bar{A}^{ij} &= \frac{3}{2r^2}(P^a n^b + P^b n^a - (\bar{\gamma}^{ab} - n^a n^b) P^c n_c) \\
+&+ \frac{3}{r^3}(\epsilon^{acd} S_c n_d n^b + \epsilon^{bcd} S_c n_d n^a)
+\end{align}
+$$
+
+Where $\epsilon$ is the levi civita tensor. Note that the levi civita symbol, and levi civita tensor have the same notation in the literature and are frequently freely mixed, so its not especially clear what's going on. TODO: I NEED TO CHECK THIS
+
+$r$ is the distance in world coordinates (ie not grid coordinates) of the coordinate from the black hole in question. There's a clear problem when $r = 0$, and the solution is to either position your black holes so this is impossible, or clamp to a small value
+
+$n$ is a normal vector, which is calculated as follows: $n^i = x^i/r$, and points away from the black hole in question
+
+If you have no plans to ever work in non cartesian coordinate systems (which we don't), the metric tensor is the identity matrix
+
+Next up: We need the conformal factor $\psi$, which involves calculating the correction $u$
+
+## Conformal Factor
+
+alt https://arxiv.org/pdf/1606.04881
 
 The conformal factor $\psi$ here is listed as:
 
 $$\psi = \frac{1}{\alpha} + u$$
 
-Where $u > 1$. We're going to deviate a little from this, and instead calculate the correction as:
+Where $u > 1$, and $\alpha$ is:
+
+$$\frac{1}{\alpha} = \sum^N_{i=1} \frac{m_i}{2 |\overrightarrow{r} - \overrightarrow{x}_{(i)}|}$$
+
+Note that $r$ in the bottom term is a vector representing our current grid cell's world position. This is twice the distance of our coordinate from our $i$'th black hole
+
+We're only going to deviate a little from this definition, and instead calculate the correction as:
 
 $$\psi = \frac{1}{\alpha} + u + 1$$
 
-Where $u > 0$. This is because you have a lot more precision to work with for floating point near zero vs near $1$, so this lets us solve for much smaller corrections without needing to resort to double precision. This doesn't actually change the structure of any of the equations we solve, it only changes the boundary condition
+Where $u > 0$. This is because you have a lot more precision to work with for floating point near zero vs near $1$, so this lets us solve for much smaller corrections without needing to resort to double precision. This means our boundary condition will be slightly different ($u=0$ vs $u=1$)
 
-### Solving laplacians
+### Solving laplacians, finding $u$
 
-Equations (9) + (10) are a classic laplacian, and I'm now going to present to you how to solve it. We're extremely lucky in that we're going to be running this on a GPU, so we don't have to do anything too fancy to solve this very quickly
+Equations (9) + (10) are a classic laplacian:
+
+TODO:
+
+
+And I'm now going to present to you how to solve it. We're extremely lucky in that we're going to be running this on a GPU, so we don't have to do anything too fancy to solve this very quickly
 
 i'm too hungry to write any more sensibly, but tl;dr
 
@@ -137,6 +172,8 @@ introduce multigrid
 ## Fin
 
 With the laplacian solved, you calculated $\psi$, and the construct the ADM variables blahblah. From there we have the BSSN variables
+
+The ADM mass can be estimated via blahblah. If you need a specific ADM mass, iterate. Binary search. Spin! Woo!
 
 ### Gauge
 
