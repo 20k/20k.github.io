@@ -8,6 +8,7 @@
 #include "errors.hpp"
 #include "init.hpp"
 #include "kreiss_oliger.hpp"
+#include "init_black_hole.hpp"
 
 using t3i = tensor<int, 3>;
 
