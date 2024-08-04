@@ -15,11 +15,7 @@ tensor<valuef, 3, 3> get_aIJ(v3f world_pos, v3f bh_pos, v3f angular_momentum, v3
 
     for(int i=0; i < 3; i++)
     {
-        for(int j=0; j < 3; j++)
-        {
-            flat.idx(i, j) = (i == j) ? 1 : 0;
-            bcAij.idx(i, j) = 0;
-        }
+        flat[i, i] = 1;
     }
 
     for(int i=0; i < 3; i++)
