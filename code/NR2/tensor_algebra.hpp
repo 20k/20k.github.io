@@ -227,5 +227,34 @@ tensor<T, N, N> covariant_derivative_high_vec(const tensor<T, N>& v_in, const te
     return lab;
 }
 
+inline
+tensor<valuef, 3, 3, 3> get_eijk()
+{
+    auto eijk_func = [](int i, int j, int k)
+    {
+        if((i == 0 && j == 1 && k == 2) || (i == 1 && j == 2 && k == 0) || (i == 2 && j == 0 && k == 1))
+            return 1;
+
+        if(i == j || j == k || k == i)
+            return 0;
+
+        return -1;
+    };
+
+    tensor<valuef, 3, 3, 3> eijk;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            for(int k=0; k < 3; k++)
+            {
+                eijk[i, j, k] = eijk_func(i, j, k);
+            }
+        }
+    }
+
+    return eijk;
+}
 
 #endif // TENSOR_ALGEBRA_HPP_INCLUDED
