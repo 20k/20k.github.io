@@ -91,18 +91,20 @@ K_{ij}\\
 \beta^i
 $$
 
-This technique solves for $\gamma_{ij}$ and $K_{ij}$, and leaves us to guess $\alpha$ and $\beta^i$. It falls under the class of initial conditions known as 'conformally flat'. This means it decomposes the metric tensor into a flat conformal metric (an identity matrix), and a conformal factor $\psi$. It also decomposes the extrinsic curvature $K^{ph}_{ij}$ ('physical', this is our $K_{ij}$) into a trace $K=0$, and a trace free part which this paper calls $K_{ij}$ (and other papers often call $$\bar{A}_{ij}$$). The notation for numerical relativity has changed a lot over the years
+This technique solves for $\gamma_{ij}$ and $K_{ij}$, and leaves us to guess $\alpha$ and $\beta^i$. It falls under the class of initial conditions known as 'conformally flat'. This means it decomposes the metric tensor into a flat conformal metric (an identity matrix), and a conformal factor $\psi$. It also decomposes the extrinsic curvature $K^{ph}_{ij}$ ('physical', this is our $K_{ij}$) into a trace $K=0$, and a trace free part which this paper calls $K_{ij}$ (and other papers often call $$\bar{A}_{ij}$$). This is called a maximal slice (todo: check the _{TT} schenanigans)
 
-The basic idea here is that with the conformally flat + trace free constraint, the momentum constraint becomes linear, allowing you to calculate the extrinsic curvature as a sum of each individual black hole's curvature, to calculate the final (conformal) curvature. The shape of the conformal factor is a *guess*, which is then corrected to be physical via a hopefully small correction, by solving the laplacian (9) + (10)
+The basic idea here is that with the conformally flat + trace free constraint, the momentum constraint becomes linear, allowing you to calculate the extrinsic curvature as a sum of each individual black hole's curvature, to calculate the final (conformal) curvature. The shape of the conformal factor is a *guess*, which is then corrected to be physical via a small correction $u$, by solving the laplacian (9) + (10)
 
 ## Details
 
 This method has the following parameters:
 
 $m_i$ bare mass parameter of each black hole
-$P_i$ the momentum vector of each black hole
-$S_i$ the spin (angular momentum) of each black hole
+$P_i$: A 3-vector, the momentum vector of each black hole
+$S_i$: A 3-vector the spin (angular momentum) of each black hole
 $x_i$ the position of a black hole
+
+I'm labelling the properties of each black hole by its index $i$
 
 Note that bare mass is not the same thing as mass (here: ADM mass), it only correlates to it. A black hole's spin contributes to its mass as well. On top of this, in the general case, the mass of a black hole in a binary pair is of questionable physicalness: see the end of this article for more details
 
@@ -145,43 +147,134 @@ $$\frac{1}{\alpha} = \sum^N_{i=1} \frac{m_i}{2 |\overrightarrow{r} - \overrighta
 
 Note that $r$ in the bottom term is a vector representing our current grid cell's world position. This is twice the distance of our coordinate from our $i$'th black hole
 
-We're only going to deviate a little from this definition, and instead calculate the correction as:
+We're going to deviate a little from this definition, and instead calculate the correction as:
 
 $$\psi = \frac{1}{\alpha} + u + 1$$
 
-Where $u > 0$. This is because you have a lot more precision to work with for floating point near zero vs near $1$, so this lets us solve for much smaller corrections without needing to resort to double precision. This means our boundary condition will be slightly different ($u=0$ vs $u=1$)
+Where $u > 0$. This is because you have a lot more precision to work with for floating point near $0$ vs near $1$, so this lets us solve for much smaller corrections without needing to resort to double precision. This means our boundary condition will be slightly different ($u=0$ vs $u=1$)
 
-### Solving laplacians, finding $u$
+### Solving for $u$
 
 Equations (9) + (10) are a classic laplacian:
 
-TODO:
+$$\begin{align}
+&\Delta u + \beta(1 + \alpha u)^{-7} = 0\\
+&\beta = \frac{1}{8} \alpha^7 \bar{A}^{ab}\bar{A}_{ab}
+\end{align}
+$$
 
+If you're planning to implement in a more serious capacity, I'd recommend instead the form given by [this](https://arxiv.org/pdf/1606.04881) paper (18), because that's where we'll end up eventually
 
-And I'm now going to present to you how to solve it. We're extremely lucky in that we're going to be running this on a GPU, so we don't have to do anything too fancy to solve this very quickly
+#### Solving laplacians in general
 
-i'm too hungry to write any more sensibly, but tl;dr
+Our equations are of the form:
 
-write the general form of the equation Du = whatevz
-discretise the left hand side to get ye olde stencil
-rearrange to get the fixed point iteration
-present the basic fixed point iteration solution
-introduce red-black
-introduce multigrid
+$$\Delta u = F(u)$$
 
-## Fin
+And are a standard laplacian. It is common in numerical relativity to use complex solutions to solve this, and they come with caveats in terms of how to solve this. This is because solvers are CPU based, and as such need very good convergence properties to work well
 
-With the laplacian solved, you calculated $\psi$, and the construct the ADM variables blahblah. From there we have the BSSN variables
+Luckily, we're in GPU-land, and so the techniques are both simpler and significantly more performant
 
-The ADM mass can be estimated via blahblah. If you need a specific ADM mass, iterate. Binary search. Spin! Woo!
+#### The boundary condition
+
+At the edge of our grid, we need to set $u$ to something. Asymptotically, $u$ is assumed to have the form $O(\frac{1}{r})$ (todo check), and at infinity in the original definition $u ~= 1$. This means for us, $u = 0$
+
+#### Fixed point iteration / 7 point stencil
+
+A laplacian in flat 3d space is defined as such:
+
+$$\Delta u = \frac{\partial^2 u}{\partial x_0 ^2} + \frac{\partial^2 u}{\partial x_1 ^2} + \frac{\partial^2 u}{\partial x_2 ^2}$$
+
+Ie, it is the sum of second derivatives in each direction. Given a function $f(x)$, we can approximate the second derivative with finite difference coefficients:
+
+$$\frac{\partial^2 f(x)}{\partial x^2} = \frac{f(x - h) - 2 f(x) + f(x + h)}{h^2}$$
+
+Now, we'll treat $u$ as a function over 3d space, ie $u(x, y, z)$, and apply the above discretisation to $\Delta u$:
+
+$$\Delta u = \frac{u(x - h, y, z) - 2 u(x, y, z) + u(x + h, y, z))}{h^2} + \frac{u(x, y - h, z) - 2 u(x, y, z) + u(x, y + h, z))}{h^2}\frac{u(x, y, z - h) - 2 u(x, y, z) + u(x, y, z + h))}{h^2}$$
+
+Collecting all the terms, we get:
+
+$$\frac{u(x - h, y, z) + u(x + h, y, z) + u(x, y - h, z) + u(x, y + h, z) + u(x, y, z - h) + u(x, y, z + h) - 6 u(x, y, z)}{h^2}$$
+
+Our initial equation is $\Delta u = F(u)$, so lets substitute in, and multiply by $h^2$:
+
+$$u(x - h, y, z) + u(x + h, y, z) + u(x, y - h, z) + u(x, y + h, z) + u(x, y, z - h) + u(x, y, z + h) - 6 u(x, y, z) = F(u) h^2$$
+
+The iterative scheme for solving a laplacian (often called 5-point stencil in 2d, or the 7-point stencil in 3d), is given by solving for $u(x, y, z)$:
+
+$$
+u(x, y, z) = \frac{u(x - h, y, z) + u(x + h, y, z) + u(x, y - h, z) + u(x, y + h, z) + u(x, y, z - h) + u(x, y, z + h) - F(u) h^2}{6}
+$$
+
+For us, $F(u) = -\frac{1}{8} \alpha^7 \bar{A}^{ab} \bar{A}_{ab} (1 + \alpha u)^{-7}$
+
+As a basic idea, this works, and is implementable. This is the form I used for a very long time: you just iterate the above equation until the change in $u$ is sufficiently small. There are two main issues:
+
+1. It can be numerically unstable, particularly for spinning black holes
+2. It isn't amazingly fast, it can take ~10s or so in some cases
+
+The first is solved by relaxation: Ie taking our old guess, and our new guess, and taking some fraction between the two: `mix(u, nextu, 0.9)`. This unfortunately reduces the speed of convergence
+
+Luckily, performance issues are easily fixable!
+
+#### Multigrid
+
+The easiest way to speed up performance is with a multigrid solution. Essentially, instead of solving at your final grid resolution, you start off at a low resolution, solve for that, then progressively solve for higher resolutions starting with your low resolution guess upscaled to a higher resolution
+
+This solution works incredibly well for this problem, as there is no high frequency content in $u$
+
+#### Red-black
+
+Another component that gives a free 2x performance increase is red-black iteration. Imagine the laplacian problem in 2d:
+
+todo: picture
+
+Each cell only accesses a adjacent grid cells:
+
+Todo: red/black
+
+This means that when updating, we can skip half the cells in the 'wrong' colour, and then update them next time round instead. Note that we *do* use $u$ here to calculate $F(u)$, which means that the $u$ for the laplacian's and the $u$ for our rhs are at different steps if we use red-black iteration. This does not affect convergence
+
+The iteration scheme to use in 3d is as follows:
+
+Todo: code
+
+## Fininishing up
+
+After solving the laplacian, we have a value for $u$, which allows us to calculate $\psi$ directly. From here, we can calculate our ADM variables:
+
+$$\begin{align}
+\gamma_{ij} &= \psi^4 \bar{\gamma}_{ij}\\
+K_{ij} &= \psi^{-2} \bar{A}_{ij}
+\end{align}$$
+
+We already know how to construct our BSSN variables, see the last article
+
+The ADM mass can be estimated via todo. If you need a specific ADM mass, iterate. Binary search. Spin! Woo!
 
 ### Gauge
 
-Innit
+We still don't have an initial solution for our gauge variables however. Universally, $\beta^i = 0$. The lapse $\alpha$ is a tad more interesting - there are two main options:
+
+1. $\alpha = 1$
+2. $\alpha = \psi^{-2}$
+
+Both work well and are widely used. The latter is better for black holes, but I've found tends to lead to neutron stars exploding spectacularly. I'm going to use #2
 
 # Boundary conditions
 
-Radiative
+https://arxiv.org/pdf/1503.03436 2.39
+
+Our data is no longer periodic, so we need a new set of boundary conditions. One of the simpler boundary conditions (that isn't terrible), is called the Sommerfeld boundary conditions. This radiaties away your data to the asymptotic value at the boundary. This is defined as:
+
+$$\frac{\partial f}{\partial t} = -\frac{v x_i}{\partial x_i} - v \frac{f - f_0}{r}$$
+
+$f$ is our value for whatever field we're radiating, $x_i$ is the cell's position in world coordinates, $v$ is the wave speed, $f_0$ is the asymptotic value, and $r$ is the distance from the centre
+
+All waves have a speed of $1$, except for the gauge variables which have a speed of $\sqrt{2}$. Todo: Cite
+
+Other boundary conditions?
 
 # Stability modifications
 
