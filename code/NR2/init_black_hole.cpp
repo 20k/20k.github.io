@@ -7,9 +7,10 @@ using valuef = value<float>;
 using v3f = tensor<valuef, 3>;
 
 ///todo: do it the way the paper says, even though it maketh a sad me
-tensor<valuef, 3, 3> get_aij(v3f world_pos, v3f bh_pos, v3f angular_momentum, v3f momentum)
+tensor<valuef, 3, 3> get_aIJ(v3f world_pos, v3f bh_pos, v3f angular_momentum, v3f momentum)
 {
     ///todo: fixme
+    ///todo: I am unconvinced about the levi civita symbol
     tensor<valuef, 3, 3, 3> eijk = get_eijk();
 
     tensor<valuef, 3, 3> aij;
@@ -54,6 +55,11 @@ tensor<valuef, 3, 3> get_aij(v3f world_pos, v3f bh_pos, v3f angular_momentum, v3
     }
 
     return aij;
+}
+
+valuef get_conformal_guess(v3f world_pos, v3f bh_pos, valuef bare_mass)
+{
+    return bare_mass / (2 * (world_pos - bh_pos).length());
 }
 
 template<typename Type, typename Func>
@@ -109,13 +115,22 @@ black_hole_data init_black_hole(cl::context& ctx, cl::command_queue& cqueue, con
         {
             v3f world_pos = grid_to_world((v3f)pos, dim, scale);
 
-            tensor<valuef, 3, 3> aij = get_aij(world_pos, (v3f)params.position, (v3f)params.angular_momentum, (v3f)params.linear_momentum);
+            tensor<valuef, 3, 3> aij = get_aIJ(world_pos, (v3f)params.position, (v3f)params.angular_momentum, (v3f)params.linear_momentum);
 
             return aij[idx.x(), idx.y()];
         };
 
         dat.aij[i] = discretise<float>(ctx, cqueue, func, dim, scale);
     }
+
+    auto cfl = [&](v3i pos)
+    {
+        v3f world_pos = grid_to_world((v3f)pos, dim, scale);
+
+        return get_conformal_guess(world_pos, (v3f)params.position, (valuef)params.bare_mass);
+    };
+
+    dat.conformal_guess = discretise<float>(ctx, cqueue, cfl, dim, scale);
 
     return dat;
 }

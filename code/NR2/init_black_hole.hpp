@@ -8,8 +8,9 @@
 struct black_hole_data
 {
     std::array<cl::buffer, 6> aij;
+    cl::buffer conformal_guess;
 
-    black_hole_data(cl::context& ctx) : aij{ctx, ctx, ctx, ctx, ctx, ctx}{}
+    black_hole_data(cl::context& ctx) : aij{ctx, ctx, ctx, ctx, ctx, ctx}, conformal_guess{ctx}{}
 };
 
 struct black_hole_params
