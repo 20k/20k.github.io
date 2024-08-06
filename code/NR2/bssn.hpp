@@ -5,6 +5,7 @@
 #include <array>
 #include "../common/value2.hpp"
 #include "../common/single_source.hpp"
+#include <toolkit/opencl.hpp>
 
 using derivative_t = value<float16>;
 using valuef = value<float>;
@@ -23,6 +24,8 @@ using mut_v4f = tensor<mut<valuef>, 4>;
 using mut_v3f = tensor<mut<valuef>, 3>;
 
 v3i get_coordinate(valuei id, v3i dim);
+
+using t3i = tensor<int, 3>;
 
 template<typename T>
 struct bssn_args_mem : value_impl::single_source::argument_pack
@@ -142,6 +145,90 @@ struct bssn_derivatives
             dgA[k] = (valuef)derivatives.dgA[k][pos, dim];
             dW[k] = (valuef)derivatives.dW[k][pos, dim];
         }
+    }
+};
+
+struct bssn_buffer_pack
+{
+    std::array<cl::buffer, 6> cY;
+    std::array<cl::buffer, 6> cA;
+    cl::buffer K;
+    cl::buffer W;
+    std::array<cl::buffer, 3> cG;
+
+    cl::buffer gA;
+    std::array<cl::buffer, 3> gB;
+
+    //lovely
+    bssn_buffer_pack(cl::context& ctx) :
+        cY{ctx, ctx, ctx, ctx, ctx, ctx},
+        cA{ctx, ctx, ctx, ctx, ctx, ctx},
+        K{ctx},
+        W{ctx},
+        cG{ctx, ctx, ctx},
+        gA{ctx},
+        gB{ctx, ctx, ctx}
+    {
+
+    }
+
+    void allocate(t3i size)
+    {
+        int64_t linear_size = int64_t{size.x()} * size.y() * size.z();
+
+        for(auto& i : cY)
+            i.alloc(sizeof(cl_float) * linear_size);
+        for(auto& i : cA)
+            i.alloc(sizeof(cl_float) * linear_size);
+        for(auto& i : cG)
+            i.alloc(sizeof(cl_float) * linear_size);
+        for(auto& i : gB)
+            i.alloc(sizeof(cl_float) * linear_size);
+
+        K.alloc(sizeof(cl_float) * linear_size);
+        W.alloc(sizeof(cl_float) * linear_size);
+        gA.alloc(sizeof(cl_float) * linear_size);
+    }
+
+    template<typename T>
+    void for_each(T&& func)
+    {
+        for(auto& i : cY)
+            func(i);
+
+        for(auto& i : cA)
+            func(i);
+
+        func(K);
+        func(W);
+
+        for(auto& i : cG)
+            func(i);
+
+        func(gA);
+
+        for(auto& i : gB)
+            func(i);
+    }
+
+    void append_to(cl::args& args)
+    {
+        for(auto& i : cY)
+            args.push_back(i);
+
+        for(auto& i : cA)
+            args.push_back(i);
+
+        args.push_back(K);
+        args.push_back(W);
+
+        for(auto& i : cG)
+            args.push_back(i);
+
+        args.push_back(gA);
+
+        for(auto& i : gB)
+            args.push_back(i);
     }
 };
 

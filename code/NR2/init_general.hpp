@@ -62,7 +62,7 @@ struct initial_conditions
         cqueue.exec("sum_buffers", args, {dim.x() * dim.y() * dim.z()}, {128});
     }
 
-    void build(cl::context& ctx, cl::command_queue& cqueue, float scale)
+    void build(cl::context& ctx, cl::command_queue& cqueue, float scale, bssn_buffer_pack& to_fill)
     {
         cl::buffer aij_aIJ_buf(ctx);
         aij_aIJ_buf.alloc(sizeof(cl_float) * dim.x() * dim.y() * dim.z());
@@ -176,9 +176,9 @@ struct initial_conditions
         }
 
         cl::buffer u_found(ctx);
+        cl_int3 size = {dim.x(), dim.y(), dim.z()};
 
         {
-            cl_int3 size = {dim.x(), dim.y(), dim.z()};
 
             std::array<cl::buffer, 2> u{ctx, ctx};
 
@@ -282,6 +282,25 @@ struct initial_conditions
             p.build(ctx, "");
 
             ctx.register_program(p);
+        }
+
+        {
+            cl::args args;
+
+            to_fill.for_each([&](cl::buffer& buf)
+            {
+                args.push_back(buf);
+            });
+
+            args.push_back(cfl_summed);
+            args.push_back(u_found);
+
+            for(int i=0; i < 6; i++)
+                args.push_back(aIJ_summed[i]);
+
+            args.push_back(size);
+
+            cqueue.exec("calculate_bssn_variables", args, {dim.x() * dim.y() * dim.z()}, {128});
         }
     }
 };
