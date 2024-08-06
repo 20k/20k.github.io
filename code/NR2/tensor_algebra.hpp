@@ -257,4 +257,19 @@ tensor<valuef, 3, 3, 3> get_eijk()
     return eijk;
 }
 
+
+template<typename T, int N>
+inline
+tensor<T, N, N> raise_both(const tensor<T, N, N>& mT, const inverse_metric<T, N, N>& inverse)
+{
+    return raise_index(raise_index(mT, inverse, 0), inverse, 1);
+}
+
+template<typename T, int N>
+inline
+tensor<T, N, N> lower_both(const tensor<T, N, N>& mT, const metric<T, N, N>& met)
+{
+    return lower_index(lower_index(mT, met, 0), met, 1);
+}
+
 #endif // TENSOR_ALGEBRA_HPP_INCLUDED
