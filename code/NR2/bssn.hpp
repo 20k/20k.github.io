@@ -106,7 +106,7 @@ struct bssn_args
         for(int i=0; i < 3; i++)
             cG[i] = in.cG[i][pos, dim];
 
-        gA = in.gA[pos, dim];
+        gA = max(in.gA[pos, dim], valuef(0.f));
 
         for(int i=0; i < 3; i++)
             gB[i] = in.gB[i][pos, dim];

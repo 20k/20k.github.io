@@ -62,23 +62,41 @@ struct mesh
         temporary_single.alloc(sizeof(cl_ulong));
     }
 
-    void init(cl::command_queue& cqueue)
+    void init(float simulation_width, cl::context& ctx, cl::command_queue& cqueue)
     {
         cl_int4 cldim = {dim.x(), dim.y(), dim.z(), 0};
-        float c_at_max = 1;
-        float scale = get_scale(c_at_max, dim);
+        float scale = get_scale(simulation_width, dim);
 
         {
+            black_hole_params p1;
+            p1.bare_mass = 0.5f;
+            p1.position = {4, 0, 0};
+
+            black_hole_data d1 = init_black_hole(ctx, cqueue, p1, dim, scale);
+
+            black_hole_params p2;
+            p2.bare_mass = 0.5f;
+            p2.position = {-4, 0, 0};
+
+            black_hole_data d2 = init_black_hole(ctx, cqueue, p2, dim, scale);
+
+            initial_conditions init(ctx, cqueue, dim);
+
+            init.add(cqueue, d1);
+            init.add(cqueue, d2);
+
+            init.build(ctx, cqueue, scale, buffers[0]);
+        }
+
+        /*{
             cl::args args;
             buffers[0].append_to(args);
             args.push_back(cldim);
             args.push_back(scale);
 
-            assert(false);
-
             //cqueue.exec("init", args, {dim.x() * dim.y() * dim.z()}, {128});
             cqueue.exec("init_christoffel", args, {dim.x() * dim.y() * dim.z()}, {128});
-        }
+        }*/
 
         temporary_buffer.set_to_zero(cqueue);
         temporary_single.set_to_zero(cqueue);
@@ -306,7 +324,7 @@ int main()
     cl::context& ctx = win.clctx->ctx;
     std::cout << cl::get_extensions(ctx) << std::endl;
 
-    t3i dim = {128, 128, 128};
+    t3i dim = {213, 213, 213};
 
     {
         auto make_and_register = [&](const std::string& str)
@@ -346,9 +364,11 @@ int main()
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
+    float simulation_width = 30;
+
     mesh m(ctx, dim);
     m.allocate(ctx);
-    m.init(cqueue);
+    m.init(simulation_width, ctx, cqueue);
     //m.load_from(cqueue);
 
     texture_settings tsett;
@@ -369,9 +389,7 @@ int main()
 
     float elapsed_t = 0;
     //float timestep = 0.001f;
-    float timestep = 0.001;
-
-    float simulation_width = 1;
+    float timestep = 0.03;
 
     while(!win.should_close())
     {

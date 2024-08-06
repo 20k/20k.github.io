@@ -269,13 +269,13 @@ valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& deriv
     return R + (2.f/3.f) * args.K * args.K - AMN_Amn;
 }
 
-//#define BLACK_HOLE_GAUGE
+#define BLACK_HOLE_GAUGE
 #ifdef BLACK_HOLE_GAUGE
 #define ONE_PLUS_LOG
 #define GAMMA_DRIVER
 #endif // BLACK_HOLE_GAUGE
 
-#define WAVE_TEST
+//#define WAVE_TEST
 #ifdef WAVE_TEST
 #define HARMONIC_SLICING
 #define ZERO_SHIFT
@@ -486,7 +486,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
     {
         for(int j=0; j < 3; j++)
         {
-            float Ka = 0.1f * 0.25f;
+            float Ka = 0.01f;
 
             dtcA[i, j] += Ka * args.gA * 0.5f *
                               (cd_low[i, j]
@@ -611,7 +611,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const valu
             dtcG[i] = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9;
         }
 
-        //#define STABILITY_SIGMA
+        #define STABILITY_SIGMA
         #ifdef STABILITY_SIGMA
         tensor<valuef, 3> calculated_cG;
 
@@ -639,7 +639,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const valu
             dmbm += diff1(args.gB[m], m, scale);
         }
 
-        float sigma = 1.333333f;
+        float sigma = 1.333333f * 0.1f;
 
         dtcG += -sigma * Gi * dmbm;
         #endif // STABILITY_SIGMA
@@ -739,7 +739,7 @@ std::string make_bssn(const tensor<int, 3>& idim)
         as_ref(out.K[lid]) = apply_evolution(base.K[lid], dtK, timestep.get());
 
         valuef dtgA = get_dtgA(args, derivs, scale.get());
-        as_ref(out.gA[lid]) = apply_evolution(base.gA[lid], dtgA, timestep.get());
+        as_ref(out.gA[lid]) = clamp(apply_evolution(base.gA[lid], dtgA, timestep.get()), valuef(0.f), valuef(1.f));
 
         auto dtgB = get_dtgB(args, derivs, scale.get());
 
@@ -851,8 +851,10 @@ std::string init_debugging()
             return_e();
         });
 
-        valuef test_val = to_fill.cY[0][lid];
-        valuef display = ((test_val - 1) / 0.1f) * 0.5f + 0.5f;
+        //valuef test_val = to_fill.cY[0][lid];
+        //valuef display = ((test_val - 1) / 0.1f) * 0.5f + 0.5f;
+
+        valuef display = to_fill.gA[lid];
 
         v4f col = {display, 0.f, 0.f, 1.f};
 

@@ -23,7 +23,7 @@ struct initial_conditions
         cfl_summed.alloc(sizeof(cl_float) * dim.x() * dim.y() * dim.z());
         cfl_summed.fill(cqueue, 1.f);
 
-        auto sum_buffers = [&](execution_context& ctx, buffer_mut<valuef> inout, buffer_mut<valuef> in)
+        auto sum_buffers = [&](execution_context& ctx, buffer_mut<valuef> inout, buffer<valuef> in)
         {
             using namespace single_source;
 
@@ -178,7 +178,7 @@ struct initial_conditions
         cl::buffer u_found(ctx);
         cl_int3 size = {dim.x(), dim.y(), dim.z()};
 
-        {
+        /*{
 
             std::array<cl::buffer, 2> u{ctx, ctx};
 
@@ -191,7 +191,7 @@ struct initial_conditions
             for(int i=0; i < 1000; i++)
             {
                 cl::args args;
-                args.push_back(u[i]);
+                args.push_back(u[i % 2]);
                 args.push_back(u[(i + 1) % 2]);
                 args.push_back(cfl_summed);
                 args.push_back(aij_aIJ_buf);
@@ -202,7 +202,7 @@ struct initial_conditions
 
                 u_found = u[(i + 1) % 2];
             }
-        }
+        }*/
 
         {
             auto calculate_bssn_variables = [](execution_context& ectx,
@@ -220,7 +220,7 @@ struct initial_conditions
                     return_e();
                 });
 
-                valuef cfl = cfl_reg[lid] + u[lid];
+                valuef cfl = cfl_reg[lid] + valuef(0);
 
                 metric<valuef, 3, 3> flat;
 
@@ -245,15 +245,20 @@ struct initial_conditions
 
                 tensor<valuef, 3, 3> Kij = lower_both(baIJ, flat) * pow(cfl, -2.f);
 
-                valuef gA = 1;
+                valuef gA = 1/(pow(cfl, valuef(2)));
+                //valuef gA = 1;
                 tensor<valuef, 3> gB = {0,0,0};
                 tensor<valuef, 3> cG = {0,0,0};
 
                 valuef W = pow(Yij.det(), -1/6.f);
                 metric<valuef, 3, 3> cY = W*W * Yij;
-                valuef K = trace(Kij, Yij.invert()); // 0
+                //valuef K = trace(Kij, Yij.invert()); // 0
 
-                tensor<valuef, 3, 3> cA = W*W * (Kij - (1.f/3.f) * Yij.to_tensor() * K);
+                cY = flat;
+
+                valuef K = 0;
+
+                tensor<valuef, 3, 3> cA;// = W*W * (Kij - (1.f/3.f) * Yij.to_tensor() * K);
 
                 std::array<valuef, 6> packed_cA = extract_symmetry(cA);
                 std::array<valuef, 6> packed_cY = extract_symmetry(cY.to_tensor());
@@ -287,8 +292,7 @@ struct initial_conditions
         {
             cl::args args;
 
-            to_fill.for_each([&](cl::buffer& buf)
-            {
+            to_fill.for_each([&](cl::buffer& buf) {
                 args.push_back(buf);
             });
 
