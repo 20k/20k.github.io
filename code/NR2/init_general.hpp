@@ -62,7 +62,7 @@ struct initial_conditions
         cqueue.exec("sum_buffers", args, {dim.x() * dim.y() * dim.z()}, {128});
     }
 
-    void build(cl::context& ctx, cl::command_queue& cqueue)
+    void build(cl::context& ctx, cl::command_queue& cqueue, float scale)
     {
         cl::buffer aij_aIJ_buf(ctx);
         aij_aIJ_buf.alloc(sizeof(cl_float) * dim.x() * dim.y() * dim.z());
@@ -99,20 +99,21 @@ struct initial_conditions
             as_ref(aij_aIJ_out[lid]) = sum_multiply(aij, aIJ);
         };
 
-
         cl::program calc(ctx, value_impl::make_function(calculate_aijaIJ, "aijaij"), false);
         calc.build(ctx, "");
 
         ctx.register_program(calc);
 
         {
-            auto laplace = [](execution_context& ectx, buffer_mut<valuef> out, buffer<valuef> in, buffer<valuef> cfl, buffer<valuef> aij_aIJ, valuef scale, v3i dim)
+            auto laplace = [](execution_context& ectx, buffer_mut<valuef> out, buffer<valuef> in, buffer<valuef> cfl, buffer<valuef> aij_aIJ, literal<valuef> lscale, literal<v3i> ldim)
             {
                 using namespace single_source;
 
                 valuei lid = value_impl::get_global_id(0);
 
                 pin(lid);
+
+                auto dim = ldim.get();
 
                 if_e(lid >= dim.x() * dim.y() * dim.z(), [&]{
                     return_e();
@@ -129,7 +130,7 @@ struct initial_conditions
 
                 valuef rhs = -(1.f/8.f) * pow(cfl[lid] + in[lid], -7.f) * aij_aIJ[lid];
 
-                valuef h2f0 = scale * scale * rhs;
+                valuef h2f0 = lscale.get() * lscale.get() * rhs;
 
                 valuef uxm1 = in[pos - (v3i){1, 0, 0}, dim];
                 valuef uxp1 = in[pos + (v3i){1, 0, 0}, dim];
@@ -157,6 +158,43 @@ struct initial_conditions
 
                 as_ref(out[lid]) = mix(u, u0n1, valuef(0.9f));
             };
+
+            cl::program calc(ctx, value_impl::make_function(laplace, "laplace"), false);
+            calc.build(ctx, "");
+
+            ctx.register_program(calc);
+        }
+
+        {
+            cl::args args;
+            args.push_back(aij_aIJ_buf);
+
+            for(int i=0; i < 6; i++)
+                args.push_back(aIJ_summed[i]);
+
+            cqueue.exec("aijaij", args, {dim.x() * dim.y() * dim.z()}, {128});
+        }
+
+        {
+            cl_int3 size = {dim.x(), dim.y(), dim.z()};
+
+            std::array<cl::buffer, 2> u{ctx, ctx};
+
+            for(int i=0; i < 2; i++)
+                u[i].alloc(sizeof(cl_float) * dim.x() * dim.y() * dim.z());
+
+            for(int i=0; i < 1000; i++)
+            {
+                cl::args args;
+                args.push_back(u[(i + 1) % 2]);
+                args.push_back(u[i]);
+                args.push_back(cfl_summed);
+                args.push_back(aij_aIJ_buf);
+                args.push_back(scale);
+                args.push_back(size);
+
+                cqueue.exec("laplace", args, {dim.x() * dim.y() * dim.z()}, {128});
+            }
         }
     }
 };
