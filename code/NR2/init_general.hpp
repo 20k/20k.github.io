@@ -175,26 +175,59 @@ struct initial_conditions
             cqueue.exec("aijaij", args, {dim.x() * dim.y() * dim.z()}, {128});
         }
 
+        cl::buffer u_found(ctx);
+
         {
             cl_int3 size = {dim.x(), dim.y(), dim.z()};
 
             std::array<cl::buffer, 2> u{ctx, ctx};
 
             for(int i=0; i < 2; i++)
+            {
                 u[i].alloc(sizeof(cl_float) * dim.x() * dim.y() * dim.z());
+                u[i].set_to_zero(cqueue);
+            }
 
             for(int i=0; i < 1000; i++)
             {
                 cl::args args;
-                args.push_back(u[(i + 1) % 2]);
                 args.push_back(u[i]);
+                args.push_back(u[(i + 1) % 2]);
                 args.push_back(cfl_summed);
                 args.push_back(aij_aIJ_buf);
                 args.push_back(scale);
                 args.push_back(size);
 
                 cqueue.exec("laplace", args, {dim.x() * dim.y() * dim.z()}, {128});
+
+                u_found = u[(i + 1) % 2];
             }
+        }
+
+        {
+            auto calculate_bssn_variables = [](execution_context& ectx,
+                                               bssn_args_mem<buffer_mut<valuef>> out,
+                                               buffer<valuef> cfl_reg, buffer<valuef> u,
+                                               buffer<valuef> aIJ_summed,
+                                               literal<v3i> dim) {
+                using namespace single_source;
+
+                valuei lid = value_impl::get_global_id(0);
+
+                pin(lid);
+
+                if_e(lid >= dim.get().x() * dim.get().y() * dim.get().z(), [&] {
+                    return_e();
+                });
+
+                valuef cfl = cfl_reg[lid] + u[lid];
+
+                std::array<valuef, 6> flat = {1, 0, 0,
+                                                 1, 0,
+                                                    1};
+
+
+            };
         }
     }
 };
