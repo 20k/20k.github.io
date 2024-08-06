@@ -178,7 +178,7 @@ struct initial_conditions
         cl::buffer u_found(ctx);
         cl_int3 size = {dim.x(), dim.y(), dim.z()};
 
-        /*{
+        {
 
             std::array<cl::buffer, 2> u{ctx, ctx};
 
@@ -202,7 +202,7 @@ struct initial_conditions
 
                 u_found = u[(i + 1) % 2];
             }
-        }*/
+        }
 
         {
             auto calculate_bssn_variables = [](execution_context& ectx,
@@ -220,7 +220,7 @@ struct initial_conditions
                     return_e();
                 });
 
-                valuef cfl = cfl_reg[lid] + valuef(0);
+                valuef cfl = cfl_reg[lid] + u[lid];
 
                 metric<valuef, 3, 3> flat;
 
@@ -253,12 +253,11 @@ struct initial_conditions
                 valuef W = pow(Yij.det(), -1/6.f);
                 metric<valuef, 3, 3> cY = W*W * Yij;
                 //valuef K = trace(Kij, Yij.invert()); // 0
+                valuef K = 0;
 
                 cY = flat;
 
-                valuef K = 0;
-
-                tensor<valuef, 3, 3> cA;// = W*W * (Kij - (1.f/3.f) * Yij.to_tensor() * K);
+                tensor<valuef, 3, 3> cA = W*W * (Kij - (1.f/3.f) * Yij.to_tensor() * K);
 
                 std::array<valuef, 6> packed_cA = extract_symmetry(cA);
                 std::array<valuef, 6> packed_cY = extract_symmetry(cY.to_tensor());

@@ -273,13 +273,13 @@ struct mesh
                 }
             }
 
-            #define CALCULATE_CONSTRAINT_ERRORS
+            //#define CALCULATE_CONSTRAINT_ERRORS
             #ifdef CALCULATE_CONSTRAINT_ERRORS
             if(iteration == 0)
                 calculate_constraint_errors(in_idx);
             #endif
 
-            #define CALCULATE_MOMENTUM_CONSTRAINT
+            //#define CALCULATE_MOMENTUM_CONSTRAINT
             #ifdef CALCULATE_MOMENTUM_CONSTRAINT
             calculate_momentum_constraint_for(in_idx);
             #endif
