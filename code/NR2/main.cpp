@@ -96,10 +96,9 @@ struct bssn_buffer_pack
     }
 };
 
-///this would be dim.x() - 1 if we weren't doing periodic conditions
 float get_scale(float simulation_width, t3i dim)
 {
-    return simulation_width / dim.x();
+    return simulation_width / (dim.x() - 1);
 }
 
 struct mesh
@@ -150,7 +149,7 @@ struct mesh
     {
         cl_int4 cldim = {dim.x(), dim.y(), dim.z(), 0};
         float c_at_max = 1;
-        float scale = c_at_max / dim.x();
+        float scale = get_scale(c_at_max, dim);
 
         {
             cl::args args;
@@ -158,7 +157,9 @@ struct mesh
             args.push_back(cldim);
             args.push_back(scale);
 
-            cqueue.exec("init", args, {dim.x() * dim.y() * dim.z()}, {128});
+            assert(false);
+
+            //cqueue.exec("init", args, {dim.x() * dim.y() * dim.z()}, {128});
             cqueue.exec("init_christoffel", args, {dim.x() * dim.y() * dim.z()}, {128});
         }
 

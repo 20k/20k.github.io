@@ -154,4 +154,15 @@ std::string enforce_algebraic_constraints();
 std::string init_debugging();
 std::string make_momentum_constraint();
 
+template<typename T, typename U>
+inline
+tensor<T, 3> grid_to_world(const tensor<T, 3>& pos, const tensor<int, 3>& dim, const U& scale)
+{
+    tensor<T, 3> centre = (tensor<T, 3>{dim.x(), dim.y(), dim.z()} - 1) / 2;
+
+    tensor<T, 3> diff = pos - centre;
+
+    return diff * scale;
+}
+
 #endif // BSSN_HPP_INCLUDED
