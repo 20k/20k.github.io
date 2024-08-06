@@ -165,4 +165,31 @@ tensor<T, 3> grid_to_world(const tensor<T, 3>& pos, const tensor<int, 3>& dim, c
     return diff * scale;
 }
 
+template<typename T>
+inline
+std::array<T, 6> extract_symmetry(const tensor<T, 3, 3>& in)
+{
+    return {in[0, 0], in[1, 0], in[2, 0], in[1, 1], in[2, 1], in[2, 2]};
+}
+
+template<typename T>
+inline
+tensor<T, 3, 3> make_symmetry(const std::array<T, 6>& in)
+{
+    tensor<T, 3, 3> ret;
+    ret[0, 0] = in[0];
+    ret[1, 0] = in[1];
+    ret[2, 0] = in[2];
+
+    ret[1, 1] = in[3];
+    ret[2, 1] = in[4];
+    ret[2, 2] = in[5];
+
+    ret[0, 1] = in[1];
+    ret[0, 2] = in[2];
+    ret[1, 2] = in[4];
+
+    return ret;
+}
+
 #endif // BSSN_HPP_INCLUDED

@@ -208,7 +208,7 @@ struct initial_conditions
             auto calculate_bssn_variables = [](execution_context& ectx,
                                                bssn_args_mem<buffer_mut<valuef>> out,
                                                buffer<valuef> cfl_reg, buffer<valuef> u,
-                                               buffer<valuef> aIJ_summed,
+                                               std::array<buffer<valuef>, 6> aIJ_summed,
                                                literal<v3i> dim) {
                 using namespace single_source;
 
@@ -222,12 +222,66 @@ struct initial_conditions
 
                 valuef cfl = cfl_reg[lid] + u[lid];
 
-                std::array<valuef, 6> flat = {1, 0, 0,
-                                                 1, 0,
-                                                    1};
+                metric<valuef, 3, 3> flat;
 
+                for(int i=0; i < 3; i++)
+                    flat[i, i] = 1;
 
+                metric<valuef, 3, 3> Yij = flat * pow(cfl, 4.f);
+
+                int index_table[3][3] = {{0, 1, 2},
+                                         {1, 3, 4},
+                                         {2, 4, 5}};
+
+                tensor<valuef, 3, 3> baIJ;
+
+                for(int i=0; i < 3; i++)
+                {
+                    for(int j=0; j < 3; j++)
+                    {
+                        baIJ[i, j] = aIJ_summed[index_table[i][j]][lid];
+                    }
+                }
+
+                tensor<valuef, 3, 3> Kij = lower_both(baIJ, flat) * pow(cfl, -2.f);
+
+                valuef gA = 1;
+                tensor<valuef, 3> gB = {0,0,0};
+                tensor<valuef, 3> cG = {0,0,0};
+
+                valuef W = pow(Yij.det(), -1/6.f);
+                metric<valuef, 3, 3> cY = W*W * Yij;
+                valuef K = trace(Kij, Yij.invert()); // 0
+
+                tensor<valuef, 3, 3> cA = W*W * (Kij - (1.f/3.f) * Yij.to_tensor() * K);
+
+                std::array<valuef, 6> packed_cA = extract_symmetry(cA);
+                std::array<valuef, 6> packed_cY = extract_symmetry(cY.to_tensor());
+
+                for(int i=0; i < 6; i++)
+                {
+                    as_ref(out.cY[i][lid]) = packed_cY[i];
+                    as_ref(out.cA[i][lid]) = packed_cA[i];
+                }
+
+                as_ref(out.K[lid]) = K;
+                as_ref(out.W[lid]) = W;
+
+                for(int i=0; i < 3; i++)
+                    as_ref(out.cG[i][lid]) = cG[i];
+
+                as_ref(out.gA[lid]) = gA;
+
+                for(int i=0; i < 3; i++)
+                    as_ref(out.gB[i][lid]) = gB[i];
             };
+
+            std::string str = value_impl::make_function(calculate_bssn_variables, "calculate_bssn_variables");
+
+            cl::program p(ctx, str, false);
+            p.build(ctx, "");
+
+            ctx.register_program(p);
         }
     }
 };
