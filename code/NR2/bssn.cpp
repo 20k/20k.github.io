@@ -711,6 +711,12 @@ std::string make_bssn(const tensor<int, 3>& idim)
 
         v3i pos = get_coordinate(lid, dim);
 
+        if_e(pos.x() <= 1 || pos.x() >= dim.x() - 2 ||
+             pos.y() <= 1 || pos.y() >= dim.y() - 2 ||
+             pos.z() <= 1 || pos.z() >= dim.z() - 2, [&] {
+            return_e();
+        });
+
         bssn_args args(pos, dim, in);
         bssn_derivatives derivs(pos, dim, derivatives);
 
@@ -864,4 +870,83 @@ std::string init_debugging()
     };
 
     return value_impl::make_function(dbg, "debug");
+}
+
+std::string make_sommerfeld()
+{
+    auto func = [&](execution_context&, buffer<valuef> base, buffer<valuef> in, buffer_mut<valuef> out, literal<valuef> timestep,
+                    literal<v3i> ldim,
+                    literal<valuef> scale,
+                    literal<valuef> wave_speed,
+                    literal<valuef> asym,
+                    buffer<v3i> positions,
+                    literal<valuei> position_num) {
+
+        using namespace single_source;
+
+        valuei lid = value_impl::get_global_id(0);
+
+        pin(lid);
+
+        v3i dim = ldim.get();
+
+        if_e(lid >= position_num.get(), [&] {
+            return_e();
+        });
+
+        v3i pos = positions[lid];
+
+        v3f world_pos = grid_to_world((v3f)pos, dim, scale.get());
+
+        valuef r = world_pos.length();
+
+        auto sommerfeld = [&](single_source::buffer<valuef> f, const valuef& f0, const valuef& v)
+        {
+            valuef sum = 0;
+
+            for(int i=0; i < 3; i++)
+            {
+                sum += world_pos[i] * diff1_boundary(f, i, scale.get(), pos, dim);
+            }
+
+            return (-sum - (f[lid] - f0)) * (v/r);
+        };
+
+        valuef dt_boundary = sommerfeld(in, asym.get(), wave_speed.get());
+
+        as_ref(out[lid]) = apply_evolution(base[lid], dt_boundary, timestep.get());
+
+        /*ctx.order = 1;
+        ctx.always_directional_derivatives = true;
+        ctx.use_precise_differentiation = true;
+        standard_arguments args(ctx);
+
+        tensor<value, 3> pos = {"ox", "oy", "oz"};
+
+        value r = pos.length();
+
+        auto sommerfeld = [&](const value& f, const value& f0, const value& v)
+        {
+            value sum = 0;
+
+            for(int i=0; i < 3; i++)
+            {
+                sum += pos.idx(i) * diff1(ctx, f, i);
+            }
+
+            return (-sum - (f - f0)) * (v/r);
+        };
+
+        value in = bidx(ctx, "input", false, false);
+        value asym = "asym";
+        value v = "speed";
+
+        value out = sommerfeld(in, asym, v);
+
+        value timestep = "timestep";
+        value base = bidx(ctx, "base", false, false);
+
+        ctx.add("sommer_fin_out", backwards_euler_relax(in, base, out, timestep));*/
+
+    };
 }

@@ -71,12 +71,14 @@ struct mesh
             black_hole_params p1;
             p1.bare_mass = 0.5f;
             p1.position = {4, 0, 0};
+            p1.linear_momentum = {0, 0.133, 0};
 
             black_hole_data d1 = init_black_hole(ctx, cqueue, p1, dim, scale);
 
             black_hole_params p2;
             p2.bare_mass = 0.5f;
             p2.position = {-4, 0, 0};
+            p2.linear_momentum = {0, -0.133, 0};
 
             black_hole_data d2 = init_black_hole(ctx, cqueue, p2, dim, scale);
 

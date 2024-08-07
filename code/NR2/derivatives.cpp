@@ -98,3 +98,8 @@ valuef diff6th(const valuef& in, int idx, const valuef& scale)
 
     return (p1 + p2 + p3 + p4);
 }
+
+valuef diff1_boundary(const single_source::buffer<valuef>& in, int direction, const valuef& scale, v3i pos, v3i dim)
+{
+
+}
