@@ -30,12 +30,15 @@ struct mesh
     std::vector<double> hamiltonian_error;
     std::vector<double> Mi_error;
 
-    mesh(cl::context& ctx, t3i _dim) : buffers{ctx, ctx, ctx}, temporary_buffer(ctx), temporary_single(ctx)
+    cl::buffer sommerfeld_points;
+    cl_int sommerfeld_length = 0;
+
+    mesh(cl::context& ctx, t3i _dim) : buffers{ctx, ctx, ctx}, temporary_buffer(ctx), temporary_single(ctx), sommerfeld_points(ctx)
     {
         dim = _dim;
     }
 
-    void allocate(cl::context& ctx)
+    void allocate(cl::context& ctx, cl::command_queue& cqueue)
     {
         for(int i=0; i < 3; i++)
         {
@@ -60,6 +63,32 @@ struct mesh
 
         temporary_buffer.alloc(sizeof(cl_float) * uint64_t{dim.x()} * dim.y() * dim.z());
         temporary_single.alloc(sizeof(cl_ulong));
+
+        std::vector<cl_int3> boundary;
+
+        for(int z=0; z < dim.z(); z++)
+        {
+            for(int y=0; y < dim.y(); y++)
+            {
+                for(int x=0; x < dim.x(); x++)
+                {
+                    if(x == 1 || x == dim.x() - 2 || y == 1 || y == dim.y() - 2 || z == 1 || z == dim.z() - 2)
+                    {
+                        boundary.push_back({x, y, z});
+                    }
+                }
+            }
+        }
+
+        std::sort(boundary.begin(), boundary.end(), [](auto p1, auto p2)
+        {
+            return std::tie(p1.s[2], p1.s[1], p1.s[0]) < std::tie(p2.s[2], p2.s[1], p2.s[0]);
+        });
+
+        sommerfeld_points.alloc(sizeof(cl_int3) * boundary.size());
+        sommerfeld_points.write(cqueue, boundary);
+
+        sommerfeld_length = boundary.size();
     }
 
     void init(float simulation_width, cl::context& ctx, cl::command_queue& cqueue)
@@ -249,10 +278,63 @@ struct mesh
             cqueue.exec("evolve", args, {dim.x()*dim.y()*dim.z()}, {128});
         };
 
+        auto sommerfeld_buffer = [&](cl::buffer base, cl::buffer in, cl::buffer out, float asym, float wave_speed)
+        {
+            cl::args args;
+            args.push_back(base);
+            args.push_back(in);
+            args.push_back(out);
+            args.push_back(timestep);
+            args.push_back(cldim);
+            args.push_back(scale);
+            args.push_back(wave_speed);
+            args.push_back(asym);
+            args.push_back(sommerfeld_points);
+            args.push_back(sommerfeld_length);
+
+            cqueue.exec("sommerfeld", args, {sommerfeld_length}, {128});
+        };
+
+        auto sommerfeld_all = [&](int base_idx, int in_idx, int out_idx)
+        {
+            bssn_buffer_pack& base = buffers[base_idx];
+            bssn_buffer_pack& in = buffers[in_idx];
+            bssn_buffer_pack& out = buffers[out_idx];
+
+            #define SOMM(name, a, s) sommerfeld_buffer(base.name, in.name, out.name, a, s)
+
+            SOMM(cY[0], 1.f, 1.f);
+            SOMM(cY[1], 0.f, 1.f);
+            SOMM(cY[2], 0.f, 1.f);
+            SOMM(cY[3], 1.f, 1.f);
+            SOMM(cY[4], 0.f, 1.f);
+            SOMM(cY[5], 1.f, 1.f);
+
+            SOMM(cA[0], 0.f, 1.f);
+            SOMM(cA[1], 0.f, 1.f);
+            SOMM(cA[2], 0.f, 1.f);
+            SOMM(cA[3], 0.f, 1.f);
+            SOMM(cA[4], 0.f, 1.f);
+            SOMM(cA[5], 0.f, 1.f);
+
+            SOMM(K, 0.f, 1.f);
+            SOMM(W, 0.f, 1.f);
+            SOMM(cG[0], 0.f, 1.f);
+            SOMM(cG[1], 0.f, 1.f);
+            SOMM(cG[2], 0.f, 1.f);
+
+            SOMM(gA, 1.f, sqrt(2.f));
+            SOMM(gB[0], 0.f, sqrt(2.f));
+            SOMM(gB[1], 0.f, sqrt(2.f));
+            SOMM(gB[2], 0.f, sqrt(2.f));
+        };
+
         auto substep = [&](int iteration, int base_idx, int in_idx, int out_idx)
         {
             ///this assumes that in_idx == base_idx for iteration 0, so that they are both constraint enforced
             enforce_constraints(in_idx);
+
+            sommerfeld_all(base_idx, in_idx, out_idx);
 
             {
                 std::vector<cl::buffer> to_diff {
@@ -350,6 +432,7 @@ int main()
         make_and_register(make_momentum_error(1));
         make_and_register(make_momentum_error(2));
         make_and_register(enforce_algebraic_constraints());
+        make_and_register(make_sommerfeld());
     }
 
     cl::command_queue cqueue(ctx);
@@ -369,7 +452,7 @@ int main()
     float simulation_width = 30;
 
     mesh m(ctx, dim);
-    m.allocate(ctx);
+    m.allocate(ctx, cqueue);
     m.init(simulation_width, ctx, cqueue);
     //m.load_from(cqueue);
 

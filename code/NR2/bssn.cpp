@@ -930,39 +930,6 @@ std::string make_sommerfeld()
         valuef dt_boundary = sommerfeld(in, asym.get(), wave_speed.get());
 
         as_ref(out[lid]) = apply_evolution(base[lid], dt_boundary, timestep.get());
-
-        /*ctx.order = 1;
-        ctx.always_directional_derivatives = true;
-        ctx.use_precise_differentiation = true;
-        standard_arguments args(ctx);
-
-        tensor<value, 3> pos = {"ox", "oy", "oz"};
-
-        value r = pos.length();
-
-        auto sommerfeld = [&](const value& f, const value& f0, const value& v)
-        {
-            value sum = 0;
-
-            for(int i=0; i < 3; i++)
-            {
-                sum += pos.idx(i) * diff1(ctx, f, i);
-            }
-
-            return (-sum - (f - f0)) * (v/r);
-        };
-
-        value in = bidx(ctx, "input", false, false);
-        value asym = "asym";
-        value v = "speed";
-
-        value out = sommerfeld(in, asym, v);
-
-        value timestep = "timestep";
-        value base = bidx(ctx, "base", false, false);
-
-        ctx.add("sommer_fin_out", backwards_euler_relax(in, base, out, timestep));*/
-
     };
 
     return value_impl::make_function(func, "sommerfeld");
