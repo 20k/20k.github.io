@@ -451,6 +451,10 @@ int main()
         make_and_register(make_momentum_error(0));
         make_and_register(make_momentum_error(1));
         make_and_register(make_momentum_error(2));
+        printf("cG\n");
+        make_and_register(make_cG_error(0));
+        make_and_register(make_cG_error(1));
+        make_and_register(make_cG_error(2));
         printf("algebra\n");
         make_and_register(enforce_algebraic_constraints());
         printf("sommer\n");
