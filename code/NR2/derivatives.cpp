@@ -111,7 +111,7 @@ valuef diff2nd(const valuef& in, int idx)
 
     valuef p1 = vars[0] + vars[2];
 
-    return p1 - vars[1];
+    return p1 - 2 * vars[1];
 }
 
 valuef diff4th(const valuef& in, int idx)
