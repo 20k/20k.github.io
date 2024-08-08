@@ -99,7 +99,26 @@ valuef diff6th(const valuef& in, int idx, const valuef& scale)
     return (p1 + p2 + p3 + p4);
 }
 
-valuef diff1_boundary(const single_source::buffer<valuef>& in, int direction, const valuef& scale, v3i pos, v3i dim)
+valuef diff1_boundary(single_source::buffer<valuef> in, int direction, const valuef& scale, v3i pos, v3i dim)
 {
+    using namespace single_source;
 
+    v3i offset;
+    offset[direction] = 1;
+
+    ///ok so. If we're at the boundary, do one sided derivatives
+    ///otherwise shell out to diff1, which will also handle near boundary points correctly
+    mut<valuef> val = declare_mut_e(valuef(0.f));
+
+    as_ref(val) = diff1(in[pos, dim], direction, scale);
+
+    if_e(pos[direction] == 1, [&]{
+        as_ref(val) = (-3.f * in[pos, dim] + 4 * in[pos + offset, dim] - in[pos + 2 * offset, dim]) / (2 * scale);
+    });
+
+    if_e(pos[direction] == dim.x() - 2, [&] {
+        as_ref(val) = (3.f * in[pos, dim] - 4 * in[pos - offset, dim] + in[pos - 2 * offset, dim]) / (2 * scale);
+    });
+
+    return declare_e(val);
 }
