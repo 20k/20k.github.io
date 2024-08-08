@@ -485,7 +485,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
                                 - 2 * args.gA * aij_amj
                                 + trace_free(with_trace, args.cY, icY);
 
-    #define MOMENTUM_CONSTRAINT_DAMPING
+    //#define MOMENTUM_CONSTRAINT_DAMPING
     #ifdef MOMENTUM_CONSTRAINT_DAMPING
     auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
     pin(christoff2);

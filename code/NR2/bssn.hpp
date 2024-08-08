@@ -101,7 +101,7 @@ struct bssn_args
         }
 
         K = in.K[pos, dim];
-        W = in.W[pos, dim];
+        W = max(in.W[pos, dim], valuef(0.f));
 
         for(int i=0; i < 3; i++)
             cG[i] = in.cG[i][pos, dim];

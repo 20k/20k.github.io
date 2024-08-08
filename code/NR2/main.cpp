@@ -165,7 +165,7 @@ struct mesh
 
             for(int i=0; i < (int)linear_base.size(); i++)
             {
-                float eps = 0.05f;
+                float eps = 0.1f;
 
                 cl::args args;
                 args.push_back(linear_base.at(i));
@@ -373,7 +373,7 @@ struct mesh
                 calculate_constraint_errors(in_idx);
             #endif
 
-            #define CALCULATE_MOMENTUM_CONSTRAINT
+            //#define CALCULATE_MOMENTUM_CONSTRAINT
             #ifdef CALCULATE_MOMENTUM_CONSTRAINT
             calculate_momentum_constraint_for(in_idx);
             #endif
