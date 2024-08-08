@@ -82,16 +82,13 @@ std::string make_kreiss_oliger()
 
         v3i pos = get_coordinate(lid, dim);
 
-        if_e(pos.x() <= 1 || pos.x() >= dim.x() - 2 ||
-             pos.y() <= 1 || pos.y() >= dim.y() - 2 ||
-             pos.z() <= 1 || pos.z() >= dim.z() - 2, [&] {
+        valuei boundary_distance = distance_to_boundary(pos, dim);
 
+        if_e(boundary_distance == 0, [&] {
             as_ref(out[lid]) = in[lid];
 
             return_e();
         });
-
-        valuei boundary_distance = distance_to_boundary(pos, dim);
 
         if_e(boundary_distance == 1, [&]{
             as_ref(out[lid]) = in[lid] + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get(), 2);
