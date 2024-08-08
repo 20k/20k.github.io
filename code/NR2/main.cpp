@@ -64,6 +64,10 @@ struct mesh
             cl::buffer buf(ctx);
             buf.alloc(sizeof(derivative_t::interior_type) * int64_t{dim.x()} * dim.y() * dim.z());
 
+            uint16_t hnan = 0b0111110000000001;
+
+            buf.fill(cqueue, hnan);
+
             derivatives.push_back(buf);
         }
 
