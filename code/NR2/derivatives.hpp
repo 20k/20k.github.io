@@ -18,8 +18,11 @@ struct derivative_data
 valuef diff1(const valuef& in, int direction, const derivative_data& d);
 //2nd derivative
 valuef diff2(const valuef& in, int idx, int idy, const valuef& dx, const valuef& dy, const derivative_data& d);
+
+valuef diff2nd(const valuef& in, int idx);
+valuef diff4th(const valuef& in, int idx);
 //6th derivative with second order accuracy
-valuef diff6th(const valuef& in, int idx, const valuef& scale);
+valuef diff6th(const valuef& in, int idx);
 
 valuef diff1_boundary(single_source::buffer<valuef> in, int direction, const valuef& scale, v3i pos, v3i dim);
 

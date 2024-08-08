@@ -7,11 +7,12 @@
 
 valuef kreiss_oliger_interior(valuef in, valuef scale)
 {
+    ///boundary is at 1 and dim - 2
     valuef val = 0;
 
     for(int i=0; i < 3; i++)
     {
-        val += diff6th(in, i, scale);
+        val += diff6th(in, i);
     }
 
     int n = 6;
