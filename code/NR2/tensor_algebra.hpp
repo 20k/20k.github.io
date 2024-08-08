@@ -4,9 +4,9 @@
 #include "../common/value2.hpp"
 #include "derivatives.hpp"
 
-template<typename T, int N>
+template<typename T, int N, typename U>
 inline
-tensor<T, N, N> lie_derivative_weight(const tensor<T, N>& B, const tensor<T, N, N>& mT, const T& scale)
+tensor<T, N, N> lie_derivative_weight(const tensor<T, N>& B, const tensor<T, N, N>& mT, const U& d)
 {
     tensor<T, N, N> lie;
 
@@ -19,10 +19,10 @@ tensor<T, N, N> lie_derivative_weight(const tensor<T, N>& B, const tensor<T, N, 
 
             for(int k=0; k < N; k++)
             {
-                sum += B[k] * diff1(mT[i, j], k, scale);
-                sum += mT[i, k] * diff1(B[k], j, scale);
-                sum += mT[j, k] * diff1(B[k], i, scale);
-                sum2 += diff1(B[k], k, scale);
+                sum += B[k] * diff1(mT[i, j], k, d);
+                sum += mT[i, k] * diff1(B[k], j, d);
+                sum += mT[j, k] * diff1(B[k], i, d);
+                sum2 += diff1(B[k], k, d);
             }
 
             lie[i, j] = sum - (2.f/3.f) * mT[i, j] * sum2;
@@ -90,10 +90,10 @@ tensor<T, N, N, N> christoffel_symbols_1(const tensor<T, N, N, N>& derivatives)
 
 ///https://en.wikipedia.org/wiki/Covariant_derivative#Covariant_derivative_by_field_type
 ///a partial derivative is a lower index vector
-template<typename T, int N>
+template<typename T, int N, typename U>
 inline
 tensor<T, N, N> double_covariant_derivative(const T& in, const tensor<T, N>& first_derivatives,
-                                            const tensor<T, N, N, N>& christoff2, const valuef& scale)
+                                            const tensor<T, N, N, N>& christoff2, const U& d)
 {
     tensor<T, N, N> lac;
 
@@ -105,10 +105,10 @@ tensor<T, N, N> double_covariant_derivative(const T& in, const tensor<T, N>& fir
 
             for(int b=0; b < N; b++)
             {
-                sum += christoff2[b, c, a] * diff1(in, b, scale);
+                sum += christoff2[b, c, a] * diff1(in, b, d);
             }
 
-            lac[a, c] = diff2(in, a, c, first_derivatives[a], first_derivatives[c], scale) - sum;
+            lac[a, c] = diff2(in, a, c, first_derivatives[a], first_derivatives[c], d) - sum;
         }
     }
 
@@ -153,9 +153,9 @@ tensor<T, N, N> trace_free(const tensor<T, N, N>& mT, const metric<T, N, N>& met
 
 ///https://en.wikipedia.org/wiki/Covariant_derivative#Covariant_derivative_by_field_type
 ///for the tensor DcDa, this returns idx(a, c)
-template<typename T, int N>
+template<typename T, int N, typename U>
 inline
-tensor<T, N, N> covariant_derivative_low_vec(const tensor<T, N>& v_in, const tensor<T, N, N, N>& christoff2, const valuef& scale)
+tensor<T, N, N> covariant_derivative_low_vec(const tensor<T, N>& v_in, const tensor<T, N, N, N>& christoff2, const U& d)
 {
     tensor<T, N, N> lac;
 
@@ -170,7 +170,7 @@ tensor<T, N, N> covariant_derivative_low_vec(const tensor<T, N>& v_in, const ten
                 sum += christoff2[b, c, a] * v_in[b];
             }
 
-            lac[a, c] = diff1(v_in[a], c, scale) - sum;
+            lac[a, c] = diff1(v_in[a], c, d) - sum;
         }
     }
 

@@ -2,6 +2,7 @@
 #include "../common/value2.hpp"
 #include "../common/single_source.hpp"
 #include "bssn.hpp"
+#include "derivatives.hpp"
 
 std::string make_hamiltonian_error()
 {
@@ -27,7 +28,12 @@ std::string make_hamiltonian_error()
         bssn_args args(pos, dim, args_in);
         bssn_derivatives derivs(pos, dim, derivatives);
 
-        valuef hamiltonian = calculate_hamiltonian_constraint(args, derivs, scale.get());
+        derivative_data d;
+        d.pos = pos;
+        d.dim = dim;
+        d.scale = scale.get();
+
+        valuef hamiltonian = calculate_hamiltonian_constraint(args, derivs, d);
 
         as_ref(out[pos, dim]) = hamiltonian;
     };
@@ -58,7 +64,12 @@ std::string make_momentum_error(int idx)
 
         bssn_args args(pos, dim, args_in);
 
-        tensor<valuef, 3> Mi = calculate_momentum_constraint(args, scale.get());
+        derivative_data d;
+        d.pos = pos;
+        d.dim = dim;
+        d.scale = scale.get();
+
+        tensor<valuef, 3> Mi = calculate_momentum_constraint(args, d);
 
         as_ref(out[pos, dim]) = Mi[idx];
     };

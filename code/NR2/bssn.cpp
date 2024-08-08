@@ -20,12 +20,12 @@ v3i get_coordinate(valuei id, v3i dim)
     return {x, y, z};
 }
 
-tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const valuef& scale)
+tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const derivative_data& d)
 {
     tensor<valuef, 3> dW;
 
     for(int i=0; i < 3; i++)
-        dW[i] = diff1(args.W, i, scale);
+        dW[i] = diff1(args.W, i, d);
 
     ///https://arxiv.org/pdf/1205.5111v1.pdf (54)
     tensor<valuef, 3, 3> aij_raised = raise_index(args.cA, args.cY.invert(), 1);
@@ -40,7 +40,7 @@ tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const valuef& s
 
         for(int j=0; j < 3; j++)
         {
-            s1 += diff1(aij_raised[i, j], j, scale);
+            s1 += diff1(aij_raised[i, j], j, d);
         }
 
         valuef s2 = 0;
@@ -49,7 +49,7 @@ tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const valuef& s
         {
             for(int k=0; k < 3; k++)
             {
-                s2 += -0.5f * args.cY.invert()[j, k] * diff1(args.cA[j, k], i, scale);
+                s2 += -0.5f * args.cY.invert()[j, k] * diff1(args.cA[j, k], i, d);
             }
         }
 
@@ -60,7 +60,7 @@ tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const valuef& s
             s3 += 6 * dPhi[j] * aij_raised[i, j];
         }
 
-        valuef p4 = -(2.f/3.f) * diff1(args.K, i, scale);
+        valuef p4 = -(2.f/3.f) * diff1(args.K, i, d);
 
         Mi[i] = s1 + s2 + s3 + p4;
     }
@@ -88,9 +88,14 @@ std::string make_derivatives()
 
         valuef v1 = in[pos, dim];
 
-        as_ref(out[0][pos, dim]) = (derivative_t)diff1(v1, 0, scale.get());
-        as_ref(out[1][pos, dim]) = (derivative_t)diff1(v1, 1, scale.get());
-        as_ref(out[2][pos, dim]) = (derivative_t)diff1(v1, 2, scale.get());
+        derivative_data d;
+        d.pos = pos;
+        d.dim = dim;
+        d.scale = scale.get();
+
+        as_ref(out[0][pos, dim]) = (derivative_t)diff1(v1, 0, d);
+        as_ref(out[1][pos, dim]) = (derivative_t)diff1(v1, 1, d);
+        as_ref(out[2][pos, dim]) = (derivative_t)diff1(v1, 2, d);
     };
 
     std::string str = value_impl::make_function(differentiate, "differentiate");
@@ -100,7 +105,7 @@ std::string make_derivatives()
     return str;
 }
 
-tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
+tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
 {
     using namespace single_source;
 
@@ -125,7 +130,7 @@ tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, bssn_derivatives& derivs, c
             {
                 for(int m=0; m < 3; m++)
                 {
-                    s1 += -0.5f * icY[l, m] * diff2(args.cY[i, j], m, l, derivs.dcY[m, i, j], derivs.dcY[l, i, j], scale);
+                    s1 += -0.5f * icY[l, m] * diff2(args.cY[i, j], m, l, derivs.dcY[m, i, j], derivs.dcY[l, i, j], d);
                 }
             }
 
@@ -133,7 +138,7 @@ tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, bssn_derivatives& derivs, c
 
             for(int k=0; k < 3; k++)
             {
-                s2 += 0.5f * (args.cY[k, i] * diff1(args.cG[k], j, scale) + args.cY[k, j] * diff1(args.cG[k], i, scale));
+                s2 += 0.5f * (args.cY[k, i] * diff1(args.cG[k], j, d) + args.cY[k, j] * diff1(args.cG[k], i, d));
             }
 
             valuef s3 = 0;
@@ -178,7 +183,7 @@ tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, bssn_derivatives& derivs, c
 ///https://arxiv.org/pdf/1307.7391 (9)
 ///https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf 2.6
 ///this calculates the quantity W^2 * Rij
-tensor<valuef, 3, 3> calculate_W2Rij(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
+tensor<valuef, 3, 3> calculate_W2Rij(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
 {
     using namespace single_source;
 
@@ -195,7 +200,7 @@ tensor<valuef, 3, 3> calculate_W2Rij(bssn_args& args, bssn_derivatives& derivs, 
     {
         for(int j=0; j < 3; j++)
         {
-            didjW[i, j] = double_covariant_derivative(args.W, derivs.dW, christoff2, scale)[j, i];
+            didjW[i, j] = double_covariant_derivative(args.W, derivs.dW, christoff2, d)[j, i];
         }
     }
 
@@ -240,14 +245,14 @@ tensor<valuef, 3, 3> calculate_W2Rij(bssn_args& args, bssn_derivatives& derivs, 
 
     pin(w2Rphiij);
 
-    return w2Rphiij + calculate_cRij(args, derivs, scale) * args.W * args.W;
+    return w2Rphiij + calculate_cRij(args, derivs, d) * args.W * args.W;
 }
 
-valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
+valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
 {
     using namespace single_source;
 
-    auto W2Rij = calculate_W2Rij(args, derivs, scale);
+    auto W2Rij = calculate_W2Rij(args, derivs, d);
 
     auto icY = args.cY.invert();
     pin(icY);
@@ -287,13 +292,13 @@ valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& deriv
 #define ZERO_SHIFT
 #endif
 
-valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, valuef scale)
+valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
 {
     valuef bmdma = 0;
 
     for(int i=0; i < 3; i++)
     {
-        bmdma += args.gB[i] * diff1(args.gA, i, scale);
+        bmdma += args.gB[i] * diff1(args.gA, i, d);
     }
 
     ///https://arxiv.org/pdf/gr-qc/0206072
@@ -311,7 +316,7 @@ valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, valuef scale)
     #endif // ONE_LAPSE
 }
 
-tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, valuef scale)
+tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
 {
     ///https://arxiv.org/pdf/gr-qc/0605030 (26)
     #ifdef GAMMA_DRIVER
@@ -323,7 +328,7 @@ tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, valuef sca
 
         for(int j=0; j < 3; j++)
         {
-            sum += args.gB[j] * diff1(args.gB[i], j, scale);
+            sum += args.gB[j] * diff1(args.gB[i], j, d);
         }
 
         djbjbi[i] = sum;
@@ -340,7 +345,7 @@ tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, valuef sca
     #endif // ZERO_SHIFT
 }
 
-tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, valuef scale)
+tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
 {
     using namespace single_source;
 
@@ -349,31 +354,31 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, valuef 
 
     ///https://arxiv.org/pdf/1307.7391 specifically for why the trace free aspect
     ///https://arxiv.org/pdf/1106.2254 also see here, after 25
-    return lie_derivative_weight(args.gB, args.cY.to_tensor(), scale) - 2 * args.gA * trace_free(args.cA, args.cY, icY);
+    return lie_derivative_weight(args.gB, args.cY.to_tensor(), d) - 2 * args.gA * trace_free(args.cA, args.cY, icY);
 }
 
 ///https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf 2.12 or
 ///https://arxiv.org/pdf/0709.2160
-valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
+valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
 {
     valuef dibi = 0;
 
     for(int i=0; i < 3; i++)
     {
-        dibi += diff1(args.gB[i], i, scale);
+        dibi += diff1(args.gB[i], i, d);
     }
 
     valuef dibiw = 0;
 
     for(int i=0; i < 3; i++)
     {
-        dibiw += args.gB[i] * diff1(args.W, i, scale);
+        dibiw += args.gB[i] * diff1(args.W, i, d);
     }
 
     return (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw;
 }
 
-tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
+tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
 {
     using namespace single_source;
 
@@ -390,9 +395,9 @@ tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs
     {
         for(int j=0; j < 3; j++)
         {
-            valuef v1 = args.W * args.W * double_covariant_derivative(args.gA, derivs.dgA, christoff2, scale)[i, j];
+            valuef v1 = args.W * args.W * double_covariant_derivative(args.gA, derivs.dgA, christoff2, d)[i, j];
 
-            valuef v2 = args.W * (derivs.dW[i] * diff1(args.gA, j, scale) + derivs.dW[j] * diff1(args.gA, i, scale));
+            valuef v2 = args.W * (derivs.dW[i] * diff1(args.gA, j, d) + derivs.dW[j] * diff1(args.gA, i, d));
 
             valuef sum = 0;
 
@@ -400,7 +405,7 @@ tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs
             {
                 for(int n=0; n < 3; n++)
                 {
-                    sum += icY[m, n] * args.W * derivs.dW[m] * diff1(args.gA, n, scale);
+                    sum += icY[m, n] * args.W * derivs.dW[m] * diff1(args.gA, n, d);
                 }
             }
 
@@ -413,14 +418,14 @@ tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs
     return W2DiDja;
 }
 
-valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
+valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
 {
     using namespace single_source;
 
     auto icY = args.cY.invert();
     pin(icY);
 
-    tensor<valuef, 3, 3> W2DiDja = calculate_W2DiDja(args, derivs, scale);
+    tensor<valuef, 3, 3> W2DiDja = calculate_W2DiDja(args, derivs, d);
     pin(W2DiDja);
 
     tensor<valuef, 3, 3> AMN = icY.raise(icY.raise(args.cA, 0), 1);
@@ -430,7 +435,7 @@ valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
 
     for(int m=0; m < 3; m++)
     {
-        v1 += args.gB[m] * diff1(args.K, m, scale);
+        v1 += args.gB[m] * diff1(args.K, m, d);
     }
 
     return v1 - sum_multiply(icY.to_tensor(), W2DiDja)
@@ -438,17 +443,17 @@ valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
               + (1/3.f) * args.gA * args.K * args.K;
 }
 
-tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f momentum_constraint, const valuef& scale)
+tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f momentum_constraint, const derivative_data& d)
 {
     using namespace single_source;
 
     auto icY = args.cY.invert();
     pin(icY);
 
-    auto W2DiDja = calculate_W2DiDja(args, derivs, scale);
+    auto W2DiDja = calculate_W2DiDja(args, derivs, d);
     pin(W2DiDja);
 
-    tensor<valuef, 3, 3> with_trace = args.gA * calculate_W2Rij(args, derivs, scale) - W2DiDja;
+    tensor<valuef, 3, 3> with_trace = args.gA * calculate_W2Rij(args, derivs, d) - W2DiDja;
 
     tensor<valuef, 3, 3> aij_amj;
 
@@ -469,7 +474,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
         }
     }
 
-    tensor<valuef, 3, 3> dtcA = lie_derivative_weight(args.gB, args.cA, scale)
+    tensor<valuef, 3, 3> dtcA = lie_derivative_weight(args.gB, args.cA, d)
                                 + args.gA * args.K * args.cA
                                 - 2 * args.gA * aij_amj
                                 + trace_free(with_trace, args.cY, icY);
@@ -479,7 +484,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
     auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
     pin(christoff2);
 
-    auto cd_low = covariant_derivative_low_vec(momentum_constraint, christoff2, scale);
+    auto cd_low = covariant_derivative_low_vec(momentum_constraint, christoff2, d);
     pin(cd_low);
 
     for(int i=0; i < 3; i++)
@@ -498,7 +503,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
     return dtcA;
 }
 
-tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const valuef& scale)
+tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
 {
     using namespace single_source;
 
@@ -524,7 +529,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const valu
 
             for(int j=0; j < 3; j++)
             {
-                sum += icY[i, j] * diff1(args.K, j, scale);
+                sum += icY[i, j] * diff1(args.K, j, d);
             }
 
             Yij_Kj[i] = sum;
@@ -557,7 +562,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const valu
 
             for(int j=0; j < 3; j++)
             {
-                s4 += icAij[i, j] * diff1(args.gA, j, scale);
+                s4 += icAij[i, j] * diff1(args.gA, j, d);
             }
 
             s4 = -2 * s4;
@@ -566,7 +571,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const valu
 
             for(int j=0; j < 3; j++)
             {
-                s5 += args.gB[j] * diff1(args.cG[i], j, scale);
+                s5 += args.gB[j] * diff1(args.cG[i], j, d);
             }
 
             valuef s6 = 0;
@@ -582,7 +587,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const valu
             {
                 for(int k=0; k < 3; k++)
                 {
-                    s7 += icY[j, k] * diff2(args.gB[i], k, j, derivs.dgB[k, i], derivs.dgB[j, i], scale);
+                    s7 += icY[j, k] * diff2(args.gB[i], k, j, derivs.dgB[k, i], derivs.dgB[j, i], d);
                 }
             }
 
@@ -593,7 +598,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const valu
                 for(int k=0; k < 3; k++)
                 {
                     //??
-                    s8 += icY[i, j] * diff2(args.gB[k], k, j, derivs.dgB[k, k], derivs.dgB[j, k], scale);
+                    s8 += icY[i, j] * diff2(args.gB[k], k, j, derivs.dgB[k, k], derivs.dgB[j, k], d);
                 }
             }
 
@@ -636,7 +641,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const valu
 
         for(int m=0; m < 3; m++)
         {
-            dmbm += diff1(args.gB[m], m, scale);
+            dmbm += diff1(args.gB[m], m, d);
         }
 
         float sigma = 1.333333f;
@@ -675,7 +680,12 @@ std::string make_momentum_constraint()
 
         bssn_args args(pos, dim, in);
 
-        auto Mi = calculate_momentum_constraint(args, scale.get());
+        derivative_data d;
+        d.pos = pos;
+        d.dim = dim;
+        d.scale = scale.get();
+
+        auto Mi = calculate_momentum_constraint(args, d);
 
         for(int i=0; i < 3; i++)
         {
@@ -720,6 +730,11 @@ std::string make_bssn(const tensor<int, 3>& idim)
         bssn_args args(pos, dim, in);
         bssn_derivatives derivs(pos, dim, derivatives);
 
+        derivative_data d;
+        d.pos = pos;
+        d.dim = dim;
+        d.scale = scale.get();
+
         tensor<valuef, 3> Mi;
 
         for(int i=0; i < 3; i++)
@@ -727,7 +742,7 @@ std::string make_bssn(const tensor<int, 3>& idim)
             Mi[i] = momentum_constraint[i][pos, dim];
         }
 
-        tensor<valuef, 3, 3> dtcA = get_dtcA(args, derivs, Mi, scale.get());
+        tensor<valuef, 3, 3> dtcA = get_dtcA(args, derivs, Mi, d);
 
         tensor<int, 2> index_table[6] = {{0, 0}, {0, 1}, {0, 2}, {1, 1}, {1, 2}, {2, 2}};
 
@@ -738,23 +753,23 @@ std::string make_bssn(const tensor<int, 3>& idim)
             as_ref(out.cA[i][lid]) = apply_evolution(base.cA[i][lid], dtcA[idx.x(), idx.y()], timestep.get());
         }
 
-        valuef dtW = get_dtW(args, derivs, scale.get());
+        valuef dtW = get_dtW(args, derivs, d);
         as_ref(out.W[lid]) = apply_evolution(base.W[lid], dtW, timestep.get());
 
-        valuef dtK = get_dtK(args, derivs, scale.get());
+        valuef dtK = get_dtK(args, derivs, d);
         as_ref(out.K[lid]) = apply_evolution(base.K[lid], dtK, timestep.get());
 
-        valuef dtgA = get_dtgA(args, derivs, scale.get());
+        valuef dtgA = get_dtgA(args, derivs, d);
         as_ref(out.gA[lid]) = clamp(apply_evolution(base.gA[lid], dtgA, timestep.get()), valuef(0.f), valuef(1.f));
 
-        auto dtgB = get_dtgB(args, derivs, scale.get());
+        auto dtgB = get_dtgB(args, derivs, d);
 
         for(int i=0; i < 3; i++)
         {
             as_ref(out.gB[i][lid]) = apply_evolution(base.gB[i][lid], dtgB[i], timestep.get());
         }
 
-        auto dtcY = get_dtcY(args, derivs, scale.get());
+        auto dtcY = get_dtcY(args, derivs, d);
 
         for(int i=0; i < 6; i++)
         {
@@ -763,7 +778,7 @@ std::string make_bssn(const tensor<int, 3>& idim)
             as_ref(out.cY[i][lid]) = apply_evolution(base.cY[i][lid], dtcY[idx.x(), idx.y()], timestep.get());
         }
 
-        auto dtcG = get_dtcG(args, derivs, scale.get());
+        auto dtcG = get_dtcG(args, derivs, d);
 
         for(int i=0; i < 3; i++)
         {
@@ -949,4 +964,6 @@ std::string make_sommerfeld()
         ctx.add("sommer_fin_out", backwards_euler_relax(in, base, out, timestep));*/
 
     };
+
+    return value_impl::make_function(func, "sommerfeld");
 }

@@ -4,7 +4,7 @@
 
 using valuei = value<int>;
 
-template<std::size_t elements = 5, typename T>
+template<std::size_t elements, typename T>
 auto get_differentiation_variables(const T& in, int direction)
 {
     std::array<T, elements> vars;
@@ -32,11 +32,13 @@ auto get_differentiation_variables(const T& in, int direction)
 
                     pos[direction] = pos[direction] + valuei(offset);
 
+                    #ifdef PERIODIC
                     if(offset > 0)
                         pos[direction] = ternary(pos[direction] >= dim[direction], pos[direction] - dim[direction], pos[direction]);
 
                     if(offset < 0)
                         pos[direction] = ternary(pos[direction] < valuei(0), pos[direction] + dim[direction], pos[direction]);
+                    #endif
 
                     value_base op;
                     op.type = value_impl::op::BRACKET;
@@ -54,36 +56,52 @@ auto get_differentiation_variables(const T& in, int direction)
     return vars;
 }
 
-valuef diff1(const valuef& in, int direction, const valuef& scale)
+valuef diff1(const valuef& in, int direction, const derivative_data& d)
 {
-    ///4th order derivatives
-    std::array<valuef, 5> vars = get_differentiation_variables(in, direction);
+    valuef second;
 
-    valuef p1 = -vars[4] + vars[0];
-    valuef p2 = 8.f * (vars[3] - vars[1]);
+    {
+        ///4th order derivatives
+        std::array<valuef, 5> vars = get_differentiation_variables<5>(in, direction);
 
-    return (p1 + p2) / (12.f * scale);
+        valuef p1 = -vars[4] + vars[0];
+        valuef p2 = 8.f * (vars[3] - vars[1]);
+
+        second = (p1 + p2) / (12.f * d.scale);
+    }
+
+    valuef first;
+
+    {
+        std::array<valuef, 3> vars = get_differentiation_variables<3>(in, direction);
+
+        second = (vars[2] - vars[0]) / (2.f * d.scale);
+    }
+
+    valuei width = ternary(d.pos[direction] <= 1 || d.pos[direction] >= d.dim[direction] - 2, valuei(1), valuei(2));
+
+    return ternary(width == 2, second, first);
 }
 
 ///this uses the commutativity of partial derivatives to lopsidedly prefer differentiating dy in the x direction
 ///as this is better on the memory layout
-valuef diff2(const valuef& in, int idx, int idy, const valuef& dx, const valuef& dy, const valuef& scale)
+valuef diff2(const valuef& in, int idx, int idy, const valuef& dx, const valuef& dy, const derivative_data& d)
 {
     using namespace single_source;
 
     if(idx < idy)
     {
         ///we must use dy, therefore swap all instances of diff1 in idy -> dy
-        alias(diff1(in, idy, scale), dy);
+        alias(diff1(in, idy, d), dy);
 
-        return diff1(dy, idx, scale);
+        return diff1(dy, idx, d);
     }
     else
     {
         ///we must use dx, therefore swap all instances of diff1 in idx -> dx
-        alias(diff1(in, idx, scale), dx);
+        alias(diff1(in, idx, d), dx);
 
-        return diff1(dx, idy, scale);
+        return diff1(dx, idy, d);
     }
 }
 
@@ -106,11 +124,16 @@ valuef diff1_boundary(single_source::buffer<valuef> in, int direction, const val
     v3i offset;
     offset[direction] = 1;
 
+    derivative_data d;
+    d.scale = scale;
+    d.pos = pos;
+    d.dim = dim;
+
     ///ok so. If we're at the boundary, do one sided derivatives
     ///otherwise shell out to diff1, which will also handle near boundary points correctly
     mut<valuef> val = declare_mut_e(valuef(0.f));
 
-    as_ref(val) = diff1(in[pos, dim], direction, scale);
+    as_ref(val) = diff1(in[pos, dim], direction, d);
 
     if_e(pos[direction] == 1, [&]{
         as_ref(val) = (-3.f * in[pos, dim] + 4 * in[pos + offset, dim] - in[pos + 2 * offset, dim]) / (2 * scale);

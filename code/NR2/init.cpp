@@ -236,6 +236,11 @@ std::string init_christoffel()
             }
         }
 
+        derivative_data d;
+        d.pos = pos;
+        d.dim = dim;
+        d.scale = scale.get();
+
         auto icY = cY.invert();
 
         tensor<valuef, 3, 3, 3> dcY;
@@ -246,7 +251,7 @@ std::string init_christoffel()
             {
                 for(int j=0; j < 3; j++)
                 {
-                    dcY[k, i, j] = diff1(cY[i, j], k, scale.get());
+                    dcY[k, i, j] = diff1(cY[i, j], k, d);
                 }
             }
         }

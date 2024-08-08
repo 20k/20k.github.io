@@ -7,10 +7,17 @@
 using valuef = value<float>;
 using v3i = tensor<value<int>, 3>;
 
+struct derivative_data
+{
+    v3i pos;
+    v3i dim;
+    valuef scale;
+};
+
 //1st derivative
-valuef diff1(const valuef& in, int direction, const valuef& scale);
+valuef diff1(const valuef& in, int direction, const derivative_data& d);
 //2nd derivative
-valuef diff2(const valuef& in, int idx, int idy, const valuef& dx, const valuef& dy, const valuef& scale);
+valuef diff2(const valuef& in, int idx, int idy, const valuef& dx, const valuef& dy, const derivative_data& d);
 //6th derivative with second order accuracy
 valuef diff6th(const valuef& in, int idx, const valuef& scale);
 
