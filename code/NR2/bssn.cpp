@@ -911,6 +911,8 @@ std::string make_sommerfeld()
 
         v3i pos = positions[lid];
 
+        pin(pos);
+
         v3f world_pos = grid_to_world((v3f)pos, dim, scale.get());
 
         valuef r = world_pos.length();

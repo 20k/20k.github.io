@@ -419,20 +419,33 @@ int main()
             ctx.register_program(p1);
         };
 
+        printf("derivs\n");
         make_and_register(make_derivatives());
+        printf("bssn\n");
         make_and_register(make_bssn(dim));
+        printf("init\n");
         make_and_register(make_initial_conditions());
+        printf("christoffel\n");
         make_and_register(init_christoffel());
+        printf("debugging");
         make_and_register(init_debugging());
+        printf("momentum\n");
         make_and_register(make_momentum_constraint());
+        printf("kreiss\n");
         make_and_register(make_kreiss_oliger());
+        printf("hamil\n");
         make_and_register(make_hamiltonian_error());
+        printf("globalsum\n");
         make_and_register(make_global_sum());
+        printf("momentum\n");
         make_and_register(make_momentum_error(0));
         make_and_register(make_momentum_error(1));
         make_and_register(make_momentum_error(2));
+        printf("algebra\n");
         make_and_register(enforce_algebraic_constraints());
+        printf("sommer\n");
         make_and_register(make_sommerfeld());
+        printf("done\n");
     }
 
     cl::command_queue cqueue(ctx);
