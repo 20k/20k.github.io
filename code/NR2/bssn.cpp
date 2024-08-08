@@ -86,16 +86,26 @@ std::string make_derivatives()
 
         v3i pos = get_coordinate(lid, dim);
 
+        if_e(pos.x() <= 0 || pos.x() >= dim.x() - 1 ||
+             pos.y() <= 0 || pos.y() >= dim.y() - 1 ||
+             pos.z() <= 0 || pos.z() >= dim.z() - 1, [&] {
+            return_e();
+        });
+
         valuef v1 = in[pos, dim];
 
+        ///must calculate derivatives on the boundary
         derivative_data d;
         d.pos = pos;
         d.dim = dim;
         d.scale = scale.get();
 
-        as_ref(out[0][pos, dim]) = (derivative_t)diff1(v1, 0, d);
+        for(int i=0; i < 3; i++)
+            as_ref(out[i][pos, dim]) = (derivative_t)diff1_boundary(in, i, scale.get(), pos, dim);
+
+        /*as_ref(out[0][pos, dim]) = (derivative_t)diff1(v1, 0, d);
         as_ref(out[1][pos, dim]) = (derivative_t)diff1(v1, 1, d);
-        as_ref(out[2][pos, dim]) = (derivative_t)diff1(v1, 2, d);
+        as_ref(out[2][pos, dim]) = (derivative_t)diff1(v1, 2, d);*/
     };
 
     std::string str = value_impl::make_function(differentiate, "differentiate");
@@ -785,6 +795,13 @@ std::string make_bssn(const tensor<int, 3>& idim)
             as_ref(out.cG[i][lid]) = apply_evolution(base.cG[i][lid], dtcG[i], timestep.get());
         }
 
+        /*if_e(pos.x() == 2 && pos.y() == 128 && pos.z() == 128, [&]{
+            value_base se;
+            se.type = value_impl::op::SIDE_EFFECT;
+            se.abstract_value = "printf(\"K: %f\\n\"," + value_to_string(out.W[pos, dim]) + ")";
+
+            value_impl::get_context().add(se);
+        });*/
     };
 
     std::string str = value_impl::make_function(bssn_function, "evolve");
@@ -926,12 +943,20 @@ std::string make_sommerfeld()
                 sum += world_pos[i] * diff1_boundary(f, i, scale.get(), pos, dim);
             }
 
-            return (-sum - (f[lid] - f0)) * (v/r);
+            return (-sum - (f[pos, dim] - f0)) * (v/r);
         };
 
         valuef dt_boundary = sommerfeld(in, asym.get(), wave_speed.get());
 
-        as_ref(out[lid]) = apply_evolution(base[lid], dt_boundary, timestep.get());
+        as_ref(out[pos, dim]) = apply_evolution(base[pos, dim], dt_boundary, timestep.get());
+
+        /*if_e(pos.x() == 1 && pos.y() == 128 && pos.z() == 128, [&]{
+            value_base se;
+            se.type = value_impl::op::SIDE_EFFECT;
+            se.abstract_value = "printf(\"%f\\n\"," + value_to_string(out[pos, dim]) + ")";
+
+            value_impl::get_context().add(se);
+        });*/
     };
 
     return value_impl::make_function(func, "sommerfeld");

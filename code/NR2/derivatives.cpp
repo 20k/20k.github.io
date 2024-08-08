@@ -159,7 +159,7 @@ valuef diff1_boundary(single_source::buffer<valuef> in, int direction, const val
         as_ref(val) = (-3.f * in[pos, dim] + 4 * in[pos + offset, dim] - in[pos + 2 * offset, dim]) / (2 * scale);
     });
 
-    if_e(pos[direction] == dim.x() - 2, [&] {
+    if_e(pos[direction] == dim[direction] - 2, [&] {
         as_ref(val) = (3.f * in[pos, dim] - 4 * in[pos - offset, dim] + in[pos - 2 * offset, dim]) / (2 * scale);
     });
 

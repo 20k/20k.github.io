@@ -101,6 +101,14 @@ std::string make_kreiss_oliger()
         if_e(boundary_distance == 3, [&]{
             as_ref(out[lid]) = in[lid] + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get(), 6);
         });
+
+        /*if_e(pos.x() == 2 && pos.y() == 128 && pos.z() == 128, [&]{
+            value_base se;
+            se.type = value_impl::op::SIDE_EFFECT;
+            se.abstract_value = "printf(\"hello %f %i\\n\"," + value_to_string(in[pos, dim]) + ", " + value_to_string(boundary_distance) + ")";
+
+            value_impl::get_context().add(se);
+        });*/
      };
 
      return value_impl::make_function(func, "kreiss_oliger");

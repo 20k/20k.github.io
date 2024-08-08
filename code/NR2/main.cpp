@@ -43,6 +43,12 @@ struct mesh
         for(int i=0; i < 3; i++)
         {
             buffers[i].allocate(dim);
+
+            buffers[i].for_each([&](cl::buffer b){
+                cl_float nan = NAN;
+
+                b.fill(cqueue, nan);
+            });
         }
 
         for(int i=0; i < 3; i++)
@@ -470,8 +476,8 @@ int main()
     //m.load_from(cqueue);
 
     texture_settings tsett;
-    tsett.width = 600;
-    tsett.height = 300;
+    tsett.width = sett.width;
+    tsett.height = sett.height;
     tsett.is_srgb = false;
     tsett.generate_mipmaps = false;
 
@@ -488,12 +494,18 @@ int main()
     float elapsed_t = 0;
     //float timestep = 0.001f;
     float timestep = 0.03;
+    bool step = false;
 
     while(!win.should_close())
     {
         win.poll();
 
+        step = false;
+
         ImGui::Begin("Hi");
+
+        if(ImGui::Button("Step"))
+            step = true;
 
         ImGui::Text("Elapsed %f", elapsed_t);
 
@@ -516,7 +528,9 @@ int main()
         steady_timer t;
 
         rtex.acquire(cqueue);
-        m.step(ctx, cqueue, timestep, simulation_width);
+
+        if(step)
+            m.step(ctx, cqueue, timestep, simulation_width);
 
         {
             cl_int4 cldim = {dim.x(), dim.y(), dim.z(), 0};
@@ -533,11 +547,11 @@ int main()
 
         rtex.unacquire(cqueue);
 
-        ImGui::GetBackgroundDrawList()->AddImage((void*)tex.handle, ImVec2(0,0), ImVec2(1280,720));
+        ImGui::GetBackgroundDrawList()->AddImage((void*)tex.handle, ImVec2(0,0), ImVec2(win.get_window_size().x(),win.get_window_size().y()));
 
         win.display();
 
-        std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
+        //std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
 
         elapsed_t += timestep;
     }
