@@ -29,6 +29,7 @@ struct mesh
     cl::buffer temporary_single;
     std::vector<double> hamiltonian_error;
     std::vector<double> Mi_error;
+    std::vector<double> cG_error;
 
     cl::buffer sommerfeld_points;
     cl_int sommerfeld_length = 0;
@@ -251,6 +252,19 @@ struct mesh
                 Mi += fabs(sum_over(temporary_buffer));
 
                 Mi_error.push_back(Mi);
+
+                double cG = 0;
+
+                cqueue.exec("calculate_cGi0", args, {dim.x() * dim.y() * dim.z()}, {128});
+                cG += fabs(sum_over(temporary_buffer));
+
+                cqueue.exec("calculate_cGi1", args, {dim.x() * dim.y() * dim.z()}, {128});
+                cG += fabs(sum_over(temporary_buffer));
+
+                cqueue.exec("calculate_cGi2", args, {dim.x() * dim.y() * dim.z()}, {128});
+                cG += fabs(sum_over(temporary_buffer));
+
+                cG_error.push_back(cG);
             }
         };
 
@@ -367,7 +381,7 @@ struct mesh
                 }
             }
 
-            //#define CALCULATE_CONSTRAINT_ERRORS
+            #define CALCULATE_CONSTRAINT_ERRORS
             #ifdef CALCULATE_CONSTRAINT_ERRORS
             if(iteration == 0)
                 calculate_constraint_errors(in_idx);
@@ -535,6 +549,13 @@ int main()
             Mis.push_back(i);
 
         ImGui::PlotLines("Mi", Mis.data(), Mis.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 100));
+
+        std::vector<float> cgs;
+
+        for(auto& i : m.cG_error)
+            cgs.push_back(i);
+
+        ImGui::PlotLines("cG", cgs.data(), cgs.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 100));
 
         ImGui::End();
 

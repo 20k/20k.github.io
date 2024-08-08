@@ -110,7 +110,7 @@ std::string make_cG_error(int idx)
         as_ref(out[pos, dim]) = Gi[idx];
     };
 
-    return value_impl::make_function(func, "calculate_Mi" + std::to_string(idx));
+    return value_impl::make_function(func, "calculate_cGi" + std::to_string(idx));
 }
 
 std::string make_momentum_error(int idx)
