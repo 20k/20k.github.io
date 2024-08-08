@@ -123,7 +123,9 @@ $$
 \end{align}
 $$
 
-Where $\epsilon$ is the levi civita tensor. Note that the levi civita symbol, and levi civita tensor have the same notation in the literature and are frequently freely mixed, so its not especially clear what's going on. TODO: I NEED TO CHECK THIS
+Where $\epsilon$ is the levi civita symbol[^lcs]. Note that the levi civita symbol, and levi civita tensor have the same notation in the literature and are frequently freely mixed, so its not especially clear what's going on. TODO: I NEED TO CHECK THIS
+
+[^lcs]: [see 13](https://arxiv.org/pdf/2007.14279)
 
 $r$ is the distance in world coordinates (ie not grid coordinates) of the coordinate from the black hole in question. There's a clear problem when $r = 0$, and the solution is to either position your black holes so this is impossible, or clamp to a small value
 
@@ -136,6 +138,8 @@ Next up: We need the conformal factor $\psi$, which involves calculating the cor
 ## Conformal Factor
 
 alt https://arxiv.org/pdf/1606.04881
+
+https://www.worldscientific.com/doi/pdf/10.1142/S2010194512004321 15? everyone uses this
 
 The conformal factor $\psi$ here is listed as:
 

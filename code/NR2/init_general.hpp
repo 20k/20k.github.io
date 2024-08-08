@@ -147,6 +147,14 @@ struct initial_conditions
 
                 valuef u = in[pos, dim];
 
+                /*if_e(pos.x() == 128 && pos.y() == 128 && pos.z() == 128, [&]{
+                    value_base se;
+                    se.type = value_impl::op::SIDE_EFFECT;
+                    se.abstract_value = "printf(\"%f\\n\"," + value_to_string(u0n1) + ")";
+
+                    value_impl::get_context().add(se);
+                });*/
+
                 /*valuef err = u0n1 - u;
 
                 if(fabs(err) > etol)
@@ -191,8 +199,8 @@ struct initial_conditions
             for(int i=0; i < 1000; i++)
             {
                 cl::args args;
-                args.push_back(u[i % 2]);
                 args.push_back(u[(i + 1) % 2]);
+                args.push_back(u[i % 2]);
                 args.push_back(cfl_summed);
                 args.push_back(aij_aIJ_buf);
                 args.push_back(scale);

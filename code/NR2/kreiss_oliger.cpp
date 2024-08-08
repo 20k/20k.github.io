@@ -84,7 +84,7 @@ std::string make_kreiss_oliger()
 
         valuei boundary_distance = distance_to_boundary(pos, dim);
 
-        if_e(boundary_distance == 0, [&] {
+        if_e(boundary_distance == 0 || boundary_distance == 1 || boundary_distance == 2, [&] {
             as_ref(out[lid]) = in[lid];
 
             return_e();

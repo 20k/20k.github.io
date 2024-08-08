@@ -108,15 +108,15 @@ struct mesh
 
         {
             black_hole_params p1;
-            p1.bare_mass = 0.5f;
-            p1.position = {4, 0, 0};
+            p1.bare_mass = 0.483f;
+            p1.position = {3.257, 0, 0};
             p1.linear_momentum = {0, 0.133, 0};
 
             black_hole_data d1 = init_black_hole(ctx, cqueue, p1, dim, scale);
 
             black_hole_params p2;
-            p2.bare_mass = 0.5f;
-            p2.position = {-4, 0, 0};
+            p2.bare_mass = 0.483f;
+            p2.position = {-3.257, 0, 0};
             p2.linear_momentum = {0, -0.133, 0};
 
             black_hole_data d2 = init_black_hole(ctx, cqueue, p2, dim, scale);
@@ -165,7 +165,7 @@ struct mesh
 
             for(int i=0; i < (int)linear_base.size(); i++)
             {
-                float eps = 0.25f;
+                float eps = 0.05f;
 
                 cl::args args;
                 args.push_back(linear_base.at(i));
@@ -373,7 +373,7 @@ struct mesh
                 calculate_constraint_errors(in_idx);
             #endif
 
-            //#define CALCULATE_MOMENTUM_CONSTRAINT
+            #define CALCULATE_MOMENTUM_CONSTRAINT
             #ifdef CALCULATE_MOMENTUM_CONSTRAINT
             calculate_momentum_constraint_for(in_idx);
             #endif
@@ -472,7 +472,7 @@ int main()
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
-    float simulation_width = 30;
+    float simulation_width = 20;
 
     mesh m(ctx, dim);
     m.allocate(ctx, cqueue);
@@ -499,6 +499,7 @@ int main()
     //float timestep = 0.001f;
     float timestep = 0.03;
     bool step = false;
+    bool running = false;
 
     while(!win.should_close())
     {
@@ -510,6 +511,10 @@ int main()
 
         if(ImGui::Button("Step"))
             step = true;
+
+        ImGui::Checkbox("Run", &running);
+
+        step = step || running;
 
         ImGui::Text("Elapsed %f", elapsed_t);
 
@@ -557,6 +562,7 @@ int main()
 
         //std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
 
-        elapsed_t += timestep;
+        if(step)
+            elapsed_t += timestep;
     }
 }

@@ -102,10 +102,6 @@ std::string make_derivatives()
 
         for(int i=0; i < 3; i++)
             as_ref(out[i][pos, dim]) = (derivative_t)diff1_boundary(in, i, scale.get(), pos, dim);
-
-        /*as_ref(out[0][pos, dim]) = (derivative_t)diff1(v1, 0, d);
-        as_ref(out[1][pos, dim]) = (derivative_t)diff1(v1, 1, d);
-        as_ref(out[2][pos, dim]) = (derivative_t)diff1(v1, 2, d);*/
     };
 
     std::string str = value_impl::make_function(differentiate, "differentiate");
@@ -489,7 +485,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
                                 - 2 * args.gA * aij_amj
                                 + trace_free(with_trace, args.cY, icY);
 
-    //#define MOMENTUM_CONSTRAINT_DAMPING
+    #define MOMENTUM_CONSTRAINT_DAMPING
     #ifdef MOMENTUM_CONSTRAINT_DAMPING
     auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
     pin(christoff2);
@@ -501,7 +497,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
     {
         for(int j=0; j < 3; j++)
         {
-            float Ka = 0.01f;
+            float Ka = 0.001f;
 
             dtcA[i, j] += Ka * args.gA * 0.5f *
                               (cd_low[i, j]
@@ -694,6 +690,16 @@ std::string make_momentum_constraint()
         d.pos = pos;
         d.dim = dim;
         d.scale = scale.get();
+
+        if_e(pos.x() <= 1 || pos.x() >= dim.x() - 2 ||
+             pos.y() <= 1 || pos.y() >= dim.y() - 2 ||
+             pos.z() <= 1 || pos.z() >= dim.z() - 2, [&] {
+
+            for(int i=0; i < 3; i++)
+                as_ref(momentum_constraint[i][lid]) = valuef(0.f);
+
+            return_e();
+        });
 
         auto Mi = calculate_momentum_constraint(args, d);
 
