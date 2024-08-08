@@ -75,10 +75,10 @@ valuef diff1(const valuef& in, int direction, const derivative_data& d)
     {
         std::array<valuef, 3> vars = get_differentiation_variables<3>(in, direction);
 
-        second = (vars[2] - vars[0]) / (2.f * d.scale);
+        first = (vars[2] - vars[0]) / (2.f * d.scale);
     }
 
-    valuei width = ternary(d.pos[direction] <= 1 || d.pos[direction] >= d.dim[direction] - 2, valuei(1), valuei(2));
+    valuei width = ternary(d.pos[direction] <= 2 || d.pos[direction] >= d.dim[direction] - 3, valuei(1), valuei(2));
 
     return ternary(width == 2, second, first);
 }
