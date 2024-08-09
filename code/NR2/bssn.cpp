@@ -302,7 +302,7 @@ valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& deriv
 #define ZERO_SHIFT
 #endif
 
-valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
+valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, valuef total_elapsed)
 {
     valuef bmdma = 0;
 
@@ -311,9 +311,14 @@ valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, const derivative_data
         bmdma += args.gB[i] * diff1(args.gA, i, d);
     }
 
+    valuef sigma = 20.f;
+    value h = (3.f/5.f);
+
+    valuef damp = args.W * (h * exp(-total_elapsed*total_elapsed / (2 * sigma * sigma))) * (args.gA - args.W);
+
     ///https://arxiv.org/pdf/gr-qc/0206072
     #ifdef ONE_PLUS_LOG
-    return -2 * args.gA * args.K + bmdma * 1;
+    return -2 * args.gA * args.K + bmdma * 1 - damp;
     #endif // ONE_PLUS_LOG
 
     ///https://arxiv.org/pdf/2201.08857
@@ -974,7 +979,8 @@ std::string make_bssn(const tensor<int, 3>& idim)
                                                  std::array<buffer<valuef>, 3> momentum_constraint,
                                                  literal<valuef> timestep,
                                                  literal<v3i> ldim,
-                                                 literal<valuef> scale) {
+                                                 literal<valuef> scale,
+                                                 literal<valuef> total_elapsed) {
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);
@@ -1027,7 +1033,7 @@ std::string make_bssn(const tensor<int, 3>& idim)
         valuef dtK = get_dtK(args, derivs, d);
         as_ref(out.K[lid]) = apply_evolution(base.K[lid], dtK, timestep.get());
 
-        valuef dtgA = get_dtgA(args, derivs, d);
+        valuef dtgA = get_dtgA(args, derivs, d, total_elapsed.get());
         as_ref(out.gA[lid]) = clamp(apply_evolution(base.gA[lid], dtgA, timestep.get()), valuef(0.f), valuef(1.f));
 
         auto dtgB = get_dtgB(args, derivs, d);

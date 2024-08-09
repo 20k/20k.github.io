@@ -33,6 +33,7 @@ struct mesh
 
     cl::buffer sommerfeld_points;
     cl_int sommerfeld_length = 0;
+    float total_elapsed = 0;
 
     mesh(cl::context& ctx, t3i _dim) : buffers{ctx, ctx, ctx}, temporary_buffer(ctx), temporary_single(ctx), sommerfeld_points(ctx)
     {
@@ -299,6 +300,7 @@ struct mesh
             args.push_back(timestep);
             args.push_back(cldim);
             args.push_back(scale);
+            args.push_back(total_elapsed);
 
             cqueue.exec("evolve", args, {dim.x()*dim.y()*dim.z()}, {128});
         };
@@ -412,6 +414,8 @@ struct mesh
         ///at the end of our iterations, our output is in buffer[2], and we want our result to end up in buffer[0]
         ///for this to work, kreiss must execute over every pixel unconditionally
         kreiss(2, 0);
+
+        total_elapsed += timestep;
     }
 };
 

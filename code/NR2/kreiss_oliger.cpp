@@ -90,16 +90,21 @@ std::string make_kreiss_oliger()
             return_e();
         });
 
+        auto do_kreiss = [&](int order)
+        {
+            as_ref(out[lid]) = in[lid] + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get(), order) * max(W[lid], valuef(0.0001f));
+        };
+
         if_e(boundary_distance == 1, [&]{
-            as_ref(out[lid]) = in[lid] + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get(), 2) * W[lid];
+            do_kreiss(2);
         });
 
         if_e(boundary_distance == 2, [&]{
-            as_ref(out[lid]) = in[lid] + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get(), 4) * W[lid];
+            do_kreiss(4);
         });
 
         if_e(boundary_distance == 3, [&]{
-            as_ref(out[lid]) = in[lid] + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get(), 6) * W[lid];
+            do_kreiss(6);
         });
 
         /*if_e(pos.x() == 2 && pos.y() == 128 && pos.z() == 128, [&]{
