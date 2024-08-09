@@ -313,7 +313,7 @@ valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, const derivative_data
 
     ///https://arxiv.org/pdf/gr-qc/0206072
     #ifdef ONE_PLUS_LOG
-    return -2 * args.gA * args.K + bmdma;
+    return -2 * args.gA * args.K + bmdma * 0;
     #endif // ONE_PLUS_LOG
 
     ///https://arxiv.org/pdf/2201.08857
@@ -347,7 +347,7 @@ tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, const deri
     ///gauge damping parameter, commonly set to 2
     float N = 2;
 
-    return (3/4.f) * args.cG + djbjbi - N * args.gB;
+    return (3/4.f) * args.cG + djbjbi * 0 - N * args.gB;
     #endif // GAMMA_DRIVER
 
     #ifdef ZERO_SHIFT
@@ -498,7 +498,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
                 sum += 0.5f * (args.cY[k, i] * cD[k, j] + args.cY[k, j] * cD[k, i]);
             }
 
-            float cK = -0.055f;
+            float cK = -0.075f;
 
             dtcY.idx(i, j) += cK * args.gA * sum;
         }
@@ -641,7 +641,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
     {
         for(int j=0; j < 3; j++)
         {
-            float Ka = 0.001f;
+            float Ka = 0.01f;
 
             dtcA[i, j] += Ka * args.gA * 0.5f *
                               (cd_low[i, j]

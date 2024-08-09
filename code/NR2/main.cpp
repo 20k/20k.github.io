@@ -166,7 +166,7 @@ struct mesh
 
             for(int i=0; i < (int)linear_base.size(); i++)
             {
-                float eps = 0.25f;
+                float eps = 0.1f;
 
                 cl::args args;
                 args.push_back(linear_base.at(i));
@@ -381,7 +381,7 @@ struct mesh
                 }
             }
 
-            #define CALCULATE_CONSTRAINT_ERRORS
+            //#define CALCULATE_CONSTRAINT_ERRORS
             #ifdef CALCULATE_CONSTRAINT_ERRORS
             if(iteration == 0)
                 calculate_constraint_errors(in_idx);
