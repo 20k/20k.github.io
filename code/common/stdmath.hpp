@@ -333,6 +333,17 @@ namespace stdmath
     };
 
     constexpr
+    auto uexp = []<typename T>(const T& v1)
+    {
+        using std::exp;
+
+        if constexpr(std::is_integral_v<T>)
+            return exp((float)v1);
+        else
+            return exp(v1);
+    };
+
+    constexpr
     auto ufma = []<typename T>(const T& v1, const T& v2, const T& v3)
     {
         using std::fma;

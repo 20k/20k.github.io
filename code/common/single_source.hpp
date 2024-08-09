@@ -495,6 +495,7 @@ namespace value_impl
             {LOG, "native_log"},
             {SQRT, "native_sqrt"},
             {INVERSE_SQRT, "native_rsqrt"},
+            {EXP, "native_exp"},
             #else
             {SIN, "sin"},
             {COS, "cos"},
@@ -502,6 +503,7 @@ namespace value_impl
             {LOG, "log"},
             {SQRT, "sqrt"},
             {INVERSE_SQRT, "rsqrt"},
+            {EXP, "exp"},
             #endif // NATIVE_OPS
             {FMOD, "fmod"},
             {ISFINITE, "isfinite"},

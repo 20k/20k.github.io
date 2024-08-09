@@ -77,6 +77,7 @@ namespace value_impl
             CEIL,
             TERNARY,
             POW,
+            EXP,
 
             GET_GLOBAL_ID,
 
@@ -358,6 +359,7 @@ namespace value_impl
     DECL_VALUE_FUNC1(INVERSE_SQRT, inverse_sqrt, stdmath::uinverse_sqrt);
     DECL_VALUE_FUNC3(TERNARY, ternary, stdmath::uternary);
     DECL_VALUE_FUNC2(POW, pow, stdmath::upow);
+    DECL_VALUE_FUNC1(EXP, exp, stdmath::uexp);
 
     DECL_VALUE_FUNC2(MIN, min, stdmath::umin);
     DECL_VALUE_FUNC2(MAX, max, stdmath::umax);
@@ -449,6 +451,7 @@ namespace value_impl
             PROPAGATE_BASE1(CEIL, uceil);
             PROPAGATE_BASE1(INVERSE_SQRT, uinverse_sqrt);
             PROPAGATE_BASE2(POW, upow);
+            PROPAGATE_BASE1(EXP, uexp);
 
             PROPAGATE_BASE2(MIN, umin);
             PROPAGATE_BASE2(MAX, umax);
@@ -1481,6 +1484,13 @@ namespace value_impl
     value<T> pow(const value<T>& v1, const T& v2)
     {
         return from_base<T>(optimise(make_op<value<T>>(op::POW, {v1, value<T>(v2)})));
+    }
+
+    template<typename T>
+    inline
+    value<T> exp(const value<T>& v1)
+    {
+        return from_base<T>(optimise(make_op<value<T>>(op::EXP, {v1})));
     }
 
     template<typename T>
