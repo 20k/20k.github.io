@@ -84,18 +84,18 @@ std::string make_kreiss_oliger()
 
         valuei boundary_distance = distance_to_boundary(pos, dim);
 
-        if_e(boundary_distance == 0 || boundary_distance == 1 || boundary_distance == 2, [&] {
+        if_e(boundary_distance == 0, [&] {
             as_ref(out[lid]) = in[lid];
 
             return_e();
         });
 
         if_e(boundary_distance == 1, [&]{
-            as_ref(out[lid]) = in[lid] + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get(), 2);
+            as_ref(out[lid]) = in[lid] + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get(), 2) * W[lid];
         });
 
         if_e(boundary_distance == 2, [&]{
-            as_ref(out[lid]) = in[lid] + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get(), 4);
+            as_ref(out[lid]) = in[lid] + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get(), 4) * W[lid];
         });
 
         if_e(boundary_distance == 3, [&]{

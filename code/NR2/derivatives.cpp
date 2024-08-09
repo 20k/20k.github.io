@@ -122,7 +122,7 @@ valuef diff4th(const valuef& in, int idx)
     valuef p2 = -4.f * vars[1] -4.f * vars[3];
     valuef p3 = 6.f * vars[2];
 
-    return p1 + p3 + p3;
+    return p1 + p2 + p3;
 }
 
 valuef diff6th(const valuef& in, int idx)
