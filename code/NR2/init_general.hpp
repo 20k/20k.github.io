@@ -196,7 +196,7 @@ struct initial_conditions
                 u[i].set_to_zero(cqueue);
             }
 
-            for(int i=0; i < 10000; i++)
+            for(int i=0; i < 100000; i++)
             {
                 cl::args args;
                 args.push_back(u[(i + 1) % 2]);

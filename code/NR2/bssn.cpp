@@ -504,7 +504,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
                 sum += 0.5f * (args.cY[k, i] * cD[k, j] + args.cY[k, j] * cD[k, i]);
             }
 
-            float cK = -0.075f;
+            float cK = -0.065f;
 
             dtcY.idx(i, j) += cK * args.gA * sum;
         }
@@ -635,7 +635,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
                                 - 2 * args.gA * aij_amj
                                 + trace_free(with_trace, args.cY, icY);
 
-    //#define MOMENTUM_CONSTRAINT_DAMPING
+    #define MOMENTUM_CONSTRAINT_DAMPING
     #ifdef MOMENTUM_CONSTRAINT_DAMPING
     auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
     pin(christoff2);
