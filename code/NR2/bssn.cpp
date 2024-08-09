@@ -4,6 +4,10 @@
 #include "tensor_algebra.hpp"
 #include "derivatives.hpp"
 #include <iostream>
+#include "../common/vec/dual.hpp"
+
+template<typename T>
+using dual = dual_types::dual_v<T>;
 
 v3i get_coordinate(valuei id, v3i dim)
 {
@@ -360,7 +364,147 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
 
     ///https://arxiv.org/pdf/1307.7391 specifically for why the trace free aspect
     ///https://arxiv.org/pdf/1106.2254 also see here, after 25
-    return lie_derivative_weight(args.gB, args.cY.to_tensor(), d) - 2 * args.gA * trace_free(args.cA, args.cY, icY);
+    auto dtcY = lie_derivative_weight(args.gB, args.cY.to_tensor(), d) - 2 * args.gA * trace_free(args.cA, args.cY, icY);
+
+    tensor<valuef, 3, 3> d_cGi;
+
+    for(int m=0; m < 3; m++)
+    {
+        tensor<dual<valuef>, 3, 3, 3> d_dcYij;
+
+        #define FORWARD_DIFFERENTIATION
+        #ifdef FORWARD_DIFFERENTIATION
+        metric<dual<valuef>, 3, 3> d_cYij;
+
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                d_cYij[i, j].real = args.cY[i, j];
+                d_cYij[i, j].dual = derivs.dcY[m, i, j];
+            }
+        }
+
+        pin(d_cYij);
+
+        auto dicY = d_cYij.invert();
+
+        pin(dicY);
+
+        #else
+        std::vector<std::pair<value, value>> derivatives;
+
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                derivatives.push_back({args.cY[i, j], args.dcYij[m, i, j]});
+            }
+        }
+
+        auto icY = args.cY.invert();
+
+        inverse_metric<dual, 3, 3> dicY;
+
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                ///perform analytic differentiation, where the variable is args.cY[i, j]
+                dicY[i, j] = icY[i, j].dual2(derivatives);
+            }
+        }
+
+        #endif // FORWARD_DIFFERENTIATION
+
+        for(int k=0; k < 3; k++)
+        {
+            for(int i=0; i < 3; i++)
+            {
+                for(int j=0; j < 3; j++)
+                {
+                    d_dcYij[k, i, j].real = derivs.dcY[k, i, j];
+                    d_dcYij[k, i, j].dual = diff1(derivs.dcY[k, i, j], m, d);
+                }
+            }
+        }
+
+        pin(d_dcYij);
+
+        auto d_christoff2 = christoffel_symbols_2(dicY, d_dcYij);
+
+        pin(d_christoff2);
+
+        tensor<dual<valuef>, 3> dcGi_G;
+
+        for(int i=0; i < 3; i++)
+        {
+            dual<valuef> sum = 0;
+
+            for(int j=0; j < 3; j++)
+            {
+                for(int k=0; k < 3; k++)
+                {
+                    sum += dicY[j, k] * d_christoff2[i, j, k];
+                }
+            }
+
+            dcGi_G[i] = sum;
+        }
+
+        pin(dcGi_G);
+
+        for(int i=0; i < 3; i++)
+        {
+            d_cGi[m, i] = diff1(args.cG[i], m, d) - dcGi_G[i].dual;
+        }
+    }
+
+    auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
+
+    tensor<valuef, 3> calculated_cG;
+
+    for(int i=0; i < 3; i++)
+    {
+        valuef sum = 0;
+
+        for(int m=0; m < 3; m++)
+        {
+            for(int n=0; n < 3; n++)
+            {
+                sum += icY[m, n] * christoff2[i, m, n];
+            }
+        }
+
+        calculated_cG[i] = sum;
+    }
+
+    pin(christoff2);
+
+    tensor<valuef, 3> Gi = args.cG - calculated_cG;
+
+    tensor<valuef, 3, 3> cD = covariant_derivative_high_vec(Gi, d_cGi, christoff2);
+
+    pin(cD);
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            valuef sum = 0;
+
+            for(int k=0; k < 3; k++)
+            {
+                sum += 0.5f * (args.cY[k, i] * cD[k, j] + args.cY[k, j] * cD[k, i]);
+            }
+
+            float cK = -0.055f;
+
+            dtcY.idx(i, j) += cK * args.gA * sum;
+        }
+    }
+
+    return dtcY;
 }
 
 ///https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf 2.12 or
@@ -519,6 +663,27 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
     tensor<valuef, 3, 3, 3> christoff2 = christoffel_symbols_2(icY, derivs.dcY);
     pin(christoff2);
 
+    tensor<valuef, 3> calculated_cG;
+
+    for(int i=0; i < 3; i++)
+    {
+        valuef sum = 0;
+
+        for(int m=0; m < 3; m++)
+        {
+            for(int n=0; n < 3; n++)
+            {
+                sum += icY[m, n] * christoff2[i, m, n];
+            }
+        }
+
+        calculated_cG[i] = sum;
+    }
+
+    pin(christoff2);
+
+    tensor<valuef, 3> Gi = args.cG - calculated_cG;
+
     tensor<valuef, 3> dtcG;
 
     ///dtcG
@@ -529,6 +694,71 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
 
         tensor<valuef, 3> Yij_Kj;
 
+        {
+            auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
+
+            tensor<valuef, 3> calculated_cG;
+
+            for(int i=0; i < 3; i++)
+            {
+                valuef sum = 0;
+
+                for(int m=0; m < 3; m++)
+                {
+                    for(int n=0; n < 3; n++)
+                    {
+                        sum += icY[m, n] * christoff2[i, m, n];
+                    }
+                }
+
+                calculated_cG[i] = sum;
+            }
+
+            tensor<dual<valuef>, 3, 3, 3> dicY;
+
+            for(int k=0; k < 3; k++)
+            {
+                unit_metric<dual<valuef>, 3, 3> cYk;
+
+                for(int i=0; i < 3; i++)
+                {
+                    for(int j=0; j < 3; j++)
+                    {
+                        dual<valuef> dl;
+                        dl.real = args.cY.idx(i, j);
+                        dl.dual = diff1(args.cY.idx(i, j), k, d);
+
+                        cYk.idx(i, j) = dl;
+                    }
+                }
+
+                inverse_metric<dual<valuef>, 3, 3> icYk = cYk.invert();
+
+                for(int i=0; i < 3; i++)
+                {
+                    for(int j=0; j < 3; j++)
+                    {
+                        dicY.idx(k, i, j) = icYk.idx(i, j);
+                    }
+                }
+            }
+
+            for(int i=0; i < 3; i++)
+            {
+                valuef sum = 0;
+
+                for(int j=0; j < 3; j++)
+                {
+                    sum += icY.idx(i, j) * diff1(args.K, j, d) + args.K * dicY.idx(j, i, j).dual;
+                    //sum += diff1(ctx, littlekij.idx(i, j), j);
+                }
+
+                Yij_Kj.idx(i) = sum + args.K * calculated_cG.idx(i);
+            }
+        }
+
+        //#define YIJ_1
+        #ifdef YIJ_1
         for(int i=0; i < 3; i++)
         {
             valuef sum = 0;
@@ -540,6 +770,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
 
             Yij_Kj[i] = sum;
         }
+        #endif
 
         for(int i=0; i < 3; i++)
         {
@@ -620,9 +851,29 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
             s9 = (2.f/3.f) * s9 * args.cG[i];
 
             dtcG[i] = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9;
+
+            auto step = [](const valuef& in)
+            {
+                return ternary(in >= 0.f, value{1.f}, value{0.f});
+            };
+
+            valuef bkk = 0;
+
+            for(int k=0; k < 3; k++)
+            {
+                bkk += derivs.dgB.idx(k, k);
+            }
+
+            float E = 1.f;
+
+            valuef lambdai = (2.f/3.f) * (bkk - 2 * args.gA * args.K)
+                            - derivs.dgB.idx(i, i)
+                            - (2.f/5.f) * args.gA * raise_index(args.cA, icY, 1).idx(i, i);
+
+            dtcG.idx(i) += -(1 + E) * step(lambdai) * lambdai * Gi.idx(i);
         }
 
-        #define STABILITY_SIGMA
+        /*#define STABILITY_SIGMA
         #ifdef STABILITY_SIGMA
         tensor<valuef, 3> calculated_cG;
 
@@ -653,7 +904,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
         float sigma = 1.333333f;
 
         dtcG += -sigma * Gi * dmbm;
-        #endif // STABILITY_SIGMA
+        #endif // STABILITY_SIGMA*/
     }
 
     return dtcG;
