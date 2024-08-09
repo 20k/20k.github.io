@@ -313,7 +313,7 @@ valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, const derivative_data
 
     ///https://arxiv.org/pdf/gr-qc/0206072
     #ifdef ONE_PLUS_LOG
-    return -2 * args.gA * args.K + bmdma * 0;
+    return -2 * args.gA * args.K + bmdma * 1;
     #endif // ONE_PLUS_LOG
 
     ///https://arxiv.org/pdf/2201.08857
@@ -345,9 +345,10 @@ tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, const deri
     }
 
     ///gauge damping parameter, commonly set to 2
-    float N = 2;
+    float N = 1.375f;
+    //float N = 2;
 
-    return (3/4.f) * args.cG + djbjbi * 0 - N * args.gB;
+    return (3/4.f) * args.cG + djbjbi * 1 - N * args.gB;
     #endif // GAMMA_DRIVER
 
     #ifdef ZERO_SHIFT

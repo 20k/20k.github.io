@@ -67,7 +67,7 @@ valuei distance_to_boundary(v3i pos, v3i dim)
 
 std::string make_kreiss_oliger()
 {
-     auto func = [&](execution_context&, buffer<valuef> in, buffer_mut<valuef> out, literal<valuef> timestep, literal<v3i> ldim, literal<valuef> scale, literal<valuef> eps) {
+     auto func = [&](execution_context&, buffer<valuef> in, buffer_mut<valuef> out, buffer<valuef> W, literal<valuef> timestep, literal<v3i> ldim, literal<valuef> scale, literal<valuef> eps) {
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);
@@ -99,7 +99,7 @@ std::string make_kreiss_oliger()
         });
 
         if_e(boundary_distance == 3, [&]{
-            as_ref(out[lid]) = in[lid] + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get(), 6);
+            as_ref(out[lid]) = in[lid] + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get(), 6) * W[lid];
         });
 
         /*if_e(pos.x() == 2 && pos.y() == 128 && pos.z() == 128, [&]{

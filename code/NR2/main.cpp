@@ -171,6 +171,7 @@ struct mesh
                 cl::args args;
                 args.push_back(linear_base.at(i));
                 args.push_back(linear_inout.at(i));
+                args.push_back(buffers[in].W);
                 args.push_back(timestep);
                 args.push_back(cldim);
                 args.push_back(scale);
