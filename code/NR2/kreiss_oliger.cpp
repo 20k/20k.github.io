@@ -92,7 +92,7 @@ std::string make_kreiss_oliger()
 
         auto do_kreiss = [&](int order)
         {
-            as_ref(out[lid]) = in[lid] + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get(), order) * max(W[lid], valuef(0.01f));
+            as_ref(out[lid]) = in[lid] + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get(), order) * max(W[lid], valuef(0.2f));
         };
 
         if_e(boundary_distance == 1, [&]{
