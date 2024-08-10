@@ -108,7 +108,7 @@ struct mesh
         cl_int4 cldim = {dim.x(), dim.y(), dim.z(), 0};
         float scale = get_scale(simulation_width, dim);
 
-        /*{
+        {
             black_hole_params p1;
             p1.bare_mass = 0.483f;
             p1.position = {3.257, 0, 0};
@@ -129,58 +129,7 @@ struct mesh
             init.add(cqueue, d2);
 
             init.build(ctx, cqueue, scale, buffers[0]);
-        }*/
-
-        {
-            /*compact_object::data h1;
-            h1.t = compact_object::BLACK_HOLE;
-            h1.bare_mass = 0.1764;
-            h1.momentum = {0, 0.12616, 0};
-            h1.position = {-2.966, 0.f, 0.f};
-            h1.angular_momentum = {0, 0, -0.225};
-
-            compact_object::data h2;
-            h2.t = compact_object::BLACK_HOLE;
-            h2.bare_mass = 0.1764;
-            h2.momentum = {0, -0.12616, 0};
-            h2.position = {2.966, 0.f, 0.f};
-            h2.angular_momentum = {0, 0, -0.225};
-
-            objects = {h1, h2};*/
-
-            black_hole_params p1;
-            p1.bare_mass = 0.1764;
-            p1.position = {-2.966, 0, 0};
-            p1.linear_momentum = {0, 0.12616, 0};
-            p1.angular_momentum = {0, 0, -0.225};
-
-            black_hole_data d1 = init_black_hole(ctx, cqueue, p1, dim, scale);
-
-            black_hole_params p2;
-            p2.bare_mass = 0.1764;
-            p2.position = {2.966, 0, 0};
-            p2.linear_momentum = {0, -0.12616, 0};
-            p2.angular_momentum = {0, 0, -0.225};
-
-            black_hole_data d2 = init_black_hole(ctx, cqueue, p2, dim, scale);
-
-            initial_conditions init(ctx, cqueue, dim);
-
-            init.add(cqueue, d1);
-            init.add(cqueue, d2);
-
-            init.build(ctx, cqueue, scale, buffers[0]);
         }
-
-        /*{
-            cl::args args;
-            buffers[0].append_to(args);
-            args.push_back(cldim);
-            args.push_back(scale);
-
-            //cqueue.exec("init", args, {dim.x() * dim.y() * dim.z()}, {128});
-            cqueue.exec("init_christoffel", args, {dim.x() * dim.y() * dim.z()}, {128});
-        }*/
 
         temporary_buffer.set_to_zero(cqueue);
         temporary_single.set_to_zero(cqueue);
@@ -208,7 +157,7 @@ struct mesh
 
             for(int i=0; i < (int)linear_base.size(); i++)
             {
-                float eps = 0.2f;
+                float eps = 0.1f;
 
                 cl::args args;
                 args.push_back(linear_base.at(i));
