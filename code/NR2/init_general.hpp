@@ -194,18 +194,14 @@ struct initial_conditions
 
         {
 
-            std::array<cl::buffer, 2> u{ctx, ctx};
-
-            for(int i=0; i < 2; i++)
-            {
-                u[i].alloc(sizeof(cl_float) * dim.x() * dim.y() * dim.z());
-                u[i].set_to_zero(cqueue);
-            }
+            u_found.alloc(sizeof(cl_float) * dim.x() * dim.y() * dim.z());
+            //this is not for safety, this is the boundary condition
+            u_found.set_to_zero(cqueue);
 
             for(int i=0; i < 100000; i++)
             {
                 cl::args args;
-                args.push_back(u[0]);
+                args.push_back(u_found);
                 args.push_back(cfl_summed);
                 args.push_back(aij_aIJ_buf);
                 args.push_back(scale);
@@ -213,8 +209,6 @@ struct initial_conditions
                 args.push_back(i);
 
                 cqueue.exec("laplace", args, {dim.x() * dim.y() * dim.z()}, {128});
-
-                u_found = u[0];
             }
         }
 
