@@ -163,15 +163,6 @@ struct initial_conditions
                     value_impl::get_context().add(se);
                 });*/
 
-                /*valuef err = u0n1 - u;
-
-                if(fabs(err) > etol)
-                {
-                    atomic_xchg(still_going, 1);
-                }
-
-                buffer_out[IDX(ix, iy, iz)] = mix(u, u0n1, 0.9f);*/
-
                 as_ref(inout[lid]) = mix(u, u0n1, valuef(0.9f));
 
                 valuef etol = 1e-7f;
