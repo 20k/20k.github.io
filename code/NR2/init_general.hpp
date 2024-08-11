@@ -105,7 +105,9 @@ struct initial_conditions
         ctx.register_program(calc);
 
         {
-            auto laplace = [](execution_context& ectx, buffer_mut<valuef> inout, buffer<valuef> cfl, buffer<valuef> aij_aIJ, literal<valuef> lscale, literal<v3i> ldim, literal<valuei> iteration)
+            auto laplace = [](execution_context& ectx, buffer_mut<valuef> inout, buffer<valuef> cfl, buffer<valuef> aij_aIJ,
+                              literal<valuef> lscale, literal<v3i> ldim, literal<valuei> iteration,
+                              buffer_mut<valuei> still_going)
             {
                 using namespace single_source;
 
@@ -171,6 +173,12 @@ struct initial_conditions
                 buffer_out[IDX(ix, iy, iz)] = mix(u, u0n1, 0.9f);*/
 
                 as_ref(inout[lid]) = mix(u, u0n1, valuef(0.9f));
+
+                valuef etol = 1e-7f;
+
+                if_e(fabs(u0n1 - u) > etol, [&]{
+                    still_going.atom_xchg_e(valuei(0), valuei(1));
+                });
             };
 
             cl::program calc(ctx, value_impl::make_function(laplace, "laplace"), false);
@@ -193,6 +201,9 @@ struct initial_conditions
         cl_int3 size = {dim.x(), dim.y(), dim.z()};
 
         {
+            cl::buffer still_going(ctx);
+            still_going.alloc(sizeof(cl_int));
+            still_going.set_to_zero(cqueue);
 
             u_found.alloc(sizeof(cl_float) * dim.x() * dim.y() * dim.z());
             //this is not for safety, this is the boundary condition
@@ -200,6 +211,11 @@ struct initial_conditions
 
             for(int i=0; i < 100000; i++)
             {
+                bool check = (i % 500) == 0;
+
+                if(check)
+                    still_going.set_to_zero(cqueue);
+
                 cl::args args;
                 args.push_back(u_found);
                 args.push_back(cfl_summed);
@@ -207,8 +223,19 @@ struct initial_conditions
                 args.push_back(scale);
                 args.push_back(size);
                 args.push_back(i);
+                args.push_back(still_going);
 
                 cqueue.exec("laplace", args, {dim.x() * dim.y() * dim.z()}, {128});
+
+                if(check)
+                {
+                    printf("Broke %i\n", i);
+
+                    bool going = still_going.read<int>(cqueue)[0] == 1;
+
+                    if(!going)
+                        break;
+                }
             }
         }
 
