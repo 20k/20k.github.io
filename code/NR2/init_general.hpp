@@ -105,7 +105,7 @@ struct initial_conditions
         ctx.register_program(calc);
 
         {
-            auto laplace = [](execution_context& ectx, buffer_mut<valuef> out, buffer<valuef> in, buffer<valuef> cfl, buffer<valuef> aij_aIJ, literal<valuef> lscale, literal<v3i> ldim)
+            auto laplace = [](execution_context& ectx, buffer_mut<valuef> inout, buffer<valuef> cfl, buffer<valuef> aij_aIJ, literal<valuef> lscale, literal<v3i> ldim, literal<valuei> iteration)
             {
                 using namespace single_source;
 
@@ -123,21 +123,27 @@ struct initial_conditions
 
                 if_e(pos.x() == 0 || pos.y() == 0 || pos.z() == 0 ||
                      pos.x() == dim.x() - 1 || pos.y() == dim.y() - 1 || pos.z() == dim.z() - 1, [&] {
-                    as_ref(out[lid]) = in[lid];
 
                     return_e();
                 });
 
-                valuef rhs = -(1.f/8.f) * pow(cfl[lid] + in[lid], -7.f) * aij_aIJ[lid];
+                valuei lix = pos.x() + (pos.z() % 2);
+                valuei liy = pos.y();
+
+                if_e(((lix + liy) % 2) == (iteration.get() % 2), [] {
+                    return_e();
+                });
+
+                valuef rhs = -(1.f/8.f) * pow(cfl[lid] + inout[lid], -7.f) * aij_aIJ[lid];
 
                 valuef h2f0 = lscale.get() * lscale.get() * rhs;
 
-                valuef uxm1 = in[pos - (v3i){1, 0, 0}, dim];
-                valuef uxp1 = in[pos + (v3i){1, 0, 0}, dim];
-                valuef uym1 = in[pos - (v3i){0, 1, 0}, dim];
-                valuef uyp1 = in[pos + (v3i){0, 1, 0}, dim];
-                valuef uzm1 = in[pos - (v3i){0, 0, 1}, dim];
-                valuef uzp1 = in[pos + (v3i){0, 0, 1}, dim];
+                valuef uxm1 = inout[pos - (v3i){1, 0, 0}, dim];
+                valuef uxp1 = inout[pos + (v3i){1, 0, 0}, dim];
+                valuef uym1 = inout[pos - (v3i){0, 1, 0}, dim];
+                valuef uyp1 = inout[pos + (v3i){0, 1, 0}, dim];
+                valuef uzm1 = inout[pos - (v3i){0, 0, 1}, dim];
+                valuef uzp1 = inout[pos + (v3i){0, 0, 1}, dim];
 
                 valuef Xs = uxm1 + uxp1;
                 valuef Ys = uyp1 + uym1;
@@ -145,12 +151,12 @@ struct initial_conditions
 
                 valuef u0n1 = (1/6.f) * (Xs + Ys + Zs - h2f0);
 
-                valuef u = in[pos, dim];
+                valuef u = inout[pos, dim];
 
                 /*if_e(pos.x() == 128 && pos.y() == 128 && pos.z() == 128, [&]{
                     value_base se;
                     se.type = value_impl::op::SIDE_EFFECT;
-                    se.abstract_value = "printf(\"%f\\n\"," + value_to_string(u0n1) + ")";
+                    se.abstract_value = "printf(\"%.23f\\n\"," + value_to_string(u) + ")";
 
                     value_impl::get_context().add(se);
                 });*/
@@ -164,7 +170,7 @@ struct initial_conditions
 
                 buffer_out[IDX(ix, iy, iz)] = mix(u, u0n1, 0.9f);*/
 
-                as_ref(out[lid]) = mix(u, u0n1, valuef(0.9f));
+                as_ref(inout[lid]) = mix(u, u0n1, valuef(0.9f));
             };
 
             cl::program calc(ctx, value_impl::make_function(laplace, "laplace"), false);
@@ -199,16 +205,16 @@ struct initial_conditions
             for(int i=0; i < 100000; i++)
             {
                 cl::args args;
-                args.push_back(u[(i + 1) % 2]);
-                args.push_back(u[i % 2]);
+                args.push_back(u[0]);
                 args.push_back(cfl_summed);
                 args.push_back(aij_aIJ_buf);
                 args.push_back(scale);
                 args.push_back(size);
+                args.push_back(i);
 
                 cqueue.exec("laplace", args, {dim.x() * dim.y() * dim.z()}, {128});
 
-                u_found = u[(i + 1) % 2];
+                u_found = u[0];
             }
         }
 
