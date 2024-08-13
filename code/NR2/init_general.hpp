@@ -4,6 +4,209 @@
 #include "init_black_hole.hpp"
 #include "tensor_algebra.hpp"
 
+/*
+float get_scaled_coordinate(int in, int dimension_upper, int dimension_lower)
+{
+    int upper_centre = (dimension_upper - 1)/2;
+
+    int upper_offset = in - upper_centre;
+
+    float scale = (float)(dimension_upper - 1) / (dimension_lower - 1);
+
+    ///so lets say we have [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] with a dimension of 13
+    ///this gives a middle value of 6, which is the 7th value
+    ///Then we want to scale it to a dimension of 7
+    ///to get [0:0, 1:0.5, 2:1, 3:1.5, 4:2, 5:2.5, 6:3, 7:3.5, 8:4, 9:4.5, 10:5, 11:5.5, 12:6]
+    ///so... it should just be a straight division by the scale?
+
+    return in / scale;
+}
+
+float3 get_scaled_coordinate_vec(int3 in, int3 dimension_upper, int3 dimension_lower)
+{
+    return (float3){get_scaled_coordinate(in.x, dimension_upper.x, dimension_lower.x),
+                    get_scaled_coordinate(in.y, dimension_upper.y, dimension_lower.y),
+                    get_scaled_coordinate(in.z, dimension_upper.z, dimension_lower.z)};
+}
+
+///out is > in
+///this incorrectly does not produce a symmetric result
+__kernel
+void upscale_u(__global float* u_in, __global float* u_out, int4 in_dim, int4 out_dim)
+{
+    int ix = get_global_id(0);
+    int iy = get_global_id(1);
+    int iz = get_global_id(2);
+
+    if(ix >= out_dim.x || iy >= out_dim.y || iz >= out_dim.z)
+        return;
+
+    float3 lower_pos = get_scaled_coordinate_vec((int3){ix, iy, iz}, out_dim.xyz, in_dim.xyz);
+
+    float val = buffer_read_linear(u_in, lower_pos, in_dim);
+
+    //int3 half_lower = (in_dim.xyz - 1) / 2;
+    //float val = buffer_read_nearest(u_in, convert_int3(round_away_from_vec(lower_pos, convert_float3(half_lower))), in_dim);
+
+    ///todo: remove this
+    if(ix == 0 || iy == 0 || iz == 0 || ix == out_dim.x - 1 || iy == out_dim.y - 1 || iz == out_dim.z - 1)
+        val = U_BOUNDARY;
+
+    u_out[IDXD(ix, iy, iz, out_dim)] = val;
+}
+*/
+
+/*
+float buffer_read_nearest(__global const float* const buffer, int3 position, int3 dim)
+{
+    return buffer[position.z * dim.x * dim.y + position.y * dim.x + position.x];
+}
+
+float buffer_read_nearest_clamp(__global const float* const buffer, int3 position, int3 dim)
+{
+    position = clamp(position, (int3)(0,0,0), dim.xyz - 1);
+
+    return buffer[position.z * dim.x * dim.y + position.y * dim.x + position.x];
+}
+
+float buffer_read_linear2(__global const float* const buffer, float px, float py, float pz, int dx, int dy, int dz)
+{
+    float3 floored = floor((float3)(px, py, pz));
+    int3 dim = (int3)(dx, dy, dz);
+    float3 position = (float3)(px, py, pz);
+
+    int3 ipos = (int3)(floored.x, floored.y, floored.z);
+
+    float c000 = buffer_read_nearest_clamp(buffer, ipos + (int3)(0,0,0), dim);
+    float c100 = buffer_read_nearest_clamp(buffer, ipos + (int3)(1,0,0), dim);
+
+    float c010 = buffer_read_nearest_clamp(buffer, ipos + (int3)(0,1,0), dim);
+    float c110 = buffer_read_nearest_clamp(buffer, ipos + (int3)(1,1,0), dim);
+
+    float c001 = buffer_read_nearest_clamp(buffer, ipos + (int3)(0,0,1), dim);
+    float c101 = buffer_read_nearest_clamp(buffer, ipos + (int3)(1,0,1), dim);
+
+    float c011 = buffer_read_nearest_clamp(buffer, ipos + (int3)(0,1,1), dim);
+    float c111 = buffer_read_nearest_clamp(buffer, ipos + (int3)(1,1,1), dim);
+
+    float3 frac = position - floored;
+
+    ///numerically symmetric across the centre of dim
+    float c00 = c000 - frac.x * (c000 - c100);
+    float c01 = c001 - frac.x * (c001 - c101);
+
+    float c10 = c010 - frac.x * (c010 - c110);
+    float c11 = c011 - frac.x * (c011 - c111);
+
+    float c0 = c00 - frac.y * (c00 - c10);
+    float c1 = c01 - frac.y * (c01 - c11);
+
+    return c0 - frac.z * (c0 - c1);
+}
+*/
+
+template<typename T>
+inline
+auto buffer_read_nearest_clamp(T buf, v3i pos, v3i dim)
+{
+    pos = clamp(pos, (v3i){0,0,0}, dim);
+
+    return buf[pos, dim];
+}
+
+template<typename T>
+inline
+auto buffer_read_linear(T buf, v3f pos, v3i dim)
+{
+    v3f floored = floor(pos);
+    v3f frac = pos - floored;
+
+    v3i ipos = (v3i)floored;
+
+    auto c000 = buffer_read_nearest_clamp(buf, ipos + (v3i){0,0,0}, dim);
+    auto c100 = buffer_read_nearest_clamp(buf, ipos + (v3i){1,0,0}, dim);
+
+    auto c010 = buffer_read_nearest_clamp(buf, ipos + (v3i){0,1,0}, dim);
+    auto c110 = buffer_read_nearest_clamp(buf, ipos + (v3i){1,1,0}, dim);
+
+    auto c001 = buffer_read_nearest_clamp(buf, ipos + (v3i){0,0,1}, dim);
+    auto c101 = buffer_read_nearest_clamp(buf, ipos + (v3i){1,0,1}, dim);
+
+    auto c011 = buffer_read_nearest_clamp(buf, ipos + (v3i){0,1,1}, dim);
+    auto c111 = buffer_read_nearest_clamp(buf, ipos + (v3i){1,1,1}, dim);
+
+    ///numerically symmetric across the centre of dim
+    auto c00 = c000 - frac.x() * (c000 - c100);
+    auto c01 = c001 - frac.x() * (c001 - c101);
+
+    auto c10 = c010 - frac.x() * (c010 - c110);
+    auto c11 = c011 - frac.x() * (c011 - c111);
+
+    auto c0 = c00 - frac.y() * (c00 - c10);
+    auto c1 = c01 - frac.y() * (c01 - c11);
+
+    return c0 - frac.z() * (c0 - c1);
+}
+
+inline
+valuef get_scaled_coordinate(valuei in, valuei dimension_upper, valuei dimension_lower)
+{
+    valuei upper_centre = (dimension_upper - 1)/2;
+
+    valuei upper_offset = in - upper_centre;
+
+    valuef scale = (valuef)(dimension_upper - 1) / (valuef)(dimension_lower - 1);
+
+    ///so lets say we have [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] with a dimension of 13
+    ///this gives a middle value of 6, which is the 7th value
+    ///Then we want to scale it to a dimension of 7
+    ///to get [0:0, 1:0.5, 2:1, 3:1.5, 4:2, 5:2.5, 6:3, 7:3.5, 8:4, 9:4.5, 10:5, 11:5.5, 12:6]
+    ///so... it should just be a straight division by the scale?
+
+    return (valuef)in / scale;
+}
+
+inline
+v3f get_scaled_coordinate_vec(v3i in, v3i dimension_upper, v3i dimension_lower)
+{
+    return (v3f){get_scaled_coordinate(in.x(), dimension_upper.x(), dimension_lower.x()),
+                 get_scaled_coordinate(in.y(), dimension_upper.y(), dimension_lower.y()),
+                 get_scaled_coordinate(in.z(), dimension_upper.z(), dimension_lower.z())};
+}
+
+
+inline
+void upscale_buffer_with_boundary(execution_context& ctx, buffer<valuef> in, buffer_mut<valuef> out, literal<v3i> in_dim, literal<v3i> out_dim, literal<valuef> boundary)
+{
+    using namespace single_source;
+
+    valuei lid = value_impl::get_global_id(0);
+
+    pin(lid);
+
+    auto dim = out_dim.get();
+
+    if_e(lid >= dim.x() * dim.y() * dim.z(), [&]{
+        return_e();
+    });
+
+    v3i pos = get_coordinate(lid, dim);
+
+    v3f lower_pos = get_scaled_coordinate_vec(pos, out_dim.get(), in_dim.get());
+
+    if_e(pos.x() == 0 || pos.y() == 0 || pos.z() == 0 ||
+         pos.x() == out_dim.get().x() ||  pos.y() == out_dim.get().y() || pos.z() == out_dim.get().z(), [&]{
+        as_ref(out[pos, out_dim.get()]) = boundary.get();
+
+        return_e();
+    });
+
+    ///buffer read linear
+    valuef val = buffer_read_linear(in, lower_pos, in_dim.get());
+
+    as_ref(out[pos, out_dim.get()]) = val;
+}
+
 struct initial_conditions
 {
     std::array<cl::buffer, 6> aIJ_summed;
