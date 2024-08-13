@@ -124,7 +124,7 @@ struct mesh
             init.add(p1);
             init.add(p2);
 
-            init.build(ctx, cqueue, scale, buffers[0]);
+            init.build(ctx, cqueue, simulation_width, buffers[0]);
         }
 
         temporary_buffer.set_to_zero(cqueue);

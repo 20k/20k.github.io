@@ -403,6 +403,15 @@ struct initial_conditions
 
             ctx.register_program(p);
         }
+
+        {
+            std::string str = value_impl::make_function(upscale_buffer_with_boundary, "upscale");
+
+            cl::program p(ctx, str, false);
+            p.build(ctx, "");
+
+            ctx.register_program(p);
+        }
     }
 
     void add(const black_hole_params& bh)
@@ -410,56 +419,74 @@ struct initial_conditions
         params_bh.push_back(bh);
     }
 
-    void build(cl::context& ctx, cl::command_queue& cqueue, float scale, bssn_buffer_pack& to_fill)
+    void build(cl::context& ctx, cl::command_queue& cqueue, float simulation_width, bssn_buffer_pack& to_fill)
     {
-        initial_pack pack(ctx, cqueue, dim, scale);
-
-        for(auto& i : params_bh)
-            pack.add(ctx, cqueue, i);
-
-        pack.finalise(cqueue);
-
-        cl::buffer u_found(ctx);
-        cl_int3 size = {dim.x(), dim.y(), dim.z()};
-
+        auto get_u_at_dim = [&](t3i dim, float simulation_width, std::optional<std::tuple<cl::buffer, t3i>> u_old)
         {
-            cl::buffer still_going(ctx);
-            still_going.alloc(sizeof(cl_int));
-            still_going.set_to_zero(cqueue);
+            float scale = simulation_width / (dim.x() - 1);
 
-            u_found.alloc(sizeof(cl_float) * dim.x() * dim.y() * dim.z());
-            //this is not for safety, this is the boundary condition
-            u_found.set_to_zero(cqueue);
+            cl::buffer u_found(ctx);
 
-            for(int i=0; i < 100000; i++)
+            initial_pack pack(ctx, cqueue, dim, scale);
+
+            for(auto& i : params_bh)
+                pack.add(ctx, cqueue, i);
+
+            pack.finalise(cqueue);
+
             {
-                bool check = (i % 500) == 0;
+                cl::buffer still_going(ctx);
+                still_going.alloc(sizeof(cl_int));
+                still_going.set_to_zero(cqueue);
 
-                if(check)
-                    still_going.set_to_zero(cqueue);
+                u_found.alloc(sizeof(cl_float) * dim.x() * dim.y() * dim.z());
+                //this is not for safety, this is the boundary condition
+                u_found.set_to_zero(cqueue);
 
-                cl::args args;
-                args.push_back(u_found);
-                args.push_back(pack.cfl_summed);
-                args.push_back(pack.aij_aIJ_buf);
-                args.push_back(scale);
-                args.push_back(size);
-                args.push_back(i);
-                args.push_back(still_going);
-
-                cqueue.exec("laplace", args, {dim.x() * dim.y() * dim.z()}, {128});
-
-                if(check)
+                if(u_old.has_value())
                 {
-                    printf("Broke %i\n", i);
+                    auto [u_old_buf, u_old_dim] = u_old.value();
 
-                    bool going = still_going.read<int>(cqueue)[0] == 1;
+                    cl::args args;
+                    args.push_back(u_old_buf, u_found, u_old_dim, dim, 0.f);
 
-                    if(!going)
-                        break;
+                    cqueue.exec("upscale", args, {dim.x() * dim.y() * dim.z()}, {128});
+                }
+
+                for(int i=0; i < 100000; i++)
+                {
+                    bool check = (i % 500) == 0;
+
+                    if(check)
+                        still_going.set_to_zero(cqueue);
+
+                    cl::args args;
+                    args.push_back(u_found);
+                    args.push_back(pack.cfl_summed);
+                    args.push_back(pack.aij_aIJ_buf);
+                    args.push_back(scale);
+                    args.push_back(dim);
+                    args.push_back(i);
+                    args.push_back(still_going);
+
+                    cqueue.exec("laplace", args, {dim.x() * dim.y() * dim.z()}, {128});
+
+                    if(check)
+                    {
+                        printf("Broke %i\n", i);
+
+                        bool going = still_going.read<int>(cqueue)[0] == 1;
+
+                        if(!going)
+                            break;
+                    }
                 }
             }
-        }
+
+            return std::pair{u_found, pack};
+        };
+
+        auto [u_found, pack] = get_u_at_dim(dim, simulation_width, std::nullopt);
 
         {
             cl::args args;
@@ -474,7 +501,7 @@ struct initial_conditions
             for(int i=0; i < 6; i++)
                 args.push_back(pack.aIJ_summed[i]);
 
-            args.push_back(size);
+            args.push_back(dim);
 
             cqueue.exec("calculate_bssn_variables", args, {dim.x() * dim.y() * dim.z()}, {128});
         }
