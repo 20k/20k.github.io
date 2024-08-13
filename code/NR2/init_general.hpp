@@ -207,6 +207,13 @@ void upscale_buffer_with_boundary(execution_context& ctx, buffer<valuef> in, buf
     as_ref(out[pos, out_dim.get()]) = val;
 }
 
+struct initial_pack
+{
+    std::array<cl::buffer, 6> aIJ_summed;
+    cl::buffer cfl_summed;
+    tensor<int, 3> dim;
+};
+
 struct initial_conditions
 {
     std::array<cl::buffer, 6> aIJ_summed;
@@ -226,7 +233,7 @@ struct initial_conditions
         cfl_summed.alloc(sizeof(cl_float) * dim.x() * dim.y() * dim.z());
         cfl_summed.fill(cqueue, 1.f);
 
-        auto sum_buffers = [&](execution_context& ctx, buffer_mut<valuef> inout, buffer<valuef> in)
+        auto sum_buffers = [](execution_context& ctx, buffer_mut<valuef> inout, buffer<valuef> in, literal<v3i> dim)
         {
             using namespace single_source;
 
@@ -234,14 +241,16 @@ struct initial_conditions
 
             pin(lid);
 
-            if_e(lid >= dim.x() * dim.y() * dim.z(), [&]{
+            if_e(lid >= dim.get().x() * dim.get().y() * dim.get().z(), [&]{
                 return_e();
             });
 
             as_ref(inout[lid]) = as_constant(inout[lid]) + in[lid];
         };
 
-        cl::program prog(ctx, value_impl::make_function(sum_buffers, "sum_buffers"), false);
+        std::string sum_str = value_impl::make_function(sum_buffers, "sum_buffers");
+
+        cl::program prog(ctx, sum_str, false);
         prog.build(ctx, "");
 
         ctx.register_program(prog);
@@ -254,6 +263,7 @@ struct initial_conditions
             cl::args args;
             args.push_back(aIJ_summed[i]);
             args.push_back(bh.aij[i]);
+            args.push_back(dim);
 
             cqueue.exec("sum_buffers", args, {dim.x() * dim.y() * dim.z()}, {128});
         }
@@ -261,6 +271,7 @@ struct initial_conditions
         cl::args args;
         args.push_back(cfl_summed);
         args.push_back(bh.conformal_guess);
+        args.push_back(dim);
 
         cqueue.exec("sum_buffers", args, {dim.x() * dim.y() * dim.z()}, {128});
     }
