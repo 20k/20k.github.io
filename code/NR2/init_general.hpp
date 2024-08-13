@@ -112,8 +112,9 @@ struct initial_pack
     cl::buffer cfl_summed;
     tensor<int, 3> dim;
     float scale = 0.f;
+    cl::buffer aij_aIJ_buf;
 
-    initial_pack(cl::context& ctx, cl::command_queue& cqueue, tensor<int, 3> _dim, float _scale) : aIJ_summed{ctx, ctx, ctx, ctx, ctx, ctx}, cfl_summed{ctx}
+    initial_pack(cl::context& ctx, cl::command_queue& cqueue, tensor<int, 3> _dim, float _scale) : aIJ_summed{ctx, ctx, ctx, ctx, ctx, ctx}, cfl_summed{ctx}, aij_aIJ_buf{ctx}
     {
         dim = _dim;
         scale = _scale;
@@ -126,6 +127,9 @@ struct initial_pack
 
         cfl_summed.alloc(sizeof(cl_float) * dim.x() * dim.y() * dim.z());
         cfl_summed.fill(cqueue, 1.f);
+
+        aij_aIJ_buf.alloc(sizeof(cl_float) * dim.x() * dim.y() * dim.z());
+        aij_aIJ_buf.set_to_zero(cqueue);
     }
 
     void add(cl::command_queue& cqueue, const black_hole_data& bh)
@@ -153,6 +157,19 @@ struct initial_pack
         black_hole_data dat = init_black_hole(ctx, cqueue, bh, dim, scale);
 
         add(cqueue, dat);
+    }
+
+    void finalise(cl::command_queue& cqueue)
+    {
+        cl::args args;
+        args.push_back(aij_aIJ_buf);
+
+        for(int i=0; i < 6; i++)
+            args.push_back(aIJ_summed[i]);
+
+        args.push_back(dim);
+
+        cqueue.exec("aijaij", args, {dim.x() * dim.y() * dim.z()}, {128});
     }
 };
 
@@ -395,25 +412,12 @@ struct initial_conditions
 
     void build(cl::context& ctx, cl::command_queue& cqueue, float scale, bssn_buffer_pack& to_fill)
     {
-        cl::buffer aij_aIJ_buf(ctx);
-        aij_aIJ_buf.alloc(sizeof(cl_float) * dim.x() * dim.y() * dim.z());
-
         initial_pack pack(ctx, cqueue, dim, scale);
 
         for(auto& i : params_bh)
             pack.add(ctx, cqueue, i);
 
-        {
-            cl::args args;
-            args.push_back(aij_aIJ_buf);
-
-            for(int i=0; i < 6; i++)
-                args.push_back(pack.aIJ_summed[i]);
-
-            args.push_back(dim);
-
-            cqueue.exec("aijaij", args, {dim.x() * dim.y() * dim.z()}, {128});
-        }
+        pack.finalise(cqueue);
 
         cl::buffer u_found(ctx);
         cl_int3 size = {dim.x(), dim.y(), dim.z()};
@@ -437,7 +441,7 @@ struct initial_conditions
                 cl::args args;
                 args.push_back(u_found);
                 args.push_back(pack.cfl_summed);
-                args.push_back(aij_aIJ_buf);
+                args.push_back(pack.aij_aIJ_buf);
                 args.push_back(scale);
                 args.push_back(size);
                 args.push_back(i);
