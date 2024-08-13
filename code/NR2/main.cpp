@@ -105,9 +105,6 @@ struct mesh
 
     void init(float simulation_width, cl::context& ctx, cl::command_queue& cqueue)
     {
-        cl_int4 cldim = {dim.x(), dim.y(), dim.z(), 0};
-        float scale = get_scale(simulation_width, dim);
-
         {
             black_hole_params p1;
             p1.bare_mass = 0.483f;
@@ -133,7 +130,6 @@ struct mesh
 
     void step(cl::context& ctx, cl::command_queue& cqueue, float timestep, float simulation_width)
     {
-        cl_int4 cldim = {dim.x(), dim.y(), dim.z(), 0};
         float scale = get_scale(simulation_width, dim);
 
         auto kreiss = [&](int in, int inout)
@@ -160,7 +156,7 @@ struct mesh
                 args.push_back(linear_inout.at(i));
                 args.push_back(buffers[in].W);
                 args.push_back(timestep);
-                args.push_back(cldim);
+                args.push_back(dim);
                 args.push_back(scale);
                 args.push_back(eps);
 
@@ -177,7 +173,7 @@ struct mesh
             for(int i=0; i < 6; i++)
                 args.push_back(buffers[idx].cA[i]);
 
-            args.push_back(cldim);
+            args.push_back(dim);
 
             cqueue.exec("enforce_algebraic_constraints", args, {dim.x() * dim.y() * dim.z()}, {128});
         };
@@ -189,7 +185,7 @@ struct mesh
             args.push_back(derivatives.at(buffer_idx * 3 + 0));
             args.push_back(derivatives.at(buffer_idx * 3 + 1));
             args.push_back(derivatives.at(buffer_idx * 3 + 2));
-            args.push_back(cldim);
+            args.push_back(dim);
             args.push_back(scale);
 
             cqueue.exec("differentiate", args, {dim.x()*dim.y()*dim.z()}, {128});
@@ -222,7 +218,7 @@ struct mesh
                     args.push_back(i);
 
                 args.push_back(temporary_buffer);
-                args.push_back(cldim);
+                args.push_back(dim);
                 args.push_back(scale);
 
                 cqueue.exec("calculate_hamiltonian", args, {dim.x() * dim.y() * dim.z()}, {128});
@@ -264,7 +260,7 @@ struct mesh
             for(auto& i : momentum_constraint)
                 args.push_back(i);
 
-            args.push_back(cldim);
+            args.push_back(dim);
             args.push_back(scale);
 
             cqueue.exec("momentum_constraint", args, {dim.x() * dim.y() * dim.z()}, {128});
@@ -284,7 +280,7 @@ struct mesh
                 args.push_back(i);
 
             args.push_back(timestep);
-            args.push_back(cldim);
+            args.push_back(dim);
             args.push_back(scale);
             args.push_back(total_elapsed);
 
@@ -298,7 +294,7 @@ struct mesh
             args.push_back(in);
             args.push_back(out);
             args.push_back(timestep);
-            args.push_back(cldim);
+            args.push_back(dim);
             args.push_back(scale);
             args.push_back(wave_speed);
             args.push_back(asym);
@@ -558,12 +554,11 @@ int main()
             m.step(ctx, cqueue, timestep, simulation_width);
 
         {
-            cl_int4 cldim = {dim.x(), dim.y(), dim.z(), 0};
             float scale = get_scale(simulation_width, dim);
 
             cl::args args;
             m.buffers[0].append_to(args);
-            args.push_back(cldim);
+            args.push_back(dim);
             args.push_back(scale);
             args.push_back(rtex);
 
