@@ -249,7 +249,7 @@ struct initial_conditions
         {
             auto laplace = [](execution_context& ectx, buffer_mut<valuef> inout, buffer<valuef> cfl, buffer<valuef> aij_aIJ,
                               literal<valuef> lscale, literal<v3i> ldim, literal<valuei> iteration,
-                              buffer_mut<valuei> still_going)
+                              buffer_mut<valuei> still_going, literal<valuef> relax)
             {
                 using namespace single_source;
 
@@ -305,9 +305,9 @@ struct initial_conditions
                     value_impl::get_context().add(se);
                 });*/
 
-                as_ref(inout[lid]) = mix(u, u0n1, valuef(0.9f));
+                as_ref(inout[lid]) = mix(u, u0n1, relax.get());
 
-                valuef etol = 1e-7f;
+                valuef etol = 1e-9f;
 
                 if_e(fabs(u0n1 - u) > etol, [&]{
                     still_going.atom_xchg_e(valuei(0), valuei(1));
@@ -421,7 +421,7 @@ struct initial_conditions
 
     void build(cl::context& ctx, cl::command_queue& cqueue, float simulation_width, bssn_buffer_pack& to_fill)
     {
-        auto get_u_at_dim = [&](t3i dim, float simulation_width, std::optional<std::tuple<cl::buffer, t3i>> u_old)
+        auto get_u_at_dim = [&](t3i dim, float simulation_width, float relax, std::optional<std::tuple<cl::buffer, t3i>> u_old)
         {
             float scale = simulation_width / (dim.x() - 1);
 
@@ -468,6 +468,7 @@ struct initial_conditions
                     args.push_back(dim);
                     args.push_back(i);
                     args.push_back(still_going);
+                    args.push_back(relax);
 
                     cqueue.exec("laplace", args, {dim.x() * dim.y() * dim.z()}, {128});
 
@@ -486,9 +487,24 @@ struct initial_conditions
             return std::pair{u_found, pack};
         };
 
-        auto [u_found, pack] = get_u_at_dim(dim, simulation_width, std::nullopt);
+        std::array<t3i, 5> dims = {(t3i){63, 63, 63}, (t3i){95, 95, 95}, (t3i){127, 127, 127}, (t3i){197, 197, 197}, dim};
+        std::array<float, 5> relax = {0.4f, 0.5f, 0.5f, 0.7f, 0.9f};
+        std::optional<std::tuple<cl::buffer, initial_pack>> last;
 
         {
+            std::optional<std::pair<cl::buffer, t3i>> last_u;
+
+            for(int i=0; i < 5; i++)
+            {
+                last = get_u_at_dim(dims[i], simulation_width, relax[i], last_u);
+
+                last_u = {std::get<0>(last.value()), dims[i]};
+            }
+        }
+
+        {
+            auto [u_found, pack] = last.value();
+
             cl::args args;
 
             to_fill.for_each([&](cl::buffer& buf) {
