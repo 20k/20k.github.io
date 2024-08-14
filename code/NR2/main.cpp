@@ -149,7 +149,7 @@ struct mesh
 
             for(int i=0; i < (int)linear_base.size(); i++)
             {
-                float eps = 0.1f;
+                float eps = 0.025f;
 
                 cl::args args;
                 args.push_back(linear_base.at(i));
@@ -276,8 +276,10 @@ struct mesh
             for(auto& i : derivatives)
                 args.push_back(i);
 
-            for(auto& i : momentum_constraint)
-                args.push_back(i);
+            //for(auto& i : momentum_constraint)
+            //    args.push_back(i);
+
+            args.push_back(nullptr, nullptr, nullptr);
 
             args.push_back(timestep);
             args.push_back(dim);
@@ -372,7 +374,7 @@ struct mesh
                 calculate_constraint_errors(in_idx);
             #endif
 
-            #define CALCULATE_MOMENTUM_CONSTRAINT
+            //#define CALCULATE_MOMENTUM_CONSTRAINT
             #ifdef CALCULATE_MOMENTUM_CONSTRAINT
             calculate_momentum_constraint_for(in_idx);
             #endif
@@ -380,7 +382,7 @@ struct mesh
             evolve_step(base_idx, in_idx, out_idx);
         };
 
-        int iterations = 3;
+        int iterations = 2;
 
         for(int i=0; i < iterations; i++)
         {
@@ -401,6 +403,16 @@ struct mesh
     }
 };
 
+float get_timestep(float simulation_width, t3i size)
+{
+    //float timestep_at_base_c = 0.035;
+
+    float ratio_at_base = 30.f/255.f;
+    float new_ratio = simulation_width / size.x();
+
+    return 0.035f * (new_ratio / ratio_at_base);
+}
+
 int main()
 {
     render_settings sett;
@@ -419,7 +431,7 @@ int main()
     cl::context& ctx = win.clctx->ctx;
     std::cout << cl::get_extensions(ctx) << std::endl;
 
-    t3i dim = {213, 213, 213};
+    t3i dim = {255, 255, 255};
 
     {
         auto make_and_register = [&](const std::string& str)
@@ -502,7 +514,7 @@ int main()
 
     float elapsed_t = 0;
     //float timestep = 0.001f;
-    float timestep = 0.03;
+    float timestep = get_timestep(simulation_width, dim);
     bool step = false;
     bool running = false;
 

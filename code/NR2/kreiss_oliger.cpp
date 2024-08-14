@@ -38,7 +38,7 @@ valuef kreiss_oliger_interior(valuef in, valuef scale, int order)
 
     float prefix = (float)sign / divisor;
 
-    return (prefix / scale) * val;
+    return (prefix) * val;
 }
 
 valuei distance_to_boundary(v3i pos, v3i dim)
@@ -92,7 +92,7 @@ std::string make_kreiss_oliger()
 
         auto do_kreiss = [&](int order)
         {
-            as_ref(out[lid]) = in[lid] + eps.get() * timestep.get() * kreiss_oliger_interior(in[pos, dim], scale.get(), order) * max(W[lid], valuef(0.25f));
+            as_ref(out[lid]) = in[lid] + eps.get() * kreiss_oliger_interior(in[pos, dim], scale.get(), order) * max(W[lid], valuef(0.3));
         };
 
         if_e(boundary_distance == 1, [&]{

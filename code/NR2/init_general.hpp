@@ -293,6 +293,10 @@ struct initial_conditions
                 valuef Ys = uyp1 + uym1;
                 valuef Zs = uzp1 + uzm1;
 
+                pin(Xs);
+                pin(Ys);
+                pin(Zs);
+
                 valuef u0n1 = (1/6.f) * (Xs + Ys + Zs - h2f0);
 
                 valuef u = inout[pos, dim];
@@ -307,7 +311,7 @@ struct initial_conditions
 
                 as_ref(inout[lid]) = mix(u, u0n1, relax.get());
 
-                valuef etol = 1e-9f;
+                valuef etol = 1e-8f;
 
                 if_e(fabs(u0n1 - u) > etol, [&]{
                     still_going.atom_xchg_e(valuei(0), valuei(1));
