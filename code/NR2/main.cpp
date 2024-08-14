@@ -107,7 +107,7 @@ struct mesh
 
         sommerfeld_length = boundary.size();
 
-        std::vector<cl_int3> evolve;
+        std::vector<cl_short3> evolve;
 
         for(int z=0; z < dim.z(); z++)
         {
@@ -128,7 +128,7 @@ struct mesh
             return std::tie(p1.s[2], p1.s[1], p1.s[0]) < std::tie(p2.s[2], p2.s[1], p2.s[0]);
         });
 
-        evolve_points.alloc(sizeof(cl_int3) * evolve.size());
+        evolve_points.alloc(sizeof(cl_short3) * evolve.size());
         evolve_points.write(cqueue, evolve);
 
         evolve_length = evolve.size();

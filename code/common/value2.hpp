@@ -1596,6 +1596,15 @@ namespace value_impl
         else if constexpr(std::is_same_v<T, tensor<value<unsigned short>, 2>>)
             return "ushort2";
 
+        else if constexpr(std::is_same_v<T, tensor<value<short>, 4>>)
+            return "short4";
+
+        else if constexpr(std::is_same_v<T, tensor<value<short>, 3>>)
+            return "short3";
+
+        else if constexpr(std::is_same_v<T, tensor<value<short>, 2>>)
+            return "short2";
+
         else if constexpr(std::is_same_v<T, tensor<value<float16>, 4>>)
             return "half4";
 
@@ -1631,6 +1640,15 @@ namespace value_impl
 
         else if constexpr(std::is_same_v<T, tensor<unsigned short, 2>>)
             return "ushort2";
+
+        else if constexpr(std::is_same_v<T, tensor<short, 4>>)
+            return "short4";
+
+        else if constexpr(std::is_same_v<T, tensor<short, 3>>)
+            return "short3";
+
+        else if constexpr(std::is_same_v<T, tensor<short, 2>>)
+            return "short2";
 
         else if constexpr(std::is_same_v<T, tensor<float16, 4>>)
             return "half4";

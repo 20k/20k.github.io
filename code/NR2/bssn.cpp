@@ -982,7 +982,7 @@ std::string make_bssn(const tensor<int, 3>& idim)
                                                  literal<valuef> scale,
                                                  literal<valuef> total_elapsed,
                                                  literal<v3i> idim,
-                                                 buffer<v3i> positions,
+                                                 buffer<tensor<value<short>, 3>> positions,
                                                  literal<valuei> positions_length) {
         using namespace single_source;
 
@@ -1009,7 +1009,7 @@ std::string make_bssn(const tensor<int, 3>& idim)
             return_e();
         });
 
-        v3i pos = positions[lid];
+        v3i pos = (v3i)positions[lid];
 
         pin(pos);
 
