@@ -35,7 +35,10 @@ struct mesh
     cl_int sommerfeld_length = 0;
     float total_elapsed = 0;
 
-    mesh(cl::context& ctx, t3i _dim) : buffers{ctx, ctx, ctx}, temporary_buffer(ctx), temporary_single(ctx), sommerfeld_points(ctx)
+    cl::buffer evolve_points;
+    cl_int evolve_length;
+
+    mesh(cl::context& ctx, t3i _dim) : buffers{ctx, ctx, ctx}, temporary_buffer(ctx), temporary_single(ctx), sommerfeld_points(ctx), evolve_points(ctx)
     {
         dim = _dim;
     }
@@ -103,6 +106,32 @@ struct mesh
         sommerfeld_points.write(cqueue, boundary);
 
         sommerfeld_length = boundary.size();
+
+        std::vector<cl_int3> evolve;
+
+        for(int z=0; z < dim.z(); z++)
+        {
+            for(int y=0; y < dim.y(); y++)
+            {
+                for(int x=0; x < dim.x(); x++)
+                {
+                    if(x > 1 && x < dim.x() - 2 && y > 1 && y < dim.y() - 2 && z > 1 && z < dim.z() - 2)
+                    {
+                        evolve.push_back({x, y, z});
+                    }
+                }
+            }
+        }
+
+        std::sort(evolve.begin(), evolve.end(), [](auto p1, auto p2)
+        {
+            return std::tie(p1.s[2], p1.s[1], p1.s[0]) < std::tie(p2.s[2], p2.s[1], p2.s[0]);
+        });
+
+        evolve_points.alloc(sizeof(cl_int3) * evolve.size());
+        evolve_points.write(cqueue, evolve);
+
+        evolve_length = evolve.size();
     }
 
     void init(float simulation_width, cl::context& ctx, cl::command_queue& cqueue)
@@ -288,8 +317,10 @@ struct mesh
             args.push_back(scale);
             args.push_back(total_elapsed);
             args.push_back(dim);
+            args.push_back(evolve_points);
+            args.push_back(evolve_length);
 
-            cqueue.exec("evolve", args, {dim.x()*dim.y()*dim.z()}, {128});
+            cqueue.exec("evolve", args, {evolve_length}, {128});
         };
 
         auto sommerfeld_buffer = [&](cl::buffer base, cl::buffer in, cl::buffer out, float asym, float wave_speed)

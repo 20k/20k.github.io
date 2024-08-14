@@ -981,7 +981,9 @@ std::string make_bssn(const tensor<int, 3>& idim)
                                                  literal<v3i> ldim,
                                                  literal<valuef> scale,
                                                  literal<valuef> total_elapsed,
-                                                 literal<v3i> idim) {
+                                                 literal<v3i> idim,
+                                                 buffer<v3i> positions,
+                                                 literal<valuei> positions_length) {
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);
@@ -990,17 +992,26 @@ std::string make_bssn(const tensor<int, 3>& idim)
 
         v3i dim = idim.get();
 
-        if_e(lid >= dim.x() * dim.y() * dim.z(), [&] {
+        /*if_e(lid >= dim.x() * dim.y() * dim.z(), [&] {
             return_e();
         });
 
         v3i pos = get_coordinate(lid, dim);
 
+        ///i think this early return is the problem
         if_e(pos.x() <= 1 || pos.x() >= dim.x() - 2 ||
              pos.y() <= 1 || pos.y() >= dim.y() - 2 ||
              pos.z() <= 1 || pos.z() >= dim.z() - 2, [&] {
             return_e();
+        });*/
+
+        if_e(lid >= positions_length.get(), []{
+            return_e();
         });
+
+        v3i pos = positions[lid];
+
+        pin(pos);
 
         bssn_args args(pos, dim, in);
         bssn_derivatives derivs(pos, dim, derivatives);
@@ -1025,23 +1036,23 @@ std::string make_bssn(const tensor<int, 3>& idim)
         {
             tensor<int, 2> idx = index_table[i];
 
-            as_ref(out.cA[i][lid]) = apply_evolution(base.cA[i][lid], dtcA[idx.x(), idx.y()], timestep.get());
+            as_ref(out.cA[i][pos, dim]) = apply_evolution(base.cA[i][pos, dim], dtcA[idx.x(), idx.y()], timestep.get());
         }
 
         valuef dtW = get_dtW(args, derivs, d);
-        as_ref(out.W[lid]) = apply_evolution(base.W[lid], dtW, timestep.get());
+        as_ref(out.W[pos, dim]) = apply_evolution(base.W[pos, dim], dtW, timestep.get());
 
         valuef dtK = get_dtK(args, derivs, d);
-        as_ref(out.K[lid]) = apply_evolution(base.K[lid], dtK, timestep.get());
+        as_ref(out.K[pos, dim]) = apply_evolution(base.K[pos, dim], dtK, timestep.get());
 
         valuef dtgA = get_dtgA(args, derivs, d, total_elapsed.get());
-        as_ref(out.gA[lid]) = clamp(apply_evolution(base.gA[lid], dtgA, timestep.get()), valuef(0.f), valuef(1.f));
+        as_ref(out.gA[pos, dim]) = clamp(apply_evolution(base.gA[pos, dim], dtgA, timestep.get()), valuef(0.f), valuef(1.f));
 
         auto dtgB = get_dtgB(args, derivs, d);
 
         for(int i=0; i < 3; i++)
         {
-            as_ref(out.gB[i][lid]) = apply_evolution(base.gB[i][lid], dtgB[i], timestep.get());
+            as_ref(out.gB[i][pos, dim]) = apply_evolution(base.gB[i][pos, dim], dtgB[i], timestep.get());
         }
 
         auto dtcY = get_dtcY(args, derivs, d);
@@ -1050,14 +1061,14 @@ std::string make_bssn(const tensor<int, 3>& idim)
         {
             tensor<int, 2> idx = index_table[i];
 
-            as_ref(out.cY[i][lid]) = apply_evolution(base.cY[i][lid], dtcY[idx.x(), idx.y()], timestep.get());
+            as_ref(out.cY[i][pos, dim]) = apply_evolution(base.cY[i][pos, dim], dtcY[idx.x(), idx.y()], timestep.get());
         }
 
         auto dtcG = get_dtcG(args, derivs, d);
 
         for(int i=0; i < 3; i++)
         {
-            as_ref(out.cG[i][lid]) = apply_evolution(base.cG[i][lid], dtcG[i], timestep.get());
+            as_ref(out.cG[i][pos, dim]) = apply_evolution(base.cG[i][pos, dim], dtcG[i], timestep.get());
         }
 
         /*if_e(pos.x() == 2 && pos.y() == 128 && pos.z() == 128, [&]{
