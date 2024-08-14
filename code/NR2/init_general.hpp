@@ -311,7 +311,7 @@ struct initial_conditions
 
                 as_ref(inout[lid]) = mix(u, u0n1, relax.get());
 
-                valuef etol = 1e-8f;
+                valuef etol = 1e-7f;
 
                 if_e(fabs(u0n1 - u) > etol, [&]{
                     still_going.atom_xchg_e(valuei(0), valuei(1));

@@ -56,7 +56,7 @@ struct mesh
         for(int i=0; i < 3; i++)
         {
             cl::buffer buf(ctx);
-            buf.alloc(sizeof(cl_float) * int64_t{dim.x()} * dim.y() * dim.z());
+            //buf.alloc(sizeof(cl_float) * int64_t{dim.x()} * dim.y() * dim.z());
 
             momentum_constraint.push_back(buf);
         }
@@ -73,8 +73,8 @@ struct mesh
             derivatives.push_back(buf);
         }
 
-        temporary_buffer.alloc(sizeof(cl_float) * uint64_t{dim.x()} * dim.y() * dim.z());
-        temporary_single.alloc(sizeof(cl_ulong));
+        //temporary_buffer.alloc(sizeof(cl_float) * uint64_t{dim.x()} * dim.y() * dim.z());
+        //temporary_single.alloc(sizeof(cl_ulong));
 
         std::vector<cl_int3> boundary;
 
@@ -91,6 +91,8 @@ struct mesh
                 }
             }
         }
+
+        std::cout << "BCOUNT " << boundary.size() << std::endl;
 
         std::sort(boundary.begin(), boundary.end(), [](auto p1, auto p2)
         {
@@ -124,8 +126,8 @@ struct mesh
             init.build(ctx, cqueue, simulation_width, buffers[0]);
         }
 
-        temporary_buffer.set_to_zero(cqueue);
-        temporary_single.set_to_zero(cqueue);
+        //temporary_buffer.set_to_zero(cqueue);
+        //temporary_single.set_to_zero(cqueue);
     }
 
     void step(cl::context& ctx, cl::command_queue& cqueue, float timestep, float simulation_width)
@@ -149,7 +151,7 @@ struct mesh
 
             for(int i=0; i < (int)linear_base.size(); i++)
             {
-                float eps = 0.025f;
+                float eps = 0.02f;
 
                 cl::args args;
                 args.push_back(linear_base.at(i));
@@ -285,6 +287,7 @@ struct mesh
             args.push_back(dim);
             args.push_back(scale);
             args.push_back(total_elapsed);
+            args.push_back(dim);
 
             cqueue.exec("evolve", args, {dim.x()*dim.y()*dim.z()}, {128});
         };
@@ -368,6 +371,8 @@ struct mesh
                 }
             }
 
+            cqueue.block();
+
             //#define CALCULATE_CONSTRAINT_ERRORS
             #ifdef CALCULATE_CONSTRAINT_ERRORS
             if(iteration == 0)
@@ -380,6 +385,8 @@ struct mesh
             #endif
 
             evolve_step(base_idx, in_idx, out_idx);
+
+            cqueue.block();
         };
 
         int iterations = 2;
@@ -565,7 +572,7 @@ int main()
         if(step)
             m.step(ctx, cqueue, timestep, simulation_width);
 
-        {
+        /*{
             float scale = get_scale(simulation_width, dim);
 
             cl::args args;
@@ -575,7 +582,7 @@ int main()
             args.push_back(rtex);
 
             cqueue.exec("debug", args, {dim.x() * dim.y() * dim.z()}, {128});
-        }
+        }*/
 
         rtex.unacquire(cqueue);
 
@@ -583,7 +590,7 @@ int main()
 
         win.display();
 
-        //std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
+        std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
 
         if(step)
             elapsed_t += timestep;

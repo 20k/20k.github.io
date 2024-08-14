@@ -504,7 +504,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
                 sum += 0.5f * (args.cY[k, i] * cD[k, j] + args.cY[k, j] * cD[k, i]);
             }
 
-            float cK = -0.065f;
+            float cK = -0.1f;
 
             dtcY.idx(i, j) += cK * args.gA * sum;
         }
@@ -972,7 +972,7 @@ std::string make_momentum_constraint()
 ///https://arxiv.org/pdf/0709.3559 tested, appendix a.2
 std::string make_bssn(const tensor<int, 3>& idim)
 {
-    auto bssn_function = [&](execution_context&, bssn_args_mem<buffer<valuef>> base,
+    auto bssn_function = [](execution_context&, bssn_args_mem<buffer<valuef>> base,
                                                  bssn_args_mem<buffer<valuef>> in,
                                                  bssn_args_mem<buffer_mut<valuef>> out,
                                                  bssn_derivatives_mem<buffer<derivative_t>> derivatives,
@@ -980,14 +980,15 @@ std::string make_bssn(const tensor<int, 3>& idim)
                                                  literal<valuef> timestep,
                                                  literal<v3i> ldim,
                                                  literal<valuef> scale,
-                                                 literal<valuef> total_elapsed) {
+                                                 literal<valuef> total_elapsed,
+                                                 literal<v3i> idim) {
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);
 
         pin(lid);
 
-        v3i dim = {idim.x(), idim.y(), idim.z()};
+        v3i dim = idim.get();
 
         if_e(lid >= dim.x() * dim.y() * dim.z(), [&] {
             return_e();
