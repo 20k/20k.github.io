@@ -23,6 +23,8 @@ valuef diff2nd(const valuef& in, int idx);
 valuef diff4th(const valuef& in, int idx);
 //6th derivative with second order accuracy
 valuef diff6th(const valuef& in, int idx);
+valuef diff8th(const valuef& in, int idx);
+valuef diff10th(const valuef& in, int idx);
 
 valuef diff1_boundary(single_source::buffer<valuef> in, int direction, const valuef& scale, v3i pos, v3i dim);
 

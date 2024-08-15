@@ -5,14 +5,14 @@
 #include "derivatives.hpp"
 #include "bssn.hpp"
 
-valuef diffnth(const valuef& in, int idx, valuei n)
+/*valuef diffnth(const valuef& in, int idx, valuei n)
 {
     valuef v2 = diff2nd(in, idx);
     valuef v4 = diff4th(in, idx);
     valuef v6 = diff6th(in, idx);
 
     return ternary(n == 6, v6, ternary(n == 4, v4, v2));
-}
+}*/
 
 valuef kreiss_oliger_interior(valuef in, valuef scale, int order)
 {
@@ -27,6 +27,10 @@ valuef kreiss_oliger_interior(valuef in, valuef scale, int order)
             val += diff4th(in, i);
         if(order == 6)
             val += diff6th(in, i);
+        if(order == 8)
+            val += diff8th(in, i);
+        if(order == 10)
+            val += diff10th(in, i);
     }
 
     int n = order;
@@ -45,7 +49,22 @@ valuei distance_to_boundary(v3i pos, v3i dim)
 {
     using namespace single_source;
 
-    mut<valuei> out = declare_mut_e(valuei(3));
+    mut<valuei> out = declare_mut_e(valuei(6));
+
+    if_e(pos.x() == 6 || pos.y() == 6 || pos.z() == 6
+         || pos.x() == dim.x() - 7 || pos.y() == dim.y() - 7 || pos.z() == dim.z() - 7, [&] {
+        as_ref(out) = valuei(5);
+    });
+
+    if_e(pos.x() == 5 || pos.y() == 5 || pos.z() == 5
+         || pos.x() == dim.x() - 6 || pos.y() == dim.y() - 6 || pos.z() == dim.z() - 6, [&] {
+        as_ref(out) = valuei(4);
+    });
+
+    if_e(pos.x() == 4 || pos.y() == 4 || pos.z() == 4
+         || pos.x() == dim.x() - 5 || pos.y() == dim.y() - 5 || pos.z() == dim.z() - 5, [&] {
+        as_ref(out) = valuei(3);
+    });
 
     if_e(pos.x() == 3 || pos.y() == 3 || pos.z() == 3
          || pos.x() == dim.x() - 4 || pos.y() == dim.y() - 4 || pos.z() == dim.z() - 4, [&] {
@@ -105,6 +124,14 @@ std::string make_kreiss_oliger()
 
         if_e(boundary_distance == 3, [&]{
             do_kreiss(6);
+        });
+
+        if_e(boundary_distance == 4, [&]{
+            do_kreiss(8);
+        });
+
+        if_e(boundary_distance >= 5, [&]{
+            do_kreiss(10);
         });
 
         /*if_e(pos.x() == 2 && pos.y() == 128 && pos.z() == 128, [&]{

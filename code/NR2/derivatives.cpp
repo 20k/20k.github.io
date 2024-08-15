@@ -137,6 +137,33 @@ valuef diff6th(const valuef& in, int idx)
     return p1 + p2 + p3 + p4;
 }
 
+valuef diff8th(const valuef& in, int idx)
+{
+    auto vars = get_differentiation_variables<9>(in, idx);
+
+    valuef p1 = vars[0] + vars[8];
+    valuef p2 = -8.f * vars[1] - 8.f * vars[7];
+    valuef p3 = 28.f * vars[2] + 28.f * vars[6];
+    valuef p4 = -56.f * vars[3] - 56.f * vars[5];
+    valuef p5 = 70.f * vars[4];
+
+    return p1 + p2 + p3 + p4 + p5;
+}
+
+valuef diff10th(const valuef& in, int idx)
+{
+    auto vars = get_differentiation_variables<11>(in, idx);
+
+    valuef p1 = vars[0] + vars[10];
+    valuef p2 = -10.f * vars[1] - 10.f * vars[9];
+    valuef p3 = 45.f * vars[2] + 45.f * vars[8];
+    valuef p4 = -120.f * vars[3] - 120.f * vars[7];
+    valuef p5 = 210.f * vars[4] + 210.f * vars[6];
+    valuef p6 = -252.f * vars[5];
+
+    return p1 + p2 + p3 + p4 + p5 + p6;
+}
+
 valuef diff1_boundary(single_source::buffer<valuef> in, int direction, const valuef& scale, v3i pos, v3i dim)
 {
     using namespace single_source;
