@@ -180,7 +180,7 @@ struct mesh
 
             for(int i=0; i < (int)linear_base.size(); i++)
             {
-                float eps = 0.015f;
+                float eps = 0.03f;
 
                 cl::args args;
                 args.push_back(linear_base.at(i));
@@ -469,7 +469,7 @@ int main()
     cl::context& ctx = win.clctx->ctx;
     std::cout << cl::get_extensions(ctx) << std::endl;
 
-    t3i dim = {299, 299, 299};
+    t3i dim = {213, 213, 213};
 
     {
         auto make_and_register = [&](const std::string& str)
