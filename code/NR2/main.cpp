@@ -59,7 +59,7 @@ struct mesh
         for(int i=0; i < 3; i++)
         {
             cl::buffer buf(ctx);
-            //buf.alloc(sizeof(cl_float) * int64_t{dim.x()} * dim.y() * dim.z());
+            buf.alloc(sizeof(cl_float) * int64_t{dim.x()} * dim.y() * dim.z());
 
             momentum_constraint.push_back(buf);
         }
@@ -180,7 +180,7 @@ struct mesh
 
             for(int i=0; i < (int)linear_base.size(); i++)
             {
-                float eps = 0.02f;
+                float eps = 0.015f;
 
                 cl::args args;
                 args.push_back(linear_base.at(i));
@@ -469,7 +469,7 @@ int main()
     cl::context& ctx = win.clctx->ctx;
     std::cout << cl::get_extensions(ctx) << std::endl;
 
-    t3i dim = {255, 255, 255};
+    t3i dim = {299, 299, 299};
 
     {
         auto make_and_register = [&](const std::string& str)
@@ -603,7 +603,7 @@ int main()
         if(step)
             m.step(ctx, cqueue, timestep, simulation_width);
 
-        /*{
+        {
             float scale = get_scale(simulation_width, dim);
 
             cl::args args;
@@ -613,7 +613,7 @@ int main()
             args.push_back(rtex);
 
             cqueue.exec("debug", args, {dim.x() * dim.y() * dim.z()}, {128});
-        }*/
+        }
 
         rtex.unacquire(cqueue);
 
