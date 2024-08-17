@@ -21,6 +21,6 @@ struct black_hole_params
     tensor<float, 3> angular_momentum = {0,0,0};
 };
 
-black_hole_data init_black_hole(cl::context& ctx, cl::command_queue& cqueue, const black_hole_params& params, tensor<int, 3> dim, float scale);
+black_hole_data init_black_hole(cl::context& ctx, cl::command_queue& cqueue, black_hole_params params, tensor<int, 3> dim, float scale);
 
 #endif // INIT_BLACK_HOLE_HPP_INCLUDED

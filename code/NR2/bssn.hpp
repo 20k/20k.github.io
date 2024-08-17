@@ -255,6 +255,15 @@ tensor<T, 3> grid_to_world(const tensor<T, 3>& pos, const tensor<V, 3>& dim, con
     return diff * scale;
 }
 
+template<typename T, typename U, typename V>
+inline
+tensor<T, 3> world_to_grid(const tensor<T, 3>& pos, const tensor<V, 3>& dim, const U& scale)
+{
+    tensor<T, 3> centre = (tensor<T, 3>{(T)dim.x(), (T)dim.y(), (T)dim.z()} - 1) / 2;
+
+    return (pos / scale) + centre;
+}
+
 template<typename T>
 inline
 std::array<T, 6> extract_symmetry(const tensor<T, 3, 3>& in)

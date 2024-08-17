@@ -102,10 +102,16 @@ cl::buffer discretise(cl::context& ctx, cl::command_queue& cqueue, Func&& func, 
     return buf;
 }
 
-black_hole_data init_black_hole(cl::context& ctx, cl::command_queue& cqueue, const black_hole_params& params, tensor<int, 3> dim, float scale)
+black_hole_data init_black_hole(cl::context& ctx, cl::command_queue& cqueue, black_hole_params params, tensor<int, 3> dim, float scale)
 {
     black_hole_data dat(ctx);
     tensor<int, 2> index_table[6] = {{0, 0}, {0, 1}, {0, 2}, {1, 1}, {1, 2}, {2, 2}};
+
+    auto grid_pos = world_to_grid(params.position, dim, scale);
+
+    std::cout << "w2g " << grid_pos[0] << " " << grid_pos[1] << " " << grid_pos[2] << std::endl;
+
+    params.position = grid_to_world(round(world_to_grid(params.position, dim, scale)), dim, scale);
 
     for(int i=0; i < 6; i++)
     {
@@ -113,7 +119,17 @@ black_hole_data init_black_hole(cl::context& ctx, cl::command_queue& cqueue, con
 
         auto func = [&](v3i pos)
         {
+            using namespace single_source;
+
             v3f world_pos = grid_to_world((v3f)pos, dim, scale);
+
+            /*if_e(pos.x() == 106 && pos.y() == 106 && pos.z() == 106, [&]{
+                value_base se;
+                se.type = value_impl::op::SIDE_EFFECT;
+                se.abstract_value = "printf(\"K: %i %i %i %f %f %f\\n\"," + value_to_string(pos.x()) + "," + value_to_string(pos.y()) + "," + value_to_string(pos.z()) + "," + value_to_string(world_pos.x()) + "," + value_to_string(world_pos.y()) + "," + value_to_string(world_pos.z()) + ")";
+
+                value_impl::get_context().add(se);
+            });*/
 
             tensor<valuef, 3, 3> aij = get_aIJ(world_pos, (v3f)params.position, (v3f)params.angular_momentum, (v3f)params.linear_momentum);
 
