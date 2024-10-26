@@ -10,6 +10,7 @@
 #include "kreiss_oliger.hpp"
 #include "init_black_hole.hpp"
 #include "init_general.hpp"
+#include <thread>
 
 using t3i = tensor<int, 3>;
 
@@ -471,7 +472,11 @@ int main()
 
     t3i dim = {213, 213, 213};
 
+    steady_timer btime;
+
     {
+        std::vector<std::jthread> threads;
+
         auto make_and_register = [&](const std::string& str)
         {
             cl::program p1(ctx, str, false);
@@ -480,38 +485,30 @@ int main()
             ctx.register_program(p1);
         };
 
-        printf("derivs\n");
-        make_and_register(make_derivatives());
-        printf("bssn\n");
-        make_and_register(make_bssn(dim));
-        printf("init\n");
-        make_and_register(make_initial_conditions());
-        printf("christoffel\n");
-        make_and_register(init_christoffel());
-        printf("debugging");
-        make_and_register(init_debugging());
-        printf("momentum\n");
-        make_and_register(make_momentum_constraint());
-        printf("kreiss\n");
-        make_and_register(make_kreiss_oliger());
-        printf("hamil\n");
-        make_and_register(make_hamiltonian_error());
-        printf("globalsum\n");
-        make_and_register(make_global_sum());
-        printf("momentum\n");
-        make_and_register(make_momentum_error(0));
-        make_and_register(make_momentum_error(1));
-        make_and_register(make_momentum_error(2));
-        printf("cG\n");
-        make_and_register(make_cG_error(0));
-        make_and_register(make_cG_error(1));
-        make_and_register(make_cG_error(2));
-        printf("algebra\n");
-        make_and_register(enforce_algebraic_constraints());
-        printf("sommer\n");
-        make_and_register(make_sommerfeld());
-        printf("done\n");
+        #define THREAD(x) threads.emplace_back([&](){make_and_register(x); printf("Buildy " #x "\n");});
+
+        THREAD(make_derivatives());
+        THREAD(make_bssn(dim));
+        THREAD(make_initial_conditions());
+        THREAD(init_christoffel());
+        THREAD(init_debugging());
+        THREAD(make_momentum_constraint());
+        THREAD(make_kreiss_oliger());
+        THREAD(make_hamiltonian_error());
+        THREAD(make_global_sum());
+        THREAD(make_momentum_error(0));
+        THREAD(make_momentum_error(1));
+        THREAD(make_momentum_error(2));
+        THREAD(make_cG_error(0));
+        THREAD(make_cG_error(1));
+        THREAD(make_cG_error(2));
+        THREAD(enforce_algebraic_constraints());
+        THREAD(make_sommerfeld());
     }
+
+    std::cout << "Btime " << btime.get_elapsed_time_s() << std::endl;
+
+    printf("Built kernels\n");
 
     cl::command_queue cqueue(ctx);
 
