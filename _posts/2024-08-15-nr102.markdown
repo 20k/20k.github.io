@@ -5,7 +5,7 @@ date:   2024-08-15 12:33:23 +0000
 categories: C++
 ---
 
-Hello! Today we're going to do one of the coolest things in all of physics in my opinion, which is simulating the collision of two black holes. Last time round, we implemented most of what we'll need to implement this, so today's job is to capitalise on that and finally smash some black holes together
+Hello! Today we're going to do one of the coolest things in all of physics in my opinion, which is simulating the collision of two black holes. Last time round, we implemented most of what we'll need to simulate this, so today's job is to capitalise on that and finally smash some black holes together
 
 The complicated part of this article is going to be the initial conditions, which means that most of this article is actually going to be how to solve Laplacians quickly on a GPU
 
@@ -13,7 +13,9 @@ The complicated part of this article is going to be the initial conditions, whic
 
 Its worth understanding for this article what we're actually trying to simulate. A black hole is an object that is so dense that light can't escape - once this happens, nothing that prevent all the matter that made up the precursor object from reaching the singularity
 
-Eg, consider a star collapsing into a black hole. All the matter essentially shrinks to a point (or, in the case of a spinning black hole: a ring) past the event horizon, until it reaches a singularity. In pure general relativity, this singularity is inevitable, and all the black holes we're dealing with today will always contain a singularity. Its also true that the singularity is - mathematically - very poorly behaved and by definition causes all the maths to explode. This makes simulating it a bit tricky. There are two approaches to handling this
+Eg, consider a star collapsing into a black hole. All the matter essentially shrinks to a point (or, in the case of a spinning black hole: a ring) past the event horizon, until it reaches a singularity. In pure general relativity, this singularity is (essentially^[essentially]) inevitable, and all the black holes we're dealing with today will always contain a singularity. Its also true that the singularity is - mathematically - very poorly behaved and by definition causes all the maths to explode. This makes simulating it a bit tricky. There are two approaches to handling this
+
+[^essentially]: There's some debate around if you could construct an astrophysical black hole which has no singularity, likely containing negative energy
 
 ## Excision
 
@@ -23,9 +25,11 @@ This also directly leads to one of my favourite papers, the turducken, where you
 
 ## Moving punctures
 
-This is the technique we'll actually be using, and involves a bit of trickery. In the ADM formalism, the gauge conditions define the coordinate system of what you're working with. So the trick is to make sure that the coordinates never actually meet the singularity, and its treated as a puncture/hole in your simulation grid. This puncture is able to move around with the correct gauge conditions, and so we have a singularity that is never actually quite reprsented
+This is the technique we'll actually be using, and involves a bit of trickery. In the ADM formalism, the gauge conditions define the coordinate system of what you're working with. So the trick is to make sure that the coordinates never actually meet the singularity, and it is treated as a puncture/hole in your simulation grid. This puncture is able to move around with the correct gauge conditions, and so we have a singularity that is never actually quite represented. In moving punctures, the entire simulation domain is actively simulated, unlike with excision where a portion of it is not
 
 In practice, its a lot trickier than this, and I personally have some skepticism that that's actually what's happening. I'm going to keep the crackpot conspiracy theories to the end of this article
+
+Notably, as the singularity represents a true discontinuity, differentiating across it is technically incorrect. This method relies on the event horizon containing errors causally
 
 ## Circular Orbits
 
@@ -37,7 +41,7 @@ Unfortunately, this turned out not to be the case, and it appears that there is 
 
 With the assumption of circular orbits, equal mass/spin binaries, and the black hole spin being aligned with the plane of the orbit, you can use octant symmetry - ie your simulation is fully symmetric and can be chopped into 8 chunks, with only one of the chunks actually being simulated
 
-Personally I'm interested in a very general simulator which can handle anything, so we're going to avoid this octant symmetry reduction - but given its prevalence in the literature, its worth mentioning here
+Personally I'm interested in a very general simulator which can handle anything, so we're going to avoid this octant symmetry reduction - but given its prevalence in the literature, its worth mentioning here. For equal mass binaries, this would be a flat 8x speedup, so its definitely worth investigating for lower end hardware
 
 ## Gravitational waves
 
@@ -61,7 +65,7 @@ Traditional simulations in this area can take weeks to months, which you'll be g
 
 # What's the plan?
 
-We need a few things to get this to work
+We need a few things to get this to work:
 
 1. A new set of initial conditions
 2. New boundary conditions
@@ -104,7 +108,7 @@ $P_i$: A 3-vector, the momentum vector of each black hole
 $S_i$: A 3-vector the spin (angular momentum) of each black hole
 $x_i$ the position of a black hole
 
-I'm labelling the properties of each black hole by its index $i$
+I'm labelling the properties of each black hole by its index $i$, eg $P_0$ is the first black hole's momentum vector
 
 Note that bare mass is not the same thing as mass (here: ADM mass), it only correlates to it. A black hole's spin contributes to its mass as well. On top of this, in the general case, the mass of a black hole in a binary pair is of questionable physicalness: see the end of this article for more details
 
@@ -131,7 +135,7 @@ $r$ is the distance in world coordinates (ie not grid coordinates) of the coordi
 
 $n$ is a normal vector, which is calculated as follows: $n^i = x^i/r$, and points away from the black hole in question
 
-If you have no plans to ever work in non cartesian coordinate systems (which we don't), the metric tensor is the identity matrix
+If you have no plans to ever work in non cartesian coordinate systems (which we don't), the metric tensor is the identity matrix, and you can ignore the index positions
 
 Next up: We need the conformal factor $\psi$, which involves calculating the correction $u$
 
@@ -216,7 +220,7 @@ For us, $F(u) = -\frac{1}{8} \alpha^7 \bar{A}^{ab} \bar{A}_{ab} (1 + \alpha u)^{
 As a basic idea, this works, and is implementable. This is the form I used for a very long time: you just iterate the above equation until the change in $u$ is sufficiently small. There are two main issues:
 
 1. It can be numerically unstable, particularly for spinning black holes
-2. It isn't amazingly fast, it can take ~10s or so in some cases
+2. It isn't amazingly fast, it can take ~10s or so in some cases, which is still pretty fast
 
 The first is solved by relaxation: Ie taking our old guess, and our new guess, and taking some fraction between the two: `mix(u, nextu, 0.9)`. This unfortunately reduces the speed of convergence
 
@@ -244,7 +248,7 @@ The iteration scheme to use in 3d is as follows:
 
 Todo: code
 
-## Fininishing up
+## Finishing up
 
 After solving the laplacian, we have a value for $u$, which allows us to calculate $\psi$ directly. From here, we can calculate our ADM variables:
 
@@ -259,18 +263,20 @@ The ADM mass can be estimated via todo. If you need a specific ADM mass, iterate
 
 ### Gauge
 
-We still don't have an initial solution for our gauge variables however. Universally, $\beta^i = 0$. The lapse $\alpha$ is a tad more interesting - there are two main options:
+We still don't have an initial solution for our gauge variables however. Universally, $\beta^i = 0$. The lapse $\alpha$ is a tad more interesting - there are two[^twomain] main options:
 
 1. $\alpha = 1$
 2. $\alpha = \psi^{-2}$
 
-Both work well and are widely used. The latter is better for black holes, but I've found tends to lead to neutron stars exploding spectacularly. I'm going to use #2
+Both work well and are widely used. The latter is better for black holes, but I've found tends to lead to neutron stars exploding spectacularly. We're going to use #2 for this article, as we're strictly dealing with black holes
+
+[^twomain]: In general, these two options are the two simple options that work well, but there are a variety of alternatives
 
 # Boundary conditions
 
 https://arxiv.org/pdf/1503.03436 2.39
 
-Our data is no longer periodic, so we need a new set of boundary conditions. One of the simpler boundary conditions (that isn't terrible), is called the Sommerfeld boundary conditions. This radiaties away your data to the asymptotic value at the boundary. This is defined as:
+Our data is no longer periodic, so we need a new set of boundary conditions. The simplest good-enough boundary condition is called the Sommerfeld boundary conditions. This radiaties away your data to the asymptotic value at the boundary. This is defined as:
 
 $$\frac{\partial f}{\partial t} = -\frac{v x_i}{\partial x_i} - v \frac{f - f_0}{r}$$
 
@@ -278,11 +284,73 @@ $f$ is our value for whatever field we're radiating, $x_i$ is the cell's positio
 
 All waves have a speed of $1$, except for the gauge variables which have a speed of $\sqrt{2}$. Todo: Cite
 
-Other boundary conditions?
+## Other boundary conditions
 
-# Stability modifications
+There are alternatives to sommerfeld which I will mention in passing
 
-Rawr
+1. Fixing every field to its asymptotic value at the boundary, and not evolving it. This works if your boundary is far away (as spacetime is asmptotically flat), but requires a lot of extra simulation space
+2. Sponge constructions. This damps outgoing waves gradually. Its easy to implement, but the sponge area must be large enough to avoid reflections, which also requires a lot of extra simulation space
+3. Constraint preserving boundary conditions. These are the best and allow you to place the boundaries closest to your simulation area (as they introduce the least error), but are more complex to implement. Its on my infinitely long todo list, and there'll likely be an article on this in the future
+4. Hybrid schemes. Some schemes assume that $\beta^i = 0$ on the boundary, and evolve $\tilde{\gamma}_{ij}$ freely, then use traditional boundary conditions for the other variables. I've never tested this and have no information on the quality of the result, but it seems to work
+5. Compactification. This adjusts the coordinate system so that the grid represents the entire computational domain, and you have no boundary. This is nice theoretically, but in practice seems to be similar to a sponge construction
+
+As a general note, its very common to assume that the speed of the gauge waves is $1$, instead of $\sqrt{2}$
+
+# Modifying the equations
+
+We've now solved the initial conditions, and implemented our boundary conditions, so we just use our equations from the last article, and hit GO right?
+
+Unfortunately, the equations as-is cannot simulate binary black hole collisions, and we now enter a very murky area: Ad hoc modifying the equations, so that we can pull off these simulations correctly
+
+In addition to the 'usual' issues, we also suffer from a unique issue: Rather low grid resolution, as well as using 32-bit floats instead of 64-bit doubles. The latter is largely a non issue luckily, but does mean that we have much less leeway for evolution errors
+
+## What's wrong with the equations?
+
+It took a very *very* long time for the field to be able to successfully simulate binary black hole collisions, and even longer to do full circular orbits. There are a variety of issues here, which we'll now go over
+
+1. The gauge conditions resulted in coordinate system stretching, as well as the singularity blowing up in the moving punctures technique (well, before it was discovered)
+2. Momentum constraint errors
+3. Christoffel symbol constraint errors
+
+The structure of the equations we're using are already adapted to simulating binary black holes by design, but older sets of equations were numerically unstable for these problems
+
+### Gauge conditions
+
+The BSSN equations contain extra degrees of freedom, and one allowance you can make is setting the non gauge variable $K=0$. This is called maximal slicing. Maximal slicing defines a coordinate system that is known (todo: paper) to have singularity avoiding tendencies, and is a good candidate from preventing our equations from exploding due to the presence of a singularity
+
+Setting K=0 allows us to solve for the lapse via an elliptic equation derived from the <CHECKME> constraint. While elliptic equations are tricky to solve with any kind of efficiency, an approximate solution comes in the form of what is called the 1+log gauge - which is an approximate solution to the elliptic equation to drive K=0
+
+Todo: Equation
+
+Additionally, the shift is defined as such:
+
+Todo: Shift
+
+Todo: Explanation of the shift equation
+
+$N$ is a free parameter that represents damping: In general its set to $2$, but it can also take fairly arbitrary values from $1$ to $>10$, or even vary spatially or by time. This parameter has a heavy influence on the paths of the black holes
+
+Taken together, these two gauge conditions are called the moving puncture gauge, and are the standard choice for near equal mass binary black hole collisions
+
+### Momentum constraint errors
+
+These can be damped in exactly the same form as in the previous article, via:
+
+Todo: Equation
+
+Damping momentum constraint errors is less important for us. In an explicit integrator, high frequency oscillations due to the unstable nature of the oscillations tends to result in high frequency momentum constraint errors: Damping these improves the stability of the simulation. We run into that much less
+
+### Christoffel symbol errors
+
+The traditional damping scheme is as such:
+
+Todo: Code
+
+This is inadequate for us with our relatively low resolution, though it does improve stability
+
+## How do we actually fix the equations?
+
+This segment is going to be an absolute delight
 
 # Results
 
