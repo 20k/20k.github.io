@@ -284,6 +284,10 @@ $f$ is our value for whatever field we're radiating, $x_i$ is the cell's positio
 
 All waves have a speed of $1$, except for the gauge variables which have a speed of $\sqrt{2}$. Todo: Cite
 
+Note that in my experience, Sommerfeld boundary conditions tend to lead to a gradual increase in ADM mass over time, making it somewhat unsuitable for long lived sims
+
+Todo: Kreiss boundary
+
 ## Other boundary conditions
 
 There are alternatives to sommerfeld which I will mention in passing
@@ -346,16 +350,123 @@ The traditional damping scheme is as such:
 
 Todo: Code
 
-This is inadequate for us with our relatively low resolution, though it does improve stability
+## This doesn't work in practice
 
-## How do we actually fix the equations?
+These modifications would, in theory, work if you were using some kind of adaptive mesh refinement scheme with virtually unlimited accuracy. Unfortunately, the entire point of this article series is to try and do simulations a little faster than that, so instead of relying on more compute power to fix our problems, we need to attack the issues at a more fundamental level
 
-This segment is going to be an absolute delight
+## Lets reproduce a result
+
+Trying to simulate with the above set of modifications is not going to work, and instead today we're going to focus on trying to reproduce a specific result: todo. The no spin test case from this paper. By the end of this article, we will be close enough to demonstrate that the sim we've built isn't totally invalid
+
+In general, exactly reproducing other people's results is an absolute nightmare, and is virtually impossible in the general case. While it isn't hard to get close, the field has a strong issue with being underdocumented, and many of the larger simulators simply do not publish enough information to replicate their results. I also have some suspicions about the moving punctures technique, which we'll get into when its relevant
+
+I'm going to walk us through how to take our sim from self destructing immediately, to successfully completing over an orbit
+
+## First off, lets test the standard modifications
+
+With the above modifications enabled, our sim goes from blowing up immediately, to self destructing at T=whatever. We can see that it exhibits the following features: todo
+
+Experience tells me that the first problem to tackle is the christoffel symbol constraint
+
+### Christoffel symbol errors, round 2
+
+We're going to ditch the traditional christoffel symbol enforcement, and instead use two key other constraint handling techniques.
+
+The first comes from this paper:
+
+todo
+
+The second comes from this paper[^papersketch]:
+
+todo
+
+[^papersketch]: I have been unable to reproduce much of the improvements that the authors have claimed for some of their equations, and they do not in general seem applicable to us
+
+Running our code with both of these equations gets us a lot further:
+
+### The black hole inspiral ends too early
+
+We lose energy too quickly, as we can see that our black holes do not travel the requisite distance. There are a variety of possible issues here
+
+1. Constraint violations, and damping strength (including $N$ for the gauge damping parameter)
+2. Kreiss oliger dissipation strength
+3. Gauge condition issues
+
+For us, 2 and 3 are the problem. We're going to address kreiss-oliger in a slightly unusual way, and there's going to be a heavy tangent about kreiss oliger dissipation in general
+
+### Curvature adjusted kreiss-oliger dissipation (CAKO todo?)
+
+The basic idea here, the authors of this (todo) paper argue, is that sharp features near the event horizon of a black hole are natural. This makes a certain amount of sense, and after all - if we're trying to represent as much information on our grid as possible, removing high frequencies in high frequency areas seems like a prime candidate for wasting grid resolution
+
+To adjust this, the authors multiply the damping strength, by the parameter $W$, thus making the damping strength virtually 0 near the event horizon
+
+Testing this directly, we can see that our code immediately unconditionally blows up. It seems that for us, we do need some damping near the event horizon, and instead I alter the damping strength as follows:
+
+todo
+
+#### Kreiss oliger is a bit.. ill defined
+
+One of the difficulties with all of this is trying to prove that your code converges. The idea is, as your grid resolution goes up, your code should become more accurate
+
+The tricky part is that while we use scalar constants for damping factors, many of these factors are actually *not* grid resolution independent, and should really scale with some factor of the grid resolution
+
+Kreiss-oliger is something that stood out to me as a candidate for making convergence tricky. If we examine the specific form of kreiss oliger, you'll notice that for eg second order kreiss, the form is as such:
+
+todo
+
+This involves a single division by the scale. So as your grid resolution goes down, the prefix term blows up to infinity. What gives?
+
+#### Courant Factors
+
+If you're unfamiliar with the concept of a courant factor, the core concept is that the timestep of any simulation is limited by what's called a courant factor. It is essentially the statement that information can only propagate across your grid at a finite speed, and is mathematically defined as $\frac{\Delta t}{\Delta h} = C$. If you increase your timestep too high, you must have instability. Similarly, if you change your grid resolution, you must also change your timestep to match
+
+If you look, the prefix factor of kreiss-oliger *is* the courant factor, and is therefore a constant. It would certainly sound sensible to replace it with a constant, except...
+
+#### We don't have a courant factor
+
+I missed part of the definition of the courant factor explicitly, which is that it only applies to *explicit* integrators. Equations which are implicitly integrated do not have a courant factor, as they propagate information faster than with an explicit integrator. In fact, $\frac{\Delta t}{\Delta h}$ can be arbitrarily large, and is only limited by the convergence of your implicit integration technique. With an implicit integrator of sufficient quality, grid resolution, and timestep, are fully decoupled
+
+This raises a tricky question: If we change the size of our grid resolution to being infinitely small, our timestep doesn't necessarily have to change beyond practical convergence limitations. This means that kreiss oliger is somewhat ill defined for us, as there's no reason that the prefix term is fixed to anything useful
+
+To work around these, we're going to set it to a constant, and emulate having a courant factor by calculating our timestep as if we had one. Bear in mind that this is fairly arbitrary, and I suspect is why other people's kreiss-oliger settings do not directly work in our code. Unfortunately, this is the only simulation I've seen which uses fully implicit integration (and none use it for the derivatives, which is the key to bypassing the courant factor, as its an information propagation problem), so I've seen exactly 0 discussion of this issue in the literator
+
+### Testing CAKO
+
+With kreiss oliger being set up like follows:
+
+Todo:
+
+Our code now makes it to T=todo. One key feature to note is that: With very reduced kreiss oliger dissipation, we're now much more vulnerable to 0 speed modes (which are no longer dissipated away), and so you want to ensure you're using the advecting lapse and shift conditions for the gauge
+
+The last technique we're going to use is actually a new one for me, and is called slow start lapse
+
+### Slow start lapse
+
+The initial conditions we have aren't actually for black holes, they're for objects that collapse into black holes. This results in a lot of initial gauge jiggling - particularly for the lapse - that can be bad for the health of the simulation. One solution for this is the so called slow start lapse, where you essentially ease it it gradually over a period of time, eliminating a huge initial collapse in the lapse
+
+As the gauge conditions are arbitrary, this does not (in theory) alter the correctness of the sim:
+
+todo
+
+With xyz set to todo:
 
 # Results
 
-Look! Black holes!
+With all of this together, we're able to replicate - close enough - the original paper, and we have now smashed black holes together pretty successfully. There are still some inaccuracies however, which I'll go over now
 
+# Discussion
+
+I have some questions about efficiency of the moving punctures technique as a whole. As mentioned previously, the puncture is a true discontinuity, and differentiating across it is invalid. This (allegedly) is a major source of constraint violations, though I've seen suggestions that the event horizon itself is also a source of constraint violations
+
+In the literature, there are *many* ad-hoc techniques used with respect to the puncture, including:
+
+1. Dropping the order of kreiss oliger dissipation within the event horizon
+2. Dropping the order of differentiation within the event horizon
+3. Using upwinded stencils for differentiation with respect to the shift, which is very dissipative near the singularity where the shift vector undergoes a discontinuity
+
+For me, a lot of this seems like that any kind of differentiation is invalid near the puncture, and so techniques indirectly tend to lower the constraint contamination by reducing the singularity, or reducing the size of stencils to reduce propagation. In theory - some BSSN formulations have causal constraint propagation, but this breaks down *somewhat* in the face of discretisation, and still relies on you having a sufficiently large event horizon
+
+It would seem ideally what we'd do is use an excision technique instead, instead of relying on these slightly odd techniques and properties. Its on my todo list
 
 # Black holes do not really have mass
 
@@ -369,7 +480,7 @@ There are multiple definitions of mass that we can use:
 4. Horizon mass, determined by the area of the event horizon[^notruehorizon]
 5. Puncture mass, determined by the size of the correction factor $\psi$ at the puncture, which approximates the ADM mass
 
-[^notruehorizon]: If you were thinking this definition seems very straightforward, note that in a technical sense our numerical black holes don't have an event horizon. An event horizon is the 4d surface which light rays cannot escape from, but as our black holes are not eternal (and are formed by the collapse of a precursor object with no horizon), an event horizon is not present in our spacetime. If you trace a ray backwards in time, it will never become trapped in a black hole
+[^notruehorizon]: If you were thinking this definition seems very straightforward, note that in a technical sense our numerical black holes don't have an event horizon. An event horizon is the 4d surface which light rays cannot escape from, but as our black holes are not eternal (and are formed by the collapse of a precursor object with no horizon), an event horizon is not present in our spacetime. If you trace a ray backwards in time, it will never become trapped in a black hole. You can instead emulate an event horizon, by cutting off the rays before a certain time after we know that a trapped surface has forced
 
     In the literature, a surface which is hoped to be equivalent/similar is used called the 'marginally outer trapped surface' (MOTS), which is defined locally on a specific slice. It is not the same thing as an event horizon, which can only truly be determined by tracing geodesics around in a 4-spacetime. You could also define a point in time to be approximately the 'start' of our black holes after they've formed from the precursor objects, and use that to approximate an enernal black hole (and so define a true event horizon) while tracing geodesics. I'm not aware of anyone doing this though
 
