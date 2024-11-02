@@ -416,19 +416,21 @@ todo
 
 This involves a single division by the scale. So as your grid resolution goes down, the prefix term blows up to infinity. What gives?
 
-#### Courant Factors
+##### Courant Factors
 
 If you're unfamiliar with the concept of a courant factor, the core concept is that the timestep of any simulation is limited by what's called a courant factor. It is essentially the statement that information can only propagate across your grid at a finite speed, and is mathematically defined as $\frac{\Delta t}{\Delta h} = C$. If you increase your timestep too high, you must have instability. Similarly, if you change your grid resolution, you must also change your timestep to match
 
 If you look, the prefix factor of kreiss-oliger *is* the courant factor, and is therefore a constant. It would certainly sound sensible to replace it with a constant, except...
 
-#### We don't have a courant factor
+##### We don't have a courant factor
 
-I missed part of the definition of the courant factor explicitly, which is that it only applies to *explicit* integrators. Equations which are implicitly integrated do not have a courant factor, as they propagate information faster than with an explicit integrator. In fact, $\frac{\Delta t}{\Delta h}$ can be arbitrarily large, and is only limited by the convergence of your implicit integration technique. With an implicit integrator of sufficient quality, grid resolution, and timestep, are fully decoupled
+I missed part of the definition of the courant factor, which is that it only applies to *explicit* integrators. Equations which are implicitly integrated do not have a courant factor, as they propagate information faster than with an explicit integrator. In fact, $\frac{\Delta t}{\Delta h}$ can be arbitrarily large, and is only limited by the convergence of your implicit integration technique. With an implicit integrator of sufficient quality, grid resolution, and timestep, are fully decoupled
 
 This raises a tricky question: If we change the size of our grid resolution to being infinitely small, our timestep doesn't necessarily have to change beyond practical convergence limitations. This means that kreiss oliger is somewhat ill defined for us, as there's no reason that the prefix term is fixed to anything useful
 
-To work around these, we're going to set it to a constant, and emulate having a courant factor by calculating our timestep as if we had one. Bear in mind that this is fairly arbitrary, and I suspect is why other people's kreiss-oliger settings do not directly work in our code. Unfortunately, this is the only simulation I've seen which uses fully implicit integration (and none use it for the derivatives, which is the key to bypassing the courant factor, as its an information propagation problem), so I've seen exactly 0 discussion of this issue in the literator
+To work around these, we're going to set it to a constant, and emulate having a courant factor by calculating our timestep as if we had one. Bear in mind that this is fairly arbitrary, and I suspect is why other people's kreiss-oliger settings do not directly work in our code. Unfortunately, this is the only simulation I've seen which uses fully implicit integration, so I've seen exactly 0 discussion of this issue in the literature[^imexstepping]
+
+[^imexstepping]: The SXS group use imex stepping, which is a semi implicit scheme. They split the equations up, and solve them partially implicitly. Notably however, they do not solve the derivatives implicitly due to the computational cost, which means that this implicit scheme cannot sidestep the courant factor as with a fully implicit scheme - I suspect this is why they see marginal benefits
 
 ### Testing CAKO
 
