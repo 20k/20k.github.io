@@ -470,22 +470,43 @@ For me, a lot of this seems like that any kind of differentiation is invalid nea
 
 It would seem ideally what we'd do is use an excision technique instead, instead of relying on these slightly odd techniques and properties. Its on my todo list
 
-# Black holes do not really have mass
+# Misc Notes
 
-There's an unfortunate truth for black holes, which is that there is no unique definition of the mass of a black hole. Its very easy to work out how much mass there is for something like the earth - because we can calculate how much *matter* is present, but black holes here are a vacuum solution - there's no matter of any description present. This means that we have to work out what the effect on spacetime a black hole has equivalent to a certain amount of mass
+This section contains pieces of information which are useful to know, but don't really fit into the structure of the article here
+
+## Black holes do not really have mass
+
+There's an unfortunate truth for black holes, which is that there is no unique definition of the mass of a black hole. Its very easy to work out how much mass there is for something like the earth - because we can calculate how much *matter* is present, but black holes here are a vacuum solution - there's no matter of any description in our spacetime. This means that we have to work out what the effect on spacetime a black hole has equivalent to a certain amount of mass
 
 There are multiple definitions of mass that we can use:
 
 1. Bare mass, which has no physical meaning. Higher = more mass, but that's about it
 2. ADM mass, which is measured at 'infinity', and measures how much energy is present in the spacetime. Only valid in asymptotically flat spacetimes
 3. Komar mass - defined in stationary spacetimes
-4. Horizon mass, determined by the area of the event horizon[^notruehorizon]
+4. Horizon mass, determined by the area of the event horizon
 5. Puncture mass, determined by the size of the correction factor $\psi$ at the puncture, which approximates the ADM mass
 
-[^notruehorizon]: If you were thinking this definition seems very straightforward, note that in a technical sense our numerical black holes don't have an event horizon. An event horizon is the 4d surface which light rays cannot escape from, but as our black holes are not eternal (and are formed by the collapse of a precursor object with no horizon), an event horizon is not present in our spacetime. If you trace a ray backwards in time, it will never become trapped in a black hole. You can instead emulate an event horizon, by cutting off the rays before a certain time after we know that a trapped surface has forced
+Black holes are a form of energy stored in spacetime and are a global phenomenon. Two black holes which are nearby each other store a significant amount of energy in the spacetime between them, increasing their mass (essentially further delocalising them). This makes it hard to pin down exactly how much 'mass' an individual black hole has in a binary pair, because they aren't truly separate phenonema, nor are they truly local phenomena. This means that all of these definitions of mass can disagree
 
-    In the literature, a surface which is hoped to be equivalent/similar is used called the 'marginally outer trapped surface' (MOTS), which is defined locally on a specific slice. It is not the same thing as an event horizon, which can only truly be determined by tracing geodesics around in a 4-spacetime. You could also define a point in time to be approximately the 'start' of our black holes after they've formed from the precursor objects, and use that to approximate an enernal black hole (and so define a true event horizon) while tracing geodesics. I'm not aware of anyone doing this though
+Despite this, its very common to use ADM mass via puncture mass[^internallyflat], and horizon mass with an approximation to its event horizon. We'll be using the former
 
-Black holes are a form of energy stored in spacetime and are a global phenomenon. Two black holes which are nearby each other store a significant amount of energy in the spacetime between them, increasing their mass (essentially further delocalising them). This makes it hard to pin down exactly how much 'mass' an individual black hole has in a binary pair, because they aren't truly separate phenonema. This means that all of these definitions of mass can disagree
+[^internallyflat]: The asymptotically flat infinity here is the puncture *inside* the black hole. I have no idea how this works, but apparently it does
 
-Despite this, its very common to use ADM mass via puncture mass, and horizon mass with an approximation to its event horizon[^notruehorizon]. We'll be using the former
+## Event horizon calculation
+
+Technically, the event horizon is *4d* surface that lightrays cannot escape from. In the literature, it is very common to talk about event horizons, and the size of the event horizon etc, but it is very rare to actually calculate what is actually technically the event horizon
+
+In GR, the only true way to find an event horizon is to trace geodesics around, and see where they become trapped. In our numerical relativity simulation, you can imagine tracing rays backwards in time from the camera as a visualisation, and in theory our rays will become trapped on any event horizons. We could plot when and where they get trapped,and use that to define a 4-surface. There's a small problem though:
+
+There are no true event horizons in our simulation. The issue is twofold:
+
+1. The strict definition of an event horizon requires full knowledge of the future of the black hole
+2. The strict definition of an event horizon requires full knowledge of the past of the black hole
+
+Interestingly, because our black holes are not eternal and form from the collapse of a black hole with no horizon, rays fired backwards in time only become briefly suspended on a horizon, and then quite happily escape again. We also clearly cannot simulate an infinite amount of time into the future. We can however approximate a strict event horizon calculation by defining a cutoff time both in the past, and in the future, where we suspect that a horizon has formed, and use that as our technical horizon surface
+
+### Marginally Outer Trapped Surface (MOTS)
+
+Event horizon calculation requires storing the entire history of the simulation and tracing geodesics[^wewilldothis], so it is uncommon as an approach. In the literature, a surface which is hoped to be equivalent/similar is used called the 'marginally outer trapped surface' (MOTS). This is a purely local quantity defined on a specific slice of spacetime. When calculating the black hole's mass via horizon mass, the horizon area is generally calculated via the MOTS
+
+[^wewilldothis]: We're actually going to do this in a future article, in realtime, to produce accurate renderings of binary black hole collisions
