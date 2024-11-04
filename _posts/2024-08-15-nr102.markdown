@@ -13,25 +13,29 @@ The complicated part of this article is going to be the initial conditions, whic
 
 Its worth understanding for this article what we're actually trying to simulate. A black hole is an object that is so dense that light can't escape - once this happens, nothing that prevent all the matter that made up the precursor object from reaching the singularity
 
-Eg, consider a star collapsing into a black hole. All the matter essentially shrinks to a point (or, in the case of a spinning black hole: a ring) past the event horizon, until it reaches a singularity. In pure general relativity, this singularity is (essentially^[essentially]) inevitable, and all the black holes we're dealing with today will always contain a singularity. Its also true that the singularity is - mathematically - very poorly behaved and by definition causes all the maths to explode. This makes simulating it a bit tricky. There are two approaches to handling this
+Eg, consider a star collapsing into a black hole. All the matter shrinks to a point (or, in the case of a spinning black hole: a ring) past the event horizon, until it reaches a singularity. In pure general relativity, this singularity is (essentially^[essentially]) inevitable, and all the black holes we're dealing with today will always contain a singularity. Its also true that the singularity is - mathematically - very poorly behaved and by definition causes all the maths to explode. This makes simulating it a bit tricky. There are two approaches to handling the singularity
 
-[^essentially]: There's some debate around if you could construct an astrophysical black hole which has no singularity, likely containing negative energy
+[^essentially]: There's some debate around if you could construct an astrophysical black hole which has no singularity, likely containing negative energy, but this isn't relevant for us at all
 
-## Excision
+## Managing the singularity
 
-A black holes interior, and exterior are causally disconnected. This means that the interior of a black hole has no effect on the wider universe, and as such - you don't actually need to simulate it. This is the excision technique for handling a black hole's interior, and involves specifying a boundary condition somewhere inside the event horizon
+### Excision
 
-This also directly leads to one of my favourite papers, the turducken, where you stuff the interior with meaningless junk
+This technique is fairly common, and involves chopping out the singularity entirely, and simply not simulating it. To excise the singularity correctly, you must define a boundary condition inside the black hole itself, then use one sided derivatives on the boundary to correctly simulate it. This technique works well, but involves the complexity of calculating and implementing the boundary condition
 
-## Moving punctures
+### Moving punctures
 
 This is the technique we'll actually be using, and involves a bit of trickery. In the ADM formalism, the gauge conditions define the coordinate system of what you're working with. So the trick is to make sure that the coordinates never actually meet the singularity, and it is treated as a puncture/hole in your simulation grid. This puncture is able to move around with the correct gauge conditions, and so we have a singularity that is never actually quite represented. In moving punctures, the entire simulation domain is actively simulated, unlike with excision where a portion of it is not
 
-In practice, its a lot trickier than this, and I personally have some skepticism that that's actually what's happening. I'm going to keep the crackpot conspiracy theories to the end of this article
+In practice, its a lot trickier than this, and it involves a lot of subtleties to get this to work in a physically accurate way. I'm going to keep the crackpot conspiracy theories to the end of this article however
 
-Notably, as the singularity represents a true discontinuity, differentiating across it is technically incorrect. This method relies on the event horizon containing errors causally
+Notably, as the singularity represents a true discontinuity, differentiating across it is technically incorrect
 
-## Circular Orbits
+Both of these techniques rely on the fact that the interior, and exterior of a black hole are casually disconnected, and so what the interior of a black hole in theory[^intheory] does not affect the exterior universe
+
+[^intheory]: In practice, this is a hugely complicated topic that is going to make our lives very difficult. Its not that GR is incorrect about this, its that getting this guarantee in a numerical simulation is non trivial
+
+## Binary black hole orbits
 
 The conventional wisdom is that black holes merge after a long inspiralling process, where the nature of gravitational wave emissions slowly circularises the orbits. This means that binary black hole orbits should be nearly perfectly circular by the time the black hole's merge
 
@@ -39,9 +43,9 @@ Unfortunately, this turned out not to be the case, and it appears that there is 
 
 ## Unequal mass binaries
 
-With the assumption of circular orbits, equal mass/spin binaries, and the black hole spin being aligned with the plane of the orbit, you can use octant symmetry - ie your simulation is fully symmetric and can be chopped into 8 chunks, with only one of the chunks actually being simulated
+With the assumption of circular orbits, equal mass/spin binaries, and the black hole spin being aligned with the plane of the orbit, you can use octant symmetry - ie your simulation is fully symmetric and can be chopped into 8 chunks, with only one of the chunks actually being simulated. If your black holes are of unequal mass but with axis aligned spins, you can use axisymmetry, for a 2x speedup
 
-Personally I'm interested in a very general simulator which can handle anything, so we're going to avoid this octant symmetry reduction - but given its prevalence in the literature, its worth mentioning here. For equal mass binaries, this would be a flat 8x speedup, so its definitely worth investigating for lower end hardware
+Personally I'm interested in a very general simulator which can handle anything, so we're going to avoid any symmetry reduction - but given its prevalence in the literature, its worth mentioning here. For equal mass binaries, this would be a flat 8x speedup, so its definitely worth investigating for lower end hardware
 
 ## Gravitational waves
 
@@ -59,9 +63,9 @@ X1: The spin constant of the first black hole
 X2: The spin constant of the second black hole
 e: The orbital eccentricity
 
-This is a lot of parameters to bruteforce, and why non circular orbits are such a gigantic pain, because it adds a whole extra dimension to bruteforce
+This is a lot of parameters to bruteforce, and its why non circular orbits are such a gigantic pain, because it adds a whole extra dimension to bruteforce
 
-Traditional simulations in this area can take weeks to months, which you'll be glad to know is not going to be the case for us
+Traditional simulations in this area can take weeks to months, which you'll be glad to know is not going to be the case for us. It'll be about 5-10 minutes for an orbit tops
 
 # What's the plan?
 
@@ -87,7 +91,7 @@ Lets get into it
 
 ## Implementing
 
-To take a step back, we're trying to solve initial conditions for the following ADM variables:
+To take a step back, we're trying to find initial values for the following ADM variables:
 
 $$\gamma_{ij}\\
 K_{ij}\\
@@ -95,24 +99,24 @@ K_{ij}\\
 \beta^i
 $$
 
-This technique solves for $\gamma_{ij}$ and $K_{ij}$, and leaves us to guess $\alpha$ and $\beta^i$. It falls under the class of initial conditions known as 'conformally flat'. This means it decomposes the metric tensor into a flat conformal metric (an identity matrix), and a conformal factor $\psi$. It also decomposes the extrinsic curvature $K^{ph}_{ij}$ ('physical', this is our $K_{ij}$) into a trace $K=0$, and a trace free part which this paper calls $K_{ij}$ (and other papers often call $$\bar{A}_{ij}$$). This is called a maximal slice (todo: check the _{TT} schenanigans)
+This technique solves for $\gamma_{ij}$ and $K_{ij}$, and leaves us to guess $\alpha$ and $\beta^i$ (which are, in theory, arbitrary). It falls under the class of initial conditions known as 'conformally flat'. This means it decomposes the metric tensor into a flat conformal metric (an identity matrix), and a conformal factor $\psi$. It also decomposes the extrinsic curvature $K^{ph}_{ij}$ ('physical', this is our $K_{ij}$) into a trace $K=0$, and a trace free part which this paper calls $K_{ij}$ (and other papers often call $$\bar{A}_{ij}$$). This is called a maximal slice (todo: check the _{TT} schenanigans)
 
-The basic idea here is that with the conformally flat + trace free constraint, the momentum constraint becomes linear, allowing you to calculate the extrinsic curvature as a sum of each individual black hole's curvature, to calculate the final (conformal) curvature. The shape of the conformal factor is a *guess*, which is then corrected to be physical via a small correction $u$, by solving the laplacian (9) + (10)
+The basic idea here is that with the conformally flat + trace free constraint, the momentum constraint $\mathcal{M}_i$ becomes linear, allowing you to calculate the extrinsic curvature $$\bar{A}_{ij}$$ as a sum of each individual black hole's curvature, to calculate the final (conformal) curvature. The shape of the conformal factor $\psi$ is a *guess*, which is then corrected to be physical via a small correction $u$, by solving the laplacian (9) + (10)
 
 ## Details
 
 This method has the following parameters:
 
 $m_i$ bare mass parameter of each black hole
-$P_i$: A 3-vector, the momentum vector of each black hole
-$S_i$: A 3-vector the spin (angular momentum) of each black hole
+$S_i$: A 3-vector representing the spin (angular ADM momentum) of each black hole
+$P_i$: A 3-vector representing the linear momentum (ADM mass * velocity) of each black hole
 $x_i$ the position of a black hole
 
 I'm labelling the properties of each black hole by its index $i$, eg $P_0$ is the first black hole's momentum vector
 
-Note that bare mass is not the same thing as mass (here: ADM mass), it only correlates to it. A black hole's spin contributes to its mass as well. On top of this, in the general case, the mass of a black hole in a binary pair is of questionable physicalness: see the end of this article for more details
+Note that bare mass is not the same thing as mass (here: ADM mass), it only correlates to it. A black hole's spin contributes to its mass as well. On top of this, in the general case, the mass of a black hole in a binary pair is of questionable physicalness: see the end of this article for more details. Here, you don't need to worry about this, because we'll be giving the initial conditions in terms of bare mass: just be aware this isn't universal in the literature
 
-I'm going to be using the notation $\bar{A}^{ij}$ to mean what this paper calls $K^{ij}$, because its simply too confusing otherwise. I'm also going to be using $\bar{\gamma}_{ij}$ to mean the conformally flat metric instead of $g_{ab}$, for the same reason
+I'm going to be using the notation $\bar{A}^{ij}$ to mean what this paper calls $K^{ij}$, because its simply too confusing otherwise. I'm also going to be using $\bar{\gamma}_{ij}$ to mean the conformally flat metric instead of $g_{ab}$, for the same reason. Note that $\bar{\gamma}_{ij}$ and $\tilde{\gamma}_{ij}$ are not the same, there's a lot of quite similar notation here
 
 ## Conformal extrinsic curvature
 
@@ -165,6 +169,8 @@ Where $u > 0$. This is because you have a lot more precision to work with for fl
 
 Equations (9) + (10) are a classic laplacian:
 
+todo: check if i need to u+1, i don't think so
+
 $$\begin{align}
 &\Delta u + \beta(1 + \alpha u)^{-7} = 0\\
 &\beta = \frac{1}{8} \alpha^7 \bar{A}^{ab}\bar{A}_{ab}
@@ -179,9 +185,9 @@ Our equations are of the form:
 
 $$\Delta u = F(u)$$
 
-And are a standard laplacian. It is common in numerical relativity to use complex solutions to solve this, and they come with caveats in terms of how to solve this. This is because solvers are CPU based, and as such need very good convergence properties to work well
+And are a standard laplacian. It is common in numerical relativity to use fairly complicated solutions to solve this, and they come with caveats in terms of what kinds of laplacians are solvable. This is because solvers are CPU based, and as such need very high order convergence to work quickly
 
-Luckily, we're in GPU-land, and so the techniques are both simpler and significantly more performant
+Luckily, we're in GPU-land, and so the techniques are both simpler and significantly more performant. If you already know how to solve a laplacian, there is nothing special in this section and you may skip it
 
 #### The boundary condition
 
@@ -230,11 +236,11 @@ Luckily, performance issues are easily fixable!
 
 The easiest way to speed up performance is with a multigrid solution. Essentially, instead of solving at your final grid resolution, you start off at a low resolution, solve for that, then progressively solve for higher resolutions starting with your low resolution guess upscaled to a higher resolution
 
-This solution works incredibly well for this problem, as there is no high frequency content in $u$
+This solution works incredibly well for this problem, as there is no high frequency content in $u$, and is a free performance win
 
 #### Red-black
 
-Another component that gives a free 2x performance increase is red-black iteration. Imagine the laplacian problem in 2d:
+Another technique that gives a free 2x performance increase is red-black iteration. Imagine the laplacian problem in 2d:
 
 todo: picture
 
@@ -257,7 +263,7 @@ $$\begin{align}
 K_{ij} &= \psi^{-2} \bar{A}_{ij}
 \end{align}$$
 
-We already know how to construct our BSSN variables, see the last article
+Where in cartesian coordinates, $$\bar{\gamma}_{ij}$$ is the identity matrix. We already know how to construct our BSSN variables, see the last article
 
 The ADM mass can be estimated via todo. If you need a specific ADM mass, iterate. Binary search. Spin! Woo!
 
@@ -268,7 +274,7 @@ We still don't have an initial solution for our gauge variables however. Univers
 1. $\alpha = 1$
 2. $\alpha = \psi^{-2}$
 
-Both work well and are widely used. The latter is better for black holes, but I've found tends to lead to neutron stars exploding spectacularly. We're going to use #2 for this article, as we're strictly dealing with black holes
+Both work well and are widely used. The latter is better for black holes, but I've found that it tends to lead to neutron stars exploding spectacularly. We're going to use #2 for this article, as we're strictly dealing with black holes
 
 [^twomain]: In general, these two options are the two simple options that work well, but there are a variety of alternatives
 
@@ -276,17 +282,17 @@ Both work well and are widely used. The latter is better for black holes, but I'
 
 https://arxiv.org/pdf/1503.03436 2.39
 
-Our data is no longer periodic, so we need a new set of boundary conditions. The simplest good-enough boundary condition is called the Sommerfeld boundary conditions. This radiaties away your data to the asymptotic value at the boundary. This is defined as:
+Our data is no longer periodic, so we need a new set of boundary conditions. The simplest good-enough boundary condition is called the Sommerfeld boundary condition. This radiates away your data to the asymptotic value at the boundary. This is defined as:
 
 $$\frac{\partial f}{\partial t} = -\frac{v x_i}{\partial x_i} - v \frac{f - f_0}{r}$$
 
-$f$ is our value for whatever field we're radiating, $x_i$ is the cell's position in world coordinates, $v$ is the wave speed, $f_0$ is the asymptotic value, and $r$ is the distance from the centre
+$f$ is our value for whatever field we're radiating, $x_i$ is the cell's position in world coordinates, $v$ is the wave speed, $f_0$ is the asymptotic value, and $r$ is the distance from the centre. This is applied to every tensor component separately, as if they were independent fields
 
-All waves have a speed of $1$, except for the gauge variables which have a speed of $\sqrt{2}$. Todo: Cite
+The derivatives at the boundary will be one sided derivatives. All waves have a speed of $v=1$, except for the gauge variables which have a speed of $v=\sqrt{2}$. Todo: Cite
 
 Note that in my experience, Sommerfeld boundary conditions tend to lead to a gradual increase in ADM mass over time, making it somewhat unsuitable for long lived sims
 
-Todo: Kreiss boundary
+Kreiss-Oliger dissipation also requires a boundary condition - in our case, we'll progressively reduce the order of dissipation as we approach the boundary, as we cannot
 
 ## Other boundary conditions
 
@@ -302,11 +308,13 @@ As a general note, its very common to assume that the speed of the gauge waves i
 
 # Modifying the equations
 
-We've now solved the initial conditions, and implemented our boundary conditions, so we just use our equations from the last article, and hit GO right?
+We've now solved the initial conditions, and implemented our boundary conditions, so we just use our equations from the last article, and hit go right?
 
 Unfortunately, the equations as-is cannot simulate binary black hole collisions, and we now enter a very murky area: Ad hoc modifying the equations, so that we can pull off these simulations correctly
 
-In addition to the 'usual' issues, we also suffer from a unique issue: Rather low grid resolution, as well as using 32-bit floats instead of 64-bit doubles. The latter is largely a non issue luckily, but does mean that we have much less leeway for evolution errors
+In addition to the 'usual' issues, we also suffer from a unique issue: Rather low grid resolution, as well as using 32-bit floats instead of 64-bit doubles. The latter is largely a non issue luckily, but it exacerbates numerical issues with the singularity, by giving us a smaller margin for error[^leeway]
+
+[^leeway]: The determinant of the metric tensor becomes degenerate on a failure of the boundary conditions, leading to infinities turning up. You can handle more degenerate matrices with double precision, giving the gauge conditions more time to catch up
 
 ## What's wrong with the equations?
 
@@ -316,7 +324,7 @@ It took a very *very* long time for the field to be able to successfully simulat
 2. Momentum constraint errors
 3. Christoffel symbol constraint errors
 
-The structure of the equations we're using are already adapted to simulating binary black holes by design, but older sets of equations were numerically unstable for these problems
+The structure of the equations we're using are already adapted to simulating binary black holes by design luckily, but older sets of equations were numerically unstable for these problems
 
 ### Gauge conditions
 
@@ -334,7 +342,9 @@ Todo: Explanation of the shift equation
 
 $N$ is a free parameter that represents damping: In general its set to $2$, but it can also take fairly arbitrary values from $1$ to $>10$, or even vary spatially or by time. This parameter has a heavy influence on the paths of the black holes
 
-Taken together, these two gauge conditions are called the moving puncture gauge, and are the standard choice for near equal mass binary black hole collisions
+Taken together, these two gauge conditions are called the moving puncture gauge, and are the standard choice for near equal mass[^nearequalmass] binary black hole collisions
+
+[^nearequalmass]: High mass ratio collisions are an unsolved problem. There might be a future article about exploring higher ratios, but we'd likely need adaptive mesh refinement to make a dent in that problem
 
 ### Momentum constraint errors
 
@@ -342,7 +352,7 @@ These can be damped in exactly the same form as in the previous article, via:
 
 Todo: Equation
 
-Damping momentum constraint errors is less important for us. In an explicit integrator, high frequency oscillations due to the unstable nature of the oscillations tends to result in high frequency momentum constraint errors: Damping these improves the stability of the simulation. We run into that much less
+Traditionally, momentum constraint violations tend to produce high frequency, self reinforcing oscillations, resulting in your simulation blowing up. With an implicit integrator, this is much less of a problem for us, so momentum constraint damping is more about increasing correctness rather than for stability reasons. This makes it much less important for us in this construction, than alternative techniques - which is good, because this damping is heavy on memory bandwidth
 
 ### Christoffel symbol errors
 
@@ -358,9 +368,9 @@ These modifications would, in theory, work if you were using some kind of adapti
 
 Trying to simulate with the above set of modifications is not going to work, and instead today we're going to focus on trying to reproduce a specific result: todo. The no spin test case from this paper. By the end of this article, we will be close enough to demonstrate that the sim we've built isn't totally invalid
 
-In general, exactly reproducing other people's results is an absolute nightmare, and is virtually impossible in the general case. While it isn't hard to get close, the field has a strong issue with being underdocumented, and many of the larger simulators simply do not publish enough information to replicate their results. I also have some suspicions about the moving punctures technique, which we'll get into when its relevant
+In general, exactly reproducing other people's results is an absolute nightmare, and is virtually impossible in the general case. While it isn't hard to get close, the field has a strong issue with being underdocumented, and many of the larger simulators simply do not publish enough information to replicate their results. Simulations also seemingly tend to involve a calibration step, but information on the limitations or inaccuracies of these simulations is nearly impossible to come by due to the nature of academic publishing
 
-I'm going to walk us through how to take our sim from self destructing immediately, to successfully completing over an orbit
+I'm going to walk us through how to take our sim from self destructing immediately, to successfully completing over an orbit. We'll get 'close enough' to a result
 
 ## First off, lets test the standard modifications
 
@@ -408,7 +418,7 @@ todo
 
 One of the difficulties with all of this is trying to prove that your code converges. The idea is, as your grid resolution goes up, your code should become more accurate
 
-The tricky part is that while we use scalar constants for damping factors, many of these factors are actually *not* grid resolution independent, and should really scale with some factor of the grid resolution
+The tricky part is that while we use scalar constants for damping factors, many of these factors are actually *not* resolution independent, and should really scale with some factor of the grid resolution
 
 Kreiss-oliger is something that stood out to me as a candidate for making convergence tricky. If we examine the specific form of kreiss oliger, you'll notice that for eg second order kreiss, the form is as such:
 
@@ -418,13 +428,13 @@ This involves a single division by the scale. So as your grid resolution goes do
 
 ##### Courant Factors
 
-If you're unfamiliar with the concept of a courant factor, the core concept is that the timestep of any simulation is limited by what's called a courant factor. It is essentially the statement that information can only propagate across your grid at a finite speed, and is mathematically defined as $\frac{\Delta t}{\Delta h} = C$. If you increase your timestep too high, you must have instability. Similarly, if you change your grid resolution, you must also change your timestep to match
+If you're unfamiliar with the concept of a courant factor, the core concept is that the timestep of any simulation is limited by what's called a courant factor. It is essentially the statement that information can only propagate across your grid at a finite speed, and is mathematically defined as $\frac{\Delta t}{\Delta h} = C$. If you increase your timestep too high, you must have instability, because you're trying to pipe information through your grid faster than your problem allows it to propagate. Similarly, if you change your grid resolution, you must also change your timestep to match
 
-If you look, the prefix factor of kreiss-oliger *is* the courant factor, and is therefore a constant. It would certainly sound sensible to replace it with a constant, except...
+If you compare, the prefix factor of kreiss-oliger *is* the courant factor, and is therefore a constant. It would certainly sound sensible to replace it with a constant, except...
 
 ##### We don't have a courant factor
 
-I missed part of the definition of the courant factor, which is that it only applies to *explicit* integrators. Equations which are implicitly integrated do not have a courant factor, as they propagate information faster than with an explicit integrator. In fact, $\frac{\Delta t}{\Delta h}$ can be arbitrarily large, and is only limited by the convergence of your implicit integration technique. With an implicit integrator of sufficient quality, grid resolution, and timestep, are fully decoupled
+I missed part of the definition of the courant factor, which is that it only applies to *explicit* integrators. Equations which are implicitly integrated do not have a courant factor, as they propagate information faster than with an explicit integrator. In fact, $\frac{\Delta t}{\Delta h}$ can be arbitrarily large, and is only limited by the convergence of your implicit integration technique. With an implicit integrator of sufficient quality - grid resolution, and timestep, are fully decoupled
 
 This raises a tricky question: If we change the size of our grid resolution to being infinitely small, our timestep doesn't necessarily have to change beyond practical convergence limitations. This means that kreiss oliger is somewhat ill defined for us, as there's no reason that the prefix term is fixed to anything useful
 
@@ -458,7 +468,7 @@ With all of this together, we're able to replicate - close enough - the original
 
 # Discussion
 
-I have some questions about efficiency of the moving punctures technique as a whole. As mentioned previously, the puncture is a true discontinuity, and differentiating across it is invalid. This (allegedly) is a major source of constraint violations, though I've seen suggestions that the event horizon itself is also a source of constraint violations
+I have some questions about efficiency of the moving punctures technique as a whole. As mentioned previously, the puncture is a true discontinuity, and differentiating across it is invalid. This (in theory) is a major source of constraint violations, though I've seen suggestions that the event horizon itself is also a source of constraint violations
 
 In the literature, there are *many* ad-hoc techniques used with respect to the puncture, including:
 
@@ -466,7 +476,7 @@ In the literature, there are *many* ad-hoc techniques used with respect to the p
 2. Dropping the order of differentiation within the event horizon
 3. Using upwinded stencils for differentiation with respect to the shift, which is very dissipative near the singularity where the shift vector undergoes a discontinuity
 
-For me, a lot of this seems like that any kind of differentiation is invalid near the puncture, and so techniques indirectly tend to lower the constraint contamination by reducing the singularity, or reducing the size of stencils to reduce propagation. In theory - some BSSN formulations have causal constraint propagation, but this breaks down *somewhat* in the face of discretisation, and still relies on you having a sufficiently large event horizon
+For me, a lot of this seems like that any kind of differentiation is invalid near the puncture, and so techniques indirectly tend to lower the constraint contamination by reducing the singularity, or reducing the size of stencils to reduce constraint error propagation. In theory - some BSSN formulations have causal constraint propagation, but this breaks down *somewhat* in the face of discretisation, and still relies on you having a sufficiently large event horizon
 
 It would seem ideally what we'd do is use an excision technique instead, instead of relying on these slightly odd techniques and properties. Its on my todo list
 
