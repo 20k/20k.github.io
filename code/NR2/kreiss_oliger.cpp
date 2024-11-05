@@ -109,10 +109,17 @@ std::string make_kreiss_oliger()
             return_e();
         });
 
+        #ifdef CAKO
         auto do_kreiss = [&](int order)
         {
             as_ref(out[lid]) = in[lid] + eps.get() * kreiss_oliger_interior(in[pos, dim], scale.get(), order) * max(W[lid], valuef(0.5));
         };
+        #else
+        auto do_kreiss = [&](int order)
+        {
+            as_ref(out[lid]) = in[lid] + eps.get() * kreiss_oliger_interior(in[pos, dim], scale.get(), order);
+        };
+        #endif
 
         if_e(boundary_distance == 1, [&]{
             do_kreiss(2);

@@ -11,7 +11,9 @@ The complicated part of this article is going to be the initial conditions, whic
 
 # Astrophysics Context
 
-Its worth understanding for this article what we're actually trying to simulate. A black hole is an object that is so dense that light can't escape - once this happens, nothing that prevent all the matter that made up the precursor object from reaching the singularity
+Todo: Go into black holes a bit more, spacetime soliton vs a mass driven affair
+
+Its worth understanding for this article what we're actually trying to simulate. A black hole is an object that is so dense that light can't escape - once this happens, nothing can prevent all the matter that made up the precursor object from reaching the singularity
 
 Eg, consider a star collapsing into a black hole. All the matter shrinks to a point (or, in the case of a spinning black hole: a ring) past the event horizon, until it reaches a singularity. In pure general relativity, this singularity is (essentially^[essentially]) inevitable, and all the black holes we're dealing with today will always contain a singularity. Its also true that the singularity is - mathematically - very poorly behaved and by definition causes all the maths to explode. This makes simulating it a bit tricky. There are two approaches to handling the singularity
 

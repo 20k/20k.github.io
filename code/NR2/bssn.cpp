@@ -314,7 +314,11 @@ valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, const derivative_data
     valuef sigma = 20.f;
     value h = (3.f/5.f);
 
+    #ifdef LAPSE_DAMPING
     valuef damp = args.W * (h * exp(-total_elapsed*total_elapsed / (2 * sigma * sigma))) * (args.gA - args.W);
+    #else
+    valuef damp = 0;
+    #endif
 
     ///https://arxiv.org/pdf/gr-qc/0206072
     #ifdef ONE_PLUS_LOG
@@ -372,6 +376,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
     ///https://arxiv.org/pdf/1106.2254 also see here, after 25
     auto dtcY = lie_derivative_weight(args.gB, args.cY.to_tensor(), d) - 2 * args.gA * trace_free(args.cA, args.cY, icY);
 
+    #ifdef CY_STABILITY
     tensor<valuef, 3, 3> d_cGi;
 
     for(int m=0; m < 3; m++)
@@ -509,6 +514,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
             dtcY.idx(i, j) += cK * args.gA * sum;
         }
     }
+    #endif
 
     return dtcY;
 }
@@ -700,6 +706,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
 
         tensor<valuef, 3> Yij_Kj;
 
+        #ifdef PAPER_CGI_DAMP
         {
             auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
 
@@ -762,9 +769,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
                 Yij_Kj.idx(i) = sum + args.K * calculated_cG.idx(i);
             }
         }
-
-        //#define YIJ_1
-        #ifdef YIJ_1
+        #else
         for(int i=0; i < 3; i++)
         {
             valuef sum = 0;
@@ -858,6 +863,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
 
             dtcG[i] = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9;
 
+            #ifdef PAPER_CGI_DAMP
             auto step = [](const valuef& in)
             {
                 return ternary(in >= 0.f, value{1.f}, value{0.f});
@@ -877,9 +883,10 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
                             - (2.f/5.f) * args.gA * raise_index(args.cA, icY, 1).idx(i, i);
 
             dtcG.idx(i) += -(1 + E) * step(lambdai) * lambdai * Gi.idx(i);
+            #endif
         }
 
-        /*#define STABILITY_SIGMA
+        #define STABILITY_SIGMA
         #ifdef STABILITY_SIGMA
         tensor<valuef, 3> calculated_cG;
 
@@ -910,7 +917,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
         float sigma = 1.333333f;
 
         dtcG += -sigma * Gi * dmbm;
-        #endif // STABILITY_SIGMA*/
+        #endif // STABILITY_SIGMA
     }
 
     return dtcG;
