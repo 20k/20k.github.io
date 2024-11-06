@@ -109,6 +109,7 @@ std::string make_kreiss_oliger()
             return_e();
         });
 
+        //#define CAKO
         #ifdef CAKO
         auto do_kreiss = [&](int order)
         {
