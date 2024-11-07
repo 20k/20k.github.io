@@ -84,8 +84,7 @@ cl::buffer discretise(cl::context& ctx, cl::command_queue& cqueue, Func&& func, 
 
     std::string str = value_impl::make_function(kern, "discretise");
 
-    cl::program prog(ctx, str, false);
-    prog.build(ctx, "");
+    cl::program prog = cl::build_program_with_cache(ctx, {str}, false);
 
     cl::kernel k(prog, "discretise");
 

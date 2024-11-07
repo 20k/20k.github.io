@@ -479,8 +479,7 @@ int main()
 
         auto make_and_register = [&](const std::string& str)
         {
-            cl::program p1(ctx, str, false);
-            p1.build(ctx, "");
+            cl::program p1 = cl::build_program_with_cache(ctx, {str}, false);
 
             ctx.register_program(p1);
         };
