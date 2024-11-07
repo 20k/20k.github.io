@@ -11,6 +11,8 @@
 #include <map>
 #include <array>
 #include <concepts>
+#include <mutex>
+#include <thread>
 
 namespace value_impl
 {
@@ -104,8 +106,11 @@ namespace value_impl
     inline
     std::vector<execution_context_base*>& context_stack()
     {
-        static thread_local std::vector<execution_context_base*> ctx;
-        return ctx;
+        static std::mutex mut;
+        static std::map<std::thread::id, std::vector<execution_context_base*>> ctx;
+
+        std::lock_guard guard(mut);
+        return ctx[std::this_thread::get_id()];
     }
 
     template<typename T>
