@@ -199,10 +199,9 @@ struct initial_conditions
                 as_ref(inout[lid]) = as_constant(inout[lid]) + in[lid];
             };
 
-            std::string sum_str = value_impl::make_function(sum_buffers, "sum_buffers");
+            std::string str = value_impl::make_function(sum_buffers, "sum_buffers");
 
-            cl::program prog(ctx, sum_str, false);
-            prog.build(ctx, "");
+            cl::program prog = cl::build_program_with_cache(ctx, {str}, false);
 
             ctx.register_program(prog);
         }
@@ -240,8 +239,7 @@ struct initial_conditions
                 as_ref(aij_aIJ_out[lid]) = sum_multiply(aij, aIJ);
             };
 
-            cl::program calc(ctx, value_impl::make_function(calculate_aijaIJ, "aijaij"), false);
-            calc.build(ctx, "");
+            cl::program calc = cl::build_program_with_cache(ctx, {value_impl::make_function(calculate_aijaIJ, "aijaij")}, false);
 
             ctx.register_program(calc);
         }
@@ -318,8 +316,7 @@ struct initial_conditions
                 });
             };
 
-            cl::program calc(ctx, value_impl::make_function(laplace, "laplace"), false);
-            calc.build(ctx, "");
+            cl::program calc = cl::build_program_with_cache(ctx, {value_impl::make_function(laplace, "laplace")}, false);
 
             ctx.register_program(calc);
         }
@@ -402,8 +399,7 @@ struct initial_conditions
 
             std::string str = value_impl::make_function(calculate_bssn_variables, "calculate_bssn_variables");
 
-            cl::program p(ctx, str, false);
-            p.build(ctx, "");
+            cl::program p = cl::build_program_with_cache(ctx, {str}, false);
 
             ctx.register_program(p);
         }
@@ -411,8 +407,7 @@ struct initial_conditions
         {
             std::string str = value_impl::make_function(upscale_buffer_with_boundary, "upscale");
 
-            cl::program p(ctx, str, false);
-            p.build(ctx, "");
+            cl::program p = cl::build_program_with_cache(ctx, {str}, false);
 
             ctx.register_program(p);
         }

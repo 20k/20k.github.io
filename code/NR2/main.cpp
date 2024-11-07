@@ -472,9 +472,10 @@ int main()
 
     t3i dim = {213, 213, 213};
 
-    steady_timer btime;
-
+    std::jthread build_thread([&]()
     {
+        steady_timer btime;
+
         std::vector<std::jthread> threads;
 
         auto make_and_register = [&](const std::string& str)
@@ -503,11 +504,14 @@ int main()
         THREAD(make_cG_error(2));
         THREAD(enforce_algebraic_constraints());
         THREAD(make_sommerfeld());
-    }
 
-    std::cout << "Btime " << btime.get_elapsed_time_s() << std::endl;
+        for(auto& i : threads)
+            i.join();
 
-    printf("Built kernels\n");
+        std::cout << "Btime " << btime.get_elapsed_time_s() << std::endl;
+
+        printf("Built kernels\n");
+    });
 
     cl::command_queue cqueue(ctx);
 
@@ -543,6 +547,8 @@ int main()
     rtex.create_from_texture(tex.handle);
 
     cqueue.block();
+
+    build_thread.join();
 
     printf("Start\n");
 
