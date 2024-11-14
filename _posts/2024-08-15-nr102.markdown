@@ -376,25 +376,9 @@ I'm going to walk us through how to take our sim from self destructing immediate
 
 ## First off, lets test the standard modifications
 
-With the above modifications enabled, our sim goes from blowing up immediately, to self destructing at T=whatever. We can see that it exhibits the following features: todo
+With the above modifications enabled, our sim goes from blowing up immediately, to successfully managing to simulate a collision at roughly T=Todo. Because we're more interested in the paths that the black holes take for the moment, rather than the specific collision time, I'm just eyeballing the numbers here
 
-Experience tells me that the first problem to tackle is the christoffel symbol constraint
-
-### Christoffel symbol errors, round 2
-
-We're going to ditch the traditional christoffel symbol enforcement, and instead use two key other constraint handling techniques.
-
-The first comes from this paper:
-
-todo
-
-The second comes from this paper[^papersketch]:
-
-todo
-
-[^papersketch]: I have been unable to reproduce much of the improvements that the authors have claimed for some of their equations, and they do not in general seem applicable to us
-
-Running our code with both of these equations gets us a lot further:
+We can see that rather than the full orbit and a half we'd expect, our black holes barely make an orbit before clearly merging
 
 ### The black hole inspiral ends too early
 
@@ -404,7 +388,9 @@ We lose energy too quickly, as we can see that our black holes do not travel the
 2. Kreiss oliger dissipation strength
 3. Gauge condition issues
 
-For us, 2 and 3 are the problem. We're going to address kreiss-oliger in a slightly unusual way, and there's going to be a heavy tangent about kreiss oliger dissipation in general
+We're going to address kreiss-oliger in a slightly unusual way, and there's going to be a heavy tangent about kreiss oliger dissipation in general
+
+While we could address these issues in any order, I'm going to address these in the order that makes the most noticeable difference to evolution
 
 ### Curvature adjusted kreiss-oliger dissipation (CAKO todo?)
 
@@ -453,6 +439,40 @@ Todo:
 Our code now makes it to T=todo. One key feature to note is that: With very reduced kreiss oliger dissipation, we're now much more vulnerable to 0 speed modes (which are no longer dissipated away), and so you want to ensure you're using the advecting lapse and shift conditions for the gauge
 
 The last technique we're going to use is actually a new one for me, and is called slow start lapse
+
+### Christoffel symbol errors, round 2
+
+As an observational note, too much christoffel constraint damping tends to lead to very aggressive inspiral, as well as the black holes taking incorrect paths in regions of higher velocity. Too little damping tends to lead to a failure to inspiral at all, or the black holes failing to maintain their shape entirely. The right types, and strength of damping, will lead to correct convergence - though it is tricky to get right, and can feel very arbitrary
+
+We have 3 modifications we're going to be testing here, which I'll list below:
+
+1. Traditional $\sigma$ damping
+2. Modifying the evolution equations for $\tilde{\gamma}_{ij}$, via a new scheme
+2. Modifying the evolution equations for $\tilde{\Gamma}_{i}$, via a new scheme
+
+There's no strong reason a priori to favour any of these schemes over the other[^cafdamping], so I'll simply refer to them by number and quickly describe the characteristics. This is - depressingly - observational evidence based on running literally 1000s of these simulations and tests
+
+[^cafdamping]: Todo: Cite the stability paper, CAF damping efficacy, lack of constraint propagation analysis in general
+
+1. The $\sigma$ damping scheme tends to be the least robust, and the christoffel symbol constraint is often significantly incorrect. Its too simplistic and loses energy tremendously. For this reason it is frequently combined with other constraint enforcement techniques (eg replacing undifferentiated $\tilde{\Gamma}^i$s with the analytic variable), which we do not use as they lack genericity. It is, observationally, significantly lossy in terms of energy
+2. This scheme works well, but isn't sufficiently able to damp away $\tilde{G}^i$ constraint errors, even with high values of the damping coefficient. Higher damping coefficients lead to lowering the courant factor (we'll talk about courant later), which is undesirable
+3. This scheme also works reasonably, but is also insufficiently damping
+
+We're going to ditch the traditional $\sigma$ damping, and instead use two key other constraint handling techniques combined, which together provide sufficient stability
+
+Scheme 2. (cY) comes from this paper, and is described as follows
+
+todo
+
+Scheme 3. comes from this paper, and is describe as follows[^papersketch]:
+
+todo
+
+[^papersketch]: I have been unable to reproduce much of the improvements that the authors have claimed for some of their equations, and they do not in general seem applicable to us
+
+Together, these seem to work adequately. I have a strong unproven suspicion that the reason these modifications are better at preserving energy is because they're both multiplifed by a factor of $\alpha$, reducing the damping nearer the black hole and singularity vs the standard damping scheme
+
+Despite the improvement, we're still losing too much energy. We've done about as much as we can to improve the christoffel symbol constraint errors
 
 ### Slow start lapse
 

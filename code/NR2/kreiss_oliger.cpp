@@ -14,7 +14,7 @@
     return ternary(n == 6, v6, ternary(n == 4, v4, v2));
 }*/
 
-valuef kreiss_oliger_interior(valuef in, valuef scale, int order)
+valuef kreiss_oliger_interior(valuef in, int order)
 {
     ///boundary is at 1 and dim - 2
     valuef val = 0;
@@ -86,7 +86,7 @@ valuei distance_to_boundary(v3i pos, v3i dim)
 
 std::string make_kreiss_oliger()
 {
-     auto func = [&](execution_context&, buffer<valuef> in, buffer_mut<valuef> out, buffer<valuef> W, literal<valuef> timestep, literal<v3i> ldim, literal<valuef> scale, literal<valuef> eps) {
+     auto func = [&](execution_context&, buffer<valuef> in, buffer_mut<valuef> out, buffer<valuef> W, literal<v3i> ldim, literal<valuef> scale, literal<valuef> eps) {
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);
@@ -109,16 +109,16 @@ std::string make_kreiss_oliger()
             return_e();
         });
 
-        //#define CAKO
+        #define CAKO
         #ifdef CAKO
         auto do_kreiss = [&](int order)
         {
-            as_ref(out[lid]) = in[lid] + eps.get() * kreiss_oliger_interior(in[pos, dim], scale.get(), order) * max(W[lid], valuef(0.5));
+            as_ref(out[lid]) = in[lid] + eps.get() * kreiss_oliger_interior(in[pos, dim], order) * max(W[lid], valuef(0.5));
         };
         #else
         auto do_kreiss = [&](int order)
         {
-            as_ref(out[lid]) = in[lid] + eps.get() * kreiss_oliger_interior(in[pos, dim], scale.get(), order);
+            as_ref(out[lid]) = in[lid] + eps.get() * kreiss_oliger_interior(in[pos, dim], order);
         };
         #endif
 

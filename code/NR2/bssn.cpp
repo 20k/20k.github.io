@@ -708,7 +708,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
 
         tensor<valuef, 3> Yij_Kj;
 
-        ///#define PAPER_CGI_DAMP
+        //#define PAPER_CGI_DAMP
         #ifdef PAPER_CGI_DAMP
         {
             auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
