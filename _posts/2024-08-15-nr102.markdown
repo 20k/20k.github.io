@@ -542,3 +542,69 @@ Interestingly, because our black holes are not eternal and form from the collaps
 Event horizon calculation requires storing the entire history of the simulation and tracing geodesics[^wewilldothis], so it is uncommon as an approach. In the literature, a surface which is hoped to be equivalent/similar is used called the 'marginally outer trapped surface' (MOTS). This is a purely local quantity defined on a specific slice of spacetime. When calculating the black hole's mass via horizon mass, the horizon area is generally calculated via the MOTS
 
 [^wewilldothis]: We're actually going to do this in a future article, in realtime, to produce accurate renderings of binary black hole collisions
+
+## A brief evidence-free survey of modifications
+
+In this article, I've picked a few modifications to implement to the equations, and these are based off a reasonable amount of testing. In general, there are a very diverse range of modifications that are available, and if you're planning on testing some of them, this segment is a very brief overview of my own experiences with them. There's no data of any description here, this is intended purely so that if you test out modifications yourself and notice something, you can take a look and go "ok neat its not just me"
+
+Momentum constraint damping: Good for explicit integrators, makes a small difference to implicitly integrated binary black hole collisions. Too high damping can result in black holes traveling in straight lines
+
+Hamiltonian constraint damping: Makes a relatively small difference
+
+Christoffel damping: Super important in general. Too low damping means that black holes blow up into an odd triangular shape, too high damping prevents inspiral
+
+The trace free $$\tilde{A}$$ constraint: Critically important, slightly more robust to enforce it rather than damp it. Not damping results in instant explosions
+
+The trace free $$\tilde{\gamma}$$ constraint: Relatively unimportant
+
+### Specific modifications
+
+$\sigma$ christoffel damping: This is useful but too limited for our purposes
+
+The $\tilde{\gamma}$ modification used in this article: It may present some problems for hydrodynamic collapses (NaNs), but this is a low evidence observation
+
+The $\tilde{\Gamma}$ modification used in this article: It seems to work well, but the source paper presents no derivation which is not ideal
+
+Substituting undifferentiated $$\tilde{\Gamma}^i$$ terms for their analytic equivalent: From a theoretical perspective, its worth noting that only the derivatives of $$\tilde{\Gamma}^i$$ are numerically unstable, but its very ad-hoc. Absolutely no papers mention which specific terms they substitute (and there are many ambiguities), so its a very sketchy modification in general. I've found myself that it can exacerbate numerical stability problems (while improving the christoffel symbol constraint). It has been said that this modification only works in symmetric equal mass collisions. In general, it seems to be more problematic than its worth
+
+Upwinded derivatives: These can remove the need for kreiss-oliger dissipation, but my best guess is that its because they're actually very dissipative numerically. Its basically doing the same thing as kreiss-oliger (dissipating noise), but without the controllability or more robust theoretical background of kreiss-oliger. I've never had especially good results, and there is a discontinuity with $\beta^i$ at the singularity which means that upwinded derivatives may simply be numerically dissipating it
+
+Reducing derivative order near the singularity: This appears to better preserve energy at low resolutions
+
+Various gauge conditions: Other than the damping parameter, I've never noticed much difference between these. Advection is commonly disabled, and can cause extra dissipation when enabled, but its somewhat counteracted here by CAKO
+
+The gauge damping parameter $N$: This is a fairly critical one and has a strong influence on the black hole's path. Its commonly set to twice the adm mass of the system or $2$, but it is *very* arbitrary. Higher values = less accurate, in theory
+
+### Paper review
+
+#### Improved fast-rotating black hole evolution simulations with modified Baumgarte-Shapiro-Shibata-Nakamura formulation
+
+[Link](https://arxiv.org/pdf/1507.00570)
+
+(1) has never worked for me even slightly
+
+(5) has issues, but can be reasonably effective if $\beta_i$ is lowered with the conformal metric, instead of the full metric (ie there's an extra factor of $w^2$). Its somewhat problematic overall as a modification, and is generally worse than the $\gamma_{ij}$ modification we use in this article I've found
+
+(6) is very heavily dissipative, and does not improve the quality of any result that I've tested
+
+(10) and (11) only bring benefit for CPU simulations, and have no real performance benefit on a GPU due to the extra code complexity. Given the instability prsent, its not worth using
+
+#### Modifications for numerical stability of black hole evolution
+
+[Link](https://arxiv.org/pdf/1205.5111). Same authors as above
+
+(61) does not work particularly well
+
+#### Advantages of modified ADM formulation: constraint propagation analysis of Baumgarte-Shapiro-Shibata-Nakamura system
+
+[Link](https://arxiv.org/pdf/gr-qc/0204002)
+
+This paper contains a wealth of useful ideas. 4.11 is too expensive to use. The modifications invlving the traces $\mathcal{A}$ and $\mathcal{S}$ are not using. $\kappa \alpha \mathcal{G}^i$ does not unfortunately make a better $\sigma$ modification. The undifferentiated hamiltonian damping terms do work reasonably well in this paper. The simpler forms of the christoffel damping don't work all that well unfortunately
+
+This paper presents a strong theoretical background for many of the modifications that are used that can often seem very ad-hoc, so its worth a read
+
+#### Notes on formalisms
+
+The conformal covariant BSSN formalism is in general less stable than non covariant BSSN
+
+ccz4 and other constraint damped formalisms don't *really* help all that much with our problems here. They're also a lot more hungry in terms of performance, which makes them not a silver bullet in my experience

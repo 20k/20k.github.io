@@ -314,7 +314,7 @@ valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, const derivative_data
     valuef sigma = 20.f;
     value h = (3.f/5.f);
 
-    //#define LAPSE_DAMPING
+    #define LAPSE_DAMPING
     #ifdef LAPSE_DAMPING
     valuef damp = args.W * (h * exp(-total_elapsed*total_elapsed / (2 * sigma * sigma))) * (args.gA - args.W);
     #else
@@ -377,7 +377,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
     ///https://arxiv.org/pdf/1106.2254 also see here, after 25
     auto dtcY = lie_derivative_weight(args.gB, args.cY.to_tensor(), d) - 2 * args.gA * trace_free(args.cA, args.cY, icY);
 
-    //#define CY_STABILITY
+    #define CY_STABILITY
     #ifdef CY_STABILITY
     tensor<valuef, 3, 3> d_cGi;
 
@@ -708,7 +708,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
 
         tensor<valuef, 3> Yij_Kj;
 
-        //#define PAPER_CGI_DAMP
+        #define PAPER_CGI_DAMP
         #ifdef PAPER_CGI_DAMP
         {
             auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
@@ -889,7 +889,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
             #endif
         }
 
-        #define STABILITY_SIGMA
+        //#define STABILITY_SIGMA
         #ifdef STABILITY_SIGMA
         tensor<valuef, 3> calculated_cG;
 
