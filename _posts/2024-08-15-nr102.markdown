@@ -378,6 +378,8 @@ I'm going to walk us through how to take our sim from self destructing immediate
 
 With the above modifications enabled, our sim goes from blowing up immediately, to successfully managing to simulate a collision at roughly T=Todo. Because we're more interested in the paths that the black holes take for the moment, rather than the specific collision time, I'm just eyeballing the numbers here
 
+<iframe width="560" height="315" src="https://www.youtube.com/embed/oogqwuPbdm8?si=unCAuxZS7BhC-E5V" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
 We can see that rather than the full orbit and a half we'd expect, our black holes barely make an orbit before clearly merging
 
 ### The black hole inspiral ends too early
@@ -438,7 +440,9 @@ Todo:
 
 Our code now makes it to T=todo. One key feature to note is that: With very reduced kreiss oliger dissipation, we're now much more vulnerable to 0 speed modes (which are no longer dissipated away), and so you want to ensure you're using the advecting lapse and shift conditions for the gauge
 
-The last technique we're going to use is actually a new one for me, and is called slow start lapse
+<iframe width="560" height="315" src="https://www.youtube.com/embed/XxRbxzmTqdE?si=i2dV0LWO2397sPHT" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+The next technique we're going to use is actually a new one for me, and is called slow start lapse
 
 ### Christoffel symbol errors, round 2
 
@@ -472,6 +476,8 @@ todo
 
 Together, these seem to work adequately. I have a strong unproven suspicion that the reason these modifications are better at preserving energy is because they're both multiplifed by a factor of $\alpha$, reducing the damping nearer the black hole and singularity vs the standard damping scheme
 
+<iframe width="560" height="315" src="https://www.youtube.com/embed/YGj93N6omao?si=t28TmlW7xpwr3hDl" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
 Despite the improvement, we're still losing too much energy. We've done about as much as we can to improve the christoffel symbol constraint errors
 
 ### Slow start lapse
@@ -483,6 +489,8 @@ As the gauge conditions are arbitrary, this does not (in theory) alter the corre
 todo
 
 With xyz set to todo:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/oizYRdPsNYM?si=Ht7aCrTSQxwRZbgt" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 # Results
 
