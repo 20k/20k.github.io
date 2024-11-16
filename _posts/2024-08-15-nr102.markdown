@@ -85,9 +85,10 @@ I'm going to present you with the easiest set of initial conditions to implement
 
 The paper we're going to implement today is called [A simple construction of initial data for multiple black holes](https://arxiv.org/pdf/gr-qc/9703066). This represents an extremely traditional and widespread way to construct black hole initial conditions - its also a very good paper that you should read. There are a few things that we need to learn right off the bat
 
-1. This doesn't actually make black holes, it makes objects that collapse into black holes. They have no event horizon, or apparent horizon
+1. This doesn't actually make black holes, it makes objects that collapse into black holes. They have no event horizon, or apparent horizon. This is commonly described as a wormhole collapsing into a trumpet - a trumpet being the final configuration of a black hole in numerical relativity
 2. There is no way of a-priori specifying the mass of a black hole
 3. There is a maximum value of spin that can be expressed with this technique
+4. This works for any number of black holes
 
 Lets get into it
 
