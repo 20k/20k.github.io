@@ -5,35 +5,35 @@ date:   2024-08-15 12:33:23 +0000
 categories: C++
 ---
 
-Hello! Today we're going to do one of the coolest things in all of physics in my opinion, which is simulating the collision of two black holes. Last time round, we implemented most of what we'll need to simulate this, so today's job is to capitalise on that and finally smash some black holes together
+Hello! Today we're going to do one of the coolest things in all of physics in my opinion, which is simulating the collision of two black holes. Last time round (todo: link), we implemented most of what we'll need to simulate this, so today's job is to capitalise on that and finally smash some black holes together
 
-The complicated part of this article is going to be the initial conditions, which means that most of this article is actually going to be how to solve Laplacians quickly on a GPU
+This article consists of two primary parts:
+
+1. Solving our new initial conditions for black holes, via a simple laplacian
+2. Modifying the equations to render them suitable for simulating black holes
 
 # Astrophysics Context
 
-Todo: Go into black holes a bit more, spacetime soliton vs a mass driven affair
+Its worth taking a minute to understand what a black hole actually is, and why its such a difficult road to simulate them numerically. In general relativity, a black hole is a form of *soliton* - it is a stable, self supporting configuration of spacetime, that propagates itself indefinitely. It does not require any matter to support it, not necessarily to even form it, and the spacetimes we are dealing with here are vacuum solutions - there's no matter of any description here
 
-Its worth understanding for this article what we're actually trying to simulate. A black hole is an object that is so dense that light can't escape - once this happens, nothing can prevent all the matter that made up the precursor object from reaching the singularity
+Black holes form an event horizon - out of which nothing can escape. After a black hole collapses, it inevitably forms a singularity at the centre - for non spinning black holes this is a point, or for spinning black holes, a ring
 
-Eg, consider a star collapsing into a black hole. All the matter shrinks to a point (or, in the case of a spinning black hole: a ring) past the event horizon, until it reaches a singularity. In pure general relativity, this singularity is (essentially^[essentially]) inevitable, and all the black holes we're dealing with today will always contain a singularity. Its also true that the singularity is - mathematically - very poorly behaved and by definition causes all the maths to explode. This makes simulating it a bit tricky. There are two approaches to handling the singularity
+The event horizon itself acts completely normally in general relativity, but it is the singularity which causes problems for us. It is a true mathematical error, and we cannot simulate it by any means. Because it will always form, we must come up with some tricks for dealing with it. These notably fall into one of two categories:
 
-[^essentially]: There's some debate around if you could construct an astrophysical black hole which has no singularity, likely containing negative energy, but this isn't relevant for us at all
+1. Excision, where we simply do not simulate the interior of a black hole near the singularity
+2. Moving punctures, where we rely on coordinate system trickery to keep our spacetime away from the discontinuity
 
 ## Managing the singularity
 
 ### Excision
 
-This technique is fairly common, and involves chopping out the singularity entirely, and simply not simulating it. To excise the singularity correctly, you must define a boundary condition inside the black hole itself, then use one sided derivatives on the boundary to correctly simulate it. This technique works well, but involves the complexity of calculating and implementing the boundary condition
+This technique is fairly common, and involves chopping out the singularity entirely, and simply not simulating it. To excise the singularity correctly, you must define a boundary condition inside the black hole itself, then use one sided derivatives on the boundary. This technique works well, but involves the complexity of calculating and implementing the boundary condition
 
 ### Moving punctures
 
-This is the technique we'll actually be using, and involves a bit of trickery. In the ADM formalism, the gauge conditions define the coordinate system of what you're working with. So the trick is to make sure that the coordinates never actually meet the singularity, and it is treated as a puncture/hole in your simulation grid. This puncture is able to move around with the correct gauge conditions, and so we have a singularity that is never actually quite represented. In moving punctures, the entire simulation domain is actively simulated, unlike with excision where a portion of it is not
+This is the technique we'll actually be using, and involves a bit of trickery with our coordinate system. In the ADM formalism, the gauge conditions define our coordinate system (via our gauge variables, ie the lapse $\alpha$ and shift $\beta^i$). The trick is to make sure that the coordinates never actually meet the singularity, and it is instead treated as a puncture/hole in your simulation grid. This puncture is able to move around with the correct gauge conditions, and so we have a singularity that is never actually quite simulated explicitly. In moving punctures, the entire simulation domain is actively simulated, unlike with excision where a portion of it is not
 
-In practice, its a lot trickier than this, and it involves a lot of subtleties to get this to work in a physically accurate way. I'm going to keep the crackpot conspiracy theories to the end of this article however
-
-Notably, as the singularity represents a true discontinuity, differentiating across it is technically incorrect
-
-Both of these techniques rely on the fact that the interior, and exterior of a black hole are casually disconnected, and so what the interior of a black hole in theory[^intheory] does not affect the exterior universe
+In practice, its a lot trickier than this, and it involves a lot of subtleties to get this to work in a physically accurate way. But notably, as the singularity represents a true discontinuity, differentiating across it is technically incorrect. This means we must rely on the causality[^intheory] of the event horizon, to prevent these errors from escaping into our wider universe and keep them trapped inside the black hole itself
 
 [^intheory]: In practice, this is a hugely complicated topic that is going to make our lives very difficult. Its not that GR is incorrect about this, its that getting this guarantee in a numerical simulation is non trivial
 
@@ -41,7 +41,7 @@ Both of these techniques rely on the fact that the interior, and exterior of a b
 
 The conventional wisdom is that black holes merge after a long inspiralling process, where the nature of gravitational wave emissions slowly circularises the orbits. This means that binary black hole orbits should be nearly perfectly circular by the time the black hole's merge
 
-Unfortunately, this turned out not to be the case, and it appears that there is a significant amount of eccentricity (non circularity) when black holes merge. This really complicates the amount of simulating you have to do
+Unfortunately, this turned out not to be the case, and it appears that there is a significant amount of eccentricity (non circularity) when black holes merge. This really complicates the amount of simulating you have to do, and so more than ever being able to simulate a large number of test cases is very important.
 
 ## Unequal mass binaries
 
@@ -51,11 +51,11 @@ Personally I'm interested in a very general simulator which can handle anything,
 
 ## Gravitational waves
 
-The primary purpose of a black hole merger simulator is to find out what the gravitational waves look like, because LIGO (a big gravitational wave detector) can detect certain mass ranges of mergers. We're not going to be pulling out gravitational waves today, but it does mean we need to be careful to be as physical as possible
+The reason for doing any of this is that tools like LIGO are able to detect gravitational waves from merging compact objects, and gives us a measure of the gravitational waves passing through spacetime. The only way to reverse engineer what objects collided, is to simulate those gravitational waves ourselves via simulations like this, and then match up what set of parameters most closely matches our simulation
+
+This means that physical accuracy here is paramount, and we're going to have to be very careful with how we operate in general. We won't be pulling out gravitational waves today however, but it'll be coming up shortly
 
 To perform this matching, as far as I know there's no better way than simply bruteforcing the entire parameter space. For a pair of black holes, you have the following parameters:
-
-todo: no
 
 M1: The mass of the first black hole
 M2: The mass of the second black hole
