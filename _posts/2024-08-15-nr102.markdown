@@ -102,20 +102,20 @@ K_{ij}\\
 \beta^i
 $$
 
-This technique solves for $\gamma_{ij}$ and $K_{ij}$, and leaves us to guess $\alpha$ and $\beta^i$ (which are, in theory, arbitrary). It falls under the class of initial conditions known as 'conformally flat'. This means it decomposes the metric tensor into a flat conformal metric (an identity matrix), and a conformal factor $\psi$. It also decomposes the extrinsic curvature $K^{ph}_{ij}$ ('physical', this is our $K_{ij}$) into a trace $K=0$, and a trace free part which this paper calls $K_{ij}$ (and other papers often call $$\bar{A}_{ij}$$). This is called a maximal slice (todo: check the _{TT} schenanigans)
+This technique solves for $\gamma_{ij}$ and $K_{ij}$, and leaves us to guess $\alpha$ and $\beta^i$ (which are, in theory, arbitrary, being gauge variables). It falls under the class of initial conditions known as 'conformally flat'. This means it decomposes the metric tensor into a flat conformal metric (the identity matrix in cartesian), and a conformal factor $\psi$. It also decomposes the extrinsic curvature $K^{ph}_{ij}$ ('physical', this is our $K_{ij}$) into a trace $K=0$, and a trace free part which this paper calls $K_{ij}$ (and other papers often call $$\bar{A}_{ij}$$). This is called a maximal slice (todo: check the _{TT} schenanigans)
 
 The basic idea here is that with the conformally flat + trace free constraint, the momentum constraint $\mathcal{M}_i$ becomes linear, allowing you to calculate the extrinsic curvature $$\bar{A}_{ij}$$ as a sum of each individual black hole's curvature, to calculate the final (conformal) curvature. The shape of the conformal factor $\psi$ is a *guess*, which is then corrected to be physical via a small correction $u$, by solving the laplacian (9) + (10)
+
+The extrinsic curvature for each black hole is given analytically, and we'll get to it
 
 ## Details
 
 This method has the following parameters:
 
-$m_i$ bare mass parameter of each black hole
-$S_i$: A 3-vector representing the spin (angular ADM momentum) of each black hole
-$P_i$: A 3-vector representing the linear momentum (ADM mass * velocity) of each black hole
-$x_i$ the position of a black hole
-
-I'm labelling the properties of each black hole by its index $i$, eg $P_0$ is the first black hole's momentum vector
+$m$ bare mass parameter of a black hole
+$S^i$: A 3-vector representing the spin (angular ADM momentum) of a black hole
+$P^i$: A 3-vector representing the linear momentum (ADM mass * velocity) of a black hole
+$x^i$: A 3-vector representing the position of a black hole in world coordinates
 
 Note that bare mass is not the same thing as mass (here: ADM mass), it only correlates to it. A black hole's spin contributes to its mass as well. On top of this, in the general case, the mass of a black hole in a binary pair is of questionable physicalness: see the end of this article for more details. Here, you don't need to worry about this, because we'll be giving the initial conditions in terms of bare mass: just be aware this isn't universal in the literature
 
@@ -123,7 +123,7 @@ I'm going to be using the notation $\bar{A}^{ij}$ to mean what this paper calls 
 
 ## Conformal extrinsic curvature
 
-This is straightforward. For every black hole in our spacetime, we calculate the quantity (5), and then sum all of them. After accumulating all of these, I store $\bar{A}^{ab} \bar{A}_{ab}$ as a scalar
+This is straightforward. For every black hole in our spacetime, we calculate the quantity (5), and then sum over our black holes. After accumulating all of these, I store $\bar{A}^{ab} \bar{A}_{ab}$ as a scalar
 
 For a single black hole, we have this:
 
