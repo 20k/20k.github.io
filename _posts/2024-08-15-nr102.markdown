@@ -160,7 +160,7 @@ Where $u > 1$, and $\alpha$ is:
 
 $$\frac{1}{\alpha} = \sum^N_{i=1} \frac{m_i}{2 |\overrightarrow{r} - \overrightarrow{x}_{(i)}|}$$
 
-Note that $r$ in the bottom term is a vector representing our current grid cell's world position. This is twice the distance of our coordinate from our $i$'th black hole
+Note that $r$ in the bottom term is a vector representing our current grid cell's world position. This is twice the distance of our coordinate from our $i$'th black hole. The $\alpha$ here has nothing to do with the gauge variable lapse also notated by $\alpha$, unhelpfully
 
 We're going to deviate a little from this definition, and instead calculate the correction as:
 
@@ -190,7 +190,7 @@ $$\Delta u = F(u)$$
 
 And are a standard laplacian. It is common in numerical relativity to use fairly complicated solutions to solve this, and they come with caveats in terms of what kinds of laplacians are solvable. This is because solvers are CPU based, and as such need very high order convergence to work quickly
 
-Luckily, we're in GPU-land, and so the techniques are both simpler and significantly more performant. If you already know how to solve a laplacian, there is nothing special in this section and you may skip it
+Luckily, we're in GPU-land, and so the techniques are both simpler and significantly more performant. If you already know how to solve a laplacian, there is absolutely nothing special in this section and you may skip it
 
 #### The boundary condition
 

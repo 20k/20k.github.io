@@ -98,12 +98,6 @@ std::string make_derivatives()
 
         valuef v1 = in[pos, dim];
 
-        ///must calculate derivatives on the boundary
-        derivative_data d;
-        d.pos = pos;
-        d.dim = dim;
-        d.scale = scale.get();
-
         for(int i=0; i < 3; i++)
             as_ref(out[i][pos, dim]) = (derivative_t)diff1_boundary(in, i, scale.get(), pos, dim);
     };
