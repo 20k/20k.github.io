@@ -1178,7 +1178,10 @@ std::string init_debugging()
 
         col = clamp(col, valuef(0.f), valuef(1.f));
 
-        write.write({pos.x(), pos.y()}, col);
+        if_e(pos.x() >= 0 && pos.x() < dim.x() && pos.y() >= 0 && pos.y() < dim.y(), [&]()
+        {
+            write.write({pos.x(), pos.y()}, col);
+        });
     };
 
     return value_impl::make_function(dbg, "debug");
