@@ -25,12 +25,12 @@ struct mesh
     t3i dim;
 
     std::vector<cl::buffer> derivatives;
-    std::vector<cl::buffer> momentum_constraint;
-    cl::buffer temporary_buffer;
-    cl::buffer temporary_single;
-    std::vector<double> hamiltonian_error;
-    std::vector<double> Mi_error;
-    std::vector<double> cG_error;
+    //std::vector<cl::buffer> momentum_constraint;
+    //cl::buffer temporary_buffer;
+    //cl::buffer temporary_single;
+    //std::vector<double> hamiltonian_error;
+    //std::vector<double> Mi_error;
+    //std::vector<double> cG_error;
 
     cl::buffer sommerfeld_points;
     cl_int sommerfeld_length = 0;
@@ -39,14 +39,41 @@ struct mesh
     cl::buffer evolve_points;
     cl_int evolve_length;
 
-    mesh(cl::context& ctx, t3i _dim) : buffers{ctx, ctx, ctx}, temporary_buffer(ctx), temporary_single(ctx), sommerfeld_points(ctx), evolve_points(ctx)
+    mesh(cl::context& ctx, t3i _dim) : buffers{ctx, ctx, ctx}, sommerfeld_points(ctx), evolve_points(ctx)
     {
         dim = _dim;
     }
 
-    void allocate(cl::context& ctx, cl::command_queue& cqueue)
+    void init(float simulation_width, cl::context& ctx, cl::command_queue& cqueue)
     {
-        for(int i=0; i < 3; i++)
+        buffers[0].allocate(dim);
+
+        buffers[0].for_each([&](cl::buffer b){
+            cl_float nan = NAN;
+
+            b.fill(cqueue, nan);
+        });
+
+        {
+            black_hole_params p1;
+            p1.bare_mass = 0.483f;
+            p1.position = {3.257, 0, 0};
+            p1.linear_momentum = {0, 0.133, 0};
+
+            black_hole_params p2;
+            p2.bare_mass = 0.483f;
+            p2.position = {-3.257, 0, 0};
+            p2.linear_momentum = {0, -0.133, 0};
+
+            initial_conditions init(ctx, cqueue, dim);
+
+            init.add(p1);
+            init.add(p2);
+
+            init.build(ctx, cqueue, simulation_width, buffers[0]);
+        }
+
+        for(int i=1; i < 3; i++)
         {
             buffers[i].allocate(dim);
 
@@ -57,13 +84,13 @@ struct mesh
             });
         }
 
-        for(int i=0; i < 3; i++)
+        /*for(int i=0; i < 3; i++)
         {
             cl::buffer buf(ctx);
             buf.alloc(sizeof(cl_float) * int64_t{dim.x()} * dim.y() * dim.z());
 
             momentum_constraint.push_back(buf);
-        }
+        }*/
 
         for(int i=0; i < 11 * 3; i++)
         {
@@ -133,28 +160,6 @@ struct mesh
         evolve_points.write(cqueue, evolve);
 
         evolve_length = evolve.size();
-    }
-
-    void init(float simulation_width, cl::context& ctx, cl::command_queue& cqueue)
-    {
-        {
-            black_hole_params p1;
-            p1.bare_mass = 0.483f;
-            p1.position = {3.257, 0, 0};
-            p1.linear_momentum = {0, 0.133, 0};
-
-            black_hole_params p2;
-            p2.bare_mass = 0.483f;
-            p2.position = {-3.257, 0, 0};
-            p2.linear_momentum = {0, -0.133, 0};
-
-            initial_conditions init(ctx, cqueue, dim);
-
-            init.add(p1);
-            init.add(p2);
-
-            init.build(ctx, cqueue, simulation_width, buffers[0]);
-        }
 
         //temporary_buffer.set_to_zero(cqueue);
         //temporary_single.set_to_zero(cqueue);
@@ -222,6 +227,7 @@ struct mesh
             cqueue.exec("differentiate", args, {dim.x()*dim.y()*dim.z()}, {128});
         };
 
+        #if 0
         auto calculate_constraint_errors = [&](int pack_idx)
         {
             auto sum_over = [&](cl::buffer buf)
@@ -282,7 +288,9 @@ struct mesh
                 cG_error.push_back(cG);
             }
         };
+        #endif
 
+        #if 0
         auto calculate_momentum_constraint_for = [&](int pack_idx)
         {
             cl::args args;
@@ -296,6 +304,7 @@ struct mesh
 
             cqueue.exec("momentum_constraint", args, {dim.x() * dim.y() * dim.z()}, {128});
         };
+        #endif
 
         auto evolve_step = [&](int base_idx, int in_idx, int out_idx)
         {
@@ -469,7 +478,7 @@ int main()
     cl::context& ctx = win.clctx->ctx;
     std::cout << cl::get_extensions(ctx) << std::endl;
 
-    t3i dim = {213, 213, 213};
+    t3i dim = {255, 255, 255};
 
     std::jthread build_thread([&]()
     {
@@ -529,8 +538,10 @@ int main()
     float simulation_width = 20;
 
     mesh m(ctx, dim);
-    m.allocate(ctx, cqueue);
     m.init(simulation_width, ctx, cqueue);
+
+    printf("Post init\n");
+
     //m.load_from(cqueue);
 
     texture_settings tsett;
@@ -574,6 +585,7 @@ int main()
 
         ImGui::Text("Elapsed %f", elapsed_t);
 
+        #if 0
         std::vector<float> lines;
 
         for(auto& i : m.hamiltonian_error)
@@ -594,6 +606,7 @@ int main()
             cgs.push_back(i);
 
         ImGui::PlotLines("cG", cgs.data(), cgs.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 100));
+        #endif
 
         ImGui::End();
 

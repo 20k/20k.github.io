@@ -475,7 +475,13 @@ struct initial_conditions
                     {
                         printf("Broke %i\n", i);
 
-                        bool going = still_going.read<int>(cqueue)[0] == 1;
+                        cqueue.block();
+
+                        printf("Post block\n");
+
+                        bool going = still_going.read<int>(cqueue).at(0) == 1;
+
+                        printf("CGoing %i\n", going);
 
                         if(!going)
                             break;
@@ -486,20 +492,26 @@ struct initial_conditions
             return std::pair{u_found, pack};
         };
 
-        std::array<t3i, 5> dims = {(t3i){63, 63, 63}, (t3i){95, 95, 95}, (t3i){127, 127, 127}, (t3i){197, 197, 197}, dim};
-        std::array<float, 5> relax = {0.4f, 0.5f, 0.5f, 0.7f, 0.9f};
+        std::array<t3i, 6> dims = {(t3i){63, 63, 63}, (t3i){95, 95, 95}, (t3i){127, 127, 127}, (t3i){197, 197, 197}, (t3i){223, 223, 223}, dim};
+        std::array<float, 6> relax = {0.3f, 0.4f, 0.4f, 0.5f, 0.6f, 0.7f};
         std::optional<std::tuple<cl::buffer, initial_pack>> last;
 
         {
             std::optional<std::pair<cl::buffer, t3i>> last_u;
 
-            for(int i=0; i < 5; i++)
+            for(int i=0; i < dims.size(); i++)
             {
                 last = get_u_at_dim(dims[i], simulation_width, relax[i], last_u);
+
+                printf("Got u %i\n", i);
 
                 last_u = {std::get<0>(last.value()), dims[i]};
             }
         }
+
+        cqueue.block();
+
+        printf("here1\n");
 
         {
             auto [u_found, pack] = last.value();
@@ -520,6 +532,8 @@ struct initial_conditions
 
             cqueue.exec("calculate_bssn_variables", args, {dim.x() * dim.y() * dim.z()}, {128});
         }
+
+        printf("Here2\n");
     }
 };
 

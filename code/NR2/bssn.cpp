@@ -505,7 +505,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
                 sum += 0.5f * (args.cY[k, i] * cD[k, j] + args.cY[k, j] * cD[k, i]);
             }
 
-            float cK = -0.055f;
+            float cK = -0.1f;
 
             dtcY.idx(i, j) += cK * args.gA * sum;
         }
@@ -1172,9 +1172,9 @@ std::string init_debugging()
         //valuef test_val = to_fill.cY[0][lid];
         //valuef display = ((test_val - 1) / 0.1f) * 0.5f + 0.5f;
 
-        valuef display = to_fill.gA[lid];
+        valuef display = fabs(to_fill.gA[lid] * 0.15);
 
-        v4f col = {display, 0.f, 0.f, 1.f};
+        v4f col = {display, display, display, 1.f};
 
         col = clamp(col, valuef(0.f), valuef(1.f));
 
