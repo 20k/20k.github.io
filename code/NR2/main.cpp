@@ -567,6 +567,8 @@ int main()
     float timestep = get_timestep(simulation_width, dim);
     bool step = false;
     bool running = false;
+    bool pause = false;
+    float pause_time = 100;
 
     while(!win.should_close())
     {
@@ -580,6 +582,7 @@ int main()
             step = true;
 
         ImGui::Checkbox("Run", &running);
+        ImGui::Checkbox("Pause", &pause);
 
         step = step || running;
 
@@ -613,6 +616,9 @@ int main()
         steady_timer t;
 
         rtex.acquire(cqueue);
+
+        if(pause && elapsed_t > 100)
+            step = false;
 
         if(step)
             m.step(ctx, cqueue, timestep, simulation_width);
