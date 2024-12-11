@@ -134,13 +134,13 @@ std::string make_kreiss_oliger()
             do_kreiss(6);
         });
 
-        if_e(boundary_distance == 4, [&]{
+        if_e(boundary_distance >= 4, [&]{
             do_kreiss(8);
         });
 
-        if_e(boundary_distance >= 5, [&]{
+        /*if_e(boundary_distance >= 5, [&]{
             do_kreiss(10);
-        });
+        });*/
 
         /*if_e(pos.x() == 2 && pos.y() == 128 && pos.z() == 128, [&]{
             value_base se;
