@@ -186,7 +186,7 @@ struct mesh
 
             for(int i=0; i < (int)linear_base.size(); i++)
             {
-                float eps = 0.03f;
+                float eps = 0.15f;
 
                 cl::args args;
                 args.push_back(linear_base.at(i));
@@ -535,7 +535,7 @@ int main()
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
-    float simulation_width = 20;
+    float simulation_width = 30;
 
     mesh m(ctx, dim);
     m.init(simulation_width, ctx, cqueue);

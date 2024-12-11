@@ -505,7 +505,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
                 sum += 0.5f * (args.cY[k, i] * cD[k, j] + args.cY[k, j] * cD[k, i]);
             }
 
-            float cK = -0.1f;
+            float cK = -0.075f;
 
             dtcY.idx(i, j) += cK * args.gA * sum;
         }
