@@ -381,7 +381,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
 
         #define FORWARD_DIFFERENTIATION
         #ifdef FORWARD_DIFFERENTIATION
-        metric<dual<valuef>, 3, 3> d_cYij;
+        unit_metric<dual<valuef>, 3, 3> d_cYij;
 
         for(int i=0; i < 3; i++)
         {

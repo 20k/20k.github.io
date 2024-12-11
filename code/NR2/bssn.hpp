@@ -75,7 +75,7 @@ struct bssn_derivatives_mem : value_impl::single_source::argument_pack
 
 struct bssn_args
 {
-    metric<valuef, 3, 3> cY;
+    unit_metric<valuef, 3, 3> cY;
     tensor<valuef, 3, 3> cA;
     valuef K;
     valuef W;
