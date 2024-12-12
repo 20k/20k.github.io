@@ -486,8 +486,41 @@ struct initial_conditions
             return std::pair{u_found, pack};
         };
 
-        std::array<t3i, 6> dims = {(t3i){63, 63, 63}, (t3i){95, 95, 95}, (t3i){127, 127, 127}, (t3i){197, 197, 197}, (t3i){223, 223, 223}, dim};
-        std::array<float, 6> relax = {0.3f, 0.4f, 0.4f, 0.5f, 0.6f, 0.7f};
+        std::vector<t3i> dims;
+        std::vector<float> relax;
+
+        int max_refinement_levels = 5;
+
+        ///generate a dims array which gets progressively larger, eg
+        ///63, 95, 127, 197, 223
+        ///is generated in reverse
+        for(int i=0; i < max_refinement_levels; i++)
+        {
+            float div = pow(1.25, i + 1);
+            ///exact params here are pretty unimportant
+            float rel = mix(0.7f, 0.3f, (float)i / (max_refinement_levels-1));
+
+            t3i next_dim = (t3i)((t3f)dim / div);
+
+            if((next_dim.x() % 2) == 0)
+                next_dim += (t3i){1,1,1};
+
+            dims.insert(dims.begin(), next_dim);
+            relax.insert(relax.begin(), rel);
+        }
+
+
+        dims.insert(dims.begin(), {51, 51, 51});
+        relax.insert(relax.begin(), 0.3f);
+
+        dims.push_back(dim);
+        relax.push_back(0.8f);
+
+        for(int i=0; i < (int)dims.size(); i++)
+        {
+            printf("Dims %i %f\n", dims[i].x(), relax[i]);
+        }
+
         std::optional<std::tuple<cl::buffer, initial_pack>> last;
 
         {

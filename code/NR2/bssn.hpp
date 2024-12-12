@@ -26,6 +26,7 @@ using mut_v3f = tensor<mut<valuef>, 3>;
 v3i get_coordinate(valuei id, v3i dim);
 
 using t3i = tensor<int, 3>;
+using t3f = tensor<float, 3>;
 
 template<typename T>
 struct bssn_args_mem : value_impl::single_source::argument_pack
