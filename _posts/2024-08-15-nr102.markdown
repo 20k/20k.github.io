@@ -28,7 +28,7 @@ The event horizon itself acts completely normally in general relativity, but it 
 1. Excision, where we simply do not simulate the interior of a black hole near the singularity
 2. Moving punctures, where we rely on coordinate system trickery to keep our spacetime away from the discontinuity
 
-We're primarily going to be relying on the second technique in this article
+We're going to be relying on the second technique in this article
 
 ## Managing the singularity
 
@@ -472,8 +472,6 @@ Our code now makes it to T=todo. One key feature to note is that: With very redu
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/XxRbxzmTqdE?si=i2dV0LWO2397sPHT" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-The next technique we're going to use is actually a new one for me, and is called slow start lapse
-
 ### Christoffel symbol errors, round 2
 
 As an observational note, too much christoffel constraint damping tends to lead to very aggressive inspiral, as well as the black holes taking incorrect paths in regions of higher velocity. Too little damping tends to lead to a failure to inspiral at all, or the black holes failing to maintain their shape entirely. The right types, and strength of damping, will lead to correct convergence - though it is tricky to get right, and can feel very arbitrary
@@ -488,11 +486,11 @@ There's no strong reason a priori to favour any of these schemes over the other[
 
 [^cafdamping]: Todo: Cite the stability paper, CAF damping efficacy, lack of constraint propagation analysis in general
 
-1. The $\sigma$ damping scheme tends to be the least robust, and the christoffel symbol constraint is often significantly incorrect. Its too simplistic and loses energy tremendously. For this reason it is frequently combined with other constraint enforcement techniques (eg replacing undifferentiated $\tilde{\Gamma}^i$s with the analytic variable), which we do not use as they lack genericity. It is, observationally, significantly lossy in terms of energy
-2. This scheme works well, but isn't sufficiently able to damp away $\tilde{G}^i$ constraint errors, even with high values of the damping coefficient. Higher damping coefficients lead to lowering the courant factor (we'll talk about courant later), which is undesirable
+1. The $\sigma$ damping scheme tends to be the least robust, and the christoffel symbol constraint is often significantly incorrect. Its too simplistic and loses energy tremendously. For this reason it is frequently combined with other constraint enforcement techniques (eg replacing undifferentiated $\tilde{\Gamma}^i$s with the analytic variable), which we do not use as it is not a very general solution. It is, observationally, significantly lossy in terms of energy
+2. This scheme works well, but isn't sufficiently able to damp away $\tilde{G}^i$ constraint errors, even with high values of the damping coefficient. Higher damping coefficients lead to lowering the courant factor (ie lowering your maximum timestep), which is undesirable
 3. This scheme also works reasonably, but is also insufficiently damping
 
-We're going to ditch the traditional $\sigma$ damping, and instead use two key other constraint handling techniques combined, which together provide sufficient stability
+We're going to ditch the traditional $\sigma$ damping, and instead use the other two handling techniques combined, which together provide sufficient stability
 
 Scheme 2. (cY) comes from this paper, and is described as follows
 
