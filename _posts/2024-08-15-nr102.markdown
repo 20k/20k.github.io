@@ -30,6 +30,8 @@ The event horizon itself acts completely normally in general relativity, but it 
 
 We're going to be relying on the second technique in this article
 
+Todo: Kerr ringularity picture
+
 ## Managing the singularity
 
 ### Excision
