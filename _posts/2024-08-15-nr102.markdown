@@ -12,28 +12,35 @@ This article consists of two primary parts:
 1. Solving our new initial conditions for black holes, via a simple laplacian
 2. Modifying the equations to render them suitable for simulating black holes
 
+This article was significantly delayed due to illness sadly \:(
+
 # Astrophysics Context
 
-Its worth taking a minute to understand what a black hole actually is, and why its such a difficult road to simulate them numerically. In general relativity, a black hole is a form of *soliton* - it is a stable, self supporting configuration of spacetime, that propagates itself indefinitely. It does not require any matter to support it, not necessarily to even form it, and the spacetimes we are dealing with here are vacuum solutions - there's no matter of any description here
+Its worth taking a minute to understand what a black hole actually is, and why its such a difficult road to simulate them numerically. In general relativity, a black hole is a form of *soliton* - it is a stable, self supporting configuration of spacetime, that propagates itself indefinitely. It does not require any matter to support it, not necessarily to even form it, and the spacetimes we are dealing with here are vacuum solutions. There's no matter of any description here, and that will be a future article
 
-Black holes form an event horizon - out of which nothing can escape. After a black hole collapses, it inevitably forms a singularity at the centre - for non spinning black holes this is a point, or for spinning black holes, a ring
+Black holes have two primary distinguishing features compared to other compact objects
+
+1. They have an event horizon, out of which nothing can escape
+2. They form a singularity at their centre. A spinning black hole has a ring singularity (ringularity), and a non spinning black hole's singularity is a point
 
 The event horizon itself acts completely normally in general relativity, but it is the singularity which causes problems for us. It is a true mathematical error, and we cannot simulate it by any means. Because it will always form, we must come up with some tricks for dealing with it. These notably fall into one of two categories:
 
 1. Excision, where we simply do not simulate the interior of a black hole near the singularity
 2. Moving punctures, where we rely on coordinate system trickery to keep our spacetime away from the discontinuity
 
+We're primarily going to be relying on the second technique in this article
+
 ## Managing the singularity
 
 ### Excision
 
-This technique is fairly common, and involves chopping out the singularity entirely, and simply not simulating it. To excise the singularity correctly, you must define a boundary condition inside the black hole itself, then use one sided derivatives on the boundary. This technique works well, but involves the complexity of calculating and implementing the boundary condition
+This technique is fairly common, and involves chopping out the singularity entirely, and simply not simulating it. To excise the singularity correctly, you must define a boundary condition inside the black hole itself, then use one sided derivatives on the boundary. This technique works well, but involves the complexity of calculating and implementing the boundary condition - as well as defining *where* you should apply it
 
 ### Moving punctures
 
 This is the technique we'll actually be using, and involves a bit of trickery with our coordinate system. In the ADM formalism, the gauge conditions define our coordinate system (via our gauge variables, ie the lapse $\alpha$ and shift $\beta^i$). The trick is to make sure that the coordinates never actually meet the singularity, and it is instead treated as a puncture/hole in your simulation grid. This puncture is able to move around with the correct gauge conditions, and so we have a singularity that is never actually quite simulated explicitly. In moving punctures, the entire simulation domain is actively simulated, unlike with excision where a portion of it is not
 
-In practice, its a lot trickier than this, and it involves a lot of subtleties to get this to work in a physically accurate way. But notably, as the singularity represents a true discontinuity, differentiating across it is technically incorrect. This means we must rely on the causality[^intheory] of the event horizon, to prevent these errors from escaping into our wider universe and keep them trapped inside the black hole itself
+In practice, its a lot trickier than this, and it involves a lot of subtleties to get this to work in a physically accurate way. Notably, as the singularity represents a true discontinuity, differentiating across it is technically incorrect. This means we must rely on the causality[^intheory] of the event horizon to prevent these errors from escaping into our wider universe, and keep those errors trapped inside the black hole itself
 
 [^intheory]: In practice, this is a hugely complicated topic that is going to make our lives very difficult. Its not that GR is incorrect about this, its that getting this guarantee in a numerical simulation is non trivial
 
@@ -55,7 +62,7 @@ The reason for doing any of this is that tools like LIGO are able to detect grav
 
 This means that physical accuracy here is paramount, and we're going to have to be very careful with how we operate in general. We won't be pulling out gravitational waves today however, but it'll be coming up shortly
 
-To perform this matching, as far as I know there's no better way than simply bruteforcing the entire parameter space. For a pair of black holes, you have the following parameters:
+To perform this matching, as far as I know there's no better way than simply bruteforcing the entire parameter space. For a pair of black holes in an ADM simulation, you have the following parameters:
 
 M1: The mass of the first black hole
 M2: The mass of the second black hole
@@ -69,6 +76,8 @@ This is a lot of parameters to bruteforce, and its why non circular orbits are s
 
 Traditional simulations in this area can take weeks to months, which you'll be glad to know is not going to be the case for us. It'll be about 5-10 minutes for an orbit tops
 
+We'll be digging into the nitty gritty details of what these parameters mean in a physical sense shortly
+
 # What's the plan?
 
 We need a few things to get this to work:
@@ -77,7 +86,7 @@ We need a few things to get this to work:
 2. New boundary conditions
 3. Some modifications to the evolution equations
 
-Of all of these, the initial conditions are by far the most complicated part, so lets get to it
+Of all of these, the initial conditions are by far the most complicated part code-wise, so lets get to it
 
 # Initial conditions
 
@@ -86,7 +95,7 @@ I'm going to present you with the easiest set of initial conditions to implement
 The paper we're going to implement today is called [A simple construction of initial data for multiple black holes](https://arxiv.org/pdf/gr-qc/9703066). This represents an extremely traditional and widespread way to construct black hole initial conditions - its also a very good paper that you should read. There are a few things that we need to learn right off the bat
 
 1. This doesn't actually make black holes, it makes objects that collapse into black holes. They have no event horizon, or apparent horizon. This is commonly described as a wormhole collapsing into a trumpet - a trumpet being the final configuration of a black hole in numerical relativity
-2. There is no way of a-priori specifying the mass of a black hole
+2. There is no way of a-priori specifying the 'real' (we'll get into this shortly) mass of a black hole
 3. There is a maximum value of spin that can be expressed with this technique
 4. This works for any number of black holes
 
@@ -102,7 +111,7 @@ K_{ij}\\
 \beta^i
 $$
 
-This technique solves for $\gamma_{ij}$ and $K_{ij}$, and leaves us to guess $\alpha$ and $\beta^i$ (which are, in theory, arbitrary, being gauge variables). It falls under the class of initial conditions known as 'conformally flat'. This means it decomposes the metric tensor into a flat conformal metric (the identity matrix in cartesian), and a conformal factor $\psi$. It also decomposes the extrinsic curvature $K^{ph}_{ij}$ ('physical', this is our $K_{ij}$) into a trace $K=0$, and a trace free part which this paper calls $K_{ij}$ (and other papers often call $$\bar{A}_{ij}$$). This is called a maximal slice (todo: check the _{TT} schenanigans)
+This technique solves for $\gamma_{ij}$ and $K_{ij}$, and leaves us to guess $\alpha$ and $\beta^i$ (which are, in theory, arbitrary, being gauge variables). It falls under the class of initial conditions known as 'conformally flat'. This means it decomposes the metric tensor into a flat conformal metric (the identity matrix in cartesian coordinates), and a conformal factor $\psi$. It also decomposes the extrinsic curvature $K^{ph}_{ij}$ ('physical', this is our $K_{ij}$) into a trace $K=0$, and a trace free part which this paper calls $K_{ij}$ (and other papers often call $$\bar{A}_{ij}$$). This is called a maximal slice (todo: check the _{TT} schenanigans)
 
 The basic idea here is that with the conformally flat + trace free constraint, the momentum constraint $\mathcal{M}_i$ becomes linear, allowing you to calculate the extrinsic curvature $$\bar{A}_{ij}$$ as a sum of each individual black hole's curvature, to calculate the final (conformal) curvature. The shape of the conformal factor $\psi$ is a *guess*, which is then corrected to be physical via a small correction $u$, by solving the laplacian (9) + (10)
 
@@ -117,9 +126,11 @@ $S^i$: A 3-vector representing the spin (angular ADM momentum) of a black hole
 $P^i$: A 3-vector representing the linear momentum (ADM mass * velocity) of a black hole
 $x^i$: A 3-vector representing the position of a black hole in world coordinates
 
-Note that bare mass is not the same thing as mass (here: ADM mass), it only correlates to it. A black hole's spin contributes to its mass as well. On top of this, in the general case, the mass of a black hole in a binary pair is of questionable physicalness: see the end of this article for more details. Here, you don't need to worry about this, because we'll be giving the initial conditions in terms of bare mass: just be aware this isn't universal in the literature
+Note that bare mass is not the same thing as mass (here: ADM mass), it only correlates to it. A black hole's spin and momentum contributes to its ADM mass as well. On top of this, in the general case, the mass of a black hole in a binary pair is of questionable physicalness: see the end of this article for more details. Here, you don't need to worry about this, because we'll be giving the initial conditions in terms of bare mass: just be aware this isn't universal in the literature, and you are expected to binary search bare mass parameters to achieve your final ADM mass
 
 I'm going to be using the notation $\bar{A}^{ij}$ to mean what this paper calls $K^{ij}$, because its simply too confusing otherwise. I'm also going to be using $\bar{\gamma}_{ij}$ to mean the conformally flat metric instead of $g_{ab}$, for the same reason. Note that $\bar{\gamma}_{ij}$ and $\tilde{\gamma}_{ij}$ are not the same, there's a lot of quite similar notation here
+
+Todo: Explain dimensionless spin
 
 ## Conformal extrinsic curvature
 

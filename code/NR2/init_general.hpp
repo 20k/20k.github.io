@@ -473,15 +473,9 @@ struct initial_conditions
 
                     if(check)
                     {
-                        printf("Broke %i\n", i);
-
-                        cqueue.block();
-
-                        printf("Post block\n");
+                        printf("Checked at %i\n", i);
 
                         bool going = still_going.read<int>(cqueue).at(0) == 1;
-
-                        printf("CGoing %i\n", going);
 
                         if(!going)
                             break;
@@ -509,10 +503,6 @@ struct initial_conditions
             }
         }
 
-        cqueue.block();
-
-        printf("here1\n");
-
         {
             auto [u_found, pack] = last.value();
 
@@ -532,8 +522,6 @@ struct initial_conditions
 
             cqueue.exec("calculate_bssn_variables", args, {dim.x() * dim.y() * dim.z()}, {128});
         }
-
-        printf("Here2\n");
     }
 };
 
