@@ -145,7 +145,7 @@ $$
 \end{align}
 $$
 
-Where $\epsilon$ is the levi civita symbol[^lcs]. Note that the levi civita symbol, and levi civita tensor have the same notation in the literature and are frequently freely mixed, so its not especially clear what's going on. TODO: I NEED TO CHECK THIS
+Where $\epsilon$ is the levi civita symbol[^lcs]. Note that the levi civita symbol, and levi civita tensor have the same notation in the literature and are frequently freely mixed, so its not especially clear what's going on. Here, I believe this is specifically the *symbol*
 
 [^lcs]: [see 13](https://arxiv.org/pdf/2007.14279)
 
@@ -158,10 +158,6 @@ If you have no plans to ever work in non cartesian coordinate systems (which we 
 Next up: We need the conformal factor $\psi$, which involves calculating the correction $u$
 
 ## Conformal Factor
-
-alt https://arxiv.org/pdf/1606.04881
-
-https://www.worldscientific.com/doi/pdf/10.1142/S2010194512004321 15? everyone uses this
 
 The conformal factor $\psi$ here is listed as:
 
@@ -177,21 +173,42 @@ We're going to deviate a little from this definition, and instead calculate the 
 
 $$\psi = \frac{1}{\alpha} + u + 1$$
 
-Where $u > 0$. This is because you have a lot more precision to work with for floating point near $0$ vs near $1$, so this lets us solve for much smaller corrections without needing to resort to double precision. This means our boundary condition will be slightly different ($u=0$ vs $u=1$)
+Where $u > 0$. This is because you have a lot more precision to work with for floating point near $0$ vs near $1$, so this lets us solve for much smaller corrections without needing to resort to double precision. This means our boundary condition will be slightly different (we pick $u=0$, instead of $u=1$)
 
 ### Solving for $u$
 
 Equations (9) + (10) are a classic laplacian:
 
-todo: check if i need to u+1, i don't think so
-
 $$\begin{align}
-&\Delta u + \beta(1 + \alpha u)^{-7} = 0\\
+&\Delta u + \beta(1 + \alpha (u + 1))^{-7} = 0\\
 &\beta = \frac{1}{8} \alpha^7 \bar{A}^{ab}\bar{A}_{ab}
 \end{align}
 $$
 
-If you're planning to implement in a more serious capacity, I'd recommend instead the form given by [this](https://arxiv.org/pdf/1606.04881) paper (18), because that's where we'll end up eventually
+This is the slightly more complex version of the equation. Instead, we'll implement the more modern, equivalent form from [this](https://arxiv.org/pdf/1606.04881) paper (18), or [this](https://www.worldscientific.com/doi/pdf/10.1142/S2010194512004321) paper (13), because that's where we'll end up eventually anyway, and because its simpler
+
+Their equation:
+
+$$\begin{align}
+&\Delta \Phi + \frac{1}{8} \Phi^{-7} \bar{A}_{ij} \bar{A}^{ij} = 0 \\
+\end{align}$$
+
+Notational connections, and flattening the laplacian:
+
+$$\begin{align}
+&\Delta \Phi = \Delta u \\
+&\Phi = \frac{1}{\alpha} + u + 1\\
+\end{align}
+$$
+
+So therefore:
+
+$$\begin{align}
+&\Delta u + \frac{1}{8} (\frac{1}{\alpha} + u + 1)^{-7} \bar{A}_{ij} \bar{A}^{ij} = 0\\
+\end{align}
+$$
+
+The right hand side terms correspond to matter, and are neglected here. We'll be getting back to the first paper linked above in the future, in a *truly* terrible amount of detail
 
 #### Solving laplacians in general
 
@@ -205,7 +222,7 @@ Luckily, we're in GPU-land, and so the techniques are both simpler and significa
 
 #### The boundary condition
 
-At the edge of our grid, we need to set $u$ to something. Asymptotically, $u$ is assumed to have the form $O(\frac{1}{r})$ (todo check), and at infinity in the original definition $u ~= 1$. This means for us, $u = 0$
+At the edge of our grid, we need to set $u$ to something. Asymptotically, $u$ is assumed to have the form $O(\frac{1}{r})$ (todo check), and at infinity in the original definition $u = 1$. This means for us, $u = 0$
 
 #### Fixed point iteration / 7 point stencil
 
@@ -235,14 +252,14 @@ $$
 u(x, y, z) = \frac{u(x - h, y, z) + u(x + h, y, z) + u(x, y - h, z) + u(x, y + h, z) + u(x, y, z - h) + u(x, y, z + h) - F(u) h^2}{6}
 $$
 
-For us, $F(u) = -\frac{1}{8} \alpha^7 \bar{A}^{ab} \bar{A}_{ab} (1 + \alpha u)^{-7}$
+For us, $F(u) = -\frac{1}{8} (\frac{1}{\alpha} + u + 1)^{-7} \bar{A}_{ij} \bar{A}^{ij}$
 
 As a basic idea, this works, and is implementable. This is the form I used for a very long time: you just iterate the above equation until the change in $u$ is sufficiently small. There are two main issues:
 
 1. It can be numerically unstable, particularly for spinning black holes
 2. It isn't amazingly fast, it can take ~10s or so in some cases, which is still pretty fast
 
-The first is solved by relaxation: Ie taking our old guess, and our new guess, and taking some fraction between the two: `mix(u, nextu, 0.9)`. This unfortunately reduces the speed of convergence
+The first is solved by relaxation: Ie taking our old guess, and our new guess, and taking some fraction between the two: `mix(u, nextu, 0.9f)`. This unfortunately reduces the speed of convergence
 
 Luckily, performance issues are easily fixable!
 
@@ -270,7 +287,7 @@ Todo: code
 
 ## Finishing up
 
-After solving the laplacian, we have a value for $u$, which allows us to calculate $\psi$ directly. From here, we can calculate our ADM variables:
+After solving the laplacian, we have a value for $u$, which allows us to calculate $\psi$ directly, as $\psi = \frac{1}{\alpha} + u + 1$. From here, we can calculate our ADM variables:
 
 $$\begin{align}
 \gamma_{ij} &= \psi^4 \bar{\gamma}_{ij}\\
@@ -294,19 +311,20 @@ Both work well and are widely used. The latter is better for black holes, but I'
 
 # Boundary conditions
 
-https://arxiv.org/pdf/1503.03436 2.39
+In our first go at this, our data was periodic and simply wrapped around the boundary - which was our boundary condition. Here, our simulation is no longer periodic, so we need a new set of boundary conditions. The simplest good-enough boundary condition is called the Sommerfeld boundary condition. This radiates away your data to the asymptotic value at the boundary. [This is defined as follows](https://arxiv.org/pdf/1503.03436) [2.39]:
 
-Our data is no longer periodic, so we need a new set of boundary conditions. The simplest good-enough boundary condition is called the Sommerfeld boundary condition. This radiates away your data to the asymptotic value at the boundary. This is defined as:
+$$\frac{\partial f}{\partial t} = -\frac{v x_i}{r} \frac{\partial f}{\partial x_i} - v \frac{f - f_0}{r}$$
 
-$$\frac{\partial f}{\partial t} = -\frac{v x_i}{\partial x_i} - v \frac{f - f_0}{r}$$
-
-$f$ is our value for whatever field we're radiating, $x_i$ is the cell's position in world coordinates, $v$ is the wave speed, $f_0$ is the asymptotic value, and $r$ is the distance from the centre. This is applied to every tensor component separately, as if they were independent fields
+$f$ is our value for whatever field we're radiating, $x_i$ is the cell's position in world coordinates, $v$ is the wave speed, $f_0$ is the asymptotic value, and $r$ is the distance from the origin in world coordinates. $\frac{\partial f}{\partial x_i}$ is the standard directional derivative of the function in each direction $\partial x_i$. This is applied to every tensor component separately, as if they were independent fields
 
 The derivatives at the boundary will be one sided derivatives. All waves have a speed of $v=1$, except for the gauge variables which have a speed of $v=\sqrt{2}$. Todo: Cite
 
-Note that in my experience, Sommerfeld boundary conditions tend to lead to a gradual increase in ADM mass over time, making it somewhat unsuitable for long lived sims
+Note that in my experience, Sommerfeld boundary conditions tend to lead to a gradual increase in ADM mass over time with a very close boundary, making it somewhat unsuitable for long lived sims for us. More complex boundary conditions are a future topic
 
-Kreiss-Oliger dissipation also requires a boundary condition - in our case, we'll progressively reduce the order of dissipation as we approach the boundary, as we cannot
+There are two other boundary conditions we need:
+
+1. Kreiss-Oliger dissipation. In our case, we'll progressively reduce the order of dissipation as we approach the boundary
+2. Derivatives. Here, we reduce the order of derivatives as we approach the boundary, and use one sided derivatives *on* the boundary
 
 ## Other boundary conditions
 
