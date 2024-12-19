@@ -18,7 +18,7 @@ This article was significantly delayed due to illness sadly \:(
 
 Its worth taking a minute to understand what a black hole actually is, and why its such a difficult road to simulate them numerically. In general relativity, a black hole is a form of *soliton* - it is a stable, self supporting configuration of spacetime, that propagates itself indefinitely. It does not require any matter to support it, not necessarily to even form it, and the spacetimes we are dealing with here are vacuum solutions. There's no matter of any description here, and that will be a future article
 
-Black holes have two primary distinguishing features compared to other compact objects
+Black holes have two primary distinguishing features compared to other compact objects:
 
 1. They have an event horizon, out of which nothing can escape
 2. They form a singularity at their centre. A spinning black hole has a ring singularity (ringularity), and a non spinning black hole's singularity is a point
@@ -26,7 +26,7 @@ Black holes have two primary distinguishing features compared to other compact o
 The event horizon itself acts completely normally in general relativity, but it is the singularity which causes problems for us. It is a true mathematical error, and we cannot simulate it by any means. Because it will always form, we must come up with some tricks for dealing with it. These notably fall into one of two categories:
 
 1. Excision, where we simply do not simulate the interior of a black hole near the singularity
-2. Moving punctures, where we rely on coordinate system trickery to keep our spacetime away from the discontinuity
+2. The technique known as "moving punctures", where we rely on coordinate system trickery to keep our spacetime away from the discontinuity, which moves around our simulation grid
 
 We're going to be relying on the second technique in this article
 
@@ -44,7 +44,7 @@ This is the technique we'll actually be using, and involves a bit of trickery wi
 
 In practice, its a lot trickier than this, and it involves a lot of subtleties to get this to work in a physically accurate way. Notably, as the singularity represents a true discontinuity, differentiating across it is technically incorrect. This means we must rely on the causality[^intheory] of the event horizon to prevent these errors from escaping into our wider universe, and keep those errors trapped inside the black hole itself
 
-[^intheory]: In practice, this is a hugely complicated topic that is going to make our lives very difficult. Its not that GR is incorrect about this, its that getting this guarantee in a numerical simulation is non trivial
+[^intheory]: In practice, this is a hugely complicated topic that is going to make our lives very difficult. Its not that GR is incorrect about this, its that getting this guarantee in a numerical simulation is non trivial. While general relativity is a casual theory (where the maximum speed of causality is C), it is not a priori true as a result that *errors* in the BSSN formalism we use are causal. It also just so happens that - in theory - errors in BSSN *are* causal with the standard formalism - except we're using some modifications. This means that theoretically we're on slightly shakey grounds. In practice, error propagation is inherently non causal because of errors introduced by discretisation and discrete timestepping, which means we need a margin of error within our event horizon for errors to remain trapped within it
 
 ## Binary black hole orbits
 
@@ -96,10 +96,10 @@ I'm going to present you with the easiest set of initial conditions to implement
 
 The paper we're going to implement today is called [A simple construction of initial data for multiple black holes](https://arxiv.org/pdf/gr-qc/9703066). This represents an extremely traditional and widespread way to construct black hole initial conditions - its also a very good paper that you should read. There are a few things that we need to learn right off the bat
 
-1. This doesn't actually make black holes, it makes objects that collapse into black holes. They have no event horizon, or apparent horizon. This is commonly described as a wormhole collapsing into a trumpet - a trumpet being the final configuration of a black hole in numerical relativity
+1. This doesn't actually make black holes, it makes objects that collapse into black holes. They have no event horizon, or apparent horizon initially. This is commonly described as a wormhole collapsing into a trumpet - a trumpet being the final configuration of a black hole in numerical relativity
 2. There is no way of a-priori specifying the 'real' (we'll get into this shortly) mass of a black hole
 3. There is a maximum value of spin that can be expressed with this technique
-4. This works for any number of black holes
+4. This works for any number of black holes, but astrophysically there's virtually no way to have a 3 body interaction. Funwise, we'll go nuts when we get some better rendering in place
 
 Lets get into it
 
@@ -113,11 +113,11 @@ K_{ij}\\
 \beta^i
 $$
 
-This technique solves for $\gamma_{ij}$ and $K_{ij}$, and leaves us to guess $\alpha$ and $\beta^i$ (which are, in theory, arbitrary, being gauge variables). It falls under the class of initial conditions known as 'conformally flat'. This means it decomposes the metric tensor into a flat conformal metric (the identity matrix in cartesian coordinates), and a conformal factor $\psi$. It also decomposes the extrinsic curvature $K^{ph}_{ij}$ ('physical', this is our $K_{ij}$) into a trace $K=0$, and a trace free part which this paper calls $K_{ij}$ (and other papers often call $$\bar{A}_{ij}$$). This is called a maximal slice (todo: check the _{TT} schenanigans)
+This technique solves for $\gamma_{ij}$ and $K_{ij}$, and leaves us to guess $\alpha$ and $\beta^i$. Because the latter two variables are gauge variables, we can (in theory[^ofcourse]) pick them arbitrarily. It falls under the class of initial conditions known as 'conformally flat'. This means it decomposes the metric tensor into a flat conformal metric (the identity matrix in cartesian coordinates), and a conformal/scalar factor $\psi$. It also decomposes the extrinsic curvature $K^{ph}_{ij}$ ('physical', this is our $K_{ij}$) into a trace $K=0$, and a trace free part which this paper calls $K_{ij}$ (and other papers often call $$\bar{A}_{ij}$$). This is called a maximal slice (todo: check the _{TT} schenanigans)
 
-The basic idea here is that with the conformally flat + trace free constraint, the momentum constraint $\mathcal{M}_i$ becomes linear, allowing you to calculate the extrinsic curvature $$\bar{A}_{ij}$$ as a sum of each individual black hole's curvature, to calculate the final (conformal) curvature. The shape of the conformal factor $\psi$ is a *guess*, which is then corrected to be physical via a small correction $u$, by solving the laplacian (9) + (10)
+[^ofcourse]: Of course, as you can probably guess, its very important what their value is in practice for numerical reasons
 
-The extrinsic curvature for each black hole is given analytically, and we'll get to it
+The basic idea here is that when you impose conformal flatness, and maximal slicing, the momentum constraint $\mathcal{M}_i$ becomes linear, allowing you to calculate the extrinsic curvature $$\bar{A}_{ij}$$ as a sum of each individual black hole's curvature, to calculate the final (conformal) curvature. The shape of the conformal factor $\psi$ is a *guess*, which is then corrected to be physical via a small correction $u$, by solving the laplacian (9) + (10)
 
 ## Details
 
@@ -130,7 +130,17 @@ $x^i$: A 3-vector representing the position of a black hole in world coordinates
 
 Note that bare mass is not the same thing as mass (here: ADM mass), it only correlates to it. A black hole's spin and momentum contributes to its ADM mass as well. On top of this, in the general case, the mass of a black hole in a binary pair is of questionable physicalness: see the end of this article for more details. Here, you don't need to worry about this, because we'll be giving the initial conditions in terms of bare mass: just be aware this isn't universal in the literature, and you are expected to binary search bare mass parameters to achieve your final ADM mass
 
-I'm going to be using the notation $\bar{A}^{ij}$ to mean what this paper calls $K^{ij}$, because its simply too confusing otherwise. I'm also going to be using $\bar{\gamma}_{ij}$ to mean the conformally flat metric instead of $g_{ab}$, for the same reason. Note that $\bar{\gamma}_{ij}$ and $\tilde{\gamma}_{ij}$ are not the same, there's a lot of quite similar notation here
+To reiterate notation, I'm going to be using the notation $\bar{A}^{ij}$ to mean what this paper calls $K^{ij}$, because its simply too confusing otherwise. I'm also going to be using $\bar{\gamma}_{ij}$ to mean the conformally flat metric instead of $g_{ab}$, for the same reason. Note that $\bar{\gamma}_{ij}$ and $\tilde{\gamma}_{ij}$ are not the same, there's a lot of quite similar notation here
+
+So far, we have the following variable definitions:
+
+$$
+\begin{align}
+&\bar{\gamma}_{ij} &&= \tilde{\gamma}_{ij} \psi^{-4} = \delta_{ij} = I \\
+&\bar{A}_{ij} &&= K_{ij} \psi^2 \\
+&\psi && = ?
+\end{align}
+$$
 
 Todo: Explain dimensionless spin
 
@@ -157,6 +167,10 @@ $n$ is a normal vector, which is calculated as follows: $n^i = x^i/r$, and point
 
 If you have no plans to ever work in non cartesian coordinate systems (which we don't), the metric tensor is the identity matrix, and you can ignore the index positions
 
+Code wise: This is straightforward to implement:
+
+Todo
+
 Next up: We need the conformal factor $\psi$, which involves calculating the correction $u$
 
 ## Conformal Factor
@@ -169,7 +183,7 @@ Where $u > 1$, and $\alpha$ is:
 
 $$\frac{1}{\alpha} = \sum^N_{i=1} \frac{m_i}{2 |\overrightarrow{r} - \overrightarrow{x}_{(i)}|}$$
 
-Note that $r$ in the bottom term is a vector representing our current grid cell's world position. This is twice the distance of our coordinate from our $i$'th black hole. The $\alpha$ here has nothing to do with the gauge variable lapse also notated by $\alpha$, unhelpfully
+Note that $r$ in the bottom term is a vector representing our current grid cell's world position. This is twice the distance of our coordinate from our $i$'th black hole. The $\alpha$ here has nothing to do with the gauge variable lapse also notated by $\alpha$
 
 We're going to deviate a little from this definition, and instead calculate the correction as:
 
@@ -263,7 +277,90 @@ As a basic idea, this works, and is implementable. This is the form I used for a
 
 The first is solved by relaxation: Ie taking our old guess, and our new guess, and taking some fraction between the two: `mix(u, nextu, 0.9f)`. This unfortunately reduces the speed of convergence
 
-Luckily, performance issues are easily fixable!
+With that in mind, lets have a look at our first very basic laplacian solver!
+
+##### Code
+
+```c++
+v3i get_coordinate(valuei id, v3i dim)
+{
+    using namespace single_source;
+
+    valuei x = id % dim.x();
+    valuei y = (id / dim.x()) % dim.y();
+    valuei z = id / (dim.x() * dim.y());
+
+    pin(x);
+    pin(y);
+    pin(z);
+
+    return {x, y, z};
+}
+
+auto laplace_basic = [](execution_context& ectx, buffer_mut<valuef> in, buffer_mut<valuef> out, buffer<valuef> cfl, buffer<valuef> aij_aIJ,
+                                    literal<valuef> lscale, literal<v3i> ldim,
+                                    buffer_mut<valuei> still_going, literal<valuef> relax)
+{
+    using namespace single_source;
+
+    valuei lid = value_impl::get_global_id(0);
+
+    pin(lid);
+
+    auto dim = ldim.get();
+
+    if_e(lid >= dim.x() * dim.y() * dim.z(), [&]{
+        return_e();
+    });
+
+    v3i pos = get_coordinate(lid, dim);
+
+    //the boundary condition is implicit and does not need to be set
+    //ie the buffers that we pass in are initialized to the boundary condition of 0
+    if_e(pos.x() == 0 || pos.y() == 0 || pos.z() == 0 ||
+         pos.x() == dim.x() - 1 || pos.y() == dim.y() - 1 || pos.z() == dim.z() - 1, [&] {
+
+        return_e();
+    });
+
+    valuef rhs = -(1.f/8.f) * pow(cfl[lid] + in[lid], -7.f) * aij_aIJ[lid];
+
+    valuef h2f0 = lscale.get() * lscale.get() * rhs;
+
+    valuef uxm1 = in[pos - (v3i){1, 0, 0}, dim];
+    valuef uxp1 = in[pos + (v3i){1, 0, 0}, dim];
+    valuef uym1 = in[pos - (v3i){0, 1, 0}, dim];
+    valuef uyp1 = in[pos + (v3i){0, 1, 0}, dim];
+    valuef uzm1 = in[pos - (v3i){0, 0, 1}, dim];
+    valuef uzp1 = in[pos + (v3i){0, 0, 1}, dim];
+
+    valuef Xs = uxm1 + uxp1;
+    valuef Ys = uyp1 + uym1;
+    valuef Zs = uzp1 + uzm1;
+
+    pin(Xs);
+    pin(Ys);
+    pin(Zs);
+
+    valuef u0n1 = (1/6.f) * (Xs + Ys + Zs - h2f0);
+
+    valuef u = in[pos, dim];
+
+    as_ref(out[lid]) = mix(u, u0n1, relax.get());
+
+    valuef etol = 1e-6f;
+
+    if_e(fabs(u0n1 - u) > etol, [&]{
+        still_going.atom_xchg_e(valuei(0), valuei(1));
+    });
+};
+```
+
+There are potentially a few atypical features here:
+
+1. The relaxation parameter is dynamic
+2. We use `still_going` parameter. This sets an atomic to `1` (ignore the `0`, its an address offset) if the change in cell value is greater than an error tolerance. This is so that we can dynamically terminate when we've converged enough
+3. We use a linear id, and then convert that to our 3d id. This is to avoid significant dead threads at the edge of our domain
 
 #### Multigrid
 
@@ -286,6 +383,14 @@ This means that when updating, we can skip half the cells in the 'wrong' colour,
 The iteration scheme to use in 3d is as follows:
 
 Todo: code
+
+#### Further performance work
+
+At this point, I simply stopped - because the performance is much better than it needs to be. If you'd like further speedups, here's where to go!
+
+1. The in and out buffers should be compacted to remove the strided memory accesses as a result of red-black iteration
+2. A list of active points should be provided as a buffer (or calculated), to avoid half of our threads simply immediately terminating
+3. 16-bit fixed point would be acceptable precision for many of the lower grid sizes especially
 
 ## Finishing up
 
@@ -321,6 +426,10 @@ $f$ is our value for whatever field we're radiating, $x_i$ is the cell's positio
 
 The derivatives at the boundary will be one sided derivatives. All waves have a speed of $v=1$, except for the gauge variables which have a speed of $v=\sqrt{2}$. Todo: Cite
 
+Code wise, this is very straightforward:
+
+todo
+
 Note that in my experience, Sommerfeld boundary conditions tend to lead to a gradual increase in ADM mass over time with a very close boundary, making it somewhat unsuitable for long lived sims for us. More complex boundary conditions are a future topic
 
 There are two other boundary conditions we need:
@@ -328,17 +437,7 @@ There are two other boundary conditions we need:
 1. Kreiss-Oliger dissipation. In our case, we'll progressively reduce the order of dissipation as we approach the boundary
 2. Derivatives. Here, we reduce the order of derivatives as we approach the boundary, and use one sided derivatives *on* the boundary
 
-## Other boundary conditions
-
-There are alternatives to sommerfeld which I will mention in passing
-
-1. Fixing every field to its asymptotic value at the boundary, and not evolving it. This works if your boundary is far away (as spacetime is asmptotically flat), but requires a lot of extra simulation space
-2. Sponge constructions. This damps outgoing waves gradually. Its easy to implement, but the sponge area must be large enough to avoid reflections, which also requires a lot of extra simulation space
-3. Constraint preserving boundary conditions. These are the best and allow you to place the boundaries closest to your simulation area (as they introduce the least error), but are more complex to implement. Its on my infinitely long todo list, and there'll likely be an article on this in the future
-4. Hybrid schemes. Some schemes assume that $\beta^i = 0$ on the boundary, and evolve $\tilde{\gamma}_{ij}$ freely, then use traditional boundary conditions for the other variables. I've never tested this and have no information on the quality of the result, but it seems to work
-5. Compactification. This adjusts the coordinate system so that the grid represents the entire computational domain, and you have no boundary. This is nice theoretically, but in practice seems to be similar to a sponge construction
-
-As a general note, its very common to assume that the speed of the gauge waves is $1$, instead of $\sqrt{2}$
+Other boundary conditions are discussed at the end of this article
 
 # Modifying the equations
 
@@ -346,7 +445,7 @@ We've now solved the initial conditions, and implemented our boundary conditions
 
 Unfortunately, the equations as-is cannot simulate binary black hole collisions, and we now enter a very murky area: Ad hoc modifying the equations, so that we can pull off these simulations correctly
 
-In addition to the 'usual' issues, we also suffer from a unique issue: Rather low grid resolution, as well as using 32-bit floats instead of 64-bit doubles. The latter is largely a non issue luckily, but it exacerbates numerical issues with the singularity, by giving us a smaller margin for error[^leeway]
+In addition to the 'usual' issues, we also suffer from our own set of unique issues: Rather low grid resolution, as well as using 32-bit floats instead of 64-bit doubles. The latter is largely a non issue luckily, but it exacerbates numerical issues with the singularity, by giving us a smaller margin for error[^leeway]
 
 [^leeway]: The determinant of the metric tensor becomes degenerate on a failure of the boundary conditions, leading to infinities turning up. You can handle more degenerate matrices with double precision, giving the gauge conditions more time to catch up
 
@@ -612,6 +711,18 @@ Reducing derivative order near the singularity: This appears to better preserve 
 Various gauge conditions: Other than the damping parameter, I've never noticed much difference between these. Advection is commonly disabled, and can cause extra dissipation when enabled, but its somewhat counteracted here by CAKO
 
 The gauge damping parameter $N$: This is a fairly critical one and has a strong influence on the black hole's path. Its commonly set to twice the adm mass of the system or $2$, but it is *very* arbitrary. Higher values = less accurate, in theory
+
+## Other boundary conditions
+
+There are alternatives to sommerfeld which I will mention in passing
+
+1. Fixing every field to its asymptotic value at the boundary, and not evolving it. This works if your boundary is far away (as spacetime is asmptotically flat), but requires a lot of extra simulation space
+2. Sponge constructions. This damps outgoing waves gradually. Its easy to implement, but the sponge area must be large enough to avoid reflections, which also requires a lot of extra simulation space
+3. Constraint preserving boundary conditions. These are the best and allow you to place the boundaries closest to your simulation area (as they introduce the least error), but are more complex to implement. Its on my infinitely long todo list, and there'll likely be an article on this in the future
+4. Hybrid schemes. Some schemes assume that $\beta^i = 0$ on the boundary, and evolve $\tilde{\gamma}_{ij}$ freely, then use traditional boundary conditions for the other variables. I've never tested this and have no information on the quality of the result, but it seems to work
+5. Compactification. This adjusts the coordinate system so that the grid represents the entire computational domain, and you have no boundary. This is nice theoretically, but in practice seems to be similar to a sponge construction
+
+As a general note, its very common to assume that the speed of the gauge waves is $1$, instead of $\sqrt{2}$
 
 ### Paper review
 
