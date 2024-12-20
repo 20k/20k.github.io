@@ -526,7 +526,7 @@ void upscale_buffer_with_boundary(execution_context& ctx, buffer<valuef> in, buf
 }
 ```
 
-This solution works incredibly well for this problem, as there is no high frequency content in $u$, and is a free performance win. There are no changes to the laplacian kernel here (conveniently), the only thing that we really need to worry about is the *host* side, and what grid resolutions to pick. I've found that lower grid resolutions can be somewhat numerically unstable[^pleasenotethat], so the relaxation parameter is dynamic. The code I use for generating this isn't too complex:
+This solution works incredibly well for this problem, as there is no high frequency content in $u$, and is a free performance win. There are no changes to the laplacian kernel here (almost as if this were planned), the only thing that we really need to worry about is the *host* side, and what grid resolutions to pick. I've found that lower grid resolutions can be somewhat numerically unstable[^pleasenotethat], so the relaxation parameter is dynamic. The code I use for generating this isn't too complex:
 
 ```c++
 std::vector<t3i> dims;
@@ -629,7 +629,7 @@ std::vector<float> extract_adm_masses(cl::context& ctx, cl::command_queue& cqueu
 }
 ```
 
-This equation can be used to solve for a specific ADM mass by binary searching. There is no way a priori to get a specific ADM mas, so this is the only way to do it
+This equation can be used to solve for a specific ADM mass by binary searching. There is no way a priori to get a specific ADM mass, so this is the only way to do it
 
 ### Gauge
 
@@ -688,13 +688,13 @@ valuef diff1_boundary(single_source::buffer<valuef> in, int direction, const val
     return declare_e(val);
 }
 
-auto func = [&](execution_context&, buffer<valuef> base, buffer<valuef> in, buffer_mut<valuef> out, literal<valuef> timestep,
-                    literal<v3i> ldim,
-                    literal<valuef> scale,
-                    literal<valuef> wave_speed,
-                    literal<valuef> asym,
-                    buffer<v3i> positions,
-                    literal<valuei> position_num) {
+auto sommerfeld = [&](execution_context&, buffer<valuef> base, buffer<valuef> in, buffer_mut<valuef> out, literal<valuef> timestep,
+                      literal<v3i> ldim,
+                      literal<valuef> scale,
+                      literal<valuef> wave_speed,
+                      literal<valuef> asym,
+                      buffer<v3i> positions,
+                      literal<valuei> position_num) {
 
     using namespace single_source;
 
@@ -747,6 +747,8 @@ Other boundary conditions are discussed at the end of this article
 
 We've now solved the initial conditions, and implemented our boundary conditions, so we just use our equations from the last article, and hit go right?
 
+Todo: Sad cat picture
+
 Unfortunately, the equations as-is cannot simulate binary black hole collisions, and we now enter a very murky area: Ad hoc modifying the equations, so that we can pull off these simulations correctly
 
 In addition to the 'usual' issues, we also suffer from our own set of unique issues: Rather low grid resolution, as well as using 32-bit floats instead of 64-bit doubles. The latter is largely a non issue luckily, but it exacerbates numerical issues with the singularity, by giving us a smaller margin for error[^leeway]
@@ -761,27 +763,77 @@ It took a very *very* long time for the field to be able to successfully simulat
 2. Momentum constraint errors
 3. Christoffel symbol constraint errors
 
-The structure of the equations we're using are already adapted to simulating binary black holes by design luckily, but older sets of equations were numerically unstable for these problems
+The structure of the equations we're using are already adapted to simulating binary black holes by design (surprise!) luckily, but older sets of equations were numerically unstable for these problems
 
 ### Gauge conditions
 
-The BSSN equations contain extra degrees of freedom, and one allowance you can make is setting the non gauge variable $K=0$. This is called maximal slicing. Maximal slicing defines a coordinate system that is known (todo: paper) to have singularity avoiding tendencies, and is a good candidate from preventing our equations from exploding due to the presence of a singularity
+The BSSN equations contain extra degrees of freedom, and one allowance you can make is setting the variable $K=0$. This is called maximal slicing. Maximal slicing defines a coordinate system that is [known](https://arxiv.org/pdf/gr-qc/0206072) to have singularity avoiding tendencies, and is a good candidate from preventing our equations from exploding due to the presence of a singularity
 
-Setting K=0 allows us to solve for the lapse via an elliptic equation derived from the <CHECKME> constraint. While elliptic equations are tricky to solve with any kind of efficiency, an approximate solution comes in the form of what is called the 1+log gauge - which is an approximate solution to the elliptic equation to drive K=0
+Setting K=0 allows us to solve for the lapse via an [elliptic equation](https://arxiv.org/pdf/gr-qc/0206072) (32). While elliptic equations are tricky to solve with any kind of efficiency, an approximate solution comes in the form of what is called the 1+log gauge - which is an approximate solution to the elliptic equation to drive $K=0$ over time: see [17](https://arxiv.org/pdf/gr-qc/0605030)
 
-Todo: Equation
+$$\partial_t \alpha = -2 \alpha K + \beta^i \partial_j \alpha$$
 
-Additionally, the shift is defined as such:
+Additionally, the shift is defined as such [see here](https://arxiv.org/pdf/gr-qc/0605030) (26), in what is called the gamma driver/freezing condition (as it drives the christoffel symbol to 0):
 
-Todo: Shift
+$$\partial_t \beta^i = \frac{3}{4} \tilde{\Gamma}^i + \beta^j \partial_j \beta^i - \eta \beta^i$$
 
-Todo: Explanation of the shift equation
-
-$N$ is a free parameter that represents damping: In general its set to $2$, but it can also take fairly arbitrary values from $1$ to $>10$, or even vary spatially or by time. This parameter has a heavy influence on the paths of the black holes
+$\eta$ is a free parameter that represents damping: In general it is set to $\frac{2}{M}$, but it can also take fairly arbitrary values from $1$ to $>10$, or even vary spatially or by time. This parameter has a heavy influence on the paths of the black holes
 
 Taken together, these two gauge conditions are called the moving puncture gauge, and are the standard choice for near equal mass[^nearequalmass] binary black hole collisions
 
 [^nearequalmass]: High mass ratio collisions are an unsolved problem. There might be a future article about exploring higher ratios, but we'd likely need adaptive mesh refinement to make a dent in that problem
+
+#### There are many gauge conditions
+
+Here I'm presenting what I'd consider to be the most standard gauge conditions, but even a brief look through the papers linked above will show that there are a *wide* variety of gauge conditions. The most relevant notes here are:
+
+1. The $\beta^k \partial_k$ terms are frequently dropped, as what they compensate (a zero speed mode) for is frequently addressed implicitly via kreiss-oliger dissipation (as it inherently dissipates away zero lapse points)
+2. There is an alternate two-variable from of the gamma driver equation, which appears to be strictly equivalent, but is expensive for us in terms of performance + memory
+3. These gauge conditions only work for relatively equal mass compact object collisions. For cosmological simulations, you'd again need different gauge conditions - there's no one size fits all condition
+
+### Code
+
+Implementing both of these gauge conditions is straightforward:
+
+```c++
+valuef get_dtgA(bssn_args& args, const derivative_data& d)
+{
+    valuef bmdma = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        bmdma += args.gB[i] * diff1(args.gA, i, d);
+    }
+
+    ///https://arxiv.org/pdf/gr-qc/0206072
+    return -2 * args.gA * args.K + bmdma;
+}
+
+tensor<valuef, 3> get_dtgB(bssn_args& args, const derivative_data& d)
+{
+    ///https://arxiv.org/pdf/gr-qc/0605030 (26)
+    tensor<valuef, 3> djbjbi;
+
+    for(int i=0; i < 3; i++)
+    {
+        valuef sum = 0;
+
+        for(int j=0; j < 3; j++)
+        {
+            sum += args.gB[j] * diff1(args.gB[i], j, d);
+        }
+
+        djbjbi[i] = sum;
+    }
+
+    ///gauge damping parameter, commonly set to 2
+    float N = 2.f;
+
+    return (3/4.f) * args.cG + djbjbi - N * args.gB;
+}
+```
+
+I wish there was a better way to do tensors in C++
 
 ### Momentum constraint errors
 
