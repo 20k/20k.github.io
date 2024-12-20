@@ -282,6 +282,7 @@ With that in mind, lets have a look at our first very basic laplacian solver!
 ##### Code
 
 ```c++
+///takes a linear id, and maps it to a 3d coordinate
 v3i get_coordinate(valuei id, v3i dim)
 {
     using namespace single_source;
@@ -297,9 +298,10 @@ v3i get_coordinate(valuei id, v3i dim)
     return {x, y, z};
 }
 
-auto laplace_basic = [](execution_context& ectx, buffer_mut<valuef> in, buffer_mut<valuef> out, buffer<valuef> cfl, buffer<valuef> aij_aIJ,
-                                    literal<valuef> lscale, literal<v3i> ldim,
-                                    buffer_mut<valuei> still_going, literal<valuef> relax)
+auto laplace_basic = [](execution_context& ectx, buffer_mut<valuef> in, buffer_mut<valuef> out,
+                        buffer<valuef> cfl, buffer<valuef> aij_aIJ,
+                        literal<valuef> lscale, literal<v3i> ldim,
+                        buffer_mut<valuei> still_going, literal<valuef> relax)
 {
     using namespace single_source;
 
@@ -323,10 +325,12 @@ auto laplace_basic = [](execution_context& ectx, buffer_mut<valuef> in, buffer_m
         return_e();
     });
 
+    //cfl is 1 + 1/alpha, in is our guess for u
     valuef rhs = -(1.f/8.f) * pow(cfl[lid] + in[lid], -7.f) * aij_aIJ[lid];
 
     valuef h2f0 = lscale.get() * lscale.get() * rhs;
 
+    //terms to calculate the derivatives
     valuef uxm1 = in[pos - (v3i){1, 0, 0}, dim];
     valuef uxp1 = in[pos + (v3i){1, 0, 0}, dim];
     valuef uym1 = in[pos - (v3i){0, 1, 0}, dim];
@@ -334,6 +338,7 @@ auto laplace_basic = [](execution_context& ectx, buffer_mut<valuef> in, buffer_m
     valuef uzm1 = in[pos - (v3i){0, 0, 1}, dim];
     valuef uzp1 = in[pos + (v3i){0, 0, 1}, dim];
 
+    //derivatives in each direction
     valuef Xs = uxm1 + uxp1;
     valuef Ys = uyp1 + uym1;
     valuef Zs = uzp1 + uzm1;
@@ -342,14 +347,18 @@ auto laplace_basic = [](execution_context& ectx, buffer_mut<valuef> in, buffer_m
     pin(Ys);
     pin(Zs);
 
+    //our next guess for u
     valuef u0n1 = (1/6.f) * (Xs + Ys + Zs - h2f0);
 
+    //old guess for u
     valuef u = in[pos, dim];
 
+    //relaxation, output
     as_ref(out[lid]) = mix(u, u0n1, relax.get());
 
     valuef etol = 1e-6f;
 
+    //set a flag if the change in our value of u is still too high
     if_e(fabs(u0n1 - u) > etol, [&]{
         still_going.atom_xchg_e(valuei(0), valuei(1));
     });
@@ -359,14 +368,8 @@ auto laplace_basic = [](execution_context& ectx, buffer_mut<valuef> in, buffer_m
 There are potentially a few atypical features here:
 
 1. The relaxation parameter is dynamic
-2. We use `still_going` parameter. This sets an atomic to `1` (ignore the `0`, its an address offset) if the change in cell value is greater than an error tolerance. This is so that we can dynamically terminate when we've converged enough
+2. We use a `still_going` parameter. This sets an atomic to `1` (ignore the `0`, its an address offset) if the change in cell value is greater than an error tolerance. This is so that we can dynamically terminate when we've converged enough
 3. We use a linear id, and then convert that to our 3d id. This is to avoid significant dead threads at the edge of our domain
-
-#### Multigrid
-
-The easiest way to speed up performance is with a multigrid solution. Essentially, instead of solving at your final grid resolution, you start off at a low resolution, solve for that, then progressively solve for higher resolutions starting with your low resolution guess upscaled to a higher resolution
-
-This solution works incredibly well for this problem, as there is no high frequency content in $u$, and is a free performance win
 
 #### Red-black
 
@@ -383,6 +386,12 @@ This means that when updating, we can skip half the cells in the 'wrong' colour,
 The iteration scheme to use in 3d is as follows:
 
 Todo: code
+
+#### Multigrid
+
+The easiest way to speed up performance is with a multigrid solution. Essentially, instead of solving at your final grid resolution, you start off at a low resolution, solve for that, then progressively solve for higher resolutions starting with your low resolution guess upscaled to a higher resolution
+
+This solution works incredibly well for this problem, as there is no high frequency content in $u$, and is a free performance win
 
 #### Further performance work
 

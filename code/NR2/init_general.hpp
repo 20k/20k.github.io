@@ -571,7 +571,6 @@ struct initial_conditions
             relax.insert(relax.begin(), rel);
         }
 
-
         dims.insert(dims.begin(), {51, 51, 51});
         relax.insert(relax.begin(), 0.3f);
 
