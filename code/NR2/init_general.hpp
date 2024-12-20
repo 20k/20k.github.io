@@ -50,11 +50,11 @@ auto buffer_read_linear(T buf, v3f pos, v3i dim)
 inline
 valuef get_scaled_coordinate(valuei in, valuei dimension_upper, valuei dimension_lower)
 {
-    valuei upper_centre = (dimension_upper - 1)/2;
+    valuei upper_centre = (dimension_upper)/2;
 
     valuei upper_offset = in - upper_centre;
 
-    valuef scale = (valuef)(dimension_upper - 1) / (valuef)(dimension_lower - 1);
+    valuef scale = (valuef)(dimension_upper) / (valuef)(dimension_lower);
 
     ///so lets say we have [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] with a dimension of 13
     ///this gives a middle value of 6, which is the 7th value
@@ -625,7 +625,7 @@ struct initial_conditions
 
             t3i next_dim = (t3i)((t3f)dim / div);
 
-            if((next_dim.x() % 2) == 0)
+            if((next_dim.x() % 2) == 1)
                 next_dim += (t3i){1,1,1};
 
             dims.insert(dims.begin(), next_dim);
