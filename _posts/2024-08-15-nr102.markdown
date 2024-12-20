@@ -569,7 +569,7 @@ None of the exact parameters here are particularly important: it only matters th
 At this point, I simply stopped - because the performance is much better than it needs to be. If you'd like further speedups, here's where to go!
 
 1. The in and out buffers should be compacted to remove the strided memory accesses as a result of red-black iteration
-2. A list of active points should be provided as a buffer (or calculated), to avoid half of our threads simply immediately terminating
+2. A list of active points should be provided as a buffer (or calculated), to avoid half of our threads simply immediately terminating due to red-black iteration
 3. 16-bit fixed point would be acceptable precision for many of the lower grid sizes especially
 
 ## Finishing up
@@ -581,7 +581,7 @@ $$\begin{align}
 K_{ij} &= \psi^{-2} \bar{A}_{ij}
 \end{align}$$
 
-Where in cartesian coordinates, $$\bar{\gamma}_{ij}$$ is the identity matrix. We already know how to construct our BSSN variables, see the last article
+Where if you remember: in cartesian coordinates, $$\bar{\gamma}_{ij}$$ is the identity matrix (or the flat metric). We already know how to construct our BSSN variables, see the last article
 
 The ADM mass can be estimated via todo. If you need a specific ADM mass, iterate. Binary search. Spin! Woo!
 
