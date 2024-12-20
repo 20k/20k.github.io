@@ -16,7 +16,7 @@ using t3i = tensor<int, 3>;
 
 float get_scale(float simulation_width, t3i dim)
 {
-    return simulation_width / (dim.x());
+    return simulation_width / (dim.x() - 1);
 }
 
 struct mesh
@@ -485,7 +485,7 @@ int main()
     cl::context& ctx = win.clctx->ctx;
     std::cout << cl::get_extensions(ctx) << std::endl;
 
-    t3i dim = {254, 254, 254};
+    t3i dim = {255, 255, 255};
 
     std::jthread build_thread([&]()
     {
