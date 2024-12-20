@@ -45,43 +45,22 @@ valuef kreiss_oliger_interior(valuef in, int order)
     return (prefix) * val;
 }
 
+valuei distance_to_boundary(valuei pos, valuei dim)
+{
+    ///so. Pos == 0 is out of the question
+    ///pos == 1 is the boundary
+    ///similarly pos == dim-1 is out of the question
+    ///pos == dim-2 is the boundary
+
+    valuei distance_from_left = pos - 1;
+    valuei distance_from_right = dim - 2 - pos;
+
+    return min(distance_from_left, distance_from_right);
+}
+
 valuei distance_to_boundary(v3i pos, v3i dim)
 {
-    using namespace single_source;
-
-    mut<valuei> out = declare_mut_e(valuei(6));
-
-    if_e(pos.x() == 6 || pos.y() == 6 || pos.z() == 6
-         || pos.x() == dim.x() - 7 || pos.y() == dim.y() - 7 || pos.z() == dim.z() - 7, [&] {
-        as_ref(out) = valuei(5);
-    });
-
-    if_e(pos.x() == 5 || pos.y() == 5 || pos.z() == 5
-         || pos.x() == dim.x() - 6 || pos.y() == dim.y() - 6 || pos.z() == dim.z() - 6, [&] {
-        as_ref(out) = valuei(4);
-    });
-
-    if_e(pos.x() == 4 || pos.y() == 4 || pos.z() == 4
-         || pos.x() == dim.x() - 5 || pos.y() == dim.y() - 5 || pos.z() == dim.z() - 5, [&] {
-        as_ref(out) = valuei(3);
-    });
-
-    if_e(pos.x() == 3 || pos.y() == 3 || pos.z() == 3
-         || pos.x() == dim.x() - 4 || pos.y() == dim.y() - 4 || pos.z() == dim.z() - 4, [&] {
-        as_ref(out) = valuei(2);
-    });
-
-    if_e(pos.x() == 2 || pos.y() == 2 || pos.z() == 2
-         || pos.x() == dim.x() - 3 || pos.y() == dim.y() - 3 || pos.z() == dim.z() - 3, [&] {
-        as_ref(out) = valuei(1);
-    });
-
-    if_e(pos.x() <= 1 || pos.y() <= 1 || pos.z() <= 1
-         || pos.x() >= dim.x() - 2 || pos.y() >= dim.y() - 2 || pos.z() >= dim.z() - 2, [&] {
-        as_ref(out) = valuei(0);
-    });
-
-    return declare_e(out);
+    return min(min(distance_to_boundary(pos[0], dim[0]), distance_to_boundary(pos[1], dim[1])), distance_to_boundary(pos[2], dim[2]));
 }
 
 std::string make_kreiss_oliger()
