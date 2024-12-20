@@ -589,6 +589,46 @@ $$M_i = m_i (1 + u_i + \sum_{i \neq j} \frac{m_j}{2 d_{ij}})$$
 
 Bear in mind that this paper uses the same convention for $u$ as we do. $d_{ij}$ is the world coordinate distance between our black holes
 
+```c++
+std::vector<float> extract_adm_masses(cl::context& ctx, cl::command_queue& cqueue, cl::buffer u_buf, t3i u_dim, float scale)
+{
+    std::vector<float> ret;
+
+    ///https://arxiv.org/pdf/gr-qc/0610128 6
+    for(const black_hole_params& bh : params_bh)
+    {
+        ///Mi = mi(1 + ui + sum(m_j / 2d_ij) i != j
+        t3f pos = world_to_grid(bh.position, u_dim, scale);
+
+        cl::buffer u_read(ctx);
+        u_read.alloc(sizeof(cl_float));
+
+        cl::args args;
+        args.push_back(u_buf, pos, u_dim, u_read);
+        //trilinear interpolation
+        cqueue.exec("fetch_linear", args, {1}, {1});
+
+        float u = u_read.read<float>(cqueue).at(0);
+
+        float sum = 0;
+
+        for(const black_hole_params& bh2 : params_bh)
+        {
+            if(&bh == &bh2)
+                continue;
+
+            sum += bh2.bare_mass / (2 * (bh2.position - bh.position).length());
+        }
+
+        float adm_mass = bh.bare_mass * (1 + u + sum);
+
+        ret.push_back(adm_mass);
+    }
+
+    return ret;
+}
+```
+
 This equation can be used to solve for a specific ADM mass by binary searching. There is no way a priori to get a specific ADM mas, so this is the only way to do it
 
 ### Gauge
