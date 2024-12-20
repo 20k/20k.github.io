@@ -42,7 +42,7 @@ valuef kreiss_oliger_interior(valuef in, int order)
 
     float prefix = (float)sign / divisor;
 
-    return (prefix) * val;
+    return prefix * val;
 }
 
 valuei distance_to_boundary(valuei pos, valuei dim)
@@ -51,7 +51,6 @@ valuei distance_to_boundary(valuei pos, valuei dim)
     ///pos == 1 is the boundary
     ///similarly pos == dim-1 is out of the question
     ///pos == dim-2 is the boundary
-
     valuei distance_from_left = pos - 1;
     valuei distance_from_right = dim - 2 - pos;
 
@@ -101,25 +100,14 @@ std::string make_kreiss_oliger()
         };
         #endif
 
-        if_e(boundary_distance == 1, [&]{
-            do_kreiss(2);
-        });
+        int max_kreiss = 4;
 
-        if_e(boundary_distance == 2, [&]{
-            do_kreiss(4);
-        });
-
-        if_e(boundary_distance == 3, [&]{
-            do_kreiss(6);
-        });
-
-        if_e(boundary_distance >= 4, [&]{
-            do_kreiss(8);
-        });
-
-        /*if_e(boundary_distance >= 5, [&]{
-            do_kreiss(10);
-        });*/
+        for(int i=1; i <= max_kreiss; i++)
+        {
+            if_e(boundary_distance == i, [&] {
+                do_kreiss(i * 2);
+            });
+        }
 
         /*if_e(pos.x() == 2 && pos.y() == 128 && pos.z() == 128, [&]{
             value_base se;
