@@ -837,9 +837,9 @@ I wish there was a better way to do tensors in C++
 
 ### Momentum constraint errors
 
-These can be damped in exactly the same form as in the previous article, via:
+These can be damped in exactly the same form as in the previous article, via eg [4.9](https://arxiv.org/pdf/gr-qc/0204002):
 
-Todo: Equation
+$$\partial_t \tilde{A}_{ij} = \partial_t \tilde{A}_{ij} + K_m \alpha \tilde{D}_{(i}\mathcal{M}_{j)}$$
 
 Traditionally, momentum constraint violations tend to produce high frequency, self reinforcing oscillations, resulting in your simulation blowing up. With an implicit integrator, this is much less of a problem for us, so momentum constraint damping is more about increasing correctness rather than for stability reasons. This makes it much less important for us in this construction, than alternative techniques - which is good, because this damping is heavy on memory bandwidth
 

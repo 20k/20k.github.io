@@ -102,12 +102,16 @@ std::string make_kreiss_oliger()
 
         int max_kreiss = 4;
 
-        for(int i=1; i <= max_kreiss; i++)
+        for(int i=1; i < max_kreiss; i++)
         {
             if_e(boundary_distance == i, [&] {
                 do_kreiss(i * 2);
             });
         }
+
+        if_e(boundary_distance >= max_kreiss, [&] {
+            do_kreiss(max_kreiss * 2);
+        });
 
         /*if_e(pos.x() == 2 && pos.y() == 128 && pos.z() == 128, [&]{
             value_base se;
