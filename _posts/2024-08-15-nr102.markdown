@@ -608,7 +608,85 @@ The derivatives at the boundary will be one sided derivatives. All waves have a 
 
 Code wise, this is very straightforward:
 
-todo
+```c++
+//2nd order derivatives, including handling for boundary conditions
+valuef diff1_boundary(single_source::buffer<valuef> in, int direction, const valuef& scale, v3i pos, v3i dim)
+{
+    using namespace single_source;
+
+    v3i offset;
+    offset[direction] = 1;
+
+    derivative_data d;
+    d.scale = scale;
+    d.pos = pos;
+    d.dim = dim;
+
+    ///ok so. If we're at the boundary, do one sided derivatives
+    ///otherwise shell out to diff1, which will also handle near boundary points correctly
+    mut<valuef> val = declare_mut_e(valuef(0.f));
+
+    //not strictly necessary for boundary derivatives
+    as_ref(val) = diff1(in[pos, dim], direction, d);
+
+    //left boundary
+    if_e(pos[direction] == 1, [&]{
+        as_ref(val) = (-3.f * in[pos, dim] + 4 * in[pos + offset, dim] - in[pos + 2 * offset, dim]) / (2 * scale);
+    });
+
+    //right boundary
+    if_e(pos[direction] == dim[direction] - 2, [&] {
+        as_ref(val) = (3.f * in[pos, dim] - 4 * in[pos - offset, dim] + in[pos - 2 * offset, dim]) / (2 * scale);
+    });
+
+    return declare_e(val);
+}
+
+auto func = [&](execution_context&, buffer<valuef> base, buffer<valuef> in, buffer_mut<valuef> out, literal<valuef> timestep,
+                    literal<v3i> ldim,
+                    literal<valuef> scale,
+                    literal<valuef> wave_speed,
+                    literal<valuef> asym,
+                    buffer<v3i> positions,
+                    literal<valuei> position_num) {
+
+    using namespace single_source;
+
+    valuei lid = value_impl::get_global_id(0);
+
+    pin(lid);
+
+    v3i dim = ldim.get();
+
+    if_e(lid >= position_num.get(), [&] {
+        return_e();
+    });
+
+    v3i pos = positions[lid];
+
+    pin(pos);
+
+    v3f world_pos = grid_to_world((v3f)pos, dim, scale.get());
+
+    valuef r = world_pos.length();
+
+    auto sommerfeld = [&](single_source::buffer<valuef> f, const valuef& f0, const valuef& v)
+    {
+        valuef sum = 0;
+
+        for(int i=0; i < 3; i++)
+        {
+            sum += world_pos[i] * diff1_boundary(f, i, scale.get(), pos, dim);
+        }
+
+        return (-sum - (f[pos, dim] - f0)) * (v/r);
+    };
+
+    valuef dt_boundary = sommerfeld(in, asym.get(), wave_speed.get());
+
+    as_ref(out[pos, dim]) = apply_evolution(base[pos, dim], dt_boundary, timestep.get());
+};
+```
 
 Note that in my experience, Sommerfeld boundary conditions tend to lead to a gradual increase in ADM mass over time with a very close boundary, making it somewhat unsuitable for long lived sims for us. More complex boundary conditions are a future topic
 
