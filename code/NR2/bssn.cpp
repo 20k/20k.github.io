@@ -104,7 +104,7 @@ std::string make_derivatives()
 
     std::string str = value_impl::make_function(differentiate, "differentiate");
 
-    std::cout << str << std::endl;
+    //std::cout << str << std::endl;
 
     return str;
 }
@@ -1086,7 +1086,7 @@ std::string make_bssn(const tensor<int, 3>& idim)
 
     std::string str = value_impl::make_function(bssn_function, "evolve");
 
-    std::cout << str << std::endl;
+    //std::cout << str << std::endl;
 
     return str;
 }

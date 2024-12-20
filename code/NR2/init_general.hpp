@@ -474,6 +474,27 @@ struct initial_conditions
 
             ctx.register_program(p);
         }
+
+        {
+            auto fetch_linear = [](execution_context& ectx, buffer<valuef> buf, literal<v3f> pos, literal<v3i> dim, buffer_mut<valuef> out)
+            {
+                using namespace single_source;
+
+                valuei lid = value_impl::get_global_id(0);
+
+                if_e(lid != 0, [&]{
+                    return_e();
+                });
+
+                as_ref(out[0]) = buffer_read_linear(buf, pos.get(), dim.get());
+            };
+
+            std::string str = value_impl::make_function(fetch_linear, "fetch_linear");
+
+            cl::program p = cl::build_program_with_cache(ctx, {str}, false);
+
+            ctx.register_program(p);
+        }
     }
 
     void add(const black_hole_params& bh)
@@ -481,7 +502,46 @@ struct initial_conditions
         params_bh.push_back(bh);
     }
 
-    void build(cl::context& ctx, cl::command_queue& cqueue, float simulation_width, bssn_buffer_pack& to_fill)
+    std::vector<float> extract_adm_masses(cl::context& ctx, cl::command_queue& cqueue, cl::buffer u_buf, t3i u_dim, float scale)
+    {
+        std::vector<float> ret;
+
+        ///https://arxiv.org/pdf/gr-qc/0610128 6
+        for(const black_hole_params& bh : params_bh)
+        {
+            ///Mi = mi(1 + ui + sum(m_j / 2d_ij) i != j
+            t3f pos = world_to_grid(bh.position, u_dim, scale);
+
+            cl::buffer u_read(ctx);
+            u_read.alloc(sizeof(cl_float));
+
+            cl::args args;
+            args.push_back(u_buf, pos, u_dim, u_read);
+
+            cqueue.exec("fetch_linear", args, {1}, {1});
+
+            float u = u_read.read<float>(cqueue).at(0);
+
+            float sum = 0;
+
+            for(const black_hole_params& bh2 : params_bh)
+            {
+                if(&bh == &bh2)
+                    continue;
+
+                sum += bh2.bare_mass / (2 * (bh2.position - bh.position).length());
+            }
+
+            float adm_mass = bh.bare_mass * (1 + u + sum);
+
+            ret.push_back(adm_mass);
+        }
+
+        return ret;
+    }
+
+    //returns u
+    cl::buffer build(cl::context& ctx, cl::command_queue& cqueue, float simulation_width, bssn_buffer_pack& to_fill)
     {
         auto get_u_at_dim = [&](t3i dim, float simulation_width, float relax, std::optional<std::tuple<cl::buffer, t3i>> u_old)
         {
@@ -617,6 +677,8 @@ struct initial_conditions
 
             cqueue.exec("calculate_bssn_variables", args, {dim.x() * dim.y() * dim.z()}, {128});
         }
+
+        return std::get<0>(last.value());
     }
 };
 

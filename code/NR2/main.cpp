@@ -70,7 +70,14 @@ struct mesh
             init.add(p1);
             init.add(p2);
 
-            init.build(ctx, cqueue, simulation_width, buffers[0]);
+            cl::buffer found_u = init.build(ctx, cqueue, simulation_width, buffers[0]);
+
+            std::vector<float> adm_masses = init.extract_adm_masses(ctx, cqueue, found_u, dim, get_scale(simulation_width, dim));
+
+            for(float mass : adm_masses)
+            {
+                printf("Found mass %f\n", mass);
+            }
         }
 
         for(int i=1; i < 3; i++)
