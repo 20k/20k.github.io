@@ -581,9 +581,15 @@ $$\begin{align}
 K_{ij} &= \psi^{-2} \bar{A}_{ij}
 \end{align}$$
 
-Where if you remember: in cartesian coordinates, $$\bar{\gamma}_{ij}$$ is the identity matrix (or the flat metric). We already know how to construct our BSSN variables, see the last article
+Where if you remember: in cartesian coordinates, $$\bar{\gamma}_{ij}$$ is the identity matrix (or the flat metric). We already know how to construct our BSSN variables from here, see the last article for details
 
-The ADM mass can be estimated via todo. If you need a specific ADM mass, iterate. Binary search. Spin! Woo!
+The ADM mass can be estimated via a standard approach, defined [here](https://arxiv.org/pdf/gr-qc/0610128) (6):
+
+$$M_i = m_i (1 + u_i + \sum_{i \neq j} \frac{m_j}{2 d_{ij}})$$
+
+Bear in mind that this paper uses the same convention for $u$ as we do. $d_{ij}$ is the world coordinate distance between our black holes
+
+This equation can be used to solve for a specific ADM mass by binary searching. There is no way a priori to get a specific ADM mas, so this is the only way to do it
 
 ### Gauge
 
