@@ -93,6 +93,7 @@ void upscale_buffer_with_boundary(execution_context& ctx, buffer<valuef> in, buf
 
     v3f lower_pos = get_scaled_coordinate_vec(pos, out_dim.get(), in_dim.get());
 
+    ///assume that our output buffer is cleared to our boundary condition, ie 0
     if_e(pos.x() == 0 || pos.y() == 0 || pos.z() == 0 ||
          pos.x() == out_dim.get().x() ||  pos.y() == out_dim.get().y() || pos.z() == out_dim.get().z(), [&]{
         as_ref(out[pos, out_dim.get()]) = boundary.get();
@@ -100,7 +101,7 @@ void upscale_buffer_with_boundary(execution_context& ctx, buffer<valuef> in, buf
         return_e();
     });
 
-    ///buffer read linear
+    ///trilinear interpolations
     valuef val = buffer_read_linear(in, lower_pos, in_dim.get());
 
     as_ref(out[pos, out_dim.get()]) = val;

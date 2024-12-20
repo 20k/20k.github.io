@@ -373,25 +373,196 @@ There are potentially a few atypical features here:
 
 #### Red-black
 
-Another technique that gives a free 2x performance increase is red-black iteration. Imagine the laplacian problem in 2d:
+Another technique that gives a free 2x performance increase is red-black iteration. For a standard 2d laplacian, each grid cell only accesses its neighbours. We can perform a red-black colouring to demonstrate this in 2 dimensions:
 
-todo: picture
+![redblack2d](/assets/redblack2d.png)
 
-Each cell only accesses a adjacent grid cells:
+We can stretch this concept to 3 dimensions directly as well:
 
-Todo: red/black
+![redblack3d](/assets/redblack3d.png)
 
-This means that when updating, we can skip half the cells in the 'wrong' colour, and then update them next time round instead. Note that we *do* use $u$ here to calculate $F(u)$, which means that the $u$ for the laplacian's and the $u$ for our rhs are at different steps if we use red-black iteration. This does not affect convergence
+This means, we can simply update all red cells, then all black cells in an alternating fashion. Because the adjacent cells are one step into the future compared to the naive scheme, this is actually roughly a free 2x speedup in terms of iteration speed
 
-The iteration scheme to use in 3d is as follows:
+There's a slight wrinkle - our equations are not of the form $\Delta u = 0$, but instead $\Delta u = F(u)$. This means that we do touch a cell of the 'wrong' colour when updating, and it'll be one tick out of date. That is to say, if the stencil component of our RHS is given by $D(u)$, and our iteration variable is $k$, our iteration equation is:
 
-Todo: code
+$$u_{k+2} = \frac{D(u_{k+1})}{6} - \frac{F(u_k)h^2}{6}$$
+
+This does not affect convergence in practice, but its worth keeping in mind that this is slightly nonstandard. Code wise, this is a simple change, and there are only two major differences:
+
+1. We can use one buffer, instead of 2
+2. We simply terminate half our threads early
+
+```c++
+auto laplace_rb_mg = [](execution_context& ectx, buffer_mut<valuef> inout, buffer<valuef> cfl, buffer<valuef> aij_aIJ,
+                        literal<valuef> lscale, literal<v3i> ldim, literal<valuei> iteration,
+                        buffer_mut<valuei> still_going, literal<valuef> relax)
+{
+    using namespace single_source;
+
+    valuei lid = value_impl::get_global_id(0);
+
+    pin(lid);
+
+    auto dim = ldim.get();
+
+    if_e(lid >= dim.x() * dim.y() * dim.z(), [&]{
+        return_e();
+    });
+
+    v3i pos = get_coordinate(lid, dim);
+
+    if_e(pos.x() == 0 || pos.y() == 0 || pos.z() == 0 ||
+            pos.x() == dim.x() - 1 || pos.y() == dim.y() - 1 || pos.z() == dim.z() - 1, [&] {
+
+        return_e();
+    });
+
+    //NEW: notice that as we offset in the z direction, our red-black scheme is simply offset in the x direction by 1
+    valuei lix = pos.x() + (pos.z() % 2);
+    valuei liy = pos.y();
+
+    //NEW!
+    if_e(((lix + liy) % 2) == (iteration.get() % 2), [] {
+        return_e();
+    });
+
+    valuef rhs = -(1.f/8.f) * pow(cfl[lid] + inout[lid], -7.f) * aij_aIJ[lid];
+
+    valuef h2f0 = lscale.get() * lscale.get() * rhs;
+
+    valuef uxm1 = inout[pos - (v3i){1, 0, 0}, dim];
+    valuef uxp1 = inout[pos + (v3i){1, 0, 0}, dim];
+    valuef uym1 = inout[pos - (v3i){0, 1, 0}, dim];
+    valuef uyp1 = inout[pos + (v3i){0, 1, 0}, dim];
+    valuef uzm1 = inout[pos - (v3i){0, 0, 1}, dim];
+    valuef uzp1 = inout[pos + (v3i){0, 0, 1}, dim];
+
+    valuef Xs = uxm1 + uxp1;
+    valuef Ys = uyp1 + uym1;
+    valuef Zs = uzp1 + uzm1;
+
+    pin(Xs);
+    pin(Ys);
+    pin(Zs);
+
+    valuef u0n1 = (1/6.f) * (Xs + Ys + Zs - h2f0);
+
+    valuef u = inout[pos, dim];
+
+    as_ref(inout[lid]) = mix(u, u0n1, relax.get());
+
+    valuef etol = 1e-6f;
+
+    if_e(fabs(u0n1 - u) > etol, [&]{
+        still_going.atom_xchg_e(valuei(0), valuei(1));
+    });
+};
+```
+
+Sometimes, the code is simpler than the explanation! Luckily, there is no race condition with respect to $F(u)$, as we're the only thread that both reads and modifies that value - otherwise we'd have to use two buffers again
 
 #### Multigrid
 
-The easiest way to speed up performance is with a multigrid solution. Essentially, instead of solving at your final grid resolution, you start off at a low resolution, solve for that, then progressively solve for higher resolutions starting with your low resolution guess upscaled to a higher resolution
+One other easy way to speed up performance is via a multigrid solution. Essentially, instead of solving at your final grid resolution, you start off at a low resolution, solve for that, then progressively solve for higher resolutions. This is as simple as running our laplacian solving procedure at a single resolution, then upscaling that guess to a higher resolution. Do note you'll need to re-enforce the boundary condition:
 
-This solution works incredibly well for this problem, as there is no high frequency content in $u$, and is a free performance win
+```c++
+inline
+valuef get_scaled_coordinate(valuei in, valuei dimension_upper, valuei dimension_lower)
+{
+    valuei upper_centre = (dimension_upper - 1)/2;
+
+    valuei upper_offset = in - upper_centre;
+
+    valuef scale = (valuef)(dimension_upper - 1) / (valuef)(dimension_lower - 1);
+
+    ///so lets say we have [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] with a dimension of 13
+    ///this gives a middle value of 6, which is the 7th value
+    ///Then we want to scale it to a dimension of 7
+    ///to get [0:0, 1:0.5, 2:1, 3:1.5, 4:2, 5:2.5, 6:3, 7:3.5, 8:4, 9:4.5, 10:5, 11:5.5, 12:6]
+    ///so... it should just be a straight division by the scale?
+
+    return (valuef)in / scale;
+}
+
+inline
+v3f get_scaled_coordinate_vec(v3i in, v3i dimension_upper, v3i dimension_lower)
+{
+    return (v3f){get_scaled_coordinate(in.x(), dimension_upper.x(), dimension_lower.x()),
+                 get_scaled_coordinate(in.y(), dimension_upper.y(), dimension_lower.y()),
+                 get_scaled_coordinate(in.z(), dimension_upper.z(), dimension_lower.z())};
+}
+
+inline
+void upscale_buffer_with_boundary(execution_context& ctx, buffer<valuef> in, buffer_mut<valuef> out, literal<v3i> in_dim, literal<v3i> out_dim, literal<valuef> boundary)
+{
+    using namespace single_source;
+
+    valuei lid = value_impl::get_global_id(0);
+
+    pin(lid);
+
+    auto dim = out_dim.get();
+
+    if_e(lid >= dim.x() * dim.y() * dim.z(), [&]{
+        return_e();
+    });
+
+    v3i pos = get_coordinate(lid, dim);
+
+    v3f lower_pos = get_scaled_coordinate_vec(pos, out_dim.get(), in_dim.get());
+
+    ///assume that our output buffer is cleared to our boundary condition, ie 0
+    if_e(pos.x() == 0 || pos.y() == 0 || pos.z() == 0 ||
+         pos.x() == out_dim.get().x() ||  pos.y() == out_dim.get().y() || pos.z() == out_dim.get().z(), [&]{
+        as_ref(out[pos, out_dim.get()]) = boundary.get();
+
+        return_e();
+    });
+
+    ///trilinear interpolations
+    valuef val = buffer_read_linear(in, lower_pos, in_dim.get());
+
+    as_ref(out[pos, out_dim.get()]) = val;
+}
+```
+
+This solution works incredibly well for this problem, as there is no high frequency content in $u$, and is a free performance win. There are no changes to the laplacian kernel here (conveniently), the only thing that we really need to worry about is the *host* side, and what grid resolutions to pick. I've found that lower grid resolutions can be somewhat numerically unstable[^pleasenotethat], so the relaxation parameter is dynamic. The code I use for generating this isn't too complex:
+
+```c++
+std::vector<t3i> dims;
+std::vector<float> relax;
+
+int max_refinement_levels = 5;
+
+///generate a dims array which gets progressively larger, eg
+///63, 95, 127, 197, 223
+///is generated in reverse
+for(int i=0; i < max_refinement_levels; i++)
+{
+    float div = pow(1.25, i + 1);
+    ///exact params here are pretty unimportant
+    float rel = mix(0.7f, 0.3f, (float)i / (max_refinement_levels-1));
+
+    t3i next_dim = (t3i)((t3f)dim / div);
+
+    //i use strictly odd grid sizes
+    if((next_dim.x() % 2) == 0)
+        next_dim += (t3i){1,1,1};
+
+    dims.insert(dims.begin(), next_dim);
+    relax.insert(relax.begin(), rel);
+}
+
+dims.insert(dims.begin(), {51, 51, 51});
+relax.insert(relax.begin(), 0.3f);
+
+dims.push_back(dim);
+relax.push_back(0.8f);
+```
+
+None of the exact parameters here are particularly important: it only matters that the last grid resolution is the one we actually want to solve for. As usual, I'm pulling out the interesting snippets here, and the full code is available at TODO: EXACT LINK TO LAPLACIAN STUFF
+
+[^pleasenotethat]: Please note that I'm not super confident in this result, as its been a while since I explicitly tested that
 
 #### Further performance work
 
