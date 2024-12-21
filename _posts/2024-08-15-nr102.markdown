@@ -839,23 +839,53 @@ I wish there was a better way to do tensors in C++
 
 These can be damped in exactly the same form as in the previous article, via eg [4.9](https://arxiv.org/pdf/gr-qc/0204002):
 
-$$\partial_t \tilde{A}_{ij} = \partial_t \tilde{A}_{ij} + K_m \alpha \tilde{D}_{(i}\mathcal{M}_{j)}$$
+$$\partial_t \tilde{A}_{ij} = \partial_t \tilde{A}_{ij} + k_m \alpha \tilde{D}_{(i}\mathcal{M}_{j)}$$
 
 Traditionally, momentum constraint violations tend to produce high frequency, self reinforcing oscillations, resulting in your simulation blowing up. With an implicit integrator, this is much less of a problem for us, so momentum constraint damping is more about increasing correctness rather than for stability reasons. This makes it much less important for us in this construction, than alternative techniques - which is good, because this damping is heavy on memory bandwidth
 
-### Christoffel symbol errors
+### Christoffel symbol errors (classic)
 
-The traditional damping scheme is as such:
+The traditional damping schemes are as following:
 
-Todo: Code
+[page 37](https://indico.cern.ch/event/505595/contributions/1183661/attachments/1332828/2003830/sperhake.pdf)
+
+$$
+\partial_t \alpha = \partial_t \alpha - \sigma \mathcal{G}^i \partial_m \beta^m
+$$
+
+or [(2.22)](https://arxiv.org/pdf/0711.3575v2)
+
+$$
+\partial_t \alpha = \partial_t \alpha + k_g \alpha \mathcal{G}^i \\
+$$
+
+Where $\sigma$ > 0, and $k_g$ < 0. We'll be looking at the first case in this article, but both modifications are similar
 
 ## This doesn't work in practice
 
-These modifications would, in theory, work if you were using some kind of adaptive mesh refinement scheme with virtually unlimited accuracy. Unfortunately, the entire point of this article series is to try and do simulations a little faster than that, so instead of relying on more compute power to fix our problems, we need to attack the issues at a more fundamental level
+These modifications would, in theory, work if you were using some kind of adaptive mesh refinement scheme with very high accuracy. Unfortunately, the entire point of this article series is to try and do simulations a little faster than that, so instead of relying on more compute power to fix our problems, we need to attack the issues at a more fundamental level
 
 ## Lets reproduce a result
 
-Trying to simulate with the above set of modifications is not going to work, and instead today we're going to focus on trying to reproduce a specific result: todo. The no spin test case from this paper. By the end of this article, we will be close enough to demonstrate that the sim we've built isn't totally invalid
+Trying to simulate with the above set of modifications is not going to work, and instead today we're going to focus on trying to reproduce a specific result: todo. The no spin test case from [this paper](https://arxiv.org/pdf/gr-qc/0610128). Here, I'll lay out the test parameters:
+
+| |BH 0|BH 1|
+|-|-|-|
+|$m$|0.483|0.483|
+|$P^0$|-0.133|0.133|
+|$S^i$|0|0|
+|$x^1$|3.257|-3.257|
+|$M$|0.505|0.505|
+
+For our sim, we'll have the following test parameters
+
+```c++
+resolution = {213, 213, 213}
+width = 20
+h = (width / (resolution.x - 1))
+```
+
+By the end of this article, we will be close enough to demonstrate that the sim we've built isn't totally invalid
 
 In general, exactly reproducing other people's results is an absolute nightmare, and is virtually impossible in the general case. While it isn't hard to get close, the field has a strong issue with being underdocumented, and many of the larger simulators simply do not publish enough information to replicate their results. Simulations also seemingly tend to involve a calibration step, but information on the limitations or inaccuracies of these simulations is nearly impossible to come by due to the nature of academic publishing
 
@@ -863,7 +893,7 @@ I'm going to walk us through how to take our sim from self destructing immediate
 
 ## First off, lets test the standard modifications
 
-With the above modifications enabled, our sim goes from blowing up immediately, to successfully managing to simulate a collision at roughly T=Todo. Because we're more interested in the paths that the black holes take for the moment, rather than the specific collision time, I'm just eyeballing the numbers here
+With the above modifications enabled, our sim goes from blowing up immediately, to successfully managing to simulate a collision at roughly T=130. Because we're more interested in the paths that the black holes take for the moment, rather than the specific collision time, I'm just eyeballing the numbers here
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/oogqwuPbdm8?si=unCAuxZS7BhC-E5V" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
