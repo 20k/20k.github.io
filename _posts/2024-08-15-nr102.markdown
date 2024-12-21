@@ -751,7 +751,7 @@ Todo: Sad cat picture
 
 Unfortunately, the equations as-is cannot simulate binary black hole collisions, and we now enter a very murky area: Ad hoc modifying the equations, so that we can pull off these simulations correctly
 
-In addition to the 'usual' issues, we also suffer from our own set of unique issues: Rather low grid resolution, as well as using 32-bit floats instead of 64-bit doubles. The latter is largely a non issue luckily, but it exacerbates numerical issues with the singularity, by giving us a smaller margin for error[^leeway]
+In addition to the 'usual' issues, we also suffer from our own set of unique issues: Rather low grid resolution, 16-bit derivatives, as well as using 32-bit floats instead of 64-bit doubles. The latter is largely a non issue luckily, but it exacerbates numerical issues with the singularity, by giving us a smaller margin for error[^leeway]
 
 [^leeway]: The determinant of the metric tensor becomes degenerate on a failure of the boundary conditions, leading to infinities turning up. You can handle more degenerate matrices with double precision, giving the gauge conditions more time to catch up
 
@@ -847,7 +847,7 @@ Traditionally, momentum constraint violations tend to produce high frequency, se
 
 The traditional damping schemes are as following:
 
-[page 37](https://indico.cern.ch/event/505595/contributions/1183661/attachments/1332828/2003830/sperhake.pdf)
+[page 37](https://indico.cern.ch/event/505595/contributions/1183661/attachments/1332828/2003830/sperhake.pdf) (which I'll call sigma damping)
 
 $$
 \partial_t \alpha = \partial_t \alpha - \sigma \mathcal{G}^i \partial_m \beta^m
@@ -863,37 +863,42 @@ Where $\sigma$ > 0, and $k_g$ < 0. We'll be looking at the first case in this ar
 
 ## This doesn't work in practice
 
-These modifications would, in theory, work if you were using some kind of adaptive mesh refinement scheme with very high accuracy. Unfortunately, the entire point of this article series is to try and do simulations a little faster than that, so instead of relying on more compute power to fix our problems, we need to attack the issues at a more fundamental level
+These modifications would, in theory, work if you were using some kind of adaptive mesh refinement scheme with very high accuracy. Unfortunately, the entire point of this article series is to try and do simulations a little faster than that, so instead of relying on more compute power to fix our problems, we're going to see if we can get a little more bang for our buck
 
 ## Lets reproduce a result
 
 Trying to simulate with the above set of modifications is not going to work, and instead today we're going to focus on trying to reproduce a specific result: todo. The no spin test case from [this paper](https://arxiv.org/pdf/gr-qc/0610128). Here, I'll lay out the test parameters:
 
-| |BH 0|BH 1|
-|-|-|-|
-|$m$|0.483|0.483|
-|$P^0$|-0.133|0.133|
-|$S^i$|0|0|
-|$x^1$|3.257|-3.257|
-|$M$|0.505|0.505|
+| | |BH 0|BH 1|
+|-|-|-|-|
+|Bare mass|$m$|0.483|0.483|
+|Momentum|$P^0$|-0.133|0.133|
+|Angular momentum|$S^i$|0|0|
+|Position|$x^1$|3.257|-3.257|
+|ADM mass|$M$|0.505[^youcanusethis]|0.505|
 
-For our sim, we'll have the following test parameters
+[^youcanusethis]: This can be used to check the accuracy of your laplacian solver. You should be able to get very close to this value, eg 0.5045
+
+The black holes are expected to collide at roughly T=160. For our sim, we'll have the following test parameters
 
 ```c++
 resolution = {213, 213, 213}
-width = 20
-h = (width / (resolution.x - 1))
+simulation_width = 20
+h = (simulation_width / (resolution.x - 1))
+n (the damping parameter) = 2
+todo: sigma
+todo: other damping params
 ```
 
-By the end of this article, we will be close enough to demonstrate that the sim we've built isn't totally invalid
+By the end of this article, we will be close enough to demonstrate that the sim we've built isn't totally invalid. Note that the boundaries here are sufficiently close that they'll cause problems quite quickly. Further away boundaries require higher resolutions in general
 
-In general, exactly reproducing other people's results is an absolute nightmare, and is virtually impossible in the general case. While it isn't hard to get close, the field has a strong issue with being underdocumented, and many of the larger simulators simply do not publish enough information to replicate their results. Simulations also seemingly tend to involve a calibration step, but information on the limitations or inaccuracies of these simulations is nearly impossible to come by due to the nature of academic publishing
+In general, exactly reproducing other people's results is an absolute nightmare, and is virtually impossible in the general case. While it isn't hard to get close, the field has a strong issue with being underdocumented, and many of the larger simulators simply do not publish enough information to replicate their results. Simulations also seemingly tend to involve a calibration step, but information on the limitations or inaccuracies of these simulations is nearly impossible to come by due to the nature of academic publishing. There are a large number of tweakable parameters and design choices, and there is rarely an explanation of why those were picked - despite being frequently quite important
 
-I'm going to walk us through how to take our sim from self destructing immediately, to successfully completing over an orbit. We'll get 'close enough' to a result
+I'm going to walk us through how to take our sim from failing quickly, to successfully completing over an orbit. We'll get 'close enough' to a result
 
 ## First off, lets test the standard modifications
 
-With the above modifications enabled, our sim goes from blowing up immediately, to successfully managing to simulate a collision at roughly T=130. Because we're more interested in the paths that the black holes take for the moment, rather than the specific collision time, I'm just eyeballing the numbers here
+With the sigma damping enabled, our sim goes from blowing up immediately, to successfully managing to simulate a collision at roughly T=CHECKME. Because we're more interested in the paths that the black holes take for the moment, rather than the specific collision time, I'm just eyeballing the numbers here
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/oogqwuPbdm8?si=unCAuxZS7BhC-E5V" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
@@ -901,9 +906,9 @@ We can see that rather than the full orbit and a half we'd expect, our black hol
 
 ### The black hole inspiral ends too early
 
-We lose energy too quickly, as we can see that our black holes do not travel the requisite distance. There are a variety of possible issues here
+We lose energy too quickly, as we can see that our black holes do not travel the requisite distance. There are a variety of possible issues here:
 
-1. Constraint violations, and damping strength (including $N$ for the gauge damping parameter)
+1. Constraint violations, and damping strength (including $\eta$ for the gauge damping parameter)
 2. Kreiss oliger dissipation strength
 3. Gauge condition issues
 
@@ -1020,6 +1025,7 @@ In the literature, there are *many* ad-hoc techniques used with respect to the p
 1. Dropping the order of kreiss oliger dissipation within the event horizon
 2. Dropping the order of differentiation within the event horizon
 3. Using upwinded stencils for differentiation with respect to the shift, which is very dissipative near the singularity where the shift vector undergoes a discontinuity
+4. Hiding the puncture, by placing it at the boundary between grid cells
 
 For me, a lot of this seems like that any kind of differentiation is invalid near the puncture, and so techniques indirectly tend to lower the constraint contamination by reducing the singularity, or reducing the size of stencils to reduce constraint error propagation. In theory - some BSSN formulations have causal constraint propagation, but this breaks down *somewhat* in the face of discretisation, and still relies on you having a sufficiently large event horizon
 
