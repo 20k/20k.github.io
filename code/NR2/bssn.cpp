@@ -930,7 +930,9 @@ std::string make_momentum_constraint()
     auto cst = [&](execution_context&, bssn_args_mem<buffer<valuef>> in,
                                        std::array<buffer_mut<valuef>, 3> momentum_constraint,
                                        literal<v3i> ldim,
-                                       literal<valuef> scale) {
+                                       literal<valuef> scale,
+                                       buffer<tensor<value<short>, 3>> positions,
+                                       literal<valuei> positions_length) {
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);
@@ -939,11 +941,13 @@ std::string make_momentum_constraint()
 
         v3i dim = ldim.get();
 
-        if_e(lid >= dim.x() * dim.y() * dim.z(), [&] {
+        if_e(lid >= positions_length.get(), []{
             return_e();
         });
 
-        v3i pos = get_coordinate(lid, dim);
+        v3i pos = (v3i)positions[lid];
+
+        pin(pos);
 
         bssn_args args(pos, dim, in);
 
@@ -995,19 +999,6 @@ std::string make_bssn(const tensor<int, 3>& idim)
         pin(lid);
 
         v3i dim = idim.get();
-
-        /*if_e(lid >= dim.x() * dim.y() * dim.z(), [&] {
-            return_e();
-        });
-
-        v3i pos = get_coordinate(lid, dim);
-
-        ///i think this early return is the problem
-        if_e(pos.x() <= 1 || pos.x() >= dim.x() - 2 ||
-             pos.y() <= 1 || pos.y() >= dim.y() - 2 ||
-             pos.z() <= 1 || pos.z() >= dim.z() - 2, [&] {
-            return_e();
-        });*/
 
         if_e(lid >= positions_length.get(), []{
             return_e();

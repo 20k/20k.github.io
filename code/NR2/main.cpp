@@ -25,6 +25,7 @@ struct mesh
     t3i dim;
 
     std::vector<cl::buffer> derivatives;
+
     bool using_momentum_constraint = false;
     std::vector<cl::buffer> momentum_constraint;
     //cl::buffer temporary_buffer;
@@ -43,6 +44,10 @@ struct mesh
     mesh(cl::context& ctx, t3i _dim) : buffers{ctx, ctx, ctx}, sommerfeld_points(ctx), evolve_points(ctx)
     {
         dim = _dim;
+
+        #ifdef MOMENTUM_CONSTRAINT_DAMPING
+        using_momentum_constraint = true;
+        #endif // MOMENTUM_CONSTRAINT_DAMPING
     }
 
     void init(float simulation_width, cl::context& ctx, cl::command_queue& cqueue)
@@ -98,6 +103,7 @@ struct mesh
             {
                 cl::buffer buf(ctx);
                 buf.alloc(sizeof(cl_float) * int64_t{dim.x()} * dim.y() * dim.z());
+                buf.set_to_zero(cqueue);
 
                 momentum_constraint.push_back(buf);
             }
@@ -301,7 +307,6 @@ struct mesh
         };
         #endif
 
-        #if 0
         auto calculate_momentum_constraint_for = [&](int pack_idx)
         {
             cl::args args;
@@ -312,10 +317,11 @@ struct mesh
 
             args.push_back(dim);
             args.push_back(scale);
+            args.push_back(evolve_points);
+            args.push_back(evolve_length);
 
             cqueue.exec("momentum_constraint", args, {dim.x() * dim.y() * dim.z()}, {128});
         };
-        #endif
 
         auto evolve_step = [&](int base_idx, int in_idx, int out_idx)
         {
@@ -433,10 +439,8 @@ struct mesh
                 calculate_constraint_errors(in_idx);
             #endif
 
-            //#define CALCULATE_MOMENTUM_CONSTRAINT
-            #ifdef CALCULATE_MOMENTUM_CONSTRAINT
-            calculate_momentum_constraint_for(in_idx);
-            #endif
+            if(using_momentum_constraint)
+                calculate_momentum_constraint_for(in_idx);
 
             evolve_step(base_idx, in_idx, out_idx);
         };
@@ -533,6 +537,8 @@ int main()
         printf("Built kernels\n");
     });
 
+    build_thread.join();
+
     cl::command_queue cqueue(ctx);
 
     ImFontAtlas* atlas = ImGui::GetIO().Fonts;
@@ -570,7 +576,7 @@ int main()
 
     cqueue.block();
 
-    build_thread.join();
+    //build_thread.join();
 
     printf("Start\n");
 
