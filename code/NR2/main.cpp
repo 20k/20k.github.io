@@ -25,7 +25,8 @@ struct mesh
     t3i dim;
 
     std::vector<cl::buffer> derivatives;
-    //std::vector<cl::buffer> momentum_constraint;
+    bool using_momentum_constraint = false;
+    std::vector<cl::buffer> momentum_constraint;
     //cl::buffer temporary_buffer;
     //cl::buffer temporary_single;
     //std::vector<double> hamiltonian_error;
@@ -91,13 +92,16 @@ struct mesh
             });
         }
 
-        /*for(int i=0; i < 3; i++)
+        if(using_momentum_constraint)
         {
-            cl::buffer buf(ctx);
-            buf.alloc(sizeof(cl_float) * int64_t{dim.x()} * dim.y() * dim.z());
+            for(int i=0; i < 3; i++)
+            {
+                cl::buffer buf(ctx);
+                buf.alloc(sizeof(cl_float) * int64_t{dim.x()} * dim.y() * dim.z());
 
-            momentum_constraint.push_back(buf);
-        }*/
+                momentum_constraint.push_back(buf);
+            }
+        }
 
         for(int i=0; i < 11 * 3; i++)
         {
@@ -323,10 +327,15 @@ struct mesh
             for(auto& i : derivatives)
                 args.push_back(i);
 
-            //for(auto& i : momentum_constraint)
-            //    args.push_back(i);
-
-            args.push_back(nullptr, nullptr, nullptr);
+            if(using_momentum_constraint)
+            {
+                for(auto& i : momentum_constraint)
+                    args.push_back(i);
+            }
+            else
+            {
+                args.push_back(nullptr, nullptr, nullptr);
+            }
 
             args.push_back(timestep);
             args.push_back(dim);
