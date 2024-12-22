@@ -418,8 +418,6 @@ struct mesh
                 }
             }
 
-            cqueue.block();
-
             //#define CALCULATE_CONSTRAINT_ERRORS
             #ifdef CALCULATE_CONSTRAINT_ERRORS
             if(iteration == 0)
@@ -432,8 +430,6 @@ struct mesh
             #endif
 
             evolve_step(base_idx, in_idx, out_idx);
-
-            cqueue.block();
         };
 
         int iterations = 2;
