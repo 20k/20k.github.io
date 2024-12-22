@@ -5,6 +5,7 @@
 #include "../common/single_source.hpp"
 
 using valuef = value<float>;
+using valuei = value<int>;
 using v3i = tensor<value<int>, 3>;
 
 struct derivative_data
@@ -13,6 +14,9 @@ struct derivative_data
     v3i dim;
     valuef scale;
 };
+
+valuei distance_to_boundary(valuei pos, valuei dim);
+valuei distance_to_boundary(v3i pos, v3i dim);
 
 //1st derivative
 valuef diff1(const valuef& in, int direction, const derivative_data& d);

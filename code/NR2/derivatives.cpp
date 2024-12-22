@@ -4,6 +4,23 @@
 
 using valuei = value<int>;
 
+valuei distance_to_boundary(valuei pos, valuei dim)
+{
+    ///so. Pos == 0 is out of the question
+    ///pos == 1 is the boundary
+    ///similarly pos == dim-1 is out of the question
+    ///pos == dim-2 is the boundary
+    valuei distance_from_left = pos - 1;
+    valuei distance_from_right = dim - 2 - pos;
+
+    return min(distance_from_left, distance_from_right);
+}
+
+valuei distance_to_boundary(v3i pos, v3i dim)
+{
+    return min(min(distance_to_boundary(pos[0], dim[0]), distance_to_boundary(pos[1], dim[1])), distance_to_boundary(pos[2], dim[2]));
+}
+
 template<std::size_t elements, typename T>
 auto get_differentiation_variables(const T& in, int direction)
 {
@@ -78,9 +95,9 @@ valuef diff1(const valuef& in, int direction, const derivative_data& d)
         first = (vars[2] - vars[0]) / (2.f * d.scale);
     }
 
-    valuei width = ternary(d.pos[direction] <= 2 || d.pos[direction] >= d.dim[direction] - 3, valuei(1), valuei(2));
+    valuei width = distance_to_boundary(d.pos[direction], d.dim[direction]);
 
-    return ternary(width == 2, second, first);
+    return ternary(width >= 2, second, first);
 }
 
 ///this uses the commutativity of partial derivatives to lopsidedly prefer differentiating dy in the x direction

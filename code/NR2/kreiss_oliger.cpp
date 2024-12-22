@@ -45,23 +45,6 @@ valuef kreiss_oliger_interior(valuef in, int order)
     return prefix * val;
 }
 
-valuei distance_to_boundary(valuei pos, valuei dim)
-{
-    ///so. Pos == 0 is out of the question
-    ///pos == 1 is the boundary
-    ///similarly pos == dim-1 is out of the question
-    ///pos == dim-2 is the boundary
-    valuei distance_from_left = pos - 1;
-    valuei distance_from_right = dim - 2 - pos;
-
-    return min(distance_from_left, distance_from_right);
-}
-
-valuei distance_to_boundary(v3i pos, v3i dim)
-{
-    return min(min(distance_to_boundary(pos[0], dim[0]), distance_to_boundary(pos[1], dim[1])), distance_to_boundary(pos[2], dim[2]));
-}
-
 std::string make_kreiss_oliger()
 {
      auto func = [&](execution_context&, buffer<valuef> in, buffer_mut<valuef> out, buffer<valuef> W, literal<v3i> ldim, literal<valuef> scale, literal<valuef> eps) {
