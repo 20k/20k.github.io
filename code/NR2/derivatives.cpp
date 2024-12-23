@@ -57,6 +57,8 @@ auto get_differentiation_variables(const T& in, int direction)
                         pos[direction] = ternary(pos[direction] < valuei(0), pos[direction] + dim[direction], pos[direction]);
                     #endif
 
+                    //pos[direction] = min(max(pos[direction], pos[direction].make_constant_of_type(0)), dim[direction] - dim[direction].make_constant_of_type(1));
+
                     value_base op;
                     op.type = value_impl::op::BRACKET;
                     op.args = {buf, value<int>(3), pos[0], pos[1], pos[2], dim[0], dim[1], dim[2]};
@@ -210,6 +212,56 @@ valuef diff1_boundary(single_source::buffer<valuef> in, int direction, const val
 
     if_e(!(left || right), [&]{
         as_ref(val) = diff1(in[pos, dim], direction, d);
+    });
+
+    return declare_e(val);
+}
+
+valuef diff1_boundary(const valuef& in, int direction, const derivative_data& d)
+{
+    /*valuef second;
+
+    {
+        ///4th order derivatives
+        std::array<valuef, 5> vars = get_differentiation_variables<5>(in, direction);
+
+        valuef p1 = -vars[4] + vars[0];
+        valuef p2 = 8.f * (vars[3] - vars[1]);
+
+        second = (p1 + p2) / (12.f * d.scale);
+    }
+
+    valuef first;
+
+    {
+        std::array<valuef, 3> vars = get_differentiation_variables<3>(in, direction);
+
+        first = (vars[2] - vars[0]) / (2.f * d.scale);
+    }
+
+    valuei width = distance_to_boundary(d.pos[direction], d.dim[direction]);
+
+    return ternary(width >= 2, second, first);*/
+
+    using namespace single_source;
+
+    mut<valuef> val = declare_mut_e(valuef(0.f));
+
+    value<bool> left = d.pos[direction] == 1;
+    value<bool> right = d.pos[direction] == d.dim[direction] - 2;
+
+    std::array<valuef, 5> vars = get_differentiation_variables<5>(in, direction);
+
+    if_e(left, [&]{
+        as_ref(val) = (-3.f * vars[2] + 4 * vars[3] - vars[4]) / (2 * d.scale);
+    });
+
+    if_e(right, [&] {
+        as_ref(val) = (3.f * vars[2] - 4 * vars[1] + vars[0]) / (2 * d.scale);
+    });
+
+    if_e(!(left || right), [&]{
+        as_ref(val) = diff1(in, direction, d);
     });
 
     return declare_e(val);

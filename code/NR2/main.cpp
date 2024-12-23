@@ -317,8 +317,8 @@ struct mesh
 
             args.push_back(dim);
             args.push_back(scale);
-            args.push_back(evolve_points);
-            args.push_back(evolve_length);
+            //args.push_back(evolve_points);
+            //args.push_back(evolve_length);
 
             cqueue.exec("momentum_constraint", args, {dim.x() * dim.y() * dim.z()}, {128});
         };

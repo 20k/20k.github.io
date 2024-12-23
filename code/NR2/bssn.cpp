@@ -29,7 +29,7 @@ tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const derivativ
     tensor<valuef, 3> dW;
 
     for(int i=0; i < 3; i++)
-        dW[i] = diff1(args.W, i, d);
+        dW[i] = diff1_boundary(args.W, i, d);
 
     ///https://arxiv.org/pdf/1205.5111v1.pdf (54)
     tensor<valuef, 3, 3> aij_raised = raise_index(args.cA, args.cY.invert(), 1);
@@ -44,7 +44,7 @@ tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const derivativ
 
         for(int j=0; j < 3; j++)
         {
-            s1 += diff1(aij_raised[i, j], j, d);
+            s1 += diff1_boundary(aij_raised[i, j], j, d);
         }
 
         valuef s2 = 0;
@@ -53,7 +53,7 @@ tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const derivativ
         {
             for(int k=0; k < 3; k++)
             {
-                s2 += -0.5f * args.cY.invert()[j, k] * diff1(args.cA[j, k], i, d);
+                s2 += -0.5f * args.cY.invert()[j, k] * diff1_boundary(args.cA[j, k], i, d);
             }
         }
 
@@ -64,7 +64,7 @@ tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const derivativ
             s3 += 6 * dPhi[j] * aij_raised[i, j];
         }
 
-        valuef p4 = -(2.f/3.f) * diff1(args.K, i, d);
+        valuef p4 = -(2.f/3.f) * diff1_boundary(args.K, i, d);
 
         Mi[i] = s1 + s2 + s3 + p4;
     }
@@ -930,9 +930,10 @@ std::string make_momentum_constraint()
     auto cst = [&](execution_context&, bssn_args_mem<buffer<valuef>> in,
                                        std::array<buffer_mut<valuef>, 3> momentum_constraint,
                                        literal<v3i> ldim,
-                                       literal<valuef> scale,
-                                       buffer<tensor<value<short>, 3>> positions,
-                                       literal<valuei> positions_length) {
+                                       literal<valuef> scale
+                                       //buffer<tensor<value<short>, 3>> positions,
+                                       //literal<valuei> positions_length
+                                       ) {
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);
@@ -941,11 +942,11 @@ std::string make_momentum_constraint()
 
         v3i dim = ldim.get();
 
-        if_e(lid >= positions_length.get(), []{
+        if_e(lid >= dim.x() * dim.y() * dim.z(), [&] {
             return_e();
         });
 
-        v3i pos = (v3i)positions[lid];
+        v3i pos = get_coordinate(lid, dim);
 
         pin(pos);
 
@@ -956,9 +957,9 @@ std::string make_momentum_constraint()
         d.dim = dim;
         d.scale = scale.get();
 
-        if_e(pos.x() <= 1 || pos.x() >= dim.x() - 2 ||
-             pos.y() <= 1 || pos.y() >= dim.y() - 2 ||
-             pos.z() <= 1 || pos.z() >= dim.z() - 2, [&] {
+        if_e(pos.x() <= 20 || pos.x() >= dim.x() - 21 ||
+             pos.y() <= 20 || pos.y() >= dim.y() - 21 ||
+             pos.z() <= 20 || pos.z() >= dim.z() - 21, [&] {
 
             for(int i=0; i < 3; i++)
                 as_ref(momentum_constraint[i][lid]) = valuef(0.f);

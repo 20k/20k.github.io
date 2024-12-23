@@ -672,21 +672,24 @@ valuef diff1_boundary(single_source::buffer<valuef> in, int direction, const val
     ///otherwise shell out to diff1, which will also handle near boundary points correctly
     mut<valuef> val = declare_mut_e(valuef(0.f));
 
-    //not strictly necessary for boundary derivatives
-    as_ref(val) = diff1(in[pos, dim], direction, d);
+    value<bool> left = pos[direction] == 1;
+    value<bool> right = pos[direction] == dim[direction] - 2;
 
-    //left boundary
-    if_e(pos[direction] == 1, [&]{
+    if_e(left, [&]{
         as_ref(val) = (-3.f * in[pos, dim] + 4 * in[pos + offset, dim] - in[pos + 2 * offset, dim]) / (2 * scale);
     });
 
-    //right boundary
-    if_e(pos[direction] == dim[direction] - 2, [&] {
+    if_e(right, [&] {
         as_ref(val) = (3.f * in[pos, dim] - 4 * in[pos - offset, dim] + in[pos - 2 * offset, dim]) / (2 * scale);
+    });
+
+    if_e(!(left || right), [&]{
+        as_ref(val) = diff1(in[pos, dim], direction, d);
     });
 
     return declare_e(val);
 }
+
 
 auto sommerfeld = [&](execution_context&, buffer<valuef> base, buffer<valuef> in, buffer_mut<valuef> out, literal<valuef> timestep,
                       literal<v3i> ldim,
@@ -741,7 +744,106 @@ There are two other boundary conditions we need:
 1. Kreiss-Oliger dissipation. In our case, we'll progressively reduce the order of dissipation as we approach the boundary
 2. Derivatives. Here, we reduce the order of derivatives as we approach the boundary, and use one sided derivatives *on* the boundary
 
-Other boundary conditions are discussed at the end of this article
+## Kreiss-Oliger boundary
+
+Here, we're simply reducing the order of kreiss-oliger as we approach the boundary. The implementation is straightforward:
+
+```c++
+valuei boundary_distance = distance_to_boundary(pos, dim);
+
+if_e(boundary_distance == 0, [&] {
+    as_ref(out[lid]) = in[lid];
+
+    return_e();
+});
+
+auto do_kreiss = [&](int order)
+{
+    as_ref(out[lid]) = in[lid] + eps.get() * kreiss_oliger_interior(in[pos, dim], order);
+};
+
+int max_kreiss = 4;
+
+for(int i=1; i < max_kreiss; i++)
+{
+    if_e(boundary_distance == i, [&] {
+        do_kreiss(i * 2);
+    });
+}
+
+if_e(boundary_distance >= max_kreiss, [&] {
+    do_kreiss(max_kreiss * 2);
+});
+```
+
+And the interior function:
+
+```c++
+valuef kreiss_oliger_interior(valuef in, int order)
+{
+    ///boundary is at 1 and dim - 2
+    valuef val = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        if(order == 2)
+            val += diff2nd(in, i);
+        if(order == 4)
+            val += diff4th(in, i);
+        if(order == 6)
+            val += diff6th(in, i);
+        if(order == 8)
+            val += diff8th(in, i);
+        if(order == 10)
+            val += diff10th(in, i);
+    }
+
+    int n = order;
+    float p = n - 1;
+
+    int sign = pow(-1, (p + 3)/2);
+
+    int divisor = pow(2, p+1);
+
+    float prefix = (float)sign / divisor;
+
+    return prefix * val;
+}
+```
+
+## Derivative Boundary Conditions
+
+```c++
+
+valuef diff1(const valuef& in, int direction, const derivative_data& d)
+{
+    valuef second;
+
+    {
+        ///4th order derivatives
+        std::array<valuef, 5> vars = get_differentiation_variables<5>(in, direction);
+
+        valuef p1 = -vars[4] + vars[0];
+        valuef p2 = 8.f * (vars[3] - vars[1]);
+
+        second = (p1 + p2) / (12.f * d.scale);
+    }
+
+    valuef first;
+
+    {
+        std::array<valuef, 3> vars = get_differentiation_variables<3>(in, direction);
+
+        first = (vars[2] - vars[0]) / (2.f * d.scale);
+    }
+
+    valuei width = distance_to_boundary(d.pos[direction], d.dim[direction]);
+
+    return ternary(width >= 2, second, first);
+}
+```
+
+The ternary operator is being used here to avoid a conditional branch on the memory accesses, which is tremendously slow. The simulation grid is padded so that there are no out of memory accesses
 
 # Modifying the equations
 
@@ -918,41 +1020,19 @@ While we could address these issues in any order, I'm going to address these in 
 
 ### Curvature adjusted kreiss-oliger dissipation (CAKO todo?)
 
-The basic idea here, the authors of this (todo) paper argue, is that sharp features near the event horizon of a black hole are natural. This makes a certain amount of sense, and after all - if we're trying to represent as much information on our grid as possible, removing high frequencies in high frequency areas seems like a prime candidate for wasting grid resolution
+If you remember, kreiss-oliger is a method of removing high frequency oscillations from your grid, and it damps out numerical errors. The basic idea [here, (20)](https://arxiv.org/pdf/2404.01137) is that sharp features near the event horizon of a black hole are likely natural, and require less smoothing. This makes a certain amount of sense, and after all - if we're trying to represent as much information on our grid as possible, removing high frequencies in high frequency areas seems like a prime candidate for wasting grid resolution
 
 To adjust this, the authors multiply the damping strength, by the parameter $W$, thus making the damping strength virtually 0 near the event horizon
 
-Testing this directly, we can see that our code immediately unconditionally blows up. It seems that for us, we do need some damping near the event horizon, and instead I alter the damping strength as follows:
+Testing this directly, our code immediately unconditionally blows up - likely because of our low grid resolution. It seems that for us, we do need some damping near the event horizon, and instead I clamp the minimum damping to $max(W, \epsilon)$
 
-todo
+In practice, I've fond that this $\epsilon$ parameter is very dependent on grid resolution, and can be anywhere from 0.1 to 0.5, with lower resolutions needing higher values
 
-#### Kreiss oliger is a bit.. ill defined
+Implementing this is extremely straightforward, and our kreiss-oliger step becomes:
 
-One of the difficulties with all of this is trying to prove that your code converges. The idea is, as your grid resolution goes up, your code should become more accurate
-
-The tricky part is that while we use scalar constants for damping factors, many of these factors are actually *not* resolution independent, and should really scale with some factor of the grid resolution
-
-Kreiss-oliger is something that stood out to me as a candidate for making convergence tricky. If we examine the specific form of kreiss oliger, you'll notice that for eg second order kreiss, the form is as such:
-
-todo
-
-This involves a single division by the scale. So as your grid resolution goes down, the prefix term blows up to infinity. What gives?
-
-##### Courant Factors
-
-If you're unfamiliar with the concept of a courant factor, the core concept is that the timestep of any simulation is limited by what's called a courant factor. It is essentially the statement that information can only propagate across your grid at a finite speed, and is mathematically defined as $\frac{\Delta t}{\Delta h} = C$. If you increase your timestep too high, you must have instability, because you're trying to pipe information through your grid faster than your problem allows it to propagate. Similarly, if you change your grid resolution, you must also change your timestep to match
-
-If you compare, the prefix factor of kreiss-oliger *is* the courant factor, and is therefore a constant. It would certainly sound sensible to replace it with a constant, except...
-
-##### We don't have a courant factor
-
-I missed part of the definition of the courant factor, which is that it only applies to *explicit* integrators. Equations which are implicitly integrated do not have a courant factor, as they propagate information faster than with an explicit integrator. In fact, $\frac{\Delta t}{\Delta h}$ can be arbitrarily large, and is only limited by the convergence of your implicit integration technique. With an implicit integrator of sufficient quality - grid resolution, and timestep, are fully decoupled
-
-This raises a tricky question: If we change the size of our grid resolution to being infinitely small, our timestep doesn't necessarily have to change beyond practical convergence limitations. This means that kreiss oliger is somewhat ill defined for us, as there's no reason that the prefix term is fixed to anything useful
-
-To work around these, we're going to set it to a constant, and emulate having a courant factor by calculating our timestep as if we had one. Bear in mind that this is fairly arbitrary, and I suspect is why other people's kreiss-oliger settings do not directly work in our code. Unfortunately, this is the only simulation I've seen which uses fully implicit integration, so I've seen exactly 0 discussion of this issue in the literature[^imexstepping]
-
-[^imexstepping]: The SXS group use imex stepping, which is a semi implicit scheme. They split the equations up, and solve them partially implicitly. Notably however, they do not solve the derivatives implicitly due to the computational cost, which means that this implicit scheme cannot sidestep the courant factor as with a fully implicit scheme - I suspect this is why they see marginal benefits
+```c++
+as_ref(out[lid]) = in[lid] + eps.get() * kreiss_oliger_interior(in[pos, dim], order) * max(W[lid], valuef(0.1));
+```
 
 ### Testing CAKO
 
@@ -1072,6 +1152,34 @@ Event horizon calculation requires storing the entire history of the simulation 
 
 [^wewilldothis]: We're actually going to do this in a future article, in realtime, to produce accurate renderings of binary black hole collisions
 
+## Kreiss oliger is a bit.. ill defined
+
+One of the difficulties with all of this is trying to prove that your code converges. The idea is, as your grid resolution goes up, your code should become more accurate
+
+The tricky part is that while we use scalar constants for damping factors, many of these factors are actually *not* resolution independent, and should really scale with some factor of the grid resolution
+
+Kreiss-oliger is something that stood out to me as a candidate for making convergence tricky. If we examine the specific form of kreiss oliger, you'll notice that for eg second order kreiss, the form is as such:
+
+todo
+
+This involves a single division by the scale. So as your grid resolution goes down, the prefix term blows up to infinity. What gives?
+
+### Courant Factors
+
+If you're unfamiliar with the concept of a courant factor, the core concept is that the timestep of any simulation is limited by what's called a courant factor. It is essentially the statement that information can only propagate across your grid at a finite speed, and is mathematically defined as $\frac{\Delta t}{\Delta h} = C$. If you increase your timestep too high, you must have instability, because you're trying to pipe information through your grid faster than your problem allows it to propagate. Similarly, if you change your grid resolution, you must also change your timestep to match
+
+If you compare, the prefix factor of kreiss-oliger *is* the courant factor, and is therefore a constant. It would certainly sound sensible to replace it with a constant, except...
+
+### We don't have a courant factor
+
+I missed part of the definition of the courant factor, which is that it only applies to *explicit* integrators. Equations which are implicitly integrated do not have a courant factor, as they propagate information faster than with an explicit integrator. In fact, $\frac{\Delta t}{\Delta h}$ can be arbitrarily large, and is only limited by the convergence of your implicit integration technique. With an implicit integrator of sufficient quality - grid resolution, and timestep, are fully decoupled
+
+This raises a tricky question: If we change the size of our grid resolution to being infinitely small, our timestep doesn't necessarily have to change beyond practical convergence limitations. This means that kreiss oliger is somewhat ill defined for us, as there's no reason that the prefix term is fixed to anything useful
+
+To work around these, we're going to set it to a constant, and emulate having a courant factor by calculating our timestep as if we had one. Bear in mind that this is fairly arbitrary, and I suspect is why other people's kreiss-oliger settings do not directly work in our code. Unfortunately, this is the only simulation I've seen which uses fully implicit integration, so I've seen exactly 0 discussion of this issue in the literature[^imexstepping]
+
+[^imexstepping]: The SXS group use imex stepping, which is a semi implicit scheme. They split the equations up, and solve them partially implicitly. Notably however, they do not solve the derivatives implicitly due to the computational cost, which means that this implicit scheme cannot sidestep the courant factor as with a fully implicit scheme - I suspect this is why they see only marginal benefits
+
 ## A brief evidence-free survey of modifications
 
 In this article, I've picked a few modifications to implement to the equations, and these are based off a reasonable amount of testing. In general, there are a very diverse range of modifications that are available, and if you're planning on testing some of them, this segment is a very brief overview of my own experiences with them. There's no data of any description here, this is intended purely so that if you test out modifications yourself and notice something, you can take a look and go "ok neat its not just me"
@@ -1098,7 +1206,7 @@ Substituting undifferentiated $$\tilde{\Gamma}^i$$ terms for their analytic equi
 
 Upwinded derivatives: These can remove the need for kreiss-oliger dissipation, but my best guess is that its because they're actually very dissipative numerically. Its basically doing the same thing as kreiss-oliger (dissipating noise), but without the controllability or more robust theoretical background of kreiss-oliger. I've never had especially good results, and there is a discontinuity with $\beta^i$ at the singularity which means that upwinded derivatives may simply be numerically dissipating it
 
-Reducing derivative order near the singularity: This appears to better preserve energy at low resolutions
+Reducing derivative order near the singularity: This appears to better preserve energy at low resolutions, but this is not something I've robustly tested
 
 Various gauge conditions: Other than the damping parameter, I've never noticed much difference between these. Advection is commonly disabled, and can cause extra dissipation when enabled, but its somewhat counteracted here by CAKO
 

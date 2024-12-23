@@ -30,6 +30,7 @@ valuef diff6th(const valuef& in, int idx);
 valuef diff8th(const valuef& in, int idx);
 valuef diff10th(const valuef& in, int idx);
 
+valuef diff1_boundary(const valuef& in, int direction, const derivative_data& d);
 valuef diff1_boundary(single_source::buffer<valuef> in, int direction, const valuef& scale, v3i pos, v3i dim);
 
 #endif // DERIVATIVES_HPP_INCLUDED
