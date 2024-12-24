@@ -126,7 +126,7 @@ T trace(const tensor<T, N, N>& mT, const inverse_metric<T, N, N>& inverse)
     {
         for(int j=0; j < N; j++)
         {
-            ret += inverse[i, j] * mT[i, j];
+            ret = fma(inverse[i, j], mT[i, j], ret);
         }
     }
 
@@ -144,7 +144,7 @@ tensor<T, N, N> trace_free(const tensor<T, N, N>& mT, const metric<T, N, N>& met
     {
         for(int j=0; j < N; j++)
         {
-            TF[i, j] = mT[i, j] - (1/3.f) * met[i, j] * t;
+            TF[i, j] = fma(-(1.f/3.f) * met[i, j], t, mT[i, j]);
         }
     }
 

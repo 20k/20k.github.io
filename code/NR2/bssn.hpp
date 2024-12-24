@@ -28,7 +28,7 @@ v3i get_coordinate(valuei id, v3i dim);
 using t3i = tensor<int, 3>;
 using t3f = tensor<float, 3>;
 
-#define MOMENTUM_CONSTRAINT_DAMPING
+//#define MOMENTUM_CONSTRAINT_DAMPING
 
 template<typename T>
 struct bssn_args_mem : value_impl::single_source::argument_pack
