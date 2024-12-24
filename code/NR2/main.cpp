@@ -203,7 +203,7 @@ struct mesh
 
             for(int i=0; i < (int)linear_base.size(); i++)
             {
-                float eps = 0.15f;
+                float eps = 0.1f;
 
                 cl::args args;
                 args.push_back(linear_base.at(i));
