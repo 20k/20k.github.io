@@ -1121,6 +1121,9 @@ std::string enforce_algebraic_constraints()
             }
         }
 
+        pin(cY);
+        pin(cA);
+
         valuef det_cY = pow(cY.det(), 1.f/3.f);
 
         metric<valuef, 3, 3> fixed_cY = cY / det_cY;
@@ -1137,14 +1140,14 @@ std::string enforce_algebraic_constraints()
 
 
 
-        if_e(pos.x() == 128 && pos.y() == 128 && pos.z() == 128, [&]{
+        /*if_e(pos.x() == 128 && pos.y() == 128 && pos.z() == 128, [&]{
             value_base se;
             se.type = value_impl::op::SIDE_EFFECT;
             se.abstract_value = "printf(\"Trace: %.23f\\n\"," + value_to_string(trace(fixed_cA, fixed_cY.invert())) + ")";
             //se.abstract_value = "printf(\"Det: %.23f\\n\"," + value_to_string(fixed_cY.det()) + ")";
 
             value_impl::get_context().add(se);
-        });
+        });*/
 
         tensor<int, 2> index_table[6] = {{0, 0}, {0, 1}, {0, 2}, {1, 1}, {1, 2}, {2, 2}};
 
