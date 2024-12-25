@@ -24,6 +24,8 @@ v3i get_coordinate(valuei id, v3i dim)
     return {x, y, z};
 }
 
+///so: a much better variant of this would be to only calculate aij_raised's derivative and store s1
+///because that's the only component we actually *need* to calculate the momentum constraint in the evolution kernel
 tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const derivative_data& d)
 {
     tensor<valuef, 3> dW;
@@ -963,9 +965,9 @@ std::string make_momentum_constraint()
         d.dim = dim;
         d.scale = scale.get();
 
-        if_e(pos.x() <= 1 || pos.x() >= dim.x() - 2 ||
-             pos.y() <= 1 || pos.y() >= dim.y() - 2 ||
-             pos.z() <= 1 || pos.z() >= dim.z() - 2, [&] {
+        if_e(pos.x() <= 0 || pos.x() >= dim.x() - 1 ||
+             pos.y() <= 0 || pos.y() >= dim.y() - 1 ||
+             pos.z() <= 0 || pos.z() >= dim.z() - 1, [&] {
 
             for(int i=0; i < 3; i++)
                 as_ref(momentum_constraint[i][lid]) = valuef(0.f);
