@@ -167,7 +167,7 @@ namespace value_impl
         ret.args = {v1, v2, v3};
 
         std::visit([&]<typename A, typename B, typename C>(const A&, const B&, const C&){
-            if constexpr(std::is_invocable_v<U, A, B>) {
+            if constexpr(std::is_invocable_v<U, A, B, C>) {
                 ret.concrete = decltype(func(A(), B(), C()))();
             }
 
@@ -383,6 +383,24 @@ namespace value_impl
     inline
     value_base optimise(const value_base& in)
     {
+        /*std::visit([&]<typename T>(const T& _){
+            bool is_bad = std::is_same_v<T, double>;
+
+            if(is_bad && in.type != op::CAST && in.type != op::FABS)
+            {
+                std::cout << "My Index " << in.concrete.index() << std::endl;
+                std::cout << in.args[0].concrete.index() << std::endl;
+                //std::cout << in.args[0].concrete.index() << " " << in.args[1].concrete.index() << " " << in.args[2].concrete.index() << std::endl;
+
+                std::cout << "who " << value_to_string(in.args[0]) << std::endl;
+                std::cout << "bad " << value_to_string(in) << std::endl;
+
+                //assert(false);
+            }
+
+            //assert(!is_bad);
+        }, in.concrete);*/
+
         using namespace stdmath;
 
         ///do constant propagation here
@@ -475,6 +493,16 @@ namespace value_impl
 
             if(in.args[0].type == op::UMINUS)
                 return in.args[1] - in.args[0].args[0];
+
+            #ifdef FMAIFY
+            if(in.is_floating_point_type())
+            {
+                if(in.args[0].type == op::MULTIPLY)
+                    return fma(in.args[0].args[0], in.args[0].args[1], in.args[1]);
+                if(in.args[1].type == op::MULTIPLY)
+                    return fma(in.args[1].args[0], in.args[1].args[1], in.args[0]);
+            }
+            #endif
         }
 
         if(in.type == op::MULTIPLY)

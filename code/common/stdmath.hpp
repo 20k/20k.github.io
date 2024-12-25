@@ -173,9 +173,15 @@ namespace stdmath
             using std::abs;
 
             if constexpr(std::is_integral_v<T>)
+            {
+                static_assert(std::is_same_v<decltype(abs(in)), T>);
                 return abs(in);
+            }
             else
+            {
+                static_assert(std::is_same_v<decltype(fabs(in)), T>);
                 return fabs(in);
+            }
         }
     };
 
@@ -346,9 +352,16 @@ namespace stdmath
     constexpr
     auto ufma = []<typename T>(const T& v1, const T& v2, const T& v3)
     {
-        using std::fma;
+        if constexpr(std::is_integral_v<T>)
+            return v1 * v2 + v3;
+        else
+        {
+            using std::fma;
 
-        return fma(v1, v2, v3);
+            static_assert(std::is_same_v<decltype(fma(v1, v2, v3)), T>);
+
+            return fma(v1, v2, v3);
+        }
     };
 }
 

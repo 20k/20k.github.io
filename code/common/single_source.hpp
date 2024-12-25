@@ -1034,7 +1034,12 @@ namespace value_impl
 
             auto get()
             {
-                return build_type(name, T());
+                value_base op;
+                op.type = op::VALUE;
+                op.abstract_value = name;
+                op.concrete = get_interior_type(T());
+
+                return build_type(op, T());
             }
         };
 

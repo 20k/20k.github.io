@@ -1084,7 +1084,7 @@ std::string make_bssn(const tensor<int, 3>& idim)
 
     std::string str = value_impl::make_function(bssn_function, "evolve");
 
-    //std::cout << str << std::endl;
+    std::cout << str << std::endl;
 
     return str;
 }
@@ -1193,7 +1193,7 @@ std::string init_debugging()
         //valuef test_val = to_fill.cY[0][lid];
         //valuef display = ((test_val - 1) / 0.1f) * 0.5f + 0.5f;
 
-        valuef display = fabs(to_fill.gA[lid] * 0.15);
+        valuef display = fabs(to_fill.gA[lid] * 0.15f);
 
         v4f col = {display, display, display, 1.f};
 
