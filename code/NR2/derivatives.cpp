@@ -57,8 +57,6 @@ auto get_differentiation_variables(const T& in, int direction)
                         pos[direction] = ternary(pos[direction] < valuei(0), pos[direction] + dim[direction], pos[direction]);
                     #endif
 
-                    //pos[direction] = min(max(pos[direction], pos[direction].make_constant_of_type(0)), dim[direction] - dim[direction].make_constant_of_type(1));
-
                     value_base op;
                     op.type = value_impl::op::BRACKET;
                     op.args = {buf, value<int>(3), pos[0], pos[1], pos[2], dim[0], dim[1], dim[2]};
