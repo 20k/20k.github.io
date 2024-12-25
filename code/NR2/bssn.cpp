@@ -963,9 +963,9 @@ std::string make_momentum_constraint()
         d.dim = dim;
         d.scale = scale.get();
 
-        if_e(pos.x() <= 20 || pos.x() >= dim.x() - 21 ||
-             pos.y() <= 20 || pos.y() >= dim.y() - 21 ||
-             pos.z() <= 20 || pos.z() >= dim.z() - 21, [&] {
+        if_e(pos.x() <= 1 || pos.x() >= dim.x() - 2 ||
+             pos.y() <= 1 || pos.y() >= dim.y() - 2 ||
+             pos.z() <= 1 || pos.z() >= dim.z() - 2, [&] {
 
             for(int i=0; i < 3; i++)
                 as_ref(momentum_constraint[i][lid]) = valuef(0.f);
