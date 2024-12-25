@@ -589,6 +589,21 @@ namespace value_impl
                 return in.args[0] * inverse_sqrt(in.args[1].args[0]);
         }
 
+        if(in.type == op::FMA)
+        {
+            if(equivalent(in.args[2], in.args[2].make_constant_of_type(0.f)))
+                return in.args[0] * in.args[1];
+
+            if(equivalent(in.args[0], in.args[0].make_constant_of_type(0.f)) || equivalent(in.args[1], in.args[1].make_constant_of_type(0.f)))
+                return in.args[2];
+
+            if(equivalent(in.args[0], in.args[0].make_constant_of_type(1.f)))
+                return in.args[1] + in.args[2];
+
+            if(equivalent(in.args[1], in.args[1].make_constant_of_type(1.f)))
+                return in.args[0] + in.args[2];
+        }
+
         return in;
     }
 
