@@ -469,6 +469,12 @@ namespace value_impl
 
             if(equivalent(in.args[1], in.args[1].make_constant_of_type(0.f)))
                return in.args[0];
+
+            if(in.args[1].type == op::UMINUS)
+                return in.args[0] - in.args[1].args[0];
+
+            if(in.args[0].type == op::UMINUS)
+                return in.args[1] - in.args[0].args[0];
         }
 
         if(in.type == op::MULTIPLY)
