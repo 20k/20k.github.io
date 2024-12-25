@@ -601,8 +601,8 @@ valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const derivative_data&
     }
 
     return v1 - sum_multiply(icY.to_tensor(), W2DiDja)
-              + args.gA * sum_multiply(AMN, args.cA)
-              + (1/3.f) * args.gA * args.K * args.K;
+              + args.gA * (sum_multiply(AMN, args.cA)
+              + (1/3.f) * args.K * args.K);
 }
 
 tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f momentum_constraint, const derivative_data& d)
@@ -637,8 +637,8 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
     }
 
     tensor<valuef, 3, 3> dtcA = lie_derivative_weight(args.gB, args.cA, d)
-                                + args.gA * args.K * args.cA
-                                - 2 * args.gA * aij_amj
+                                + args.gA * (args.K * args.cA
+                                - 2 * aij_amj)
                                 + trace_free(with_trace, args.cY, icY);
 
     //#define MOMENTUM_CONSTRAINT_DAMPING
@@ -760,14 +760,16 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
             for(int i=0; i < 3; i++)
             {
                 valuef sum = 0;
+                valuef sum2 = 0;
 
                 for(int j=0; j < 3; j++)
                 {
-                    sum += icY.idx(i, j) * diff1(args.K, j, d) + args.K * dicY.idx(j, i, j).dual;
+                    sum += icY.idx(i, j) * diff1(args.K, j, d);
+                    sum2 += dicY.idx(j, i, j).dual;
                     //sum += diff1(ctx, littlekij.idx(i, j), j);
                 }
 
-                Yij_Kj.idx(i) = sum + args.K * calculated_cG.idx(i);
+                Yij_Kj.idx(i) = sum + args.K * (sum2 + calculated_cG[i]);
             }
         }
         #else
