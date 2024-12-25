@@ -553,9 +553,9 @@ tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs
     {
         for(int j=0; j < 3; j++)
         {
-            valuef v1 = args.W * args.W * double_covariant_derivative(args.gA, derivs.dgA, christoff2, d)[i, j];
+            valuef v1 = args.W * double_covariant_derivative(args.gA, derivs.dgA, christoff2, d)[i, j];
 
-            valuef v2 = args.W * (derivs.dW[i] * diff1(args.gA, j, d) + derivs.dW[j] * diff1(args.gA, i, d));
+            valuef v2 = derivs.dW[i] * diff1(args.gA, j, d) + derivs.dW[j] * diff1(args.gA, i, d);
 
             valuef sum = 0;
 
@@ -563,13 +563,13 @@ tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs
             {
                 for(int n=0; n < 3; n++)
                 {
-                    sum += icY[m, n] * args.W * derivs.dW[m] * diff1(args.gA, n, d);
+                    sum += icY[m, n] * derivs.dW[m] * diff1(args.gA, n, d);
                 }
             }
 
             valuef v3 = -args.cY[i, j] * sum;
 
-            W2DiDja[i, j] = v1 + v2 + v3;
+            W2DiDja[i, j] = args.W * (v1 + v2 + v3);
         }
     }
 
