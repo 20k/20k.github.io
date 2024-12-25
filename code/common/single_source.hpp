@@ -36,6 +36,9 @@ namespace value_impl
         template<typename T>
         void pin(value<T>& inout)
         {
+            if(inout.type == value_impl::op::VALUE && !inout.is_concrete_type())
+                return;
+
             std::string name = "v" + std::to_string(next_id());
 
             add(declare_b(name, inout));
