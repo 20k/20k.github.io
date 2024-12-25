@@ -547,6 +547,39 @@ namespace value_impl
                     }
                 }
             }
+
+            ///disabled because its a negative
+            #if 0
+            ///(a + b) - a == b
+            ///(a + b) - b == a
+            if(v1.type == op::PLUS)
+            {
+                if(equivalent(v1.args[0], v2))
+                    return v1.args[1];
+
+                if(equivalent(v1.args[1], v2))
+                    return v1.args[0];
+            }
+
+            ///a - (a + b) == -b
+            ///(b - (a + b) == -a
+            if(v2.type == op::PLUS)
+            {
+                if(equivalent(v1, v2.args[0]))
+                    return -v2.args[1];
+
+                if(equivalent(v1, v2.args[1]))
+                    return -v2.args[0];
+            }
+
+            ///(a - b) - a == -b
+            ///(a - b) - b == n/a
+            if(v1.type == op::MINUS)
+            {
+                if(equivalent(v1.args[0], v2))
+                    return -v1.args[1];
+            }
+            #endif
         }
 
         //the problem with this is it tends to elmininate common subexpressions
