@@ -570,7 +570,7 @@ v3f get_scaled_coordinate_vec(v3i in, v3i dimension_upper, v3i dimension_lower)
     return ret;
 }
 
-void upscale_buffer_with_boundary(execution_context& ctx, buffer<valuef> in, buffer_mut<valuef> out, literal<v3i> in_dim, literal<v3i> out_dim, literal<valuef> boundary)
+void upscale_buffer(execution_context& ctx, buffer<valuef> in, buffer_mut<valuef> out, literal<v3i> in_dim, literal<v3i> out_dim)
 {
     using namespace single_source;
 
@@ -590,7 +590,6 @@ void upscale_buffer_with_boundary(execution_context& ctx, buffer<valuef> in, buf
 
     if_e(pos.x() == 0 || pos.y() == 0 || pos.z() == 0 ||
          pos.x() == dim.x() - 1 ||  pos.y() == dim.y() - 1 || pos.z() == dim.z() - 1, [&]{
-        as_ref(out[pos, out_dim.get()]) = boundary.get();
 
         return_e();
     });
@@ -598,7 +597,6 @@ void upscale_buffer_with_boundary(execution_context& ctx, buffer<valuef> in, buf
     ///trilinear interpolation
     as_ref(out[pos, dim]) = buffer_read_linear(in, lower_pos, in_dim.get());
 }
-
 ```
 
 This solution works incredibly well for this problem, as there is no high frequency content in $u$, and is a free performance win. There are no changes to the laplacian kernel here (almost as if this were planned), the only thing that we really need to worry about is the *host* side, and what grid resolutions to pick. I've found that lower grid resolutions can be somewhat numerically unstable[^pleasenotethat], so the relaxation parameter is dynamic. The code I use for generating this isn't too complex:

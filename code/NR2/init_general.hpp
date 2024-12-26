@@ -77,7 +77,7 @@ v3f get_scaled_coordinate_vec(v3i in, v3i dimension_upper, v3i dimension_lower)
 }
 
 inline
-void upscale_buffer_with_boundary(execution_context& ctx, buffer<valuef> in, buffer_mut<valuef> out, literal<v3i> in_dim, literal<v3i> out_dim, literal<valuef> boundary)
+void upscale_buffer(execution_context& ctx, buffer<valuef> in, buffer_mut<valuef> out, literal<v3i> in_dim, literal<v3i> out_dim)
 {
     using namespace single_source;
 
@@ -97,7 +97,6 @@ void upscale_buffer_with_boundary(execution_context& ctx, buffer<valuef> in, buf
 
     if_e(pos.x() == 0 || pos.y() == 0 || pos.z() == 0 ||
          pos.x() == dim.x() - 1 ||  pos.y() == dim.y() - 1 || pos.z() == dim.z() - 1, [&]{
-        as_ref(out[pos, out_dim.get()]) = boundary.get();
 
         return_e();
     });
@@ -467,7 +466,7 @@ struct initial_conditions
         }
 
         {
-            std::string str = value_impl::make_function(upscale_buffer_with_boundary, "upscale");
+            std::string str = value_impl::make_function(upscale_buffer, "upscale");
 
             cl::program p = cl::build_program_with_cache(ctx, {str}, false);
 
@@ -569,7 +568,7 @@ struct initial_conditions
                     auto [u_old_buf, u_old_dim] = u_old.value();
 
                     cl::args args;
-                    args.push_back(u_old_buf, u_found, u_old_dim, dim, 0.f);
+                    args.push_back(u_old_buf, u_found, u_old_dim, dim);
 
                     cqueue.exec("upscale", args, {dim.x() * dim.y() * dim.z()}, {128});
                 }
