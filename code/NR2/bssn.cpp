@@ -718,7 +718,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
 
         tensor<valuef, 3> Yij_Kj;
 
-        #define PAPER_CGI_DAMP
+        //#define PAPER_CGI_DAMP
         #ifdef PAPER_CGI_DAMP
         {
             auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
@@ -933,6 +933,25 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
 
         dtcG += -sigma * Gi * dmbm;
         #endif // STABILITY_SIGMA
+
+        #define STABILITY_SIGMA_2
+        #ifdef STABILITY_SIGMA_2
+        valuef dmbm = 0;
+
+        for(int m=0; m < 3; m++)
+        {
+            dmbm += diff1(args.gB[m], m, d);
+        }
+
+        ///https://arxiv.org/pdf/gr-qc/0209066
+        valuef s = sign(dmbm);
+
+        value X = 0.1f;
+
+        tensor<valuef, 3> Gi = args.cG - calculated_cG;
+
+        dtcG += -(X * s + 2.f/3.f) * Gi * dmbm;
+        #endif
     }
 
     return dtcG;

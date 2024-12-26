@@ -1490,7 +1490,7 @@ namespace value_impl
     inline
     value<T> sign(const value<T>& v1)
     {
-        return from_base<T>(optimise(make_op(op::SIGN, {v1})));
+        return from_base<T>(optimise(make_op<value<T>>(op::SIGN, {v1})));
     }
 
     template<typename T>

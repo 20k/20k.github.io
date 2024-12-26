@@ -1052,7 +1052,7 @@ These modifications would, in theory, work if you were using some kind of adapti
 
 ## Lets reproduce a result
 
-Trying to simulate with the above set of modifications at our resolution is not going to work, and instead today we're going to focus on trying to reproduce a specific result: todo. The no spin test case from [this paper](https://arxiv.org/pdf/gr-qc/0610128). Here, I'll lay out the test parameters:
+Trying to simulate with the above set of modifications at our resolution is not going to work, and instead today we're going to focus on trying to reproduce a specific result: todo. The no spin test case from [this paper](https://arxiv.org/pdf/gr-qc/0610128). If you'd like some more test cases, check out [this](https://arxiv.org/pdf/gr-qc/0602026) paper as well. Here, I'll lay out the test parameters:
 
 | | |BH 0|BH 1|
 |-|-|-|-|
