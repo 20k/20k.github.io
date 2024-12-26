@@ -83,7 +83,7 @@ value<T> diff1_generic(const value<T>& in, int direction, const derivative_data&
         std::array<value<T>, 5> vars = get_differentiation_variables<5>(in, direction);
 
         value<T> p1 = -vars[4] + vars[0];
-        value<T> p2 = T{8.f} * (vars[3] - vars[1]);
+        value<T> p2 = T{8} * (vars[3] - vars[1]);
 
         second = (p1 + p2) / (value<T>)(12.f * d.scale);
     }
