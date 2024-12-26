@@ -543,7 +543,6 @@ Sometimes, the code is simpler than the explanation! Luckily, there is no race c
 One other easy way to speed up performance is via a multigrid solution. Essentially, instead of solving at your final grid resolution, you start off at a low resolution, solve for that, then progressively solve for higher resolutions. This is as simple as running our laplacian solving procedure at a single resolution, then upscaling that guess to a higher resolution. Do note you'll need to re-enforce the boundary condition:
 
 ```c++
-inline
 valuef get_scaled_coordinate(valuei in, valuei dimension_upper, valuei dimension_lower)
 {
     valuei upper_centre = (dimension_upper - 1)/2;
@@ -561,7 +560,6 @@ valuef get_scaled_coordinate(valuei in, valuei dimension_upper, valuei dimension
     return (valuef)in / scale;
 }
 
-inline
 v3f get_scaled_coordinate_vec(v3i in, v3i dimension_upper, v3i dimension_lower)
 {
     v3f ret;
@@ -572,7 +570,6 @@ v3f get_scaled_coordinate_vec(v3i in, v3i dimension_upper, v3i dimension_lower)
     return ret;
 }
 
-inline
 void upscale_buffer_with_boundary(execution_context& ctx, buffer<valuef> in, buffer_mut<valuef> out, literal<v3i> in_dim, literal<v3i> out_dim, literal<valuef> boundary)
 {
     using namespace single_source;
@@ -589,21 +586,19 @@ void upscale_buffer_with_boundary(execution_context& ctx, buffer<valuef> in, buf
 
     v3i pos = get_coordinate(lid, dim);
 
-    v3f lower_pos = get_scaled_coordinate_vec(pos, out_dim.get(), in_dim.get());
+    v3f lower_pos = get_scaled_coordinate_vec(pos, dim, in_dim.get());
 
-    ///assume that our output buffer is cleared to our boundary condition, ie 0
     if_e(pos.x() == 0 || pos.y() == 0 || pos.z() == 0 ||
-         pos.x() == out_dim.get().x() ||  pos.y() == out_dim.get().y() || pos.z() == out_dim.get().z(), [&]{
+         pos.x() == dim.x() - 1 ||  pos.y() == dim.y() - 1 || pos.z() == dim.z() - 1, [&]{
         as_ref(out[pos, out_dim.get()]) = boundary.get();
 
         return_e();
     });
 
-    ///bog standard trilinear interpolation
-    valuef val = buffer_read_linear(in, lower_pos, in_dim.get());
-
-    as_ref(out[pos, out_dim.get()]) = val;
+    ///trilinear interpolation
+    as_ref(out[pos, dim]) = buffer_read_linear(in, lower_pos, in_dim.get());
 }
+
 ```
 
 This solution works incredibly well for this problem, as there is no high frequency content in $u$, and is a free performance win. There are no changes to the laplacian kernel here (almost as if this were planned), the only thing that we really need to worry about is the *host* side, and what grid resolutions to pick. I've found that lower grid resolutions can be somewhat numerically unstable[^pleasenotethat], so the relaxation parameter is dynamic. The code I use for generating this isn't too complex:
