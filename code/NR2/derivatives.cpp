@@ -60,7 +60,7 @@ auto get_differentiation_variables(const T& in, int direction)
                     value_base op;
                     op.type = value_impl::op::BRACKET;
                     op.args = {buf, value<int>(3), pos[0], pos[1], pos[2], dim[0], dim[1], dim[2]};
-                    op.concrete = get_interior_type(T());
+                    op.concrete = v.concrete;
 
                     return op;
                 };
@@ -73,31 +73,42 @@ auto get_differentiation_variables(const T& in, int direction)
     return vars;
 }
 
-valuef diff1(const valuef& in, int direction, const derivative_data& d)
+template<typename T>
+value<T> diff1_generic(const value<T>& in, int direction, const derivative_data& d)
 {
-    valuef second;
+    value<T> second;
 
     {
         ///4th order derivatives
-        std::array<valuef, 5> vars = get_differentiation_variables<5>(in, direction);
+        std::array<value<T>, 5> vars = get_differentiation_variables<5>(in, direction);
 
-        valuef p1 = -vars[4] + vars[0];
-        valuef p2 = 8.f * (vars[3] - vars[1]);
+        value<T> p1 = -vars[4] + vars[0];
+        value<T> p2 = T{8.f} * (vars[3] - vars[1]);
 
-        second = (p1 + p2) / (12.f * d.scale);
+        second = (p1 + p2) / (value<T>)(12.f * d.scale);
     }
 
-    valuef first;
+    value<T> first;
 
     {
-        std::array<valuef, 3> vars = get_differentiation_variables<3>(in, direction);
+        std::array<value<T>, 3> vars = get_differentiation_variables<3>(in, direction);
 
-        first = (vars[2] - vars[0]) / (2.f * d.scale);
+        first = (vars[2] - vars[0]) / (value<T>)(2.f * d.scale);
     }
 
     valuei width = distance_to_boundary(d.pos[direction], d.dim[direction]);
 
     return ternary(width >= 2, second, first);
+}
+
+valuef diff1(const valuef& in, int direction, const derivative_data& d)
+{
+    return diff1_generic(in, direction, d);
+}
+
+valueh diff1(const valueh& in, int direction, const derivative_data& d)
+{
+    return diff1_generic(in, direction, d);
 }
 
 ///this uses the commutativity of partial derivatives to lopsidedly prefer differentiating dy in the x direction

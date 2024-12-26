@@ -102,7 +102,7 @@ struct mesh
             for(int i=0; i < 3; i++)
             {
                 cl::buffer buf(ctx);
-                buf.alloc(sizeof(cl_float) * int64_t{dim.x()} * dim.y() * dim.z());
+                buf.alloc(sizeof(momentum_t::interior_type) * int64_t{dim.x()} * dim.y() * dim.z());
                 buf.set_to_zero(cqueue);
 
                 momentum_constraint.push_back(buf);

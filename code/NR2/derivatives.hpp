@@ -4,6 +4,7 @@
 #include "../common/value2.hpp"
 #include "../common/single_source.hpp"
 
+using valueh = value<float16>;
 using valuef = value<float>;
 using valuei = value<int>;
 using v3i = tensor<value<int>, 3>;
@@ -20,6 +21,8 @@ valuei distance_to_boundary(v3i pos, v3i dim);
 
 //1st derivative
 valuef diff1(const valuef& in, int direction, const derivative_data& d);
+valueh diff1(const valueh& in, int direction, const derivative_data& d);
+
 //2nd derivative
 valuef diff2(const valuef& in, int idx, int idy, const valuef& dx, const valuef& dy, const derivative_data& d);
 

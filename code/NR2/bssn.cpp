@@ -31,7 +31,7 @@ tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const derivativ
     tensor<valuef, 3> dW;
 
     for(int i=0; i < 3; i++)
-        dW[i] = diff1_boundary(args.W, i, d);
+        dW[i] = diff1(args.W, i, d);
 
     ///https://arxiv.org/pdf/1205.5111v1.pdf (54)
     tensor<valuef, 3, 3> aij_raised = raise_index(args.cA, args.cY.invert(), 1);
@@ -46,7 +46,7 @@ tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const derivativ
 
         for(int j=0; j < 3; j++)
         {
-            s1 += diff1_boundary(aij_raised[i, j], j, d);
+            s1 += diff1(aij_raised[i, j], j, d);
         }
 
         valuef s2 = 0;
@@ -55,7 +55,7 @@ tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const derivativ
         {
             for(int k=0; k < 3; k++)
             {
-                s2 += -0.5f * args.cY.invert()[j, k] * diff1_boundary(args.cA[j, k], i, d);
+                s2 += -0.5f * args.cY.invert()[j, k] * diff1(args.cA[j, k], i, d);
             }
         }
 
@@ -66,7 +66,7 @@ tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const derivativ
             s3 += 6 * dPhi[j] * aij_raised[i, j];
         }
 
-        valuef p4 = -(2.f/3.f) * diff1_boundary(args.K, i, d);
+        valuef p4 = -(2.f/3.f) * diff1(args.K, i, d);
 
         Mi[i] = s1 + s2 + s3 + p4;
     }
@@ -607,7 +607,7 @@ valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const derivative_data&
               + (1/3.f) * args.K * args.K);
 }
 
-tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f momentum_constraint, const derivative_data& d)
+tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3h momentum_constraint, const derivative_data& d)
 {
     using namespace single_source;
 
@@ -648,7 +648,17 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
     auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
     pin(christoff2);
 
-    auto cd_low = covariant_derivative_low_vec(momentum_constraint, christoff2, d);
+    tensor<valuef, 3, 3> dMi;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            dMi[i, j] = (valuef)diff1(momentum_constraint[j], i, d);
+        }
+    }
+
+    auto cd_low = covariant_derivative_low_vec((v3f)momentum_constraint, dMi, christoff2);
     pin(cd_low);
 
     for(int i=0; i < 3; i++)
@@ -936,7 +946,7 @@ valuef apply_evolution(const valuef& base, const valuef& dt, valuef timestep)
 std::string make_momentum_constraint()
 {
     auto cst = [&](execution_context&, bssn_args_mem<buffer<valuef>> in,
-                                       std::array<buffer_mut<valuef>, 3> momentum_constraint,
+                                       std::array<buffer_mut<momentum_t>, 3> momentum_constraint,
                                        literal<v3i> ldim,
                                        literal<valuef> scale
                                        //buffer<tensor<value<short>, 3>> positions,
@@ -965,12 +975,12 @@ std::string make_momentum_constraint()
         d.dim = dim;
         d.scale = scale.get();
 
-        if_e(pos.x() <= 0 || pos.x() >= dim.x() - 1 ||
-             pos.y() <= 0 || pos.y() >= dim.y() - 1 ||
-             pos.z() <= 0 || pos.z() >= dim.z() - 1, [&] {
+        if_e(pos.x() <= 1 || pos.x() >= dim.x() - 2 ||
+             pos.y() <= 1 || pos.y() >= dim.y() - 2 ||
+             pos.z() <= 1 || pos.z() >= dim.z() - 2, [&] {
 
             for(int i=0; i < 3; i++)
-                as_ref(momentum_constraint[i][lid]) = valuef(0.f);
+                as_ref(momentum_constraint[i][lid]) = valueh(0);
 
             return_e();
         });
@@ -979,7 +989,7 @@ std::string make_momentum_constraint()
 
         for(int i=0; i < 3; i++)
         {
-            as_ref(momentum_constraint[i][lid]) = Mi[i];
+            as_ref(momentum_constraint[i][lid]) = (momentum_t)Mi[i];
         }
     };
 
@@ -993,7 +1003,7 @@ std::string make_bssn(const tensor<int, 3>& idim)
                                                  bssn_args_mem<buffer<valuef>> in,
                                                  bssn_args_mem<buffer_mut<valuef>> out,
                                                  bssn_derivatives_mem<buffer<derivative_t>> derivatives,
-                                                 std::array<buffer<valuef>, 3> momentum_constraint,
+                                                 std::array<buffer<momentum_t>, 3> momentum_constraint,
                                                  literal<valuef> timestep,
                                                  literal<v3i> ldim,
                                                  literal<valuef> scale,
@@ -1026,7 +1036,7 @@ std::string make_bssn(const tensor<int, 3>& idim)
         d.dim = dim;
         d.scale = scale.get();
 
-        tensor<valuef, 3> Mi;
+        tensor<momentum_t, 3> Mi;
 
         for(int i=0; i < 3; i++)
         {
