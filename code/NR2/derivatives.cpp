@@ -228,30 +228,6 @@ valuef diff1_boundary(single_source::buffer<valuef> in, int direction, const val
 
 valuef diff1_boundary(const valuef& in, int direction, const derivative_data& d)
 {
-    /*valuef second;
-
-    {
-        ///4th order derivatives
-        std::array<valuef, 5> vars = get_differentiation_variables<5>(in, direction);
-
-        valuef p1 = -vars[4] + vars[0];
-        valuef p2 = 8.f * (vars[3] - vars[1]);
-
-        second = (p1 + p2) / (12.f * d.scale);
-    }
-
-    valuef first;
-
-    {
-        std::array<valuef, 3> vars = get_differentiation_variables<3>(in, direction);
-
-        first = (vars[2] - vars[0]) / (2.f * d.scale);
-    }
-
-    valuei width = distance_to_boundary(d.pos[direction], d.dim[direction]);
-
-    return ternary(width >= 2, second, first);*/
-
     using namespace single_source;
 
     mut<valuef> val = declare_mut_e(valuef(0.f));
