@@ -167,9 +167,81 @@ $n$ is a normal vector, which is calculated as follows: $n^i = x^i/r$, and point
 
 If you have no plans to ever work in non cartesian coordinate systems (which we don't), the metric tensor is the identity matrix, and you can ignore the index positions
 
-Code wise: This is straightforward to implement:
+For multiple black holes, you simply sum all your $\bar{A}^{ij}$ terms
 
-Todo
+Code wise: This is all straightforward to implement:
+
+```c++
+//levi-civita symbol
+tensor<valuef, 3, 3, 3> get_eijk()
+{
+    auto eijk_func = [](int i, int j, int k)
+    {
+        if((i == 0 && j == 1 && k == 2) || (i == 1 && j == 2 && k == 0) || (i == 2 && j == 0 && k == 1))
+            return 1;
+
+        if(i == j || j == k || k == i)
+            return 0;
+
+        return -1;
+    };
+
+    tensor<valuef, 3, 3, 3> eijk;
+
+    for(int i=0; i < 3; i++)
+        for(int j=0; j < 3; j++)
+            for(int k=0; k < 3; k++)
+                eijk[i, j, k] = eijk_func(i, j, k);
+
+    return eijk;
+}
+
+tensor<valuef, 3, 3> get_aIJ(v3f world_pos, v3f bh_pos, v3f angular_momentum, v3f momentum)
+{
+    tensor<valuef, 3, 3, 3> eijk = get_eijk();
+    tensor<valuef, 3, 3> aij;
+    metric<valuef, 3, 3> flat;
+
+    for(int i=0; i < 3; i++)
+    {
+        flat[i, i] = 1;
+    }
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            valuef r = (world_pos - bh_pos).length();
+
+            r = max(r, valuef(1e-6f));
+
+            tensor<valuef, 3> n = (world_pos - bh_pos) / r;
+
+            tensor<valuef, 3> momentum_lo = flat.lower(momentum);
+            tensor<valuef, 3> n_lo = flat.lower(n);
+
+            aij[i, j] += (3 / (2.f * r * r)) * (momentum_lo[i] * n_lo[j] + momentum_lo[j] * n_lo[i] - (flat[i, j] - n_lo[i] * n_lo[j]) * sum_multiply(momentum, n_lo));
+
+            ///spin
+            valuef s1 = 0;
+            valuef s2 = 0;
+
+            for(int k=0; k < 3; k++)
+            {
+                for(int l=0; l < 3; l++)
+                {
+                    s1 += eijk[k, i, l] * angular_momentum[l] * n[k] * n_lo[j];
+                    s2 += eijk[k, j, l] * angular_momentum[l] * n[k] * n_lo[i];
+                }
+            }
+
+            aij[i, j] += (3 / (r*r*r)) * (s1 + s2);
+        }
+    }
+
+    return aij;
+}
+```
 
 Next up: We need the conformal factor $\psi$, which involves calculating the correction $u$
 
@@ -189,7 +261,7 @@ We're going to deviate a little from this definition, and instead calculate the 
 
 $$\psi = \frac{1}{\alpha} + u + 1$$
 
-Where $u > 0$. This is because you have a lot more precision to work with for floating point near $0$ vs near $1$, so this lets us solve for much smaller corrections without needing to resort to double precision. This means our boundary condition will be slightly different (we pick $u=0$, instead of $u=1$)
+Where $u > 0$. This is because you have a lot more precision to work with for floating point near $0$ vs near $1$, so this lets us solve for much smaller corrections without needing to resort to double precision. This means our boundary condition will be slightly different ($u=0$, instead of $u=1$)
 
 ### Solving for $u$
 
@@ -224,7 +296,7 @@ $$\begin{align}
 \end{align}
 $$
 
-The right hand side terms correspond to matter, and are neglected here. We'll be getting back to the first paper linked above in the future, in a *truly* terrible amount of detail
+The right hand side terms in the paper correspond to matter, and are neglected here. We'll be getting back to the first paper linked above in the future, in a *truly* terrible amount of detail
 
 #### Solving laplacians in general
 
@@ -252,7 +324,7 @@ $$\frac{\partial^2 f(x)}{\partial x^2} = \frac{f(x - h) - 2 f(x) + f(x + h)}{h^2
 
 Now, we'll treat $u$ as a function over 3d space, ie $u(x, y, z)$, and apply the above discretisation to $\Delta u$:
 
-$$\Delta u = \frac{u(x - h, y, z) - 2 u(x, y, z) + u(x + h, y, z))}{h^2} + \frac{u(x, y - h, z) - 2 u(x, y, z) + u(x, y + h, z))}{h^2}\frac{u(x, y, z - h) - 2 u(x, y, z) + u(x, y, z + h))}{h^2}$$
+$$\Delta u = \frac{u(x - h, y, z) - 2 u(x, y, z) + u(x + h, y, z))}{h^2} + \frac{u(x, y - h, z) - 2 u(x, y, z) + u(x, y + h, z))}{h^2} + \frac{u(x, y, z - h) - 2 u(x, y, z) + u(x, y, z + h))}{h^2}$$
 
 Collecting all the terms, we get:
 
@@ -360,6 +432,7 @@ auto laplace_basic = [](execution_context& ectx, buffer_mut<valuef> in, buffer_m
 
     //set a flag if the change in our value of u is still too high
     if_e(fabs(u0n1 - u) > etol, [&]{
+        //store a 1 in address 0
         still_going.atom_xchg_e(valuei(0), valuei(1));
     });
 };
@@ -381,13 +454,15 @@ We can stretch this concept to 3 dimensions directly as well:
 
 ![redblack3d](/assets/redblack3d.png)
 
-This means, we can simply update all red cells, then all black cells in an alternating fashion. Because the adjacent cells are one step into the future compared to the naive scheme, this is actually roughly a free 2x speedup in terms of iteration speed
+This means, we can simply update all red cells, then all black cells in an alternating fashion. Because the adjacent cells are one step into the future compared to the naive scheme, this is actually roughly a free 2x speedup in terms of iteration speed, and a further increase in speed due to halving the size of your problem per-iteration[^peritspeedup]
+
+[^peritspeedup]: The latter potential of the gains in the algorithm presented here are only realised on a CPU, as GPU architecture means that the culled threads are still alive an consuming resources. A less naive execution and memory ordering would bring another 2x speedup, but in essence: its not really worth it after we go down the multigrid rabbithole
 
 There's a slight wrinkle - our equations are not of the form $\Delta u = 0$, but instead $\Delta u = F(u)$. This means that we do touch a cell of the 'wrong' colour when updating, and it'll be one tick out of date. That is to say, if the stencil component of our RHS is given by $D(u)$, and our iteration variable is $k$, our iteration equation is:
 
-$$u_{k+2} = \frac{D(u_{k+1})}{6} - \frac{F(u_k)h^2}{6}$$
+$$u_{k+2} = D(u_{k+1}) - \frac{F(u_k)h^2}{6}$$
 
-This does not affect convergence in practice, but its worth keeping in mind that this is slightly nonstandard. Code wise, this is a simple change, and there are only two major differences:
+This does not affect convergence in practice, but its worth keeping in mind that this is slightly nonstandard. Code wise, red-black iteration is a simple change, and there are only two major differences:
 
 1. We can use one buffer, instead of 2
 2. We simply terminate half our threads early
@@ -459,7 +534,7 @@ auto laplace_rb_mg = [](execution_context& ectx, buffer_mut<valuef> inout, buffe
 };
 ```
 
-Sometimes, the code is simpler than the explanation! Luckily, there is no race condition with respect to $F(u)$, as we're the only thread that both reads and modifies that value - otherwise we'd have to use two buffers again
+Sometimes, the code is simpler than the explanation! Luckily, there is no race condition with respect to $F(u)$, as we're the only thread that both reads and modifies that value due to the red-black iteration - otherwise we'd have to use two buffers again
 
 #### Multigrid
 
@@ -519,7 +594,7 @@ void upscale_buffer_with_boundary(execution_context& ctx, buffer<valuef> in, buf
         return_e();
     });
 
-    ///trilinear interpolations
+    ///bog standard trilinear interpolation
     valuef val = buffer_read_linear(in, lower_pos, in_dim.get());
 
     as_ref(out[pos, out_dim.get()]) = val;
@@ -560,7 +635,7 @@ dims.push_back(dim);
 relax.push_back(0.8f);
 ```
 
-None of the exact parameters here are particularly important: it only matters that the last grid resolution is the one we actually want to solve for. As usual, I'm pulling out the interesting snippets here, and the full code is available at TODO: EXACT LINK TO LAPLACIAN STUFF
+There's probably some theory here on how to best generate grid sizes and relaxation parameters, so if you're aware of a better scheme do let me know. None of the exact parameters here are particularly important in practice: it only matters that the last grid resolution is the one we actually want to solve for. As usual, I'm pulling out the relevant snippets here, and the full code is available at TODO: EXACT LINK TO LAPLACIAN STUFF
 
 [^pleasenotethat]: Please note that I'm not super confident in this result, as its been a while since I explicitly tested that
 
@@ -571,6 +646,7 @@ At this point, I simply stopped - because the performance is much better than it
 1. The in and out buffers should be compacted to remove the strided memory accesses as a result of red-black iteration
 2. A list of active points should be provided as a buffer (or calculated), to avoid half of our threads simply immediately terminating due to red-black iteration
 3. 16-bit fixed point would be acceptable precision for many of the lower grid sizes especially
+4. The relaxation parameters are very pessimistic
 
 ## Finishing up
 
@@ -605,7 +681,7 @@ std::vector<float> extract_adm_masses(cl::context& ctx, cl::command_queue& cqueu
 
         cl::args args;
         args.push_back(u_buf, pos, u_dim, u_read);
-        //trilinear interpolation
+        //trilinear interpolation of u
         cqueue.exec("fetch_linear", args, {1}, {1});
 
         float u = u_read.read<float>(cqueue).at(0);
@@ -642,13 +718,17 @@ Both work well and are widely used. The latter is better for black holes, but I'
 
 [^twomain]: In general, these two options are the two simple options that work well, but there are a variety of alternatives
 
+This is the end of the initial conditions now, hooray! Here is a celebratory picture of a cat:
+
+Todo: wesley is a cat
+
 # Boundary conditions
 
 In our first go at this, our data was periodic and simply wrapped around the boundary - which was our boundary condition. Here, our simulation is no longer periodic, so we need a new set of boundary conditions. The simplest good-enough boundary condition is called the Sommerfeld boundary condition. This radiates away your data to the asymptotic value at the boundary. [This is defined as follows](https://arxiv.org/pdf/1503.03436) [2.39]:
 
 $$\frac{\partial f}{\partial t} = -\frac{v x_i}{r} \frac{\partial f}{\partial x_i} - v \frac{f - f_0}{r}$$
 
-$f$ is our value for whatever field we're radiating, $x_i$ is the cell's position in world coordinates, $v$ is the wave speed, $f_0$ is the asymptotic value, and $r$ is the distance from the origin in world coordinates. $\frac{\partial f}{\partial x_i}$ is the standard directional derivative of the function in each direction $\partial x_i$. This is applied to every tensor component separately, as if they were independent fields
+$f$ is our variable for whatever field we're radiating, $x_i$ is the cell's position in world coordinates, $v$ is the wave speed (usually 1), $f_0$ is the asymptotic value, and $r$ is the distance from the origin in world coordinates. $\frac{\partial f}{\partial x_i}$ is the standard directional derivative of the function in each direction $\partial x_i$. This is applied to every tensor component separately, as if they were independent fields
 
 The derivatives at the boundary will be one sided derivatives. All waves have a speed of $v=1$, except for the gauge variables which have a speed of $v=\sqrt{2}$. Todo: Cite
 

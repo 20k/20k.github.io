@@ -399,10 +399,10 @@ struct mesh
             SOMM(cG[1], 0.f, 1.f);
             SOMM(cG[2], 0.f, 1.f);
 
-            SOMM(gA, 1.f, sqrt(2.f));
-            SOMM(gB[0], 0.f, sqrt(2.f));
-            SOMM(gB[1], 0.f, sqrt(2.f));
-            SOMM(gB[2], 0.f, sqrt(2.f));
+            SOMM(gA, 1.f, 1);
+            SOMM(gB[0], 0.f, 1);
+            SOMM(gB[1], 0.f, 1);
+            SOMM(gB[2], 0.f, 1);
         };
 
         auto substep = [&](int iteration, int base_idx, int in_idx, int out_idx)
