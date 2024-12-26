@@ -68,11 +68,13 @@ valuef get_scaled_coordinate(valuei in, valuei dimension_upper, valuei dimension
 inline
 v3f get_scaled_coordinate_vec(v3i in, v3i dimension_upper, v3i dimension_lower)
 {
-    return (v3f){get_scaled_coordinate(in.x(), dimension_upper.x(), dimension_lower.x()),
-                 get_scaled_coordinate(in.y(), dimension_upper.y(), dimension_lower.y()),
-                 get_scaled_coordinate(in.z(), dimension_upper.z(), dimension_lower.z())};
-}
+    v3f ret;
 
+    for(int i=0; i < 3; i++)
+        ret[i] = get_scaled_coordinate(in[i], dimension_upper[i], dimension_lower[i]);
+
+    return ret;
+}
 
 inline
 void upscale_buffer_with_boundary(execution_context& ctx, buffer<valuef> in, buffer_mut<valuef> out, literal<v3i> in_dim, literal<v3i> out_dim, literal<valuef> boundary)

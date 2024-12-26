@@ -304,15 +304,17 @@ Our equations are of the form:
 
 $$\Delta u = F(u)$$
 
-And are a standard laplacian. It is common in numerical relativity to use fairly complicated solutions to solve this, and they come with caveats in terms of what kinds of laplacians are solvable. This is because solvers are CPU based, and as such need very high order convergence to work quickly
+And are a standard laplacian. If you already know how to solve a laplacian, there is absolutely nothing special in this section (beyond that we're doing it on a GPU[^gpufast]) and you may skip it
 
-Luckily, we're in GPU-land, and so the techniques are both simpler and significantly more performant. If you already know how to solve a laplacian, there is absolutely nothing special in this section and you may skip it
+[^gpufast]: This is one of the cases where using a GPU provides transformational performance boost - we can get away with a much simpler implementation. In standard numerical relativity, it is common to use much more complex schemes because they have to converge in a reasonable time on a CPU
 
 #### The boundary condition
 
 At the edge of our grid, we need to set $u$ to something. Asymptotically, $u$ is assumed to have the form $O(\frac{1}{r})$ (todo check), and at infinity in the original definition $u = 1$. This means for us, $u = 0$
 
 #### Fixed point iteration / 7 point stencil
+
+The question now is: How do you actually solve our laplacian equation? This segment is going to deal with the theory
 
 A laplacian in flat 3d space is defined as such:
 
@@ -322,15 +324,15 @@ Ie, it is the sum of second derivatives in each direction. Given a function $f(x
 
 $$\frac{\partial^2 f(x)}{\partial x^2} = \frac{f(x - h) - 2 f(x) + f(x + h)}{h^2}$$
 
-Now, we'll treat $u$ as a function over 3d space, ie $u(x, y, z)$, and apply the above discretisation to $\Delta u$:
+Where $h$ is the spacing between samples. Now, we'll treat $u$ as a function over 3d space, ie $u(x, y, z)$, and apply the above discretisation to $\Delta u$:
 
 $$\Delta u = \frac{u(x - h, y, z) - 2 u(x, y, z) + u(x + h, y, z))}{h^2} + \frac{u(x, y - h, z) - 2 u(x, y, z) + u(x, y + h, z))}{h^2} + \frac{u(x, y, z - h) - 2 u(x, y, z) + u(x, y, z + h))}{h^2}$$
 
 Collecting all the terms, we get:
 
-$$\frac{u(x - h, y, z) + u(x + h, y, z) + u(x, y - h, z) + u(x, y + h, z) + u(x, y, z - h) + u(x, y, z + h) - 6 u(x, y, z)}{h^2}$$
+$$\Delta u = \frac{u(x - h, y, z) + u(x + h, y, z) + u(x, y - h, z) + u(x, y + h, z) + u(x, y, z - h) + u(x, y, z + h) - 6 u(x, y, z)}{h^2}$$
 
-Our initial equation is $\Delta u = F(u)$, so lets substitute in, and multiply by $h^2$:
+Our initial equation is $\Delta u = F(u)$, so lets substitute in our discretisation above, and multiply by $h^2$:
 
 $$u(x - h, y, z) + u(x + h, y, z) + u(x, y - h, z) + u(x, y + h, z) + u(x, y, z - h) + u(x, y, z + h) - 6 u(x, y, z) = F(u) h^2$$
 
@@ -340,14 +342,14 @@ $$
 u(x, y, z) = \frac{u(x - h, y, z) + u(x + h, y, z) + u(x, y - h, z) + u(x, y + h, z) + u(x, y, z - h) + u(x, y, z + h) - F(u) h^2}{6}
 $$
 
-For us, $F(u) = -\frac{1}{8} (\frac{1}{\alpha} + u + 1)^{-7} \bar{A}_{ij} \bar{A}^{ij}$
+Simply apply this repeatedly to a grid, and you've solved your laplacian. For us, $F(u) = -\frac{1}{8} (\frac{1}{\alpha} + u + 1)^{-7} \bar{A}_{ij} \bar{A}^{ij}$
 
 As a basic idea, this works, and is implementable. This is the form I used for a very long time: you just iterate the above equation until the change in $u$ is sufficiently small. There are two main issues:
 
 1. It can be numerically unstable, particularly for spinning black holes
 2. It isn't amazingly fast, it can take ~10s or so in some cases, which is still pretty fast
 
-The first is solved by relaxation: Ie taking our old guess, and our new guess, and taking some fraction between the two: `mix(u, nextu, 0.9f)`. This unfortunately reduces the speed of convergence
+The first is solved by relaxation: Ie taking our old guess, and our new guess, and taking some fraction between the two: `mix(u, nextu, 0.9f)`. This reduces the speed of convergence, but ameliorates numerical stability problems
 
 With that in mind, lets have a look at our first very basic laplacian solver!
 
@@ -397,7 +399,7 @@ auto laplace_basic = [](execution_context& ectx, buffer_mut<valuef> in, buffer_m
         return_e();
     });
 
-    //cfl is 1 + 1/alpha, in is our guess for u
+    //cfl is 1 + 1/alpha, in[lid] is our guess for u
     valuef rhs = -(1.f/8.f) * pow(cfl[lid] + in[lid], -7.f) * aij_aIJ[lid];
 
     valuef h2f0 = lscale.get() * lscale.get() * rhs;
@@ -441,7 +443,7 @@ auto laplace_basic = [](execution_context& ectx, buffer_mut<valuef> in, buffer_m
 There are potentially a few atypical features here:
 
 1. The relaxation parameter is dynamic
-2. We use a `still_going` parameter. This sets an atomic to `1` (ignore the `0`, its an address offset) if the change in cell value is greater than an error tolerance. This is so that we can dynamically terminate when we've converged enough
+2. We use a `still_going` parameter. This sets an atomic to `1` (the `0` is an address offset) if the change in cell value is greater than an error tolerance. This is so that we can dynamically terminate when we've converged enough
 3. We use a linear id, and then convert that to our 3d id. This is to avoid significant dead threads at the edge of our domain
 
 #### Red-black
@@ -554,7 +556,7 @@ valuef get_scaled_coordinate(valuei in, valuei dimension_upper, valuei dimension
     ///this gives a middle value of 6, which is the 7th value
     ///Then we want to scale it to a dimension of 7
     ///to get [0:0, 1:0.5, 2:1, 3:1.5, 4:2, 5:2.5, 6:3, 7:3.5, 8:4, 9:4.5, 10:5, 11:5.5, 12:6]
-    ///so... it should just be a straight division by the scale?
+    ///so its just a straight division by the scale
 
     return (valuef)in / scale;
 }
