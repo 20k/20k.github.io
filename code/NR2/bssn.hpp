@@ -31,7 +31,7 @@ using t3i = tensor<int, 3>;
 using t3f = tensor<float, 3>;
 using momentum_t = valueh;
 
-#define MOMENTUM_CONSTRAINT_DAMPING
+//#define MOMENTUM_CONSTRAINT_DAMPING
 
 template<typename T>
 struct bssn_args_mem : value_impl::single_source::argument_pack
@@ -79,6 +79,8 @@ struct bssn_derivatives_mem : value_impl::single_source::argument_pack
     }
 };
 
+struct bssn_derivatives;
+
 struct bssn_args
 {
     unit_metric<valuef, 3, 3> cY;
@@ -107,16 +109,18 @@ struct bssn_args
         }
 
         K = in.K[pos, dim];
-        W = max(in.W[pos, dim], valuef(0.f));
+        W = max(in.W[pos, dim], valuef(1e-4f));
 
         for(int i=0; i < 3; i++)
             cG[i] = in.cG[i][pos, dim];
 
-        gA = max(in.gA[pos, dim], valuef(0.f));
+        gA = max(in.gA[pos, dim], valuef(1e-4f));
 
         for(int i=0; i < 3; i++)
             gB[i] = in.gB[i][pos, dim];
     }
+
+    tensor<valuef, 3> cG_undiff(const bssn_derivatives& derivs);
 };
 
 struct bssn_derivatives

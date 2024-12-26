@@ -9,6 +9,39 @@
 template<typename T>
 using dual = dual_types::dual_v<T>;
 
+tensor<valuef, 3> bssn_args::cG_undiff(const bssn_derivatives& derivs)
+{
+    #define SUBSTITUTE_CG
+    #ifdef SUBSTITUTE_CG
+    auto icY = cY.invert();
+
+    single_source::pin(icY);
+
+    tensor<valuef, 3> cG_out;
+
+    tensor<valuef, 3, 3, 3> christoff2 = christoffel_symbols_2(icY, derivs.dcY);
+
+    for(int i=0; i < 3; i++)
+    {
+        valuef sum = 0;
+
+        for(int m=0; m < 3; m++)
+        {
+            for(int n=0; n < 3; n++)
+            {
+                sum += icY[m, n] * christoff2[i, m, n];
+            }
+        }
+
+        cG_out[i] = sum;
+    }
+
+    return cG_out;
+    #else
+    return cG;
+    #endif
+}
+
 v3i get_coordinate(valuei id, v3i dim)
 {
     using namespace single_source;
@@ -151,7 +184,7 @@ tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, bssn_derivatives& derivs, c
 
             for(int k=0; k < 3; k++)
             {
-                s3 += 0.5f * args.cG[k] * (christoff1[i, j, k] + christoff1[j, i, k]);
+                s3 += 0.5f * args.cG_undiff(derivs)[k] * (christoff1[i, j, k] + christoff1[j, i, k]);
             }
 
             valuef s4 = 0;
@@ -354,7 +387,7 @@ tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, const deri
     float N = 2.f;
     //float N = 2;
 
-    return (3/4.f) * args.cG + djbjbi * 1 - N * args.gB;
+    return (3/4.f) * args.cG_undiff(derivs) + djbjbi * 1 - N * args.gB;
     #endif // GAMMA_DRIVER
 
     #ifdef ZERO_SHIFT
@@ -373,7 +406,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
     ///https://arxiv.org/pdf/1106.2254 also see here, after 25
     auto dtcY = lie_derivative_weight(args.gB, args.cY.to_tensor(), d) - 2 * args.gA * args.cA;
 
-    #define CY_STABILITY
+    //#define CY_STABILITY
     #ifdef CY_STABILITY
     tensor<valuef, 3, 3> d_cGi;
 
@@ -665,7 +698,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3h mom
     {
         for(int j=0; j < 3; j++)
         {
-            float Ka = 0.02f;
+            float Ka = 0.001f;
 
             dtcA[i, j] += Ka * args.gA * 0.5f *
                               (cd_low[i, j]
@@ -841,7 +874,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
 
             for(int j=0; j < 3; j++)
             {
-                s6 += -args.cG[j] * derivs.dgB[j, i];
+                s6 += -args.cG_undiff(derivs)[j] * derivs.dgB[j, i];
             }
 
             valuef s7 = 0;
@@ -874,7 +907,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
                 s9 += derivs.dgB[k, k];
             }
 
-            s9 = (2.f/3.f) * s9 * args.cG[i];
+            s9 = (2.f/3.f) * s9 * args.cG_undiff(derivs)[i];
 
             dtcG[i] = s1 + s2 + s3 + s4 + s5 + s6 + s7 + s8 + s9;
 

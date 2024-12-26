@@ -494,7 +494,7 @@ int main()
     cl::context& ctx = win.clctx->ctx;
     std::cout << cl::get_extensions(ctx) << std::endl;
 
-    t3i dim = {255, 255, 255};
+    t3i dim = {289, 289, 289};
 
     std::jthread build_thread([&]()
     {
