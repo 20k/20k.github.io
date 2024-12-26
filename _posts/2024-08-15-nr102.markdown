@@ -730,7 +730,7 @@ $$\frac{\partial f}{\partial t} = -\frac{v x_i}{r} \frac{\partial f}{\partial x_
 
 $f$ is our variable for whatever field we're radiating, $x_i$ is the cell's position in world coordinates, $v$ is the wave speed (usually 1), $f_0$ is the asymptotic value, and $r$ is the distance from the origin in world coordinates. $\frac{\partial f}{\partial x_i}$ is the standard directional derivative of the function in each direction $\partial x_i$. This is applied to every tensor component separately, as if they were independent fields
 
-The derivatives at the boundary will be one sided derivatives. All waves have a speed of $v=1$, except for the gauge variables which have a speed of $v=\sqrt{2}$. Todo: Cite
+The derivatives at the boundary will be one sided derivatives. All waves have a speed of $v=1$, except for the gauge variables which have a speed of $v=\sqrt{2}$ in some circumstances. Todo: Cite
 
 Code wise, this is very straightforward:
 
@@ -866,6 +866,7 @@ valuef kreiss_oliger_interior(valuef in, int order)
 
     for(int i=0; i < 3; i++)
     {
+        //these are *not* divided by the scale, as it'll cancel out later
         if(order == 2)
             val += diff2nd(in, i);
         if(order == 4)
@@ -894,7 +895,6 @@ valuef kreiss_oliger_interior(valuef in, int order)
 ## Derivative Boundary Conditions
 
 ```c++
-
 valuef diff1(const valuef& in, int direction, const derivative_data& d)
 {
     valuef second;
@@ -923,6 +923,8 @@ valuef diff1(const valuef& in, int direction, const derivative_data& d)
 }
 ```
 
+Note that our diff1 function does not need to deal with derivatives *on* the boundary, as we never evaluate our evolution equations there (which is the role of sommerfeld)
+
 The ternary operator is being used here to avoid a conditional branch on the memory accesses, which is tremendously slow. The simulation grid is padded so that there are no out of memory accesses
 
 # Modifying the equations
@@ -941,11 +943,12 @@ In addition to the 'usual' issues, we also suffer from our own set of unique iss
 
 It took a very *very* long time for the field to be able to successfully simulate binary black hole collisions, and even longer to do full circular orbits. There are a variety of issues here, which we'll now go over
 
-1. The gauge conditions resulted in coordinate system stretching, as well as the singularity blowing up in the moving punctures technique (well, before it was discovered)
+1. Bad gauge conditions can result in coordinate system stretching, as well as the singularity blowing up in the moving punctures technique (well, before it was discovered)
 2. Momentum constraint errors
 3. Christoffel symbol constraint errors
+4. Algebraic constraint errors (which we solved in the last article)
 
-The structure of the equations we're using are already adapted to simulating binary black holes by design (surprise!) luckily, but older sets of equations were numerically unstable for these problems
+The structure of the equations we're using are already adapted to simulating binary black holes by design (surprise!) luckily, but older sets of equations were very numerically unstable for these problems. We're skipping well over 40 years worth of research in this article, and its still a very active field
 
 ### Gauge conditions
 
@@ -969,7 +972,7 @@ Taken together, these two gauge conditions are called the moving puncture gauge,
 
 Here I'm presenting what I'd consider to be the most standard gauge conditions, but even a brief look through the papers linked above will show that there are a *wide* variety of gauge conditions. The most relevant notes here are:
 
-1. The $\beta^k \partial_k$ terms are frequently dropped, as what they compensate (a zero speed mode) for is frequently addressed implicitly via kreiss-oliger dissipation (as it inherently dissipates away zero lapse points)
+1. The $\beta^k \partial_k$ terms are frequently dropped, as what they compensate (a zero speed mode) for is frequently addressed implicitly via kreiss-oliger dissipation (as it inherently dissipates away zero lapse points) and clamping
 2. There is an alternate two-variable from of the gamma driver equation, which appears to be strictly equivalent, but is expensive for us in terms of performance + memory
 3. These gauge conditions only work for relatively equal mass compact object collisions. For cosmological simulations, you'd again need different gauge conditions - there's no one size fits all condition
 
@@ -1025,6 +1028,8 @@ $$\partial_t \tilde{A}_{ij} = \partial_t \tilde{A}_{ij} + k_m \alpha \tilde{D}_{
 
 Traditionally, momentum constraint violations tend to produce high frequency, self reinforcing oscillations, resulting in your simulation blowing up. With an implicit integrator, this is much less of a problem for us, so momentum constraint damping is more about increasing correctness rather than for stability reasons. This makes it much less important for us in this construction, than alternative techniques - which is good, because this damping is heavy on memory bandwidth
 
+In general, momentum constraint damping dissipates away the extrinsic curvature - which tends to remove energy from the simulation
+
 ### Christoffel symbol errors (classic)
 
 The traditional damping schemes are as following:
@@ -1043,13 +1048,13 @@ $$
 
 Where $\sigma$ > 0, and $k_g$ < 0. We'll be looking at the first case in this article, but both modifications are similar
 
-## This doesn't work in practice
+## This doesn't really work in practice
 
 These modifications would, in theory, work if you were using some kind of adaptive mesh refinement scheme with very high accuracy. Unfortunately, the entire point of this article series is to try and do simulations a little faster than that, so instead of relying on more compute power to fix our problems, we're going to see if we can get a little more bang for our buck
 
 ## Lets reproduce a result
 
-Trying to simulate with the above set of modifications is not going to work, and instead today we're going to focus on trying to reproduce a specific result: todo. The no spin test case from [this paper](https://arxiv.org/pdf/gr-qc/0610128). Here, I'll lay out the test parameters:
+Trying to simulate with the above set of modifications at our resolution is not going to work, and instead today we're going to focus on trying to reproduce a specific result: todo. The no spin test case from [this paper](https://arxiv.org/pdf/gr-qc/0610128). Here, I'll lay out the test parameters:
 
 | | |BH 0|BH 1|
 |-|-|-|-|
@@ -1079,6 +1084,8 @@ In general, exactly reproducing other people's results is an absolute nightmare,
 I'm going to walk us through how to take our sim from failing quickly, to successfully completing over an orbit. We'll get 'close enough' to a result
 
 ## First off, lets test the standard modifications
+
+Todo: Redo this completely
 
 With the sigma damping enabled, our sim goes from blowing up immediately, to successfully managing to simulate a collision at roughly T=CHECKME. Because we're more interested in the paths that the black holes take for the moment, rather than the specific collision time, I'm just eyeballing the numbers here
 
@@ -1174,9 +1181,11 @@ With xyz set to todo:
 
 # Results
 
-With all of this together, we're able to replicate - close enough - the original paper, and we have now smashed black holes together pretty successfully. There are still some inaccuracies however, which I'll go over now
+With all of this together, we're able to replicate - close enough - the original paper, and we have now smashed black holes together pretty successfully. There are still clearly some inaccuracies however, which I'll go over now
 
 # Discussion
+
+Todo: Crank down less on the conspiracy theories here, focus more on the positives
 
 I have some questions about efficiency of the moving punctures technique as a whole. As mentioned previously, the puncture is a true discontinuity, and differentiating across it is invalid. This (in theory) is a major source of constraint violations, though I've seen suggestions that the event horizon itself is also a source of constraint violations
 

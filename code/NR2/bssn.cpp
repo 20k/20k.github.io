@@ -1013,6 +1013,7 @@ std::string make_bssn(const tensor<int, 3>& idim)
             return_e();
         });
 
+        ///if i was smart, i'd use the structure of the grid to do this directly
         v3i pos = (v3i)positions[lid];
 
         pin(pos);
