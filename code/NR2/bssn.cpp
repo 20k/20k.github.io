@@ -11,7 +11,7 @@ using dual = dual_types::dual_v<T>;
 
 tensor<valuef, 3> bssn_args::cG_undiff(const bssn_derivatives& derivs)
 {
-    #define SUBSTITUTE_CG
+    //#define SUBSTITUTE_CG
     #ifdef SUBSTITUTE_CG
     auto icY = cY.invert();
 
@@ -406,7 +406,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
     ///https://arxiv.org/pdf/1106.2254 also see here, after 25
     auto dtcY = lie_derivative_weight(args.gB, args.cY.to_tensor(), d) - 2 * args.gA * args.cA;
 
-    //#define CY_STABILITY
+    #define CY_STABILITY
     #ifdef CY_STABILITY
     tensor<valuef, 3, 3> d_cGi;
 
@@ -540,7 +540,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
                 sum += 0.5f * (args.cY[k, i] * cD[k, j] + args.cY[k, j] * cD[k, i]);
             }
 
-            float cK = -0.075f;
+            float cK = -0.095f;
 
             dtcY.idx(i, j) += cK * args.gA * sum;
         }
@@ -698,7 +698,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3h mom
     {
         for(int j=0; j < 3; j++)
         {
-            float Ka = 0.001f;
+            float Ka = 0.04f;
 
             dtcA[i, j] += Ka * args.gA * 0.5f *
                               (cd_low[i, j]

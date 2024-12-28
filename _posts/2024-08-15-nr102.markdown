@@ -1030,6 +1030,10 @@ In general, momentum constraint damping dissipates away the extrinsic curvature 
 
 ### Christoffel symbol errors (classic)
 
+Todo: I finally found the source for sigma damping:
+
+https://arxiv.org/pdf/gr-qc/0209066
+
 The traditional damping schemes are as following:
 
 [page 37](https://indico.cern.ch/event/505595/contributions/1183661/attachments/1332828/2003830/sperhake.pdf) (which I'll call sigma damping)
