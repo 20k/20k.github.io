@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Numerical Relativity 102: Simulating binary black hole collisions, quickly"
+title:  "Numerical Relativity 102: Simulating binary black hole collisions in the BSSN formalism, quickly"
 date:   2024-08-15 12:33:23 +0000
 categories: C++
 ---
@@ -99,7 +99,7 @@ The paper we're going to implement today is called [A simple construction of ini
 1. This doesn't actually make black holes, it makes objects that collapse into black holes. They have no event horizon, or apparent horizon initially. This is commonly described as a wormhole collapsing into a trumpet - a trumpet being the final configuration of a black hole in numerical relativity
 2. There is no way of a-priori specifying the 'real' (we'll get into this shortly) mass of a black hole
 3. There is a maximum value of spin that can be expressed with this technique
-4. This works for any number of black holes, but astrophysically there's virtually no way to have a 3 body interaction. Funwise, we'll go nuts when we get some better rendering in place
+4. This works for any number of black holes, but astrophysically there's virtually no way to have a 3 body interaction. Funwise however, there is plenty of reason
 
 Lets get into it
 
@@ -113,30 +113,43 @@ K_{ij}\\
 \beta^i
 $$
 
-This technique solves for $\gamma_{ij}$ and $K_{ij}$, and leaves us to guess $\alpha$ and $\beta^i$. Because the latter two variables are gauge variables, we can (in theory[^ofcourse]) pick them arbitrarily. It falls under the class of initial conditions known as 'conformally flat'. This means it decomposes the metric tensor into a flat conformal metric (the identity matrix in cartesian coordinates), and a conformal/scalar factor $\psi$. It also decomposes the extrinsic curvature $K^{ph}_{ij}$ ('physical', this is our $K_{ij}$) into a trace $K=0$, and a trace free part which this paper calls $K_{ij}$ (and other papers often call $$\bar{A}_{ij}$$). This is called a maximal slice (todo: check the _{TT} schenanigans)
+This technique solves for $\gamma_{ij}$ and $K_{ij}$, and leaves us to guess $\alpha$ and $\beta^i$. Because the latter two variables are gauge variables, we can (in theory[^ofcourse]) pick them arbitrarily. It falls under the class of initial conditions known as 'conformally flat'. This means it decomposes the metric tensor into a flat conformal metric (the identity matrix in cartesian coordinates), and a conformal/scalar factor $\psi$. It also decomposes the extrinsic curvature $K^{ph}_{ij}$ ('physical', this is our $K_{ij}$) into a trace $K=0$, and a trace free part which this paper calls $K_{ij}$ (and other papers often call $$\bar{A}_{ij}$$). This is called a maximal slice
 
 [^ofcourse]: Of course, as you can probably guess, its very important what their value is in practice for numerical reasons
 
-The basic idea here is that when you impose conformal flatness, and maximal slicing, the momentum constraint $\mathcal{M}_i$ becomes linear, allowing you to calculate the extrinsic curvature $$\bar{A}_{ij}$$ as a sum of each individual black hole's curvature, to calculate the final (conformal) curvature. The shape of the conformal factor $\psi$ is a *guess*, which is then corrected to be physical via a small correction $u$, by solving the laplacian (9) + (10)
+Notationally, this is already a hot mess, and this is a standard issue in the field as the notation has evolved over time. Here's the notation for what we're using:
+
+| Standard Adm | Paper Notation | Meaning |
+|-|-|-|
+| $\gamma_{ij}$ | $g_{ab}^{ph}$ | The 3-metric tensor |
+| $K_{ij}$ | $K_{ab}^{ph}$ | Extrinsic curvature |
+
+And for the decomposition
+
+| Our notation | Paper Notation | Meaning |
+|-|-|-|
+| $\psi$ | $\psi$ | The conformal factor |
+| $\bar{\gamma}_{ij}$ | $g_{ab}$ | The conformally flat 3-metric |
+| $\bar{A}_{ij}$ | $K_{ab}$ | The conformal extrinsic curvature |
+
+The basic idea here is that when you impose conformal flatness, and maximal slicing, the momentum constraint $\mathcal{M}_i$ becomes linear, allowing you to calculate the extrinsic curvature $$\bar{A}_{ij}$$ as a sum of each individual black hole's curvature, to calculate the final (conformal) extrinsic curvature. The shape of the conformal factor $\psi$ is a *guess*, which is then corrected to be physical via a small correction $u$, by solving the laplacian (9) + (10)
 
 ## Details
 
 This method has the following parameters:
 
-$m$ bare mass parameter of a black hole
+$m$: the bare mass parameter of a black hole
 $S^i$: A 3-vector representing the spin (angular ADM momentum) of a black hole
 $P^i$: A 3-vector representing the linear momentum (ADM mass * velocity) of a black hole
 $x^i$: A 3-vector representing the position of a black hole in world coordinates
 
 Note that bare mass is not the same thing as mass (here: ADM mass), it only correlates to it. A black hole's spin and momentum contributes to its ADM mass as well. On top of this, in the general case, the mass of a black hole in a binary pair is of questionable physicalness: see the end of this article for more details. Here, you don't need to worry about this, because we'll be giving the initial conditions in terms of bare mass: just be aware this isn't universal in the literature, and you are expected to binary search bare mass parameters to achieve your final ADM mass
 
-To reiterate notation, I'm going to be using the notation $\bar{A}^{ij}$ to mean what this paper calls $K^{ij}$, because its simply too confusing otherwise. I'm also going to be using $\bar{\gamma}_{ij}$ to mean the conformally flat metric instead of $g_{ab}$, for the same reason. Note that $\bar{\gamma}_{ij}$ and $\tilde{\gamma}_{ij}$ are not the same, there's a lot of quite similar notation here
-
 So far, we have the following variable definitions:
 
 $$
 \begin{align}
-&\bar{\gamma}_{ij} &&= \tilde{\gamma}_{ij} \psi^{-4} = \delta_{ij} = I \\
+&\bar{\gamma}_{ij} &&= \gamma_{ij} \psi^{-4} = \delta_{ij} = I \\
 &\bar{A}_{ij} &&= K_{ij} \psi^2 \\
 &\psi && = ?
 \end{align}
@@ -157,15 +170,15 @@ $$
 \end{align}
 $$
 
-Where $\epsilon$ is the levi civita symbol[^lcs]. Note that the levi civita symbol, and levi civita tensor have the same notation in the literature and are frequently freely mixed, so its not especially clear what's going on. Here, I believe this is specifically the *symbol*
+| Symbol | Meaning |
+|-|-|
+| $\epsilon$ | The levi civita symbol |
+| $r$ | The distance in world coordinates (ie not grid coordinates) from your current position, to the black hole in question |
+| $n$ | a normal vector, which is calculated as: $n^k = x^k/r$, and points away from the black hole in question |
 
-[^lcs]: [see 13](https://arxiv.org/pdf/2007.14279)
+There's a clear problem when $r = 0$, and the solution is to either position your black holes so this is impossible, or clamp to a small value
 
-$r$ is the distance in world coordinates (ie not grid coordinates) of the coordinate from the black hole in question. There's a clear problem when $r = 0$, and the solution is to either position your black holes so this is impossible, or clamp to a small value
-
-$n$ is a normal vector, which is calculated as follows: $n^i = x^i/r$, and points away from the black hole in question
-
-If you have no plans to ever work in non cartesian coordinate systems (which we don't), the metric tensor is the identity matrix, and you can ignore the index positions
+If you have no plans to ever work in non cartesian coordinate systems (which we don't), the metric tensor $\bar{\gamma}_{ij}$ is the identity matrix, and you can ignore the index positions. Otherwise, it raises and lowers indices as normal
 
 For multiple black holes, you simply sum all your $\bar{A}^{ij}$ terms
 
@@ -255,7 +268,7 @@ Where $u > 1$, and $\alpha$ is:
 
 $$\frac{1}{\alpha} = \sum^N_{i=1} \frac{m_i}{2 |\overrightarrow{r} - \overrightarrow{x}_{(i)}|}$$
 
-Note that $r$ in the bottom term is a vector representing our current grid cell's world position. This is twice the distance of our coordinate from our $i$'th black hole. The $\alpha$ here has nothing to do with the gauge variable lapse also notated by $\alpha$
+Note that $r$ in the bottom term is a vector representing our current grid cell's world position. The bottom expression is twice the distance of our coordinate from our $i$'th black hole. The $\alpha$ here has nothing to do with the gauge variable lapse also notated by $\alpha$
 
 We're going to deviate a little from this definition, and instead calculate the correction as:
 
@@ -273,30 +286,18 @@ $$\begin{align}
 \end{align}
 $$
 
-This is the slightly more complex version of the equation. Instead, we'll implement the more modern, equivalent form from [this](https://arxiv.org/pdf/1606.04881) paper (18), or [this](https://www.worldscientific.com/doi/pdf/10.1142/S2010194512004321) paper (13), because that's where we'll end up eventually anyway, and because its simpler
+This is the slightly more complex version of the equation. Instead, we'll actually implement (3) directly, as is common practice (eg [(18)](https://arxiv.org/pdf/1606.04881), or [(13)](https://www.worldscientific.com/doi/pdf/10.1142/S2010194512004321))
 
-Their equation:
+$$ \Delta \psi + \frac{1}{8} \bar{A}^{ij} \bar{A}_{ij} \psi^{-7} = 0 $$
 
-$$\begin{align}
-&\Delta \Phi + \frac{1}{8} \Phi^{-7} \bar{A}_{ij} \bar{A}^{ij} = 0 \\
-\end{align}$$
-
-Notational connections, and flattening the laplacian:
+To solve this, we simply expand out the laplacian, as $ \psi = \frac{1}{\alpha} + u + 1$, and $ \Delta (\frac{1}{\alpha} + u + 1) = \Delta u $. This gives our actual form of the equation that we'll be implementing:
 
 $$\begin{align}
-&\Delta \Phi = \Delta u \\
-&\Phi = \frac{1}{\alpha} + u + 1\\
+&\Delta u + \frac{1}{8} \bar{A}^{ij} \bar{A}_{ij} (\frac{1}{\alpha} + u + 1)^{-7} = 0\\
 \end{align}
 $$
 
-So therefore:
-
-$$\begin{align}
-&\Delta u + \frac{1}{8} (\frac{1}{\alpha} + u + 1)^{-7} \bar{A}_{ij} \bar{A}^{ij} = 0\\
-\end{align}
-$$
-
-The right hand side terms in the paper correspond to matter, and are neglected here. We'll be getting back to the first paper linked above in the future, in a *truly* terrible amount of detail
+Though in practice you might retain the $\psi$ notation in the $^{-7}$ portion
 
 #### Solving laplacians in general
 
@@ -310,13 +311,13 @@ And are a standard laplacian. If you already know how to solve a laplacian, ther
 
 #### The boundary condition
 
-At the edge of our grid, we need to set $u$ to something. Asymptotically, $u$ is assumed to have the form $O(\frac{1}{r})$ (todo check), and at infinity in the original definition $u = 1$. This means for us, $u = 0$
+At the edge of our grid, we need to set $u$ to something. Asymptotically, $u$ is assumed to have the form $O(\frac{1}{r})$, and at infinity in the original definition $u = 1$. This means for us, $u = 0$
 
 #### Fixed point iteration / 7 point stencil
 
 The question now is: How do you actually solve our laplacian equation? This segment is going to deal with the theory
 
-A laplacian in flat 3d space is defined as such:
+A laplacian in flat 3d space (which luckily we are in) is defined as such:
 
 $$\Delta u = \frac{\partial^2 u}{\partial x_0 ^2} + \frac{\partial^2 u}{\partial x_1 ^2} + \frac{\partial^2 u}{\partial x_2 ^2}$$
 
@@ -336,13 +337,13 @@ Our initial equation is $\Delta u = F(u)$, so lets substitute in our discretisat
 
 $$u(x - h, y, z) + u(x + h, y, z) + u(x, y - h, z) + u(x, y + h, z) + u(x, y, z - h) + u(x, y, z + h) - 6 u(x, y, z) = F(u) h^2$$
 
-The iterative scheme for solving a laplacian (often called 5-point stencil in 2d, or the 7-point stencil in 3d), is given by solving for $u(x, y, z)$:
+The iterative scheme for solving a laplacian (called a 5-point stencil in 2d, or a 7-point stencil in 3d), is given by solving for $u(x, y, z)$:
 
 $$
 u(x, y, z) = \frac{u(x - h, y, z) + u(x + h, y, z) + u(x, y - h, z) + u(x, y + h, z) + u(x, y, z - h) + u(x, y, z + h) - F(u) h^2}{6}
 $$
 
-Simply apply this repeatedly to a grid, and you've solved your laplacian. For us, $F(u) = -\frac{1}{8} (\frac{1}{\alpha} + u + 1)^{-7} \bar{A}_{ij} \bar{A}^{ij}$
+Simply apply this repeatedly to a grid, and you've solved your laplacian. For us, $F(u) = -\frac{1}{8} \bar{A}^{ij} \bar{A}_{ij} (\frac{1}{\alpha} + u + 1)^{-7}$ (note the minus sign)
 
 As a basic idea, this works, and is implementable. This is the form I used for a very long time: you just iterate the above equation until the change in $u$ is sufficiently small. There are two main issues:
 
@@ -351,7 +352,7 @@ As a basic idea, this works, and is implementable. This is the form I used for a
 
 The first is solved by relaxation: Ie taking our old guess, and our new guess, and taking some fraction between the two: `mix(u, nextu, 0.9f)`. This reduces the speed of convergence, but ameliorates numerical stability problems
 
-With that in mind, lets have a look at our first very basic laplacian solver!
+With that in mind, lets have a look at our first laplacian solver:
 
 ##### Code
 
@@ -381,8 +382,6 @@ auto laplace_basic = [](execution_context& ectx, buffer_mut<valuef> in, buffer_m
 
     valuei lid = value_impl::get_global_id(0);
 
-    pin(lid);
-
     auto dim = ldim.get();
 
     if_e(lid >= dim.x() * dim.y() * dim.z(), [&]{
@@ -399,7 +398,7 @@ auto laplace_basic = [](execution_context& ectx, buffer_mut<valuef> in, buffer_m
         return_e();
     });
 
-    //cfl is 1 + 1/alpha, in[lid] is our guess for u
+    //cfl[lid] is 1 + 1/alpha, in[lid] is our guess for u
     valuef rhs = -(1.f/8.f) * pow(cfl[lid] + in[lid], -7.f) * aij_aIJ[lid];
 
     valuef h2f0 = lscale.get() * lscale.get() * rhs;
@@ -416,10 +415,6 @@ auto laplace_basic = [](execution_context& ectx, buffer_mut<valuef> in, buffer_m
     valuef Xs = uxm1 + uxp1;
     valuef Ys = uyp1 + uym1;
     valuef Zs = uzp1 + uzm1;
-
-    pin(Xs);
-    pin(Ys);
-    pin(Zs);
 
     //our next guess for u
     valuef u0n1 = (1/6.f) * (Xs + Ys + Zs - h2f0);
@@ -444,7 +439,6 @@ There are potentially a few atypical features here:
 
 1. The relaxation parameter is dynamic
 2. We use a `still_going` parameter. This sets an atomic to `1` (the `0` is an address offset) if the change in cell value is greater than an error tolerance. This is so that we can dynamically terminate when we've converged enough
-3. We use a linear id, and then convert that to our 3d id. This is to avoid significant dead threads at the edge of our domain
 
 #### Red-black
 
@@ -477,8 +471,6 @@ auto laplace_rb_mg = [](execution_context& ectx, buffer_mut<valuef> inout, buffe
     using namespace single_source;
 
     valuei lid = value_impl::get_global_id(0);
-
-    pin(lid);
 
     auto dim = ldim.get();
 
@@ -517,10 +509,6 @@ auto laplace_rb_mg = [](execution_context& ectx, buffer_mut<valuef> inout, buffe
     valuef Xs = uxm1 + uxp1;
     valuef Ys = uyp1 + uym1;
     valuef Zs = uzp1 + uzm1;
-
-    pin(Xs);
-    pin(Ys);
-    pin(Zs);
 
     valuef u0n1 = (1/6.f) * (Xs + Ys + Zs - h2f0);
 
@@ -575,8 +563,6 @@ void upscale_buffer(execution_context& ctx, buffer<valuef> in, buffer_mut<valuef
     using namespace single_source;
 
     valuei lid = value_impl::get_global_id(0);
-
-    pin(lid);
 
     auto dim = out_dim.get();
 
