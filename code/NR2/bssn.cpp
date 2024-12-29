@@ -406,7 +406,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
     ///https://arxiv.org/pdf/1106.2254 also see here, after 25
     auto dtcY = lie_derivative_weight(args.gB, args.cY.to_tensor(), d) - 2 * args.gA * args.cA;
 
-    #define CY_STABILITY
+    //#define CY_STABILITY
     #ifdef CY_STABILITY
     tensor<valuef, 3, 3> d_cGi;
 
@@ -967,7 +967,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
         dtcG += -sigma * Gi * dmbm;
         #endif // STABILITY_SIGMA
 
-        #define STABILITY_SIGMA_2
+        //#define STABILITY_SIGMA_2
         #ifdef STABILITY_SIGMA_2
         valuef dmbm = 0;
 
@@ -981,10 +981,8 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
             return ternary(in >= 0.f, value{1.f}, value{0.f});
         };
 
-
         ///https://arxiv.org/pdf/gr-qc/0209066
         //valuef s = sign(dmbm);
-
         valuef s = step(dmbm);
 
         value X = 0.1f;
