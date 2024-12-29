@@ -976,8 +976,16 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
             dmbm += diff1(args.gB[m], m, d);
         }
 
+        auto step = [](const valuef& in)
+        {
+            return ternary(in >= 0.f, value{1.f}, value{0.f});
+        };
+
+
         ///https://arxiv.org/pdf/gr-qc/0209066
-        valuef s = sign(dmbm);
+        //valuef s = sign(dmbm);
+
+        valuef s = step(dmbm);
 
         value X = 0.1f;
 
