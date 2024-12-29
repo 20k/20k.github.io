@@ -343,7 +343,7 @@ valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, const derivative_data
     valuef sigma = 20.f;
     value h = (3.f/5.f);
 
-    #define LAPSE_DAMPING
+    //#define LAPSE_DAMPING
     #ifdef LAPSE_DAMPING
     valuef damp = args.W * (h * exp(-total_elapsed*total_elapsed / (2 * sigma * sigma))) * (args.gA - args.W);
     #else
