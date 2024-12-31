@@ -350,6 +350,10 @@ valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, const derivative_data
     valuef damp = 0;
     #endif
 
+    #ifdef SHOCK_AVOID
+    return -(8.f/3.f) * args.gA * args.K / (3 - args.gA) + bmdma - damp;
+    #endif
+
     ///https://arxiv.org/pdf/gr-qc/0206072
     #ifdef ONE_PLUS_LOG
     return -2 * args.gA * args.K + bmdma * 1 - damp;
