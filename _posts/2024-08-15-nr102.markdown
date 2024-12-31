@@ -1159,7 +1159,7 @@ Please note, we are not using the semi-standard analytic christoffel substitutio
 
 #### Christoffel damping schemes
 
-There are a variety of schemes available for improving the christoffel symbols
+There are a variety of schemes available for improving the christoffel symbols, of which I'm picking a few interesting ones:
 
 | Informal Name | Modification | Notes | Source |
 |-|-|-|-|
@@ -1253,7 +1253,15 @@ dtcG += lapse_cst * args.gA * Gi;
 
 This modification has been a tricky one to try and show off. In general, either the value of lapse_cst is too low (eg $-0.05$), resulting in no discernable change. Or, its too high, resulting in numerical instability. Combining it with and without the other modifications up until this point results in very little happening in general
 
-In general, my experience of this is that its one we can simply discard
+In general, my experience of this is that its one we can simply discard. I could have ditched this from the article entirely, but this kind of stuff will make up a very large quantity of what you're run into here
+
+##### Metric modification
+
+For this, we'd like to calculate the following quantity:
+
+$$k_{\gamma} \alpha \tilde{\gamma}_{k(i} \tilde{D}_{j)} \mathcal{G}^k$$
+
+Most implementations are unlikely to have the capability to directly perform a numerical derivative on $\mathcal{G}^k$ (and even if you could, its a bad idea for performance). Lets break this up a bit
 
 ### Curvature adjusted kreiss-oliger dissipation (CAKO todo?)
 
