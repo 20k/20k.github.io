@@ -986,7 +986,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
         //valuef s = sign(dmbm);
         valuef s = step(dmbm);
 
-        value X = 0.9f;
+        value X = 0.5f;
 
         tensor<valuef, 3> Gi = args.cG - calculated_cG;
 
