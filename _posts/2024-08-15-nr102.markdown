@@ -1408,12 +1408,38 @@ $$
 
 With the constant set to $-1$, we get this:
 
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/Ii7TIueUBD8?si=3x7QWgtzRJ3DWScl" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-### Curvature adjusted kreiss-oliger dissipation (CAKO todo?)
+This is clearly quite dissipative. Every scheme we have currently is either too dissipative, or fails to circularly inspiral in a sane way. This early inspiral is currently caused by our low grid resolution: once we've allievated that, we'll play around with the constants a bit and fine tune everything, to see if we can get relatively close to our target merge time. We're going to be leaving this new modification on in future tests, as it works well in my experience
+
+In general, there's a bit of a balance between the different modifications. I'm trying to avoid hopping back and forth between different techniques, or repeatedly fine tuning before we've put all the techniques together as much as possible, but you can see how its tricky
+
+#### Slow start lapse
+
+The initial conditions we have aren't actually for black holes, they're for objects that collapse into black holes. This results in a lot of initial gauge jiggling as they collapse into black holes - particularly for the lapse - that can be bad for the health of the simulation. Particularly because we have a low resolution and bad boundary conditions, this tends to lead to a lot of errors in the initial phase of the simulation, which can make it operate more poorly
+
+One solution for this is the so called slow start lapse, where you essentially ease the lapse in more gradually over a period of time, eliminating a huge initial collapse in the lapse
+
+As the gauge conditions are arbitrary, this does not (in theory) alter the correctness of the sim. The implementation of this is given by [(27)](https://arxiv.org/pdf/2404.01137)
+
+$$\partial_t \alpha = \partial_t \alpha - W (h e^{-\frac{t^2}{2 \sigma^2}}) (\alpha - W)$$
+
+Where $h$ is a scaling factor for the gaussian, $t$ is our elapsed simulation time, and $\sigma$ is a damping timescale. Here, $h = \frac{3}{5}$, and $\sigma = 20$
+
+With this implemented, we get this result:
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/G2BuUYI2RfY?si=pShkwJcdFWtGGLJc" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Which is slightly better. In general, this modification is a free win, so we'll be leaving this on as well
+
+#### Curvature adjusted kreiss-oliger dissipation (CAKO todo?)
 
 If you remember, kreiss-oliger is a method of removing high frequency oscillations from your grid, and it damps out numerical errors. The basic idea [here, (20)](https://arxiv.org/pdf/2404.01137) is that sharp features near the event horizon of a black hole are likely natural, and require less smoothing. This makes a certain amount of sense, and after all - if we're trying to represent as much information on our grid as possible, removing high frequencies in high frequency areas seems like a prime candidate for wasting grid resolution
 
 To adjust this, the authors multiply the damping strength, by the parameter $W$, thus making the damping strength virtually 0 near the event horizon
+
+Todo: Retest CAKO
+Todo: Test CAKO + shock avoiding gauge
 
 Testing this directly, our code immediately unconditionally blows up - likely because of our low grid resolution. It seems that for us, we do need some damping near the event horizon, and instead I clamp the minimum damping to $max(W, \epsilon)$
 
@@ -1425,7 +1451,7 @@ Implementing this is extremely straightforward, and our kreiss-oliger step becom
 as_ref(out[lid]) = in[lid] + eps.get() * kreiss_oliger_interior(in[pos, dim], order) * max(W[lid], valuef(0.1));
 ```
 
-### Testing CAKO
+#### Testing CAKO
 
 With kreiss oliger being set up like follows:
 
@@ -1434,54 +1460,6 @@ Todo:
 Our code now makes it to T=todo. One key feature to note is that: With very reduced kreiss oliger dissipation, we're now much more vulnerable to 0 speed modes (which are no longer dissipated away), and so you want to ensure you're using the advecting lapse and shift conditions for the gauge. I strongly suspect that shock avoiding gauge conditions would be of help here as well, but have not tested them
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/XxRbxzmTqdE?si=i2dV0LWO2397sPHT" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-
-### Christoffel symbol errors, round 2
-
-As an observational note, too much christoffel constraint damping tends to lead to very aggressive inspiral, as well as the black holes taking incorrect paths in regions of higher velocity. Too little damping tends to lead to a failure to inspiral at all, or the black holes failing to maintain their shape entirely. The right types, and strength of damping, will lead to correct convergence - though it is tricky to get right, and can feel very arbitrary
-
-We have 3 modifications we're going to be testing here, which I'll list below:
-
-1. Traditional $\sigma$ damping
-2. Modifying the evolution equations for $\tilde{\gamma}_{ij}$, via a new scheme
-2. Modifying the evolution equations for $\tilde{\Gamma}_{i}$, via a new scheme
-
-There's no strong reason a priori to favour any of these schemes over the other[^cafdamping], so I'll simply refer to them by number and quickly describe the characteristics. This is - depressingly - observational evidence based on running literally 1000s of these simulations and tests
-
-[^cafdamping]: Todo: Cite the stability paper, CAF damping efficacy, lack of constraint propagation analysis in general
-
-1. The $\sigma$ damping scheme tends to be the least robust, and the christoffel symbol constraint is often significantly incorrect. Its too simplistic and loses energy tremendously. For this reason it is frequently combined with other constraint enforcement techniques (eg replacing undifferentiated $\tilde{\Gamma}^i$s with the analytic variable), which we do not use as it is not a very general solution. It is, observationally, significantly lossy in terms of energy
-2. This scheme works well, but isn't sufficiently able to damp away $\tilde{G}^i$ constraint errors, even with high values of the damping coefficient. Higher damping coefficients lead to lowering the courant factor (ie lowering your maximum timestep), which is undesirable
-3. This scheme also works reasonably, but is also insufficiently damping
-
-We're going to ditch the traditional $\sigma$ damping, and instead use the other two handling techniques combined, which together provide sufficient stability
-
-Scheme 2. (cY) comes from this paper, and is described as follows
-
-todo
-
-Scheme 3. comes from this paper, and is describe as follows[^papersketch]:
-
-todo
-
-[^papersketch]: I have been unable to reproduce much of the improvements that the authors have claimed for some of their equations, and they do not in general seem applicable to us
-
-Together, these seem to work adequately. I have a strong unproven suspicion that the reason these modifications are better at preserving energy is because they're both multiplifed by a factor of $\alpha$, reducing the damping nearer the black hole and singularity vs the standard damping scheme
-
-\<iframe width="560" height="315" src="https://www.youtube.com/embed/YGj93N6omao?si=t28TmlW7xpwr3hDl" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-
-Despite the improvement, we're still losing too much energy. We've done about as much as we can to improve the christoffel symbol constraint errors
-
-### Slow start lapse
-
-The initial conditions we have aren't actually for black holes, they're for objects that collapse into black holes. This results in a lot of initial gauge jiggling - particularly for the lapse - that can be bad for the health of the simulation. One solution for this is the so called slow start lapse, where you essentially ease it it gradually over a period of time, eliminating a huge initial collapse in the lapse
-
-As the gauge conditions are arbitrary, this does not (in theory) alter the correctness of the sim:
-
-todo
-
-With xyz set to todo:
-
-\<iframe width="560" height="315" src="https://www.youtube.com/embed/oizYRdPsNYM?si=Ht7aCrTSQxwRZbgt" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 # Results
 
