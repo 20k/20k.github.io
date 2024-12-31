@@ -31,7 +31,7 @@ using t3i = tensor<int, 3>;
 using t3f = tensor<float, 3>;
 using momentum_t = valueh;
 
-//#define MOMENTUM_CONSTRAINT_DAMPING
+#define MOMENTUM_CONSTRAINT_DAMPING
 
 template<typename T>
 struct bssn_args_mem : value_impl::single_source::argument_pack

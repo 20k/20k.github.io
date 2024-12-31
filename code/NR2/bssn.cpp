@@ -11,7 +11,7 @@ using dual = dual_types::dual_v<T>;
 
 tensor<valuef, 3> bssn_args::cG_undiff(const bssn_derivatives& derivs)
 {
-    //#define SUBSTITUTE_CG
+    #define SUBSTITUTE_CG
     #ifdef SUBSTITUTE_CG
     auto icY = cY.invert();
 
@@ -698,7 +698,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3h mom
     {
         for(int j=0; j < 3; j++)
         {
-            float Ka = 0.04f;
+            float Ka = 0.05f;
 
             dtcA[i, j] += Ka * args.gA * 0.5f *
                               (cd_low[i, j]
@@ -967,13 +967,14 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
         dtcG += -sigma * Gi * dmbm;
         #endif // STABILITY_SIGMA
 
-        //#define STABILITY_SIGMA_2
+        #define STABILITY_SIGMA_2
         #ifdef STABILITY_SIGMA_2
         valuef dmbm = 0;
 
         for(int m=0; m < 3; m++)
         {
-            dmbm += diff1(args.gB[m], m, d);
+            dmbm += derivs.dgB[m, m];
+            //dmbm += diff1(args.gB[m], m, d);
         }
 
         auto step = [](const valuef& in)
@@ -985,7 +986,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
         //valuef s = sign(dmbm);
         valuef s = step(dmbm);
 
-        value X = 0.1f;
+        value X = 0.9f;
 
         tensor<valuef, 3> Gi = args.cG - calculated_cG;
 
