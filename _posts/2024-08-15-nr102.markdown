@@ -1063,6 +1063,8 @@ The new gauge conditions on their own do not allow our simmulation to live longe
 
 ### Momentum constraint errors
 
+Todo: Need to check momentum constraint definition, specifically if its (YA),i or Y (A,i)
+
 These can be damped in exactly the same form as in the previous article, via eg [4.9](https://arxiv.org/pdf/gr-qc/0204002):
 
 $$\partial_t \tilde{A}_{ij} = \partial_t \tilde{A}_{ij} + k_m \alpha \tilde{D}_{(i}\mathcal{M}_{j)}$$
@@ -1177,7 +1179,7 @@ This is easy enough to implement. There are only 4 instances where this substitu
 2. Two in $\partial_t \tilde{\Gamma}^i$
 3. $\partial_t \beta_i$
 
-The analytic value is standard to calculate as well:
+The analytic value is straightforward to calculate:
 
 ```c++
 auto icY = cY.invert();
@@ -1216,7 +1218,7 @@ Compare with $\chi = 0.5$
 
 Overall, this modification is.. ok. In general, it tends to work well for octant symmetry, and causes problems with unequal mass binaries. Additionally, the increase in momentum constraint damping is a bit suspect, as in other simulations this value has caused the black holes to evaporate
 
-All in all: Not great, not terrible. We won't be using this modification on a permanent basis
+All in all: Not great, not terrible. We won't be using this modification on a permanent basis, but its worth considering testing this with some of the later modifications
 
 ##### Christoffel lapse modification
 
@@ -1261,7 +1263,151 @@ For this, we'd like to calculate the following quantity:
 
 $$k_{\gamma} \alpha \tilde{\gamma}_{k(i} \tilde{D}_{j)} \mathcal{G}^k$$
 
-Most implementations are unlikely to have the capability to directly perform a numerical derivative on $\mathcal{G}^k$ (and even if you could, its a bad idea for performance). Lets break this up a bit
+Most implementations are unlikely to have the capability to directly perform a numerical derivative on $\mathcal{G}^k$ (and even if you could, its a bad idea for performance). Lets break this up a bit:
+
+One of the easiest ways to fix this is to perform all your derivatives, and covariant derivatives with dual numbers. While you could work it out precisely by hand (and its likely there'd be a performance benfit to doing so as some terms cancel out), it works reasonably well
+
+Todo: BiG_lo *is* faster, because we can use christoff1 instead of chistoff2, and christoff1 requires one less metric invert
+
+This does however make the implementation a bit of a mess:
+
+```c++
+tensor<valuef, 3, 3> d_cGi;
+
+//this loop purely deals with calculating the derivatives of Gi
+//we already know that dGi = d(cGi - analytic value) = dcGi - d(analytic value)
+//m is the differentiation direction, and the first index is always the derivative
+for(int m=0; m < 3; m++)
+{
+    //derivatives of metric tensor
+    tensor<dual<valuef>, 3, 3, 3> d_dcYij;
+
+    //metric tensor
+    unit_metric<dual<valuef>, 3, 3> d_cYij;
+
+    //fill in metric + its dual components
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            d_cYij[i, j].real = args.cY[i, j];
+            d_cYij[i, j].dual = derivs.dcY[m, i, j];
+        }
+    }
+
+    pin(d_cYij);
+
+    //metric inverse, as a dual
+    auto dicY = d_cYij.invert();
+
+    pin(dicY);
+
+    //fill in the metric derivatives + its dual components (the first derivatives of the metric derivatives, ie second derivatives)
+    for(int k=0; k < 3; k++)
+    {
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                d_dcYij[k, i, j].real = derivs.dcY[k, i, j];
+                d_dcYij[k, i, j].dual = diff1(derivs.dcY[k, i, j], m, d);
+            }
+        }
+    }
+
+    pin(d_dcYij);
+
+    //differentiate christoffel symbols
+    auto d_christoff2 = christoffel_symbols_2(dicY, d_dcYij);
+
+    pin(d_christoff2);
+
+    tensor<dual<valuef>, 3> dcGi_G;
+
+    for(int i=0; i < 3; i++)
+    {
+        dual<valuef> sum = 0;
+
+        for(int j=0; j < 3; j++)
+        {
+            for(int k=0; k < 3; k++)
+            {
+                sum += dicY[j, k] * d_christoff2[i, j, k];
+            }
+        }
+
+        //now we have the analytic derivative of the analytic christoffel symbol
+        dcGi_G[i] = sum;
+    }
+
+    pin(dcGi_G);
+
+    for(int i=0; i < 3; i++)
+    {
+        d_cGi[m, i] = diff1(args.cG[i], m, d) - dcGi_G[i].dual;
+    }
+}
+
+auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
+
+tensor<valuef, 3> calculated_cG;
+
+for(int i=0; i < 3; i++)
+{
+    valuef sum = 0;
+
+    for(int m=0; m < 3; m++)
+    {
+        for(int n=0; n < 3; n++)
+        {
+            sum += icY[m, n] * christoff2[i, m, n];
+        }
+    }
+
+    calculated_cG[i] = sum;
+}
+
+pin(christoff2);
+
+tensor<valuef, 3> Gi = args.cG - calculated_cG;
+
+tensor<valuef, 3, 3> cD = covariant_derivative_high_vec(Gi, d_cGi, christoff2);
+
+pin(cD);
+
+for(int i=0; i < 3; i++)
+{
+    for(int j=0; j < 3; j++)
+    {
+        valuef sum = 0;
+
+        for(int k=0; k < 3; k++)
+        {
+            sum += 0.5f * (args.cY[k, i] * cD[k, j] + args.cY[k, j] * cD[k, i]);
+        }
+
+        float cK = -<SOME_CONSTANT>;
+
+        dtcY.idx(i, j) += cK * args.gA * sum;
+    }
+}
+```
+
+Notes to self: This segment is just for me
+
+$$
+\begin{align}
+&k_{\gamma} \alpha \tilde{\gamma}_{k(i} \tilde{D}_{j)} \mathcal{G}^k\\
+&k_{\gamma} \alpha \frac{1}{2} (\tilde{\gamma}_{ki} \tilde{D}_{j} \mathcal{G}^k + \tilde{\gamma}_{kj} \tilde{D}_{i} \mathcal{G}^k) \\
+&\tilde{\gamma}_{ka} \tilde{D}_{b} \mathcal{G}^k = \tilde{\gamma}_{ka} (\partial_b \mathcal{G}^k + \tilde{\Gamma}^k_{bc}\mathcal{G}^c) |\\
+&= \tilde{D}_{b} \mathcal{G}_a\\
+&\mathcal{G}^i = \tilde{\Gamma}^i - \tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk}\\
+&\mathcal{G}_i = \tilde{\Gamma}_i - \tilde{\gamma}^{jk} \tilde{\Gamma}_{ijk}\\
+\end{align}
+$$
+
+With the constant set to $-1$, we get this:
+
 
 ### Curvature adjusted kreiss-oliger dissipation (CAKO todo?)
 
