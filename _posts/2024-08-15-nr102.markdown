@@ -1430,7 +1430,11 @@ With this implemented, we get this result:
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/G2BuUYI2RfY?si=pShkwJcdFWtGGLJc" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Which is slightly better. In general, this modification is a free win, so we'll be leaving this on as well
+Which is slightly better. Testing $h=1$, we get this:
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/t3reNTQdfxk?si=MA-SMO1PSCW8LYOK" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Which is much better. In general, this modification is a free win, so we'll be leaving this on as well
 
 #### Curvature adjusted kreiss-oliger dissipation (CAKO todo?)
 

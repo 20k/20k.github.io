@@ -341,7 +341,7 @@ valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, const derivative_data
     }
 
     valuef sigma = 20.f;
-    value h = (3.f/5.f);
+    value h = (5.f/5.f);
 
     #define LAPSE_DAMPING
     #ifdef LAPSE_DAMPING
