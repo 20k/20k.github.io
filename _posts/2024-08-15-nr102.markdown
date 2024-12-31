@@ -964,13 +964,19 @@ The ternary operator is being used here to avoid a conditional branch on the mem
 
 # Modifying the equations
 
-We've now solved the initial conditions, and implemented our boundary conditions, so we just use our equations from the last article, and hit go right?
+We've now solved the initial conditions, and implemented our boundary conditions: so we just use our equations from the last article, and hit go right?
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/fnGNOeT2So8?si=Zspf1_cJZCBt4dhL" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+(Please note, from now on: All videos show the value of lapse)
 
 Todo: Sad cat picture
 
 Unfortunately, the equations as-is cannot simulate binary black hole collisions, and we now enter a very murky area: Ad hoc modifying the equations, so that we can pull off these simulations correctly
 
 In addition to the 'usual' issues, we also suffer from our own set of unique issues: Rather low grid resolution, 16-bit derivatives, as well as using 32-bit floats instead of 64-bit doubles. The latter is largely a non issue luckily, but it exacerbates numerical issues with the singularity, by giving us a smaller margin for error[^leeway]
+
+Note that all tests are conducted with a grid resolution of $213^3$, encompassing a region with a width of $30$
 
 [^leeway]: The determinant of the metric tensor becomes degenerate on a failure of the boundary conditions, leading to infinities turning up. You can handle more degenerate matrices with double precision, giving the gauge conditions more time to catch up
 
@@ -1053,7 +1059,7 @@ tensor<valuef, 3> get_dtgB(bssn_args& args, const derivative_data& d)
 }
 ```
 
-I wish there was a better way to do tensors in C++
+The new gauge conditions on their own do not allow our simmulation to live longer, though they are a necessary component
 
 ### Momentum constraint errors
 
@@ -1061,37 +1067,49 @@ These can be damped in exactly the same form as in the previous article, via eg 
 
 $$\partial_t \tilde{A}_{ij} = \partial_t \tilde{A}_{ij} + k_m \alpha \tilde{D}_{(i}\mathcal{M}_{j)}$$
 
-Traditionally, momentum constraint violations tend to produce high frequency, self reinforcing oscillations, resulting in your simulation blowing up. With an implicit integrator, this is much less of a problem for us, so momentum constraint damping is more about increasing correctness rather than for stability reasons. This makes it much less important for us in this construction, than alternative techniques - which is good, because this damping is heavy on memory bandwidth and expensive computationally
+Traditionally, momentum constraint violations tend to produce high frequency, self reinforcing oscillations, resulting in your simulation blowing up. With an implicit integrator this doesn't happen, so momentum constraint damping is more about increasing correctness rather than for stability reasons. This makes it much less important for us in this construction
 
-### Christoffel symbol errors (classic)
+If you are using something like RK4, you will need this modification for stability reasons. We'll be using it here to increase our correctness
 
-Todo: I finally found the source for sigma damping:
+### Christoffel symbol errors
 
-https://arxiv.org/pdf/gr-qc/0209066
+Fixing up this constraint is much more important to the long running of our sim. The traditional damping schemes are as following:
 
-The traditional damping schemes are as following:
-
-[page 37](https://indico.cern.ch/event/505595/contributions/1183661/attachments/1332828/2003830/sperhake.pdf) (which I'll call sigma damping)
+[see (45)](https://arxiv.org/pdf/gr-qc/0209066)
 
 $$
-\partial_t \alpha = \partial_t \alpha - \sigma \mathcal{G}^i \partial_m \beta^m
+\begin{align}
+s &= step(\partial_m \beta^m)\\
+\\
+\partial_t \alpha &= \partial_t \alpha - (\chi * s + \frac{2}{3}) \mathcal{G}^i \partial_m \beta^m\\
+\end{align}
 $$
 
-or [(2.22)](https://arxiv.org/pdf/0711.3575v2)
+or a similar modification: [(2.22)](https://arxiv.org/pdf/0711.3575v2)
 
 $$
 \partial_t \alpha = \partial_t \alpha + k_g \alpha \mathcal{G}^i \\
 $$
 
-Where $\sigma$ > 0, and $k_g$ < 0. We'll be looking at the first case in this article, but both modifications are similar
+Where $\chi$ > 0, and $k_g$ < 0. `step` is a function that returns $1$ if its argument is $> 0$, otherwise $0$[^slightlysubtle]. We'll be looking at the former case in this article, but both modifications are similar
 
-## This doesn't really work in practice
+[^slightlysubtle]: There are a few possible choices of modification here. The reason for the step function choice, is that the equations are only inherently unstable when $\partial_m \beta^m > 0$, and $\chi$ must have the same sign as that
+
+## Lets try it
+
+With $\chi = 0.5$ and $k_m = 0.04$, and the non standard kreiss-oliger $\epsilon = 0.05$ (more on this later), we get something that looks like this:
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/PT2GXno2dMQ?si=oV5KRitGM6XZgq5t" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+While we can play around with the constants a bit to adjust the results, at our resolution and scale, its essentially impossible to get this to work correctly. This kind of error is *very* common
 
 These modifications would, in theory, work if you were using some kind of adaptive mesh refinement scheme with very high accuracy. Unfortunately, the entire point of this article series is to try and do simulations a little faster than that, so instead of relying on more compute power to fix our problems, we're going to see if we can get a little more bang for our buck
 
 ## Lets reproduce a result
 
-Trying to simulate with the above set of modifications at our resolution is not going to work, and instead today we're going to focus on trying to reproduce a specific result: todo. The no spin test case from [this paper](https://arxiv.org/pdf/gr-qc/0610128). If you'd like some more test cases, check out [this](https://arxiv.org/pdf/gr-qc/0602026) paper as well. Here, I'll lay out the test parameters:
+Up until now I've been presenting this more informally to illustrate the kinds of errors we'll run into, which is why I haven't laid out exactly what we're doing or reproducing
+
+Today we're going to focus on trying to reproduce a specific result: The no spin test case from [this paper](https://arxiv.org/pdf/gr-qc/0610128). If you'd like some more test cases, check out [this](https://arxiv.org/pdf/gr-qc/0602026) paper as well. Here, I'll lay out the test parameters:
 
 | | |BH 0|BH 1|
 |-|-|-|-|
@@ -1110,37 +1128,132 @@ resolution = {213, 213, 213}
 simulation_width = 20
 h = (simulation_width / (resolution.x - 1))
 n (the damping parameter) = 2
-todo: sigma
-todo: other damping params
+todo: eps for kreiss-oliger
 ```
 
-By the end of this article, we will be close enough to demonstrate that the sim we've built isn't totally invalid. Note that the boundaries here are sufficiently close that they'll cause problems quite quickly. Further away boundaries require higher resolutions in general
+The goal here is to demonstrate specific types of errors, the general approach that you might use to fix them, and to give you an overview of what kinds of issues you're going to run into. Note that until we implement gravitational waves detection, there's little point trying to calibrate our sim *exactly* via the mk 1 eyeball, so we're going to settle for "looks decent, would work better with a higher resolution and some constant tweaks"
 
-In general, exactly reproducing other people's results is an absolute nightmare, and is virtually impossible in the general case. While it isn't hard to get close, the field has a strong issue with being underdocumented, and many of the larger simulators simply do not publish enough information to replicate their results. Simulations also seemingly tend to involve a calibration step, but information on the limitations or inaccuracies of these simulations is nearly impossible to come by due to the nature of academic publishing. There are a large number of tweakable parameters and design choices, and there is rarely an explanation of why those were picked - despite being frequently quite important
+Note that the boundaries here are sufficiently close that they'll cause problems quite quickly. Further away boundaries require higher resolutions in general
 
-I'm going to walk us through how to take our sim from failing quickly, to successfully completing over an orbit. We'll get 'close enough' to a result
+Now we'll go through how to diagnose some of our simulations problems:
 
-## First off, lets test the standard modifications
-
-Todo: Redo this completely
-
-With the sigma damping enabled, our sim goes from blowing up immediately, to successfully managing to simulate a collision at roughly T=CHECKME. Because we're more interested in the paths that the black holes take for the moment, rather than the specific collision time, I'm just eyeballing the numbers here
-
-<iframe width="560" height="315" src="https://www.youtube.com/embed/oogqwuPbdm8?si=unCAuxZS7BhC-E5V" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-
-We can see that rather than the full orbit and a half we'd expect, our black holes barely make an orbit before clearly merging
-
-### The black hole inspiral ends too early
-
-We lose energy too quickly, as we can see that our black holes do not travel the requisite distance. There are a variety of possible issues here:
-
-1. Constraint violations, and damping strength (including $\eta$ for the gauge damping parameter)
-2. Kreiss oliger dissipation strength
+1. Christoffel symbol errors
+2. Kreiss-Oliger dissipation
 3. Gauge condition issues
 
-We're going to address kreiss-oliger in a slightly unusual way, and there's going to be a heavy tangent about kreiss oliger dissipation in general
+### Black Hole Inspiral Failure
 
-While we could address these issues in any order, I'm going to address these in the order that makes the most noticeable difference to evolution
+Our black holes fail to inspiral correctly. One of the easiest ways to diagnose the cause, is to run the simulation with different values of $\chi$, our christoffel symbol damping term:
+
+$\chi = 0$
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/gx7zo_5y_VM?si=UpmWNmzCqiIl4QyP" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+$\chi = 0.9$
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/GrFBknjdK7Y?si=nkM7MG2VT8-dpiIM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+While we can see that higher damping somewhat improves the situation, its clearly still borked. We need a better christoffel damping scheme
+
+Please note, we are not using the semi-standard analytic christoffel substitution (more on this soon)
+
+#### Christoffel damping schemes
+
+There are a variety of schemes available for improving the christoffel symbols
+
+| Informal Name | Modification | Notes | Source |
+|-|-|-|-|
+|Christoffel Substitution|$\tilde{\Gamma}^i = \tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk}$ | Only where $\tilde{\Gamma}$ is not differentiated. Very widespread in the literature | [After 32](https://arxiv.org/pdf/gr-qc/0206072) |
+|Christoffel lapse modification| $\partial_t \tilde{\Gamma}^i = \partial_t \tilde{\Gamma}^i + k_{\tilde{\Gamma}} \alpha \mathcal{G}^i$ | $k_{\tilde{\Gamma}} < 0$ | [2.22](https://arxiv.org/pdf/0711.3575v1) |
+|Metric Modification| $\partial_t \tilde{\gamma}_{ij} = \partial_t \tilde{\gamma}_{ij} + k_{\gamma} \alpha \tilde{\gamma}_{k(i} \tilde{D}_{j)} \mathcal{G}^k$ | $k_{\gamma} < 0$ | [2.21](https://arxiv.org/pdf/0711.3575v1), or [table II](https://arxiv.org/pdf/gr-qc/0204002)|
+
+Please note that the informal names are something I've purely jotted down for clarity
+
+##### The christoffel substitution
+
+This is easy enough to implement. There are only 4 instances where this substitution can be applied:
+
+1. In $\mathcal{R}_{ij}$
+2. Two in $\partial_t \tilde{\Gamma}^i$
+3. $\partial_t \beta_i$
+
+The analytic value is standard to calculate as well:
+
+```c++
+auto icY = cY.invert();
+
+single_source::pin(icY);
+
+tensor<valuef, 3> cG_out;
+
+tensor<valuef, 3, 3, 3> christoff2 = christoffel_symbols_2(icY, derivs.dcY);
+
+for(int i=0; i < 3; i++)
+{
+    valuef sum = 0;
+
+    for(int m=0; m < 3; m++)
+    {
+        for(int n=0; n < 3; n++)
+        {
+            sum += icY[m, n] * christoff2[i, m, n];
+        }
+    }
+
+    cG_out[i] = sum;
+}
+
+return cG_out;
+```
+
+This modification can help significantly. With $\chi = 0.9$, as well as higher momentum constraint damping ($0.06$), we can achieve our first actual inspiral:
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/bSCgNtP4_Nw?si=Z3qPixa1X0K7XjnC" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Compare with $\chi = 0.5$
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/7yZP8W2j4mc?si=y0mLe_t7ELq7htaG" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Overall, this modification is.. ok. In general, it tends to work well for octant symmetry, and causes problems with unequal mass binaries. Additionally, the increase in momentum constraint damping is a bit suspect, as in other simulations this value has caused the black holes to evaporate
+
+All in all: Not great, not terrible. We won't be using this modification on a permanent basis
+
+##### Christoffel lapse modification
+
+This modification is fairly easy to calculate. $\mathcal{G}^i$ is conventionally defined as:
+
+$$\mathcal{G}^i = \tilde{\Gamma}^i - \tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk}$$
+
+Implementation wise, we're going to calculate $k_{\tilde{\Gamma}} \alpha \mathcal{G}^i$
+
+```c++
+tensor<valuef, 3> calculated_cG;
+
+for(int i=0; i < 3; i++)
+{
+    valuef sum = 0;
+
+    for(int m=0; m < 3; m++)
+    {
+        for(int n=0; n < 3; n++)
+        {
+            sum += icY[m, n] * christoff2[i, m, n];
+        }
+    }
+
+    calculated_cG[i] = sum;
+}
+
+tensor<valuef, 3> Gi = args.cG - calculated_cG;
+
+float lapse_cst = -<SOME_CONSTANT>;
+
+dtcG += lapse_cst * args.gA * Gi;
+```
+
+This modification has been a tricky one to try and show off. In general, either the value of lapse_cst is too low (eg $-0.05$), resulting in no discernable change. Or, its too high, resulting in numerical instability. Combining it with and without the other modifications up until this point results in very little happening in general
+
+In general, my experience of this is that its one we can simply discard
 
 ### Curvature adjusted kreiss-oliger dissipation (CAKO todo?)
 
@@ -1166,7 +1279,7 @@ Todo:
 
 Our code now makes it to T=todo. One key feature to note is that: With very reduced kreiss oliger dissipation, we're now much more vulnerable to 0 speed modes (which are no longer dissipated away), and so you want to ensure you're using the advecting lapse and shift conditions for the gauge. I strongly suspect that shock avoiding gauge conditions would be of help here as well, but have not tested them
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/XxRbxzmTqdE?si=i2dV0LWO2397sPHT" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/XxRbxzmTqdE?si=i2dV0LWO2397sPHT" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ### Christoffel symbol errors, round 2
 
@@ -1200,7 +1313,7 @@ todo
 
 Together, these seem to work adequately. I have a strong unproven suspicion that the reason these modifications are better at preserving energy is because they're both multiplifed by a factor of $\alpha$, reducing the damping nearer the black hole and singularity vs the standard damping scheme
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/YGj93N6omao?si=t28TmlW7xpwr3hDl" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/YGj93N6omao?si=t28TmlW7xpwr3hDl" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 Despite the improvement, we're still losing too much energy. We've done about as much as we can to improve the christoffel symbol constraint errors
 
@@ -1214,7 +1327,7 @@ todo
 
 With xyz set to todo:
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/oizYRdPsNYM?si=Ht7aCrTSQxwRZbgt" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/oizYRdPsNYM?si=Ht7aCrTSQxwRZbgt" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 # Results
 
