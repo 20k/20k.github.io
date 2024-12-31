@@ -406,16 +406,13 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
     ///https://arxiv.org/pdf/1106.2254 also see here, after 25
     auto dtcY = lie_derivative_weight(args.gB, args.cY.to_tensor(), d) - 2 * args.gA * args.cA;
 
-    //#define CY_STABILITY
+    #define CY_STABILITY
     #ifdef CY_STABILITY
     tensor<valuef, 3, 3> d_cGi;
 
     for(int m=0; m < 3; m++)
     {
         tensor<dual<valuef>, 3, 3, 3> d_dcYij;
-
-        #define FORWARD_DIFFERENTIATION
-        #ifdef FORWARD_DIFFERENTIATION
         unit_metric<dual<valuef>, 3, 3> d_cYij;
 
         for(int i=0; i < 3; i++)
@@ -432,32 +429,6 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
         auto dicY = d_cYij.invert();
 
         pin(dicY);
-
-        #else
-        std::vector<std::pair<value, value>> derivatives;
-
-        for(int i=0; i < 3; i++)
-        {
-            for(int j=0; j < 3; j++)
-            {
-                derivatives.push_back({args.cY[i, j], args.dcYij[m, i, j]});
-            }
-        }
-
-        auto icY = args.cY.invert();
-
-        inverse_metric<dual, 3, 3> dicY;
-
-        for(int i=0; i < 3; i++)
-        {
-            for(int j=0; j < 3; j++)
-            {
-                ///perform analytic differentiation, where the variable is args.cY[i, j]
-                dicY[i, j] = icY[i, j].dual2(derivatives);
-            }
-        }
-
-        #endif // FORWARD_DIFFERENTIATION
 
         for(int k=0; k < 3; k++)
         {
@@ -540,7 +511,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
                 sum += 0.5f * (args.cY[k, i] * cD[k, j] + args.cY[k, j] * cD[k, i]);
             }
 
-            float cK = -0.095f;
+            float cK = -0.1f;
 
             dtcY.idx(i, j) += cK * args.gA * sum;
         }
@@ -943,7 +914,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
 
         tensor<valuef, 3> Gi = args.cG - calculated_cG;
 
-        #define STABILITY_SIGMA
+        //#define STABILITY_SIGMA
         #ifdef STABILITY_SIGMA
         float lapse_cst = -0.1;
 
