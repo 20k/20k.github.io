@@ -1488,7 +1488,7 @@ With all of this together, we're able to replicate - close enough - the original
 
 # Discussion
 
-Overall, trying to get black hole paths to replicably follow sane trajectories has occupied a pretty major part of what I've worked on in general, and I've spent a significant amount of time on characterising this issue. In general, this article is actually by far the most difficult one of any of the articles we'll write due to this issue, and it luckily all gets simpler from here. The moving punctures technique as a whole is slightly sketchy numerically at low resolutions: as mentioned previously, the puncture is a true discontinuity, and differentiating across it is invalid. This is a major source of constraint violations, though I've seen suggestions that the event horizon itself is also a source of constraint violations
+Overall, trying to get black hole paths to replicably follow sane trajectories at low resolutions has occupied a pretty major part of what I've worked on in general, and I've spent a significant amount of time on characterising this issue. In general, this article is actually by far the most difficult one of any of the articles we'll write due to this issue, and it luckily all gets simpler from here. The moving punctures technique as a whole is slightly sketchy numerically at low resolutions: as mentioned previously, the puncture is a true discontinuity, and differentiating across it is invalid. This is a major source of constraint violations, though I've seen suggestions that the event horizon itself is also a source of constraint violations
 
 In the literature, there are *many* ad-hoc techniques used with respect to the puncture, including:
 
@@ -1497,13 +1497,13 @@ In the literature, there are *many* ad-hoc techniques used with respect to the p
 3. Using upwinded stencils for differentiation with respect to the shift, which is very dissipative near the singularity where the shift vector undergoes a discontinuity
 4. Hiding the puncture, by placing it at the boundary between grid cells
 
-A lot of this seems like that any kind of differentiation is invalid near the puncture, and so techniques indirectly tend to lower the constraint contamination by reducing the singularity, or reducing the size of stencils to reduce constraint error propagation. In theory - some BSSN formulations have causal constraint propagation, but this breaks down *somewhat* in the face of discretisation, and still relies on you having a sufficiently large event horizon
+A lot of this is simply that any kind of differentiation is invalid near the puncture, and so techniques indirectly tend to lower the constraint contamination by reducing the singularity, or reducing the size of stencils to reduce constraint error propagation. In theory - some BSSN formulations have causal constraint propagation, but this breaks down *somewhat* in the face of discretisation, and still relies on you having a sufficiently large event horizon
 
 It be interesting to explore an excision technique instead, and see how it affects the inspiralling and constraint violation behaviour. Its on the todo list!
 
 # Future articles
 
-Next up, we're going to take a step back from the tricky equations, and have a fun trip down rasterisation. Depending on how things go, we'll either then extract gravitational waves, or collide neutron stars together. Future articles should now come out a lot faster, as this one involved a *huge* amount of work on my end to find a reasonable formalism to present
+Next up, we're going to take a step back from the trickyness here, and have a much more fun trip down the graphics and rasterisation pipeline, because the renderings in this article hurt my eyes. Depending on how things go, we'll either then extract gravitational waves, or collide neutron stars together. Future articles should now come out a lot faster, as this one involved a *huge* amount of work on my end to find a reasonable formalism to present
 
 # Misc Notes
 
@@ -1527,24 +1527,11 @@ Despite this, its very common to use ADM mass via puncture mass[^internallyflat]
 
 [^internallyflat]: The asymptotically flat infinity here is the puncture *inside* the black hole. I have no idea how this works, but apparently it does
 
-## Event horizon calculation
+## Event horizons / Marginally Outer Trapped Surface (MOTS)
 
-Technically, the event horizon is *4d* surface that lightrays cannot escape from. In the literature, it is very common to talk about event horizons, and the size of the event horizon etc, but it is very rare to actually calculate what is actually technically the event horizon
+True event horizon calculation requires storing the entire history of the simulation and tracing geodesics[^wewilldothis] around in 4d, so it is uncommon as an approach. In the literature, a surface which is hoped to be equivalent/similar is used called the 'marginally outer trapped surface' (MOTS). This is a purely local quantity defined on a specific slice of spacetime. When calculating the black hole's mass via horizon mass, the horizon area is generally calculated via the MOTS
 
-In GR, the only true way to find an event horizon is to trace geodesics around, and see where they become trapped. In our numerical relativity simulation, you can imagine tracing rays backwards in time from the camera as a visualisation, and in theory our rays will become trapped on any event horizons. We could plot when and where they get trapped,and use that to define a 4-surface. There's a small problem though:
-
-There are no true event horizons in our simulation. The issue is twofold:
-
-1. The strict definition of an event horizon requires full knowledge of the future of the black hole
-2. The strict definition of an event horizon requires full knowledge of the past of the black hole
-
-Interestingly, because our black holes are not eternal and form from the collapse of a black hole with no horizon, rays fired backwards in time only become briefly suspended on a horizon, and then quite happily escape again. We also clearly cannot simulate an infinite amount of time into the future. We can however approximate a strict event horizon calculation by defining a cutoff time both in the past, and in the future, where we suspect that a horizon has formed, and use that as our technical horizon surface
-
-### Marginally Outer Trapped Surface (MOTS)
-
-Event horizon calculation requires storing the entire history of the simulation and tracing geodesics[^wewilldothis], so it is uncommon as an approach. In the literature, a surface which is hoped to be equivalent/similar is used called the 'marginally outer trapped surface' (MOTS). This is a purely local quantity defined on a specific slice of spacetime. When calculating the black hole's mass via horizon mass, the horizon area is generally calculated via the MOTS
-
-[^wewilldothis]: We're actually going to do this in a future article, in realtime, to produce accurate renderings of binary black hole collisions
+[^wewilldothis]: We're actually going to do this in a future article, to produce accurate renderings of binary black hole collisions
 
 ## Convergence issues, and Kreiss Oliger
 
@@ -1586,8 +1573,8 @@ There are a variety of alternative boundary conditions to the sommerfeld that we
 
 As a general note, its very common to assume that the speed of every wave is $1$
 
-### Notes on formalisms
+## Notes on formalisms
 
 The conformal covariant BSSN formalism is in general less stable than non covariant BSSN
 
-Ccz4 and other constraint damped formalisms don't *really* help all that much with our problems here. They're also a lot more hungry in terms of performance, which makes them not a silver bullet in my experience
+Ccz4 and other constraint damped formalisms don't *really* help all that much with our problems here. They're also fairly hungry in terms of performance, which makes them not a silver bullet in my experience
