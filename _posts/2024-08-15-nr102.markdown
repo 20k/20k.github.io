@@ -1393,22 +1393,7 @@ for(int i=0; i < 3; i++)
 }
 ```
 
-Notes to self: This segment is just for me
-
-$$
-\begin{align}
-&k_{\gamma} \alpha \tilde{\gamma}_{k(i} \tilde{D}_{j)} \mathcal{G}^k\\
-&k_{\gamma} \alpha \frac{1}{2} (\tilde{\gamma}_{ki} \tilde{D}_{j} \mathcal{G}^k + \tilde{\gamma}_{kj} \tilde{D}_{i} \mathcal{G}^k) \\
-&k_{\gamma} \alpha \frac{1}{2} (\tilde{D}_{j} \mathcal{G}_i + \tilde{D}_{i} \mathcal{G}_j) \\
-&k_{\gamma} \alpha \tilde{D}_{(j} \mathcal{G}_{i)}\\
-&\tilde{\gamma}_{ka} \tilde{D}_{b} \mathcal{G}^k = \tilde{\gamma}_{ka} (\partial_b \mathcal{G}^k + \tilde{\Gamma}^k_{bc}\mathcal{G}^c) |\\
-&= \tilde{D}_{b} \mathcal{G}_a\\
-&\mathcal{G}^i = \tilde{\Gamma}^i - \tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk}\\
-&\mathcal{G}_i = \tilde{\Gamma}_i - \tilde{\gamma}^{jk} \tilde{\Gamma}_{ijk}\\
-\end{align}
-$$
-
-With the constant set to $-1$, we get this:
+With the constant set to $-0.1$, we get this:
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/Ii7TIueUBD8?si=3x7QWgtzRJ3DWScl" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
@@ -1495,11 +1480,11 @@ We get this:
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/HtiloPOk2vA?si=mS6oJDJ1sGEyAhsk" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Which is pretty neat. Further tuning beyond this is a bit pointless because we have no real metrics to actual validate that we're making it more accurate, which is beyond the scope of this specific article
+Which is pretty neat. It looks like there's a small amount of possible awkwardness on the inspiralling, but its close enough for us. Further tuning beyond this is a bit pointless because we have no real metrics to actually validate that we're making it more accurate, which is beyond the scope of this specific article
 
 # Results
 
-With all of this together, we're able to replicate - close enough - the original paper, and we have now smashed black holes together pretty successfully. There are still clearly some inaccuracies, and the fine tuning nature of the damping constants is a bit concerning, but it works reasonable well for such a low resolution. The inspiral looks smooth and monotonic (ie no sharp jumps), which is ideal. It isn't scientific grade by any means, but it should be a solid base for getting there in a future article
+With all of this together, we're able to replicate - close enough - the original paper, and we have now smashed black holes together pretty successfully. There are still clearly some inaccuracies, and the fine tuning nature of the damping constants is a bit concerning, but it works reasonable well for such a low resolution. The inspiral looks smooth and largely monotonic (ie no sharp jumps, or outspiralling), which is ideal. It isn't scientific grade by any means, but it should be a solid base for getting there in a future article
 
 # Discussion
 
@@ -1514,7 +1499,7 @@ In the literature, there are *many* ad-hoc techniques used with respect to the p
 
 A lot of this seems like that any kind of differentiation is invalid near the puncture, and so techniques indirectly tend to lower the constraint contamination by reducing the singularity, or reducing the size of stencils to reduce constraint error propagation. In theory - some BSSN formulations have causal constraint propagation, but this breaks down *somewhat* in the face of discretisation, and still relies on you having a sufficiently large event horizon
 
-It be intresting to explore an excision technique instead, and see how it affects the inspiralling and constraint violation behaviour. Its on the todo list
+It be intresting to explore an excision technique instead, and see how it affects the inspiralling and constraint violation behaviour. Its on the todo list!
 
 # Misc Notes
 
