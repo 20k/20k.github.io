@@ -478,6 +478,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
     }
 
     auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
+    pin(christoff2);
 
     tensor<valuef, 3> calculated_cG;
 
@@ -495,8 +496,6 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
 
         calculated_cG[i] = sum;
     }
-
-    pin(christoff2);
 
     tensor<valuef, 3> Gi = args.cG - calculated_cG;
 
