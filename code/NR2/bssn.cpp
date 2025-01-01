@@ -668,24 +668,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
     tensor<valuef, 3, 3, 3> christoff2 = christoffel_symbols_2(icY, derivs.dcY);
     pin(christoff2);
 
-    tensor<valuef, 3> calculated_cG;
-
-    for(int i=0; i < 3; i++)
-    {
-        valuef sum = 0;
-
-        for(int m=0; m < 3; m++)
-        {
-            for(int n=0; n < 3; n++)
-            {
-                sum += icY[m, n] * christoff2[i, m, n];
-            }
-        }
-
-        calculated_cG[i] = sum;
-    }
-
-    pin(christoff2);
+    tensor<valuef, 3> calculated_cG = calculate_cG(icY, christoff2);
 
     tensor<valuef, 3> Gi = args.cG - calculated_cG;
 
@@ -888,8 +871,6 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
         {
             dmbm += derivs.dgB[m, m];
         }
-
-        tensor<valuef, 3> Gi = args.cG - calculated_cG;
 
         //#define STABILITY_SIGMA
         #ifdef STABILITY_SIGMA
@@ -1127,17 +1108,9 @@ std::string enforce_algebraic_constraints()
 
         metric<valuef, 3, 3> fixed_cY = cY / det_cY;
         pin(fixed_cY);
-        //tensor<valuef, 3, 3> fixed_cA = cA / det_cY;
+
         tensor<valuef, 3, 3> fixed_cA = trace_free(cA, fixed_cY, fixed_cY.invert());
         pin(fixed_cA);
-
-        /*for(int i=0; i < 10; i++)
-        {
-            fixed_cA = trace_free(fixed_cA, fixed_cY, fixed_cY.invert());
-            pin(fixed_cA);
-        }*/
-
-
 
         /*if_e(pos.x() == 128 && pos.y() == 128 && pos.z() == 128, [&]{
             value_base se;
