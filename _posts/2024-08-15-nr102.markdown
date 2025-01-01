@@ -1123,12 +1123,12 @@ Today we're going to focus on trying to reproduce a specific result: The no spin
 
 [^youcanusethis]: This can be used to check the accuracy of your laplacian solver. You should be able to get very close to this value, eg 0.5045
 
-The black holes are expected to collide at roughly T=160. For our sim, we'll have the following test parameters
+The black holes are expected to collide at roughly T=160, after approximately 1.8 orbits. For our sim, we'll have the following test parameters
 
 ```c++
 resolution = {213, 213, 213}
-simulation_width = 20
-h = (simulation_width / (resolution.x - 1))
+simulation_width = 30
+h = (simulation_width / (resolution.x - 1)), aka scale
 n (the damping parameter) = 2
 todo: eps for kreiss-oliger
 ```
@@ -1434,46 +1434,74 @@ Which is slightly better. Testing $h=1$, we get this:
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/t3reNTQdfxk?si=MA-SMO1PSCW8LYOK" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Which is much better. In general, this modification is a free win, so we'll be leaving this on as well
+Which is very interesting. In general, this modification is a free win, so we'll be leaving this on as well (with $h=\frac{3}{5}$, until we fine tune). Its likely that this modification makes a significant difference for two reasons
 
-#### Curvature adjusted kreiss-oliger dissipation (CAKO todo?)
+1. Our low resolution exacerbates numerical errors caused by the initial collapse in the lapse
+2. A large initial lapse pulse reflects off the close boundaries, causing further errors
 
-If you remember, kreiss-oliger is a method of removing high frequency oscillations from your grid, and it damps out numerical errors. The basic idea [here, (20)](https://arxiv.org/pdf/2404.01137) is that sharp features near the event horizon of a black hole are likely natural, and require less smoothing. This makes a certain amount of sense, and after all - if we're trying to represent as much information on our grid as possible, removing high frequencies in high frequency areas seems like a prime candidate for wasting grid resolution
+Do note, due to the nature of inspiral, as our modifications improve the situation it can result in disproportionately large differences in the end merger time despite what you might notionally consider a linear improvement in quality
+
+#### Curvature adjusted kreiss-oliger dissipation (CAKO)
+
+If you remember, kreiss-oliger is a method of removing high frequency oscillations from your grid, and it damps out numerical errors. The basic idea with our next modification [here, (20)](https://arxiv.org/pdf/2404.01137) is that sharp features near the event horizon of a black hole are likely natural, and require less smoothing. This makes a certain amount of sense, and after all - if we're trying to represent as much information on our grid as possible, removing high frequencies in high frequency areas seems like a prime candidate for wasting grid resolution
 
 To adjust this, the authors multiply the damping strength, by the parameter $W$, thus making the damping strength virtually 0 near the event horizon
 
-Todo: Retest CAKO
-Todo: Test CAKO + shock avoiding gauge
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/U9lUl0QVVE0?si=cHefuAscEsUY5wOc" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Testing this directly, our code immediately unconditionally blows up - likely because of our low grid resolution. It seems that for us, we do need some damping near the event horizon, and instead I clamp the minimum damping to $max(W, \epsilon)$
+Testing this directly doesn't work. I suspect that our code is too low resolution, and there are signs of numerical error - prior experience on my end is that the black holes are likely obviously borked visually, we just don't have the debugging tools to see it. Additionally, a full 0 damp method is liable to generate singularity explosions. For use do need some damping near the black holes, and instead I clamp the minimum damping to $max(W, \epsilon)$
 
 In practice, I've fond that this $\epsilon$ parameter is very dependent on grid resolution, and can be anywhere from 0.1 to 0.5, with lower resolutions needing higher values
 
 Implementing this is extremely straightforward, and our kreiss-oliger step becomes:
 
 ```c++
-as_ref(out[lid]) = in[lid] + eps.get() * kreiss_oliger_interior(in[pos, dim], order) * max(W[lid], valuef(0.1));
+as_ref(out[lid]) = in[lid] + eps.get() * kreiss_oliger_interior(in[pos, dim], order) * max(W[lid], valuef(0.5));
 ```
 
-#### Testing CAKO
+This gives us a result that looks like this:
 
-With kreiss oliger being set up like follows:
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/xzyrHY0W2lY?si=oQNw7aKDIE-7GFc5" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Todo:
+Now making it a lot further than previously. One feature to note is that: With very reduced kreiss oliger dissipation, we're now much more vulnerable to 0 speed modes (which are no longer dissipated away), and so you want to ensure you're using the advecting lapse and shift conditions for the gauge
 
-Our code now makes it to T=todo. One key feature to note is that: With very reduced kreiss oliger dissipation, we're now much more vulnerable to 0 speed modes (which are no longer dissipated away), and so you want to ensure you're using the advecting lapse and shift conditions for the gauge. I strongly suspect that shock avoiding gauge conditions would be of help here as well, but have not tested them
+### Fine tuning
 
-\<iframe width="560" height="315" src="https://www.youtube.com/embed/XxRbxzmTqdE?si=i2dV0LWO2397sPHT" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+So far, we've got a collection of different modifications, some of which have different parameters. The ones we're potentially going to adjust are:
+
+| Symbol | Description | Current value |
+|-|-|-|
+| $\epsilon$| Minimum kreiss-oliger strength factor | $0.5$ |
+| $\chi$ | Damping strength for the $\tilde{\Gamma}^i$ modification | $0.5$ |
+| $h$ | Strength of the initial lapse damping | $\frac{3}{5}$ |
+| $k_{\gamma}$ | Strength of the $\tilde{\gamma}_{ij}$ christoffel damping | $-0.1$ |
+
+There will now be a brief intermission
+
+Todo: Cat picture
+
+So, with the following parameters:
+
+| Symbol | Description | Current value |
+|-|-|-|
+| $\epsilon$| Minimum kreiss-oliger strength factor | $0.5$ |
+| $\chi$ | Damping strength for the $\tilde{\Gamma}^i$ modification | $0.55$ |
+| $h$ | Strength of the initial lapse damping | $\frac{4}{5}$ |
+| $k_{\gamma}$ | Strength of the $\tilde{\gamma}_{ij}$ christoffel damping | $-0.09$ |
+
+We get this:
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/HtiloPOk2vA?si=mS6oJDJ1sGEyAhsk" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Which is pretty neat. Further tuning beyond this is a bit pointless because we have no real metrics to actual validate that we're making it more accurate, which is beyond the scope of this specific article
 
 # Results
 
-With all of this together, we're able to replicate - close enough - the original paper, and we have now smashed black holes together pretty successfully. There are still clearly some inaccuracies however, which I'll go over now
+With all of this together, we're able to replicate - close enough - the original paper, and we have now smashed black holes together pretty successfully. There are still clearly some inaccuracies, and the fine tuning nature of the damping constants is a bit concerning, but it works reasonable well for such a low resolution. The inspiral looks smooth and monotonic (ie no sharp jumps), which is ideal. It isn't scientific grade by any means, but it should be a solid base for getting there in a future article
 
 # Discussion
 
-Todo: Crank down less on the conspiracy theories here, focus more on the positives
-
-I have some questions about efficiency of the moving punctures technique as a whole. As mentioned previously, the puncture is a true discontinuity, and differentiating across it is invalid. This (in theory) is a major source of constraint violations, though I've seen suggestions that the event horizon itself is also a source of constraint violations
+Overall, trying to get black hole paths to replicably follow sane trajectories has occupied a pretty major part of what I've worked on in general, and I've spent a significant amount of time on characterising this issue. The moving punctures technique as a whole is slightly sketchy numerically: as mentioned previously, the puncture is a true discontinuity, and differentiating across it is invalid. This (in theory) is a major source of constraint violations, though I've seen suggestions that the event horizon itself is also a source of constraint violations
 
 In the literature, there are *many* ad-hoc techniques used with respect to the puncture, including:
 
@@ -1482,9 +1510,9 @@ In the literature, there are *many* ad-hoc techniques used with respect to the p
 3. Using upwinded stencils for differentiation with respect to the shift, which is very dissipative near the singularity where the shift vector undergoes a discontinuity
 4. Hiding the puncture, by placing it at the boundary between grid cells
 
-For me, a lot of this seems like that any kind of differentiation is invalid near the puncture, and so techniques indirectly tend to lower the constraint contamination by reducing the singularity, or reducing the size of stencils to reduce constraint error propagation. In theory - some BSSN formulations have causal constraint propagation, but this breaks down *somewhat* in the face of discretisation, and still relies on you having a sufficiently large event horizon
+A lot of this seems like that any kind of differentiation is invalid near the puncture, and so techniques indirectly tend to lower the constraint contamination by reducing the singularity, or reducing the size of stencils to reduce constraint error propagation. In theory - some BSSN formulations have causal constraint propagation, but this breaks down *somewhat* in the face of discretisation, and still relies on you having a sufficiently large event horizon
 
-It would seem ideally what we'd do is use an excision technique instead, instead of relying on these slightly odd techniques and properties. Its on my todo list
+It be intresting to explore an excision technique instead, and see how it affects the inspiralling and constraint violation behaviour. Its on the todo list
 
 # Misc Notes
 
