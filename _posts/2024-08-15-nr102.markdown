@@ -1488,7 +1488,7 @@ With all of this together, we're able to replicate - close enough - the original
 
 # Discussion
 
-Overall, trying to get black hole paths to replicably follow sane trajectories has occupied a pretty major part of what I've worked on in general, and I've spent a significant amount of time on characterising this issue. The moving punctures technique as a whole is slightly sketchy numerically: as mentioned previously, the puncture is a true discontinuity, and differentiating across it is invalid. This (in theory) is a major source of constraint violations, though I've seen suggestions that the event horizon itself is also a source of constraint violations
+Overall, trying to get black hole paths to replicably follow sane trajectories has occupied a pretty major part of what I've worked on in general, and I've spent a significant amount of time on characterising this issue. In general, this article is actually by far the most difficult one of any of the articles we'll write due to this issue, and it luckily all gets simpler from here. The moving punctures technique as a whole is slightly sketchy numerically at low resolutions: as mentioned previously, the puncture is a true discontinuity, and differentiating across it is invalid. This is a major source of constraint violations, though I've seen suggestions that the event horizon itself is also a source of constraint violations
 
 In the literature, there are *many* ad-hoc techniques used with respect to the puncture, including:
 
@@ -1499,7 +1499,11 @@ In the literature, there are *many* ad-hoc techniques used with respect to the p
 
 A lot of this seems like that any kind of differentiation is invalid near the puncture, and so techniques indirectly tend to lower the constraint contamination by reducing the singularity, or reducing the size of stencils to reduce constraint error propagation. In theory - some BSSN formulations have causal constraint propagation, but this breaks down *somewhat* in the face of discretisation, and still relies on you having a sufficiently large event horizon
 
-It be intresting to explore an excision technique instead, and see how it affects the inspiralling and constraint violation behaviour. Its on the todo list!
+It be interesting to explore an excision technique instead, and see how it affects the inspiralling and constraint violation behaviour. Its on the todo list!
+
+# Future articles
+
+Next up, we're going to take a step back from the tricky equations, and have a fun trip down rasterisation. Depending on how things go, we'll either then extract gravitational waves, or collide neutron stars together. Future articles should now come out a lot faster, as this one involved a *huge* amount of work on my end to find a reasonable formalism to present
 
 # Misc Notes
 
@@ -1542,7 +1546,7 @@ Event horizon calculation requires storing the entire history of the simulation 
 
 [^wewilldothis]: We're actually going to do this in a future article, in realtime, to produce accurate renderings of binary black hole collisions
 
-## Kreiss oliger is a bit.. ill defined
+## Convergence issues, and Kreiss Oliger
 
 One of the difficulties with all of this is trying to prove that your code converges. The idea is, as your grid resolution goes up, your code should become more accurate
 
@@ -1562,7 +1566,7 @@ If you compare, the prefix factor of kreiss-oliger *is* the courant factor, and 
 
 ### We don't have a courant factor
 
-I missed part of the definition of the courant factor, which is that it only applies to *explicit* integrators. Equations which are implicitly integrated do not have a courant factor, as they propagate information faster than with an explicit integrator. In fact, $\frac{\Delta t}{\Delta h}$ can be arbitrarily large, and is only limited by the convergence of your implicit integration technique. With an implicit integrator of sufficient quality - grid resolution, and timestep, are fully decoupled
+I missed part of the definition of the courant factor, which is that it only applies to *explicit* integrators. Equations which are implicitly integrated do not have a courant factor, as they propagate information faster than with an explicit integrator. In fact, $\frac{\Delta t}{\Delta h}$ can be arbitrarily large, and is only limited by the convergence of your implicit integration technique. With a stable implicit integrator of sufficient quality - grid resolution, and timestep, are fully decoupled
 
 This raises a tricky question: If we change the size of our grid resolution to being infinitely small, our timestep doesn't necessarily have to change beyond practical convergence limitations. This means that kreiss oliger is somewhat ill defined for us, as there's no reason that the prefix term is fixed to anything useful
 
@@ -1570,80 +1574,20 @@ To work around these, we're going to set it to a constant, and emulate having a 
 
 [^imexstepping]: The SXS group use imex stepping, which is a semi implicit scheme. They split the equations up, and solve them partially implicitly. Notably however, they do not solve the derivatives implicitly due to the computational cost, which means that this implicit scheme cannot sidestep the courant factor as with a fully implicit scheme - I suspect this is why they see only marginal benefits
 
-## A brief evidence-free survey of modifications
-
-In this article, I've picked a few modifications to implement to the equations, and these are based off a reasonable amount of testing. In general, there are a very diverse range of modifications that are available, and if you're planning on testing some of them, this segment is a very brief overview of my own experiences with them. There's no data of any description here, this is intended purely so that if you test out modifications yourself and notice something, you can take a look and go "ok neat its not just me"
-
-Momentum constraint damping: Good for explicit integrators, makes a small difference to implicitly integrated binary black hole collisions. Too high damping can result in black holes traveling in straight lines
-
-Hamiltonian constraint damping: Makes a relatively small difference
-
-Christoffel damping: Super important in general. Too low damping means that black holes blow up into an odd triangular shape, too high damping prevents inspiral
-
-The trace free $$\tilde{A}$$ constraint: Critically important, slightly more robust to enforce it rather than damp it. Not damping results in instant explosions
-
-The trace free $$\tilde{\gamma}$$ constraint: Relatively unimportant
-
-### Specific modifications
-
-$\sigma$ christoffel damping: This is useful but too limited for our purposes
-
-The $\tilde{\gamma}$ modification used in this article: It may present some problems for hydrodynamic collapses (NaNs), but this is a low evidence observation
-
-The $\tilde{\Gamma}$ modification used in this article: It seems to work well, but the source paper presents no derivation which is not ideal
-
-Substituting undifferentiated $$\tilde{\Gamma}^i$$ terms for their analytic equivalent: From a theoretical perspective, its worth noting that only the derivatives of $$\tilde{\Gamma}^i$$ are numerically unstable, but its very ad-hoc. Absolutely no papers mention which specific terms they substitute (and there are many ambiguities), so its a very sketchy modification in general. I've found myself that it can exacerbate numerical stability problems (while improving the christoffel symbol constraint). It has been said that this modification only works in symmetric equal mass collisions. In general, it seems to be more problematic than its worth
-
-Upwinded derivatives: These can remove the need for kreiss-oliger dissipation, but my best guess is that its because they're actually very dissipative numerically. Its basically doing the same thing as kreiss-oliger (dissipating noise), but without the controllability or more robust theoretical background of kreiss-oliger. I've never had especially good results, and there is a discontinuity with $\beta^i$ at the singularity which means that upwinded derivatives may simply be numerically dissipating it
-
-Reducing derivative order near the singularity: This appears to better preserve energy at low resolutions, but this is not something I've robustly tested
-
-Various gauge conditions: Other than the damping parameter, I've never noticed much difference between these. Advection is commonly disabled, and can cause extra dissipation when enabled, but its somewhat counteracted here by CAKO
-
-The gauge damping parameter $N$: This is a fairly critical one and has a strong influence on the black hole's path. Its commonly set to twice the adm mass of the system or $2$, but it is *very* arbitrary. Higher values = less accurate, in theory
-
 ## Other boundary conditions
 
-There are alternatives to sommerfeld which I will mention in passing
+There are a variety of alternative boundary conditions to the sommerfeld that we use
 
 1. Fixing every field to its asymptotic value at the boundary, and not evolving it. This works if your boundary is far away (as spacetime is asmptotically flat), but requires a lot of extra simulation space
 2. Sponge constructions. This damps outgoing waves gradually. Its easy to implement, but the sponge area must be large enough to avoid reflections, which also requires a lot of extra simulation space
-3. Constraint preserving boundary conditions. These are the best and allow you to place the boundaries closest to your simulation area (as they introduce the least error), but are more complex to implement. Its on my infinitely long todo list, and there'll likely be an article on this in the future
-4. Hybrid schemes. Some schemes assume that $\beta^i = 0$ on the boundary, and evolve $\tilde{\gamma}_{ij}$ freely, then use traditional boundary conditions for the other variables. I've never tested this and have no information on the quality of the result, but it seems to work
-5. Compactification. This adjusts the coordinate system so that the grid represents the entire computational domain, and you have no boundary. This is nice theoretically, but in practice seems to be similar to a sponge construction
+3. Constraint preserving boundary conditions. These are the best and allow you to place the boundaries closest to your simulation area (as they introduce the least error), but are more complex to implement
+4. Hybrid schemes. Some schemes assume that $\beta^i = 0$ on the boundary, and evolve $\tilde{\gamma}_{ij}$ freely, then use traditional boundary conditions for the other variables. I've never tested this and have no information on the quality of the result
+5. Compactification. This adjusts the coordinate system so that the grid represents the entire of (or a lot of the) the computational domain, and you have no boundary. This is nice theoretically, but in practice seems to be similar to a sponge construction
 
-As a general note, its very common to assume that the speed of the gauge waves is $1$, instead of $\sqrt{2}$
+As a general note, its very common to assume that the speed of every wave is $1$
 
-### Paper review
-
-#### Improved fast-rotating black hole evolution simulations with modified Baumgarte-Shapiro-Shibata-Nakamura formulation
-
-[Link](https://arxiv.org/pdf/1507.00570)
-
-(1) has never worked for me even slightly
-
-(5) has issues, but can be reasonably effective if $\beta_i$ is lowered with the conformal metric, instead of the full metric (ie there's an extra factor of $w^2$). Its somewhat problematic overall as a modification, and is generally worse than the $\gamma_{ij}$ modification we use in this article I've found
-
-(6) is very heavily dissipative, and does not improve the quality of any result that I've tested
-
-(10) and (11) only bring benefit for CPU simulations, and have no real performance benefit on a GPU due to the extra code complexity. Given the instability prsent, its not worth using
-
-#### Modifications for numerical stability of black hole evolution
-
-[Link](https://arxiv.org/pdf/1205.5111). Same authors as above
-
-(61) does not work particularly well
-
-#### Advantages of modified ADM formulation: constraint propagation analysis of Baumgarte-Shapiro-Shibata-Nakamura system
-
-[Link](https://arxiv.org/pdf/gr-qc/0204002)
-
-This paper contains a wealth of useful ideas. 4.11 is too expensive to use. The modifications invlving the traces $\mathcal{A}$ and $\mathcal{S}$ are not using. $\kappa \alpha \mathcal{G}^i$ does not unfortunately make a better $\sigma$ modification. The undifferentiated hamiltonian damping terms do work reasonably well in this paper. The simpler forms of the christoffel damping don't work all that well unfortunately
-
-This paper presents a strong theoretical background for many of the modifications that are used that can often seem very ad-hoc, so its worth a read
-
-#### Notes on formalisms
+### Notes on formalisms
 
 The conformal covariant BSSN formalism is in general less stable than non covariant BSSN
 
-ccz4 and other constraint damped formalisms don't *really* help all that much with our problems here. They're also a lot more hungry in terms of performance, which makes them not a silver bullet in my experience
+Ccz4 and other constraint damped formalisms don't *really* help all that much with our problems here. They're also a lot more hungry in terms of performance, which makes them not a silver bullet in my experience
