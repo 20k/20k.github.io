@@ -70,11 +70,11 @@ std::string make_kreiss_oliger()
             return_e();
         });
 
-        //#define CAKO
+        #define CAKO
         #ifdef CAKO
         auto do_kreiss = [&](int order)
         {
-            as_ref(out[lid]) = in[lid] + eps.get() * kreiss_oliger_interior(in[pos, dim], order) * max(W[lid], valuef(0.2));
+            as_ref(out[lid]) = in[lid] + eps.get() * kreiss_oliger_interior(in[pos, dim], order) * max(W[lid], valuef(0.5));
         };
         #else
         auto do_kreiss = [&](int order)
