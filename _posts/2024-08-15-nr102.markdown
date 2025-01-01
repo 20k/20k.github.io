@@ -1399,6 +1399,8 @@ $$
 \begin{align}
 &k_{\gamma} \alpha \tilde{\gamma}_{k(i} \tilde{D}_{j)} \mathcal{G}^k\\
 &k_{\gamma} \alpha \frac{1}{2} (\tilde{\gamma}_{ki} \tilde{D}_{j} \mathcal{G}^k + \tilde{\gamma}_{kj} \tilde{D}_{i} \mathcal{G}^k) \\
+&k_{\gamma} \alpha \frac{1}{2} (\tilde{D}_{j} \mathcal{G}_i + \tilde{D}_{i} \mathcal{G}_j) \\
+&k_{\gamma} \alpha \tilde{D}_{(j} \mathcal{G}_{i)}\\
 &\tilde{\gamma}_{ka} \tilde{D}_{b} \mathcal{G}^k = \tilde{\gamma}_{ka} (\partial_b \mathcal{G}^k + \tilde{\Gamma}^k_{bc}\mathcal{G}^c) |\\
 &= \tilde{D}_{b} \mathcal{G}_a\\
 &\mathcal{G}^i = \tilde{\Gamma}^i - \tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk}\\
