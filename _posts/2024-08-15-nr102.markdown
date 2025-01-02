@@ -76,16 +76,50 @@ e: The orbital eccentricity
 
 This is a lot of parameters to bruteforce, and its why non circular orbits are such a gigantic pain, because it adds a whole extra dimension to bruteforce
 
-Traditional simulations in this area can take weeks to months, which you'll be glad to know is not going to be the case for us. It'll be about 5-10 minutes for an orbit tops
+Traditional simulations in this area can take weeks to months, which you'll be glad to know is not going to be the case for us. It takes a few minutes per-orbit on a 6700xt
 
-We'll be digging into the nitty gritty details of what these parameters mean in a physical sense shortly
+We'll be digging into the nitty gritty details of what these parameters mean in a physical sense
+
+# Recap
+
+Its been a hot minute since we the last article, so this is a quick recap before we get started. We're working in the ADM formalism, which slices up a 4d spacetime into a series of 3d slices. This 3d slice is evolved forwards in time. We have the following variables for every point on our 3d surface:
+
+| Symbol | Name | Description |
+|-|-|-|
+| $\gamma_{ij}$ | The 3 metric tensor | Describes curvature on the 3 surface |
+| $K_{ij}$ | Extrinsic curvature | The curvature of the 3 surface with respect to the 4th dimension |
+| $\alpha$ | Lapse | Part of the hypersurface normal, which points into the future |
+| $\beta^i$ | Shift | Part of the hypersurface normal, which points into the future |
+
+The BSSN formalism is a decomposition of the ADM formalism. It is theoretically exactly equivalent, but is much more numerically stable in practice. It has the following variables, derived from the ADM variables as follows:
+
+| Symbol | Name | Relation to ADM | Notes |
+|-|-|-|-|
+| $W$ | Conformal factor | $det(\gamma_{ij})^{-\frac{1}{6}}$ | Describes the relationship between the ADM variables, and the conformal BSSN variables |
+| $\tilde{\gamma}_{ij} $ | Conformal metric tensor | $W^2 \gamma_{ij}$ | Raises and lowers the indices of conformal variables. Inverted as if it were a 3x3 matrix |
+| $K$ | Trace of the extrinsic curvature | $\gamma^{ij} K_{ij}$ | |
+| $\tilde{A}_{ij}$ | Conformal extrinsic curvature | $W^2 (K_{ij} - \frac{1}{3} \gamma_{ij} K)$ | Trace free |
+| $\tilde{\Gamma}^i$ | Conformal christofffel symbol | $\tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk}$ | Evolved numerically despite having an analytic value from conformal variables, for stability reasons |
+| $\alpha$ | Lapse | $\alpha$ | No change |
+| $\beta^i$ | Shift | $\beta^i$ | No change |
+
+There are also a number of constraints. These are:
+
+1. The algebraic constraints. $det(\gamma_{ij}) = 1$, and $\tilde{A}_{ij}$ is trace free. These are enforced
+2. The momentum and hamiltonian constraints, called $\mathcal{M}_i$ and $\mathcal{H}$. We damp the former, and ignore the latter
+3. The christoffel symbol constraint, $\mathcal{G}^i = \tilde{\Gamma}^i - \tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk} = 0$. This will get damped
+
+The only general relativity you need to know for this article is:
+
+1. Raising and lowering indices
+2. How to calculate a covariant derivative. $D$ is the covariant derivative associated with $\gamma_{ij}$, and $\tilde{D}$ is the covariant derivative associated with $\tilde{\gamma}_{ij}$
 
 # What's the plan?
 
-We need a few things to get this to work:
+We need a few things to smash black holes together successfully:
 
 1. A new set of initial conditions
-2. New boundary conditions
+2. New boundary conditions, ie what happens at the edge of our domain
 3. Some modifications to the evolution equations
 
 Of all of these, the initial conditions are by far the most complicated part code-wise, so lets get to it
@@ -97,9 +131,10 @@ I'm going to present you with the easiest set of initial conditions to implement
 The paper we're going to implement today is called [A simple construction of initial data for multiple black holes](https://arxiv.org/pdf/gr-qc/9703066). This represents an extremely traditional and widespread way to construct black hole initial conditions - its also a very good paper that you should read. There are a few things that we need to learn right off the bat
 
 1. This doesn't actually make black holes, it makes objects that collapse into black holes. They have no event horizon, or apparent horizon initially. This is commonly described as a wormhole collapsing into a trumpet - a trumpet being the final configuration of a black hole in numerical relativity
-2. There is no way of a-priori specifying the 'real' (we'll get into this shortly) mass of a black hole
+2. There is no direct way of specifying the 'real' (we'll get into this shortly) mass of a black hole
 3. There is a maximum value of spin that can be expressed with this technique
 4. This works for any number of black holes, but astrophysically there's virtually no way to have a 3 body interaction. Funwise however, there is plenty of reason
+5. Its quite a noisy start. The objects we make are surrounded by gravitational waves that escape at the beginning of our simulation. This leaves a characteristic pulse
 
 Lets get into it
 
@@ -132,7 +167,7 @@ And for the decomposition
 | $\bar{\gamma}_{ij}$ | $g_{ab}$ | The conformally flat 3-metric |
 | $\bar{A}_{ij}$ | $K_{ab}$ | The conformal extrinsic curvature |
 
-The basic idea here is that when you impose conformal flatness, and maximal slicing, the momentum constraint $\mathcal{M}_i$ becomes linear, allowing you to calculate the extrinsic curvature $$\bar{A}_{ij}$$ as a sum of each individual black hole's curvature, to calculate the final (conformal) extrinsic curvature. The shape of the conformal factor $\psi$ is a *guess*, which is then corrected to be physical via a small correction $u$, by solving the laplacian (9) + (10)
+The basic idea here is that when you impose conformal flatness, and maximal slicing, the momentum constraint $\mathcal{M}_i$ becomes linear, allowing you to calculate the final (conformal) extrinsic curvature $$\bar{A}_{ij}$$ as a sum of each individual black hole's curvature. The shape of the conformal factor $\psi$ is a *guess*, which is then corrected to be physical via a small correction $u$, by solving the laplacian (9) + (10)
 
 ## Details
 
