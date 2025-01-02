@@ -5,7 +5,7 @@ date:   2024-08-15 12:33:23 +0000
 categories: C++
 ---
 
-Hello! Today we're going to do one of the coolest things in all of physics in my opinion, which is simulating the collision of two black holes. Last time round (todo: link), we implemented most of what we'll need to simulate this, so today's job is to capitalise on that and finally smash some black holes together
+Hello! Today we're going to do one of the coolest things in all of physics in my opinion, which is simulating the collision of two black holes. [Last time round](https://20k.github.io/c++/2024/07/31/nr101.html), we implemented most of what we'll need to simulate this, so today's job is to capitalise on that and finally smash some black holes together. I'd highly recommend reading the prior article first
 
 This article consists of two primary parts:
 
