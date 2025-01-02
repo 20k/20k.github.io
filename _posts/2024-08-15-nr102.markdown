@@ -134,7 +134,7 @@ The paper we're going to implement today is called [A simple construction of ini
 2. There is no direct way of specifying the 'real' (we'll get into this shortly) mass of a black hole
 3. There is a maximum value of spin that can be expressed with this technique
 4. This works for any number of black holes, but astrophysically there's virtually no way to have a 3 body interaction. Funwise however, there is plenty of reason
-5. Its quite a noisy start. The objects we make are surrounded by gravitational waves that escape at the beginning of our simulation. This leaves a characteristic pulse
+5. Its quite a noisy start. The objects we make are surrounded by gravitational waves that escape at the beginning of our simulation. This, combined with the objects collapsing into black holes, leaves a characteristic pulse in the simulation - this can cause us problems
 
 Lets get into it
 
@@ -167,7 +167,7 @@ And for the decomposition
 | $\bar{\gamma}_{ij}$ | $g_{ab}$ | The conformally flat 3-metric |
 | $\bar{A}_{ij}$ | $K_{ab}$ | The conformal extrinsic curvature |
 
-The basic idea here is that when you impose conformal flatness, and maximal slicing, the momentum constraint $\mathcal{M}_i$ becomes linear, allowing you to calculate the final (conformal) extrinsic curvature $$\bar{A}_{ij}$$ as a sum of each individual black hole's curvature. The shape of the conformal factor $\psi$ is a *guess*, which is then corrected to be physical via a small correction $u$, by solving the laplacian (9) + (10)
+Note that this has nothing to do with the BSSN conformal decomposition: its just the same technique applied slightly differently. The basic idea here is that when you impose conformal flatness, and maximal slicing, the momentum constraint $\mathcal{M}_i$ becomes linear. This allows you to calculate the final (conformal) extrinsic curvature $$\bar{A}_{ij}$$ as a sum of each individual black hole's curvature. The shape of the conformal factor $\psi$ is a *guess*, which is then corrected to be physical via a small correction $u$, by solving the laplacian (9) + (10)
 
 ## Details
 
@@ -178,7 +178,7 @@ $S^i$: A 3-vector representing the spin (angular ADM momentum) of a black hole
 $P^i$: A 3-vector representing the linear momentum (ADM mass * velocity) of a black hole
 $x^i$: A 3-vector representing the position of a black hole in world coordinates
 
-Note that bare mass is not the same thing as mass (here: ADM mass), it only correlates to it. A black hole's spin and momentum contributes to its ADM mass as well. On top of this, in the general case, the mass of a black hole in a binary pair is of questionable physicalness: see the end of this article for more details. Here, you don't need to worry about this, because we'll be giving the initial conditions in terms of bare mass: just be aware this isn't universal in the literature, and you are expected to binary search bare mass parameters to achieve your final ADM mass
+Note that bare mass is not the same thing as mass (here: ADM mass), it only correlates to it. See the end of the article for more details on the definition around a black hole's mass
 
 So far, we have the following variable definitions:
 
@@ -1558,7 +1558,9 @@ There are multiple definitions of mass that we can use:
 
 Black holes are a form of energy stored in spacetime and are a global phenomenon. Two black holes which are nearby each other store a significant amount of energy in the spacetime between them, increasing their mass (essentially further delocalising them). This makes it hard to pin down exactly how much 'mass' an individual black hole has in a binary pair, because they aren't truly separate phenonema, nor are they truly local phenomena. This means that all of these definitions of mass can disagree
 
-Despite this, its very common to use ADM mass via puncture mass[^internallyflat], and horizon mass with an approximation to its event horizon. We'll be using the former
+Despite this, its very common to use ADM mass via puncture mass[^internallyflat], and horizon mass with an approximation to its event horizon. We're using the former here
+
+Do be aware that many papers only give the black hole's mass in terms of the ADM/puncture mass, and you're expected to perform a binary search on the bare mass to achieve this
 
 [^internallyflat]: The asymptotically flat infinity here is the puncture *inside* the black hole. I have no idea how this works, but apparently it does
 
