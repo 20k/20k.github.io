@@ -84,21 +84,21 @@ We'll be digging into the nitty gritty details of what these parameters mean in 
 
 Its been a hot minute since we the last article, so this is a quick recap before we get started. We're working in the ADM formalism, which slices up a 4d spacetime into a series of 3d slices. This 3d slice is evolved forwards in time. We have the following variables for every point on our 3d surface:
 
-| Symbol | Name | Description |
-|-|-|-|
-| $\gamma_{ij}$ | The 3 metric tensor | Describes curvature on the 3 surface |
-| $K_{ij}$ | Extrinsic curvature | The curvature of the 3 surface with respect to the 4th dimension |
-| $\alpha$ | Lapse | Part of the hypersurface normal, which points into the future |
-| $\beta^i$ | Shift | Part of the hypersurface normal, which points into the future |
+| Symbol | Name | Relation to normal GR  | Description |
+|-|-|-|-|
+| $\gamma_{ij}$ | The 3 metric tensor | $g_{ij}$ | Describes curvature on the 3 surface. Symmetric |
+| $K_{ij}$ | Extrinsic curvature | $\frac{1}{2 \alpha} (D_i \beta_j + D_j \beta_i - \frac{\partial g_{ij}}{\partial_t})$ | The curvature of the 3 surface with respect to the 4th dimension. Symmetric |
+| $\alpha$ | Lapse | $\sqrt{-g_{00} + \beta^m \beta_m}$ | Part of the hypersurface normal, which points into the future |
+| $\beta^i$ | Shift | $g_{0i}$ | The other part of the hypersurface normal, which points into the future |
 
-The BSSN formalism is a decomposition of the ADM formalism. It is theoretically exactly equivalent, but is much more numerically stable in practice. It has the following variables, derived from the ADM variables as follows:
+Where latin indices run from 1-3, greek indices run from 0-4, and the regular 4-metric tensor is $g_{\mu\nu}$. The BSSN formalism is a decomposition of the ADM formalism. It is theoretically exactly equivalent, but is much more numerically stable in practice. It has the following variables, derived from the ADM variables as follows:
 
 | Symbol | Name | Relation to ADM | Notes |
 |-|-|-|-|
 | $W$ | Conformal factor | $det(\gamma_{ij})^{-\frac{1}{6}}$ | Describes the relationship between the ADM variables, and the conformal BSSN variables |
-| $\tilde{\gamma}_{ij} $ | Conformal metric tensor | $W^2 \gamma_{ij}$ | Raises and lowers the indices of conformal variables. Inverted as if it were a 3x3 matrix |
+| $\tilde{\gamma}_{ij} $ | Conformal metric tensor | $W^2 \gamma_{ij}$ | Raises and lowers the indices of conformal variables. Inverted as if it were a 3x3 matrix. Symmetric, and has a unit determinant |
 | $K$ | Trace of the extrinsic curvature | $\gamma^{ij} K_{ij}$ | |
-| $\tilde{A}_{ij}$ | Conformal extrinsic curvature | $W^2 (K_{ij} - \frac{1}{3} \gamma_{ij} K)$ | Trace free |
+| $\tilde{A}_{ij}$ | Conformal extrinsic curvature | $W^2 (K_{ij} - \frac{1}{3} \gamma_{ij} K)$ | Trace free, symmetric |
 | $\tilde{\Gamma}^i$ | Conformal christofffel symbol | $\tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk}$ | Evolved numerically despite having an analytic value from conformal variables, for stability reasons |
 | $\alpha$ | Lapse | $\alpha$ | No change |
 | $\beta^i$ | Shift | $\beta^i$ | No change |
