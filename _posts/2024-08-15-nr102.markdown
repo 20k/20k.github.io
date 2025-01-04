@@ -138,7 +138,7 @@ The paper we're going to implement today is called [A simple construction of ini
 
 Lets get into it
 
-## Implementing
+## What are we trying to do?
 
 To take a step back, we're trying to find initial values for the following ADM variables:
 
@@ -169,7 +169,7 @@ And for the decomposition
 
 Note that this has nothing to do with the BSSN conformal decomposition: its just the same technique applied slightly differently. The basic idea here is that when you impose conformal flatness, and maximal slicing, the momentum constraint $\mathcal{M}_i$ becomes linear. This allows you to calculate the final (conformal) extrinsic curvature $$\bar{A}_{ij}$$ as a sum of each individual black hole's curvature. The shape of the conformal factor $\psi$ is a *guess*, which is then corrected to be physical via a small correction $u$, by solving the laplacian (9) + (10)
 
-## Details
+## Parameters
 
 This method has the following parameters:
 
@@ -178,7 +178,7 @@ $S^i$: A 3-vector representing the spin (angular ADM momentum) of a black hole
 $P^i$: A 3-vector representing the linear momentum (ADM mass * velocity) of a black hole
 $x^i$: A 3-vector representing the position of a black hole in world coordinates
 
-Note that bare mass is not the same thing as mass (here: ADM mass), it only correlates to it. See the end of the article for more details on the definition around a black hole's mass
+Note that bare mass is not the same thing as what you'd think of as mass (here: ADM mass), it only correlates to it. See the end of the article for more details on the definition around a black hole's mass
 
 So far, we have the following variable definitions:
 
@@ -190,9 +190,7 @@ $$
 \end{align}
 $$
 
-Todo: Explain dimensionless spin
-
-## Conformal extrinsic curvature
+## Conformal extrinsic curvature ($\bar{A}_{ij}$)
 
 This is straightforward. For every black hole in our spacetime, we calculate the quantity (5), and then sum over our black holes. After accumulating all of these, I store $\bar{A}^{ab} \bar{A}_{ab}$ as a scalar
 
@@ -291,9 +289,11 @@ tensor<valuef, 3, 3> get_aIJ(v3f world_pos, v3f bh_pos, v3f angular_momentum, v3
 }
 ```
 
+The details of the summation are very unexciting, and can be found over at todo:
+
 Next up: We need the conformal factor $\psi$, which involves calculating the correction $u$
 
-## Conformal Factor
+## Conformal Factor ($\psi$)
 
 The conformal factor $\psi$ here is listed as:
 
@@ -724,7 +724,7 @@ std::vector<float> extract_adm_masses(cl::context& ctx, cl::command_queue& cqueu
 }
 ```
 
-This equation can be used to solve for a specific ADM mass by binary searching. There is no way a priori to get a specific ADM mass, so this is the only way to do it
+This equation can be used to solve for a specific ADM mass from our bare mass parameter by binary searching. There is no way a priori to get a specific ADM mass, so this is the only way to do it
 
 ### Gauge
 
@@ -764,7 +764,7 @@ The derivatives at the boundary will be one sided derivatives. Here's a table of
 | $\alpha$ | 1 | $\sqrt{2}$ [see (36)](https://arxiv.org/pdf/gr-qc/0206072) |
 | $\beta^i$ | 0 | $1$ in practice, [see (51)](https://arxiv.org/pdf/gr-qc/0206072) |
 
-Its common to use a wave speed of $v=1$ for all variables
+It's common to use a wave speed of $v=1$ for all variables
 
 Code wise, this is very straightforward:
 
@@ -782,13 +782,13 @@ valuef diff1_boundary(single_source::buffer<valuef> in, int direction, const val
     d.pos = pos;
     d.dim = dim;
 
-    ///If we're at the boundary, do one sided derivatives
-    ///otherwise shell out to diff1, which must handle near boundary points correctly
     mut<valuef> val = declare_mut_e(valuef(0.f));
 
+    ///due to padding, the boundary grid cell is actually pos == 1, and pos == dim - 2, instead of 0 and dim-1
     value<bool> left = pos[direction] == 1;
     value<bool> right = pos[direction] == dim[direction] - 2;
 
+    ///If we're at the boundary, do one sided derivatives
     if_e(left, [&]{
         as_ref(val) = (-3.f * in[pos, dim] + 4 * in[pos + offset, dim] - in[pos + 2 * offset, dim]) / (2 * scale);
     });
@@ -797,6 +797,7 @@ valuef diff1_boundary(single_source::buffer<valuef> in, int direction, const val
         as_ref(val) = (3.f * in[pos, dim] - 4 * in[pos - offset, dim] + in[pos - 2 * offset, dim]) / (2 * scale);
     });
 
+    ///otherwise shell out to diff1, which must handle near boundary points correctly
     if_e(!(left || right), [&]{
         as_ref(val) = diff1(in[pos, dim], direction, d);
     });
@@ -852,7 +853,7 @@ auto sommerfeld = [&](execution_context&, buffer<valuef> base, buffer<valuef> in
 };
 ```
 
-Note that the boundary conditions lead to errors that gradually contaminate our simulation, and cause errors. In general, this is often solved by simply placing them far away, but its a problem in longer lived simulations. More complex boundary conditions are a future topic
+Note that the boundary conditions lead to errors that gradually contaminate our simulation, and can cause problems over time. In general, this is often solved by simply placing them far away, but its a problem in longer lived simulations. More complex boundary conditions are a future topic
 
 There are two other boundary conditions we need now as well:
 
@@ -1003,7 +1004,7 @@ We've now solved the initial conditions, and implemented our boundary conditions
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/fnGNOeT2So8?si=Zspf1_cJZCBt4dhL" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-(Please note, from now on: All videos show the value of lapse)
+(this is the lapse)
 
 Todo: Sad cat picture
 
@@ -1094,15 +1095,19 @@ tensor<valuef, 3> get_dtgB(bssn_args& args, const derivative_data& d)
 }
 ```
 
-The new gauge conditions on their own do not allow our simmulation to live longer, though they are a necessary component
+These gauge conditions on their own aren't a fix for us (as we were actually already using these), but they are a very necessary component
 
 ### Momentum constraint errors
 
 Todo: Need to check momentum constraint definition, specifically if its (YA),i or Y (A,i)
 
-These can be damped in exactly the same form as in the previous article, via eg [4.9](https://arxiv.org/pdf/gr-qc/0204002):
+The momentum constraint can be damped in exactly the same form as in the previous article, via eg [4.9](https://arxiv.org/pdf/gr-qc/0204002), and [(54)](https://arxiv.org/pdf/1205.5111v1.pdf)
 
-$$\partial_t \tilde{A}_{ij} = \partial_t \tilde{A}_{ij} + k_m \alpha \tilde{D}_{(i}\mathcal{M}_{j)}$$
+$$\begin{align}
+\mathcal{M_i} &= \partial_j \tilde{A}_i^j - \frac{1}{2} \tilde{\gamma}^{jk} \tilde{A}_{jk,i} + 6 \partial_j \phi \tilde{A}_i^j - \frac{2}{3} \partial_i K \\
+\partial_i \phi &= -\frac{\partial_i W}{2 W} \\
+\partial_t \tilde{A}_{ij} &= \partial_t \tilde{A}_{ij} + k_m \alpha \tilde{D}_{(i}\mathcal{M}_{j)} \\
+\end{align}$$
 
 Traditionally, momentum constraint violations tend to produce high frequency, self reinforcing oscillations, resulting in your simulation blowing up. With an implicit integrator this doesn't happen, so momentum constraint damping is more about increasing correctness rather than for stability reasons. This makes it much less important for us in this construction
 
@@ -1110,9 +1115,7 @@ If you are using something like RK4, you will need this modification for stabili
 
 ### Christoffel symbol errors
 
-Fixing up this constraint is much more important to the long running of our sim. The traditional damping schemes are as following:
-
-[see (45)](https://arxiv.org/pdf/gr-qc/0209066)
+Fixing up this constraint is much more important to the long running of our sim. The traditional damping schemes are as following: [(45)](https://arxiv.org/pdf/gr-qc/0209066)
 
 $$
 \begin{align}
@@ -1134,13 +1137,13 @@ Where $\chi$ > 0, and $k_g$ < 0. `step` is a function that returns $1$ if its ar
 
 ## Lets try it
 
-With $\chi = 0.5$ and $k_m = 0.04$, and the non standard kreiss-oliger $\epsilon = 0.05$ (more on this later), we get something that looks like this:
+With $\chi = 0.5$ and $k_m = 0.04$, and the non standard kreiss-oliger $\epsilon = 0.05$ (see the end of the article for an in depth discussion), we get something that looks like this:
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/PT2GXno2dMQ?si=oV5KRitGM6XZgq5t" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 While we can play around with the constants a bit to adjust the results, at our resolution and scale, its essentially impossible to get this to work correctly. This kind of error is *very* common
 
-These modifications would, in theory, work if you were using some kind of adaptive mesh refinement scheme with very high accuracy. Unfortunately, the entire point of this article series is to try and do simulations a little faster than that, so instead of relying on more compute power to fix our problems, we're going to see if we can get a little more bang for our buck
+These modifications would, in theory, work if you were using some kind of adaptive mesh refinement scheme with very high accuracy. The main point of this article series is to try and do simulations a little faster than that, so instead of relying on more compute power to fix our problems, we're going to see if we can get a little more bang for our buck
 
 ## Lets reproduce a result
 
@@ -1158,15 +1161,15 @@ Today we're going to focus on trying to reproduce a specific result: The no spin
 
 [^youcanusethis]: This can be used to check the accuracy of your laplacian solver. You should be able to get very close to this value, eg 0.5045
 
-The black holes are expected to collide at roughly T=160, after approximately 1.8 orbits. For our sim, we'll have the following test parameters
+The black holes are expected to collide at roughly T=160, after approximately 1.8 orbits. For our sim, we'll have the following test parameters:
 
-```c++
-resolution = {213, 213, 213}
-simulation_width = 30
-h = (simulation_width / (resolution.x - 1)), aka scale
-n (the damping parameter) = 2
-todo: eps for kreiss-oliger
-```
+| Parameter | Value |
+|-|-|
+| Resolution | $213^3$ |
+| Simulation width | $30$ |
+| h (ie scale) | `(simulation_width / (resolution.x - 1))` |
+| $\eta$ (the gauge damping parameter) | 2 |
+| $\epsilon$ (kreiss-oliger damping) | $0.05$ |
 
 The goal here is to demonstrate specific types of errors, the general approach that you might use to fix them, and to give you an overview of what kinds of issues you're going to run into. Note that until we implement gravitational waves detection, there's little point trying to calibrate our sim *exactly* via the mk 1 eyeball, so we're going to settle for "looks decent, would work better with a higher resolution and some constant tweaks"
 
@@ -1194,7 +1197,7 @@ While we can see that higher damping somewhat improves the situation, its clearl
 
 Please note, we are not using the semi-standard analytic christoffel substitution (more on this soon)
 
-#### Christoffel damping schemes
+### Christoffel damping schemes
 
 There are a variety of schemes available for improving the christoffel symbols, of which I'm picking a few interesting ones:
 
@@ -1206,7 +1209,7 @@ There are a variety of schemes available for improving the christoffel symbols, 
 
 Please note that the informal names are something I've purely jotted down for clarity
 
-##### The christoffel substitution
+#### The Christoffel substitution
 
 This is easy enough to implement. There are only 4 instances where this substitution can be applied:
 
@@ -1255,7 +1258,7 @@ Overall, this modification is.. ok. In general, it tends to work well for octant
 
 All in all: Not great, not terrible. We won't be using this modification on a permanent basis, but its worth considering testing this with some of the later modifications
 
-##### Christoffel lapse modification
+#### Christoffel lapse modification
 
 This modification is fairly easy to calculate. $\mathcal{G}^i$ is conventionally defined as:
 
@@ -1292,7 +1295,7 @@ This modification has been a tricky one to try and show off. In general, either 
 
 In general, my experience of this is that its one we can simply discard. I could have ditched this from the article entirely, but this kind of stuff will make up a very large quantity of what you're run into here
 
-##### Metric modification
+#### Metric modification
 
 For this, we'd like to calculate the following quantity:
 
@@ -1436,7 +1439,7 @@ This is clearly quite dissipative. Every scheme we have currently is either too 
 
 In general, there's a bit of a balance between the different modifications. I'm trying to avoid hopping back and forth between different techniques, or repeatedly fine tuning before we've put all the techniques together as much as possible, but you can see how its tricky
 
-#### Slow start lapse
+### Slow start lapse
 
 The initial conditions we have aren't actually for black holes, they're for objects that collapse into black holes. This results in a lot of initial gauge jiggling as they collapse into black holes - particularly for the lapse - that can be bad for the health of the simulation. Particularly because we have a low resolution and bad boundary conditions, this tends to lead to a lot of errors in the initial phase of the simulation, which can make it operate more poorly
 
@@ -1463,7 +1466,7 @@ Which is very interesting. In general, this modification is a free win, so we'll
 
 Do note, due to the nature of inspiral, as our modifications improve the situation it can result in disproportionately large differences in the end merger time despite what you might notionally consider a linear improvement in quality
 
-#### Curvature adjusted kreiss-oliger dissipation (CAKO)
+### Curvature adjusted kreiss-oliger dissipation (CAKO)
 
 If you remember, kreiss-oliger is a method of removing high frequency oscillations from your grid, and it damps out numerical errors. The basic idea with our next modification [here, (20)](https://arxiv.org/pdf/2404.01137) is that sharp features near the event horizon of a black hole are likely natural, and require less smoothing. This makes a certain amount of sense, and after all - if we're trying to represent as much information on our grid as possible, removing high frequencies in high frequency areas seems like a prime candidate for wasting grid resolution
 
@@ -1497,6 +1500,7 @@ So far, we've got a collection of different modifications, some of which have di
 | $\chi$ | Damping strength for the $\tilde{\Gamma}^i$ modification | $0.5$ |
 | $h$ | Strength of the initial lapse damping | $\frac{3}{5}$ |
 | $k_{\gamma}$ | Strength of the $\tilde{\gamma}_{ij}$ christoffel damping | $-0.1$ |
+| $\eta$ | Gauge Damping Parameter | $2$ |
 
 There will now be a brief intermission
 
@@ -1510,6 +1514,7 @@ So, with the following parameters:
 | $\chi$ | Damping strength for the $\tilde{\Gamma}^i$ modification | $0.55$ |
 | $h$ | Strength of the initial lapse damping | $\frac{4}{5}$ |
 | $k_{\gamma}$ | Strength of the $\tilde{\gamma}_{ij}$ christoffel damping | $-0.09$ |
+| $\eta$ | Gauge Damping Parameter | $2$ |
 
 We get this:
 
