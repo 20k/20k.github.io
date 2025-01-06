@@ -1624,31 +1624,41 @@ True event horizon calculation requires storing the entire history of the simula
 
 [^wewilldothis]: We're actually going to do this in a future article, to produce accurate renderings of binary black hole collisions
 
-## Convergence issues, and Kreiss Oliger
+## Convergence issues, Kreiss Oliger, and implicit integrators
 
 One of the difficulties with all of this is trying to prove that your code converges. The idea is, as your grid resolution goes up, your code should become more accurate
 
 The tricky part is that while we use scalar constants for damping factors, many of these factors are actually *not* resolution independent, and should really scale with some factor of the grid resolution
 
-Kreiss-oliger is something that stood out to me as a candidate for making convergence tricky. If we examine the specific form of kreiss oliger, you'll notice that for eg second order kreiss, we can expand it out as follows:
+Kreiss-oliger is something has made convergence quite tricky for me. Kreiss-Oliger has the definition:
 
-todo
+$$\partial_t U = \partial_t U + -1^{\frac{p+3}{2}} \epsilon \frac{h^p}{2^{p+1}} (\frac{\partial^{p+1}}{\partial x^{p+1}} + \frac{\partial^{p+1}}{\partial y^{p+1}} + \frac{\partial^{p+1}}{\partial z^{p+1}})U$$
 
-This involves a single division by the scale. So as your grid resolution goes down, the prefix term blows up to infinity. What gives?
+If we examine a specific form of this, you'll notice that for eg second order kreiss in a single direction, we can discretise it and expand it out as follows:
+
+$$c \epsilon \frac{U[-1] + -2 U[0] + U[1]}{h}$$
+
+Where $h$ is your spacing between grid cells, and $c$ is a constant we don't care about. This involves a single division by the scale, as does any expanded form at any order. So as your grid resolution goes up, this blows up to infinity. With that in mind, this is something we integrate by time - so lets multiply by a timestep $\Delta t$
+
+$$c \epsilon \frac{\Delta t}{h} (U[-1] + -2 U[0] + U[1])$$
+
+Eager eyed readers might recognise the $\frac{\Delta t}{h}$ term as the courant factor, which presents a bit of a problem for us
 
 ### Courant Factors
 
-If you're unfamiliar with the concept of a courant factor, the core concept is that the timestep of any simulation is limited by what's called a courant factor. It is essentially the statement that information can only propagate across your grid at a finite speed, and is mathematically defined as $\frac{\Delta t}{\Delta h} = C$. If you increase your timestep too high, you must have instability, because you're trying to pipe information through your grid faster than your problem allows it to propagate. Similarly, if you change your grid resolution, you must also change your timestep to match
+If you're unfamiliar with the concept, the core idea is that the timestep of any simulation is limited by what's called a courant factor. It is essentially the statement that information can only propagate across your grid at a finite speed, and is defined as $\frac{\Delta t}{h} = C$. If you increase your timestep too high, you must have instability, because you're trying to pipe information through your grid faster than your problem allows it to propagate. Similarly, if you change your grid resolution, you must also change your timestep to match. Most simulations have a constant courant factor, and automatically adjust the timestep to match at different resolutions
 
-If you compare, the prefix factor of kreiss-oliger *is* the courant factor, and is therefore a constant. It would certainly sound sensible to replace it with a constant, except...
+In any finite discretisation of a partial differential equation, Kreiss-Oliger's strength is a multiple of the courant factor, and therefore its strength is a constant (per unit time), independent of our resolution. This is all well and good, until we hit implicit integrators
 
 ### We don't have a courant factor
 
-I missed part of the definition of the courant factor, which is that it only applies to *explicit* integrators. Equations which are implicitly integrated do not have a courant factor, as they propagate information faster than with an explicit integrator. In fact, $\frac{\Delta t}{\Delta h}$ can be arbitrarily large, and is only limited by the convergence of your implicit integration technique. With a stable implicit integrator of sufficient quality - grid resolution, and timestep, are fully decoupled
+Equations which are implicitly integrated do not strictly have a courant factor, as they propagate information faster than with an explicit integrator. In fact, $\frac{\Delta t}{h}$ can be arbitrarily large, and is only limited by the convergence of your implicit integration technique. With an implicit integrator of sufficient quality - grid resolution, and timestep, are fully decoupled. With our current integration strategy, we have a pseudo-courant factor[^pseudocourant] of ~2x an explicit integration scheme
 
-This raises a tricky question: If we change the size of our grid resolution to being infinitely small, our timestep doesn't necessarily have to change beyond practical convergence limitations. This means that kreiss oliger is somewhat ill defined for us, as there's no reason that the prefix term is fixed to anything useful
+[^pseudocourant]: The fixed point iteration scheme here limits our large our timestep can be, not the stability of the equations. With 3 iterations we can increase our timestep further, and with more iterations or a completely different scheme entirely, we can arbitrarily increase the timestep
 
-To work around these, we're going to set it to a constant, and emulate having a courant factor by calculating our timestep as if we had one. Bear in mind that this is fairly arbitrary, and I suspect is why other people's kreiss-oliger settings do not directly work in our code. Unfortunately, this is the only simulation I've seen which uses fully implicit integration, so I've seen exactly 0 discussion of this issue in the literature[^imexstepping]
+This raises a tricky question: If we change the size of our grid resolution to being infinitely small, our timestep doesn't necessarily have to change beyond practical convergence limitations. This means that kreiss oliger is somewhat ill defined for us, as there's no reason that the prefix term is fixed or bounded. Effectively, our dissipation per unit time can be virtually anything, with the same constant $\epsilon$
+
+To make this problem explicit, we're going to replace $\epsilon \frac{\Delta t}{h}$ by just a single $\epsilon$, and we'll have to manually adjust this for different resolutions and timesteps - which is already what I was having to do anyway. Unfortunately, this is the only simulation I've seen which uses fully implicit integration, so I've seen exactly 0 discussion of this issue in the literature[^imexstepping]
 
 [^imexstepping]: The SXS group use imex stepping, which is a semi implicit scheme. They split the equations up, and solve them partially implicitly. Notably however, they do not solve the derivatives implicitly due to the computational cost, which means that this implicit scheme cannot sidestep the courant factor as with a fully implicit scheme - I suspect this is why they see only marginal benefits
 
@@ -1661,8 +1671,6 @@ There are a variety of alternative boundary conditions to the sommerfeld that we
 3. Constraint preserving boundary conditions. These are the best and allow you to place the boundaries closest to your simulation area (as they introduce the least error), but are more complex to implement
 4. Hybrid schemes. Some schemes assume that $\beta^i = 0$ on the boundary, and evolve $\tilde{\gamma}_{ij}$ freely, then use traditional boundary conditions for the other variables. I've never tested this and have no information on the quality of the result
 5. Compactification. This adjusts the coordinate system so that the grid represents the entire of (or a lot of the) the computational domain, and you have no boundary. This is nice theoretically, but in practice seems to be similar to a sponge construction
-
-As a general note, its very common to assume that the speed of every wave is $1$
 
 ## Notes on formalisms
 
