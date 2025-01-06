@@ -7,18 +7,19 @@ categories: C++
 
 Hello! Today we're going to do one of the coolest things in all of physics in my opinion, which is simulating the collision of two black holes. [Last time round](https://20k.github.io/c++/2024/07/31/nr101.html), we implemented most of what we'll need to simulate this, so today's job is to capitalise on that and finally smash some black holes together. I'd highly recommend reading the prior article first
 
-This article consists of two primary parts:
+This article consists of three primary parts:
 
-1. Solving our new initial conditions for black holes, via a simple laplacian
-2. Modifying the equations to render them suitable for simulating binary black hole collisions
+1. Solving a new set of initial conditions for black holes, via a simple laplacian
+2. Implementing new boundary conditions, as our simulation is no longer periodic, but has a finite extent
+3. Modifying the evolution equations to render them suitable for simulating binary black hole collisions
 
 This article was significantly delayed due to illness sadly \:(
 
-Todo: Plug myself, list PC specs. MORE CAT PICTURES
+Todo: Plug myself, list PC specs. MORE CAT PICTURES. Bsky, link code
 
 # Astrophysics Context
 
-Its worth taking a minute to understand what a black hole actually is, and why its such a difficult road to simulate them numerically. In general relativity, a black hole is a form of *soliton* - it is a stable, self supporting configuration of spacetime, that propagates itself indefinitely. It does not require any matter to support it, nor necessarily to even form it. The spacetimes we are dealing with here are vacuum solutions - there's no matter of any description here
+Its worth taking a minute to understand what a black hole actually is, and why its such a difficult road to simulate them numerically. In general relativity, a black hole is a stable, self supporting configuration of spacetime, which propagates itself indefinitely. It does not require any matter to support it, nor necessarily to even form it. The spacetimes we are dealing with are vacuum solutions - there's no matter of any description here
 
 Black holes have two primary distinguishing features compared to other compact objects:
 
@@ -33,7 +34,7 @@ The event horizon itself acts completely normally in general relativity, but it 
 
 ## Managing the singularity
 
-There are two primary techniques for dealing with the singularity: Excision, and the moving punctures technique
+There are two primary techniques for dealing with the singularity, known as: excision, and the moving punctures technique
 
 ### Excision
 
@@ -49,11 +50,9 @@ In practice, its a lot trickier than this, and it involves a lot of subtleties t
 
 ## Gravitational waves
 
-The reason for doing any of this is that tools like LIGO are able to detect gravitational waves from merging compact objects, and gives us a measure of the deformation of spacetime as those waves path through the earth. The only way to reverse engineer which objects collided, is to simulate those gravitational waves ourselves via simulations like this, and then match up what set of parameters most closely matches our observed wave
+The reason for doing any of this is that tools like LIGO are able to detect gravitational waves from merging compact objects, and this gives us a measure of the deformation of spacetime as those waves path through the earth. The only way to reverse engineer which objects collided, is to simulate those gravitational waves ourselves via simulations like this, and then match up which set of parameters most closely reproduces our observations. This means that accuracy here is *very* important
 
-This means that physical accuracy here is paramount, and we're going to have to be very careful with how we operate in general. We won't be pulling out gravitational waves today however, but it'll be coming up shortly
-
-To perform this matching, as far as I know there's no better way than simply bruteforcing the entire parameter space. For a pair of black holes in an ADM simulation, you have the following parameters:
+To perform this matching, there's no better way than simply bruteforcing the entire parameter space. For a pair of black holes in an ADM simulation, you have the following parameters:
 
 M1: The mass of the first black hole
 M2: The mass of the second black hole
@@ -63,15 +62,17 @@ X1: The spin constant of the first black hole
 X2: The spin constant of the second black hole
 e: The orbital eccentricity
 
-(We'll be digging into the nitty gritty details of what these parameters mean in a physical sense)
+(We'll be digging into the details of what these parameters mean in a physical sense)
 
-This is a lot of bruteforcing to do, and its why non circular orbits are such a gigantic pain: it adds a whole extra dimension to bruteforce! Initially it was hoped that mergers had a low eccentricity - but as far as I'm aware, this is not the case
+This is a lot of bruteforcing to do, and its why non circular orbits are such a gigantic pain: it adds a whole extra dimension to bruteforce! Initially it was hoped that mergers had no eccentricity - but as far as I'm aware, this is not the case
 
 Traditional simulations in this area can take weeks to months, which you'll be glad to know is not going to be the case for us. It takes a few minutes per-orbit on a 6700xt. Note that for equal mass binary black holes with axis aligned spins, you can use an octant symmetry reduction for an 8x performance boost. For unequal mass binaries with axis aligned spins, you can use an axisymmetric reduction for a 2x boost. We'll be avoiding both of these here, but if you have low end hardware (<= 4GB vram or a CPU), you may want to consider this
 
 # Recap
 
-Its been a hot minute since the last article, so this is a quick recap before we get started. We're working in the ADM formalism, which slices up a 4d spacetime into a series of 3d slices. This 3d slice is evolved forwards in time. We have the following variables for every point on our 3d surface:
+Its been a hot minute since the last article, so this is a quick recap before we get started. We're working in the ADM formalism, which slices up a 4d spacetime into a series of 3d slices (a 'foliation'). An initial 3d slice is evolved forwards in time
+
+In general relativity, spacetime is defined completely by a metric tensor $g_{\mu\nu}$, which has a value everywhere on a 4d spacetime. In ADM, this is split up into various pieces - and we have the following variables for every point on our 3d surface:
 
 | Symbol | Name | Relation to normal GR  | Description |
 |-|-|-|-|
@@ -80,7 +81,7 @@ Its been a hot minute since the last article, so this is a quick recap before we
 | $\alpha$ | Lapse | $\sqrt{-g_{00} + \beta^m \beta_m}$ | Part of the hypersurface normal, which points into the future |
 | $\beta^i$ | Shift | $g_{0i}$ | The other part of the hypersurface normal, which points into the future |
 
-Where latin indices run from 1-3, greek indices run from 0-4, and the regular 4-metric tensor is $g_{\mu\nu}$. The BSSN formalism - the set of equations we're actually using - is a decomposition of the ADM formalism. It is theoretically exactly equivalent, but is much more numerically stable in practice. It has the following variables, derived from the ADM variables as follows:
+Where latin indices run from 1-3, greek indices run from 0-4. The BSSN formalism - the set of equations we're actually using - is a decomposition of the ADM formalism. It is theoretically exactly equivalent, but is much more numerically stable in practice. It has the following variables, derived from the ADM variables as follows:
 
 | Symbol | Name | Relation to ADM | Notes |
 |-|-|-|-|
@@ -94,7 +95,7 @@ Where latin indices run from 1-3, greek indices run from 0-4, and the regular 4-
 
 There are also a number of constraints. These are:
 
-1. The algebraic constraints. $det(\gamma_{ij}) = 1$, and $\tilde{A}_{ij}$ is trace free. These are enforced (see the last article for details)
+1. The algebraic constraints. $det(\gamma_{ij}) = 1$, and $\tilde{A}_{ij}$ is trace free ($\tilde{\gamma}^{ij} \tilde{A}_{ij} = 0$). These are enforced: see the last article for details
 2. The momentum and hamiltonian constraints, called $\mathcal{M}_i$ and $\mathcal{H}$. We damp the former, and ignore the latter
 3. The christoffel symbol constraint, $\mathcal{G}^i = \tilde{\Gamma}^i - \tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk} = 0$. This will get damped
 
@@ -102,6 +103,7 @@ The only general relativity you need to know for this article is:
 
 1. Raising and lowering indices
 2. How to calculate a covariant derivative. $D$ is the covariant derivative associated with $\gamma_{ij}$, and $\tilde{D}$ is the covariant derivative associated with $\tilde{\gamma}_{ij}$
+3. Tensor index notation
 
 # What's the plan?
 
@@ -133,13 +135,13 @@ K_{ij}\\
 \beta^i
 $$
 
-This technique solves for $\gamma_{ij}$ and $K_{ij}$, and leaves us to guess $\alpha$ and $\beta^i$. Because the latter two variables are gauge variables, we can (in theory[^ofcourse]) pick them arbitrarily. Once we have these, we can perform the BSSN decomposition up above on them, and then we're done
+This technique solves for $\gamma_{ij}$ and $K_{ij}$, and leaves us to guess $\alpha$ and $\beta^i$. Because the latter two variables are gauge variables, we can (in theory[^ofcourse]) pick them arbitrarily. Once we have these, we can perform the BSSN decomposition on them, and then we're done
 
 This method falls under the class of initial conditions known as 'conformally flat'. This means it decomposes the metric tensor into a flat conformal metric (the identity matrix in cartesian coordinates), and a conformal/scalar factor $\psi$. It also decomposes the extrinsic curvature $K^{ph}_{ij}$ ('physical', this is our $K_{ij}$) into a trace $K=0$, and a trace free part which this paper calls $K_{ij}$ (and other papers often call $$\bar{A}_{ij}$$). This is called a maximal slice
 
 [^ofcourse]: Of course, as you can probably guess, its very important what their value is in practice for numerical reasons
 
-Notationally, this is already a hot mess, and this is a standard issue in the field as the notation has evolved over time. Here's the notation for what we're using:
+Notationally, this is already a hot mess, and this is a standard issue in the field as the notation has evolved over time. Here's the notation for what we're doing:
 
 | Standard Adm | Paper Notation | Meaning |
 |-|-|-|
@@ -151,7 +153,7 @@ And for the decomposition
 | Our notation | Paper Notation | Meaning |
 |-|-|-|
 | $\psi$ | $\psi$ | The conformal factor |
-| $\bar{\gamma}_{ij}$ | $g_{ab}$ | The conformally flat 3-metric |
+| $\bar{\gamma}_{ij}$ | $g_{ab}$ | The conformally flat 3-metric. The identity matrix in cartesian coordinates |
 | $\bar{A}_{ij}$ | $K_{ab}$ | The conformal extrinsic curvature |
 
 Note that this has nothing to do with the BSSN conformal decomposition: its just the same technique applied slightly differently. The basic idea here is that when you impose conformal flatness, and maximal slicing, the momentum constraint $\mathcal{M}_i$ becomes linear. This allows you to calculate the final (conformal) extrinsic curvature $$\bar{A}_{ij}$$ as a sum of each individual black hole's curvature. The shape of the conformal factor $\psi$ is a *guess*, which is then corrected to be physical via a small correction $u$, by solving the laplacian (9) + (10)
@@ -165,13 +167,13 @@ $S^i$: A 3-vector representing the spin (angular ADM momentum) of a black hole
 $P^i$: A 3-vector representing the linear momentum (ADM mass * velocity) of a black hole
 $x^i$: A 3-vector representing the position of a black hole in world coordinates
 
-Note that bare mass is not the same thing as what you'd think of as mass (here: ADM mass), it only correlates to it. See the end of the article for more details on the definition around a black hole's mass
+Note that bare mass is not the same thing as what you'd think of as mass (here: ADM mass), it only correlates to it. See the end of the article for more details on the definition of a black hole's mass
 
 So far, we have the following variable definitions:
 
 $$
 \begin{align}
-&\bar{\gamma}_{ij} &&= \gamma_{ij} \psi^{-4} = \delta_{ij} = I \\
+&\bar{\gamma}_{ij} &&= \gamma_{ij} \psi^{-4} \\
 &\bar{A}_{ij} &&= K_{ij} \psi^2 \\
 &\psi && = ?
 \end{align}
@@ -181,7 +183,7 @@ $$
 
 This is straightforward. For every black hole in our spacetime, we calculate the quantity (5), and then sum over our black holes. After accumulating all of these, I store $\bar{A}^{ab} \bar{A}_{ab}$ as a scalar
 
-For a single black hole, we have this - drawing from the relevant parameters for that black hole:
+For a single black hole:
 
 $$
 \begin{align}
@@ -190,7 +192,7 @@ $$
 \end{align}
 $$
 
-And for multiple black holes we have this:
+For multiple black holes:
 
 $$
 \bar{A}^{ij}_{summed} = \sum_1^n \bar{A}^{ij}_{single}
@@ -206,9 +208,7 @@ This works for any number of black holes
 
 There's a clear problem when $r = 0$, and the solution is to either position your black holes so this is impossible, or clamp to a small value
 
-If you have no plans to ever work in non cartesian coordinate systems (which we don't), the metric tensor $\bar{\gamma}_{ij}$ is the identity matrix, and you can ignore the index positions. Otherwise, it raises and lowers indices as normal
-
-For multiple black holes, you simply sum all your $\bar{A}^{ij}$ terms
+If you have no plans to ever work in non cartesian coordinate systems (which we don't), the metric tensor $\bar{\gamma}_{ij}$ is the identity matrix, and you can ignore the index positions. It raises and lowers indices as normal
 
 Code wise: This is all straightforward to implement:
 
@@ -326,8 +326,6 @@ $$\begin{align}
 &\Delta u + \frac{1}{8} \bar{A}^{ij} \bar{A}_{ij} (\frac{1}{\alpha} + u + 1)^{-7} = 0\\
 \end{align}
 $$
-
-Though in practice you might retain the $\psi$ notation in the $^{-7}$ portion
 
 #### Solving laplacians in general
 
@@ -558,7 +556,7 @@ Sometimes, the code is simpler than the explanation! Luckily, there is no race c
 
 #### Multigrid
 
-One other easy way to speed up performance is via a multigrid solution. Essentially, instead of solving at your final grid resolution, you start off at a low resolution, solve for that, then progressively solve for higher resolutions. This is as simple as running our laplacian solving procedure at a single resolution, then upscaling that guess to a higher resolution. Do note you'll need to re-enforce the boundary condition:
+One other easy way to speed up performance is via a multigrid solution. Essentially, instead of solving at your final grid resolution, you start off at a low resolution, solve for that, and then progressively solve for higher resolutions. This is as simple as running our laplacian solving procedure at a single resolution, then upscaling that guess to a higher resolution. Do note you'll need to re-enforce the boundary condition:
 
 ```c++
 valuef get_scaled_coordinate(valuei in, valuei dimension_upper, valuei dimension_lower)
@@ -615,7 +613,7 @@ void upscale_buffer(execution_context& ctx, buffer<valuef> in, buffer_mut<valuef
 }
 ```
 
-This solution works incredibly well for this problem, as there is no high frequency content in $u$, and is a free performance win. There are no changes to the laplacian kernel here (almost as if this were planned), the only thing that we really need to worry about is the *host* side, and what grid resolutions to pick. I've found that lower grid resolutions can be somewhat numerically unstable[^pleasenotethat], so the relaxation parameter is dynamic. The code I use for generating this isn't too complex:
+This solution works incredibly well for this problem, as $u$ is smooth other than at the puncture, and is a free performance win. There are no changes to the laplacian kernel here (almost as if this were planned), the only thing that we really need to worry about is the *host* side, and what grid resolutions to pick. I've found that lower grid resolutions can be somewhat numerically unstable[^pleasenotethat], so the relaxation parameter is dynamic. The code I use for generating this isn't too complex:
 
 ```c++
 std::vector<t3i> dims;
@@ -655,7 +653,7 @@ There's probably some theory here on how to best generate grid sizes and relaxat
 
 #### Further performance work
 
-At this point, I simply stopped - because the performance is much better than it needs to be. If you'd like further speedups, here's where to go!
+At this point, I simply stopped - because the performance is much better than it needs to be, and it'll solve within a few seconds. If you'd like further speedups, here's where to go!
 
 1. The in and out buffers should be compacted to remove the strided memory accesses as a result of red-black iteration
 2. A list of active points should be provided as a buffer (or calculated), to avoid half of our threads simply immediately terminating due to red-black iteration
@@ -671,7 +669,9 @@ $$\begin{align}
 K_{ij} &= \psi^{-2} \bar{A}_{ij}
 \end{align}$$
 
-Where if you remember: in cartesian coordinates, $$\bar{\gamma}_{ij}$$ is the identity matrix (or the flat metric). We already know how to construct our BSSN variables from here, check the recap or the last article for more details
+Where if you remember: in cartesian coordinates, $$\bar{\gamma}_{ij}$$ is the identity matrix (though really - the flat space metric). We already know how to construct our BSSN variables from here, check the recap or the last article for more details
+
+### ADM mass estimation
 
 If you'd like to estimate the ADM mass, we can do this via a standard approach, defined [here (6)](https://arxiv.org/pdf/gr-qc/0610128):
 
@@ -763,13 +763,13 @@ This is what everything means:
 | $f$ | The value of whichever field we're radiating |
 | $x_i$ | The cell's position in world coordinates |
 | $v$ | The wave speed (usually 1) |
-| $f_0$ | The asymptotic value of the field |
+| $f_0$ | The asymptotic value of the field at infinity |
 | $r$ | The distance from the origin in world coordinates |
-| $\frac{\partial f}{\partial x_i}$ | The standard derivative of the function in each direction $\partial x_i$ |
+| $\frac{\partial f}{\partial x_i}$ | The derivative of $f$ in each direction $\partial x_i$ |
 
 You will need to implement the derivatives here as one sided derivatives, because we are *at* the boundary. This equation is applied to every tensor component separately, as if they were independent fields
 
-Here's a table of asmptotic values
+Here's a table of asymptotic values:
 
 | Variable | $f_0$ | $v$ |
 |-|-|-|
@@ -1014,7 +1014,7 @@ valuef diff1(const valuef& in, int direction, const derivative_data& d)
 }
 ```
 
-Note that our diff1 function does not need to deal with derivatives *on* the boundary, as we never evaluate our evolution equations there (which is the role of sommerfeld)
+Note that our diff1 function does not need to deal with derivatives *on* the boundary, as we never evaluate our evolution equations there (which is the role of Sommerfeld)
 
 The ternary operator is being used here to avoid a conditional branch on the memory accesses, which is tremendously slow. The simulation grid is padded so that there are no out of bounds accesses
 
@@ -1051,11 +1051,11 @@ The structure of the equations we're using are already adapted to simulating bla
 
 The BSSN equations contain extra degrees of freedom, and one allowance you can make is setting the variable $K=0$. This is called maximal slicing. Maximal slicing defines a coordinate system that is [known](https://arxiv.org/pdf/gr-qc/0206072) to have singularity avoiding tendencies, and is a good candidate for preventing our equations from exploding due to the presence of a singularity
 
-Setting K=0 allows us to solve for the lapse via an [elliptic equation](https://arxiv.org/pdf/gr-qc/0206072) (32). While elliptic equations are tricky to solve with any kind of efficiency, an approximate solution comes in the form of what is called the 1+log gauge - which will drive $K=0$ over time: see [17](https://arxiv.org/pdf/gr-qc/0605030)
+Setting K=0 allows us to solve for the lapse via an [elliptic equation (32)](https://arxiv.org/pdf/gr-qc/0206072). While elliptic equations are tricky to solve with any kind of efficiency, an approximate solution comes in the form of what is called the 1+log gauge - which will drive $K=0$ over time: see [(17)](https://arxiv.org/pdf/gr-qc/0605030)
 
 $$\partial_t \alpha = -2 \alpha K + \beta^i \partial_i \alpha$$
 
-Additionally, the shift is defined as such [see here](https://arxiv.org/pdf/gr-qc/0605030) (26), in what is called the gamma driver/freezing condition (as it drives the christoffel symbol to $0$):
+Additionally, the shift is defined as such [see (26)](https://arxiv.org/pdf/gr-qc/0605030), in what is called the gamma driver/freezing condition (as it drives the christoffel symbol to $0$):
 
 $$\partial_t \beta^i = \frac{3}{4} \tilde{\Gamma}^i + \beta^j \partial_j \beta^i - \eta \beta^i$$
 
@@ -1115,7 +1115,7 @@ tensor<valuef, 3> get_dtgB(bssn_args& args, const derivative_data& d)
 }
 ```
 
-These gauge conditions on their own aren't a fix for us (as we were actually already using these), but they are a very necessary component
+These gauge conditions on their own aren't a fix for us (as we were actually already using these), but they are a very necessary component for a successful simulation
 
 ### Momentum constraint errors
 
@@ -1141,7 +1141,7 @@ $$
 \begin{align}
 s &= step(\partial_m \beta^m)\\
 \\
-\partial_t \alpha &= \partial_t \alpha - (\chi * s + \frac{2}{3}) \mathcal{G}^i \partial_m \beta^m\\
+\partial_t \alpha &= \partial_t \alpha - (\chi s + \frac{2}{3}) \mathcal{G}^i \partial_m \beta^m\\
 \end{align}
 $$
 
@@ -1151,9 +1151,9 @@ $$
 \partial_t \alpha = \partial_t \alpha + k_g \alpha \mathcal{G}^i \\
 $$
 
-Where $\chi$ > 0, and $k_g$ < 0. `step` is a function that returns $1$ if its argument is $> 0$, otherwise $0$[^slightlysubtle]. We'll be looking at the former case in this article, but both modifications are similar
+Where $\chi$ > 0, and $k_g$ < 0. `step` is a function that returns $1$ if its argument is $> 0$, otherwise $0$[^slightlysubtle]. We'll be looking at the first equation primarily
 
-[^slightlysubtle]: There are a few possible choices of modification here. The reason for the step function choice, is that the equations are only inherently unstable when $\partial_m \beta^m > 0$, and $\chi$ must have the same sign as that
+[^slightlysubtle]: There are a few possible choices of modification here. The reason for the step function choice, is that the equations are only inherently unstable when $\partial_m \beta^m > 0$, and $\chi$ must have the same sign as that. I've also seen this implemented as a flat constant. You could also use $s = \chi > 0 ? 1 : -1$. In practice I've found it makes almost no difference
 
 ## Lets try it
 
@@ -1169,7 +1169,7 @@ These modifications would, in theory, work if you were using some kind of adapti
 
 Up until now I've been presenting this more informally to illustrate the kinds of errors we'll run into, which is why I haven't laid out exactly what we're doing or reproducing
 
-Today we're going to focus on trying to reproduce a specific result: The no spin test case from [this paper](https://arxiv.org/pdf/gr-qc/0610128). If you'd like some more test cases, check out [this](https://arxiv.org/pdf/gr-qc/0602026) paper as well. Here, I'll lay out the test parameters:
+Today we're going to focus on trying to reproduce a specific result: The no spin test case from [this paper](https://arxiv.org/pdf/gr-qc/0610128). If you'd like some more test cases, check out [this](https://arxiv.org/pdf/gr-qc/0602026) paper as well. These are the test parameters:
 
 | | |BH 0|BH 1|
 |-|-|-|-|
@@ -1190,10 +1190,12 @@ The black holes are expected to collide at roughly T=160, after approximately 1.
 | h (ie scale) | `simulation_width / (resolution.x - 1)` |
 | $\eta$ (the gauge damping parameter) | 2 |
 | $\epsilon$ (kreiss-oliger damping) | $0.05$ |
+| $k_m$ (momentum constraint damping) | $0.04$ |
+| $\chi$ (christoffel damping) | $0.5$ |
 
-The goal here is to demonstrate specific types of errors, the general approach that you might use to fix them, and to give you an overview of what kinds of issues you're going to run into. Note that until we implement gravitational waves detection, there's little point trying to calibrate our sim *exactly* via the mk 1 eyeball, so we're going to settle for "looks decent, would work better with a higher resolution and some constant tweaks"
+The goal here is to demonstrate specific types of errors, the general approach that you might use to fix them, and to give you an overview of what kinds of issues you're going to run into. Until we implement gravitational wave detection and a variety of error calculation, there's little point trying to calibrate our sim *exactly* via the mk 1 eyeball, so we're going for close-enough
 
-Note that the boundaries here are sufficiently close that they'll cause problems quite quickly. Further away boundaries require higher resolutions in general
+Note that the boundaries here are sufficiently close that they'll cause problems quite quickly. Further away boundaries require higher resolutions, some kind of variable coordinate scheme, or adaptive mesh refinement
 
 Now we'll go through how to diagnose some of our simulations problems:
 
@@ -1213,7 +1215,7 @@ $\chi = 0.9$
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/GrFBknjdK7Y?si=nkM7MG2VT8-dpiIM" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-While we can see that higher damping somewhat improves the situation, it's clearly still borked. We need a better christoffel damping scheme
+While we can see that even though higher damping somewhat improves the situation, it's clearly still borked. We need a better christoffel damping scheme
 
 ### Christoffel damping schemes
 
@@ -1225,7 +1227,7 @@ There are a variety of schemes available for improving the christoffel symbols, 
 |Christoffel lapse modification| $\partial_t \tilde{\Gamma}^i = \partial_t \tilde{\Gamma}^i + k_{\tilde{\Gamma}} \alpha \mathcal{G}^i$ | $k_{\tilde{\Gamma}} < 0$ | [2.22](https://arxiv.org/pdf/0711.3575v1) |
 |Metric Modification| $\partial_t \tilde{\gamma}_{ij} = \partial_t \tilde{\gamma}_{ij} + k_{\gamma} \alpha \tilde{\gamma}_{k(i} \tilde{D}_{j)} \mathcal{G}^k$ | $k_{\gamma} < 0$ | [2.21](https://arxiv.org/pdf/0711.3575v1), or [table II](https://arxiv.org/pdf/gr-qc/0204002)|
 
-Please note that the informal names are something I've purely jotted down for clarity
+Please note that the informal names are something I've purely jotted down for clarity, and are not standard names
 
 #### The Christoffel substitution
 
@@ -1272,7 +1274,7 @@ Compare with $\chi = 0.5$
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/7yZP8W2j4mc?si=y0mLe_t7ELq7htaG" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Overall, this modification is alright. In general, it tends to work well for octant symmetry, and causes problems with unequal mass binaries. Additionally, the increase in momentum constraint damping is a bit suspect, as in other simulations this value has caused the black holes to evaporate
+Overall, this modification is alright. In general, it tends to work well for octant symmetry, and causes problems with unequal mass binaries. Additionally, the increase in momentum constraint damping is a bit suspect, as in other simulations this value has caused the black holes to evaporate - you can see they start to become a bit diffuse towards the end of the sim
 
 All in all: Not great, not terrible. We won't be using this modification on a permanent basis, but its worth considering testing this with some of the later modifications
 
@@ -1309,9 +1311,9 @@ float lapse_cst = -<SOME_CONSTANT>;
 dtcG += lapse_cst * args.gA * Gi;
 ```
 
-This modification has been a tricky one to try and show off. In general, either the value of lapse_cst is too low (eg $-0.05$), resulting in no discernable change. Or, its too high, resulting in numerical instability. Combining it with and without the other modifications up until this point results in very little happening in general
+This modification has been a tricky one to try and show off. In general, either the value of lapse_cst is too low (eg $-0.05$), resulting in no discernable change. Or, its too high, resulting in numerical instability. Combining it with and without the other modifications up until this point results in very little change
 
-In general, my experience of this is that its one we can simply discard. I could have ditched this from the article entirely, but this kind of stuff will make up a very large quantity of what you're going to run into in this area
+In general, my experience of this is that its one we can simply discard. I could have ditched this from the article entirely, but this kind of stuff will make up a very large quantity of what you're going to run into in this area, so don't be surprised if you test something with nice theoretical properties and it does absolutely nothing
 
 #### Metric modification
 
@@ -1319,7 +1321,7 @@ For this, we'd like to calculate the following quantity:
 
 $$k_{\gamma} \alpha \tilde{\gamma}_{k(i} \tilde{D}_{j)} \mathcal{G}^k$$
 
-Most implementations are unlikely to have the capability to directly perform a numerical derivative on $\mathcal{G}^k$ (and even if you could, its a bad idea for performance). Lets break this up a bit:
+Most implementations are unlikely to have the capability to directly perform a numerical derivative on $\mathcal{G}^k$ (and even if you could, its a bad idea for performance)
 
 One of the easiest ways to fix this is to perform all your derivatives, and covariant derivatives with dual numbers. While you could work it out precisely by hand (and its likely there'd be a performance benfit to doing so as some terms cancel out), it works reasonably well
 
@@ -1469,7 +1471,7 @@ $$\partial_t \alpha = \partial_t \alpha - W (h e^{-\frac{t^2}{2 \sigma^2}}) (\al
 | Symbol | Meaning | Value |
 |-|-|-|
 | $h$ | Scaling factor for the gaussian | $\frac{3}{5}$ |
-| $t$ | Elapsed simulation time | 0+ |
+| $t$ | Elapsed simulation time | $>= 0$ |
 | $\sigma$ | Damping timescape | $20$ |
 
 With this implemented, we get this result:
@@ -1480,7 +1482,7 @@ Which is slightly better. Testing $h=1$, we get this:
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/t3reNTQdfxk?si=MA-SMO1PSCW8LYOK" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Which is very interesting. In general, this modification is a free win, so we'll be leaving this on as well (with $h=\frac{3}{5}$, until we fine tune). Its likely that this modification makes a significant difference for two reasons
+Which is very interesting. In general, this modification is a free win, so we'll be leaving this on (with $h=\frac{3}{5}$). Its likely that this modification makes a significant difference for two reasons
 
 1. Our low resolution exacerbates numerical errors caused by the initial collapse in the lapse
 2. A large initial lapse pulse reflects off the close boundaries, causing further errors
@@ -1491,13 +1493,13 @@ Do note, due to the nature of inspiral, as our modifications improve the situati
 
 If you remember, kreiss-oliger is a method of removing high frequency oscillations from your grid, and it damps out numerical errors. The basic idea with our next modification [(20)](https://arxiv.org/pdf/2404.01137) is that sharp features near the event horizon of a black hole are likely natural, and require less smoothing. This makes a certain amount of sense, and after all - if we're trying to represent as much information on our grid as possible, removing high frequencies in high frequency areas seems like a prime candidate for wasting information
 
-To adjust this, the authors multiply the damping strength, by the parameter $W$, thus making the damping strength virtually 0 near the event horizon
+To adjust this, the authors multiply the damping strength, by the parameter $W$, thus making the damping strength virtually 0 near the event horizon. Let's try it!
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/U9lUl0QVVE0?si=cHefuAscEsUY5wOc" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Testing this directly doesn't work. I suspect that our code is too low resolution, and there are signs of numerical error - prior experience on my end is that the black holes are likely obviously borked visually, we just don't have the debugging tools to see it. Additionally, a full 0 damp method is liable to generate singularity explosions. For us as it turns out, we do need some damping near the black holes, and instead I clamp the minimum damping to $max(W, k_{ko})$
+Testing this directly doesn't work. I suspect that our code is too low resolution, and there are signs of numerical error - prior experience on my end is that the black holes are likely obviously borked visually, we just don't have the debugging tools to observe this. Additionally, fully dropping the damping to $0$ at the singularity is liable to generate singularity explosions in my experience. For us as it turns out, we do need some damping near the black holes, and instead I clamp the minimum damping to $max(W, k_{ko})$
 
-In practice, I've found that this $k_{ko}$ parameter is very dependent on grid resolution, and can be anywhere from 0.1 to 0.5, with lower resolutions needing higher values
+In practice, I've found that this $k_{ko}$ parameter is very dependent on grid resolution, and can be anywhere from 0.1 to 0.5, with lower resolutions needing higher values. We're using an extremely low resolution, so we'll need to go for $0.5$
 
 Implementing this is extremely straightforward, and our kreiss-oliger step becomes:
 
@@ -1509,7 +1511,7 @@ This gives us a result that looks like this:
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/xzyrHY0W2lY?si=oQNw7aKDIE-7GFc5" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Now making it a lot further than previously. One feature to note is that: With very reduced kreiss oliger dissipation, we're now much more vulnerable to 0 speed modes (which are no longer dissipated away), and so you want to ensure you're using the advecting lapse and shift conditions for the gauge
+Now making it a lot further than previously. One feature to note is that: With very reduced kreiss oliger dissipation, your simulation will be more vulnerable to 0 speed modes (which are no longer dissipated away), and so you want to ensure you're using the advecting lapse and shift conditions for the gauge
 
 ### Fine tuning
 
@@ -1541,22 +1543,30 @@ We get this:
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/HtiloPOk2vA?si=mS6oJDJ1sGEyAhsk" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Which is pretty neat. It looks like there's a small amount of possible awkwardness on the inspiralling, but its close enough for us. Further tuning beyond this is a bit pointless because we have no real metrics to actually validate that we're making it more accurate, which is beyond the scope of this specific article
+Which is pretty neat. It looks like there's a small amount of possible awkwardness on the inspiralling, but its close enough for us until we start being more rigorous about our error's and methodology. Further tuning beyond this is a bit pointless because we have no real metrics to actually validate that we're making it more accurate, which is beyond the scope of this specific article
 
 # Results
 
-With all of this together, we're able to replicate - close enough - the original paper, and we have now smashed black holes together pretty successfully. There are still clearly some inaccuracies, and the fine tuning nature of the constants is ad-hoc, but it works reasonable well for such a low resolution. The inspiral looks smooth and largely monotonic (ie no sharp jumps, or outspiralling), which is ideal. It isn't scientific grade by any means, but it should be a solid base for getting there in a future article
+With all of this together, we're able to replicate - close enough for the time being - the original paper, and we have now smashed black holes together pretty successfully. There are still clearly some inaccuracies, and the fine tuning nature of the constants is ad-hoc, but it works well for such a low resolution. The inspiral looks smooth and largely monotonic (ie no sharp jumps, or outspiralling), which is ideal. It isn't scientific grade by any means, but its a solid base for getting there in a future article
+
+Just for fun, here's a compilation of all the simulations we've done in this article:
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/jE59demmpjQ?si=Rw1TULan6UimI-_k" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Todo: Wesley
 
 # Discussion
 
-Overall, trying to get black hole paths to replicably follow sane trajectories at low resolutions has occupied a pretty major part of what I've worked on in general, and I've spent a significant amount of time on characterising this issue. In general, this article is actually by far the most difficult one of any of the articles we'll write due to this issue, and it luckily all gets simpler from here. The moving punctures technique as a whole is slightly sketchy numerically at low resolutions: as mentioned previously, the puncture is a true discontinuity, and differentiating across it is invalid. This is a major source of constraint violations, though I've seen suggestions that the event horizon itself is also a source of constraint violations
+Overall, trying to get black hole paths to replicably follow sane trajectories at low resolutions has occupied a pretty major part of what I've worked on in general, and I've spent a significant amount of time on characterising this issue. In general, this article is actually by far the most difficult one of any of the articles I'm presenting, and it luckily all gets simpler from here. The moving punctures technique as a whole is slightly sketchy numerically at low resolutions: as mentioned previously, the puncture is a true discontinuity, and differentiating across it is invalid. This is a major source of constraint violations, though I've seen suggestions that the event horizon itself is also a source of constraint violations
 
 In the literature, there are *many* ad-hoc techniques used with respect to the puncture, including:
 
 1. Dropping the order of kreiss oliger dissipation within the event horizon
 2. Dropping the order of differentiation within the event horizon
-3. Using upwinded stencils for differentiation with respect to the shift, which is very dissipative near the singularity where the shift vector undergoes a discontinuity
+3. Using upwinded stencils[^upwind] for differentiation with respect to the shift, which is very dissipative near the singularity where the shift vector undergoes a discontinuity
 4. Hiding the puncture, by placing it at the boundary between grid cells
+
+[^upwind]: A lot of the literature uses upwinded stencils. As far as I can tell, it essentially dissipates away high frequency oscillations caused by using an explicit integrator, and has no relevance for us. I've only ever gotten remarkably poor results from using them
 
 A lot of this is simply that any kind of differentiation is invalid near the puncture, and so techniques indirectly tend to lower the constraint contamination by reducing the singularity, or reducing the size of stencils to reduce constraint error propagation. In theory - some BSSN formulations have causal constraint propagation, but this breaks down *somewhat* in the face of discretisation, and still relies on you having a sufficiently large event horizon
 
@@ -1564,12 +1574,12 @@ It be interesting to explore an excision technique instead, and see how it affec
 
 # Performance
 
-After all this work, its probably worth mentioning the performance here, given that that's the point of doing all of this on the GPU. All of the videos are shot in real time to make comparison easier, and we get roughly 90ms/tick on a 6700xt or ~3 minutes per orbit, which is excellent for midrange hardware[^allimsaying]. If you'd like to investigate further performance work, here's some places you can go:
+After all this work, its probably worth mentioning the performance here, given that that's the point of doing all of this on the GPU. All of test videos are shot in real time to make comparison easier, and we get roughly 90ms/tick (~3 minutes per orbit) on a 12GB 6700xt, which is excellent for midrange hardware[^allimsaying]. If you'd like to investigate further performance work, here's some places you can go:
 
 [^allimsaying]: All I'm saying is that if some kind of GPU with a monstrous amount of vram turned up on my doorstep, I'd start working on LIGO data tomorrow
 
-1. Momentum constraint damping costs 20ms, split about 50% between its calculation, and pulling the memory in in the evolution kernel. This could do with a significant reduction in overhead, some of which could be achieved by a better form
-2. The metric christoffel modification costs about 10ms, and could likely be expressed in a simpler non dual form to eliminate its cost entirely. It probably accidentally leads to a vgpr blowup
+1. Momentum constraint damping costs 20ms, split about 50% between its calculation, and pulling the memory in in the evolution kernel. This could do with a significant reduction in overhead, some of which could be achieved by a better form of the constraint
+2. The metric christoffel modification costs about 10ms, and could likely be expressed in a simpler non dual form to eliminate its cost entirely. It probably accidentally leads to a vgpr blowup currently
 3. We only use two fixed point iterations. A multigrid approach would let you significantly improve the step size for minimal performance cost
 4. Stretching the coordinate space would mean we can distribute more resolution to the black holes, and less at the boundary - resulting in much better performance or accuracy
 5. There are many redundant expressions which are generated, and not fully optimised away by the compiler
@@ -1578,11 +1588,11 @@ After all this work, its probably worth mentioning the performance here, given t
 
 From a technical perspective, we're really pushing the GPU limits here. We overflow VGPRs (gpu registers), the instruction cache, and are nearly maxing out on memory bandwidth. We're a little limited by GPU compiler issues too, so overall there is a lot of room for improvement here
 
-I'm pretty happy with it overall, and this has been built from scratch with the lessons of an older project so its relatively fast out of the box
+With all that said - I'm actually very happy with this simulation overall, both in terms of results, and the performance
 
 # Future articles
 
-Next up, we're going to take a step back from the difficulties of replicating results here, and have a much more fun trip down the graphics and rasterisation pipeline, because the renderings in this article hurt my eyes profoundly. Depending on how things go, we'll either then extract gravitational waves, or collide neutron stars together. Future articles should now come out a lot faster, as this one involved a *huge* amount of work on my end to find a reasonable formalism to present
+Next up, we're going to take a step back from the difficulties of replicating results, and have a much more fun trip down the graphics and rasterisation pipeline, because the renderings in this article profoundly hurt my eyes. Depending on how things go, we'll either then extract gravitational waves, or collide neutron stars together. Future articles should now come out a lot faster, as this one involved a *huge* amount of work on my end to find a reasonable formalism to present
 
 # Misc Notes
 
@@ -1590,12 +1600,12 @@ This section contains pieces of information which are useful to know, but don't 
 
 ## Black holes do not really have mass
 
-There's an unfortunate truth for black holes, which is that there is no unique definition of the mass of a black hole. Its very easy to work out how much mass there is for something like the earth - because we can calculate how much *matter* is present, but black holes here are a vacuum solution - there's no matter of any description in our spacetime. This means that we have to work out what the effect on spacetime a black hole has equivalent to a certain amount of mass
+There's an unfortunate truth for black holes, which is that there is no unique definition of the mass of a black hole. Its very easy to work out how much mass there is for something like the earth - because we can calculate how much *matter* is present, but black holes here are a vacuum solution - there's no matter of any description in our spacetime. This means that we have to work out what the effect on spacetime a black hole has - equivalent to a certain amount of mass
 
 There are multiple definitions of mass that we can use:
 
 1. Bare mass, which has no physical meaning. Higher = more mass, but that's about it
-2. ADM mass, which is measured at 'infinity', and measures how much energy is present in the spacetime. Only valid in asymptotically flat spacetimes
+2. ADM mass, which is measured at 'infinity', and measures the deviation from a flat spacetime. Only valid in asymptotically flat spacetimes
 3. Komar mass - defined in stationary spacetimes
 4. Horizon mass, determined by the area of the event horizon
 5. Puncture mass, determined by the size of the correction factor $\psi$ at the puncture, which approximates the ADM mass
@@ -1620,7 +1630,7 @@ One of the difficulties with all of this is trying to prove that your code conve
 
 The tricky part is that while we use scalar constants for damping factors, many of these factors are actually *not* resolution independent, and should really scale with some factor of the grid resolution
 
-Kreiss-oliger is something that stood out to me as a candidate for making convergence tricky. If we examine the specific form of kreiss oliger, you'll notice that for eg second order kreiss, the form is as such:
+Kreiss-oliger is something that stood out to me as a candidate for making convergence tricky. If we examine the specific form of kreiss oliger, you'll notice that for eg second order kreiss, we can expand it out as follows:
 
 todo
 
