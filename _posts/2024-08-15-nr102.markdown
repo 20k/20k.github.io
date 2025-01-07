@@ -117,7 +117,9 @@ We need a few things to smash black holes together successfully:
 2. New boundary conditions, ie what happens at the edge of our domain
 3. Some modifications to the evolution equations
 
-Of all of these, the initial conditions are by far the most complicated part code-wise, so lets get to it
+Of all of these, the initial conditions are by far the most complicated part code-wise. Lets get to it!
+
+![wesleybox](/assets/nr2_cardboard_box.jpg)
 
 # Initial conditions
 
