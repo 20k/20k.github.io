@@ -520,7 +520,7 @@ $$u_{k+2} = D(u_{k+1}) - \frac{F(u_k)h^2}{6}$$
 This does not affect convergence in practice, but its worth keeping in mind that this is slightly nonstandard. Code wise, red-black iteration is a simple change, and there are only two major differences:
 
 1. We can use one buffer, instead of two
-2. We simply terminate half our threads early
+2. Half the threads are terminated early
 
 ```c++
 auto laplace_rb_mg = [](execution_context& ectx, buffer_mut<valuef> inout, buffer<valuef> cfl, buffer<valuef> aij_aIJ,
@@ -678,7 +678,7 @@ dims.push_back(dim);
 relax.push_back(0.8f);
 ```
 
-There's probably some theory here on how to best generate grid sizes and relaxation parameters, so if you're aware of a better scheme do let me know. None of the exact parameters here are particularly important in practice: it only matters that the last grid resolution is the one we actually want to solve for. As usual, I'm pulling out the relevant snippets here, and the full code is available at TODO: EXACT LINK TO LAPLACIAN STUFF
+There's probably some theory here on how to best generate grid sizes and relaxation parameters, so if you're aware of a better scheme do let me know. None of the exact parameters here are particularly important in practice: it only matters that the last grid resolution is the one we actually want to solve for. As usual, I'm pulling out the relevant snippets here, and the full code is available [here](https://github.com/20k/20k.github.io/blob/case255/code/NR2/init_general.hpp)
 
 [^pleasenotethat]: Please note that I'm not super confident in this result, as its been a while since I explicitly tested that
 
@@ -777,13 +777,13 @@ To recap the sequence here:
 4. $\psi$ lets us calculate $$\gamma_{ij} = \psi^4 \bar{\gamma}_{ij}$$ and $$K_{ij} = \psi^{-2} \bar{A}_{ij}$$
 5. Mission accomplished
 
-[^raiseandlower]: If you're triple checking, you raise and lower the indices of $$\bar{A}_{ij}$ with $\bar{\gamma}_{ij}$$. This is the identity matrix, so you could just ignore it
+[^raiseandlower]: If you're triple checking, you raise and lower the indices of $$\bar{A}_{ij}$$ with $$\bar{\gamma}_{ij}$$. This is the identity matrix, so you could just ignore it
 
 After this, we set our gauge conditions, and then calculate the BSSN variables from our ADM variables
 
 # Boundary conditions
 
-In our first go at this, our data was periodic and simply wrapped around the boundary - which was our boundary condition. Here, our simulation is no longer periodic, so we need a new set of boundary conditions. The simplest good-enough boundary condition is called the Sommerfeld boundary condition. This radiates away your data to the asymptotic value at the boundary [as follows [2.39]](https://arxiv.org/pdf/1503.03436):
+In our first go at this, our simulation was periodic and simply wrapped around the boundary - which was our boundary condition. Here, our simulation is no longer periodic, so we need a new set of boundary conditions. The simplest good-enough boundary condition is called the Sommerfeld boundary condition. This radiates away a field to the asymptotic value at the boundary [as follows [2.39]](https://arxiv.org/pdf/1503.03436):
 
 $$\frac{\partial f}{\partial t} = -\frac{v x_i}{r} \frac{\partial f}{\partial x_i} - v \frac{f - f_0}{r}$$
 
@@ -812,6 +812,7 @@ Here's a table of asymptotic values:
 | $\tilde{\gamma}_{22} $ | 1 | 1 |
 | $\tilde{A}_{ij}$ | 0 | 1 |
 | $W$ | 1 | 1 |
+| $K$ | 0 | 1 |
 | $\alpha$ | 1 | $\sqrt{2}$ [see (36)](https://arxiv.org/pdf/gr-qc/0206072) |
 | $\beta^i$ | 0 | $1$ in practice, [see (51)](https://arxiv.org/pdf/gr-qc/0206072) |
 

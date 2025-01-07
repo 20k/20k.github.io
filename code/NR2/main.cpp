@@ -394,12 +394,12 @@ struct mesh
             SOMM(cA[5], 0.f, 1.f);
 
             SOMM(K, 0.f, 1.f);
-            SOMM(W, 0.f, 1.f);
+            SOMM(W, 1.f, 1.f);
             SOMM(cG[0], 0.f, 1.f);
             SOMM(cG[1], 0.f, 1.f);
             SOMM(cG[2], 0.f, 1.f);
 
-            SOMM(gA, 1.f, 1);
+            SOMM(gA, 1.f, sqrt(2));
             SOMM(gB[0], 0.f, 1);
             SOMM(gB[1], 0.f, 1);
             SOMM(gB[2], 0.f, 1);
