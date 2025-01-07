@@ -1626,21 +1626,21 @@ True event horizon calculation requires storing the entire history of the simula
 
 ## Convergence issues, Kreiss Oliger, and implicit integrators
 
-One of the difficulties with all of this is trying to prove that your code converges. The idea is, as your grid resolution goes up, your code should become more accurate
+One of the difficulties with all of this is trying to prove that your code converges. The idea is, as your grid resolution goes up, your code should become more accurate - and correctly approximate the equations that you're solving
 
 The tricky part is that while we use scalar constants for damping factors, many of these factors are actually *not* resolution independent, and should really scale with some factor of the grid resolution
 
-Kreiss-oliger is something has made convergence quite tricky for me. Kreiss-Oliger has the definition:
+Kreiss-oliger is something has made replicating papers quite tricky for me especially, when testing different integrators at different resolutions. Kreiss-Oliger has the definition:
 
-$$\partial_t U = \partial_t U + -1^{\frac{p+3}{2}} \epsilon \frac{h^p}{2^{p+1}} (\frac{\partial^{p+1}}{\partial x^{p+1}} + \frac{\partial^{p+1}}{\partial y^{p+1}} + \frac{\partial^{p+1}}{\partial z^{p+1}})U$$
+$$\partial_t U = \partial_t U + (-1)^{\frac{p+3}{2}} \epsilon \frac{h^p}{2^{p+1}} (\frac{\partial^{p+1}}{\partial x^{p+1}} + \frac{\partial^{p+1}}{\partial y^{p+1}} + \frac{\partial^{p+1}}{\partial z^{p+1}})U$$
 
 If we examine a specific form of this, you'll notice that for eg second order kreiss in a single direction, we can discretise it and expand it out as follows:
 
-$$c \epsilon \frac{U[-1] + -2 U[0] + U[1]}{h}$$
+$$c \epsilon \frac{U[-1] -2 U[0] + U[1]}{h}$$
 
 Where $h$ is your spacing between grid cells, and $c$ is a constant we don't care about. This involves a single division by the scale, as does any expanded form at any order. So as your grid resolution goes up, this blows up to infinity. With that in mind, this is something we integrate by time - so lets multiply by a timestep $\Delta t$
 
-$$c \epsilon \frac{\Delta t}{h} (U[-1] + -2 U[0] + U[1])$$
+$$c \epsilon \frac{\Delta t}{h} (U[-1] -2 U[0] + U[1])$$
 
 Eager eyed readers might recognise the $\frac{\Delta t}{h}$ term as the courant factor, which presents a bit of a problem for us
 
