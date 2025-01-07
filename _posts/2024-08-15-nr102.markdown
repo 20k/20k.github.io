@@ -101,14 +101,14 @@ Where latin indices run from 1-3, greek indices run from 0-4. The BSSN formalism
 
 There are also a number of constraints. These are:
 
-1. The algebraic constraints. $det(\gamma_{ij}) = 1$, and $\tilde{A}_{ij}$ is trace free ($\tilde{\gamma}^{ij} \tilde{A}_{ij} = 0$). These are enforced: see the last article for details
-2. The momentum and hamiltonian constraints, called $\mathcal{M}_i$ and $\mathcal{H}$. We damp the former, and ignore the latter
-3. The christoffel symbol constraint, $\mathcal{G}^i = \tilde{\Gamma}^i - \tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk} = 0$. This will get damped
+1. The algebraic constraints. $$det(\gamma_{ij}) = 1$$, and $$\tilde{A}_{ij}$$ is trace free ($$\tilde{\gamma}^{ij} \tilde{A}_{ij} = 0$$). These are enforced: see the last article for details
+2. The momentum and hamiltonian constraints, called $$\mathcal{M}_i$$ and $$\mathcal{H}$$. We damp the former, and ignore the latter
+3. The christoffel symbol constraint, $$\mathcal{G}^i = \tilde{\Gamma}^i - \tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk} = 0$$. This will get damped
 
 The only general relativity you need to know for this article is:
 
 1. Raising and lowering indices
-2. How to calculate a covariant derivative. $D$ is the covariant derivative associated with $\gamma_{ij}$, and $\tilde{D}$ is the covariant derivative associated with $\tilde{\gamma}_{ij}$
+2. How to calculate a covariant derivative. $D$ is the covariant derivative associated with $$\gamma_{ij}$$, and $$\tilde{D}$$ is the covariant derivative associated with $$\tilde{\gamma}_{ij}$$
 3. Tensor index notation
 
 # What's the plan?
@@ -141,9 +141,9 @@ $$
 \gamma_{ij},\; K_{ij},\; \alpha,\; \beta^i
 $$
 
-This technique solves for $\gamma_{ij}$ and $K_{ij}$, and leaves us to guess $\alpha$ and $\beta^i$. Because the latter two variables are gauge variables, we can (in theory[^ofcourse]) pick them arbitrarily. Once we have these, we can perform the BSSN decomposition on them, and then we're done
+This technique solves for $$\gamma_{ij}$$ and $$K_{ij}$$, and leaves us to guess $\alpha$ and $\beta^i$. Because the latter two variables are gauge variables, we can (in theory[^ofcourse]) pick them arbitrarily. Once we have these, we can perform the BSSN decomposition on them, and then we're done
 
-This method falls under the class of initial conditions known as 'conformally flat'. This means it decomposes the metric tensor into a flat conformal metric (the identity matrix in cartesian coordinates), and a conformal/scalar factor $\psi$. It also decomposes the extrinsic curvature $$ K^{ph}_{ij} $$ ('physical', this is our $$ K_{ij} $$) into a trace $K=0$, and a trace free part which this paper calls $$K_{ij}$$ (and other papers often call $$\bar{A}_{ij}$$). This is called a maximal slice
+This method falls under the class of initial conditions known as 'conformally flat'. This means it decomposes the metric tensor into a flat conformal metric (the identity matrix in cartesian coordinates), and a conformal/scalar factor $$\psi$$. It also decomposes the extrinsic curvature $$ K^{ph}_{ij} $$ ('physical', this is our $$ K_{ij} $$) into a trace $K=0$, and a trace free part which this paper calls $$K_{ij}$$ (and other papers often call $$\bar{A}_{ij}$$). This is called a maximal slice
 
 [^ofcourse]: Of course, as you can probably guess, its very important what their value is in practice for numerical reasons
 
@@ -151,18 +151,18 @@ Notationally, this is already a hot mess, and this is a standard issue in the fi
 
 | Standard Adm | Paper Notation | Meaning |
 |-|-|-|
-| $\gamma_{ij}$ | $g_{ab}^{ph}$ | The 3-metric tensor |
-| $K_{ij}$ | $K_{ab}^{ph}$ | Extrinsic curvature |
+| $$\gamma_{ij}$$ | $$g_{ab}^{ph}$$ | The 3-metric tensor |
+| $$K_{ij}$$ | $$K_{ab}^{ph}$$ | Extrinsic curvature |
 
 And for the decomposition
 
 | Our notation | Paper Notation | Meaning |
 |-|-|-|
-| $\psi$ | $\psi$ | The conformal factor |
-| $\bar{\gamma}_{ij}$ | $g_{ab}$ | The conformally flat 3-metric. The identity matrix in cartesian coordinates |
-| $\bar{A}_{ij}$ | $K_{ab}$ | The conformal extrinsic curvature |
+| $$\psi$$ | $\psi$ | The conformal factor |
+| $$\bar{\gamma}_{ij}$$ | $$g_{ab}$$ | The conformally flat 3-metric. The identity matrix in cartesian coordinates |
+| $$\bar{A}_{ij}$$ | $$K_{ab}$$ | The conformal extrinsic curvature |
 
-Note that this has nothing to do with the BSSN conformal decomposition: its just the same technique applied slightly differently. The basic idea here is that when you impose conformal flatness, and maximal slicing, the momentum constraint $\mathcal{M}_i$ becomes linear. This allows you to calculate the final (conformal) extrinsic curvature $$\bar{A}_{ij}$$ as a sum of each individual black hole's curvature. The shape of the conformal factor $\psi$ is a *guess*, which is then corrected to be physical via a small correction $u$, by solving the laplacian (9) + (10)
+Note that this has nothing to do with the BSSN conformal decomposition: its just the same technique applied slightly differently. The basic idea here is that when you impose conformal flatness, and maximal slicing, the momentum constraint $$\mathcal{M}_i$$ becomes linear. This allows you to calculate the final (conformal) extrinsic curvature $$\bar{A}_{ij}$$ as a sum of each individual black hole's curvature. The shape of the conformal factor $\psi$ is a *guess*, which is then corrected to be physical via a small correction $u$, by solving the laplacian (9) + (10)
 
 ## Parameters
 
@@ -187,7 +187,7 @@ $$
 
 ## Conformal extrinsic curvature ($\bar{A}_{ij}$)
 
-This is straightforward. For every black hole in our spacetime, we calculate the quantity (5), and then sum over our black holes. After accumulating all of these, I store $\bar{A}^{ab} \bar{A}_{ab}$ as a scalar
+This is straightforward. For every black hole in our spacetime, we calculate the quantity (5), and then sum over our black holes. After accumulating all of these, I store $$\bar{A}^{ab} \bar{A}_{ab}$$ as a scalar
 
 For a single black hole:
 
@@ -212,9 +212,9 @@ This works for any number of black holes
 | $r$ | The distance in world coordinates (ie not grid coordinates) from your current position, to the black hole in question |
 | $n$ | a normal vector, which is calculated as: $n^k = x^k/r$, and points away from the black hole in question |
 
-There's a clear problem when $r = 0$, and the solution is to either position your black holes so this is impossible, or clamp to a small value
+There's a clear problem when $$r = 0$$, and the solution is to either position your black holes so this is impossible, or clamp to a small value
 
-If you have no plans to ever work in non cartesian coordinate systems (which we don't), the metric tensor $\bar{\gamma}_{ij}$ is the identity matrix, and you can ignore the index positions. It raises and lowers indices as normal
+If you have no plans to ever work in non cartesian coordinate systems (which we don't), the metric tensor $$\bar{\gamma}_{ij}$$ is the identity matrix, and you can ignore the index positions. It raises and lowers indices as normal
 
 Code wise: This is all straightforward to implement:
 
@@ -296,7 +296,7 @@ Next up: We need the conformal factor $\psi$, which involves calculating the cor
 
 ## Conformal Factor ($\psi$)
 
-The conformal factor $\psi$ here is listed as:
+The conformal factor $$\psi$$ here is listed as:
 
 $$\psi = \frac{1}{\alpha} + u$$
 
@@ -304,7 +304,7 @@ Where $u > 1$, and $\alpha$ is:
 
 $$\frac{1}{\alpha} = \sum^N_{i=1} \frac{m_i}{2 |\overrightarrow{r} - \overrightarrow{x}_{(i)}|}$$
 
-Note that $r$ in the bottom term is a vector representing our current grid cell's world position. The bottom expression is twice the distance of our coordinate from our $i$'th black hole. The $\alpha$ here has nothing to do with the gauge variable lapse also notated by $\alpha$
+Note that $r$ in the bottom term is a vector representing our current grid cell's world position. The bottom expression is twice the distance of our coordinate from our $i$'th black hole. The $$\alpha$$ here has nothing to do with the gauge variable lapse also notated by $\alpha$
 
 We're going to deviate a little from this definition, and instead calculate the correction as:
 
@@ -326,7 +326,7 @@ This is the slightly more complex version of the equation. Instead, we'll actual
 
 $$ \Delta \psi + \frac{1}{8} \bar{A}^{ij} \bar{A}_{ij} \psi^{-7} = 0 $$
 
-To solve this, we simply expand out the laplacian, as $ \psi = \frac{1}{\alpha} + u + 1$, and $ \Delta (\frac{1}{\alpha} + u + 1) = \Delta u $. This gives our actual form of the equation that we'll be implementing:
+To solve this, we simply expand out the laplacian, as $$ \psi = \frac{1}{\alpha} + u + 1$$, and $$ \Delta (\frac{1}{\alpha} + u + 1) = \Delta u $$. This gives our actual form of the equation that we'll be implementing:
 
 $$\begin{align}
 &\Delta u + \frac{1}{8} \bar{A}^{ij} \bar{A}_{ij} (\frac{1}{\alpha} + u + 1)^{-7} = 0\\
@@ -359,7 +359,7 @@ Ie, it is the sum of second derivatives in each direction. Given a function $f(x
 
 $$\frac{\partial^2 f(x)}{\partial x^2} = \frac{f(x - h) - 2 f(x) + f(x + h)}{h^2}$$
 
-Where $h$ is the spacing between samples. Now, we'll treat $u$ as a function over 3d space, ie $u(x, y, z)$, and apply the above discretisation to $\Delta u$:
+Where $h$ is the spacing between samples. Now, we'll treat $u$ as a function over 3d space, ie $$u(x, y, z)$$, and apply the above discretisation to $$\Delta u$$:
 
 $$\Delta u = \frac{u(x - h, y, z) - 2 u(x, y, z) + u(x + h, y, z))}{h^2} + \frac{u(x, y - h, z) - 2 u(x, y, z) + u(x, y + h, z))}{h^2} + \frac{u(x, y, z - h) - 2 u(x, y, z) + u(x, y, z + h))}{h^2}$$
 
@@ -377,7 +377,7 @@ $$
 u(x, y, z) = \frac{u(x - h, y, z) + u(x + h, y, z) + u(x, y - h, z) + u(x, y + h, z) + u(x, y, z - h) + u(x, y, z + h) - F(u) h^2}{6}
 $$
 
-Simply apply this repeatedly to a grid, and you've solved your laplacian. For us, $F(u) = -\frac{1}{8} \bar{A}^{ij} \bar{A}_{ij} (\frac{1}{\alpha} + u + 1)^{-7}$ (note the minus sign)
+Simply apply this repeatedly to a grid, and you've solved your laplacian. For us, $$F(u) = -\frac{1}{8} \bar{A}^{ij} \bar{A}_{ij} (\frac{1}{\alpha} + u + 1)^{-7}$$ (note the minus sign)
 
 As a basic idea, this works, and is implementable. This is the form I used for a very long time: you just iterate the above equation until the change in $u$ is sufficiently small. There are two main issues:
 
@@ -488,7 +488,7 @@ This means, we can simply update all red cells, then all black cells in an alter
 
 [^peritspeedup]: The latter potential of the gains in the algorithm presented here are only realised on a CPU, as GPU architecture means that the culled threads are still alive an consuming resources. A less naive execution and memory ordering would bring another 2x speedup, but in essence: its not really worth it after we go down the multigrid rabbithole
 
-There's a slight wrinkle - our equations are not of the form $\Delta u = 0$, but instead $\Delta u = F(u)$. This means that we do touch a cell of the 'wrong' colour when updating, and it'll be one tick out of date. That is to say, if the stencil component of our RHS is given by $D(u)$, and our iteration variable is $k$, our iteration equation is:
+There's a slight wrinkle - our equations are not of the form $$\Delta u = 0$$, but instead $$\Delta u = F(u)$$. This means that we do touch a cell of the 'wrong' colour when updating, and it'll be one tick out of date. That is to say, if the stencil component of our RHS is given by $D(u)$, and our iteration variable is $k$, our iteration equation is:
 
 $$u_{k+2} = D(u_{k+1}) - \frac{F(u_k)h^2}{6}$$
 
@@ -668,7 +668,7 @@ At this point, I simply stopped - because the performance is much better than it
 
 ## Finishing up
 
-After solving the laplacian, we have a value for $u$, which allows us to calculate $\psi$ directly, as $\psi = \frac{1}{\alpha} + u + 1$. From here, we can calculate our ADM variables:
+After solving the laplacian, we have a value for $u$, which allows us to calculate $$\psi$$ directly, as $$\psi = \frac{1}{\alpha} + u + 1$$. From here, we can calculate our ADM variables:
 
 $$\begin{align}
 \gamma_{ij} &= \psi^4 \bar{\gamma}_{ij}\\
@@ -729,10 +729,10 @@ This equation can be used to solve for a specific ADM mass from our bare mass pa
 
 ### Gauge
 
-We still don't have an initial solution for our gauge variables however. Universally, $\beta^i = 0$. The lapse $\alpha$ is a tad more interesting - there are two[^twomain] main options:
+We still don't have an initial solution for our gauge variables however. Universally, $$\beta^i = 0$$. The lapse $$\alpha$$ is a tad more interesting - there are two[^twomain] main options:
 
-1. $\alpha = 1$
-2. $\alpha = \psi^{-2}$
+1. $$\alpha = 1$$
+2. $$\alpha = \psi^{-2}$$
 
 Both work well and are widely used. The latter is better for black holes, but I've found that it tends to lead to neutron stars exploding spectacularly. We're going to use #2 for this article, as we're strictly dealing with black holes
 
@@ -746,13 +746,13 @@ This is the end of the initial conditions now, hooray! Here is a celebratory pic
 
 To recap the sequence here:
 
-1. We immediately have a value for $\bar{\gamma}_{ij}$, as it is the identity matrix
-2. We calculate our conformal extrinsic curvature $\bar{A}^{ij}$ as a sum of the curvatures for individual black holes, and stash this somewhere. I also store the quantity $\bar{A}^{ij} \bar{A}_{ij}$[^raiseandlower] for performance reasons in the laplacian. We never need the individual curvatures after this
+1. We immediately have a value for $$\bar{\gamma}_{ij}$$, as it is the identity matrix
+2. We calculate our conformal extrinsic curvature $$\bar{A}^{ij}$$ as a sum of the curvatures for individual black holes, and stash this somewhere. I also store the quantity $$\bar{A}^{ij} \bar{A}_{ij}$$[^raiseandlower] for performance reasons in the laplacian. We never need the individual curvatures after this
 3. Then we solve our laplacian for $u$ - and then use that to calculate $\psi$
-4. $\psi$ lets us calculate $\gamma_{ij} = \psi^4 \bar{\gamma}_{ij}$ and $K_{ij} = \psi^{-2} \bar{A}_{ij}$
+4. $\psi$ lets us calculate $$\gamma_{ij} = \psi^4 \bar{\gamma}_{ij}$$ and $$K_{ij} = \psi^{-2} \bar{A}_{ij}$$
 5. Mission accomplished
 
-[^raiseandlower]: If you're triple checking, you raise and lower the indices of $\bar{A}_{ij}$ with $\bar{\gamma}_{ij}$. This is the identity matrix, so you could just ignore it
+[^raiseandlower]: If you're triple checking, you raise and lower the indices of $$\bar{A}_{ij}$ with $\bar{\gamma}_{ij}$$. This is the identity matrix, so you could just ignore it
 
 After this, we set our gauge conditions, and then calculate the BSSN variables from our ADM variables
 
@@ -1075,7 +1075,7 @@ Taken together, these two gauge conditions are called the moving puncture gauge,
 
 Here I'm presenting what I'd consider to be the most standard gauge conditions, but even a brief look through the papers linked above will show that there are a *wide* variety of gauge conditions. The most relevant notes here are:
 
-1. The $\beta^k \partial_k$ terms are frequently dropped, as what they compensate for (a zero speed mode) is frequently addressed implicitly via kreiss-oliger dissipation - as it inherently dissipates away zero lapse and shift points
+1. The $$\beta^k \partial_k$$ terms are frequently dropped, as what they compensate for (a zero speed mode) is frequently addressed implicitly via kreiss-oliger dissipation - as it inherently dissipates away zero lapse and shift points
 2. There is an alternate two-variable from of the gamma driver equation, which appears to be strictly equivalent, but is expensive for us in terms of performance + memory
 3. These gauge conditions only work for relatively equal mass compact object collisions. For cosmological simulations or very unequal mass binaries, you'd again need different gauge conditions - there's no one size fits all condition
 
@@ -1159,11 +1159,11 @@ $$
 
 Where $\chi$ > 0, and $k_g$ < 0. `step` is a function that returns $1$ if its argument is $> 0$, otherwise $0$[^slightlysubtle]. We'll be looking at the first equation primarily
 
-[^slightlysubtle]: There are a few possible choices of modification here. The reason for the step function choice, is that the equations are only inherently unstable when $\partial_m \beta^m > 0$, and $\chi$ must have the same sign as that. I've also seen this implemented as a flat constant. You could also use $s = \chi > 0 ? 1 : -1$. In practice I've found it makes almost no difference
+[^slightlysubtle]: There are a few possible choices of modification here. The reason for the step function choice, is that the equations are only inherently unstable when $$\partial_m \beta^m > 0$$, and $$\chi$$ must have the same sign as that. I've also seen this implemented as a flat constant. You could also use $s = \chi > 0 ? 1 : -1$. In practice I've found it makes almost no difference
 
 ## Lets try it
 
-With $\chi = 0.5$ and $k_m = 0.04$, and the non standard kreiss-oliger $\epsilon = 0.05$ (see the end of the article for an in depth discussion), we get something that looks like this:
+With $$\chi = 0.5$$ and $$k_m = 0.04$$, and the non standard kreiss-oliger $$\epsilon = 0.05$$ (see the end of the article for an in depth discussion), we get something that looks like this:
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/PT2GXno2dMQ?si=oV5KRitGM6XZgq5t" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
@@ -1231,9 +1231,9 @@ There are a variety of schemes available for improving the christoffel symbols, 
 
 | Informal Name | Modification | Notes | Source |
 |-|-|-|-|
-|Christoffel Substitution|$\tilde{\Gamma}^i = \tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk}$ | Substitutes the variable $\tilde{\Gamma}^i$ for the analytic quantity $\tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk}$, only where $\tilde{\Gamma}$ is not differentiated. Very widespread in the literature | [After 32](https://arxiv.org/pdf/gr-qc/0206072) |
-|Christoffel lapse modification| $\partial_t \tilde{\Gamma}^i = \partial_t \tilde{\Gamma}^i + k_{\tilde{\Gamma}} \alpha \mathcal{G}^i$ | $k_{\tilde{\Gamma}} < 0$ | [2.22](https://arxiv.org/pdf/0711.3575v1) |
-|Metric Modification| $\partial_t \tilde{\gamma}_{ij} = \partial_t \tilde{\gamma}_{ij} + k_{\gamma} \alpha \tilde{\gamma}_{k(i} \tilde{D}_{j)} \mathcal{G}^k$ | $k_{\gamma} < 0$ | [2.21](https://arxiv.org/pdf/0711.3575v1), or [table II](https://arxiv.org/pdf/gr-qc/0204002)|
+|Christoffel Substitution|$$\tilde{\Gamma}^i = \tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk}$$ | Substitutes the variable $$\tilde{\Gamma}^i$$ for the analytic quantity $$\tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk}$$, only where $$\tilde{\Gamma}$$ is not differentiated. Very widespread in the literature | [After 32](https://arxiv.org/pdf/gr-qc/0206072) |
+|Christoffel lapse modification| $$\partial_t \tilde{\Gamma}^i = \partial_t \tilde{\Gamma}^i + k_{\tilde{\Gamma}} \alpha \mathcal{G}^i$ | $k_{\tilde{\Gamma}} < 0$$ | [2.22](https://arxiv.org/pdf/0711.3575v1) |
+|Metric Modification| $$\partial_t \tilde{\gamma}_{ij} = \partial_t \tilde{\gamma}_{ij} + k_{\gamma} \alpha \tilde{\gamma}_{k(i} \tilde{D}_{j)} \mathcal{G}^k$$ | $k_{\gamma} < 0$ | [2.21](https://arxiv.org/pdf/0711.3575v1), or [table II](https://arxiv.org/pdf/gr-qc/0204002)|
 
 Please note that the informal names are something I've purely jotted down for clarity, and are not standard names
 
@@ -1241,9 +1241,9 @@ Please note that the informal names are something I've purely jotted down for cl
 
 This is easy enough to implement. There are only 4 instances where this substitution can be applied:
 
-1. In $\mathcal{R}_{ij}$
-2. Two in $\partial_t \tilde{\Gamma}^i$
-3. $\partial_t \beta_i$
+1. In $$\mathcal{R}_{ij}$$
+2. Two in $$\partial_t \tilde{\Gamma}^i$$
+3. $$\partial_t \beta_i$$
 
 The analytic value is straightforward to calculate:
 
@@ -1288,11 +1288,11 @@ All in all: Not great, not terrible. We won't be using this modification on a pe
 
 #### Christoffel lapse modification
 
-This modification is fairly easy to calculate. $\mathcal{G}^i$ is conventionally defined as:
+This modification is fairly easy to calculate. $$\mathcal{G}^i$$ is conventionally defined as:
 
 $$\mathcal{G}^i = \tilde{\Gamma}^i - \tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk}$$
 
-Implementation wise, we're going to calculate $k_{\tilde{\Gamma}} \alpha \mathcal{G}^i$
+Implementation wise, we're going to calculate $$k_{\tilde{\Gamma}} \alpha \mathcal{G}^i$$
 
 ```c++
 tensor<valuef, 3> calculated_cG;
@@ -1329,7 +1329,7 @@ For this, we'd like to calculate the following quantity:
 
 $$k_{\gamma} \alpha \tilde{\gamma}_{k(i} \tilde{D}_{j)} \mathcal{G}^k$$
 
-Most implementations are unlikely to have the capability to directly perform a numerical derivative on $\mathcal{G}^k$ (and even if you could, its a bad idea for performance)
+Most implementations are unlikely to have the capability to directly perform a numerical derivative on $$\mathcal{G}^k$$ (and even if you could, its a bad idea for performance)
 
 One of the easiest ways to fix this is to perform all your derivatives, and covariant derivatives with dual numbers. While you could work it out precisely by hand (and its likely there'd be a performance benfit to doing so as some terms cancel out), it works reasonably well
 
@@ -1507,7 +1507,7 @@ To adjust this, the authors multiply the damping strength, by the parameter $W$,
 
 Testing this directly doesn't work. I suspect that our code is too low resolution, and there are signs of numerical error - prior experience on my end is that the black holes are likely obviously borked visually, we just don't have the debugging tools to observe this. Additionally, fully dropping the damping to $0$ at the singularity is liable to generate singularity explosions in my experience. For us as it turns out, we do need some damping near the black holes, and instead I clamp the minimum damping to $max(W, k_{ko})$
 
-In practice, I've found that this $k_{ko}$ parameter is very dependent on grid resolution, and can be anywhere from 0.1 to 0.5, with lower resolutions needing higher values. We're using an extremely low resolution, so we'll need to go for $0.5$
+In practice, I've found that this $$k_{ko}$$ parameter is very dependent on grid resolution, and can be anywhere from 0.1 to 0.5, with lower resolutions needing higher values. We're using an extremely low resolution, so we'll need to go for $0.5$
 
 Implementing this is extremely straightforward, and our kreiss-oliger step becomes:
 
@@ -1686,7 +1686,7 @@ If we examine a specific form of this, you'll notice that for eg second order kr
 
 $$c \epsilon \frac{U[-1] -2 U[0] + U[1]}{h}$$
 
-Where $h$ is your spacing between grid cells, and $c$ is a constant we don't care about. This involves a single division by the scale, as does any expanded form at any order. So as your grid resolution goes up, this blows up to infinity. With that in mind, this is something we integrate by time - so lets multiply by a timestep $\Delta t$
+Where $h$ is your spacing between grid cells, and $c$ is a constant we don't care about. This involves a single division by the scale, as does any expanded form at any order. So as your grid resolution goes up, this blows up to infinity. With that in mind, this is something we integrate by time - so lets multiply by a timestep $$\Delta t$$
 
 $$c \epsilon \frac{\Delta t}{h} (U[-1] -2 U[0] + U[1])$$
 
@@ -1706,7 +1706,7 @@ Equations which are implicitly integrated do not strictly have a courant factor,
 
 This raises a tricky question: If we change the size of our grid resolution to being infinitely small, our timestep doesn't necessarily have to change beyond practical convergence limitations. This means that kreiss oliger is somewhat ill defined for us, as there's no reason that the prefix term is fixed or bounded. Effectively, our dissipation per unit time can be virtually anything, with the same constant $\epsilon$
 
-To make this problem explicit, we're going to replace $\epsilon \frac{\Delta t}{h}$ by just a single $\epsilon$, and we'll have to manually adjust this for different resolutions and timesteps - which is already what I was having to do anyway. Unfortunately, this is the only simulation I've seen which uses fully implicit integration, so I've seen exactly 0 discussion of this issue in the literature[^imexstepping]
+To make this problem explicit, we're going to replace $$\epsilon \frac{\Delta t}{h}$$ by just a single $\epsilon$, and we'll have to manually adjust this for different resolutions and timesteps - which is already what I was having to do anyway. Unfortunately, this is the only simulation I've seen which uses fully implicit integration, so I've seen exactly 0 discussion of this issue in the literature[^imexstepping]
 
 [^imexstepping]: The SXS group use imex stepping, which is a semi implicit scheme. They split the equations up, and solve them partially implicitly. Notably however, they do not solve the derivatives implicitly due to the computational cost, which means that this implicit scheme cannot sidestep the courant factor as with a fully implicit scheme - I suspect this is why they see only marginal benefits
 
@@ -1717,7 +1717,7 @@ There are a variety of alternative boundary conditions to the sommerfeld that we
 1. Fixing every field to its asymptotic value at the boundary, and not evolving it. This works if your boundary is far away (as spacetime is asmptotically flat), but requires a lot of extra simulation space
 2. Sponge constructions. This damps outgoing waves gradually. Its easy to implement, but the sponge area must be large enough to avoid reflections, which also requires a lot of extra simulation space
 3. Constraint preserving boundary conditions. These are the best and allow you to place the boundaries closest to your simulation area (as they introduce the least error), but are more complex to implement
-4. Hybrid schemes. Some schemes assume that $\beta^i = 0$ on the boundary, and evolve $\tilde{\gamma}_{ij}$ freely, then use traditional boundary conditions for the other variables. I've never tested this and have no information on the quality of the result
+4. Hybrid schemes. Some schemes assume that $$\beta^i = 0$$ on the boundary, and evolve $$\tilde{\gamma}_{ij}$$ freely, then use traditional boundary conditions for the other variables. I've never tested this and have no information on the quality of the result
 5. Compactification. This adjusts the coordinate system so that the grid represents the entire of (or a lot of the) the computational domain, and you have no boundary. This is nice theoretically, but in practice seems to be similar to a sponge construction
 
 ## Notes on formalisms
