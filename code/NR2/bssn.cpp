@@ -347,7 +347,7 @@ valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, const derivative_data
     }
 
     valuef sigma = 20.f;
-    value h = (4.f/5.f);
+    value h = (3.f/5.f);
 
     #define LAPSE_DAMPING
     #ifdef LAPSE_DAMPING
@@ -488,7 +488,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
                 sum += 0.5f * (args.cY[k, i] * cD[k, j] + args.cY[k, j] * cD[k, i]);
             }
 
-            float cK = -0.09f;
+            float cK = -0.1f;
 
             dtcY.idx(i, j) += cK * args.gA * sum;
         }
@@ -1159,7 +1159,7 @@ std::string init_debugging()
         //valuef test_val = to_fill.cY[0][lid];
         //valuef display = ((test_val - 1) / 0.1f) * 0.5f + 0.5f;
 
-        valuef display = fabs(to_fill.W[lid]);
+        valuef display = fabs(to_fill.gA[lid]);
 
         v4f col = {display, display, display, 1.f};
 
