@@ -17,7 +17,7 @@ If you're looking for someone with a deep enthusiasm for GPGPU, and/or someone w
 
 [^shout]: I'm very bad at plugging myself. Contact me at icedshot@gmail.com, or if you'd like follow my bluesky at @spacejames.bsky.social
 
-Lets get into it
+Lets get into it. As always, the full code is available over at todo:
 
 ![happywesley](/assets/nr2_happy_wesley.jpg)
 
@@ -1611,6 +1611,12 @@ Next up, we're going to take a step back from the difficulties of replicating re
 # Misc Notes
 
 This section contains pieces of information which are useful to know, but don't really fit into the structure of the article here
+
+## Paper list
+
+I'd highly recommend checking out many of the papers linked to in this article:
+
+Todo
 
 ## Black holes do not really have mass
 
