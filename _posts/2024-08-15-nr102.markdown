@@ -501,7 +501,7 @@ Note that:
 
 #### Red-black
 
-Another technique that gives a free 2x performance increase is red-black iteration. For a standard 2d laplacian, each grid cell only accesses its neighbours. We can perform a red-black colouring to demonstrate this in 2 dimensions:
+A technique that gives a free 2x performance increase is red-black iteration. For a standard 2d laplacian, each grid cell only accesses its neighbours. We can perform a red-black colouring to demonstrate this in 2 dimensions:
 
 ![redblack2d](/assets/redblack2d.png)
 
