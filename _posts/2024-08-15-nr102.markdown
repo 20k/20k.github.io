@@ -137,15 +137,13 @@ The paper we're going to implement today is called [A simple construction of ini
 
 To take a step back, we're trying to find initial values for the following ADM variables:
 
-$$\gamma_{ij}\\
-K_{ij}\\
-\alpha\\
-\beta^i
+$$
+\gamma_{ij},\; K_{ij},\; \alpha,\; \beta^i
 $$
 
 This technique solves for $\gamma_{ij}$ and $K_{ij}$, and leaves us to guess $\alpha$ and $\beta^i$. Because the latter two variables are gauge variables, we can (in theory[^ofcourse]) pick them arbitrarily. Once we have these, we can perform the BSSN decomposition on them, and then we're done
 
-This method falls under the class of initial conditions known as 'conformally flat'. This means it decomposes the metric tensor into a flat conformal metric (the identity matrix in cartesian coordinates), and a conformal/scalar factor $\psi$. It also decomposes the extrinsic curvature $K^{ph}_{ij}$ ('physical', this is our $K_{ij}$) into a trace $K=0$, and a trace free part which this paper calls $K_{ij}$ (and other papers often call $$\bar{A}_{ij}$$). This is called a maximal slice
+This method falls under the class of initial conditions known as 'conformally flat'. This means it decomposes the metric tensor into a flat conformal metric (the identity matrix in cartesian coordinates), and a conformal/scalar factor $\psi$. It also decomposes the extrinsic curvature $$ K^{ph}_{ij} $$ ('physical', this is our $$ K_{ij} $$) into a trace $K=0$, and a trace free part which this paper calls $$K_{ij}$$ (and other papers often call $$\bar{A}_{ij}$$). This is called a maximal slice
 
 [^ofcourse]: Of course, as you can probably guess, its very important what their value is in practice for numerical reasons
 
