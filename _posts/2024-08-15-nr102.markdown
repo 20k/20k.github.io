@@ -1535,7 +1535,7 @@ So far, we've got a collection of different modifications, some of which have di
 
 There will now be a brief intermission, while I run a whole lot of tests
 
-Todo: Cat picture
+![intermission](/assets/nr2_intermission.jpg)
 
 So, with the following parameters:
 
