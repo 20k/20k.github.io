@@ -13,9 +13,13 @@ This article consists of three primary parts:
 2. Implementing new boundary conditions, as our simulation is no longer periodic, but has a finite extent
 3. Modifying the evolution equations to render them suitable for simulating binary black hole collisions
 
-This article was significantly delayed due to illness sadly \:(
+If you're looking for someone with a deep enthusiasm for GPGPU, and/or someone who'd rather love to do a PhD in numerical relativity - please give me a shout! [^shout]
 
-Todo: Plug myself, list PC specs. MORE CAT PICTURES. Bsky, link code
+[^shout]: I'm very bad at plugging myself. Contact me at icedshot@gmail.com, or if you'd like follow my bluesky at @spacejames.bsky.social
+
+Lets get into it
+
+![happywesley](/assets/nr2_happy_wesley.jpg)
 
 # Astrophysics Context
 
@@ -736,7 +740,7 @@ Both work well and are widely used. The latter is better for black holes, but I'
 
 This is the end of the initial conditions now, hooray! Here is a celebratory picture of a cat:
 
-Todo: wesley is a cat
+![wesleycurl](/assets/nr2_wesley_curl.jpg)
 
 To recap the sequence here:
 
@@ -1026,7 +1030,7 @@ We've now solved the initial conditions, and implemented our boundary conditions
 
 (this is the lapse)
 
-Todo: Sad cat picture
+![grumpywesley](nr2_grumpy_wesley.jpg)
 
 Unfortunately, the equations as-is cannot simulate binary black hole collisions, and we now enter a very murky area: Ad hoc modifying the equations, so that we can pull off these simulations correctly
 
@@ -1162,6 +1166,8 @@ With $\chi = 0.5$ and $k_m = 0.04$, and the non standard kreiss-oliger $\epsilon
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/PT2GXno2dMQ?si=oV5KRitGM6XZgq5t" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 While we can play around with the constants a bit to adjust the results, at our resolution and scale, its essentially impossible to get this to work correctly. This kind of error is *very* common
+
+![unimpressed](/assets/nr2_wesley_unimpressed.jpg)
 
 These modifications would, in theory, work if you were using some kind of adaptive mesh refinement scheme with very high accuracy. The main point of this article series is to try and do simulations a little faster than that, so instead of relying on more compute power to fix our problems, we're going to see if we can get a little more bang for our buck
 
@@ -1547,13 +1553,15 @@ Which is pretty neat. It looks like there's a small amount of possible awkwardne
 
 # Results
 
-With all of this together, we're able to replicate - close enough for the time being - the original paper, and we have now smashed black holes together pretty successfully. There are still clearly some inaccuracies, and the fine tuning nature of the constants is ad-hoc, but it works well for such a low resolution. The inspiral looks smooth and largely monotonic (ie no sharp jumps, or outspiralling), which is ideal. It isn't scientific grade by any means, but its a solid base for getting there in a future article
+With all of this together, we're able to replicate - close enough for the time being - the original paper, and we have now smashed black holes together pretty successfully!
+
+![balloonwesley](/assets/nr2_balloon_wesley.jpg)
+
+ There are still clearly some inaccuracies, and the fine tuning nature of the constants is ad-hoc, but it works well for such a low resolution. The inspiral looks smooth and largely monotonic (ie no sharp jumps, or outspiralling), which is ideal. It isn't scientific grade by any means, but its a solid base for getting there in a future article
 
 Just for fun, here's a compilation of all the simulations we've done in this article:
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/jE59demmpjQ?si=Rw1TULan6UimI-_k" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-
-Todo: Wesley
 
 # Discussion
 
@@ -1589,6 +1597,10 @@ After all this work, its probably worth mentioning the performance here, given t
 From a technical perspective, we're really pushing the GPU limits here. We overflow VGPRs (gpu registers), the instruction cache, and are nearly maxing out on memory bandwidth. We're a little limited by GPU compiler issues too, so overall there is a lot of room for improvement here
 
 With all that said - I'm actually very happy with this simulation overall, both in terms of results, and the performance
+
+Still, apparently none of this will ever be as delightful as a piece of paper in a box
+
+![boxwesley](/assets/nr2_true_happyness.jpg)
 
 # Future articles
 
