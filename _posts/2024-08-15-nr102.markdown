@@ -1642,7 +1642,7 @@ Where $h$ is your spacing between grid cells, and $c$ is a constant we don't car
 
 $$c \epsilon \frac{\Delta t}{h} (U[-1] -2 U[0] + U[1])$$
 
-Eager eyed readers might recognise the $\frac{\Delta t}{h}$ term as the courant factor, which presents a bit of a problem for us
+You might recognise the $\frac{\Delta t}{h}$ term as the courant factor, which presents a bit of a problem for us
 
 ### Courant Factors
 
