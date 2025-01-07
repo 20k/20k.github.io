@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Numerical Relativity 102: Simulating fast binary black hole collisions, on the GPU"
+title:  "Numerical Relativity 102: Simulating fast binary black hole collisions on the GPU"
 date:   2024-08-15 12:33:23 +0000
 categories: C++
 ---
@@ -17,7 +17,7 @@ If you're looking for someone with a deep enthusiasm for GPU programming, and/or
 
 [^shout]: I'm very bad at plugging myself. Contact me at icedshot@gmail.com, or if you'd like follow my bluesky at @spacejames.bsky.social
 
-Lets get into it. As always, the full code is available over [here](https://github.com/20k/20k.github.io/tree/master/code/NR2):
+The code for this article is available over [here](https://github.com/20k/20k.github.io/tree/master/code/NR2):
 
 ![happywesley](/assets/nr2_happy_wesley.jpg)
 
@@ -40,33 +40,37 @@ The event horizon itself acts completely normally in general relativity, but it 
 
 ## Managing the singularity
 
-There are two primary techniques for dealing with the singularity, known as: excision, and the moving punctures technique
+There are two primary techniques for dealing with the singularity: excision, 'moving punctures'
 
 ### Excision
 
-This technique is fairly common, and involves chopping out the singularity entirely, and simply not simulating it. To excise the singularity correctly, you must define a boundary condition inside the black hole itself, then use one sided derivatives on the boundary. This technique works well, but involves the complexity of calculating and implementing the boundary condition - as well as defining *where* you should apply it
+This technique is fairly common, and involves chopping out the singularity entirely - so it is not simulated. To excise the singularity correctly, you define a boundary condition inside the black hole itself, and then use one sided derivatives on the boundary. This technique works well, but involves the complexity of calculating and implementing the boundary condition - as well as defining *where* you should apply it
 
 ### Moving punctures
 
-This is the technique we'll actually be using, and involves a bit of trickery with our coordinate system. In the ADM formalism, the gauge conditions define our coordinate system (via our gauge variables, the lapse $\alpha$ and shift $\beta^i$). The trick is to make sure that the coordinates never actually meet the singularity, and it is instead treated as a puncture/hole in your simulation grid. This puncture is able to move around with the correct gauge conditions, and so we have a singularity that is never actually quite simulated explicitly. In moving punctures, the entire simulation domain is actively simulated, unlike with excision where a portion of it is not
+This is the technique we'll actually be using
 
-In practice, its a lot trickier than this, and it involves a lot of subtleties to get this to work in a physically accurate way. Notably, as the singularity represents a true discontinuity, differentiating across it is technically incorrect. This means we must rely on the causality[^intheory] of the event horizon to prevent these errors from escaping into our wider universe, and keep those errors trapped inside the black hole itself
+Moving punctures involves a bit of trickery with the coordinate system - the basic idea is that we keep the coordinate system (via the lapse $$\alpha$$, and shift $$\beta^i$$) away from the singularity, so that its never explicitly present on the simulation grid. Instead, we have a discontinuity at the singularity. We still simulate the entire grid however, unlike with excision
+
+In theory we just need the appropriate gauge conditions to keep the coordinates from meeting the singularity. In practice, its a lot trickier than this, and it involves a lot of subtleties to get this to work in a physically accurate way. Notably, as we have a discontinuity in the grid 'at' the singularity, differentiating across it is technically incorrect. This means we must rely on the causality[^intheory] of the event horizon to prevent these errors from escaping into our wider universe, and keep them trapped inside the black hole
 
 [^intheory]: In practice, this is a hugely complicated topic that is going to make our lives very difficult. Its not that GR is incorrect about this, its that getting this guarantee in a numerical simulation is non trivial. While general relativity is a casual theory (where the maximum speed of causality is C), it is not a priori true as a result that *errors* in the BSSN formalism we use are causal. It also just so happens that - in theory - errors in BSSN *are* causal with the standard formalism - except we're using some modifications. This means that theoretically we're on slightly shakey grounds. In practice, error propagation is inherently non causal because of errors introduced by discretisation and discrete timestepping, which means we need a margin of error within our event horizon for errors to remain trapped within it
 
 ## Gravitational waves
 
-The reason for doing any of this is that tools like LIGO are able to detect gravitational waves from merging compact objects, and this gives us a measure of the deformation of spacetime as those waves path through the earth. The only way to reverse engineer which objects collided, is to simulate those gravitational waves ourselves via simulations like this, and then match up which set of parameters most closely reproduces our observations. This means that accuracy here is *very* important
+The reason for doing any of this is that tools like LIGO are able to detect gravitational waves from merging compact objects. The only way to reverse engineer which objects collided, is to simulate those gravitational waves ourselves via simulations like this, and then match up which set of parameters most closely reproduces our observations. This means that accuracy here is *very* important
 
 To perform this matching, there's no better way than simply bruteforcing the entire parameter space. For a pair of black holes, you have the following parameters:
 
-M1: The mass of the first black hole
-M2: The mass of the second black hole
-S1: The spin direction - a 3-vector - of the first black hole, normalised
-S2: The spin direction of the second black hole
-X1: The spin constant of the first black hole
-X2: The spin constant of the second black hole
-e: The orbital eccentricity
+| Parameter | Description |
+|-|-|
+|M0| Mass |
+|M1| Mass |
+|S0| Spin axis, normalised |
+|S1| Spin axis, normalised |
+|X0| The dimensionless spin constant|
+|X1| The dimensionless spin constant|
+|e| Orbital eccentricity|
 
 (We'll be digging into the details of what these parameters mean in a physical sense)
 
@@ -76,9 +80,9 @@ Traditional simulations in this area can take weeks to months, which you'll be g
 
 # Recap
 
-Its been a hot minute since the last article, so this is a quick recap before we get started. We're working in the ADM formalism, which slices up a 4d spacetime into a series of 3d slices (a 'foliation'). An initial 3d slice is evolved forwards in time
+Its been a hot minute since the last article, so this is a quick recap before we get started. We're working in the ADM formalism, which slices up a 4d spacetime into a series of 3d slices (a 'foliation'). An initial 3d slice (our initial conditions) is evolved forwards in time
 
-In general relativity, spacetime is defined completely by a metric tensor $g_{\mu\nu}$, which has a value everywhere on a 4d spacetime. In ADM, this is split up into various pieces - and we have the following variables for every point on our 3d surface:
+In general relativity, spacetime is defined completely by a metric tensor $g_{\mu\nu}$, which has a value everywhere on a 4d volume. In ADM, this is split up into various pieces - and we have the following variables for every point on our 3d surface:
 
 | Symbol | Name | Relation to normal GR  | Description |
 |-|-|-|-|
@@ -87,11 +91,11 @@ In general relativity, spacetime is defined completely by a metric tensor $g_{\m
 | $\alpha$ | Lapse | $\sqrt{-g_{00} + \beta^m \beta_m}$ | Part of the hypersurface normal, which points into the future |
 | $\beta^i$ | Shift | $g_{0i}$ | The other part of the hypersurface normal, which points into the future |
 
-Where latin indices run from 1-3, greek indices run from 0-4. The BSSN formalism - the set of equations we're actually using - is a decomposition of the ADM formalism. It is theoretically exactly equivalent, but is much more numerically stable in practice. It has the following variables, derived from the ADM variables as follows:
+Where latin indices run from 1-3, and greek indices run from 0-4. The BSSN formalism - the set of equations we're actually using - is a decomposition of the ADM formalism. It is theoretically exactly equivalent, but is much more numerically stable in practice. It has the following variables, derived from the ADM variables as follows:
 
 | Symbol | Name | Relation to ADM | Notes |
 |-|-|-|-|
-| $W$ | Conformal factor | $det(\gamma_{ij})^{-\frac{1}{6}}$ | Describes the relationship between the ADM variables, and the conformal BSSN variables |
+| $W$ | Conformal factor | $det(\gamma_{ij})^{-\frac{1}{6}}$ | Describes the relationship between the ADM variables, and the conformal BSSN variables. $W=0$ at the singularity |
 | $\tilde{\gamma}_{ij} $ | Conformal metric tensor | $W^2 \gamma_{ij}$ | Raises and lowers the indices of conformal variables. Inverted as if it were a 3x3 matrix. Symmetric, and has a unit determinant |
 | $K$ | Trace of the extrinsic curvature | $\gamma^{ij} K_{ij}$ | |
 | $\tilde{A}_{ij}$ | Conformal extrinsic curvature | $W^2 (K_{ij} - \frac{1}{3} \gamma_{ij} K)$ | Trace free, symmetric |
@@ -101,7 +105,7 @@ Where latin indices run from 1-3, greek indices run from 0-4. The BSSN formalism
 
 There are also a number of constraints. These are:
 
-1. The algebraic constraints. $$det(\gamma_{ij}) = 1$$, and $$\tilde{A}_{ij}$$ is trace free ($$\tilde{\gamma}^{ij} \tilde{A}_{ij} = 0$$). These are enforced: see the last article for details
+1. The algebraic constraints. $$det(\tilde{\gamma}_{ij}) = 1$$, and $$\tilde{A}_{ij}$$ is trace free $$\tilde{\gamma}^{ij} \tilde{A}_{ij} = 0$$. These are enforced: see the last article for details
 2. The momentum and hamiltonian constraints, called $$\mathcal{M}_i$$ and $$\mathcal{H}$$. We damp the former, and ignore the latter
 3. The christoffel symbol constraint, $$\mathcal{G}^i = \tilde{\Gamma}^i - \tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk} = 0$$. This will get damped
 
@@ -125,7 +129,7 @@ Of all of these, the initial conditions are by far the most complicated part cod
 
 # Initial conditions
 
-The paper we're going to implement today is called [A simple construction of initial data for multiple black holes](https://arxiv.org/pdf/gr-qc/9703066). This represents an extremely traditional and widespread way to construct black hole initial conditions - its also a very good paper that you should read. There are a few things that we need to learn right off the bat
+The paper we're going to implement today is called [A simple construction of initial data for multiple black holes](https://arxiv.org/pdf/gr-qc/9703066). This represents an extremely traditional and widespread way to construct black hole initial conditions - its also a very good paper that you should read. There are a few things that we need to learn right off the bat:
 
 1. This doesn't actually make black holes, it makes objects that collapse into black holes. They have no event horizon, or apparent horizon initially. This is commonly described as a wormhole collapsing into a trumpet - a trumpet being the final configuration of a black hole in numerical relativity
 2. There is no direct way of specifying the 'real'/ADM mass of a black hole
@@ -168,10 +172,12 @@ Note that this has nothing to do with the BSSN conformal decomposition: its just
 
 This method has the following parameters:
 
-$m$: the bare mass parameter of a black hole
-$S^i$: A 3-vector representing the spin (angular ADM momentum) of a black hole
-$P^i$: A 3-vector representing the linear momentum (ADM mass * velocity) of a black hole
-$x^i$: A 3-vector representing the position of a black hole in world coordinates
+|Symbol | Description|
+|-|-|
+|$m$|The bare mass parameter of a black hole|
+|$S^i$|A 3-vector representing the spin (angular ADM momentum) of a black hole|
+|$P^i$|A 3-vector representing the linear momentum (ADM mass * velocity) of a black hole|
+|$x^i$|A 3-vector representing the position of a black hole in world coordinates|
 
 Note that bare mass is not the same thing as what you'd think of as mass (here: ADM mass), it only correlates to it. See the end of the article for more details on the definition of a black hole's mass
 
@@ -187,7 +193,7 @@ $$
 
 ## Conformal extrinsic curvature ($\bar{A}_{ij}$)
 
-This is straightforward. For every black hole in our spacetime, we calculate the quantity (5), and then sum over our black holes. After accumulating all of these, I store $$\bar{A}^{ab} \bar{A}_{ab}$$ as a scalar
+Calculating this is straightforward. For every black hole in our spacetime, we calculate the quantity (5), and then sum over our black holes. After accumulating all of these, I store $$\bar{A}^{ab} \bar{A}_{ab}$$ as a scalar
 
 For a single black hole:
 
@@ -361,20 +367,39 @@ $$\frac{\partial^2 f(x)}{\partial x^2} = \frac{f(x - h) - 2 f(x) + f(x + h)}{h^2
 
 Where $h$ is the spacing between samples. Now, we'll treat $u$ as a function over 3d space, ie $$u(x, y, z)$$, and apply the above discretisation to $$\Delta u$$:
 
-$$\Delta u = \frac{u(x - h, y, z) - 2 u(x, y, z) + u(x + h, y, z))}{h^2} + \frac{u(x, y - h, z) - 2 u(x, y, z) + u(x, y + h, z))}{h^2} + \frac{u(x, y, z - h) - 2 u(x, y, z) + u(x, y, z + h))}{h^2}$$
+$$\begin{align}
+\Delta u = &\frac{u(x - h, y, z) - 2 u(x, y, z) + u(x + h, y, z)}{h^2} + \\
+&\frac{u(x, y - h, z) - 2 u(x, y, z) + u(x, y + h, z)}{h^2} + \\
+&\frac{u(x, y, z - h) - 2 u(x, y, z) + u(x, y, z + h)}{h^2} \\
+\end{align}$$
 
 Collecting all the terms, we get:
 
-$$\Delta u = \frac{u(x - h, y, z) + u(x + h, y, z) + u(x, y - h, z) + u(x, y + h, z) + u(x, y, z - h) + u(x, y, z + h) - 6 u(x, y, z)}{h^2}$$
+$$\begin{align}
+\Delta u = &\frac{u(x - h, y, z) + u(x + h, y, z)}{h^2} + \\
+&\frac{u(x, y - h, z) + u(x, y + h, z)}{h^2} + \\
+&\frac{u(x, y, z - h) + u(x, y, z + h)}{h^2} - \\
+&\frac{6 u(x, y, z)}{h^2}
+\end{align}$$
 
 Our initial equation is $\Delta u = F(u)$, so lets substitute in our discretisation above, and multiply by $h^2$:
 
-$$u(x - h, y, z) + u(x + h, y, z) + u(x, y - h, z) + u(x, y + h, z) + u(x, y, z - h) + u(x, y, z + h) - 6 u(x, y, z) = F(u) h^2$$
+$$\begin{align}
+&u(x - h, y, z) + u(x + h, y, z) + \\
+&u(x, y - h, z) + u(x, y + h, z) + \\
+&u(x, y, z - h) + u(x, y, z + h) - \\
+&6 u(x, y, z) = F(u) h^2
+\end{align}$$
 
 The iterative scheme for solving a laplacian (called a 5-point stencil in 2d, or a 7-point stencil in 3d), is given by solving for $u(x, y, z)$:
 
 $$
-u(x, y, z) = \frac{u(x - h, y, z) + u(x + h, y, z) + u(x, y - h, z) + u(x, y + h, z) + u(x, y, z - h) + u(x, y, z + h) - F(u) h^2}{6}
+\begin{align}
+u(x, y, z) = \frac{1}{6}(&u(x - h, y, z) + u(x + h, y, z) + \\
+&u(x, y - h, z) + u(x, y + h, z) + \\
+&u(x, y, z - h) + u(x, y, z + h) - \\
+&F(u) h^2) \\
+\end{align}
 $$
 
 Simply apply this repeatedly to a grid, and you've solved your laplacian. For us, $$F(u) = -\frac{1}{8} \bar{A}^{ij} \bar{A}_{ij} (\frac{1}{\alpha} + u + 1)^{-7}$$ (note the minus sign)
