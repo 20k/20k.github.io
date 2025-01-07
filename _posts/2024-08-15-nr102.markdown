@@ -1614,9 +1614,44 @@ This section contains pieces of information which are useful to know, but don't 
 
 ## Paper list
 
-I'd highly recommend checking out many of the papers linked to in this article:
+I'd highly recommend checking out many of the papers linked to in this article, as they crop up a lot in the literature once you go digging. In no particular order:
 
-Todo
+[Improved numerical stability of stationary black hole evolution calculations](https://arxiv.org/pdf/gr-qc/0209066)
+
+Modifications for numerical stability of black hole evolution https://arxiv.org/pdf/1205.5111v1
+
+Numerical experiments of adjusted BSSN systems for controlling constraint violations https://arxiv.org/pdf/0711.3575v2
+
+
+Improved numerical stability of stationary black hole evolution calculations https://arxiv.org/pdf/gr-qc/0209066
+
+Lecture slides https://indico.cern.ch/event/505595/contributions/1183661/attachments/1332828/2003830/sperhake.pdf
+
+How to move a black hole without excision: gauge conditions for the numerical evolution of a moving puncture https://arxiv.org/pdf/gr-qc/0605030
+
+GRChombo: Numerical Relativity with Adaptive Mesh Refinement https://arxiv.org/pdf/1503.03436
+
+A simple construction of initial data for multiple black holes https://arxiv.org/pdf/gr-qc/9703066
+
+Calibration of Moving Puncture Simulations https://arxiv.org/pdf/gr-qc/0610128
+
+
+Evolving a puncture black hole with fixed mesh refinement https://arxiv.org/pdf/gr-qc/0403048
+
+Improved Moving-Puncture Techniques for Compact Binary Simulations https://arxiv.org/pdf/2404.01137
+
+Improved fast-rotating black hole evolution simulations with modified Baumgarte-Shapiro-Shibata-Nakamura formulation https://arxiv.org/pdf/1507.00570
+
+Advantages of modified ADM formulation: constraint propagation analysis of Baumgarte-Shapiro-Shibata-Nakamura system https://arxiv.org/pdf/gr-qc/0204002
+
+Gauge conditions for long-term numerical black hole evolutions without excision https://arxiv.org/pdf/gr-qc/0206072
+
+Simple excision of a black hole in 3+1 numerical relativity https://arxiv.org/pdf/gr-qc/0008067
+
+Towards a Stable Numerical Evolution of Strongly Gravitating Systems in General Relativity: The Conformal Treatments https://arxiv.org/pdf/gr-qc/0003071
+
+Gauge conditions for long-term numerical black hole evolutions without excision https://arxiv.org/pdf/gr-qc/0206072
+
 
 ## Black holes do not really have mass
 
