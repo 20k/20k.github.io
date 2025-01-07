@@ -10,16 +10,18 @@ Hello! Today we're going to do one of the coolest things in all of physics in my
 This article consists of three primary parts:
 
 1. Solving a new set of initial conditions for black holes, via a simple laplacian
-2. Implementing new boundary conditions, as our simulation is no longer periodic, but has a finite extent
+2. Implementing new boundary conditions, as our simulation is no longer periodic and has a finite extent
 3. Modifying the evolution equations to render them suitable for simulating binary black hole collisions
 
-If you're looking for someone with a deep enthusiasm for GPGPU, and/or someone who'd rather love to do a PhD in numerical relativity - please give me a shout! [^shout]
+If you're looking for someone with a deep enthusiasm for GPU programming, and/or someone who'd rather love to do a PhD in numerical relativity - please give me a shout! [^shout]
 
 [^shout]: I'm very bad at plugging myself. Contact me at icedshot@gmail.com, or if you'd like follow my bluesky at @spacejames.bsky.social
 
-Lets get into it. As always, the full code is available over at todo:
+Lets get into it. As always, the full code is available over [here](https://github.com/20k/20k.github.io/tree/master/code/NR2):
 
 ![happywesley](/assets/nr2_happy_wesley.jpg)
+
+Todo: Readme, building
 
 # Astrophysics Context
 
@@ -56,7 +58,7 @@ In practice, its a lot trickier than this, and it involves a lot of subtleties t
 
 The reason for doing any of this is that tools like LIGO are able to detect gravitational waves from merging compact objects, and this gives us a measure of the deformation of spacetime as those waves path through the earth. The only way to reverse engineer which objects collided, is to simulate those gravitational waves ourselves via simulations like this, and then match up which set of parameters most closely reproduces our observations. This means that accuracy here is *very* important
 
-To perform this matching, there's no better way than simply bruteforcing the entire parameter space. For a pair of black holes in an ADM simulation, you have the following parameters:
+To perform this matching, there's no better way than simply bruteforcing the entire parameter space. For a pair of black holes, you have the following parameters:
 
 M1: The mass of the first black hole
 M2: The mass of the second black hole
@@ -117,7 +119,7 @@ We need a few things to smash black holes together successfully:
 2. New boundary conditions, ie what happens at the edge of our domain
 3. Some modifications to the evolution equations
 
-Of all of these, the initial conditions are by far the most complicated part code-wise. Lets get to it!
+Of all of these, the initial conditions are by far the most complicated part code-wise
 
 ![wesleybox](/assets/nr2_cardboard_box.jpg)
 
@@ -1032,7 +1034,7 @@ We've now solved the initial conditions, and implemented our boundary conditions
 
 (this is the lapse)
 
-![grumpywesley](nr2_grumpy_wesley.jpg)
+![grumpywesley](/assets/nr2_grumpy_wesley.jpg)
 
 Unfortunately, the equations as-is cannot simulate binary black hole collisions, and we now enter a very murky area: Ad hoc modifying the equations, so that we can pull off these simulations correctly
 
@@ -1618,40 +1620,33 @@ I'd highly recommend checking out many of the papers linked to in this article, 
 
 [Improved numerical stability of stationary black hole evolution calculations](https://arxiv.org/pdf/gr-qc/0209066)
 
-Modifications for numerical stability of black hole evolution https://arxiv.org/pdf/1205.5111v1
+[Modifications for numerical stability of black hole evolution](https://arxiv.org/pdf/1205.5111v1)
 
-Numerical experiments of adjusted BSSN systems for controlling constraint violations https://arxiv.org/pdf/0711.3575v2
+[Numerical experiments of adjusted BSSN systems for controlling constraint violations](https://arxiv.org/pdf/0711.3575v2)
 
+[Lecture slides](https://indico.cern.ch/event/505595/contributions/1183661/attachments/1332828/2003830/sperhake.pdf)
 
-Improved numerical stability of stationary black hole evolution calculations https://arxiv.org/pdf/gr-qc/0209066
+[How to move a black hole without excision: gauge conditions for the numerical evolution of a moving puncture]() https://arxiv.org/pdf/gr-qc/0605030)
 
-Lecture slides https://indico.cern.ch/event/505595/contributions/1183661/attachments/1332828/2003830/sperhake.pdf
+[GRChombo: Numerical Relativity with Adaptive Mesh Refinement](https://arxiv.org/pdf/1503.03436)
 
-How to move a black hole without excision: gauge conditions for the numerical evolution of a moving puncture https://arxiv.org/pdf/gr-qc/0605030
+[A simple construction of initial data for multiple black holes](https://arxiv.org/pdf/gr-qc/9703066)
 
-GRChombo: Numerical Relativity with Adaptive Mesh Refinement https://arxiv.org/pdf/1503.03436
+[Calibration of Moving Puncture Simulations](https://arxiv.org/pdf/gr-qc/0610128)
 
-A simple construction of initial data for multiple black holes https://arxiv.org/pdf/gr-qc/9703066
+[Evolving a puncture black hole with fixed mesh refinement](https://arxiv.org/pdf/gr-qc/0403048)
 
-Calibration of Moving Puncture Simulations https://arxiv.org/pdf/gr-qc/0610128
+[Improved Moving-Puncture Techniques for Compact Binary Simulations](https://arxiv.org/pdf/2404.01137)
 
+[Improved fast-rotating black hole evolution simulations with modified Baumgarte-Shapiro-Shibata-Nakamura formulation](https://arxiv.org/pdf/1507.00570)
 
-Evolving a puncture black hole with fixed mesh refinement https://arxiv.org/pdf/gr-qc/0403048
+[Advantages of modified ADM formulation: constraint propagation analysis of Baumgarte-Shapiro-Shibata-Nakamura system](https://arxiv.org/pdf/gr-qc/0204002)
 
-Improved Moving-Puncture Techniques for Compact Binary Simulations https://arxiv.org/pdf/2404.01137
+[Gauge conditions for long-term numerical black hole evolutions without excision](https://arxiv.org/pdf/gr-qc/0206072)
 
-Improved fast-rotating black hole evolution simulations with modified Baumgarte-Shapiro-Shibata-Nakamura formulation https://arxiv.org/pdf/1507.00570
+[Simple excision of a black hole in 3+1 numerical relativity](https://arxiv.org/pdf/gr-qc/0008067)
 
-Advantages of modified ADM formulation: constraint propagation analysis of Baumgarte-Shapiro-Shibata-Nakamura system https://arxiv.org/pdf/gr-qc/0204002
-
-Gauge conditions for long-term numerical black hole evolutions without excision https://arxiv.org/pdf/gr-qc/0206072
-
-Simple excision of a black hole in 3+1 numerical relativity https://arxiv.org/pdf/gr-qc/0008067
-
-Towards a Stable Numerical Evolution of Strongly Gravitating Systems in General Relativity: The Conformal Treatments https://arxiv.org/pdf/gr-qc/0003071
-
-Gauge conditions for long-term numerical black hole evolutions without excision https://arxiv.org/pdf/gr-qc/0206072
-
+[Towards a Stable Numerical Evolution of Strongly Gravitating Systems in General Relativity: The Conformal Treatments](https://arxiv.org/pdf/gr-qc/0003071)
 
 ## Black holes do not really have mass
 
