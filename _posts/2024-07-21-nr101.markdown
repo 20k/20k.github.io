@@ -149,7 +149,7 @@ With all this applied, you end up with the BSSN formalism. We'll go through the 
 
 The two non-gauge ADM variables are: $\gamma_{ij}$ the metric tensor, and $K_{ij}$, the extrinsic curvature, and these are what we'll split up - via what's called the $W^2$ conformal factor. This is used to define the conformal metric tensor[^technicallydensity] as follows:
 
-[^technicallydensity]: Technically the conformal metric is a tensor *density* with weight $-frac{2}{3}$
+[^technicallydensity]: Technically the conformal metric is a tensor *density* with weight $-\frac{2}{3}$
 
 $$\tilde{\gamma}_{ij} = W^2 \gamma_{ij}$$
 
