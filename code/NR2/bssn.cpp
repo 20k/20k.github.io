@@ -346,10 +346,10 @@ valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, const derivative_data
         bmdma += args.gB[i] * diff1(args.gA, i, d);
     }
 
-    //#define LAPSE_DAMPING
+    #define LAPSE_DAMPING
     #ifdef LAPSE_DAMPING
     valuef sigma = 20.f;
-    value h = (3.f/5.f);
+    value h = (4.f/5.f);
 
     valuef damp = args.W * (h * exp(-(total_elapsed*total_elapsed) / (2 * sigma * sigma))) * (args.gA - args.W);
     #else
@@ -416,7 +416,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
     ///https://arxiv.org/pdf/1106.2254 also see here, after 25
     auto dtcY = lie_derivative_weight(args.gB, args.cY.to_tensor(), d) - 2 * args.gA * args.cA;
 
-    //#define CY_STABILITY
+    #define CY_STABILITY
     #ifdef CY_STABILITY
     tensor<valuef, 3, 3> d_cGi;
 
@@ -488,7 +488,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
                 sum += 0.5f * (args.cY[k, i] * cD[k, j] + args.cY[k, j] * cD[k, i]);
             }
 
-            float cK = -0.1f;
+            float cK = -0.18f;
 
             dtcY.idx(i, j) += cK * args.gA * sum;
         }
@@ -889,7 +889,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
         //valuef s = sign(dmbm);
         valuef s = step(dmbm);
 
-        value X = 0.5f;
+        value X = 0.9f;
 
         dtcG += -(X * s + 2.f/3.f) * Gi * dmbm;
         #endif
