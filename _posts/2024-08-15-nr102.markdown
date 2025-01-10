@@ -292,8 +292,6 @@ tensor<valuef, 3, 3> get_aIJ(v3f world_pos, v3f bh_pos, v3f angular_momentum, v3
 }
 ```
 
-The details of the summation are very unexciting, and can be found over at todo:
-
 Next up: We need the conformal factor $\psi$, which involves calculating the correction $u$
 
 ## Conformal Factor ($\psi$)
