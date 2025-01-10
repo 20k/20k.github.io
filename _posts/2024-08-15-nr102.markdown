@@ -207,10 +207,8 @@ $$
 For multiple black holes:
 
 $$
-\bar{A}^{ij}_{summed} = \sum_1^n \bar{A}^{ij}_{single}
+\bar{A}^{ij}_{summed} = \sum_1^k \bar{A}^{ij}_{single}
 $$
-
-This works for any number of black holes
 
 | Symbol | Meaning |
 |-|-|
@@ -598,12 +596,6 @@ valuef get_scaled_coordinate(valuei in, valuei dimension_upper, valuei dimension
 
     valuef scale = (valuef)(dimension_upper - 1) / (valuef)(dimension_lower - 1);
 
-    ///so lets say we have [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] with a dimension of 13
-    ///this gives a middle value of 6, which is the 7th value
-    ///Then we want to scale it to a dimension of 7
-    ///to get [0:0, 1:0.5, 2:1, 3:1.5, 4:2, 5:2.5, 6:3, 7:3.5, 8:4, 9:4.5, 10:5, 11:5.5, 12:6]
-    ///so its just a straight division by the scale
-
     return (valuef)in / scale;
 }
 
@@ -701,6 +693,8 @@ K_{ij} &= \psi^{-2} \bar{A}_{ij}
 \end{align}$$
 
 Where if you remember: in cartesian coordinates, $$\bar{\gamma}_{ij}$$ is the identity matrix (though really - the flat space metric). We already know how to construct our BSSN variables from here, check the recap or the last article for more details
+
+One additional detail to add is that we're only solving over our actual simulation area. A slighty better approach might be to solve over a very large area, and then extract just our simulation area at the end. I've found it doesn't make much difference in practice, but when we start really chasing physical accuracy, we might do this
 
 ### ADM mass estimation
 
