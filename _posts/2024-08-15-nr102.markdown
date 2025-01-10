@@ -32,15 +32,15 @@ Black holes have two primary distinguishing features compared to other compact o
 1. They have an event horizon, out of which nothing can escape
 2. They form a singularity at their centre. A spinning black hole has a ring singularity (ringularity), and a non spinning black hole's singularity is a point
 
+The event horizon itself acts completely normally in general relativity, but it is the singularity which causes problems for us. It is a true mathematical error, and we cannot simulate it by any means. Because it will always form, we must come up with *some* method for dealing with it
+
 ![ringularity](/assets/ringularity.png)
 
 (A black hole's ringularity)
 
-The event horizon itself acts completely normally in general relativity, but it is the singularity which causes problems for us. It is a true mathematical error, and we cannot simulate it by any means. Because it will always form, we must come up with *some* method for dealing with it
-
 ## Managing the singularity
 
-There are two primary techniques for dealing with the singularity: excision, 'moving punctures'
+There are two primary techniques for dealing with the singularity: excision, and 'moving punctures'
 
 ### Excision
 
@@ -52,13 +52,13 @@ This is the technique we'll actually be using
 
 Moving punctures involves a bit of trickery with the coordinate system - the basic idea is that we keep the coordinate system (via the lapse $$\alpha$$, and shift $$\beta^i$$) away from the singularity, so that its never explicitly present on the simulation grid. Instead, we have a discontinuity at the singularity. We still simulate the entire grid however, unlike with excision
 
-In theory we just need the appropriate gauge conditions to keep the coordinates from meeting the singularity. In practice, its a lot trickier than this, and it involves a lot of subtleties to get this to work in a physically accurate way. Notably, as we have a discontinuity in the grid 'at' the singularity, differentiating across it is technically incorrect. This means we must rely on the causality[^intheory] of the event horizon to prevent these errors from escaping into our wider universe, and keep them trapped inside the black hole
+In theory we just need the appropriate gauge conditions to keep the coordinates from meeting the singularity. In practice, its a lot trickier than this, and it involves a lot of subtleties to get this to work in a physically accurate way. Notably, as we have a discontinuity in the grid at the singularity, differentiating across it is incorrect, and produces errors. In the moving punctures technique, we rely on the causality[^intheory] of the event horizon to prevent these errors from escaping into our wider universe
 
 [^intheory]: In practice, this is a hugely complicated topic that is going to make our lives very difficult. Its not that GR is incorrect about this, its that getting this guarantee in a numerical simulation is non trivial. While general relativity is a casual theory (where the maximum speed of causality is C), it is not a priori true as a result that *errors* in the BSSN formalism we use are causal. It also just so happens that - in theory - errors in BSSN *are* causal with the standard formalism - except we're using some modifications. This means that theoretically we're on slightly shakey grounds. In practice, error propagation is inherently non causal because of errors introduced by discretisation and discrete timestepping, which means we need a margin of error within our event horizon for errors to remain trapped within it
 
 ## Gravitational waves
 
-The reason for doing any of this is that tools like LIGO are able to detect gravitational waves from merging compact objects. The only way to reverse engineer which objects collided, is to simulate those gravitational waves ourselves via simulations like this, and then match up which set of parameters most closely reproduces our observations. This means that accuracy here is *very* important
+The reason for doing any of this is that tools like LIGO are able to detect gravitational waves from merging compact objects. The only way to correctly reverse engineer which objects collided, is to simulate those gravitational waves ourselves via simulations like this, and then match up which set of parameters most closely reproduces our observations. This means that accuracy here is *very* important
 
 To perform this matching, there's no better way than simply bruteforcing the entire parameter space. For a pair of black holes, you have the following parameters:
 
@@ -105,7 +105,7 @@ Where latin indices run from 1-3, and greek indices run from 0-4. The BSSN forma
 
 There are also a number of constraints. These are:
 
-1. The algebraic constraints. $$det(\tilde{\gamma}_{ij}) = 1$$, and $$\tilde{A}_{ij}$$ is trace free $$\tilde{\gamma}^{ij} \tilde{A}_{ij} = 0$$. These are enforced: see the last article for details
+1. The algebraic constraints. $$det(\tilde{\gamma}_{ij}) = 1$$, and $$\tilde{A}_{ij}$$ is trace free ($$\tilde{\gamma}^{ij} \tilde{A}_{ij} = 0$$). These are enforced: see the last article for details
 2. The momentum and hamiltonian constraints, called $$\mathcal{M}_i$$ and $$\mathcal{H}$$. We damp the former, and ignore the latter
 3. The christoffel symbol constraint, $$\mathcal{G}^i = \tilde{\Gamma}^i - \tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk} = 0$$. This will get damped
 
@@ -756,8 +756,8 @@ This equation can be used to solve for a specific ADM mass from our bare mass pa
 
 We still don't have an initial solution for our gauge variables however. Universally, $$\beta^i = 0$$. The lapse $$\alpha$$ is a tad more interesting - there are two[^twomain] main options:
 
-1. $$\alpha = 1$$
-2. $$\alpha = \psi^{-2}$$
+1. $\alpha = 1$
+2. $\alpha = \psi^{-2}$
 
 Both work well and are widely used. The latter is better for black holes, but I've found that it tends to lead to neutron stars exploding spectacularly. We're going to use #2 for this article, as we're strictly dealing with black holes
 
@@ -981,7 +981,7 @@ valuef kreiss_oliger_interior(valuef in, int order)
 }
 ```
 
-The maximum grid cell offset touched by a derivative is half the derivative rank: Eg the second derivative `diff2nd` has the definition:
+Note that the prefix of $\epsilon \frac{\Delta t}{h}$ has been replaced by a single $\epsilon$ in this article. The maximum grid cell offset touched by a derivative is half the derivative rank: Eg the second derivative `diff2nd` has the definition:
 
 ```c++
 valuef diff2nd(const valuef& in, int idx)
@@ -1067,7 +1067,7 @@ In addition to the 'usual' issues, we also suffer from our own set of unique iss
 
 Note that all tests are conducted with a grid resolution of $213^3$, encompassing a region with a width of $30$
 
-[^leeway]: The determinant of the metric tensor becomes degenerate on a failure of the boundary conditions, leading to infinities turning up. You can handle more degenerate matrices with double precision, giving the gauge conditions more time to catch up
+[^leeway]: The determinant of the metric tensor becomes degenerate on a failure of the boundary conditions, leading to infinities turning up (specifically: you'll likely find that the second derivatives of the metric blow up to infinity first). You can handle more degenerate matrices with double precision, giving the gauge conditions more time to catch up
 
 ## What's wrong with the equations?
 
@@ -1096,13 +1096,13 @@ $\eta$ is a free parameter that represents a gauge damping term: In general it i
 
 Taken together, these two gauge conditions are called the moving puncture gauge, and are the standard choice for near equal mass[^nearequalmass] binary black hole collisions
 
-[^nearequalmass]: High mass ratio collisions are an unsolved problem. There might be a future article about exploring higher ratios, but we'd likely need adaptive mesh refinement to make a dent in that problem
+[^nearequalmass]: High mass ratio collisions are an unsolved problem. There might be a future article about exploring higher ratios, but we'd likely need adaptive mesh refinement to make a dent in that
 
 #### There are many gauge conditions
 
 Here I'm presenting what I'd consider to be the most standard gauge conditions, but even a brief look through the papers linked above will show that there are a *wide* variety of gauge conditions. The most relevant notes here are:
 
-1. The $$\beta^k \partial_k$$ terms are frequently dropped, as what they compensate for (a zero speed mode) is frequently addressed implicitly via kreiss-oliger dissipation - as it inherently dissipates away zero lapse and shift points
+1. The $$\beta^k \partial_k$$ terms are frequently dropped, as what they compensate for (a zero speed mode) is frequently addressed implicitly via kreiss-oliger dissipation
 2. There is an alternate two-variable from of the gamma driver equation, which appears to be strictly equivalent, but is expensive for us in terms of performance + memory
 3. These gauge conditions only work for relatively equal mass compact object collisions. For cosmological simulations or very unequal mass binaries, you'd again need different gauge conditions - there's no one size fits all condition
 
@@ -1202,11 +1202,9 @@ These modifications would, in theory, work if you were using some kind of adapti
 
 ## Lets reproduce a result
 
-Up until now I've been presenting this more informally to illustrate the kinds of errors we'll run into, which is why I haven't laid out exactly what we're doing or reproducing
+Up until now I've been presenting this more informally to illustrate the kinds of errors we'll run into. We're now going to switch gears into trying to reproduce a specific result: The no spin test case from [this paper](https://arxiv.org/pdf/gr-qc/0610128). If you'd like some more test cases, check out [this](https://arxiv.org/pdf/gr-qc/0602026) paper as well. These are the test parameters:
 
-Today we're going to focus on trying to reproduce a specific result: The no spin test case from [this paper](https://arxiv.org/pdf/gr-qc/0610128). If you'd like some more test cases, check out [this](https://arxiv.org/pdf/gr-qc/0602026) paper as well. These are the test parameters:
-
-| | |BH 0|BH 1|
+| Parameter Name | Symbol |BH 0|BH 1|
 |-|-|-|-|
 |Bare mass|$m$|0.483|0.483|
 |Momentum|$P^0$|-0.133|0.133|
@@ -1229,8 +1227,6 @@ The black holes are expected to collide at roughly T=160, after approximately 1.
 | $\chi$ (christoffel damping) | $0.5$ |
 
 The goal here is to demonstrate specific types of errors, the general approach that you might use to fix them, and to give you an overview of what kinds of issues you're going to run into. Until we implement gravitational wave detection and a variety of error calculation, there's little point trying to calibrate our sim *exactly* via the mk 1 eyeball, so we're going for close-enough
-
-Note that the boundaries here are sufficiently close that they'll cause problems quite quickly. Further away boundaries require higher resolutions, some kind of variable coordinate scheme, or adaptive mesh refinement
 
 Now we'll go through how to diagnose some of our simulations problems:
 
@@ -1259,7 +1255,7 @@ There are a variety of schemes available for improving the christoffel symbols, 
 | Informal Name | Modification | Notes | Source |
 |-|-|-|-|
 |Christoffel Substitution|$$\tilde{\Gamma}^i = \tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk}$$ | Substitutes the variable $$\tilde{\Gamma}^i$$ for the analytic quantity $$\tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk}$$, only where $$\tilde{\Gamma}$$ is not differentiated. Very widespread in the literature | [After 32](https://arxiv.org/pdf/gr-qc/0206072) |
-|Christoffel lapse modification| $$\partial_t \tilde{\Gamma}^i = \partial_t \tilde{\Gamma}^i + k_{\tilde{\Gamma}} \alpha \mathcal{G}^i$ | $k_{\tilde{\Gamma}} < 0$$ | [2.22](https://arxiv.org/pdf/0711.3575v1) |
+|Christoffel lapse modification| $$\partial_t \tilde{\Gamma}^i = \partial_t \tilde{\Gamma}^i + k_{\tilde{\Gamma}} \alpha \mathcal{G}^i$$ | $$k_{\tilde{\Gamma}} < 0$$ | [2.22](https://arxiv.org/pdf/0711.3575v1) |
 |Metric Modification| $$\partial_t \tilde{\gamma}_{ij} = \partial_t \tilde{\gamma}_{ij} + k_{\gamma} \alpha \tilde{\gamma}_{k(i} \tilde{D}_{j)} \mathcal{G}^k$$ | $k_{\gamma} < 0$ | [2.21](https://arxiv.org/pdf/0711.3575v1), or [table II](https://arxiv.org/pdf/gr-qc/0204002)|
 
 Please note that the informal names are something I've purely jotted down for clarity, and are not standard names
@@ -1270,7 +1266,7 @@ This is easy enough to implement. There are only 4 instances where this substitu
 
 1. In $$\mathcal{R}_{ij}$$
 2. Two in $$\partial_t \tilde{\Gamma}^i$$
-3. $$\partial_t \beta_i$$
+3. In $$\partial_t \beta^i$$
 
 The analytic value is straightforward to calculate:
 
@@ -1340,7 +1336,7 @@ float lapse_cst = -<SOME_CONSTANT>;
 dtcG += lapse_cst * args.gA * Gi;
 ```
 
-This modification has been a tricky one to try and show off. In general, either the value of lapse_cst is too low (eg $-0.05$), resulting in no discernable change. Or, its too high, resulting in numerical instability. Combining it with and without the other modifications up until this point results in very little change
+This modification has been a tricky one to try and show off. In general, either the value of lapse_cst is too low (eg see $-0.1$ below), resulting in no discernable change. Or, it's too high, resulting in numerical instability. Combining it with and without the other modifications up until this point results in very little change
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/zAk6q5kJuVM?si=RVAelnAeoRrZB2lp" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
@@ -1509,19 +1505,25 @@ With this implemented, we get this result:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/2u9hQRaNTv0?si=0MqVwqf93Yhcy0dF" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Notice that the initial pulse its much reduced here, which is very nice. When we get around to making this physically accurate, this modification will help reduce the constraint errors overall
+If you (really) squint[^squint] you can see that the initial pulse its much reduced here, which is very nice. When we get around to making this physically accurate, this modification will help reduce the constraint errors overall
+
+[^squint]: I promise in the next article this is going to look less visually horrendous
 
 In general, this modification is a free win, so we'll be leaving this on (with $h=\frac{3}{5}$)
 
 ### Curvature adjusted kreiss-oliger dissipation (CAKO)
 
-If you remember, kreiss-oliger is a method of removing high frequency oscillations from your grid, and it damps out numerical errors. The basic idea with our next modification [(20)](https://arxiv.org/pdf/2404.01137) is that sharp features near the event horizon of a black hole are likely natural, and require less smoothing. This makes a certain amount of sense, and after all - if we're trying to represent as much information on our grid as possible, removing high frequencies in high frequency areas seems like a prime candidate for wasting information
+If you remember, kreiss-oliger is a method of damping high frequency oscillations present in your grid. The basic idea with our next modification [(20)](https://arxiv.org/pdf/2404.01137) is that sharp features near the event horizon of a black hole are likely natural, and require less smoothing. This makes a certain amount of sense, and after all - if we're trying to represent as much information on our grid as possible, removing high frequencies in high frequency areas seems like a prime candidate for wasting information
 
 To adjust this, the authors multiply the damping strength, by the parameter $W$, thus making the damping strength virtually 0 near the event horizon. Let's try it!
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/U9lUl0QVVE0?si=cHefuAscEsUY5wOc" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Testing this directly doesn't work. I suspect that our code is too low resolution, and there are signs of numerical error - prior experience on my end is that the black holes are likely obviously borked visually, we just don't have the debugging tools to observe this. Additionally, fully dropping the damping to $0$ at the singularity is liable to generate singularity explosions in my experience. For us as it turns out, we do need some damping near the black holes, and instead I clamp the minimum damping to $max(W, k_{ko})$
+Testing this directly doesn't work. I suspect that our code is too low resolution, and there are signs of numerical error - prior experience on my end is that the black holes are likely obviously borked visually[^error] - we just don't have the debugging tools to observe this. Additionally, fully dropping the damping to $0$ at the singularity is liable to generate explosions[^explosions] in my experience. For us as it turns out, we do need some damping near the black holes, and instead I clamp the minimum damping to $max(W, k_{ko})$
+
+[^error]: Youtube compression also destroys any hope of this being visible in this article. Things to look out for are 1. Odd squarish formations trailing your black holes, like a bow wake, 2. The black holes becoming squished on your coordinate grid, and 3. The present of what looks like 'ringing' or high frequency artifacts internally to the black holes
+
+[^explosions]: Its actually a miracle that this test case *doesn't* break, its very unusual
 
 In practice, I've found that this $$k_{ko}$$ parameter is very dependent on grid resolution, and can be anywhere from 0.1 to 0.5, with lower resolutions needing higher values. We're using an extremely low resolution, so we'll need to go for $0.5$
 
@@ -1531,7 +1533,7 @@ Implementing this is extremely straightforward, and our kreiss-oliger step becom
 as_ref(out[lid]) = in[lid] + eps.get() * kreiss_oliger_interior(in[pos, dim], order) * max(W[lid], valuef(0.5));
 ```
 
-Done straightforwardly, in this test case the black holes outspiral. To make this work, I increase the christoffel damping to $$k_{\gamma} = -0.15$, and $\chi=0.9$ This gives us a result that looks like this:
+Done straightforwardly, in this test case the black holes outspiral. To make this work, I increase the christoffel damping to $$k_{\gamma} = -0.15$$, and $\chi=0.9$ This gives us a result that looks like this:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/CFxlef6H4g8?si=JGvzzTUxLrl9Ibtf" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
@@ -1565,7 +1567,7 @@ We get this:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/iDERG8xKEsE?si=x6SyatUz9WF7t2N8" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-This brings us a little closer to our target result. Further tuning beyond this is a bit pointless because we have no real metrics to actually validate that we're making it more accurate, which is beyond the scope of this specific article. On the plus side, it doesn't look like there's any outspiralling which is a good sign, and its a miracle we're able to get this close to our target result with such low resolution
+This brings us a little closer to our target result. Further tuning beyond this is a bit pointless because we have no real metrics to actually validate that we're making it more accurate, which is beyond the scope of this specific article. On the plus side, it doesn't look like there's any outspiralling which is a good sign, and its a miracle we're able to get this close to our target result with such incredibly low resolution
 
 Fun fact: When validating this article, I discovered a critical error in the boundary conditions, which means that I had to resimulate everything again. The joys!
 
@@ -1577,13 +1579,13 @@ With all of this together, we're able to replicate - close enough for the time b
 
  There are still clearly some inaccuracies, and the fine tuning nature of the constants is ad-hoc, but it works well for such a low resolution. The inspiral looks smooth and largely monotonic (ie no sharp jumps, or outspiralling), which is ideal. It isn't scientific grade by any means, but its a solid base for getting there in a future article
 
-Just for fun, here's a compilation of all the simulations we've done in this article:
+Just for fun, here's a compilation of the major simulations we've done in this article:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/D0NHnV5-1Kw?si=IUw2XVOdwTmujB__" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 # Discussion
 
-Overall, trying to get black hole paths to replicably follow sane trajectories at low resolutions has occupied a pretty major part of what I've worked on in general, and I've spent a significant amount of time on characterising this issue. In general, this article is actually by far the most difficult one of any of the articles I'm presenting, and it luckily all gets simpler from here. The moving punctures technique as a whole is slightly sketchy numerically at low resolutions: as mentioned previously, the puncture is a true discontinuity, and differentiating across it is invalid. This is a major source of constraint violations, though I've seen suggestions that the event horizon itself is also a source of constraint violations
+Overall, trying to get black hole paths to replicably follow sane trajectories at low resolutions has occupied a pretty major part of what I've worked on in general, and I've spent a significant amount of time on characterising this issue. In general, this article is actually by far the most difficult one of any of the articles I'm presenting, and it luckily all gets simpler from here. The moving punctures technique as a whole is slightly sketchy numerically at low resolutions: as mentioned previously, the puncture is a true discontinuity, and differentiating across it generates errors
 
 In the literature, there are *many* ad-hoc techniques used with respect to the puncture, including:
 
@@ -1594,15 +1596,15 @@ In the literature, there are *many* ad-hoc techniques used with respect to the p
 
 [^upwind]: A lot of the literature uses upwinded stencils. As far as I can tell, it essentially dissipates away high frequency oscillations caused by using an explicit integrator, and has no relevance for us. I've only ever gotten remarkably poor results from using them
 
-A lot of this is simply that any kind of differentiation is invalid near the puncture, and so techniques indirectly tend to lower the constraint contamination by reducing the singularity, or reducing the size of stencils to reduce constraint error propagation. In theory - some BSSN formulations have causal constraint propagation, but this breaks down *somewhat* in the face of discretisation, and still relies on you having a sufficiently large event horizon
+These techniques tend to reduce errors by reducing the singularity, or reducing the size of differentiation stencils to reduce error propagation (as smaller stencils propagate information slower). In theory - errors in BSSN are causal, but this breaks down *somewhat* in the face of discretisation, and still relies on you having a sufficiently large event horizon. It be interesting to explore an excision technique instead, and see how it affects the inspiralling and constraint violation behaviour. Its on my infinitely long list!
 
-It be interesting to explore an excision technique instead, and see how it affects the inspiralling and constraint violation behaviour. Its on my infinitely long list!
+The other primary source of errors for us is the boundary conditions. The simulation here has a very tight boundary, and this leads to errors that make their way inwards. Its very likely that part of our remaining inaccuracy is due to the boundary effect. Constraint preserving boundary conditions would likely help us significantly, though the literature is a bit lite on how to actually implement them
 
 # Performance
 
 After all this work, its probably worth mentioning the performance here, given that that's the point of doing all of this on the GPU. All of test videos are shot in real time to make comparison easier, and we get roughly 90ms/tick (~3 minutes per orbit) on a 12GB 6700xt, which is excellent for midrange hardware[^allimsaying]. If you'd like to investigate further performance work, here's some places you can go:
 
-[^allimsaying]: All I'm saying is that if some kind of GPU with a monstrous amount of vram turned up on my doorstep, I'd start working on LIGO data tomorrow
+[^allimsaying]: All I'm saying is that if some kind of GPU with a monstrous amount of vram and bandwidth turned up on my doorstep, I'd start working on LIGO data tomorrow
 
 1. Momentum constraint damping costs 20ms, split about 50% between its calculation, and pulling the memory in in the evolution kernel. This could do with a significant reduction in overhead, some of which could be achieved by a better form of the constraint
 2. The metric christoffel modification costs about 10ms, and could likely be expressed in a simpler non dual form to eliminate its cost entirely. It probably accidentally leads to a vgpr blowup currently
@@ -1612,7 +1614,7 @@ After all this work, its probably worth mentioning the performance here, given t
 6. Memory accesses could be rearranged to maximise cache usage better, eg see [here](https://gpuopen.com/learn/amd-lab-notes/amd-lab-notes-finite-difference-docs-laplacian_part1/) for some ideas
 7. We probably don't need every field to be 32-bit. You could get away with 16-bit fixed point for eg the lapse and conformal factor, as they have a known range
 
-From a technical perspective, we're really pushing the GPU limits here. We overflow VGPRs (gpu registers), the instruction cache, and are nearly maxing out on memory bandwidth. We're a little limited by GPU compiler issues too, so overall there is a lot of room for improvement here
+From a technical perspective, we're really pushing the GPU limits here. We overflow VGPRs (gpu registers), the instruction cache, and are nearly maxing out on memory bandwidth. We're a little limited by GPU compiler issues too, so overall there is a lot of room for improvement
 
 With all that said - I'm actually very happy with this simulation overall, both in terms of results, and the performance
 
@@ -1640,7 +1642,7 @@ I'd highly recommend checking out many of the papers linked to in this article, 
 
 [Lecture slides](https://indico.cern.ch/event/505595/contributions/1183661/attachments/1332828/2003830/sperhake.pdf)
 
-[How to move a black hole without excision: gauge conditions for the numerical evolution of a moving puncture]() https://arxiv.org/pdf/gr-qc/0605030)
+[How to move a black hole without excision: gauge conditions for the numerical evolution of a moving puncture](https://arxiv.org/pdf/gr-qc/0605030)
 
 [GRChombo: Numerical Relativity with Adaptive Mesh Refinement](https://arxiv.org/pdf/1503.03436)
 
@@ -1666,7 +1668,7 @@ I'd highly recommend checking out many of the papers linked to in this article, 
 
 ## Black holes do not really have mass
 
-There's an unfortunate truth for black holes, which is that there is no unique definition of the mass of a black hole. Its very easy to work out how much mass there is for something like the earth - because we can calculate how much *matter* is present, but black holes here are a vacuum solution - there's no matter of any description in our spacetime. This means that we have to work out what the effect on spacetime a black hole has - equivalent to a certain amount of mass
+There's an unfortunate truth for black holes, which is that there is no unique definition of the mass of a black hole. Its very easy to work out how much mass there is for something like the earth - because we can calculate how much *matter* is present, but black holes here are a vacuum solution - there's no matter of any description in our spacetime. This means that we have to work out what the effect on spacetime a black hole has - equivalent to a certain amount of matter
 
 There are multiple definitions of mass that we can use:
 
@@ -1732,7 +1734,7 @@ To make this problem explicit, we're going to replace $$\epsilon \frac{\Delta t}
 
 There are a variety of alternative boundary conditions to the sommerfeld that we use
 
-1. Fixing every field to its asymptotic value at the boundary, and not evolving it. This works if your boundary is far away (as spacetime is asmptotically flat), but requires a lot of extra simulation space
+1. Fixing every field to its asymptotic value at the boundary, and not evolving it. This works if your boundary is far away (as spacetime is asymptotically flat), but requires a lot of extra simulation space
 2. Sponge constructions. This damps outgoing waves gradually. Its easy to implement, but the sponge area must be large enough to avoid reflections, which also requires a lot of extra simulation space
 3. Constraint preserving boundary conditions. These are the best and allow you to place the boundaries closest to your simulation area (as they introduce the least error), but are more complex to implement
 4. Hybrid schemes. Some schemes assume that $$\beta^i = 0$$ on the boundary, and evolve $$\tilde{\gamma}_{ij}$$ freely, then use traditional boundary conditions for the other variables. I've never tested this and have no information on the quality of the result
