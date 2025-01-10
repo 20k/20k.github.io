@@ -21,8 +21,6 @@ The code for this article is available over [here](https://github.com/20k/20k.gi
 
 ![happywesley](/assets/nr2_happy_wesley.jpg)
 
-Todo: Readme, building
-
 # Astrophysics Context
 
 Its worth taking a minute to understand what a black hole actually is, and why its such a difficult road to simulate them numerically. In general relativity, a black hole is a stable, self supporting configuration of spacetime, which propagates itself indefinitely. It does not require any matter to support it, nor necessarily to even form it. The spacetimes we are dealing with are vacuum solutions - there's no matter of any description here
