@@ -1599,12 +1599,11 @@ After all this work, its probably worth mentioning the performance here, given t
 [^allimsaying]: All I'm saying is that if some kind of GPU with a monstrous amount of vram and bandwidth turned up on my doorstep, I'd start working on LIGO data tomorrow
 
 1. Momentum constraint damping costs 20ms, split about 50% between its calculation, and pulling the memory in in the evolution kernel. This could do with a significant reduction in overhead, some of which could be achieved by a better form of the constraint
-2. The metric christoffel modification costs about 10ms, and could likely be expressed in a simpler non dual form to eliminate its cost entirely. It probably accidentally leads to a vgpr blowup currently
-3. We only use two fixed point iterations. A multigrid approach would let you significantly improve the step size for minimal performance cost
-4. Stretching the coordinate space would mean we can distribute more resolution to the black holes, and less at the boundary - resulting in much better performance or accuracy
-5. There are many redundant expressions which are generated, and not fully optimised away by the compiler
-6. Memory accesses could be rearranged to maximise cache usage better, eg see [here](https://gpuopen.com/learn/amd-lab-notes/amd-lab-notes-finite-difference-docs-laplacian_part1/) for some ideas
-7. We probably don't need every field to be 32-bit. You could get away with 16-bit fixed point for eg the lapse and conformal factor, as they have a known range
+2. We only use two fixed point iterations. A multigrid approach would let you significantly improve the step size for minimal performance cost
+3. Stretching the coordinate space would mean we can distribute more resolution to the black holes, and less at the boundary - resulting in much better performance or accuracy
+4. There are many redundant expressions which are generated, and not fully optimised away by the compiler
+5. Memory accesses could be rearranged to maximise cache usage better, eg see [here](https://gpuopen.com/learn/amd-lab-notes/amd-lab-notes-finite-difference-docs-laplacian_part1/) for some ideas
+6. We probably don't need every field to be 32-bit. You could get away with 16-bit fixed point for eg the lapse and conformal factor, as they have a known range
 
 From a technical perspective, we're really pushing the GPU limits here. We overflow VGPRs (gpu registers), the instruction cache, and are nearly maxing out on memory bandwidth. We're a little limited by GPU compiler issues too, so overall there is a lot of room for improvement
 
