@@ -97,7 +97,7 @@ Where latin indices run from 1-3, and greek indices run from 0-4. The BSSN forma
 | $\tilde{\gamma}_{ij} $ | Conformal metric tensor | $W^2 \gamma_{ij}$ | Raises and lowers the indices of conformal variables. Inverted as if it were a 3x3 matrix. Symmetric, and has a unit determinant |
 | $K$ | Trace of the extrinsic curvature | $\gamma^{ij} K_{ij}$ | |
 | $\tilde{A}_{ij}$ | Conformal extrinsic curvature | $W^2 (K_{ij} - \frac{1}{3} \gamma_{ij} K)$ | Trace free, symmetric |
-| $\tilde{\Gamma}^i$ | Conformal christofffel symbol | $\tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk}$ | Evolved numerically despite having an analytic value from conformal variables, for stability reasons |
+| $\tilde{\Gamma}^i$ | Conformal Christoffel symbol | $\tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk}$ | Evolved numerically despite having an analytic value from conformal variables, for stability reasons |
 | $\alpha$ | Lapse | $\alpha$ | No change |
 | $\beta^i$ | Shift | $\beta^i$ | No change |
 
@@ -105,7 +105,7 @@ There are also a number of constraints. These are:
 
 1. The algebraic constraints. $$det(\tilde{\gamma}_{ij}) = 1$$, and $$\tilde{A}_{ij}$$ is trace free ($$\tilde{\gamma}^{ij} \tilde{A}_{ij} = 0$$). These are enforced: see the last article for details
 2. The momentum and hamiltonian constraints, called $$\mathcal{M}_i$$ and $$\mathcal{H}$$. We damp the former, and ignore the latter
-3. The christoffel symbol constraint, $$\mathcal{G}^i = \tilde{\Gamma}^i - \tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk} = 0$$. This will get damped
+3. The Christoffel symbol constraint, $$\mathcal{G}^i = \tilde{\Gamma}^i - \tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk} = 0$$. This will get damped
 
 The only general relativity you need to know for this article is:
 
@@ -897,7 +897,7 @@ There are two other components that need to have their boundary behaviour specif
 
 ## Kreiss-Oliger boundary
 
-Here, we'll simply reduce the order of kreiss-oliger as we approach the boundary. The implementation is straightforward:
+Here, we'll simply reduce the order of Kreiss-Oliger as we approach the boundary. The implementation is straightforward:
 
 ```c++
 valuei boundary_distance = distance_to_boundary(pos, dim);
@@ -1070,7 +1070,7 @@ Setting K=0 allows us to solve for the lapse via an [elliptic equation (32)](htt
 
 $$\partial_t \alpha = -2 \alpha K + \beta^i \partial_i \alpha$$
 
-Additionally, the shift is defined as such [see (26)](https://arxiv.org/pdf/gr-qc/0605030), in what is called the gamma driver/freezing condition (as it drives the christoffel symbol to stop evolving, see [shift conditions](https://arxiv.org/pdf/gr-qc/0206072) for details):
+Additionally, the shift is defined as such [see (26)](https://arxiv.org/pdf/gr-qc/0605030), in what is called the gamma driver/freezing condition (as it drives the Christoffel symbol to stop evolving, see [shift conditions](https://arxiv.org/pdf/gr-qc/0206072) for details):
 
 $$\partial_t \beta^i = \frac{3}{4} \tilde{\Gamma}^i + \beta^j \partial_j \beta^i - \eta \beta^i$$
 
@@ -1172,7 +1172,7 @@ Where $\chi$ > 0, and $k_g$ < 0. $step$ is a function that returns $1$ if its ar
 
 ## Lets try it
 
-With $$\chi = 0.5$$ and $$k_m = 0.04$$, and the non standard kreiss-oliger $$\epsilon = 0.05$$ (see the end of the article for an in depth discussion), we get something that looks like this:
+With $$\chi = 0.5$$ and $$k_m = 0.04$$, and the non standard Kreiss-Oliger $$\epsilon = 0.05$$ (see the end of the article for an in depth discussion), we get something that looks like this:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/coxW_Xan59E?si=F3oixsjTycXeGNhO" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
@@ -1206,7 +1206,7 @@ The black holes are expected to collide at roughly T=160, after approximately 1.
 | $\eta$ (the gauge damping parameter) | $2$ |
 | $\epsilon$ (kreiss-oliger damping) | $0.05$ |
 | $k_m$ (momentum constraint damping) | $0.04$ |
-| $\chi$ (christoffel damping) | $0.5$ |
+| $\chi$ (Christoffel damping) | $0.5$ |
 
 The goal here is to demonstrate specific types of errors, the general approach that you might use to fix them, and to give you an overview of what kinds of issues you're going to run into. Until we implement gravitational wave detection and a variety of error calculation, there's little point trying to calibrate our sim *exactly* via the mk 1 eyeball, so we're going for close-enough
 
@@ -1218,7 +1218,7 @@ Now we'll go through how to diagnose some of our simulations problems:
 
 ### Black Hole Inspiral Failure
 
-Our black holes fail to inspiral correctly. One of the easiest ways to diagnose the cause, is to run the simulation with different values of $\chi$, our christoffel symbol damping term:
+Our black holes fail to inspiral correctly. One of the easiest ways to diagnose the cause, is to run the simulation with different values of $\chi$, our Christoffel symbol damping term:
 
 $\chi = 0$
 
@@ -1228,11 +1228,11 @@ $\chi = 0.9$
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/77NeNuvXbtA?si=3M_55DAGxnqdX8O7" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-While we can see that even though higher damping somewhat improves the situation, it's clearly still borked. Part of fixing this will involve a better christoffel damping scheme
+While we can see that even though higher damping somewhat improves the situation, it's clearly still borked. Part of fixing this will involve a better Christoffel damping scheme
 
 ### Christoffel damping schemes
 
-There are a variety of schemes available for improving the christoffel symbols, of which I'm picking a few interesting ones:
+There are a variety of schemes available for improving the Christoffel symbols, of which I'm picking a few interesting ones:
 
 | Informal Name | Modification | Notes | Source |
 |-|-|-|-|
@@ -1493,9 +1493,9 @@ If you (really) squint[^squint] you can see that the initial pulse is much reduc
 
 In general, this modification is a free win, so we'll be leaving this on
 
-### Curvature adjusted kreiss-oliger dissipation (CAKO)
+### Curvature adjusted Kreiss-Oliger dissipation (CAKO)
 
-If you remember, kreiss-oliger is a method of damping high frequency oscillations present in your grid. The basic idea with our next modification [(20)](https://arxiv.org/pdf/2404.01137) is that sharp features near the event horizon of a black hole are likely natural, and require less smoothing. This makes a certain amount of sense, and after all - if we're trying to represent as much information on our grid as possible, removing high frequencies in high frequency areas seems like a prime candidate for wasting information
+If you remember, Kreiss-Oliger is a method of damping high frequency oscillations present in your grid. The basic idea with our next modification [(20)](https://arxiv.org/pdf/2404.01137) is that sharp features near the event horizon of a black hole are likely natural, and require less smoothing. This makes a certain amount of sense, and after all - if we're trying to represent as much information on our grid as possible, removing high frequencies in high frequency areas seems like a prime candidate for wasting information
 
 To adjust this, the authors multiply the damping strength, by the parameter $W$, thus making the damping strength virtually 0 near the event horizon. Let's try it!
 
@@ -1509,13 +1509,13 @@ Testing this directly doesn't work. I suspect that our code is too low resolutio
 
 In practice, I've found that this $$k_{ko}$$ parameter is very dependent on grid resolution, and can be anywhere from 0.1 to 0.5, with lower resolutions needing higher values. We're using an extremely low resolution, so we'll need to go for $0.5$
 
-Implementing this is extremely straightforward, and our kreiss-oliger step becomes:
+Implementing this is extremely straightforward, and our Kreiss-Oliger step becomes:
 
 ```c++
 as_ref(out[lid]) = in[lid] + eps.get() * kreiss_oliger_interior(in[pos, dim], order) * max(W[lid], valuef(0.5));
 ```
 
-Done straightforwardly, in this test case the black holes outspiral. To make this work, I increase the christoffel damping to $$k_{\gamma} = -0.15$$, and $\chi=0.9$ This gives us a result that looks like this:
+Done straightforwardly, in this test case the black holes outspiral. To make this work, I increase the Christoffel damping to $$k_{\gamma} = -0.15$$, and $\chi=0.9$ This gives us a result that looks like this:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/CFxlef6H4g8?si=JGvzzTUxLrl9Ibtf" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
@@ -1528,7 +1528,7 @@ So far, we've got a collection of different modifications, some of which have tw
 | $k_{ko}$| Minimum kreiss-oliger strength factor | $0.5$ |
 | $\chi$ | Damping strength for the $\tilde{\Gamma}^i$ modification | $0.9$ |
 | $h$ | Strength of the initial lapse damping | $\frac{3}{5}$ |
-| $k_{\gamma}$ | Strength of the $\tilde{\gamma}_{ij}$ christoffel damping | $-0.15$ |
+| $k_{\gamma}$ | Strength of the $\tilde{\gamma}_{ij}$ Christoffel damping | $-0.15$ |
 | $\eta$ | Gauge Damping Parameter | $2$ |
 | $\epsilon$ | Kreiss-Oliger damping strength | $0.05$ |
 | $k_m$ | Momentum constraint damping | $0.04$ |
@@ -1546,7 +1546,7 @@ So, with the following parameters:
 | $k_{ko}$| Minimum kreiss-oliger strength factor | $0.5$ |
 | $\chi$ | Damping strength for the $\tilde{\Gamma}^i$ modification | $0.9$ |
 | $h$ | Strength of the initial lapse damping | $\frac{4}{5}$ |
-| $k_{\gamma}$ | Strength of the $\tilde{\gamma}_{ij}$ christoffel damping | $-0.18$ |
+| $k_{\gamma}$ | Strength of the $\tilde{\gamma}_{ij}$ Christoffel damping | $-0.18$ |
 | $\eta$ | Gauge Damping Parameter | $2$ |
 | $\epsilon$ | Kreiss-Oliger damping strength | $0.05$ |
 | $k_m$ | Momentum constraint damping | $0.04$ |
@@ -1579,7 +1579,7 @@ Overall, trying to get black hole paths to replicably follow sane trajectories a
 
 In the literature, there are *many* ad-hoc techniques used with respect to the puncture, including:
 
-1. Dropping the order of kreiss oliger dissipation within the event horizon
+1. Dropping the order of Kreiss Oliger dissipation within the event horizon
 2. Dropping the order of differentiation within the event horizon
 3. Using upwinded stencils[^upwind] for differentiation with respect to the shift, which is very dissipative near the singularity where the shift vector undergoes a discontinuity
 4. Hiding the puncture, by placing it at the boundary between grid cells
@@ -1671,7 +1671,7 @@ There are multiple definitions of mass that we can use:
 4. Horizon mass, determined by the area of the event horizon
 5. Puncture mass, determined by the size of the correction factor $\psi$ at the puncture, which approximates the ADM mass
 
-Black holes are a form of energy stored in spacetime and are a global phenomenon. Two black holes which are nearby each other store a significant amount of energy in the spacetime between them, increasing their mass (essentially further delocalising them). This makes it hard to pin down exactly how much 'mass' an individual black hole has in a binary pair, because they aren't truly separate phenonema, nor are they truly local phenomena. This means that all of these definitions of mass can disagree
+Black holes are a form of energy stored in spacetime and are a global phenomenon. Two black holes which are nearby each other store a significant amount of energy in the spacetime between them, increasing their mass (essentially further delocalising them). This makes it hard to pin down exactly how much 'mass' an individual black hole has in a binary pair, because they aren't truly separate phenomena, nor are they truly local phenomena. This means that all of these definitions of mass can disagree
 
 Despite this, its very common to use ADM mass via puncture mass[^internallyflat], and horizon mass with an approximation to its event horizon. We're using the former here
 
@@ -1691,11 +1691,11 @@ One of the difficulties with all of this is trying to prove that your code conve
 
 The tricky part is that while we use scalar constants for damping factors, many of these factors are actually *not* resolution independent, and should really scale with some factor of the grid resolution
 
-Kreiss-oliger is something that has made replicating papers quite tricky for me especially, when testing different integrators at different resolutions. Kreiss-Oliger has the definition:
+Kreiss-Oliger is something that has made replicating papers quite tricky for me especially, when testing different integrators at different resolutions. Kreiss-Oliger has the definition:
 
 $$\partial_t U = \partial_t U + (-1)^{\frac{p+3}{2}} \epsilon \frac{h^p}{2^{p+1}} (\frac{\partial^{p+1}}{\partial x^{p+1}} + \frac{\partial^{p+1}}{\partial y^{p+1}} + \frac{\partial^{p+1}}{\partial z^{p+1}})U$$
 
-If we examine a specific form of this, you'll notice that for eg second order kreiss in a single direction, we can discretise it and expand it out as follows:
+If we examine a specific form of this, you'll notice that for eg second order Kreiss in a single direction, we can discretise it and expand it out as follows:
 
 $$c \epsilon \frac{U[-1] -2 U[0] + U[1]}{h}$$
 
@@ -1717,7 +1717,7 @@ Equations which are implicitly integrated do not strictly have a courant factor,
 
 [^pseudocourant]: The fixed point iteration scheme here limits our large our timestep can be, not the stability of the equations. With 3 iterations we can increase our timestep further, and with more iterations or a completely different scheme entirely, we can arbitrarily increase the timestep
 
-This raises a tricky question: If we change the size of our grid resolution to being infinitely small, our timestep doesn't necessarily have to change beyond practical convergence limitations. This means that kreiss oliger is somewhat ill defined for us, as there's no reason that the prefix term is fixed or bounded. Effectively, our dissipation per unit time can be virtually anything, with the same constant $\epsilon$
+This raises a tricky question: If we change the size of our grid resolution to being infinitely small, our timestep doesn't necessarily have to change beyond practical convergence limitations. This means that Kreiss Oliger is somewhat ill defined for us, as there's no reason that the prefix term is fixed or bounded. Effectively, our dissipation per unit time can be virtually anything, with the same constant $\epsilon$
 
 To make this problem explicit, we're going to replace $$\epsilon \frac{\Delta t}{h}$$ by just a single $\epsilon$, and we'll have to manually adjust this for different situations - which is already what I was having to do anyway. Unfortunately, this is the only simulation I've seen which uses fully implicit integration, so I've seen exactly 0 discussion of this issue in the literature[^imexstepping]
 
