@@ -9,8 +9,10 @@
 template<typename T>
 using dual = dual_types::dual_v<T>;
 
+#define BLOG_REPLICATE
+#ifdef BLOG_REPLICATE
 template<typename T>
-tensor<T, 3> calculate_cG(const inverse_metric<T, 3, 3>& icY, const tensor<T, 3, 3, 3>& christoff2)
+tensor<T, 3> calculate_cG2(const inverse_metric<T, 3, 3>& icY, const tensor<T, 3, 3, 3>& christoff2)
 {
     tensor<T, 3> ret;
 
@@ -30,6 +32,46 @@ tensor<T, 3> calculate_cG(const inverse_metric<T, 3, 3>& icY, const tensor<T, 3,
     }
 
     return ret;
+}
+#endif
+
+///https://arxiv.org/pdf/2405.06035 (92)
+///the below formulation is faster, but has slightly different numerical properties
+///there's no reason not to comment out blog_replicate and use the newer version
+template<typename T>
+tensor<T, 3> calculate_cG(const inverse_metric<T, 3, 3>& icY, const tensor<T, 3, 3, 3>& dcY)
+{
+    #ifdef BLOG_REPLICATE
+    auto christoff2 = christoffel_symbols_2(icY, dcY);
+
+    return calculate_cG2(icY, christoff2);
+    #else
+    tensor<T, 3> ret;
+
+    for(int i=0; i < 3; i++)
+    {
+        T sum = 0;
+
+        for(int j=0; j < 3; j++)
+        {
+            T lsum = 0;
+
+            for(int k=0; k < 3; k++)
+            {
+                for(int l=0; l < 3; l++)
+                {
+                    lsum += icY[k, l] * dcY[k, l, j];
+                }
+            }
+
+            sum += icY[i, j] * lsum;
+        }
+
+        ret[i] = sum;
+    }
+
+    return ret;
+    #endif
 }
 
 tensor<valuef, 3> bssn_args::cG_undiff(const bssn_derivatives& derivs)
@@ -454,10 +496,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
 
         pin(d_dcYij);
 
-        auto d_christoff2 = christoffel_symbols_2(dicY, d_dcYij);
-        pin(d_christoff2);
-
-        tensor<dual<valuef>, 3> dcGi_G = calculate_cG(dicY, d_christoff2);
+        tensor<dual<valuef>, 3> dcGi_G = calculate_cG(dicY, d_dcYij);
         pin(dcGi_G);
 
         for(int i=0; i < 3; i++)
@@ -469,7 +508,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
     auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
     pin(christoff2);
 
-    tensor<valuef, 3> calculated_cG = calculate_cG(icY, christoff2);
+    tensor<valuef, 3> calculated_cG = calculate_cG(icY, derivs.dcY);
 
     tensor<valuef, 3> Gi = args.cG - calculated_cG;
 
@@ -667,7 +706,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
     tensor<valuef, 3, 3, 3> christoff2 = christoffel_symbols_2(icY, derivs.dcY);
     pin(christoff2);
 
-    tensor<valuef, 3> calculated_cG = calculate_cG(icY, christoff2);
+    tensor<valuef, 3> calculated_cG = calculate_cG(icY, derivs.dcY);
 
     tensor<valuef, 3> Gi = args.cG - calculated_cG;
 
