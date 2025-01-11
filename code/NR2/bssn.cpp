@@ -82,9 +82,7 @@ tensor<valuef, 3> bssn_args::cG_undiff(const bssn_derivatives& derivs)
 
     single_source::pin(icY);
 
-    tensor<valuef, 3, 3, 3> christoff2 = christoffel_symbols_2(icY, derivs.dcY);
-
-    return calculate_cG(icY, christoff2);;
+    return calculate_cG(icY, derivs.dcY);;
     #else
     return cG;
     #endif
