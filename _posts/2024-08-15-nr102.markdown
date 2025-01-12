@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Numerical Relativity 102: Simulating fast binary black hole collisions on the GPU"
-date:   2024-08-15 12:33:23 +0000
+date:   2025-01-12 12:33:23 +0000
 categories: C++
 ---
 
