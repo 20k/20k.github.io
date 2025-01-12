@@ -1739,4 +1739,4 @@ There are a variety of alternative boundary conditions to the sommerfeld that we
 
 The conformal covariant BSSN formalism is in general less stable than non covariant BSSN
 
-Ccz4 and other constraint damped formalisms don't *really* help all that much with our problems here. They're also fairly hungry in terms of performance, which makes them not a silver bullet in my experience
+CCZ4 and other constraint damped formalisms don't *really* help all that much with our problems here. They're also fairly hungry in terms of performance, which makes them not a silver bullet in my experience. Its likely we'll have an article experimenting with them in more detail, but I haven't had tremendously good success over BSSN
