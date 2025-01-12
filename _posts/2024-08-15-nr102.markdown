@@ -30,7 +30,9 @@ Black holes have two primary distinguishing features compared to other compact o
 1. They have an event horizon, out of which nothing can escape
 2. They form a singularity at their centre. A spinning black hole has a ring singularity (ringularity), and a non spinning black hole's singularity is a point
 
-The event horizon itself acts completely normally in general relativity, but it is the singularity which causes problems for us. It is a true mathematical error, and we cannot simulate it by any means. Because it will always form no matter what we do, we must come up with *some* method for dealing with it
+The event horizon itself acts completely normally in general relativity, but it is the singularity which causes problems for us. It is a true mathematical error, and we cannot simulate it by any means. Because it will always form no matter what we do[^quantumphysics], we must come up with *some* method for dealing with it
+
+[^quantumphysics]: In these articles, we're dealing strictly with general relativity only. Singularities represent the breakdown of the theory, and the expectation is that there are not singularities inside a real black hole. Describing this accurately requires a new theory of gravity, which we don't happen to have on hand
 
 ![ringularity](/assets/ringularity.png)
 
