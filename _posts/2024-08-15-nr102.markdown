@@ -109,7 +109,7 @@ The only general relativity you need to know for this article is:
 
 1. Raising and lowering indices
 2. How to calculate a covariant derivative. $D$ is the covariant derivative associated with $$\gamma_{ij}$$, and $$\tilde{D}$$ is the covariant derivative associated with $$\tilde{\gamma}_{ij}$$
-3. Tensor index summation notation
+3. Tensor index notation
 
 # What's the plan?
 
@@ -300,7 +300,7 @@ We're going to deviate a little from this definition, and instead calculate the 
 
 $$\psi = \frac{1}{\alpha} + u + 1$$
 
-Where $u > 0$. This is because you have a lot more precision to work with for floating point near $0$ vs near $1$, so this lets us solve for much smaller corrections without needing to resort to double precision. This means our boundary condition will be slightly different ($u=0$, instead of $u=1$)
+Where $u > 0$. This is because you have a lot more precision to work with for floating point near $0$ vs near $1$, so this lets us solve for much smaller corrections without needing to resort to double precision. This means our boundary condition will be correspondingly different ($u=0$, instead of $u=1$)
 
 ### Solving for $u$
 
@@ -339,7 +339,7 @@ At the edge of our grid, we need to set $u$ to something. Asymptotically, $u$ is
 
 #### Fixed point iteration / 7 point stencil
 
-The question now is: How do you actually solve our laplacian equation? This segment is going to deal with the theory
+The question now is: How do you actually solve a laplacian? This segment is going to deal with the theory
 
 A laplacian in flat 3d space (which luckily we are in) is defined as such:
 
@@ -357,7 +357,7 @@ $$\begin{align}
 &\frac{u(x, y, z - h) - 2 u(x, y, z) + u(x, y, z + h)}{h^2} \\
 \end{align}$$
 
-Collecting all the terms, we get:
+Collecting terms, we get:
 
 $$\begin{align}
 \Delta u = &\frac{u(x - h, y, z) + u(x + h, y, z)}{h^2} + \\
@@ -493,9 +493,9 @@ We can stretch this concept to 3 dimensions directly as well:
 
 ![redblack3d](/assets/redblack3d.png)
 
-This means we can simply update all red cells, then all black cells in an alternating fashion. Because the adjacent cells are one step into the future compared to the naive scheme, this is roughly a free 2x speedup in terms of iteration speed, and a further increase in speed due to halving the size of your problem per-iteration[^peritspeedup]. It is also more numerically stable - it's the ultimate free lunch
+This means we can simply update all red cells, then all black cells in an alternating fashion. Because the adjacent cells are one step into the future compared to the naïve scheme, this is roughly a free 2x speedup in terms of iteration speed, and a further increase in speed due to halving the size of your problem per-iteration[^peritspeedup]. It is also more numerically stable - it's the ultimate free lunch
 
-[^peritspeedup]: The latter potential of the gains in the algorithm presented here are only realised on a CPU, as GPU architecture means that the culled threads are still alive an consuming resources. A less naive execution and memory ordering would bring another 2x speedup, but in essence: it's not really worth it after we go down the multigrid rabbithole
+[^peritspeedup]: The latter potential of the gains in the algorithm presented here are only realised on a CPU, as GPU architecture means that the culled threads are still alive and consuming resources. A less naïve execution and memory ordering would bring another 2x speedup, but in essence: it's not really worth it after we go down the multigrid rabbithole
 
 There's a slight wrinkle - our equations are not of the form $$\Delta u = 0$$, but instead $$\Delta u = F(u)$$. This means that we do touch a cell of the 'wrong' colour when updating, and it'll be one tick out of date. That is to say, if the stencil component of our RHS is given by $D(u)$, and our iteration variable is $k$, our iteration equation is:
 
@@ -678,7 +678,7 @@ $$\begin{align}
 K_{ij} &= \psi^{-2} \bar{A}_{ij}
 \end{align}$$
 
-Where if you remember: in cartesian coordinates, $$\bar{\gamma}_{ij}$$ is the identity matrix (though really - the flat space metric). We already know how to construct our BSSN variables from here, check the recap or the last article for more details
+Where if you remember: in cartesian coordinates, $$\bar{\gamma}_{ij}$$ is the identity matrix (though really - the flat space metric). We already know how to construct our BSSN variables from here: check the recap or the last article for more details
 
 One additional detail to add is that we're only solving over our actual simulation area. A slighty better approach might be to solve over a very large area, and then extract just our simulation area at the end. I've found it doesn't make much difference in practice, but when we start really chasing physical accuracy, we might do this
 
@@ -753,13 +753,13 @@ To recap the sequence here:
 
 1. We immediately have a value for $$\bar{\gamma}_{ij}$$, as it is the identity matrix
 2. We calculate our conformal extrinsic curvature $$\bar{A}^{ij}$$ as a sum of the curvatures for individual black holes, and stash this somewhere. I also store the quantity $$\bar{A}^{ij} \bar{A}_{ij}$$[^raiseandlower] for performance reasons in the laplacian. We never need the individual curvatures after this
-3. Then we solve our laplacian for $u$ - and then use that to calculate $\psi$
+3. Then we solve our laplacian for $u$ - and use that to calculate $\psi$
 4. $\psi$ lets us calculate $$\gamma_{ij} = \psi^4 \bar{\gamma}_{ij}$$ and $$K_{ij} = \psi^{-2} \bar{A}_{ij}$$
 5. Mission accomplished
 
 [^raiseandlower]: If you're triple checking, you raise and lower the indices of $$\bar{A}_{ij}$$ with $$\bar{\gamma}_{ij}$$. This is the identity matrix, so you could just ignore it
 
-After this, we set our gauge conditions, and then calculate the BSSN variables from our ADM variables
+After this, we set our gauge variables, and calculate the BSSN variables from our ADM variables
 
 # Boundary conditions
 
@@ -890,7 +890,7 @@ Note that the boundary conditions lead to errors that gradually contaminate our 
 
 There are two other components that need to have their boundary behaviour specified:
 
-1. Kreiss-Oliger dissipation. In our case, we'll progressively reduce the order of dissipation as we approach the boundary
+1. Kreiss-Oliger dissipation. In our case, we'll progressively reduce the order of Kreiss-Oliger as we approach the boundary
 2. Derivatives. Here, we reduce the order of derivatives as we approach the boundary
 
 ## Kreiss-Oliger boundary
@@ -1047,7 +1047,7 @@ In addition to the 'usual' issues, we also suffer from our own set of unique iss
 
 Note that all tests are conducted with a grid resolution of $213^3$, encompassing a region with a width of $30$
 
-[^leeway]: The determinant of the metric tensor becomes degenerate on a failure of the boundary conditions, leading to infinities turning up (specifically: you'll likely find that the second derivatives of the metric blow up to infinity first). You can handle more degenerate matrices with double precision, giving the gauge conditions more time to catch up
+[^leeway]: The determinant of the metric tensor becomes degenerate if the gauge conditions aren't quite right, leading to infinities turning up (specifically: you'll likely find that the second derivatives of the metric blow up to infinity first). You can handle more degenerate matrices with double precision, giving the gauge conditions more time to catch up
 
 ## What's wrong with the equations?
 
@@ -1062,9 +1062,9 @@ The structure of the equations we're using are already adapted to simulating bla
 
 ### Gauge conditions
 
-The BSSN equations contain extra degrees of freedom, and one allowance you can make is setting the variable $K=0$. This is called maximal slicing. Maximal slicing defines a coordinate system that is [known](https://arxiv.org/pdf/gr-qc/0206072) to have singularity avoiding tendencies, and is a good candidate for preventing our equations from exploding due to the presence of a singularity
+The BSSN equations contain extra degrees of freedom, and one allowance you can make is setting the variable $K=0$: this is called a maximal slicing. Maximal slicing defines a coordinate system that is [known](https://arxiv.org/pdf/gr-qc/0206072) to have singularity avoiding tendencies, and is a good candidate for preventing our equations from exploding due to the presence of a singularity
 
-Setting K=0 allows us to solve for the lapse via an [elliptic equation (32)](https://arxiv.org/pdf/gr-qc/0206072). While elliptic equations are tricky to solve with any kind of efficiency, an approximate solution comes in the form of what is called the 1+log gauge - which will drive $K=0$ over time: see [(17)](https://arxiv.org/pdf/gr-qc/0605030)
+Setting $K=0$ allows us to solve for the lapse via an [elliptic equation (32)](https://arxiv.org/pdf/gr-qc/0206072). While elliptic equations are tricky to solve with any kind of efficiency, an approximate solution comes in the form of what is called the 1+log gauge - which will drive $K=0$ over time: see [(17)](https://arxiv.org/pdf/gr-qc/0605030)
 
 $$\partial_t \alpha = -2 \alpha K + \beta^i \partial_i \alpha$$
 
@@ -1192,7 +1192,7 @@ Up until now I've been presenting this more informally to illustrate the kinds o
 |Position|$x^1$|3.257|-3.257|
 |ADM mass|$M$|0.505[^youcanusethis]|0.505|
 
-[^youcanusethis]: This can be used to check the accuracy of your laplacian solver. You should be able to get very close to this value, eg 0.5045
+[^youcanusethis]: This can be used to check the accuracy of your laplacian solver. You should be able to get very close to this value, eg $0.5045$
 
 The black holes are expected to collide at roughly T=160, after approximately 1.8 orbits. For our sim, we'll have the following test parameters:
 
@@ -1200,7 +1200,7 @@ The black holes are expected to collide at roughly T=160, after approximately 1.
 |-|-|
 | Resolution | $213^3$ |
 | Simulation width | $30$ |
-| h (ie scale) | `simulation_width / (resolution.x - 1)` |
+| $h$ (ie scale) | `simulation_width / (resolution.x - 1)` |
 | $\eta$ (the gauge damping parameter) | $2$ |
 | $\epsilon$ (kreiss-oliger damping) | $0.05$ |
 | $k_m$ (momentum constraint damping) | $0.04$ |
@@ -1330,7 +1330,7 @@ $$k_{\gamma} \alpha \tilde{\gamma}_{k(i} \tilde{D}_{j)} \mathcal{G}^k$$
 
 Most implementations are unlikely to have the capability to directly perform a numerical derivative on $$\mathcal{G}^k$$ (and even if you could, it's a bad idea for performance)
 
-One of the easiest ways to fix this is to perform all your derivatives, and covariant derivatives with dual numbers. While you could work it out precisely by hand (and it's likely there'd be a performance benfit to doing so as some terms cancel out), it works reasonably well
+One of the easiest ways to fix this is to perform all your derivatives, and covariant derivatives with dual numbers. While you could work it out precisely by hand (and it's likely there'd be a performance benefit to doing so as some terms cancel out), it works well
 
 This does however make the implementation a bit of a mess:
 
@@ -1499,9 +1499,9 @@ To adjust this, the authors multiply the damping strength, by the parameter $W$,
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/U9lUl0QVVE0?si=cHefuAscEsUY5wOc" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Testing this directly doesn't work. I suspect that our code is too low resolution, and there are signs of numerical error - prior experience on my end is that the black holes are likely obviously borked visually[^error] - we just don't have the debugging tools to observe this. Additionally, fully dropping the damping to $0$ at the singularity is liable to generate explosions[^explosions] in my experience. For us as it turns out, we do need some damping near the black holes, and instead I clamp the minimum damping to $max(W, k_{ko})$
+Testing this directly doesn't work. I suspect that our simulation is too low resolution, and there are signs of numerical error - prior experience on my end is that the black holes are likely obviously borked visually[^error] - we just don't have the debugging tools to observe this. Additionally, fully dropping the damping to $0$ at the singularity is liable to generate explosions[^explosions] in my experience. For us as it turns out, we do need some damping near the black holes, and instead I clamp the minimum damping to $max(W, k_{ko})$
 
-[^error]: Youtube compression also destroys any hope of this being visible in this article. Things to look out for are 1. Odd squarish formations trailing your black holes, like a bow wake, 2. The black holes becoming squished on your coordinate grid, and 3. The present of what looks like 'ringing' or high frequency artifacts internally to the black holes
+[^error]: Youtube compression also destroys any hope of this being visible in this article. Things to look out for are 1. Odd squarish formations trailing your black holes, or a bow wake, 2. The black holes becoming squished on your coordinate grid, and 3. The present of what looks like 'ringing' or high frequency artifacts internally to the black holes
 
 [^explosions]: It's actually a miracle that this test case *doesn't* break, it's very unusual
 
@@ -1586,7 +1586,7 @@ In the literature, there are *many* ad-hoc techniques used with respect to the p
 
 These techniques tend to reduce errors by reducing the singularity, or reducing the size of differentiation stencils to reduce error propagation (as smaller stencils propagate information slower). In theory - errors in BSSN are causal, but this breaks down *somewhat* in the face of discretisation, and still relies on you having a sufficiently large event horizon. It be interesting to explore an excision technique instead, and see how it affects the inspiralling and constraint violation behaviour. Its on my infinitely long list!
 
-The other primary source of errors for us is the boundary conditions. The simulation here has a very tight boundary, and this leads to errors that make their way inwards. Its very likely that part of our remaining inaccuracy is due to the boundary effect. Constraint preserving boundary conditions would likely help us significantly, though the literature is a bit lite on how to actually implement them
+The other primary source of errors for us is the boundary conditions. The simulation here has a very tight boundary, and this leads to errors that make their way inwards. Its very likely that part of our remaining inaccuracy is due to the boundary effect. Constraint preserving boundary conditions would likely help us significantly, though the literature is a bit light on how to actually implement them
 
 In the future, we'll be moving onto neutron stars, and N body particle simulations. It is much easier to reproduce results in the literature very exactly there, so we'll have a lot less stress trying to make our objects go where they should do
 
@@ -1671,7 +1671,7 @@ There are multiple definitions of mass that we can use:
 
 Black holes are a form of energy stored in spacetime and are a global phenomenon. Two black holes which are nearby each other store a significant amount of energy in the spacetime between them, increasing their mass (essentially further delocalising them). This makes it hard to pin down exactly how much 'mass' an individual black hole has in a binary pair, because they aren't truly separate phenomena, nor are they truly local phenomena. This means that all of these definitions of mass can disagree
 
-Despite this, its very common to use ADM mass via puncture mass[^internallyflat], and horizon mass with an approximation to its event horizon. We're using the former here
+Despite this, its very common to use ADM mass via the puncture mass[^internallyflat] (as well as directly, for the entire system), and horizon mass with an approximation to its event horizon. We're using the former here
 
 Do be aware that many papers only give the black hole's mass in terms of the ADM/puncture mass, and you're expected to perform a binary search on the bare mass to achieve this
 
@@ -1707,9 +1707,9 @@ You might recognise the $\frac{\Delta t}{h}$ term as the courant factor, which p
 
 If you're unfamiliar with the concept, the core idea is that the timestep of any simulation is limited by what's called a courant factor. It is essentially the statement that information can only propagate across your grid at a finite speed, and is defined as $\frac{\Delta t}{h} = C$. If you increase your timestep too high, you must have instability, because you're trying to pipe information through your grid faster than your problem allows it to propagate. Similarly, if you change your grid resolution, you must also change your timestep to match. Most simulations have a constant courant factor, and automatically adjust the timestep to match at different resolutions
 
-In any finite discretisation of a partial differential equation, Kreiss-Oliger's strength is a multiple of the courant factor, and therefore its strength is a constant per *step*, independent of resolution or timestep[^weird]. This is all well and good, until we hit implicit integrators
+In any finite discretisation of a partial differential equation, Kreiss-Oliger's strength is a multiple of the courant factor, and therefore its strength is a constant (or bounded) per *step*, independent of resolution or timestep[^weird]. This is all well and good, until we hit implicit integrators
 
-[^weird]: The definition seems odd to me - but I'm not arguing here that Kreiss-Oliger itself is in any way wrong. I do wish I had access to the original paper here so I could dig through the theory in more detail, but its behind a paywall and I can't get ahold of it
+[^weird]: The definition seems odd to me - but I'm not arguing here that Kreiss-Oliger itself is in any way wrong. I do wish I had access to the original paper here so I could dig through the theory in more detail, but it's behind a paywall and I can't get ahold of it
 
 ### We don't have a courant factor
 
@@ -1719,19 +1719,19 @@ Equations which are implicitly integrated do not strictly have a courant factor,
 
 This raises a tricky question: If we change the size of our grid resolution to being infinitely small, our timestep doesn't necessarily have to change beyond practical convergence limitations. This means that Kreiss Oliger is somewhat ill defined for us, as there's no reason that the prefix term is fixed or bounded. Effectively, our dissipation per step can be virtually anything, with the same constant $\epsilon$
 
-To make this problem explicit, we're going to replace $$\epsilon \frac{\Delta t}{h}$$ by just a single $\epsilon$, and we'll have to manually adjust this for different situations - which is already what I was having to do anyway. Unfortunately, this is the only simulation I've seen which uses fully implicit integration, so I've seen exactly 0 discussion of this issue in the literature[^imexstepping]. This segment here talking about Kreiss-Oliger is intended as a discussion point about what's actually going on here and what Kreiss-Oliger's theoretical properties are - so if you know some more theoretically rigorous analysis, please let me know. Kreiss-Oliger appears to have minimal use outside of numerical relativity (?), and numerical relativity near exclusively uses variants of RK4 - so its a tricky one to find information on
+To make this problem explicit, I've replaced $$\epsilon \frac{\Delta t}{h}$$ by just a single $\epsilon$, and we'll have to manually adjust this for different situations - which is already what I was having to do anyway. Unfortunately, this is the only simulation I've seen which uses fully implicit integration, so I've seen exactly 0 discussion of this issue in the literature[^imexstepping]. This segment here talking about Kreiss-Oliger is intended as a discussion point about what's actually going on here and what Kreiss-Oliger's theoretical properties are - so if you know some more theoretically rigorous analysis, please let me know
 
-[^imexstepping]: The SXS group use imex stepping, which is a semi implicit scheme. They split the equations up, and solve them partially implicitly. Notably however, they do not solve the derivatives implicitly due to the computational cost, which means that this implicit scheme cannot sidestep the courant factor as with a fully implicit scheme - I suspect this is why they see only marginal benefits
+[^imexstepping]: The SXS group have tested imex stepping, which is a semi implicit scheme. They split the equations up, and solve them partially implicitly. Notably however, they do not solve the derivatives implicitly due to the computational cost, which means that this implicit scheme cannot sidestep the courant factor as with a fully implicit scheme - I suspect this is why they see only marginal benefits
 
 ## Other boundary conditions
 
-There are a variety of alternative boundary conditions to the sommerfeld that we use
+There are a variety of alternative boundary conditions to the Sommerfeld condition that we use
 
 1. Fixing every field to its asymptotic value at the boundary, and not evolving it. This works if your boundary is far away (as spacetime is asymptotically flat), but requires a lot of extra simulation space due to its poor quality
 2. Sponge constructions. This damps outgoing waves gradually. It's easy to implement, but the sponge area must be large enough to avoid reflections, which also requires a lot of extra simulation space
 3. Constraint preserving boundary conditions. These are the best and allow you to place the boundaries closest to your simulation area (as they introduce the least error), but are more complex to implement
 4. Hybrid schemes. Some schemes assume that $$\beta^i = 0$$ on the boundary, and evolve $$\tilde{\gamma}_{ij}$$ freely, then use traditional boundary conditions for the other variables. I've never tested this and have no information on the quality of the result
-5. Compactification. This adjusts the coordinate system so that the grid represents the entire of (or a lot of the) the computational domain, and you have no boundary. This is nice theoretically, but in practice seems to be similar to a sponge construction
+5. Compactification. This adjusts the coordinate system so that the grid represents the entire of (or a lot of the) the computational domain, and you have no boundary. This is nice theoretically, but in practice seems to be similar to a sponge construction, due to the effective information loss of diminishing resolution as a function of distance
 
 ## Notes on formalisms
 
