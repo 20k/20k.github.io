@@ -13,11 +13,11 @@ This article consists of three primary parts:
 2. Implementing new boundary conditions, as our simulation is no longer periodic and has a finite extent
 3. Modifying the evolution equations to render them suitable for simulating binary black hole collisions
 
-If you're looking for someone with a deep enthusiasm for GPU programming, and someone who'd rather love to do a PhD in numerical relativity - please give me a shout! [^shout]
+If you're looking for someone with a lot of enthusiasm for GPU programming, and who'd rather love to do a PhD in numerical relativity - please give me a shout! [^shout]
 
 [^shout]: I'm very bad at plugging myself. Contact me at icedshot@gmail.com, or if you'd like follow my bluesky at @spacejames.bsky.social. I also built a tool for rasterising generic metric tensors, which you might enjoy as well: [Raytracer](https://github.com/20k/geodesic_raytracing). Please feel free to contact me for any reason, even if you want to just chit chat or nerd out about space.
 
-The code for this article is available over [here](https://github.com/20k/20k.github.io/tree/master/code/NR2):
+The code for this article is available over [here](https://github.com/20k/20k.github.io/tree/master/code/NR2)
 
 ![happywesley](/assets/nr2_happy_wesley.jpg)
 
@@ -69,8 +69,6 @@ To perform this matching, there's no better way than simply bruteforcing the ent
 |X0| The dimensionless spin constant|
 |X1| The dimensionless spin constant|
 |e| Orbital eccentricity|
-
-(We'll be digging into the details of what these parameters mean in a physical sense)
 
 This is a lot of bruteforcing to do, and it's why non circular orbits are such a gigantic pain: it adds a whole extra dimension to bruteforce! Initially it was hoped that mergers had no eccentricity - but as far as I'm aware, this is not the case
 
