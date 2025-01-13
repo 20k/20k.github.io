@@ -1,0 +1,12 @@
+---
+layout: post
+title:  "Numerical Relativity 103: Rendering binary black hole collisions"
+date:   2026-01-12 12:33:23 +0000
+categories: C++
+---
+
+Hi! This article is going to be a lot of fun, as we produce some high quality renderings of binary black hole collisions. We're going to render these via three different methods:
+
+1. Approximately on a single slice
+2. Accurately via the ADM formalism
+3. Accurately via the regular general relativistic approach
