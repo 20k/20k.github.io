@@ -11,6 +11,7 @@
 #include "init_black_hole.hpp"
 #include "init_general.hpp"
 #include <thread>
+#include "raytrace.hpp"
 
 using t3i = tensor<int, 3>;
 
