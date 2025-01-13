@@ -9,43 +9,10 @@
 template<typename T>
 using dual = dual_types::dual_v<T>;
 
-#define BLOG_REPLICATE
-#ifdef BLOG_REPLICATE
-template<typename T>
-tensor<T, 3> calculate_cG2(const inverse_metric<T, 3, 3>& icY, const tensor<T, 3, 3, 3>& christoff2)
-{
-    tensor<T, 3> ret;
-
-    for(int i=0; i < 3; i++)
-    {
-        T sum = 0;
-
-        for(int m=0; m < 3; m++)
-        {
-            for(int n=0; n < 3; n++)
-            {
-                sum += icY[m, n] * christoff2[i, m, n];
-            }
-        }
-
-        ret[i] = sum;
-    }
-
-    return ret;
-}
-#endif
-
 ///https://arxiv.org/pdf/2405.06035 (92)
-///the below formulation is faster, but has slightly different numerical properties
-///there's no reason not to comment out blog_replicate and use the newer version
 template<typename T>
 tensor<T, 3> calculate_cG(const inverse_metric<T, 3, 3>& icY, const tensor<T, 3, 3, 3>& dcY)
 {
-    #ifdef BLOG_REPLICATE
-    auto christoff2 = christoffel_symbols_2(icY, dcY);
-
-    return calculate_cG2(icY, christoff2);
-    #else
     tensor<T, 3> ret;
 
     for(int i=0; i < 3; i++)
@@ -71,7 +38,6 @@ tensor<T, 3> calculate_cG(const inverse_metric<T, 3, 3>& icY, const tensor<T, 3,
     }
 
     return ret;
-    #endif
 }
 
 tensor<valuef, 3> bssn_args::cG_undiff(const bssn_derivatives& derivs)
