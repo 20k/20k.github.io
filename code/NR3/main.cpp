@@ -483,21 +483,11 @@ struct raytrace_bssn
     {
         auto get_metric = [](v4f position, bssn_args_mem<buffer<valuef>> in, literal<v3i> dim, literal<valuef> scale)
         {
-            ///position is a position in world coordinates
-            ///need to convert to grid coordinates
+            v3f grid = world_to_grid(position.yzw(), dim.get(), scale.get());
 
-            ///todo: linear interpolation
-            v3f grid_pos = world_to_grid(position.yzw(), dim.get(), scale.get());
+            adm_variables adm = admf_at(grid, dim.get(), in);
 
-            grid_pos = clamp(grid_pos, (v3f){1,1,1}, (v3f)dim.get() - (v3f){2, 2, 2});
-
-            v3i ipos = (v3i)grid_pos;
-
-            bssn_args args(ipos, dim.get(), in);
-
-            adm_variables adm = bssn_to_adm(args);
-
-            return calculate_real_metric(adm.Yij, args.gA, args.gB);
+            return calculate_real_metric(adm.Yij, adm.gA, adm.gB);
         };
 
         std::string str = value_impl::make_function(build_initial_tetrads<get_metric, bssn_args_mem<buffer<valuef>>, literal<v3i>, literal<valuef>>, "init_tetrads");

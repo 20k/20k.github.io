@@ -630,6 +630,49 @@ auto function_trilinear(T&& func, v3f pos)
     return c0 - frac.z() * (c0 - c1);
 }
 
+inline
+adm_variables adm_at(v3i pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
+{
+    pos = clamp(pos, (v3i){1,1,1}, dim - (v3i){2,2,2});
+
+    bssn_args args(pos, dim, in);
+
+    return bssn_to_adm(args);
+}
+
+///takes GRID coordinates
+inline
+adm_variables admf_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
+{
+    auto Yij_at = [&](v3i pos)
+    {
+        return adm_at(pos, dim, in).Yij;
+    };
+
+    auto Kij_at = [&](v3i pos)
+    {
+        return adm_at(pos, dim, in).Kij;
+    };
+
+    auto gA_at = [&](v3i pos)
+    {
+        return adm_at(pos, dim, in).gA;
+    };
+
+    auto gB_at = [&](v3i pos)
+    {
+        return adm_at(pos, dim, in).gB;
+    };
+
+    adm_variables out;
+    out.Yij = function_trilinear(Yij_at, pos);
+    out.Kij = function_trilinear(Kij_at, pos);
+    out.gA = function_trilinear(gA_at, pos);
+    out.gB = function_trilinear(gB_at, pos);
+
+    return out;
+}
+
 void trace3(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
                      read_only_image<2> background, write_only_image<2> screen,
                      literal<valuei> background_width, literal<valuei> background_height,
@@ -656,7 +699,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
         return_e();
     });
 
-    v2i screen_pos = {x, y};
+    v2i screen_position = {x, y};
     v2i screen_size = {screen_width.get(), screen_height.get()};
     v2i background_size = {background_width.get(), background_height.get()};
 
@@ -669,48 +712,58 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
     ///need to differentiate some of these variables in the regular adm stuff sighghghgh
     v3i ipos = (v3i)lpos.yzw();
 
-    auto adm_at = [&](v3i pos)
-    {
-        pos = clamp(pos, (v3i){1,1,1}, dim.get() - (v3i){2,2,2});
+    v3f ray_direction = get_ray_through_pixel(screen_position, screen_size, 90, camera_quat.get());
 
-        bssn_args args(pos, dim.get(), in);
+    geodesic my_geodesic = make_lightlike_geodesic(position[0], ray_direction, tetrads);
 
-        return bssn_to_adm(args);
-    };
+    integration_result found;
 
-    auto admf_at = [&](v3f pos)
-    {
-        //adm_variables adm1 = adm_at((v3i)pos);
-        //adm_variables adm2 = adm_at((v3i)pos + (v3i){1,1,1});
+    /*{
 
-        auto Yij_at = [&](v3i pos)
+        mut<valuei> result = declare_mut_e(valuei(1));
+
+        v4f start_cvel = declare_e(g.velocity);
+
+        mut_v4f position = declare_mut_e(g.position);
+        mut_v4f velocity = declare_mut_e(start_cvel);
+
+        v4f start = g.position;
+
+        mut<valuei> idx = declare_mut_e("i", valuei(0));
+
+        for_e(idx < 1024 * 1000, assign_b(idx, idx + 1), [&]
         {
-            return adm_at(pos).Yij;
-        };
+            v4f cposition = declare_e(position);
+            v4f cvelocity = declare_e(velocity);
 
-        auto Kij_at = [&](v3i pos)
-        {
-            return adm_at(pos).Kij;
-        };
+            v4f acceleration = calculate_acceleration_of(cposition, cvelocity, get_metric);
 
-        auto gA_at = [&](v3i pos)
-        {
-            return adm_at(pos).gA;
-        };
+            valuef dt = get_lightlike_timestep(cposition, cvelocity, acceleration);
 
-        auto gB_at = [&](v3i pos)
-        {
-            return adm_at(pos).gB;
-        };
+            pin(acceleration);
 
-        adm_variables out;
-        out.Yij = function_trilinear(Yij_at, pos);
-        out.Kij = function_trilinear(Kij_at, pos);
-        out.gA = function_trilinear(gA_at, pos);
-        out.gB = function_trilinear(gB_at, pos);
+            as_ref(position) = cposition + cvelocity * dt;
+            as_ref(velocity) = cvelocity + acceleration * dt;
 
-        return out;
-    };
+            valuef radius = position[1];
+
+            if_e(fabs(radius) > UNIVERSE_SIZE, [&] {
+                //ray escaped
+                as_ref(result) = valuei(0);
+                break_e();
+            });
+
+            if_e(should_terminate(start, as_constant(position), as_constant(velocity)), [&] {
+                break_e();
+            });
+        });
+
+        found.type = result;
+        found.position = declare_e(position);
+        found.velocity = declare_e(velocity);
+        found.sample_colour = (v3f){0,0,0};
+        found.sample_opacity = 0.f;
+    }*/
 
     //metric<valuef, 4, 4> met = calculate_real_metric(adm.Yij, adm.gA, adm.gB);
 
