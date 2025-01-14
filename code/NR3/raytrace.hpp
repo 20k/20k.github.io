@@ -596,11 +596,48 @@ void opencl_raytrace(execution_context& ectx, literal<valuei> screen_width, lite
     screen.write(ectx, {x,y}, crgba);
 }
 
+template<typename T>
+inline
+auto function_trilinear(T&& func, v3f pos)
+{
+    v3f floored = floor(pos);
+    v3f frac = pos - floored;
+
+    v3i ipos = (v3i)floored;
+
+    auto c000 = func(ipos + (v3i){0,0,0});
+    auto c100 = func(ipos + (v3i){1,0,0});
+
+    auto c010 = func(ipos + (v3i){0,1,0});
+    auto c110 = func(ipos + (v3i){1,1,0});
+
+    auto c001 = func(ipos + (v3i){0,0,1});
+    auto c101 = func(ipos + (v3i){1,0,1});
+
+    auto c011 = func(ipos + (v3i){0,1,1});
+    auto c111 = func(ipos + (v3i){1,1,1});
+
+    ///numerically symmetric across the centre of dim
+    auto c00 = c000 - frac.x() * (c000 - c100);
+    auto c01 = c001 - frac.x() * (c001 - c101);
+
+    auto c10 = c010 - frac.x() * (c010 - c110);
+    auto c11 = c011 - frac.x() * (c011 - c111);
+
+    auto c0 = c00 - frac.y() * (c00 - c10);
+    auto c1 = c01 - frac.y() * (c01 - c11);
+
+    return c0 - frac.z() * (c0 - c1);
+}
+
 void trace3(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
                      read_only_image<2> background, write_only_image<2> screen,
                      literal<valuei> background_width, literal<valuei> background_height,
                      buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
-                     buffer<v4f> position, literal<v4f> camera_quat)
+                     buffer<v4f> position, literal<v4f> camera_quat,
+                     literal<v3i> dim,
+                     literal<valuef> scale,
+                     bssn_args_mem<buffer<valuef>> in)
 {
     using namespace single_source;
 
@@ -623,7 +660,68 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
     v2i screen_size = {screen_width.get(), screen_height.get()};
     v2i background_size = {background_width.get(), background_height.get()};
 
+    tetrad tetrads = {e0[0], e1[0], e2[0], e3[0]};
 
+    v4f lpos = position[0];
+
+    pin(lpos);
+
+    ///need to differentiate some of these variables in the regular adm stuff sighghghgh
+    v3i ipos = (v3i)lpos.yzw();
+
+    auto adm_at = [&](v3i pos)
+    {
+        pos = clamp(pos, (v3i){1,1,1}, dim.get() - (v3i){2,2,2});
+
+        bssn_args args(pos, dim.get(), in);
+
+        return bssn_to_adm(args);
+    };
+
+    auto admf_at = [&](v3f pos)
+    {
+        //adm_variables adm1 = adm_at((v3i)pos);
+        //adm_variables adm2 = adm_at((v3i)pos + (v3i){1,1,1});
+
+        auto Yij_at = [&](v3i pos)
+        {
+            return adm_at(pos).Yij;
+        };
+
+        auto Kij_at = [&](v3i pos)
+        {
+            return adm_at(pos).Kij;
+        };
+
+        auto gA_at = [&](v3i pos)
+        {
+            return adm_at(pos).gA;
+        };
+
+        auto gB_at = [&](v3i pos)
+        {
+            return adm_at(pos).gB;
+        };
+
+        adm_variables out;
+        out.Yij = function_trilinear(Yij_at, pos);
+        out.Kij = function_trilinear(Kij_at, pos);
+        out.gA = function_trilinear(gA_at, pos);
+        out.gB = function_trilinear(gB_at, pos);
+
+        return out;
+    };
+
+    //metric<valuef, 4, 4> met = calculate_real_metric(adm.Yij, adm.gA, adm.gB);
+
+    /*v3f colour = render_pixel(screen_pos, screen_size, background, background_size, tetrads, position[0], camera_quat.get(), GetMetric);
+
+    colour = linear_to_srgb_gpu(colour);
+
+    //the tensor library does actually support .x() etc, but I'm trying to keep the requirements for whatever you use yourself minimal
+    v4f crgba = {colour[0], colour[1], colour[2], 1.f};
+
+    screen.write(ectx, {x,y}, crgba);*/
 }
 
 
