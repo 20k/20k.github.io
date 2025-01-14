@@ -465,8 +465,6 @@ integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accr
 
     mut<valuef> opacity = declare_mut_e(valuef(0));
 
-    float pi = std::numbers::pi_v<float>;
-
     //v4f start_cpos = declare_e(g.position);
     //mut_v4f acceleration = declare_mut_e(calculate_acceleration_of(start_cpos, start_cvel, get_metric));
 

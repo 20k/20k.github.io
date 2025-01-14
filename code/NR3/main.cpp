@@ -481,13 +481,25 @@ struct raytrace_bssn
 {
     raytrace_bssn(cl::context& ctx)
     {
-        auto get_metric = [](v4f position, bssn_args_mem<buffer<valuef>> in)
+        auto get_metric = [](v4f position, bssn_args_mem<buffer<valuef>> in, literal<v3i> dim, literal<valuef> scale)
         {
+            ///position is a position in world coordinates
+            ///need to convert to grid coordinates
+
+            ///todo: linear interpolation
+            v3f grid_pos = world_to_grid(position.yzw(), dim.get(), scale.get());
+
+            grid_pos = clamp(grid_pos, (v3f){1,1,1}, (v3f)dim.get() - (v3f){2, 2, 2});
+
+            v3i ipos = (v3i)grid_pos;
+
+            bssn_args args(ipos, dim.get(), in);
+
             metric<valuef, 4, 4> out;
             return out;
         };
 
-        std::string str = value_impl::make_function(build_initial_tetrads<get_metric, bssn_args_mem<buffer<valuef>>>, "init_tetrads");
+        std::string str = value_impl::make_function(build_initial_tetrads<get_metric, bssn_args_mem<buffer<valuef>>, literal<v3i>, literal<valuef>>, "init_tetrads");
 
         cl::program p1 = cl::build_program_with_cache(ctx, {str}, false);
 
