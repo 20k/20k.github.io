@@ -51,13 +51,26 @@ auto wave_function = []<typename T>(const tensor<T, 4>& position)
     return m;
 };
 
-struct adm_variables
+adm_variables bssn_to_adm(const bssn_args& args)
 {
-    metric<valuef, 3, 3> Yij;
-    tensor<valuef, 3, 3> Kij;
-    valuef gA;
-    tensor<valuef, 3> gB;
-};
+    adm_variables ret;
+    tensor<valuef, 3, 3> met = args.cY.to_tensor() / (args.W * args.W);
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            ret.Yij[i, j] = met[i, j];
+        }
+    }
+
+    ret.Kij = (args.cA / (args.W * args.W)) + ret.Yij.to_tensor() * (args.K / 3.f);
+
+    ret.gA = args.gA;
+    ret.gB = args.gB;
+
+    return ret;
+}
 
 template<typename T>
 adm_variables make_adm_variables(T&& func, v4f position)

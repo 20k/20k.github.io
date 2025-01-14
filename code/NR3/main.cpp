@@ -477,6 +477,24 @@ float get_timestep(float simulation_width, t3i size)
     return 0.035f * (new_ratio / ratio_at_base);
 }
 
+struct raytrace_bssn
+{
+    raytrace_bssn(cl::context& ctx)
+    {
+        auto get_metric = [](v4f position, bssn_args_mem<buffer<valuef>> in)
+        {
+            metric<valuef, 4, 4> out;
+            return out;
+        };
+
+        std::string str = value_impl::make_function(build_initial_tetrads<get_metric, bssn_args_mem<buffer<valuef>>>, "init_tetrads");
+
+        cl::program p1 = cl::build_program_with_cache(ctx, {str}, false);
+
+        ctx.register_program(p1);
+    }
+};
+
 int main()
 {
     render_settings sett;
@@ -576,6 +594,8 @@ int main()
     rtex.create_from_texture(tex.handle);
 
     cqueue.block();
+
+    raytrace_bssn rt_bssn(ctx);
 
     //build_thread.join();
 

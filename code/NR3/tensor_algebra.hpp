@@ -257,7 +257,6 @@ tensor<valuef, 3, 3, 3> get_eijk()
     return eijk;
 }
 
-
 template<typename T, int N>
 inline
 tensor<T, N, N> raise_both(const tensor<T, N, N>& mT, const inverse_metric<T, N, N>& inverse)
@@ -270,6 +269,43 @@ inline
 tensor<T, N, N> lower_both(const tensor<T, N, N>& mT, const metric<T, N, N>& met)
 {
     return lower_index(lower_index(mT, met, 0), met, 1);
+}
+
+///https://arxiv.org/pdf/1503.08455.pdf (8)
+inline
+metric<valuef, 4, 4> calculate_real_metric(const metric<valuef, 3, 3>& adm, const valuef& gA, const tensor<valuef, 3>& gB)
+{
+    tensor<valuef, 3> lower_gB = lower_index(gB, adm, 0);
+
+    metric<valuef, 4, 4> ret;
+
+    valuef gB_sum = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        gB_sum = gB_sum + lower_gB[i] * gB[i];
+    }
+
+    ///https://arxiv.org/pdf/gr-qc/0703035.pdf 4.43
+    ret[0, 0] = -gA * gA + gB_sum;
+
+    ///latin indices really run from 1-4
+    for(int i=1; i < 4; i++)
+    {
+        ///https://arxiv.org/pdf/gr-qc/0703035.pdf 4.45
+        ret[i, 0] = lower_gB[i - 1];
+        ret[0, i] = ret[i, 0]; ///symmetry
+    }
+
+    for(int i=1; i < 4; i++)
+    {
+        for(int j=1; j < 4; j++)
+        {
+            ret[i, j] = adm[i-1, j-1];
+        }
+    }
+
+    return ret;
 }
 
 #endif // TENSOR_ALGEBRA_HPP_INCLUDED

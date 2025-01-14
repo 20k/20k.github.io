@@ -801,11 +801,12 @@ std::array<v3f, 3> orthonormalise(v3f i1, v3f i2, v3f i3)
     return {u1, u2, u3};
 };
 
-template<auto GetMetric>
+template<auto GetMetric, typename... T>
 void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
                            literal<v3f> local_velocity,
                            buffer_mut<v4f> position_out,
-                           buffer_mut<v4f> e0_out, buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out)
+                           buffer_mut<v4f> e0_out, buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out,
+                           T... extra)
 {
     using namespace single_source;
 
@@ -816,7 +817,7 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
     v4f v2 = {0, 0, 1, 0};
     v4f v3 = {0, 0, 0, 1};
 
-    m44f metric = GetMetric(position.get());
+    m44f metric = GetMetric(position.get(), extra...);
 
     //these are actually the column vectors of the metric tensor
     v4f lv0 = metric.lower(v0);
