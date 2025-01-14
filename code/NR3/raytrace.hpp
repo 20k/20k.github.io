@@ -445,7 +445,7 @@ T lookup(buffer<T> in, valuef coordinate, valuef minimum, valuef maximum)
 }
 
 //this integrates a geodesic, until it either escapes our small universe or hits the event horizon
-integration_result integrate(geodesic& g, v4f initial_observer, buffer<v3f> accretion_disk, buffer<v3f> bbody_table, buffer<valuef> temperature, auto&& get_metric) {
+integration_result integrate(geodesic& g, auto&& get_metric) {
     using namespace single_source;
 
     integration_result found;
@@ -522,7 +522,7 @@ v3f render_pixel(v2i screen_position, v2i screen_size,
 
     value_impl::get_context().add(se);*/
 
-    integration_result result = integrate(my_geodesic, tetrads.v[0], accretion_disk, bbody_table, temperature, get_metric);
+    integration_result result = integrate(my_geodesic, get_metric);
 
     valuef theta = result.position[2];
     valuef phi = result.position[3];
@@ -559,11 +559,9 @@ v3f render_pixel(v2i screen_position, v2i screen_size,
 template<auto GetMetric>
 void opencl_raytrace(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
                      read_only_image<2> background, write_only_image<2> screen,
-                     buffer<v3f> accretion_disk,
                      literal<valuei> background_width, literal<valuei> background_height,
                      buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
-                     buffer<v4f> position, literal<v4f> camera_quat,
-                     buffer<v3f> bbody_table, buffer<valuef> temperature)
+                     buffer<v4f> position, literal<v4f> camera_quat)
 {
     using namespace single_source;
 
@@ -588,7 +586,7 @@ void opencl_raytrace(execution_context& ectx, literal<valuei> screen_width, lite
 
     tetrad tetrads = {e0[0], e1[0], e2[0], e3[0]};
 
-    v3f colour = render_pixel(screen_pos, screen_size, background, accretion_disk, bbody_table, temperature, background_size, tetrads, position[0], camera_quat.get(), GetMetric);
+    v3f colour = render_pixel(screen_pos, screen_size, background, background_size, tetrads, position[0], camera_quat.get(), GetMetric);
 
     colour = linear_to_srgb_gpu(colour);
 
@@ -597,6 +595,37 @@ void opencl_raytrace(execution_context& ectx, literal<valuei> screen_width, lite
 
     screen.write(ectx, {x,y}, crgba);
 }
+
+void trace3(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
+                     read_only_image<2> background, write_only_image<2> screen,
+                     literal<valuei> background_width, literal<valuei> background_height,
+                     buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
+                     buffer<v4f> position, literal<v4f> camera_quat)
+{
+    using namespace single_source;
+
+    valuei x = value_impl::get_global_id(0);
+    valuei y = value_impl::get_global_id(1);
+
+    //get_global_id() is not a const function, so assign it to an unnamed variable to avoid compilers repeatedly evaluating it
+    pin(x);
+    pin(y);
+
+    if_e(y >= screen_height.get(), [&] {
+        return_e();
+    });
+
+    if_e(x >= screen_width.get(), [&] {
+        return_e();
+    });
+
+    v2i screen_pos = {x, y};
+    v2i screen_size = {screen_width.get(), screen_height.get()};
+    v2i background_size = {background_width.get(), background_height.get()};
+
+
+}
+
 
 valuef dot(v4f u, v4f v, m44f m) {
     v4f lowered = m.lower(u);
