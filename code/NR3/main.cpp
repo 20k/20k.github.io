@@ -495,8 +495,9 @@ struct raytrace_bssn
 
             bssn_args args(ipos, dim.get(), in);
 
-            metric<valuef, 4, 4> out;
-            return out;
+            adm_variables adm = bssn_to_adm(args);
+
+            return calculate_real_metric(adm.Yij, args.gA, args.gB);
         };
 
         std::string str = value_impl::make_function(build_initial_tetrads<get_metric, bssn_args_mem<buffer<valuef>>, literal<v3i>, literal<valuef>>, "init_tetrads");
