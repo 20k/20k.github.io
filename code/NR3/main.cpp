@@ -12,6 +12,7 @@
 #include "init_general.hpp"
 #include <thread>
 #include "raytrace.hpp"
+#include <SFML/Graphics/Image.hpp>
 
 using t3i = tensor<int, 3>;
 
@@ -492,11 +493,63 @@ struct raytrace_bssn
 
         std::string str = value_impl::make_function(build_initial_tetrads<get_metric, bssn_args_mem<buffer<valuef>>, literal<v3i>, literal<valuef>>, "init_tetrads");
 
+        std::cout << "Got 1 " << str << std::endl;
+
         cl::program p1 = cl::build_program_with_cache(ctx, {str}, false);
 
         ctx.register_program(p1);
+
+        std::string str2 = value_impl::make_function(trace3, "trace3");
+
+        std::cout << "Got 2 " << str2 << std::endl;
+
+        cl::program p2 = cl::build_program_with_cache(ctx, {str2}, false);
+
+        ctx.register_program(p2);
     }
 };
+
+cl::image load_background(cl::context ctx, cl::command_queue cqueue, const std::string& name)
+{
+    sf::Image background;
+    background.loadFromFile(name);
+
+    int background_width = background.getSize().x;
+    int background_height = background.getSize().y;
+
+    std::vector<float> background_floats;
+
+    for(int y=0; y < background.getSize().y; y++)
+    {
+        for(int x=0; x < background.getSize().x; x++)
+        {
+            sf::Color col = background.getPixel(x, y);
+
+            tensor<float, 3> tcol = {col.r, col.g, col.b};
+
+            tcol = tcol / 255.f;
+            tcol = tcol.for_each([](auto&& in){return srgb_to_lin(in);});
+
+            background_floats.push_back(tcol.x());
+            background_floats.push_back(tcol.y());
+            background_floats.push_back(tcol.z());
+            background_floats.push_back(1.f);
+        }
+    }
+
+    cl_image_format fmt;
+    fmt.image_channel_order = CL_RGBA;
+    fmt.image_channel_data_type = CL_FLOAT;
+
+    int w = background.getSize().x;
+    int h = background.getSize().y;
+
+    cl::image img(ctx);
+    img.alloc({w, h}, fmt);
+    img.write<2>(cqueue, (const char*)background_floats.data(), {0,0}, {w, h});
+
+    return img;
+}
 
 int main()
 {
@@ -596,9 +649,31 @@ int main()
     cl::gl_rendertexture rtex{ctx};
     rtex.create_from_texture(tex.handle);
 
+    texture_settings tsett2;
+    tsett2.width = sett.width;
+    tsett2.height = sett.height;
+    tsett2.is_srgb = false;
+    tsett2.generate_mipmaps = false;
+
+    texture tex2;
+    tex2.load_from_memory(tsett2, nullptr);
+
+    cl::gl_rendertexture screen_tex{ctx};
+    screen_tex.create_from_texture(tex2.handle);
+
     cqueue.block();
 
     raytrace_bssn rt_bssn(ctx);
+
+    cl::image background = load_background(ctx, cqueue, "../common/nasa.png");
+
+    std::array<cl::buffer, 4> tetrads{ctx, ctx, ctx, ctx};
+    cl::buffer gpu_position(ctx);
+
+    for(int i=0; i < 4; i++)
+        tetrads[i].alloc(sizeof(cl_float4));
+
+    gpu_position.alloc(sizeof(cl_float4));
 
     //build_thread.join();
 
@@ -657,7 +732,9 @@ int main()
 
         steady_timer t;
 
-        rtex.acquire(cqueue);
+        //rtex.acquire(cqueue);
+
+        screen_tex.acquire(cqueue);
 
         if(pause && elapsed_t > 100)
             step = false;
@@ -666,6 +743,53 @@ int main()
             m.step(ctx, cqueue, timestep, simulation_width);
 
         {
+
+
+            cl_float4 camera = {0,0,0,25};
+            quat q;
+            q.load_from_axis_angle({1, 0, 0, 0});
+
+            cl_float4 cq = {q.q[0], q.q[1], q.q[2], q.q[3]};
+
+            cl_int bwidth = background.size<2>().x();
+            cl_int bheight = background.size<2>().y();
+
+            cl_int screen_width = screen_tex.size<2>().x();
+            cl_int screen_height = screen_tex.size<2>().y();
+            float scale = get_scale(simulation_width, dim);
+
+            {
+                cl_float3 vel = {0,0,0};
+
+                cl::args args;
+                args.push_back(camera, vel, gpu_position,
+                               tetrads[0], tetrads[1], tetrads[2], tetrads[3]);
+
+                m.buffers[0].append_to(args);
+                args.push_back(dim);
+                args.push_back(scale);
+
+                cqueue.exec("init_tetrads", args, {screen_width, screen_height}, {8,8});
+            }
+
+            {
+                cl::args args;
+                args.push_back(screen_width, screen_height);
+                args.push_back(background);
+                args.push_back(screen_tex);
+                args.push_back(bwidth, bheight);
+                args.push_back(tetrads[0], tetrads[1], tetrads[2], tetrads[3]);
+                args.push_back(gpu_position, cq);
+                args.push_back(dim);
+                args.push_back(scale);
+
+                m.buffers[0].append_to(args);
+
+                cqueue.exec("trace3", args, {screen_width, screen_height}, {8,8});
+            }
+        }
+
+        /*{
             float scale = get_scale(simulation_width, dim);
 
             cl::args args;
@@ -675,11 +799,13 @@ int main()
             args.push_back(rtex);
 
             cqueue.exec("debug", args, {dim.x() * dim.y() * dim.z()}, {128});
-        }
+        }*/
 
-        rtex.unacquire(cqueue);
+        //rtex.unacquire(cqueue);
+        screen_tex.unacquire(cqueue);
 
-        ImGui::GetBackgroundDrawList()->AddImage((void*)tex.handle, ImVec2(0,0), ImVec2(dim.x() * 3, dim.y() * 3));
+        ImGui::GetBackgroundDrawList()->AddImage((void*)tex2.handle, ImVec2(0,0), ImVec2(tex2.get_size().x(), tex2.get_size().y()));
+        //ImGui::GetBackgroundDrawList()->AddImage((void*)tex.handle, ImVec2(0,0), ImVec2(dim.x() * 3, dim.y() * 3));
 
         win.display();
 

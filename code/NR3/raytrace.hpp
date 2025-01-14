@@ -86,7 +86,7 @@ template<typename T>
 inline
 T linear_to_srgb_gpu(const T& in)
 {
-    return ternary(in <= 0.0031308f, in * 12.92f, 1.055 * pow(in, 1.0f / 2.4f) - 0.055);
+    return ternary(in <= T(0.0031308f), in * 12.92f, 1.055f * pow(in, 1.0f / 2.4f) - 0.055f);
 }
 
 template<typename T>
@@ -633,6 +633,8 @@ auto function_trilinear(T&& func, v3f pos)
 inline
 adm_variables adm_at(v3i pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 {
+    using namespace single_source;
+
     pos = clamp(pos, (v3i){1,1,1}, dim - (v3i){2,2,2});
 
     bssn_args args(pos, dim, in);
@@ -644,24 +646,34 @@ adm_variables adm_at(v3i pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 inline
 adm_variables admf_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 {
+    using namespace single_source;
+
     auto Yij_at = [&](v3i pos)
     {
-        return adm_at(pos, dim, in).Yij;
+        auto val = adm_at(pos, dim, in).Yij;
+        pin(val);
+        return val;
     };
 
     auto Kij_at = [&](v3i pos)
     {
-        return adm_at(pos, dim, in).Kij;
+        auto val = adm_at(pos, dim, in).Kij;
+        pin(val);
+        return val;
     };
 
     auto gA_at = [&](v3i pos)
     {
-        return adm_at(pos, dim, in).gA;
+        auto val = adm_at(pos, dim, in).gA;
+        pin(val);
+        return val;
     };
 
     auto gB_at = [&](v3i pos)
     {
-        return adm_at(pos, dim, in).gB;
+        auto val = adm_at(pos, dim, in).gB;
+        pin(val);
+        return val;
     };
 
     adm_variables out;
@@ -669,6 +681,11 @@ adm_variables admf_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
     out.Kij = function_trilinear(Kij_at, pos);
     out.gA = function_trilinear(gA_at, pos);
     out.gB = function_trilinear(gB_at, pos);
+
+    pin(out.Yij);
+    pin(out.Kij);
+    pin(out.gA);
+    pin(out.gB);
 
     return out;
 }
@@ -745,6 +762,8 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
             v3f grid_position = world_to_grid(cposition, dim.get(), scale.get());
 
+            pin(grid_position);
+
             tensor<valuef, 3> dgA;
             tensor<valuef, 3, 3> dgB;
             tensor<valuef, 3, 3, 3> dcY;
@@ -769,6 +788,10 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
                     }
                 }
             }
+
+            pin(dgA);
+            pin(dgB);
+            pin(dcY);
 
             adm_variables args = admf_at(grid_position, dim.get(), in);
 
@@ -815,7 +838,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
                 }
             }
 
-            valuef dt = -0.1f;
+            valuef dt = -1.f;
 
             as_ref(position) = cposition + d_X * dt;
             as_ref(velocity) = cvelocity + d_V * dt;
@@ -827,12 +850,18 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
                 as_ref(result) = valuei(0);
                 break_e();
             });
+
+            if_e(dot(d_X, d_X) < 0.2f * 0.2f, [&]
+            {
+                as_ref(result) = valuei(1);
+                break_e();
+            });
         });
 
         final_position = declare_e(position);
     }
 
-    mut_v4f col = declare_mut_e((v4f){0,0,0,0});
+    mut_v3f col = declare_mut_e((v3f){0,0,0});
 
     if_e(result == 0, [&] {
         v3f spherical = cartesian_to_spherical(final_position);
@@ -845,14 +874,14 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
         valuei tx = (texture_coordinate[0] * background_size.x().to<float>() + background_size.x().to<float>()).to<int>() % background_size.x();
         valuei ty = (texture_coordinate[1] * background_size.y().to<float>() + background_size.y().to<float>()).to<int>() % background_size.y();
 
-        as_ref(col) = background.read<float, 4>({tx, ty});
+        ///linear colour
+        as_ref(col) = linear_to_srgb_gpu(background.read<float, 4>({tx, ty}).xyz());
     });
 
     v4f crgba = {col[0], col[1], col[2], 1.f};
 
     screen.write(ectx, {x, y}, crgba);
 }
-
 
 valuef dot(v4f u, v4f v, m44f m) {
     v4f lowered = m.lower(u);
