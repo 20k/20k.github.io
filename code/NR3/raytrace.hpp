@@ -23,10 +23,6 @@ using dual = dual_types::dual_v<T>;
 
 #define UNIVERSE_SIZE 100
 
-
-template<typename T>
-using dual = dual_types::dual_v<T>;
-
 //calculate Y of XYZ
 inline
 valuef energy_of(v3f v)
@@ -805,7 +801,7 @@ std::array<v3f, 3> orthonormalise(v3f i1, v3f i2, v3f i3)
     return {u1, u2, u3};
 };
 
-template<auto GetMetric, auto GenericToSpherical, auto SphericalToGeneric>
+template<auto GetMetric>
 void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
                            literal<v3f> local_velocity,
                            buffer_mut<v4f> position_out,
@@ -879,24 +875,11 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
 
     if(should_orient)
     {
-        v4f spher = GenericToSpherical(position.get());
-        v3f cart = spherical_to_cartesian(spher.yzw());
+        v3f cart = position.get().yzw();
 
-        v3f bx = (v3f){1, 0, 0};
-        v3f by = (v3f){0, 1, 0};
-        v3f bz = (v3f){0, 0, 1};
-
-        v3f sx = convert_velocity(cartesian_to_spherical, cart, bx);
-        v3f sy = convert_velocity(cartesian_to_spherical, cart, by);
-        v3f sz = convert_velocity(cartesian_to_spherical, cart, bz);
-
-        sx.x() = ternary(spher.y() < 0, -sx.x(), sx.x());
-        sy.x() = ternary(spher.y() < 0, -sy.x(), sy.x());
-        sz.x() = ternary(spher.y() < 0, -sz.x(), sz.x());
-
-        v4f dx = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sx.x(), sx.y(), sx.z()});
-        v4f dy = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sy.x(), sy.y(), sy.z()});
-        v4f dz = convert_velocity(SphericalToGeneric, spher, (v4f){0.f, sz.x(), sz.y(), sz.z()});
+        v4f dx = (v4f){0, 1, 0, 0};
+        v4f dy = (v4f){0, 0, 1, 0};
+        v4f dz = (v4f){0, 0, 0, 1};
 
         inverse_tetrad itet = tet.invert();
 
