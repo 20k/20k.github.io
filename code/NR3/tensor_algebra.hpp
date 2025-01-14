@@ -308,4 +308,17 @@ metric<valuef, 4, 4> calculate_real_metric(const metric<valuef, 3, 3>& adm, cons
     return ret;
 }
 
+///https://scholarworks.rit.edu/cgi/viewcontent.cgi?article=11286&context=theses (3.33)
+inline
+tensor<valuef, 4> get_adm_hypersurface_normal_raised(const valuef& gA, const tensor<valuef, 3>& gB)
+{
+    return {1/gA, -gB.idx(0)/gA, -gB.idx(1)/gA, -gB.idx(2)/gA};
+}
+
+inline
+tensor<valuef, 4> get_adm_hypersurface_normal_lowered(const valuef& gA)
+{
+    return {-gA, 0, 0, 0};
+}
+
 #endif // TENSOR_ALGEBRA_HPP_INCLUDED

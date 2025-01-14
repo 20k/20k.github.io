@@ -716,65 +716,141 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
     geodesic my_geodesic = make_lightlike_geodesic(position[0], ray_direction, tetrads);
 
-    integration_result found;
+    adm_variables init_adm = admf_at(position[0].yzw(), dim.get(), in);
 
-    /*{
+    tensor<valuef, 4> normal = get_adm_hypersurface_normal_raised(init_adm.gA, init_adm.gB);
 
-        mut<valuei> result = declare_mut_e(valuei(1));
+    metric<valuef, 4, 4> init_full = calculate_real_metric(init_adm.Yij, init_adm.gA, init_adm.gB);
 
-        v4f start_cvel = declare_e(g.velocity);
+    tensor<valuef, 4> velocity_lowered = init_full.lower(my_geodesic.velocity);
 
-        mut_v4f position = declare_mut_e(g.position);
-        mut_v4f velocity = declare_mut_e(start_cvel);
+    valuef E = -sum_multiply(velocity_lowered, normal);
 
-        v4f start = g.position;
+    tensor<valuef, 4> adm_velocity = -((my_geodesic.velocity / E) - normal);
+
+    mut<valuei> result = declare_mut_e(valuei(0));
+    v3f final_position;
+
+    {
+
+        mut_v3f position = declare_mut_e(my_geodesic.position.yzw());
+        mut_v3f velocity = declare_mut_e(adm_velocity.yzw());
 
         mut<valuei> idx = declare_mut_e("i", valuei(0));
 
-        for_e(idx < 1024 * 1000, assign_b(idx, idx + 1), [&]
+        for_e(idx < 1024, assign_b(idx, idx + 1), [&]
         {
-            v4f cposition = declare_e(position);
-            v4f cvelocity = declare_e(velocity);
+            v3f cposition = declare_e(position);
+            v3f cvelocity = declare_e(velocity);
 
-            v4f acceleration = calculate_acceleration_of(cposition, cvelocity, get_metric);
+            v3f grid_position = world_to_grid(cposition, dim.get(), scale.get());
 
-            valuef dt = get_lightlike_timestep(cposition, cvelocity, acceleration);
+            tensor<valuef, 3> dgA;
+            tensor<valuef, 3, 3> dgB;
+            tensor<valuef, 3, 3, 3> dcY;
 
-            pin(acceleration);
+            for(int m=0; m < 3; m++)
+            {
+                v3f dir = {0,0,0};
+                dir[m] = 1;
 
-            as_ref(position) = cposition + cvelocity * dt;
-            as_ref(velocity) = cvelocity + acceleration * dt;
+                adm_variables right = admf_at(grid_position + dir, dim.get(), in);
+                adm_variables left = admf_at(grid_position - dir, dim.get(), in);
 
-            valuef radius = position[1];
+                dgA[m] = (right.gA - left.gA) / (2 * scale.get());
 
-            if_e(fabs(radius) > UNIVERSE_SIZE, [&] {
+                for(int j=0; j < 3; j++)
+                {
+                    dgB[m, j] = (right.gB[j] - left.gB[j]) / (2 * scale.get());
+
+                    for(int k=0; k < 3; k++)
+                    {
+                        dcY[m, j, k] = (right.Yij[j, k] - left.Yij[j, k]) / (2 * scale.get());
+                    }
+                }
+            }
+
+            adm_variables args = admf_at(grid_position, dim.get(), in);
+
+            valuef length_sq = dot(cvelocity, args.Yij.lower(cvelocity));
+            valuef length = sqrt(fabs(length_sq));
+
+            cvelocity = cvelocity / length;
+
+            pin(cvelocity);
+
+            v3f d_X = args.gA * cvelocity - args.gB;
+
+            auto iYij = args.Yij.invert();
+            pin(iYij);
+
+            auto christoff2 = christoffel_symbols_2(iYij, dcY);
+            pin(christoff2);
+
+            tensor<valuef, 3> d_V;
+
+            for(int i=0; i < 3; i++)
+            {
+                for(int j=0; j < 3; j++)
+                {
+                    valuef kjvk = 0;
+
+                    for(int k=0; k < 3; k++)
+                    {
+                        kjvk += args.Kij[j, k] * cvelocity[k];
+                    }
+
+                    valuef christoffel_sum = 0;
+
+                    for(int k=0; k < 3; k++)
+                    {
+                        christoffel_sum += christoff2[i, j, k] * cvelocity[k];
+                    }
+
+                    valuef dlog_gA = dgA[j] / args.gA;
+
+                    d_V[i] += args.gA * cvelocity[j] * (cvelocity[i] * (dlog_gA - kjvk) + 2 * raise_index(args.Kij, iYij, 0)[i, j] - christoffel_sum)
+                            - iYij[i, j] * dgA[j] - cvelocity[j] * dgB[j, i];
+
+                }
+            }
+
+            valuef dt = -0.1f;
+
+            as_ref(position) = cposition + d_X * dt;
+            as_ref(velocity) = cvelocity + d_V * dt;
+
+            valuef radius_sq = dot(cposition, cposition);
+
+            if_e(radius_sq > 29*29, [&] {
                 //ray escaped
                 as_ref(result) = valuei(0);
                 break_e();
             });
-
-            if_e(should_terminate(start, as_constant(position), as_constant(velocity)), [&] {
-                break_e();
-            });
         });
 
-        found.type = result;
-        found.position = declare_e(position);
-        found.velocity = declare_e(velocity);
-        found.sample_colour = (v3f){0,0,0};
-        found.sample_opacity = 0.f;
-    }*/
+        final_position = declare_e(position);
+    }
 
-    //metric<valuef, 4, 4> met = calculate_real_metric(adm.Yij, adm.gA, adm.gB);
+    mut_v4f col = declare_mut_e((v4f){0,0,0,0});
 
-    /*v3f colour = render_pixel(screen_pos, screen_size, background, background_size, tetrads, position[0], camera_quat.get(), GetMetric);
+    if_e(result == 0, [&] {
+        v3f spherical = cartesian_to_spherical(final_position);
 
-    colour = linear_to_srgb_gpu(colour);
+        valuef theta = spherical[1];
+        valuef phi = spherical[2];
 
-    //the tensor library does actually support .x() etc, but I'm trying to keep the requirements for whatever you use yourself minimal
-    v4f crgba = {colour[0], colour[1], colour[2], 1.f};
+        v2f texture_coordinate = angle_to_tex({theta, phi});
 
-    screen.write(ectx, {x,y}, crgba);*/
+        valuei tx = (texture_coordinate[0] * background_size.x().to<float>() + background_size.x().to<float>()).to<int>() % background_size.x();
+        valuei ty = (texture_coordinate[1] * background_size.y().to<float>() + background_size.y().to<float>()).to<int>() % background_size.y();
+
+        as_ref(col) = background.read<float, 4>({tx, ty});
+    });
+
+    v4f crgba = {col[0], col[1], col[2], 1.f};
+
+    screen.write(ectx, {x, y}, crgba);
 }
 
 
