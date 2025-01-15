@@ -484,6 +484,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
             pin(dgA);
             pin(dgB);
             pin(dcY);
+            pin(dW);
 
             auto W = W_f_at(grid_position, dim.get(), in);
             auto cY = cY_f_at(grid_position, dim.get(), in);
@@ -509,9 +510,13 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
             auto iYij = iYij_f_at(grid_position, dim.get(), in);
             pin(iYij);
 
-            auto christoff2_cfl = christoffel_symbols_2(cY.invert(), dcY);
+            auto icY = cY.invert();
+            pin(icY);
 
-            auto christoff2 = get_full_christoffel2(W, dW, cY, cY.invert(), christoff2_cfl);
+            auto christoff2_cfl = christoffel_symbols_2(icY, dcY);
+            pin(christoff2_cfl);
+
+            auto christoff2 = get_full_christoffel2(W, dW, cY, icY, christoff2_cfl);
             pin(christoff2);
 
             tensor<valuef, 3> d_V;
