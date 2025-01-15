@@ -4,6 +4,8 @@
 #include "../common/vec/tensor.hpp"
 #include "../common/vec/dual.hpp"
 #include "single_source.hpp"
+#include "bssn.hpp"
+#include "init.hpp"
 
 using valuef = value<float>;
 using valuei = value<int>;
@@ -22,579 +24,6 @@ template<typename T>
 using dual = dual_types::dual_v<T>;
 
 #define UNIVERSE_SIZE 100
-
-//calculate Y of XYZ
-inline
-valuef energy_of(v3f v)
-{
-    return v.x()*0.2125f + v.y()*0.7154f + v.z()*0.0721f;
-}
-
-inline
-v3f redshift(v3f v, valuef z)
-{
-    using namespace single_source;
-
-    {
-        valuef iemit = energy_of(v);
-        valuef iobs = iemit / pow(z+1, 4.f);
-
-        v = (iobs / iemit) * v;
-
-        pin(v);
-    }
-
-    valuef radiant_energy = energy_of(v);
-
-    v3f red = {1/0.2125f, 0.f, 0.f};
-    v3f green = {0, 1/0.7154, 0.f};
-    v3f blue = {0.f, 0.f, 1/0.0721};
-
-    mut_v3f result = declare_mut_e((v3f){0,0,0});
-
-    if_e(z >= 0, [&]{
-        as_ref(result) = mix(v, radiant_energy * red, tanh(z));
-    });
-
-    if_e(z < 0, [&]{
-        valuef iv1pz = (1/(1 + z)) - 1;
-
-        valuef interpolating_fraction = tanh(iv1pz);
-
-        v3f col = mix(v, radiant_energy * blue, interpolating_fraction);
-
-        //calculate spilling into white
-        {
-            valuef final_energy = energy_of(clamp(col, 0.f, 1.f));
-            valuef real_energy = energy_of(col);
-
-            valuef remaining_energy = real_energy - final_energy;
-
-            col.x() += remaining_energy * red.x();
-            col.y() += remaining_energy * green.y();
-        }
-
-        as_ref(result) = col;
-    });
-
-    as_ref(result) = clamp(result, 0.f, 1.f);
-
-    return declare_e(result);
-}
-
-template<typename T>
-inline
-T linear_to_srgb_gpu(const T& in)
-{
-    return ternary(in <= T(0.0031308f), in * 12.92f, 1.055f * pow(in, 1.0f / 2.4f) - 0.055f);
-}
-
-template<typename T>
-inline
-tensor<T, 3> linear_to_srgb_gpu(const tensor<T, 3>& in)
-{
-    tensor<T, 3> ret;
-
-    for(int i=0; i < 3; i++)
-        ret[i] = linear_to_srgb_gpu(in[i]);
-
-    return ret;
-}
-
-inline
-valuef get_zp1(v4f position_obs, v4f velocity_obs, v4f ref_obs, v4f position_emit, v4f velocity_emit, v4f ref_emit, auto&& get_metric)
-{
-    using namespace single_source;
-
-    m44f guv_obs = get_metric(position_obs);
-    m44f guv_emit = get_metric(position_emit);
-
-    valuef zp1 = dot_metric(velocity_emit, ref_emit, guv_emit) / dot_metric(velocity_obs, ref_obs, guv_obs);
-
-    pin(zp1);
-
-    return zp1;
-}
-
-inline
-v3f do_redshift(v3f colour, valuef zp1)
-{
-    using namespace single_source;
-
-    return redshift(colour, zp1 - 1);
-}
-
-struct inverse_tetrad
-{
-    std::array<v4f, 4> v_lo;
-
-    v4f into_frame_of_reference(v4f in)
-    {
-        v4f out;
-
-        for(int i=0; i < 4; i++)
-            out[i] = dot(in, v_lo[i]);
-
-        return out;
-    }
-};
-
-struct tetrad
-{
-    std::array<v4f, 4> v;
-
-    v4f into_coordinate_space(v4f in)
-    {
-        return v[0] * in.x() + v[1] * in.y() + v[2] * in.z() + v[3] * in.w();
-    }
-
-    inverse_tetrad invert()
-    {
-        inverse_tetrad invert;
-
-        tensor<valuef, 4, 4> as_matrix;
-
-        for(int i=0; i < 4; i++)
-        {
-            for(int j=0; j < 4; j++)
-            {
-                as_matrix[i, j] = v[i][j];
-            }
-        }
-
-        tensor<valuef, 4, 4> inv = as_matrix.asymmetric_invert();
-
-        invert.v_lo[0] = {inv[0, 0], inv[0, 1], inv[0, 2], inv[0, 3]};
-        invert.v_lo[1] = {inv[1, 0], inv[1, 1], inv[1, 2], inv[1, 3]};
-        invert.v_lo[2] = {inv[2, 0], inv[2, 1], inv[2, 2], inv[2, 3]};
-        invert.v_lo[3] = {inv[3, 0], inv[3, 1], inv[3, 2], inv[3, 3]};
-
-        return invert;
-    }
-};
-
-inline
-auto cartesian_to_spherical = []<typename T>(const tensor<T, 3>& cartesian)
-{
-    T r = cartesian.length();
-    T theta = acos(cartesian[2] / r);
-    T phi = atan2(cartesian[1], cartesian[0]);
-
-    return tensor<T, 3>{r, theta, phi};
-};
-
-template<typename T, int N, typename Func>
-inline
-tensor<T, N> convert_velocity(Func&& f, const tensor<T, N>& pos, const tensor<T, N>& deriv)
-{
-    tensor<dual<T>, N> val;
-
-    for(int i=0; i < N; i++)
-        val[i] = dual(pos[i], deriv[i]);
-
-    auto d = f(val);
-
-    tensor<T, N> ret;
-
-    for(int i=0; i < N; i++)
-        ret[i] = d[i].dual;
-
-    return ret;
-}
-
-inline
-auto spherical_to_cartesian = []<typename T>(const tensor<T, 3>& spherical)
-{
-    T r = spherical[0];
-    T theta = spherical[1];
-    T phi = spherical[2];
-
-    T x = r * sin(theta) * cos(phi);
-    T y = r * sin(theta) * sin(phi);
-    T z = r * cos(theta);
-
-    return tensor<T, 3>{x, y, z};
-};
-
-v3f get_ray_through_pixel(v2i screen_position, v2i screen_size, float fov_degrees, v4f camera_quat) {
-    float fov_rad = (fov_degrees / 360.f) * 2 * std::numbers::pi_v<float>;
-    valuef f_stop = (screen_size.x()/2).to<float>() / tan(fov_rad/2);
-
-    v3f pixel_direction = {(screen_position.x() - screen_size.x()/2).to<float>(), (screen_position.y() - screen_size.y()/2).to<float>(), f_stop};
-    pixel_direction = rot_quat(pixel_direction, camera_quat); //if you have quaternions, or some rotation library, rotate your pixel direction here by your cameras rotation
-
-    return pixel_direction.norm();
-}
-
-struct geodesic
-{
-    v4f position;
-    v4f velocity;
-};
-
-geodesic make_lightlike_geodesic(const v4f& position, const v3f& direction, const tetrad& tetrads) {
-    geodesic g;
-    g.position = position;
-    g.velocity = tetrads.v[0] * -1 //Flipped time component, we're tracing backwards in time
-               + tetrads.v[1] * direction[0]
-               + tetrads.v[2] * direction[1]
-               + tetrads.v[3] * direction[2];
-
-    return g;
-}
-
-auto diff(auto&& func, const v4f& position, int direction) {
-    #define ANALYTIC_DERIVATIVES
-    #ifdef ANALYTIC_DERIVATIVES
-    m44f metric = func(position);
-
-    tensor<valuef, 4, 4> differentiated;
-
-    for(int i=0; i < 4; i++)
-    {
-        for(int j=0; j < 4; j++)
-        {
-            dual<value_base> as_dual = replay_value_base<dual<value_base>>(metric[i, j], [&](const value_base& in)
-            {
-                if(equivalent(in, position[direction]))
-                    return dual<value_base>(in, in.make_constant_of_type(1.f));
-                else
-                    return dual<value_base>(in, in.make_constant_of_type(0.f));
-            });
-
-            differentiated[i, j].set_from_base(as_dual.dual);
-        }
-    }
-
-    return differentiated;
-    #else
-    auto p_up = position;
-    auto p_lo = position;
-
-    float h = 0.00001f;
-
-    p_up[direction] += h;
-    p_lo[direction] -= h;
-
-    auto up = func(p_up);
-    auto lo = func(p_lo);
-
-    return (func(p_up) - func(p_lo)) * (1/(2 * h));
-    #endif // ANALYTIC
-}
-
-//get the christoffel symbols that we need for the geodesic equation
-////https://www2.mpia-hd.mpg.de/homes/tmueller/pdfs/catalogue_2014-05-21.pdf you can check that this function returns the correct results, against 2.2.2a
-tensor<valuef, 4, 4, 4> calculate_christoff2(const v4f& position, auto&& get_metric) {
-    metric<valuef, 4, 4> metric = get_metric(position);
-    inverse_metric<valuef, 4, 4> metric_inverse = metric.invert();
-
-    tensor<valuef, 4, 4, 4> metric_diff; ///uses the index signature, diGjk
-
-    for(int i=0; i < 4; i++) {
-        auto differentiated = diff(get_metric, position, i);
-
-        for(int j=0; j < 4; j++) {
-            for(int k=0; k < 4; k++) {
-                metric_diff[i, j, k] = differentiated[j, k];
-            }
-        }
-    }
-
-    tensor<valuef, 4, 4, 4> Gamma;
-
-    for(int mu = 0; mu < 4; mu++)
-    {
-        for(int al = 0; al < 4; al++)
-        {
-            for(int be = 0; be < 4; be++)
-            {
-                valuef sum = 0;
-
-                for(int sigma = 0; sigma < 4; sigma++)
-                {
-                    sum += 0.5f * metric_inverse[mu, sigma] * (metric_diff[be, sigma, al] + metric_diff[al, sigma, be] - metric_diff[sigma, al, be]);
-                }
-
-                Gamma[mu, al, be] = sum;
-            }
-        }
-    }
-
-    //note that for simplicities sake, we fully calculate all the christoffel symbol components
-    //but the lower two indices are symmetric, and can be mirrored to save significant calculations
-    return Gamma;
-}
-
-//use the geodesic equation to get our acceleration
-v4f calculate_acceleration_of(const tensor<valuef, 4>& X, const tensor<valuef, 4>& v, auto&& get_metric) {
-    tensor<valuef, 4, 4, 4> christoff2 = calculate_christoff2(X, get_metric);
-
-    v4f acceleration;
-
-    for(int mu = 0; mu < 4; mu++) {
-        valuef sum = 0;
-
-        for(int al = 0; al < 4; al++) {
-            for(int be = 0; be < 4; be++) {
-                sum += -christoff2[mu, al, be] * v[al] * v[be];
-            }
-        }
-
-        acceleration[mu] = sum;
-    }
-
-    return acceleration;
-}
-
-v2f angle_to_tex(const v2f& angle)
-{
-    using namespace single_source;
-
-    float pi = std::numbers::pi_v<float>;
-
-    mut<valuef> thetaf = declare_mut_e("theta", fmod(angle[0], valuef(2 * pi)));
-    mut<valuef> phif = declare_mut_e("phi", angle[1]);
-
-    if_e(thetaf >= pi, [&]
-    {
-        as_ref(phif) = phif + pi;
-        as_ref(thetaf) = thetaf - pi;
-    });
-
-    as_ref(phif) = fmod(phif, valuef(2 * pi));
-
-    valuef sxf = phif / (2 * pi);
-    valuef syf = thetaf / pi;
-
-    sxf += 0.5f;
-
-    return {sxf, syf};
-}
-
-value<bool> should_terminate(v4f start, v4f position, v4f velocity)
-{
-    value<bool> is_broken = !isfinite(position[0]) || !isfinite(position[1]) || !isfinite(position[2]) || !isfinite(position[3]) ||
-                            !isfinite(velocity[0]) || !isfinite(velocity[1]) || !isfinite(velocity[2]) || !isfinite(velocity[3]) ;
-
-    return fabs(position[1]) > UNIVERSE_SIZE || position[0] > start[0] + 100 || fabs(velocity[0]) >= 10 || fabs(velocity[1]) >= 10 || is_broken;
-}
-
-valuef get_timelike_timestep(v4f position, v4f velocity)
-{
-    v4f avelocity = fabs(velocity);
-    valuef divisor = max(max(avelocity.x(), avelocity.y()), max(avelocity.z(), avelocity.w()));
-
-    valuef low_precision = 0.05f/divisor;
-    valuef normal_precision = 0.012f/divisor;
-    valuef high_precision = 0.005f/divisor;
-
-    return ternary(fabs(position[1]) < 10, ternary(fabs(position[1]) < 3.f, high_precision, normal_precision), low_precision);
-}
-
-valuef get_lightlike_timestep(v4f position, v4f velocity, v4f acceleration)
-{
-    return get_timelike_timestep(position, velocity);
-}
-
-struct integration_result
-{
-    valuei type;
-    v4f position;
-    v4f velocity;
-
-    v3f sample_colour;
-    valuef sample_opacity;
-};
-
-std::tuple<v4f, v4f, v4f> verlet(v4f position, v4f velocity, v4f acceleration, valuef dt, auto&& get_metric)
-{
-    using namespace single_source;
-
-    v4f next_position = position + velocity * dt + 0.5f * acceleration * dt * dt;
-
-    v4f intermediate_next_velocity = velocity + acceleration * dt;
-
-    pin(next_position);
-    pin(intermediate_next_velocity);
-
-    v4f next_acceleration = calculate_acceleration_of(next_position, intermediate_next_velocity, get_metric);
-
-    pin(next_acceleration);
-
-    v4f next_velocity = velocity + 0.5f * (acceleration + next_acceleration) * dt;
-
-    pin(next_velocity);
-
-    return {next_position, next_velocity, next_acceleration};
-}
-
-template<typename T>
-T lookup(buffer<T> in, valuef coordinate, valuef minimum, valuef maximum)
-{
-    valuef rootf = clamp(floor(coordinate), minimum, maximum);
-    valuef nextf = clamp(rootf + 1, minimum, maximum);
-
-    valuei root = rootf.to<int>();
-    valuei next = nextf.to<int>();
-
-    T at_root = in[root];
-    T at_next = in[next];
-
-    return mix(at_root, at_next, clamp(coordinate, minimum, maximum) - rootf);
-}
-
-//this integrates a geodesic, until it either escapes our small universe or hits the event horizon
-integration_result integrate(geodesic& g, auto&& get_metric) {
-    using namespace single_source;
-
-    integration_result found;
-
-    mut<valuei> result = declare_mut_e(valuei(1));
-
-    v4f start_cvel = declare_e(g.velocity);
-
-    mut_v4f position = declare_mut_e(g.position);
-    mut_v4f velocity = declare_mut_e(start_cvel);
-
-    v4f start = g.position;
-
-    mut<valuei> idx = declare_mut_e("i", valuei(0));
-
-    mut_v3f colour_out = declare_mut_e((v3f){0,0,0});
-
-    mut<valuef> opacity = declare_mut_e(valuef(0));
-
-    //v4f start_cpos = declare_e(g.position);
-    //mut_v4f acceleration = declare_mut_e(calculate_acceleration_of(start_cpos, start_cvel, get_metric));
-
-    for_e(idx < 1024 * 1000, assign_b(idx, idx + 1), [&]
-    {
-        v4f cposition = declare_e(position);
-        v4f cvelocity = declare_e(velocity);
-
-        v4f acceleration = calculate_acceleration_of(cposition, cvelocity, get_metric);
-
-        valuef dt = get_lightlike_timestep(cposition, cvelocity, acceleration);
-
-        pin(acceleration);
-
-        as_ref(position) = cposition + cvelocity * dt;
-        as_ref(velocity) = cvelocity + acceleration * dt;
-
-        valuef radius = position[1];
-
-        if_e(fabs(radius) > UNIVERSE_SIZE, [&] {
-            //ray escaped
-            as_ref(result) = valuei(0);
-            break_e();
-        });
-
-        if_e(should_terminate(start, as_constant(position), as_constant(velocity)), [&] {
-            break_e();
-        });
-    });
-
-    found.type = result;
-    found.position = declare_e(position);
-    found.velocity = declare_e(velocity);
-    found.sample_colour = declare_e(colour_out);
-    found.sample_opacity = clamp(declare_e(opacity), valuef(0.0f), valuef(1.f));
-
-    return found;
-}
-
-v3f render_pixel(v2i screen_position, v2i screen_size,
-                 const read_only_image<2>& background, buffer<v3f> accretion_disk, buffer<v3f> bbody_table, buffer<valuef> temperature,
-                 v2i background_size, const tetrad& tetrads, v4f start_position, v4f camera_quat, auto&& get_metric)
-{
-    using namespace single_source;
-
-    v3f ray_direction = get_ray_through_pixel(screen_position, screen_size, 90, camera_quat);
-
-    //so, the tetrad vectors give us a basis, that points in the direction t, r, theta, and phi, because schwarzschild is diagonal
-    //we'd like the ray to point towards the black hole: this means we make +z point towards -r, +y point towards +theta, and +x point towards +phi
-    geodesic my_geodesic = make_lightlike_geodesic(start_position, ray_direction, tetrads);
-
-    /*value_base se;
-    se.type = value_impl::op::SIDE_EFFECT;
-    se.abstract_value = "printf(\"%f\\n\"," + value_to_string(my_geodesic.velocity.z()) + ")";
-
-    value_impl::get_context().add(se);*/
-
-    integration_result result = integrate(my_geodesic, get_metric);
-
-    valuef theta = result.position[2];
-    valuef phi = result.position[3];
-
-    v2f texture_coordinate = angle_to_tex({theta, phi});
-
-    valuei tx = (texture_coordinate[0] * background_size.x().to<float>() + background_size.x().to<float>()).to<int>() % background_size.x();
-    valuei ty = (texture_coordinate[1] * background_size.y().to<float>() + background_size.y().to<float>()).to<int>() % background_size.y();
-
-    v4f col = background.read<float, 4>({tx, ty});
-
-    //#define DO_REDSHIFT
-    #ifdef DO_REDSHIFT
-    {
-        valuef zp1 = get_zp1(my_geodesic.position, my_geodesic.velocity, tetrads.v[0], result.position, result.velocity, (v4f){1, 0, 0, 0}, get_metric);
-
-        v3f col3 = do_redshift(col.xyz(), zp1);
-
-        col.x() = col3.x();
-        col.y() = col3.y();
-        col.z() = col3.z();
-    }
-    #endif
-
-    mut_v3f colour = declare_mut_e(col.xyz());
-
-    if_e(result.type == 1, [&] {
-        as_ref(colour) = (tensor<valuef, 3>){0,0,0};
-    });
-
-    return colour.as<valuef>() * (1-result.sample_opacity) + result.sample_colour;
-}
-
-template<auto GetMetric>
-void opencl_raytrace(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
-                     read_only_image<2> background, write_only_image<2> screen,
-                     literal<valuei> background_width, literal<valuei> background_height,
-                     buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
-                     buffer<v4f> position, literal<v4f> camera_quat)
-{
-    using namespace single_source;
-
-    valuei x = value_impl::get_global_id(0);
-    valuei y = value_impl::get_global_id(1);
-
-    //get_global_id() is not a const function, so assign it to an unnamed variable to avoid compilers repeatedly evaluating it
-    pin(x);
-    pin(y);
-
-    if_e(y >= screen_height.get(), [&] {
-        return_e();
-    });
-
-    if_e(x >= screen_width.get(), [&] {
-        return_e();
-    });
-
-    v2i screen_pos = {x, y};
-    v2i screen_size = {screen_width.get(), screen_height.get()};
-    v2i background_size = {background_width.get(), background_height.get()};
-
-    tetrad tetrads = {e0[0], e1[0], e2[0], e3[0]};
-
-    v3f colour = render_pixel(screen_pos, screen_size, background, background_size, tetrads, position[0], camera_quat.get(), GetMetric);
-
-    colour = linear_to_srgb_gpu(colour);
-
-    //the tensor library does actually support .x() etc, but I'm trying to keep the requirements for whatever you use yourself minimal
-    v4f crgba = {colour[0], colour[1], colour[2], 1.f};
-
-    screen.write(ectx, {x,y}, crgba);
-}
 
 template<typename T>
 inline
@@ -630,22 +59,6 @@ auto function_trilinear(T&& func, v3f pos)
     return c0 - frac.z() * (c0 - c1);
 }
 
-inline
-valuef W_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
-{
-    using namespace single_source;
-
-    auto W_at = [&](v3i pos)
-    {
-        pos = clamp(pos, (v3i){1,1,1}, dim - (v3i){2,2,2});
-
-        bssn_args args(pos, dim, in);
-        pin(args.W);
-        return args.W;
-    };
-
-    return function_trilinear(W_at, pos);
-}
 
 inline
 adm_variables adm_at(v3i pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
@@ -707,72 +120,6 @@ adm_variables admf_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
     return out;
 }
 
-inline
-valuef gA_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
-{
-    using namespace single_source;
-
-    auto func = [&](v3i pos)
-    {
-        auto val = adm_at(pos, dim, in).gA;
-        pin(val);
-        return val;
-    };
-
-    auto val = function_trilinear(func, pos);
-    pin(val);
-    return val;
-}
-
-inline
-tensor<valuef, 3> gB_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
-{
-    using namespace single_source;
-
-    auto func = [&](v3i pos)
-    {
-        auto val = adm_at(pos, dim, in).gB;
-        pin(val);
-        return val;
-    };
-
-    auto val = function_trilinear(func, pos);
-    pin(val);
-    return val;
-}
-
-inline
-metric<valuef, 3, 3> Yij_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
-{
-    using namespace single_source;
-
-    auto func = [&](v3i pos)
-    {
-        auto val = adm_at(pos, dim, in).Yij;
-        pin(val);
-        return val;
-    };
-
-    auto val = function_trilinear(func, pos);
-    pin(val);
-    return val;
-}
-
-///this is totally pointless, velocity = 1
-valuef get_ct_timestep(v3f position, v3f velocity, valuef W)
-{
-    float X_far = 0.9f;
-    float X_near = 0.6f;
-
-    valuef X = sqrt(W);
-
-    valuef my_fraction = (clamp(X, X_near, X_far) - X_near) / (X_far - X_near);
-
-    my_fraction = clamp(my_fraction, 0.f, 1.f);
-
-    return mix(valuef(0.4f), valuef(4.f), my_fraction) * 0.1f;
-}
-
 void trace3(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
                      read_only_image<2> background, write_only_image<2> screen,
                      literal<valuei> background_width, literal<valuei> background_height,
@@ -780,206 +127,16 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
                      buffer<v4f> position, literal<v4f> camera_quat,
                      literal<v3i> dim,
                      literal<valuef> scale,
-                     bssn_args_mem<buffer<valuef>> in)
-{
-    using namespace single_source;
+                     bssn_args_mem<buffer<valuef>> in);
 
-    valuei x = value_impl::get_global_id(0);
-    valuei y = value_impl::get_global_id(1);
-
-    //get_global_id() is not a const function, so assign it to an unnamed variable to avoid compilers repeatedly evaluating it
-    pin(x);
-    pin(y);
-
-    if_e(y >= screen_height.get(), [&] {
-        return_e();
-    });
-
-    if_e(x >= screen_width.get(), [&] {
-        return_e();
-    });
-
-    v2i screen_position = {x, y};
-    v2i screen_size = {screen_width.get(), screen_height.get()};
-    v2i background_size = {background_width.get(), background_height.get()};
-
-    tetrad tetrads = {e0[0], e1[0], e2[0], e3[0]};
-
-    v4f lpos = position[0];
-
-    pin(lpos);
-
-    ///need to differentiate some of these variables in the regular adm stuff sighghghgh
-    v3i ipos = (v3i)lpos.yzw();
-
-    v3f ray_direction = get_ray_through_pixel(screen_position, screen_size, 90, camera_quat.get());
-
-    geodesic my_geodesic = make_lightlike_geodesic(position[0], ray_direction, tetrads);
-
-    adm_variables init_adm = admf_at(position[0].yzw(), dim.get(), in);
-
-    tensor<valuef, 4> normal = get_adm_hypersurface_normal_raised(init_adm.gA, init_adm.gB);
-
-    metric<valuef, 4, 4> init_full = calculate_real_metric(init_adm.Yij, init_adm.gA, init_adm.gB);
-
-    tensor<valuef, 4> velocity_lowered = init_full.lower(my_geodesic.velocity);
-
-    valuef E = -sum_multiply(velocity_lowered, normal);
-
-    tensor<valuef, 4> adm_velocity = -((my_geodesic.velocity / E) - normal);
-
-    mut<valuei> result = declare_mut_e(valuei(1));
-    v3f final_position;
-
-    {
-
-        mut_v3f position = declare_mut_e(my_geodesic.position.yzw());
-        mut_v3f velocity = declare_mut_e(adm_velocity.yzw());
-
-        mut<valuei> idx = declare_mut_e("i", valuei(0));
-
-        for_e(idx < 1024, assign_b(idx, idx + 1), [&]
-        {
-            v3f cposition = declare_e(position);
-            v3f cvelocity = declare_e(velocity);
-
-            v3f grid_position = world_to_grid(cposition, dim.get(), scale.get());
-
-            pin(grid_position);
-
-            tensor<valuef, 3> dgA;
-            tensor<valuef, 3, 3> dgB;
-            tensor<valuef, 3, 3, 3> dcY;
-
-            for(int m=0; m < 3; m++)
-            {
-                v3f dir = {0,0,0};
-                dir[m] = 1;
-
-                auto gA_r = gA_f_at(grid_position + dir, dim.get(), in);
-                auto gA_l = gA_f_at(grid_position - dir, dim.get(), in);
-
-                auto gB_r = gB_f_at(grid_position + dir, dim.get(), in);
-                auto gB_l = gB_f_at(grid_position - dir, dim.get(), in);
-
-                auto Yij_r = Yij_f_at(grid_position + dir, dim.get(), in);
-                auto Yij_l = Yij_f_at(grid_position - dir, dim.get(), in);
-
-                dgA[m] = (gA_r - gA_l) / (2 * scale.get());
-
-                for(int j=0; j < 3; j++)
-                {
-                    dgB[m, j] = (gB_r[j] - gB_l[j]) / (2 * scale.get());
-
-                    for(int k=0; k < 3; k++)
-                    {
-                        dcY[m, j, k] = (Yij_r[j, k] - Yij_l[j, k]) / (2 * scale.get());
-                    }
-                }
-            }
-
-            pin(dgA);
-            pin(dgB);
-            pin(dcY);
-
-            adm_variables args = admf_at(grid_position, dim.get(), in);
-
-            valuef length_sq = dot(cvelocity, args.Yij.lower(cvelocity));
-            valuef length = sqrt(fabs(length_sq));
-
-            cvelocity = cvelocity / length;
-
-            pin(cvelocity);
-
-            v3f d_X = args.gA * cvelocity - args.gB;
-
-            auto iYij = args.Yij.invert();
-            pin(iYij);
-
-            auto christoff2 = christoffel_symbols_2(iYij, dcY);
-            pin(christoff2);
-
-            tensor<valuef, 3> d_V;
-
-            for(int i=0; i < 3; i++)
-            {
-                for(int j=0; j < 3; j++)
-                {
-                    valuef kjvk = 0;
-
-                    for(int k=0; k < 3; k++)
-                    {
-                        kjvk += args.Kij[j, k] * cvelocity[k];
-                    }
-
-                    valuef christoffel_sum = 0;
-
-                    for(int k=0; k < 3; k++)
-                    {
-                        christoffel_sum += christoff2[i, j, k] * cvelocity[k];
-                    }
-
-                    valuef dlog_gA = dgA[j] / args.gA;
-
-                    d_V[i] += args.gA * cvelocity[j] * (cvelocity[i] * (dlog_gA - kjvk) + 2 * raise_index(args.Kij, iYij, 0)[i, j] - christoffel_sum)
-                            - iYij[i, j] * dgA[j] - cvelocity[j] * dgB[j, i];
-
-                }
-            }
-
-            valuef fW = W_f_at(grid_position, dim.get(), in);
-
-            valuef dt = -1.f * get_ct_timestep(cposition, cvelocity, fW);
-
-            as_ref(position) = cposition + d_X * dt;
-            as_ref(velocity) = cvelocity + d_V * dt;
-
-            valuef radius_sq = dot(cposition, cposition);
-
-            if_e(radius_sq > 29*29, [&] {
-                //ray escaped
-                as_ref(result) = valuei(0);
-                break_e();
-            });
-
-            if_e(dot(d_X, d_X) < 0.2f * 0.2f, [&]
-            {
-                as_ref(result) = valuei(1);
-                break_e();
-            });
-        });
-
-        final_position = declare_e(position);
-    }
-
-    mut_v3f col = declare_mut_e((v3f){0,0,0});
-
-    if_e(result == 0, [&] {
-        v3f spherical = cartesian_to_spherical(final_position);
-
-        valuef theta = spherical[1];
-        valuef phi = spherical[2];
-
-        v2f texture_coordinate = angle_to_tex({theta, phi});
-
-        valuei tx = (texture_coordinate[0] * background_size.x().to<float>() + background_size.x().to<float>()).to<int>() % background_size.x();
-        valuei ty = (texture_coordinate[1] * background_size.y().to<float>() + background_size.y().to<float>()).to<int>() % background_size.y();
-
-        ///linear colour
-        as_ref(col) = linear_to_srgb_gpu(background.read<float, 4>({tx, ty}).xyz());
-    });
-
-    v4f crgba = {col[0], col[1], col[2], 1.f};
-
-    screen.write(ectx, {x, y}, crgba);
-}
-
+inline
 valuef dot(v4f u, v4f v, m44f m) {
     v4f lowered = m.lower(u);
 
     return dot(lowered, v);
 }
 
+inline
 v4f gram_project(v4f u, v4f v, m44f m) {
     valuef top = dot_metric(u, v, m);
     valuef bottom = dot_metric(u, u, m);
@@ -987,6 +144,7 @@ v4f gram_project(v4f u, v4f v, m44f m) {
     return (top / bottom) * u;
 }
 
+inline
 v4f normalise(v4f in, m44f m)
 {
     valuef d = dot_metric(in, in, m);
@@ -994,6 +152,56 @@ v4f normalise(v4f in, m44f m)
     return in / sqrt(fabs(d));
 }
 
+struct inverse_tetrad
+{
+    std::array<v4f, 4> v_lo;
+
+    v4f into_frame_of_reference(v4f in)
+    {
+        v4f out;
+
+        for(int i=0; i < 4; i++)
+            out[i] = dot(in, v_lo[i]);
+
+        return out;
+    }
+};
+
+struct tetrad
+{
+    std::array<v4f, 4> v;
+
+    v4f into_coordinate_space(v4f in)
+    {
+        return v[0] * in.x() + v[1] * in.y() + v[2] * in.z() + v[3] * in.w();
+    }
+
+    inverse_tetrad invert()
+    {
+        inverse_tetrad invert;
+
+        tensor<valuef, 4, 4> as_matrix;
+
+        for(int i=0; i < 4; i++)
+        {
+            for(int j=0; j < 4; j++)
+            {
+                as_matrix[i, j] = v[i][j];
+            }
+        }
+
+        tensor<valuef, 4, 4> inv = as_matrix.asymmetric_invert();
+
+        invert.v_lo[0] = {inv[0, 0], inv[0, 1], inv[0, 2], inv[0, 3]};
+        invert.v_lo[1] = {inv[1, 0], inv[1, 1], inv[1, 2], inv[1, 3]};
+        invert.v_lo[2] = {inv[2, 0], inv[2, 1], inv[2, 2], inv[2, 3]};
+        invert.v_lo[3] = {inv[3, 0], inv[3, 1], inv[3, 2], inv[3, 3]};
+
+        return invert;
+    }
+};
+
+inline
 tetrad gram_schmidt(v4f v0, v4f v1, v4f v2, v4f v3, m44f m)
 {
     using namespace single_source;
@@ -1032,6 +240,7 @@ tetrad gram_schmidt(v4f v0, v4f v1, v4f v2, v4f v3, m44f m)
 }
 
 template<typename T>
+inline
 void swap(const T& v1, const T& v2)
 {
     auto intermediate = single_source::declare_e(v1);
@@ -1040,6 +249,7 @@ void swap(const T& v1, const T& v2)
 }
 
 ///specifically: cartesian minkowski
+inline
 m44f get_local_minkowski(const tetrad& tetrads, const m44f& met)
 {
     m44f minkowski;
@@ -1075,6 +285,7 @@ m44f get_local_minkowski(const tetrad& tetrads, const m44f& met)
     return minkowski;
 }
 
+inline
 valuei calculate_which_coordinate_is_timelike(const tetrad& tetrads, const m44f& met)
 {
     m44f minkowski = get_local_minkowski(tetrads, met);
@@ -1095,6 +306,7 @@ valuei calculate_which_coordinate_is_timelike(const tetrad& tetrads, const m44f&
     return lowest_index;
 }
 
+inline
 v4f get_timelike_vector(v3f velocity, const tetrad& tetrads)
 {
     v4f coordinate_time = {1, velocity.x(), velocity.y(), velocity.z()};
@@ -1107,6 +319,7 @@ v4f get_timelike_vector(v3f velocity, const tetrad& tetrads)
     return proper_time.x() * tetrads.v[0] + proper_time.y() * tetrads.v[1] + proper_time.z() * tetrads.v[2] + proper_time.w() * tetrads.v[3];
 }
 
+inline
 tetrad boost_tetrad(v3f velocity, const tetrad& tetrads, const metric<valuef, 4, 4>& m)
 {
     using namespace single_source;
@@ -1152,11 +365,13 @@ tetrad boost_tetrad(v3f velocity, const tetrad& tetrads, const metric<valuef, 4,
     return next;
 }
 
+inline
 v3f project(v3f u, v3f v)
 {
     return (dot(u, v) / dot(u, u)) * u;
 }
 
+inline
 std::array<v3f, 3> orthonormalise(v3f i1, v3f i2, v3f i3)
 {
     v3f u1 = i1;
@@ -1176,6 +391,7 @@ std::array<v3f, 3> orthonormalise(v3f i1, v3f i2, v3f i3)
 };
 
 template<auto GetMetric, typename... T>
+inline
 void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
                            literal<v3f> local_velocity,
                            buffer_mut<v4f> position_out,
@@ -1300,224 +516,5 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
     as_ref(e2_out[0]) = boosted.v[2];
     as_ref(e3_out[0]) = boosted.v[3];
 }
-
-template<auto GetMetric>
-void trace_geodesic(execution_context& ectx,
-                    buffer<v4f> start_position, buffer<v4f> start_velocity,
-                    buffer_mut<v4f> positions_out, buffer_mut<v4f> velocity_out,
-                    buffer_mut<valuei> written_steps, literal<valuei> max_steps)
-{
-    using namespace single_source;
-
-    m44f metric = GetMetric(start_position[0]);
-
-    mut<valuei> result = declare_mut_e(valuei(0));
-
-    mut_v4f position = declare_mut_e(start_position[0]);
-    mut_v4f velocity = declare_mut_e(start_velocity[0]);
-
-    v4f start_cpos = declare_e(start_position[0]);
-    v4f start_cvel = declare_e(start_velocity[0]);
-
-    mut_v4f acceleration = declare_mut_e(calculate_acceleration_of(start_cpos, start_cvel, GetMetric));
-
-    v4f start = declare_e(start_position[0]);
-
-    mut<valuei> idx = declare_mut_e("i", valuei(0));
-
-    for_e(idx < 1024 * 1024 && idx < max_steps.get(), assign_b(idx, idx + 1), [&]
-    {
-        as_ref(positions_out[idx]) = position;
-        as_ref(velocity_out[idx]) = velocity;
-
-        v4f cposition = declare_e(position);
-        v4f cvelocity = declare_e(velocity);
-        v4f cacceleration = declare_e(acceleration);
-
-        /*value_base se;
-        se.type = value_impl::op::SIDE_EFFECT;
-        se.abstract_value = "printf(\"%f\\n\"," + value_to_string(cposition.y()) + ")";
-
-        value_impl::get_context().add(se);*/
-
-        valuef dt = get_timelike_timestep(cposition, cvelocity);
-
-        auto [next_position, next_velocity, next_acceleration] = verlet(cposition, cvelocity, cacceleration, valuef(dt), GetMetric);
-
-        as_ref(position) = next_position;
-        as_ref(velocity) = next_velocity;
-        as_ref(acceleration) = next_acceleration;
-
-        if_e(should_terminate(start, as_constant(position), as_constant(velocity)), [&] {
-            break_e();
-        });
-    });
-
-    as_ref(written_steps[0]) = idx.as_constant() + 1;
-}
-
-v4f parallel_transport_get_change(v4f tangent_vector, v4f geodesic_velocity, const tensor<valuef, 4, 4, 4>& christoff2)
-{
-    v4f dAdt = {};
-
-    for(int a=0; a < 4; a++)
-    {
-        valuef sum = 0;
-
-        for(int b=0; b < 4; b++)
-        {
-            for(int s=0; s < 4; s++)
-            {
-                sum += christoff2[a,b,s] * tangent_vector[b] * geodesic_velocity[s];
-            }
-        }
-
-        dAdt[a] = -sum;
-    }
-
-    return dAdt;
-}
-
-v4f transport2(v4f what, v4f position, v4f next_position, v4f velocity, v4f next_velocity, valuef ds, auto&& get_metric)
-{
-    using namespace single_source;
-
-    tensor<valuef, 4, 4, 4> christoff2 = calculate_christoff2(position, get_metric);
-
-    pin(christoff2);
-
-    v4f f_x = parallel_transport_get_change(what, velocity, christoff2);
-
-    v4f intermediate_next = what + f_x * ds;
-
-    tensor<valuef, 4, 4, 4> nchristoff2 = calculate_christoff2(next_position, get_metric);
-
-    pin(nchristoff2);
-
-    return what + 0.5f * ds * (f_x + parallel_transport_get_change(intermediate_next, next_velocity, nchristoff2));
-}
-
-v4f transport1(v4f what, v4f position, v4f velocity, valuef ds, auto&& get_metric)
-{
-    using namespace single_source;
-
-    tensor<valuef, 4, 4, 4> christoff2 = calculate_christoff2(position, get_metric);
-
-    pin(christoff2);
-
-    v4f f_x = parallel_transport_get_change(what, velocity, christoff2);
-
-    return what + f_x * ds;
-}
-
-//note: we already know the value of e0, as its the geodesic velocity
-template<auto GetMetric>
-void parallel_transport_tetrads(execution_context& ectx,
-                                buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
-                                buffer<v4f> positions, buffer<v4f> velocities, buffer<valuei> counts,
-                                buffer_mut<v4f> e0_out, buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out)
-{
-    using namespace single_source;
-
-    valuei count = declare_e(counts[0]);
-    mut<valuei> i = declare_mut_e(valuei(0));
-
-    mut_v4f e0_current = declare_mut_e(e0[0]);
-    mut_v4f e1_current = declare_mut_e(e1[0]);
-    mut_v4f e2_current = declare_mut_e(e2[0]);
-    mut_v4f e3_current = declare_mut_e(e3[0]);
-
-    for_e(i < count - 1, assign_b(i, i+1), [&] {
-        as_ref(e0_out[i]) = e0_current;
-        as_ref(e1_out[i]) = e1_current;
-        as_ref(e2_out[i]) = e2_current;
-        as_ref(e3_out[i]) = e3_current;
-
-        v4f current_position = declare_e(positions[i]);
-        v4f current_velocity = declare_e(velocities[i]);
-
-        v4f next_position = declare_e(positions[i+1]);
-        v4f next_velocity = declare_e(velocities[i+1]);
-
-        v4f e0_cst = declare_e(e0_current);
-        v4f e1_cst = declare_e(e1_current);
-        v4f e2_cst = declare_e(e2_current);
-        v4f e3_cst = declare_e(e3_current);
-
-        valuef dt = get_timelike_timestep(current_position, current_velocity);
-
-        v4f e0_next = transport2(e0_cst, current_position, next_position, current_velocity, next_velocity, valuef(dt), GetMetric);
-        v4f e1_next = transport2(e1_cst, current_position, next_position, current_velocity, next_velocity, valuef(dt), GetMetric);
-        v4f e2_next = transport2(e2_cst, current_position, next_position, current_velocity, next_velocity, valuef(dt), GetMetric);
-        v4f e3_next = transport2(e3_cst, current_position, next_position, current_velocity, next_velocity, valuef(dt), GetMetric);
-
-        as_ref(e0_current) = e0_next;
-        as_ref(e1_current) = e1_next;
-        as_ref(e2_current) = e2_next;
-        as_ref(e3_current) = e3_next;
-    });
-
-    if_e(count > 0, [&]{
-        as_ref(e0_out[i]) = e0_current;
-        as_ref(e1_out[i]) = e1_current;
-        as_ref(e2_out[i]) = e2_current;
-        as_ref(e3_out[i]) = e3_current;
-    });
-}
-
-void interpolate(execution_context& ectx, buffer<v4f> positions, buffer<v4f> velocities,
-                 buffer<v4f> e0s, buffer<v4f> e1s, buffer<v4f> e2s, buffer<v4f> e3s, buffer<valuei> counts,
-                 literal<valuef> desired_proper_time,
-                 buffer_mut<v4f> position_out, buffer_mut<v4f> e0_out, buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out)
-{
-    using namespace single_source;
-
-    valuei size = declare_e(counts[0]);
-
-    //somethings gone horribly wrong somewhere
-    if_e(size == 0, [&] {
-        return_e();
-    });
-
-    mut<valuef> elapsed_time = declare_mut_e(valuef(0));
-
-    //fallback if we pick proper time < earliest time
-    if_e(desired_proper_time.get() <= 0, [&]{
-        as_ref(position_out[0]) = positions[0];
-        as_ref(e0_out[0]) = e0s[0];
-        as_ref(e1_out[0]) = e1s[0];
-        as_ref(e2_out[0]) = e2s[0];
-        as_ref(e3_out[0]) = e3s[0];
-        return_e();
-    });
-
-    mut<valuei> i = declare_mut_e(valuei(0));
-
-    for_e(i < (size - 1), assign_b(i, i+1), [&] {
-        valuef dt = get_timelike_timestep(positions[i], velocities[i]);
-
-        if_e(desired_proper_time.get() >= elapsed_time && desired_proper_time.get() < elapsed_time + dt, [&]{
-            valuef frac = (desired_proper_time.get() - elapsed_time) / dt;
-
-            as_ref(position_out[0]) = mix(positions[i], positions[i+1], frac);
-            as_ref(e0_out[0]) = mix(e0s[i], e0s[i+1], frac);
-            as_ref(e1_out[0]) = mix(e1s[i], e1s[i+1], frac);
-            as_ref(e2_out[0]) = mix(e2s[i], e2s[i+1], frac);
-            as_ref(e3_out[0]) = mix(e3s[i], e3s[i+1], frac);
-
-            return_e();
-        });
-
-        as_ref(elapsed_time) = elapsed_time + dt;
-    });
-
-    //fallback for if we pick proper time > latest proper time
-    as_ref(position_out[0]) = positions[size-1];
-    as_ref(e0_out[0]) = e0s[size-1];
-    as_ref(e1_out[0]) = e1s[size-1];
-    as_ref(e2_out[0]) = e2s[size-1];
-    as_ref(e3_out[0]) = e3s[size-1];
-}
-
 
 #endif // RAYTRACE_HPP_INCLUDED
