@@ -707,6 +707,57 @@ adm_variables admf_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
     return out;
 }
 
+inline
+valuef gA_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
+{
+    using namespace single_source;
+
+    auto func = [&](v3i pos)
+    {
+        auto val = adm_at(pos, dim, in).gA;
+        pin(val);
+        return val;
+    };
+
+    auto val = function_trilinear(func, pos);
+    pin(val);
+    return val;
+}
+
+inline
+tensor<valuef, 3> gB_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
+{
+    using namespace single_source;
+
+    auto func = [&](v3i pos)
+    {
+        auto val = adm_at(pos, dim, in).gB;
+        pin(val);
+        return val;
+    };
+
+    auto val = function_trilinear(func, pos);
+    pin(val);
+    return val;
+}
+
+inline
+metric<valuef, 3, 3> Yij_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
+{
+    using namespace single_source;
+
+    auto func = [&](v3i pos)
+    {
+        auto val = adm_at(pos, dim, in).Yij;
+        pin(val);
+        return val;
+    };
+
+    auto val = function_trilinear(func, pos);
+    pin(val);
+    return val;
+}
+
 ///this is totally pointless, velocity = 1
 valuef get_ct_timestep(v3f position, v3f velocity, valuef W)
 {
@@ -805,18 +856,24 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
                 v3f dir = {0,0,0};
                 dir[m] = 1;
 
-                adm_variables right = admf_at(grid_position + dir, dim.get(), in);
-                adm_variables left = admf_at(grid_position - dir, dim.get(), in);
+                auto gA_r = gA_f_at(grid_position + dir, dim.get(), in);
+                auto gA_l = gA_f_at(grid_position - dir, dim.get(), in);
 
-                dgA[m] = (right.gA - left.gA) / (2 * scale.get());
+                auto gB_r = gB_f_at(grid_position + dir, dim.get(), in);
+                auto gB_l = gB_f_at(grid_position - dir, dim.get(), in);
+
+                auto Yij_r = Yij_f_at(grid_position + dir, dim.get(), in);
+                auto Yij_l = Yij_f_at(grid_position - dir, dim.get(), in);
+
+                dgA[m] = (gA_r - gA_l) / (2 * scale.get());
 
                 for(int j=0; j < 3; j++)
                 {
-                    dgB[m, j] = (right.gB[j] - left.gB[j]) / (2 * scale.get());
+                    dgB[m, j] = (gB_r[j] - gB_l[j]) / (2 * scale.get());
 
                     for(int k=0; k < 3; k++)
                     {
-                        dcY[m, j, k] = (right.Yij[j, k] - left.Yij[j, k]) / (2 * scale.get());
+                        dcY[m, j, k] = (Yij_r[j, k] - Yij_l[j, k]) / (2 * scale.get());
                     }
                 }
             }
