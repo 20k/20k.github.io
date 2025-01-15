@@ -542,9 +542,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
                 }
             }
 
-            valuef fW = W_f_at(grid_position, dim.get(), in);
-
-            valuef dt = -1.f * get_ct_timestep(cposition, cvelocity, fW);
+            valuef dt = -1.f * get_ct_timestep(cposition, cvelocity, W);
 
             as_ref(position) = cposition + d_X * dt;
             as_ref(velocity) = cvelocity + d_V * dt;
