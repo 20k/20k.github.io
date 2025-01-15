@@ -321,4 +321,40 @@ tensor<valuef, 4> get_adm_hypersurface_normal_lowered(const valuef& gA)
     return {-gA, 0, 0, 0};
 }
 
+///X = W^2
+///dx = 2 dW W
+template<typename T>
+inline
+tensor<T, 3, 3, 3> get_full_christoffel2(const T& W, const tensor<T, 3>& dW, const metric<T, 3, 3>& cY, const inverse_metric<T, 3, 3>& icY, tensor<T, 3, 3, 3>& christoff2)
+{
+    valuef X = W*W;
+    tensor<T, 3> dX = 2 * W * dW;
+
+    tensor<T, 3, 3, 3> full_christoffel2;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            for(int k=0; k < 3; k++)
+            {
+                float kronecker_ik = (i == k) ? 1 : 0;
+                float kronecker_ij = (i == j) ? 1 : 0;
+
+                T sm = 0;
+
+                for(int m=0; m < 3; m++)
+                {
+                    sm += icY[i, m] * dX[m];
+                }
+
+                full_christoffel2[i, j, k] = christoff2[i, j, k] -
+                                                 (1.f/(2.f * X)) * (kronecker_ik * dX[j] + kronecker_ij * dX[k] - cY[j, k] * sm);
+            }
+        }
+    }
+
+    return full_christoffel2;
+}
+
 #endif // TENSOR_ALGEBRA_HPP_INCLUDED
