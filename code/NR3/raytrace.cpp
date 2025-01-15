@@ -335,7 +335,7 @@ valuef get_ct_timestep(v3f position, v3f velocity, valuef W)
     return mix(valuef(0.4f), valuef(4.f), my_fraction) * 0.1f;
 }
 
-void init_rays(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
+void init_rays3(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
                buffer_mut<v3f> velocities_out,
                buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
                buffer<v4f> position, literal<v4f> camera_quat,
@@ -397,8 +397,8 @@ void init_rays(execution_context& ectx, literal<valuei> screen_width, literal<va
 void trace3(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
                      read_only_image<2> background, write_only_image<2> screen,
                      literal<valuei> background_width, literal<valuei> background_height,
-                     buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
                      buffer<v4f> position, literal<v4f> camera_quat,
+                     buffer<v3f> velocities,
                      literal<v3i> dim,
                      literal<valuef> scale,
                      bssn_args_mem<buffer<valuef>> in)
@@ -424,37 +424,15 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
     v2i screen_size = {screen_width.get(), screen_height.get()};
     v2i background_size = {background_width.get(), background_height.get()};
 
-    tetrad tetrads = {e0[0], e1[0], e2[0], e3[0]};
-
-    v4f lpos = position[0];
-
-    pin(lpos);
-
-    ///need to differentiate some of these variables in the regular adm stuff sighghghgh
-    v3i ipos = (v3i)lpos.yzw();
-
-    v3f ray_direction = get_ray_through_pixel(screen_position, screen_size, 90, camera_quat.get());
-
-    geodesic my_geodesic = make_lightlike_geodesic(position[0], ray_direction, tetrads);
-
-    adm_variables init_adm = admf_at(position[0].yzw(), dim.get(), in);
-
-    tensor<valuef, 4> normal = get_adm_hypersurface_normal_raised(init_adm.gA, init_adm.gB);
-
-    metric<valuef, 4, 4> init_full = calculate_real_metric(init_adm.Yij, init_adm.gA, init_adm.gB);
-
-    tensor<valuef, 4> velocity_lowered = init_full.lower(my_geodesic.velocity);
-
-    valuef E = -sum_multiply(velocity_lowered, normal);
-
-    tensor<valuef, 4> adm_velocity = -((my_geodesic.velocity / E) - normal);
+    v4f pos = position[0];
+    v3f vel_in = velocities[screen_position, screen_size];
 
     mut<valuei> result = declare_mut_e(valuei(1));
     v3f final_position;
 
     {
-        mut_v3f position = declare_mut_e(my_geodesic.position.yzw());
-        mut_v3f velocity = declare_mut_e(adm_velocity.yzw());
+        mut_v3f position = declare_mut_e(pos.yzw());
+        mut_v3f velocity = declare_mut_e(vel_in);
 
         mut<valuei> idx = declare_mut_e("i", valuei(0));
 

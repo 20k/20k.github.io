@@ -506,6 +506,12 @@ struct raytrace_bssn
         cl::program p2 = cl::build_program_with_cache(ctx, {str2}, false);
 
         ctx.register_program(p2);
+
+        std::string str3 = value_impl::make_function(init_rays3, "init_rays3");
+
+        cl::program p3 = cl::build_program_with_cache(ctx, {str3}, false);
+
+        ctx.register_program(p3);
     }
 };
 
@@ -675,6 +681,9 @@ int main()
 
     gpu_position.alloc(sizeof(cl_float4));
 
+    cl::buffer ray_velocities(ctx);
+    ray_velocities.alloc(sizeof(cl_float3) * sett.width * sett.height);
+
     //build_thread.join();
 
     printf("Start\n");
@@ -775,11 +784,24 @@ int main()
             {
                 cl::args args;
                 args.push_back(screen_width, screen_height);
+                args.push_back(ray_velocities);
+                args.push_back(tetrads[0], tetrads[1], tetrads[2], tetrads[3]);
+                args.push_back(gpu_position, cq);
+                args.push_back(dim, scale);
+
+                m.buffers[0].append_to(args);
+
+                cqueue.exec("init_rays3", args, {screen_width, screen_height}, {8,8});
+            }
+
+            {
+                cl::args args;
+                args.push_back(screen_width, screen_height);
                 args.push_back(background);
                 args.push_back(screen_tex);
                 args.push_back(bwidth, bheight);
-                args.push_back(tetrads[0], tetrads[1], tetrads[2], tetrads[3]);
                 args.push_back(gpu_position, cq);
+                args.push_back(ray_velocities);
                 args.push_back(dim);
                 args.push_back(scale);
 
