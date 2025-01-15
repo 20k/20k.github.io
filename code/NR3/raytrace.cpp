@@ -411,6 +411,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
             tensor<valuef, 3> dgA;
             tensor<valuef, 3, 3> dgB;
             tensor<valuef, 3, 3, 3> dcY;
+            tensor<valuef, 3> dW;
 
             for(int m=0; m < 3; m++)
             {
@@ -423,10 +424,14 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
                 auto gB_r = gB_f_at(grid_position + dir, dim.get(), in);
                 auto gB_l = gB_f_at(grid_position - dir, dim.get(), in);
 
-                auto Yij_r = Yij_f_at(grid_position + dir, dim.get(), in);
-                auto Yij_l = Yij_f_at(grid_position - dir, dim.get(), in);
+                auto cY_r = cY_f_at(grid_position + dir, dim.get(), in);
+                auto cY_l = cY_f_at(grid_position - dir, dim.get(), in);
+
+                auto W_r = W_f_at(grid_position + dir, dim.get(), in);
+                auto W_l = W_f_at(grid_position - dir, dim.get(), in);
 
                 dgA[m] = (gA_r - gA_l) / (2 * scale.get());
+                dW[m] = (W_r - W_l) / (2 * scale.get());
 
                 for(int j=0; j < 3; j++)
                 {
@@ -434,7 +439,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
                     for(int k=0; k < 3; k++)
                     {
-                        dcY[m, j, k] = (Yij_r[j, k] - Yij_l[j, k]) / (2 * scale.get());
+                        dcY[m, j, k] = (cY_r[j, k] - cY_l[j, k]) / (2 * scale.get());
                     }
                 }
             }
@@ -442,6 +447,13 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
             pin(dgA);
             pin(dgB);
             pin(dcY);
+            //pin(dYij);
+
+            auto W = W_f_at(grid_position, dim.get(), in);
+            auto cY = cY_f_at(grid_position, dim.get(), in);
+
+            pin(W);
+            pin(cY);
 
             adm_variables args = admf_at(grid_position, dim.get(), in);
 
@@ -455,10 +467,11 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
             v3f d_X = args.gA * cvelocity - args.gB;
 
             auto iYij = iYij_f_at(grid_position, dim.get(), in);
-            //auto iYij = args.Yij.invert();
             pin(iYij);
 
-            auto christoff2 = christoffel_symbols_2(iYij, dcY);
+            auto christoff2_cfl = christoffel_symbols_2(cY.invert(), dcY);
+
+            auto christoff2 = get_full_christoffel2(W, dW, cY, cY.invert(), christoff2_cfl);
             pin(christoff2);
 
             tensor<valuef, 3> d_V;
