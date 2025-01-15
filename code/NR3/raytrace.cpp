@@ -198,6 +198,15 @@ geodesic make_lightlike_geodesic(const v4f& position, const v3f& direction, cons
 }
 
 inline
+bssn_args bssn_at(v3i pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
+{
+    pos = clamp(pos, (v3i){1,1,1}, dim - (v3i){2,2,2});
+
+    bssn_args args(pos, dim, in);
+    return args;
+}
+
+inline
 valuef W_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 {
     using namespace single_source;
@@ -265,6 +274,51 @@ metric<valuef, 3, 3> Yij_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in
     return val;
 }
 
+inline
+unit_metric<valuef, 3, 3> cY_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
+{
+    using namespace single_source;
+
+    auto func = [&](v3i pos)
+    {
+        auto val = bssn_at(pos, dim, in).cY;
+        pin(val);
+        return val;
+    };
+
+    auto val = function_trilinear(func, pos);
+    pin(val);
+    return val;
+}
+
+inline
+inverse_metric<valuef, 3, 3> icY_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
+{
+    using namespace single_source;
+
+    auto func = [&](v3i pos)
+    {
+        auto val = bssn_at(pos, dim, in).cY;
+        pin(val);
+        return val;
+    };
+
+    auto val = function_trilinear(func, pos);
+    pin(val);
+    return val.invert();
+}
+
+inline
+inverse_metric<valuef, 3, 3> iYij_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
+{
+    using namespace single_source;
+
+    auto W = W_f_at(pos, dim, in);
+
+    pin(W);
+
+    return icY_f_at(pos, dim, in) * W * W;
+}
 
 ///this is totally pointless, velocity = 1
 valuef get_ct_timestep(v3f position, v3f velocity, valuef W)
@@ -340,7 +394,6 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
     v3f final_position;
 
     {
-
         mut_v3f position = declare_mut_e(my_geodesic.position.yzw());
         mut_v3f velocity = declare_mut_e(adm_velocity.yzw());
 
@@ -401,7 +454,8 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
             v3f d_X = args.gA * cvelocity - args.gB;
 
-            auto iYij = args.Yij.invert();
+            auto iYij = iYij_f_at(grid_position, dim.get(), in);
+            //auto iYij = args.Yij.invert();
             pin(iYij);
 
             auto christoff2 = christoffel_symbols_2(iYij, dcY);
