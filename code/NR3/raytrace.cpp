@@ -335,6 +335,65 @@ valuef get_ct_timestep(v3f position, v3f velocity, valuef W)
     return mix(valuef(0.4f), valuef(4.f), my_fraction) * 0.1f;
 }
 
+void init_rays(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
+               buffer_mut<v3f> velocities_out,
+               buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
+               buffer<v4f> position, literal<v4f> camera_quat,
+               literal<v3i> dim, literal<valuef> scale,
+               bssn_args_mem<buffer<valuef>> in)
+{
+    using namespace single_source;
+
+    valuei x = value_impl::get_global_id(0);
+    valuei y = value_impl::get_global_id(1);
+
+    //get_global_id() is not a const function, so assign it to an unnamed variable to avoid compilers repeatedly evaluating it
+    pin(x);
+    pin(y);
+
+    if_e(y >= screen_height.get(), [&] {
+        return_e();
+    });
+
+    if_e(x >= screen_width.get(), [&] {
+        return_e();
+    });
+
+    v2i screen_position = {x, y};
+    v2i screen_size = {screen_width.get(), screen_height.get()};
+
+    tetrad tetrads = {e0[0], e1[0], e2[0], e3[0]};
+
+    v4f lpos = position[0];
+
+    pin(lpos);
+
+    ///need to differentiate some of these variables in the regular adm stuff sighghghgh
+    v3i ipos = (v3i)lpos.yzw();
+
+    v3f ray_direction = get_ray_through_pixel(screen_position, screen_size, 90, camera_quat.get());
+
+    geodesic my_geodesic = make_lightlike_geodesic(position[0], ray_direction, tetrads);
+
+    adm_variables init_adm = admf_at(position[0].yzw(), dim.get(), in);
+
+    tensor<valuef, 4> normal = get_adm_hypersurface_normal_raised(init_adm.gA, init_adm.gB);
+
+    metric<valuef, 4, 4> init_full = calculate_real_metric(init_adm.Yij, init_adm.gA, init_adm.gB);
+
+    tensor<valuef, 4> velocity_lowered = init_full.lower(my_geodesic.velocity);
+
+    valuef E = -sum_multiply(velocity_lowered, normal);
+
+    tensor<valuef, 4> adm_velocity = -((my_geodesic.velocity / E) - normal);
+
+    v2i out_dim = {screen_width.get(), screen_height.get()};
+    v2i out_pos = {x, y};
+
+    as_ref(velocities_out[out_pos, out_dim]) = adm_velocity.yzw();
+}
+
+///split into init, and render. VGPR bound
 void trace3(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
                      read_only_image<2> background, write_only_image<2> screen,
                      literal<valuei> background_width, literal<valuei> background_height,

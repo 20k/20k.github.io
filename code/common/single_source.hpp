@@ -601,6 +601,19 @@ namespace value_impl
                 return "(" + value_to_string(v.args.at(0)) + "[" + value_to_string(v.args.at(2)) + "])";
             }
 
+            if(N == 2)
+            {
+                value_base x = v.args.at(2);
+                value_base y = v.args.at(3);
+
+                value_base dx = v.args.at(4);
+                value_base dy = v.args.at(5);
+
+                value_base index = y * dx + x;
+
+                return "(" + value_to_string(v.args.at(0)) + "[" + value_to_string(index) + "])";
+            }
+
             if(N == 3)
             {
                 ///name, N, x, y, z, dx, dy, dz
@@ -979,6 +992,17 @@ namespace value_impl
 
                 return build_type(op, T());
             }
+
+            template<typename U>
+            auto operator[](const tensor<U, 2>& pos, const tensor<U, 2>& dim)
+            {
+                value_base op;
+                op.type = op::BRACKET;
+                op.args = {name, value<int>(2), pos.x(), pos.y(), dim.x(), dim.y()};
+                op.concrete = get_interior_type(T());
+
+                return build_type(op, T());
+            }
         };
 
         template<typename T>
@@ -990,8 +1014,8 @@ namespace value_impl
                 return apply_mutability(buffer<T>::operator[](index));
             }
 
-            template<typename U>
-            auto operator[](const tensor<U, 3>& pos, const tensor<U, 3>& dim)
+            template<typename U, int N>
+            auto operator[](const tensor<U, N>& pos, const tensor<U, N>& dim)
             {
                 return apply_mutability(buffer<T>::operator[](pos, dim));
             }
