@@ -631,6 +631,23 @@ auto function_trilinear(T&& func, v3f pos)
 }
 
 inline
+valuef W_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
+{
+    using namespace single_source;
+
+    auto W_at = [&](v3i pos)
+    {
+        pos = clamp(pos, (v3i){1,1,1}, dim - (v3i){2,2,2});
+
+        bssn_args args(pos, dim, in);
+        pin(args.W);
+        return args.W;
+    };
+
+    return function_trilinear(W_at, pos);
+}
+
+inline
 adm_variables adm_at(v3i pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 {
     using namespace single_source;
@@ -690,6 +707,21 @@ adm_variables admf_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
     return out;
 }
 
+///this is totally pointless, velocity = 1
+valuef get_ct_timestep(v3f position, v3f velocity, valuef W)
+{
+    float X_far = 0.9f;
+    float X_near = 0.6f;
+
+    valuef X = sqrt(W);
+
+    valuef my_fraction = (clamp(X, X_near, X_far) - X_near) / (X_far - X_near);
+
+    my_fraction = clamp(my_fraction, 0.f, 1.f);
+
+    return mix(valuef(0.4f), valuef(4.f), my_fraction) * 0.1f;
+}
+
 void trace3(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
                      read_only_image<2> background, write_only_image<2> screen,
                      literal<valuei> background_width, literal<valuei> background_height,
@@ -745,7 +777,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
     tensor<valuef, 4> adm_velocity = -((my_geodesic.velocity / E) - normal);
 
-    mut<valuei> result = declare_mut_e(valuei(0));
+    mut<valuei> result = declare_mut_e(valuei(1));
     v3f final_position;
 
     {
@@ -838,7 +870,9 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
                 }
             }
 
-            valuef dt = -1.f;
+            valuef fW = W_f_at(grid_position, dim.get(), in);
+
+            valuef dt = -1.f * get_ct_timestep(cposition, cvelocity, fW);
 
             as_ref(position) = cposition + d_X * dt;
             as_ref(velocity) = cvelocity + d_V * dt;
