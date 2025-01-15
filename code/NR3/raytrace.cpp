@@ -393,7 +393,7 @@ void init_rays3(execution_context& ectx, literal<valuei> screen_width, literal<v
     as_ref(velocities_out[out_pos, out_dim]) = adm_velocity.yzw();
 }
 
-///split into init, and render. VGPR bound
+///i need function support i think
 void trace3(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
                      read_only_image<2> background, write_only_image<2> screen,
                      literal<valuei> background_width, literal<valuei> background_height,
