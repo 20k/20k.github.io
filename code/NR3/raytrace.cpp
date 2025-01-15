@@ -447,7 +447,6 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
             pin(dgA);
             pin(dgB);
             pin(dcY);
-            //pin(dYij);
 
             auto W = W_f_at(grid_position, dim.get(), in);
             auto cY = cY_f_at(grid_position, dim.get(), in);
@@ -455,9 +454,13 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
             pin(W);
             pin(cY);
 
+            auto Yij = cY / (W*W);
+
+            pin(Yij);
+
             adm_variables args = admf_at(grid_position, dim.get(), in);
 
-            valuef length_sq = dot(cvelocity, args.Yij.lower(cvelocity));
+            valuef length_sq = dot(cvelocity, Yij.lower(cvelocity));
             valuef length = sqrt(fabs(length_sq));
 
             cvelocity = cvelocity / length;
