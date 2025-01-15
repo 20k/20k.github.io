@@ -326,13 +326,13 @@ valuef get_ct_timestep(v3f position, v3f velocity, valuef W)
     float X_far = 0.9f;
     float X_near = 0.6f;
 
-    valuef X = sqrt(W);
+    valuef X = W*W;
 
     valuef my_fraction = (clamp(X, X_near, X_far) - X_near) / (X_far - X_near);
 
     my_fraction = clamp(my_fraction, 0.f, 1.f);
 
-    return mix(valuef(0.4f), valuef(4.f), my_fraction) * 0.1f;
+    return mix(valuef(0.4f), valuef(4.f), my_fraction) * 0.4f;
 }
 
 void init_rays3(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
@@ -393,7 +393,7 @@ void init_rays3(execution_context& ectx, literal<valuei> screen_width, literal<v
     as_ref(velocities_out[out_pos, out_dim]) = adm_velocity.yzw();
 }
 
-///i need function support i think
+///i need function support i think for linear interpolation
 void trace3(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
                      read_only_image<2> background, write_only_image<2> screen,
                      literal<valuei> background_width, literal<valuei> background_height,
