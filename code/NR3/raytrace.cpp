@@ -702,6 +702,8 @@ void trace4(execution_context& ectx, literal<valuei> screen_width, literal<value
 
             time_frac = clamp(time_frac, 0.f, 1.f);
 
+            time_frac = 1;
+
             grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
             pin(grid_position);
 
@@ -849,6 +851,15 @@ void trace4(execution_context& ectx, literal<valuei> screen_width, literal<value
             ///but then. Rsy going wrong way in coordinate time. bad?
             valuef dt = 1.f * get_ct_timestep(cposition, cvelocity, W);
 
+            if_e(x == 400 && y == 400, [&]{
+                value_base se;
+                se.type = value_impl::op::SIDE_EFFECT;
+                se.abstract_value = "printf(\"val %f\\n\"," + value_to_string(cposition.x()) + ")";
+                //se.abstract_value = "printf(\"adm: %i\\n\"," + value_to_string(result) + ")";
+
+                value_impl::get_context().add(se);
+            });
+
             as_ref(position) = cposition + d_X * dt;
             as_ref(velocity) = cvelocity + d_V * dt;
             as_ref(position_t) = cposition_t - fabs(dt);
@@ -903,7 +914,8 @@ void trace4(execution_context& ectx, literal<valuei> screen_width, literal<value
     if_e(x == 400 && y == 400, [&]{
         value_base se;
         se.type = value_impl::op::SIDE_EFFECT;
-        se.abstract_value = "printf(\"adm: %i\\n\"," + value_to_string(result) + ")";
+        se.abstract_value = "printf(\"pos: %f %f %f\\n\"," + value_to_string(final_position.x()) + "," + value_to_string(final_position.y()) + "," + value_to_string(final_position.z()) + ")";
+        //se.abstract_value = "printf(\"adm: %i\\n\"," + value_to_string(result) + ")";
 
         value_impl::get_context().add(se);
     });

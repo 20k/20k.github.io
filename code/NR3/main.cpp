@@ -1006,7 +1006,7 @@ int main()
                         float current_time = time_start - timestep;
                         time_start -= timestep;
 
-                        m.calculate_derivatives_for(cqueue, current, derivs_next);
+                        m.calculate_derivatives_for(cqueue, current, derivs_cur);
 
                         cl::args args;
                         args.push_back(screen_width, screen_height);
