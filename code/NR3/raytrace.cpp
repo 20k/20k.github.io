@@ -1183,7 +1183,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                 value_impl::get_context().add(se);
             });
 
-            valuef dt = 0.25f;
+            valuef dt = 1.f;
 
             as_ref(position) = cposition + cvelocity * dt;
             as_ref(velocity) = cvelocity + accel * dt;
