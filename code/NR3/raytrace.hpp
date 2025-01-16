@@ -132,13 +132,16 @@ void trace4(execution_context& ectx, literal<valuei> screen_width, literal<value
             read_only_image<2> background, write_only_image<2> screen,
             literal<valuei> background_width, literal<valuei> background_height,
             literal<v4f> camera_quat,
-            buffer<v4f> positions, buffer<v3f> velocities,
+            buffer_mut<v4f> positions, buffer_mut<v3f> velocities,
             literal<v3i> dim,
             literal<valuef> scale,
+            literal<valuef> time_lower,
+            literal<valuef> time_upper,
             bssn_args_mem<buffer<valuef>> lower,
             bssn_args_mem<buffer<valuef>> upper,
             bssn_derivatives_mem<buffer<derivative_t>> lower_derivatives,
-            bssn_derivatives_mem<buffer<derivative_t>> upper_derivatives);
+            bssn_derivatives_mem<buffer<derivative_t>> upper_derivatives,
+            buffer_mut<valuei> full_result);
 
 inline
 valuef dot(v4f u, v4f v, m44f m) {

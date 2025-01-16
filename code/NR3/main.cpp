@@ -499,13 +499,14 @@ struct raytrace_bssn
     ///recollect
     cl::buffer position;
     cl::buffer velocity;
+    cl::buffer results;
     int last_size = 0;
     bool is_snapshotting = false;
     float elapsed_dt = 0;
 
     std::vector<bssn_buffer_pack> snapshots;
 
-    raytrace_bssn(cl::context& ctx) : position(ctx), velocity(ctx)
+    raytrace_bssn(cl::context& ctx) : position(ctx), velocity(ctx), results(ctx)
     {
         auto get_metric = [](v4f position, bssn_args_mem<buffer<valuef>> in, literal<v3i> dim, literal<valuef> scale)
         {
@@ -539,6 +540,12 @@ struct raytrace_bssn
         cl::program p3 = cl::build_program_with_cache(ctx, {str3}, false);
 
         ctx.register_program(p3);
+
+        std::string str4 = value_impl::make_function(trace4, "trace4");
+
+        cl::program p4 = cl::build_program_with_cache(ctx, {str4}, false);
+
+        ctx.register_program(p4);
     }
 
     void capture_snapshots(cl::context ctx, cl::command_queue cqueue, float dt, mesh& m)
@@ -571,6 +578,7 @@ struct raytrace_bssn
         last_size = width * height;
         position.alloc(width * height * sizeof(cl_float4));
         velocity.alloc(width * height * sizeof(cl_float4));
+        results.alloc(width * height * sizeof(cl_int));
     }
 };
 
