@@ -978,7 +978,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
             buffer_mut<v4f> positions, buffer_mut<v4f> velocities,
             literal<v3i> dim,
             literal<valuef> scale,
-            std::array<buffer<valueh>, 10> Guv,
+            std::array<buffer<valueh>, 10> Guv_buf,
             literal<valuef> last_time,
             literal<valuei> last_slice)
 {
@@ -1034,7 +1034,54 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
             grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
             pin(grid_position);
 
+            v3i grid_floor = (v3i)grid_position;
+            valuei time_floor = (valuei)grid_t;
 
+            auto get_Guv = [&](v3i pos, valuei slice)
+            {
+                v3i d = dim.get();
+
+                valuei idx = slice + d.x() * d.y() * d.z() + pos.z() * d.x() * d.y() + pos.y() * d.x() + pos.x();
+
+                int indices[16] = {
+                    0, 1, 2, 3,
+                    1, 4, 5, 6,
+                    2, 5, 7, 8,
+                    3, 6, 8, 9,
+                };
+
+                metric<valuef, 4, 4> met;
+
+                for(int i=0; i < 4; i++)
+                {
+                    for(int j=0; j < 4; j++)
+                    {
+                        met[i, j] = (valuef)Guv_buf[indices[j * 4 + i]][idx];
+                    }
+                }
+
+                return met;
+            };
+
+            tensor<m44f, 2, 2, 2, 2> block;
+
+            for(int i=0; i < 2; i++)
+            {
+                for(int j=0; j < 2; j++)
+                {
+                    for(int k=0; k < 2; k++)
+                    {
+                        for(int t = 0; t < 2; t++)
+                        {
+                            v3i off = {i, j, k};
+
+                            valuei slice_up = min(time_floor + t, last_slice.get() - 1);
+
+                            block[t, i, j, k] = get_Guv(grid_floor + off, slice_up);
+                        }
+                    }
+                }
+            }
         });
     }
 
