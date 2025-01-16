@@ -802,7 +802,7 @@ void trace4(execution_context& ectx, literal<valuei> screen_width, literal<value
             valuef length_sq = dot(cvelocity, Yij.lower(cvelocity));
             valuef length = sqrt(fabs(length_sq));
 
-            cvelocity = cvelocity / length;
+            //cvelocity = cvelocity / length;
 
             pin(cvelocity);
 
@@ -854,7 +854,8 @@ void trace4(execution_context& ectx, literal<valuei> screen_width, literal<value
             if_e(x == 400 && y == 400, [&]{
                 value_base se;
                 se.type = value_impl::op::SIDE_EFFECT;
-                se.abstract_value = "printf(\"val %f\\n\"," + value_to_string(cposition.x()) + ")";
+                se.abstract_value = "printf(\"test: %f %f %f\\n\"," + value_to_string(vel_in.x()) + "," + value_to_string(vel_in.y()) + "," + value_to_string(vel_in.z()) + ")";
+                //se.abstract_value = "printf(\"val %f\\n\"," + value_to_string(d_V[0]) + ")";
                 //se.abstract_value = "printf(\"adm: %i\\n\"," + value_to_string(result) + ")";
 
                 value_impl::get_context().add(se);

@@ -1007,12 +1007,13 @@ int main()
                         time_start -= timestep;
 
                         m.calculate_derivatives_for(cqueue, current, derivs_cur);
+                        m.calculate_derivatives_for(cqueue, next, derivs_next);
 
                         cl::args args;
                         args.push_back(screen_width, screen_height);
                         args.push_back(background, screen_tex);
                         args.push_back(bwidth, bheight, cq, rt_bssn.position, rt_bssn.velocity, dim, scale);
-                        args.push_back(next_time, current_time);
+                        args.push_back(current_time, next_time);
 
                         current.append_to(args);
                         next.append_to(args);
