@@ -446,15 +446,6 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
             pin(grid_position);
 
-            ///MAN IF ONLY LIKE
-            ///I HAD THESE DERIVATIVES LIKE
-            ///IN A BUFFER OR SOMETHING RIGHT?
-            ///i can also reuse diff1 >.>
-            tensor<valuef, 3> dgA;
-            tensor<valuef, 3, 3> dgB;
-            tensor<valuef, 3, 3, 3> dcY;
-            tensor<valuef, 3> dW;
-
             auto dgA_at = [&](v3i pos)
             {
                 pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
@@ -487,10 +478,10 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
                 return derivs.dW;
             };
 
-            dgA = function_trilinear(dgA_at, grid_position);
-            dgB = function_trilinear(dgB_at, grid_position);
-            dcY = function_trilinear(dcY_at, grid_position);
-            dW = function_trilinear(dW_at, grid_position);
+            tensor<valuef, 3> dgA = function_trilinear(dgA_at, grid_position);
+            tensor<valuef, 3, 3> dgB = function_trilinear(dgB_at, grid_position);
+            tensor<valuef, 3, 3, 3> dcY = function_trilinear(dcY_at, grid_position);
+            tensor<valuef, 3> dW = function_trilinear(dW_at, grid_position);
 
             pin(dgA);
             pin(dgB);
