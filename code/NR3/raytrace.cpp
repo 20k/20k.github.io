@@ -1039,12 +1039,12 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
 
             v4f grid_fpos = (v4f){grid_t, grid_position.x(), grid_position.y(), grid_position.z()};
 
-            auto get_Guv = [&](v3i pos, value<uint64_t> slice)
+            auto get_Guv = [&](v3i pos, valuei slice)
             {
                 tensor<value<uint64_t>, 3> p = (tensor<value<uint64_t>, 3>)pos;
                 tensor<value<uint64_t>, 3> d = (tensor<value<uint64_t>, 3>)dim.get();
 
-                value<uint64_t> idx = slice * d.x() * d.y() * d.z() + p.z() * d.x() * d.y() + p.y() * d.x() + p.x();
+                value<uint64_t> idx = ((value<uint64_t>)slice) * d.x() * d.y() * d.z() + p.z() * d.x() * d.y() + p.y() * d.x() + p.x();
 
                 int indices[16] = {
                     0, 1, 2, 3,
@@ -1066,6 +1066,49 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                 return met;
             };
 
+            auto get_guv_at = [&](v4f fpos)
+            {
+                valuei time_pos = (valuei)fpos.x();
+
+                auto get_Guv1 = [&](v3i pos)
+                {
+                    return get_Guv(pos, clamp(time_pos, valuei(0), last_slice.get() - 1));
+                };
+
+                metric<valuef, 4, 4> guv1 = function_trilinear(get_Guv1, fpos.yzw());
+
+                auto get_Guv2 = [&](v3i pos)
+                {
+                    return get_Guv(pos, clamp(time_pos + 1, valuei(0), last_slice.get() - 1));
+                };
+
+                metric<valuef, 4, 4> guv2 = function_trilinear(get_Guv2, fpos.yzw());
+
+                metric<valuef, 4, 4> Guv = mix(guv1, guv2, fpos.x() - floor(fpos.x()));
+                return Guv;
+            };
+
+            auto Guv = get_guv_at(grid_fpos);
+
+            tensor<valuef, 4, 4, 4> dGuv;
+
+            for(int m=0; m < 4; m++)
+            {
+                v4f dir;
+                dir[m] = 1;
+
+                auto val = (get_guv_at(grid_fpos + dir) - get_guv_at(grid_fpos - dir)) / (2 * scale.get());
+
+                for(int i=0; i < 4; i++)
+                {
+                    for(int j=0; j < 4; j++)
+                    {
+                        dGuv[m, i, j] = val[i, j];
+                    }
+                }
+            }
+
+            #if 0
             tensor<m44f, 3, 3, 3, 3> block;
 
             for(int t=0; t < 3; t++)
@@ -1119,6 +1162,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                     }
                 }
             }
+            #endif
 
             pin(Guv);
             pin(dGuv);
@@ -1155,7 +1199,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                 value_impl::get_context().add(se);
             });
 
-            valuef dt = 0.25f;
+            valuef dt = 1.f;
 
             as_ref(position) = cposition + cvelocity * dt;
             as_ref(velocity) = cvelocity + accel * dt;
