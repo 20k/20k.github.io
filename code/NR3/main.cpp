@@ -505,7 +505,12 @@ struct raytrace_bssn
     bool is_snapshotting = false;
     float elapsed_dt = 0;
 
-    std::vector<bssn_buffer_pack> snapshots;
+    float last_dt = 0.f;
+    int captured_slices = 0;
+
+    //std::vector<bssn_buffer_pack> snapshots;
+
+    std::vector<cl::buffer> Guv_block;
 
     raytrace_bssn(cl::context& ctx) : position(ctx), velocity(ctx), results(ctx)
     {
@@ -542,33 +547,73 @@ struct raytrace_bssn
 
         ctx.register_program(p3);
 
+        #if 0
         std::string str4 = value_impl::make_function(trace4, "trace4");
 
         cl::program p4 = cl::build_program_with_cache(ctx, {str4}, false);
 
         ctx.register_program(p4);
+        #endif
+
+        std::string str4 = value_impl::make_function(trace4x4, "trace4x4");
+
+        cl::program p4 = cl::build_program_with_cache(ctx, {str4}, false);
+
+        ctx.register_program(p4);
+
+        std::string str5 = value_impl::make_function(bssn_to_guv, "bssn_to_guv");
+
+        cl::program p5 = cl::build_program_with_cache(ctx, {str5}, false);
+
+        ctx.register_program(p5);
     }
 
     void capture_snapshots(cl::context ctx, cl::command_queue cqueue, float dt, mesh& m)
     {
+        float scale = get_scale(m.simulation_width, m.dim);
+
+        int slices = 40;
+
+        uint64_t array_size = sizeof(cl_half) * int64_t{m.dim.x()} * m.dim.y() * m.dim.z();
+
+        if(captured_slices == 0)
+        {
+            for(int i=0; i < 10; i++)
+                Guv_block.emplace_back(ctx);
+
+            for(auto& i : Guv_block)
+            {
+                i.alloc(array_size * slices);
+                i.set_to_zero(cqueue);
+            }
+        }
+
         float time_between_snapshots = 4;
 
         elapsed_dt += dt;
 
-        if(elapsed_dt < time_between_snapshots && snapshots.size() > 0)
+        if(elapsed_dt < time_between_snapshots && captured_slices != 0)
             return;
 
         elapsed_dt -= time_between_snapshots;
         elapsed_dt = std::max(elapsed_dt, 0.f);
+        last_dt += time_between_snapshots;
 
-        bssn_buffer_pack next(ctx);
-        next.allocate(m.dim);
+        uint64_t offset = uint64_t{captured_slices} * array_size;
 
-        for(auto& i : next.cG)
-            i = cl::buffer(ctx);
+        cl::args args;
+        args.push_back(m.dim, scale);
 
-        printf("Captured\n");
-        snapshots.push_back(next);
+        m.buffers[m.valid_derivative_buffer].append_to(args);
+
+        for(auto& i : Guv_block)
+            args.push_back(i);
+
+        args.push_back(offset);
+
+        cqueue.exec("bssn_to_guv", args, {m.dim.x(), m.dim.y(), m.dim.z()}, {8,8,1});
+
+        captured_slices++;
     }
 
     void poll_render_resolution(int width, int height)
@@ -940,13 +985,18 @@ int main()
                 cqueue.exec("init_tetrads", args, {screen_width, screen_height}, {8,8});
             }
 
+            cl_int is_adm = 0;
+
+            if(render)
+                is_adm = 1;
+
             {
                 cl::args args;
                 args.push_back(screen_width, screen_height);
                 args.push_back(rt_bssn.position, rt_bssn.velocity);
                 args.push_back(tetrads[0], tetrads[1], tetrads[2], tetrads[3]);
                 args.push_back(gpu_position, cq);
-                args.push_back(dim, scale);
+                args.push_back(dim, scale, is_adm);
 
                 m.buffers[buf].append_to(args);
 
@@ -975,6 +1025,7 @@ int main()
             }
             #endif // 0
 
+            #if 0
             if(render2)
             {
                 if(rt_bssn.snapshots.size() >= 2)
@@ -1032,6 +1083,7 @@ int main()
                     }
                 }
             }
+            #endif
         }
 
         /*{

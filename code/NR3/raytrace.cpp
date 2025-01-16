@@ -324,10 +324,10 @@ valuef get_ct_timestep(v3f position, v3f velocity, valuef W)
 ///but i need to test the 4-iteration realistically
 void init_rays3(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
                buffer_mut<v4f> positions_out,
-               buffer_mut<v3f> velocities_out,
+               buffer_mut<v4f> velocities_out,
                buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
                buffer<v4f> position, literal<v4f> camera_quat,
-               literal<v3i> dim, literal<valuef> scale,
+               literal<v3i> dim, literal<valuef> scale, literal<valuei> is_adm,
                bssn_args_mem<buffer<valuef>> in)
 {
     using namespace single_source;
@@ -385,7 +385,14 @@ void init_rays3(execution_context& ectx, literal<valuei> screen_width, literal<v
     v2i out_pos = {x, y};
 
     as_ref(positions_out[out_pos, out_dim]) = my_geodesic.position;
-    as_ref(velocities_out[out_pos, out_dim]) = adm_velocity.yzw();
+
+    if_e(is_adm.get() == 1, [&]{
+        as_ref(velocities_out[out_pos, out_dim]) = adm_velocity;
+    });
+
+    if_e(is_adm.get() == 0, [&]{
+        as_ref(velocities_out[out_pos, out_dim]) = my_geodesic.velocity;
+    });
 }
 
 ///todo: figure out the projection
@@ -393,7 +400,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
                      read_only_image<2> background, write_only_image<2> screen,
                      literal<valuei> background_width, literal<valuei> background_height,
                      literal<v4f> camera_quat,
-                     buffer<v4f> positions, buffer<v3f> velocities,
+                     buffer<v4f> positions, buffer<v4f> velocities,
                      literal<v3i> dim,
                      literal<valuef> scale,
                      bssn_args_mem<buffer<valuef>> in,
@@ -421,7 +428,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
     v2i background_size = {background_width.get(), background_height.get()};
 
     v3f pos_in = positions[screen_position, screen_size].yzw();
-    v3f vel_in = velocities[screen_position, screen_size];
+    v3f vel_in = velocities[screen_position, screen_size].yzw();
 
     mut<valuei> result = declare_mut_e(valuei(1));
     v3f final_position;
@@ -631,6 +638,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
     screen.write(ectx, {x, y}, crgba);
 }
 
+#if 0
 void trace4(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
             read_only_image<2> background, write_only_image<2> screen,
             literal<valuei> background_width, literal<valuei> background_height,
@@ -920,4 +928,57 @@ void trace4(execution_context& ectx, literal<valuei> screen_width, literal<value
 
         value_impl::get_context().add(se);
     });
+}
+#endif
+void bssn_to_guv(execution_context& ectx, literal<v3i> dim, literal<valuef> scale,
+                 bssn_args_mem<buffer<valuef>> in,
+                 std::array<buffer_mut<valueh>, 10> Guv, literal<value<uint64_t>> offset)
+{
+    using namespace single_source;
+
+    valuei x = value_impl::get_global_id(0);
+    valuei y = value_impl::get_global_id(1);
+    valuei z = value_impl::get_global_id(2);
+
+    pin(x);
+    pin(y);
+    pin(z);
+
+    if_e(x >= dim.get().x() || y >= dim.get().y() || z >= dim.get().z(), [&]{
+        return_e();
+    });
+
+    v3i pos = {x, y, z};
+
+    bssn_args args(pos, dim.get(), in);
+    adm_variables adm = bssn_to_adm(args);
+
+    metric<valuef, 4, 4> met = calculate_real_metric(adm.Yij, adm.gA, adm.gB);
+
+    vec2i indices[10] = {
+        {0, 0}, {1, 0}, {2, 0}, {3, 0},
+        {1, 1}, {2, 1}, {3, 1},
+        {2, 2}, {3, 2},
+        {3, 3},
+    };
+
+    for(int i=0; i < 10; i++)
+    {
+        vec2i idx = indices[i];
+
+        value<uint64_t> lidx = (value<uint64_t>)(pos.z() * dim.get().x() * dim.get().y() + pos.y() * dim.get().x() + pos.x()) + offset.get();
+
+        as_ref(Guv[i][lidx]) = (valueh)met[idx.x(), idx.y()];
+    }
+}
+
+void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
+            read_only_image<2> background, write_only_image<2> screen,
+            literal<valuei> background_width, literal<valuei> background_height,
+            buffer_mut<v4f> positions, buffer_mut<v3f> velocities,
+            literal<v3i> dim,
+            literal<valuef> scale,
+            std::array<buffer<valueh>, 10> Guv)
+{
+
 }

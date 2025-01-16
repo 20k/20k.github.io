@@ -972,7 +972,8 @@ namespace value_impl
             std::string name;
             using value_type = T;
 
-            auto operator[](const value<int>& index)
+            template<typename U>
+            auto operator[](const value<U>& index)
             {
                 value_base op;
                 op.type = op::BRACKET;
@@ -980,6 +981,11 @@ namespace value_impl
                 op.concrete = get_interior_type(T());
 
                 return build_type(op, T());
+            }
+
+            auto operator[](int index)
+            {
+                return operator[](value<int>(index));
             }
 
             template<typename U>
@@ -1009,9 +1015,17 @@ namespace value_impl
         struct buffer_mut : buffer<T> {
             using value_type = T;
 
-            auto operator[](const value<int>& index)
+            template<typename U>
+            auto operator[](const value<U>& index)
             {
+                static_assert(std::is_integral_v<U>);
+
                 return apply_mutability(buffer<T>::operator[](index));
+            }
+
+            auto operator[](int index)
+            {
+                return operator[](value<int>(index));
             }
 
             template<typename U, int N>

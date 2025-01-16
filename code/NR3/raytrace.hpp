@@ -112,22 +112,23 @@ adm_variables admf_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 
 void init_rays3(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
                 buffer_mut<v4f> positions_out,
-                buffer_mut<v3f> velocities_out,
+                buffer_mut<v4f> velocities_out,
                 buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
                 buffer<v4f> position, literal<v4f> camera_quat,
-                literal<v3i> dim, literal<valuef> scale,
+                literal<v3i> dim, literal<valuef> scale, literal<valuei> is_adm,
                 bssn_args_mem<buffer<valuef>> in);
 
 void trace3(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
             read_only_image<2> background, write_only_image<2> screen,
             literal<valuei> background_width, literal<valuei> background_height,
             literal<v4f> camera_quat,
-            buffer<v4f> positions, buffer<v3f> velocities,
+            buffer<v4f> positions, buffer<v4f> velocities,
             literal<v3i> dim,
             literal<valuef> scale,
             bssn_args_mem<buffer<valuef>> in,
             bssn_derivatives_mem<buffer<derivative_t>> derivatives);
 
+#if 0
 void trace4(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
             read_only_image<2> background, write_only_image<2> screen,
             literal<valuei> background_width, literal<valuei> background_height,
@@ -142,6 +143,19 @@ void trace4(execution_context& ectx, literal<valuei> screen_width, literal<value
             bssn_derivatives_mem<buffer<derivative_t>> lower_derivatives,
             bssn_derivatives_mem<buffer<derivative_t>> upper_derivatives,
             buffer_mut<valuei> full_result);
+#endif
+
+void bssn_to_guv(execution_context& ectx, literal<v3i> dim, literal<valuef> scale,
+                 bssn_args_mem<buffer<valuef>> in,
+                 std::array<buffer_mut<valueh>, 10> Guv, literal<value<uint64_t>> offset);
+
+void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
+            read_only_image<2> background, write_only_image<2> screen,
+            literal<valuei> background_width, literal<valuei> background_height,
+            buffer_mut<v4f> positions, buffer_mut<v3f> velocities,
+            literal<v3i> dim,
+            literal<valuef> scale,
+            std::array<buffer<valueh>, 10> Guv);
 
 inline
 valuef dot(v4f u, v4f v, m44f m) {
