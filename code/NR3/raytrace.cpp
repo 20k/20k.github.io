@@ -1037,11 +1037,14 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
             v3i grid_floor = (v3i)grid_position;
             valuei time_floor = (valuei)grid_t;
 
-            auto get_Guv = [&](v3i pos, valuei slice)
-            {
-                v3i d = dim.get();
+            v4f grid_fpos = (v4f){grid_t, grid_position.x(), grid_position.y(), grid_position.z()};
 
-                valuei idx = slice + d.x() * d.y() * d.z() + pos.z() * d.x() * d.y() + pos.y() * d.x() + pos.x();
+            auto get_Guv = [&](v3i pos, value<uint64_t> slice)
+            {
+                tensor<value<uint64_t>, 3> p = (tensor<value<uint64_t>, 3>)pos;
+                tensor<value<uint64_t>, 3> d = (tensor<value<uint64_t>, 3>)dim.get();
+
+                value<uint64_t> idx = slice * d.x() * d.y() * d.z() + p.z() * d.x() * d.y() + p.y() * d.x() + p.x();
 
                 int indices[16] = {
                     0, 1, 2, 3,
@@ -1063,26 +1066,138 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                 return met;
             };
 
-            tensor<m44f, 2, 2, 2, 2> block;
+            tensor<m44f, 3, 3, 3, 3> block;
 
-            for(int i=0; i < 2; i++)
+            for(int t=0; t < 3; t++)
             {
-                for(int j=0; j < 2; j++)
+                for(int k=0; k < 3; k++)
                 {
-                    for(int k=0; k < 2; k++)
+                    for(int j=0; j < 3; j++)
                     {
-                        for(int t = 0; t < 2; t++)
+                        for(int i = 0; i < 3; i++)
                         {
-                            v3i off = {i, j, k};
+                            v3i off = {i-1, j-1, k-1};
 
-                            valuei slice_up = min(time_floor + t, last_slice.get() - 1);
+                            valuei slice_up = clamp(time_floor + t - 1, valuei(0), last_slice.get() - 1);
 
-                            block[t, i, j, k] = get_Guv(grid_floor + off, slice_up);
+                            block[t, i, j, k] = get_Guv(grid_floor + off, (value<uint64_t>)slice_up);
+                            //pin(block[t, i, j, k]);
                         }
                     }
                 }
             }
+
+            m44f Guv = block[1, 1, 1, 1];
+
+            tensor<valuef, 4, 4, 4> dGuv;
+
+            for(int m=0; m < 4; m++)
+            {
+                tensor<int, 4> dir;
+                dir[m] = 1;
+
+                tensor<int, 4> centre = {1,1,1,1};
+
+                tensor<int, 4> r = centre + dir;
+                tensor<int, 4> l = centre - dir;
+
+                metric<valuef, 4, 4> right = block[r.x(), r.y(), r.z(), r.w()];
+                metric<valuef, 4, 4> left = block[l.x(), l.y(), l.z(), l.w()];
+
+                /*auto dr = (right - Guv) / scale.get();
+                auto dl = (Guv - left) / scale.get();
+
+                auto dG = mix(dl, dr, grid_fpos[m] - floor(grid_fpos[m]));*/
+
+                auto dG = (right - left) / (2 * scale.get());
+
+                for(int i=0; i < 4; i++)
+                {
+                    for(int j=0; j < 4; j++)
+                    {
+                        dGuv[m, i, j] = dG[i, j];
+                    }
+                }
+            }
+
+            pin(Guv);
+            pin(dGuv);
+
+            auto christoff2 = christoffel_symbols_2(Guv.invert(), dGuv);
+
+            pin(christoff2);
+
+            v4f accel;
+
+            for(int uu=0; uu < 4; uu++)
+            {
+                valuef sum = 0;
+
+                for(int aa = 0; aa < 4; aa++)
+                {
+                    for(int bb = 0; bb < 4; bb++)
+                    {
+                        sum += cvelocity[aa] * cvelocity[bb] * christoff2[uu, aa, bb];
+                    }
+                }
+
+                accel[uu] = -sum;
+            }
+
+
+            if_e(x == 400 && y == 400, [&]{
+                value_base se;
+                se.type = value_impl::op::SIDE_EFFECT;
+                //se.abstract_value = "printf(\"pos: %f %f %f\\n\"," + value_to_string(Guv[0, 0]) + "," + value_to_string(dGuv[0, 0, 0]) + "," + value_to_string(cvelocity.z()) + ")";
+                se.abstract_value = "printf(\"grid %f pos: %f %f %f\\n\"," + value_to_string(grid_t) + "," + value_to_string(cposition.y()) + "," + value_to_string(cposition.z()) + "," + value_to_string(cposition.w()) + ")";
+                //se.abstract_value = "printf(\"adm: %i\\n\"," + value_to_string(result) + ")";
+
+                value_impl::get_context().add(se);
+            });
+
+            valuef dt = 0.25f;
+
+            as_ref(position) = cposition + cvelocity * dt;
+            as_ref(velocity) = cvelocity + accel * dt;
+
+            valuef radius_sq = dot(cposition.yzw(), cposition.yzw());
+
+            if_e(radius_sq > 29*29, [&] {
+                //ray escaped
+                as_ref(result) = valuei(0);
+                break_e();
+            });
+
+            if_e(dot(accel, accel) < 0.2f * 0.2f, [&]
+            {
+                //as_ref(result) = valuei(1);
+                //break_e();
+            });
         });
+
+        final_position = declare_e(position);
     }
 
+    mut_v3f col = declare_mut_e((v3f){0,0,0});
+
+    if_e(result == 0, [&] {
+        v3f spherical = cartesian_to_spherical(final_position.yzw());
+
+        valuef theta = spherical[1];
+        valuef phi = spherical[2];
+
+        v2f texture_coordinate = angle_to_tex({theta, phi});
+
+        valuei tx = (texture_coordinate[0] * background_size.x().to<float>() + background_size.x().to<float>()).to<int>() % background_size.x();
+        valuei ty = (texture_coordinate[1] * background_size.y().to<float>() + background_size.y().to<float>()).to<int>() % background_size.y();
+
+        ///linear colour
+        as_ref(col) = linear_to_srgb_gpu(background.read<float, 4>({tx, ty}).xyz());
+    });
+
+    if_e(result == 1 || result == 0, [&] {
+        v4f crgba = {col[0], col[1], col[2], 1.f};
+
+        screen.write(ectx, {x, y}, crgba);
+    });
 }

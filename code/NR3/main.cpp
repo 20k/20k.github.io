@@ -533,6 +533,7 @@ struct raytrace_bssn
 
         ctx.register_program(p1);
 
+
         std::string str2 = value_impl::make_function(trace3, "trace3");
 
         std::cout << "Got 2 " << str2 << std::endl;
@@ -588,7 +589,7 @@ struct raytrace_bssn
             }
         }
 
-        float time_between_snapshots = 4;
+        float time_between_snapshots = 1;
 
         elapsed_dt += dt;
 
@@ -599,7 +600,7 @@ struct raytrace_bssn
         elapsed_dt = std::max(elapsed_dt, 0.f);
         last_dt += time_between_snapshots;
 
-        uint64_t offset = uint64_t{captured_slices} * array_size;
+        uint64_t offset = uint64_t{captured_slices} * int64_t{m.dim.x()} * m.dim.y() * m.dim.z();
 
         cl::args args;
         args.push_back(m.dim, scale);
@@ -1027,7 +1028,7 @@ int main()
             }
             #endif // 0
 
-            if(render2)
+            if(render2 && rt_bssn.Guv_block.size() > 0)
             {
                 cl::args args;
                 args.push_back(screen_width, screen_height);
