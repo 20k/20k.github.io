@@ -134,7 +134,8 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
                      buffer<v3f> velocities,
                      literal<v3i> dim,
                      literal<valuef> scale,
-                     bssn_args_mem<buffer<valuef>> in);
+                     bssn_args_mem<buffer<valuef>> in,
+                     bssn_derivatives_mem<buffer<derivative_t>> derivatives);
 
 inline
 valuef dot(v4f u, v4f v, m44f m) {

@@ -39,20 +39,61 @@ struct mesh
     cl::buffer sommerfeld_points;
     cl_int sommerfeld_length = 0;
     float total_elapsed = 0;
+    float simulation_width = 0;
 
     cl::buffer evolve_points;
     cl_int evolve_length;
+    int valid_derivative_buffer = 0;
 
-    mesh(cl::context& ctx, t3i _dim) : buffers{ctx, ctx, ctx}, sommerfeld_points(ctx), evolve_points(ctx)
+    ///strictly only for rendering
+    mesh(cl::context& ctx, t3i _dim, float _simulation_width) : buffers{ctx, ctx, ctx}, sommerfeld_points(ctx), evolve_points(ctx)
     {
         dim = _dim;
+        simulation_width = _simulation_width;
 
         #ifdef MOMENTUM_CONSTRAINT_DAMPING
         using_momentum_constraint = true;
         #endif // MOMENTUM_CONSTRAINT_DAMPING
     }
 
-    void init(float simulation_width, cl::context& ctx, cl::command_queue& cqueue)
+    void calculate_derivatives_for(cl::command_queue cqueue, int idx)
+    {
+        float scale = get_scale(simulation_width, dim);
+
+        auto diff = [&](cl::buffer buf, int buffer_idx)
+        {
+            cl::args args;
+            args.push_back(buf);
+            args.push_back(derivatives.at(buffer_idx * 3 + 0));
+            args.push_back(derivatives.at(buffer_idx * 3 + 1));
+            args.push_back(derivatives.at(buffer_idx * 3 + 2));
+            args.push_back(dim);
+            args.push_back(scale);
+
+            cqueue.exec("differentiate", args, {dim.x()*dim.y()*dim.z()}, {128});
+        };
+
+        std::vector<cl::buffer> to_diff {
+            buffers[idx].cY[0],
+            buffers[idx].cY[1],
+            buffers[idx].cY[2],
+            buffers[idx].cY[3],
+            buffers[idx].cY[4],
+            buffers[idx].cY[5],
+            buffers[idx].gA,
+            buffers[idx].gB[0],
+            buffers[idx].gB[1],
+            buffers[idx].gB[2],
+            buffers[idx].W,
+        };
+
+        for(int i=0; i < (int)to_diff.size(); i++)
+        {
+            diff(to_diff[i], i);
+        }
+    }
+
+    void init(cl::context& ctx, cl::command_queue& cqueue)
     {
         buffers[0].allocate(dim);
 
@@ -182,9 +223,11 @@ struct mesh
 
         //temporary_buffer.set_to_zero(cqueue);
         //temporary_single.set_to_zero(cqueue);
+        calculate_derivatives_for(cqueue, 0);
+        valid_derivative_buffer = 0;
     }
 
-    void step(cl::context& ctx, cl::command_queue& cqueue, float timestep, float simulation_width)
+    void step(cl::context& ctx, cl::command_queue& cqueue, float timestep)
     {
         float scale = get_scale(simulation_width, dim);
 
@@ -231,19 +274,6 @@ struct mesh
             args.push_back(dim);
 
             cqueue.exec("enforce_algebraic_constraints", args, {dim.x() * dim.y() * dim.z()}, {128});
-        };
-
-        auto diff = [&](cl::buffer buf, int buffer_idx)
-        {
-            cl::args args;
-            args.push_back(buf);
-            args.push_back(derivatives.at(buffer_idx * 3 + 0));
-            args.push_back(derivatives.at(buffer_idx * 3 + 1));
-            args.push_back(derivatives.at(buffer_idx * 3 + 2));
-            args.push_back(dim);
-            args.push_back(scale);
-
-            cqueue.exec("differentiate", args, {dim.x()*dim.y()*dim.z()}, {128});
         };
 
         #if 0
@@ -414,26 +444,7 @@ struct mesh
 
             sommerfeld_all(base_idx, in_idx, out_idx);
 
-            {
-                std::vector<cl::buffer> to_diff {
-                    buffers[in_idx].cY[0],
-                    buffers[in_idx].cY[1],
-                    buffers[in_idx].cY[2],
-                    buffers[in_idx].cY[3],
-                    buffers[in_idx].cY[4],
-                    buffers[in_idx].cY[5],
-                    buffers[in_idx].gA,
-                    buffers[in_idx].gB[0],
-                    buffers[in_idx].gB[1],
-                    buffers[in_idx].gB[2],
-                    buffers[in_idx].W,
-                };
-
-                for(int i=0; i < (int)to_diff.size(); i++)
-                {
-                    diff(to_diff[i], i);
-                }
-            }
+            calculate_derivatives_for(cqueue, in_idx);
 
             //#define CALCULATE_CONSTRAINT_ERRORS
             #ifdef CALCULATE_CONSTRAINT_ERRORS
@@ -465,6 +476,7 @@ struct mesh
         kreiss(2, 0);
 
         total_elapsed += timestep;
+        valid_derivative_buffer = 2;
     }
 };
 
@@ -636,8 +648,8 @@ int main()
 
     float simulation_width = 30;
 
-    mesh m(ctx, dim);
-    m.init(simulation_width, ctx, cqueue);
+    mesh m(ctx, dim, simulation_width);
+    m.init(ctx, cqueue);
 
     printf("Post init\n");
 
@@ -749,11 +761,9 @@ int main()
             step = false;
 
         if(step)
-            m.step(ctx, cqueue, timestep, simulation_width);
+            m.step(ctx, cqueue, timestep);
 
         {
-
-
             cl_float4 camera = {0,0,0,25};
             quat q;
             q.load_from_axis_angle({1, 0, 0, 0});
@@ -767,6 +777,9 @@ int main()
             cl_int screen_height = screen_tex.size<2>().y();
             float scale = get_scale(simulation_width, dim);
 
+            int buf = m.valid_derivative_buffer;
+
+            ///so. The derivatigves are last valid for [2], which is super *super* hacky if I'm doing it like this
             {
                 cl_float3 vel = {0,0,0};
 
@@ -774,7 +787,7 @@ int main()
                 args.push_back(camera, vel, gpu_position,
                                tetrads[0], tetrads[1], tetrads[2], tetrads[3]);
 
-                m.buffers[0].append_to(args);
+                m.buffers[buf].append_to(args);
                 args.push_back(dim);
                 args.push_back(scale);
 
@@ -789,7 +802,7 @@ int main()
                 args.push_back(gpu_position, cq);
                 args.push_back(dim, scale);
 
-                m.buffers[0].append_to(args);
+                m.buffers[buf].append_to(args);
 
                 cqueue.exec("init_rays3", args, {screen_width, screen_height}, {8,8});
             }
@@ -805,7 +818,10 @@ int main()
                 args.push_back(dim);
                 args.push_back(scale);
 
-                m.buffers[0].append_to(args);
+                m.buffers[buf].append_to(args);
+
+                for(auto& i : m.derivatives)
+                    args.push_back(i);
 
                 cqueue.exec("trace3", args, {screen_width, screen_height}, {8,8});
             }

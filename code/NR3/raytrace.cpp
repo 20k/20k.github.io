@@ -401,7 +401,8 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
                      buffer<v3f> velocities,
                      literal<v3i> dim,
                      literal<valuef> scale,
-                     bssn_args_mem<buffer<valuef>> in)
+                     bssn_args_mem<buffer<valuef>> in,
+                     bssn_derivatives_mem<buffer<derivative_t>> derivatives)
 {
     using namespace single_source;
 
@@ -445,6 +446,10 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
             pin(grid_position);
 
+            ///MAN IF ONLY LIKE
+            ///I HAD THESE DERIVATIVES LIKE
+            ///IN A BUFFER OR SOMETHING RIGHT?
+            ///i can also reuse diff1 >.>
             tensor<valuef, 3> dgA;
             tensor<valuef, 3, 3> dgB;
             tensor<valuef, 3, 3, 3> dcY;
@@ -547,6 +552,9 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
                 }
             }
 
+            ///todo: fix/checkme
+            ///98% sure this is wrong, because ray back in time dt/dT divided gives flipped ray dir
+            ///but then. Rsy going wrong way in coordinate time. bad?
             valuef dt = -1.f * get_ct_timestep(cposition, cvelocity, W);
 
             as_ref(position) = cposition + d_X * dt;
