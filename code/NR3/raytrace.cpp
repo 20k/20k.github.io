@@ -1013,6 +1013,8 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
     mut<valuei> result = declare_mut_e(valuei(1));
     v4f final_position;
 
+    ///todo: I think what's happening is that the clamping is breaking my time derivatives
+    ///which means we need to change the initial conditions to construct our rays from an earlier point, rather than from the end?
     {
         mut_v4f position = declare_mut_e(pos_in);
         mut_v4f velocity = declare_mut_e(vel_in);
@@ -1034,17 +1036,14 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
             grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
             pin(grid_position);
 
-            v3i grid_floor = (v3i)grid_position;
-            valuei time_floor = (valuei)grid_t;
-
             v4f grid_fpos = (v4f){grid_t, grid_position.x(), grid_position.y(), grid_position.z()};
 
-            auto get_Guv = [&](v3i pos, valuei slice)
+            auto get_Guv = [&](v4i pos)
             {
-                tensor<value<uint64_t>, 3> p = (tensor<value<uint64_t>, 3>)pos;
+                tensor<value<uint64_t>, 3> p = (tensor<value<uint64_t>, 3>)pos.yzw();
                 tensor<value<uint64_t>, 3> d = (tensor<value<uint64_t>, 3>)dim.get();
 
-                value<uint64_t> idx = ((value<uint64_t>)slice) * d.x() * d.y() * d.z() + p.z() * d.x() * d.y() + p.y() * d.x() + p.x();
+                value<uint64_t> idx = ((value<uint64_t>)pos.x()) * d.x() * d.y() * d.z() + p.z() * d.x() * d.y() + p.y() * d.x() + p.x();
 
                 int indices[16] = {
                     0, 1, 2, 3,
@@ -1068,24 +1067,9 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
 
             auto get_guv_at = [&](v4f fpos)
             {
-                valuei time_pos = (valuei)fpos.x();
+                fpos.x() = clamp(fpos.x(), valuef(0.f), (valuef)last_slice.get() - 2);
 
-                auto get_Guv1 = [&](v3i pos)
-                {
-                    return get_Guv(pos, clamp(time_pos, valuei(0), last_slice.get() - 1));
-                };
-
-                metric<valuef, 4, 4> guv1 = function_trilinear(get_Guv1, fpos.yzw());
-
-                auto get_Guv2 = [&](v3i pos)
-                {
-                    return get_Guv(pos, clamp(time_pos + 1, valuei(0), last_slice.get() - 1));
-                };
-
-                metric<valuef, 4, 4> guv2 = function_trilinear(get_Guv2, fpos.yzw());
-
-                metric<valuef, 4, 4> Guv = mix(guv1, guv2, fpos.x() - floor(fpos.x()));
-                return Guv;
+                return function_quadlinear(get_Guv, fpos);
             };
 
             auto Guv = get_guv_at(grid_fpos);
@@ -1199,7 +1183,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                 value_impl::get_context().add(se);
             });
 
-            valuef dt = 1.f;
+            valuef dt = 0.25f;
 
             as_ref(position) = cposition + cvelocity * dt;
             as_ref(velocity) = cvelocity + accel * dt;
