@@ -492,7 +492,17 @@ float get_timestep(float simulation_width, t3i size)
 
 struct raytrace_bssn
 {
-    raytrace_bssn(cl::context& ctx)
+    ///SO
+    ///i think that perhaps we should take multi kernel approach
+    ///where we raytrace between two slices, step a few times, then raytrace into the next slice
+    ///we can still use a dynamic timestep, we just iterate until you've exceeded a certain threshold, and then
+    ///recollect
+
+    cl::buffer position;
+    cl::buffer velocity;
+    int last_size = 0;
+
+    raytrace_bssn(cl::context& ctx) : position(ctx), velocity(ctx)
     {
         auto get_metric = [](v4f position, bssn_args_mem<buffer<valuef>> in, literal<v3i> dim, literal<valuef> scale)
         {
@@ -526,6 +536,16 @@ struct raytrace_bssn
         cl::program p3 = cl::build_program_with_cache(ctx, {str3}, false);
 
         ctx.register_program(p3);
+    }
+
+    void poll_render_resolution(int width, int height)
+    {
+        if(last_size == width * height)
+            return;
+
+        last_size = width * height;
+        position.alloc(width * height * sizeof(cl_float4));
+        velocity.alloc(width * height * sizeof(cl_float4));
     }
 };
 
@@ -695,9 +715,6 @@ int main()
 
     gpu_position.alloc(sizeof(cl_float4));
 
-    cl::buffer ray_velocities(ctx);
-    ray_velocities.alloc(sizeof(cl_float3) * sett.width * sett.height);
-
     //build_thread.join();
 
     printf("Start\n");
@@ -766,6 +783,8 @@ int main()
             m.step(ctx, cqueue, timestep);
 
         {
+            rt_bssn.poll_render_resolution(screen_tex.size<2>().x(), screen_tex.size<2>().y());
+
             cl_float4 camera = {0,0,0,-25};
             quat q;
             q.load_from_axis_angle({1, 0, 0, 0});
@@ -799,7 +818,7 @@ int main()
             {
                 cl::args args;
                 args.push_back(screen_width, screen_height);
-                args.push_back(ray_velocities);
+                args.push_back(rt_bssn.position, rt_bssn.velocity);
                 args.push_back(tetrads[0], tetrads[1], tetrads[2], tetrads[3]);
                 args.push_back(gpu_position, cq);
                 args.push_back(dim, scale);
@@ -815,8 +834,8 @@ int main()
                 args.push_back(background);
                 args.push_back(screen_tex);
                 args.push_back(bwidth, bheight);
-                args.push_back(gpu_position, cq);
-                args.push_back(ray_velocities);
+                args.push_back(cq);
+                args.push_back(rt_bssn.position, rt_bssn.velocity);
                 args.push_back(dim);
                 args.push_back(scale);
 
