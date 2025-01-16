@@ -455,37 +455,6 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
             tensor<valuef, 3, 3, 3> dcY;
             tensor<valuef, 3> dW;
 
-            /*for(int m=0; m < 3; m++)
-            {
-                v3f dir = {0,0,0};
-                dir[m] = 1;
-
-                auto gA_r = gA_f_at(grid_position + dir, dim.get(), in);
-                auto gA_l = gA_f_at(grid_position - dir, dim.get(), in);
-
-                auto gB_r = gB_f_at(grid_position + dir, dim.get(), in);
-                auto gB_l = gB_f_at(grid_position - dir, dim.get(), in);
-
-                auto cY_r = cY_f_at(grid_position + dir, dim.get(), in);
-                auto cY_l = cY_f_at(grid_position - dir, dim.get(), in);
-
-                auto W_r = W_f_at(grid_position + dir, dim.get(), in);
-                auto W_l = W_f_at(grid_position - dir, dim.get(), in);
-
-                dgA[m] = (gA_r - gA_l) / (2 * scale.get());
-                dW[m] = (W_r - W_l) / (2 * scale.get());
-
-                for(int j=0; j < 3; j++)
-                {
-                    dgB[m, j] = (gB_r[j] - gB_l[j]) / (2 * scale.get());
-
-                    for(int k=0; k < 3; k++)
-                    {
-                        dcY[m, j, k] = (cY_r[j, k] - cY_l[j, k]) / (2 * scale.get());
-                    }
-                }
-            }*/
-
             auto dgA_at = [&](v3i pos)
             {
                 pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
