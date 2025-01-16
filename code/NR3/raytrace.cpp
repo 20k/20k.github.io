@@ -688,17 +688,19 @@ void trace4(execution_context& ectx, literal<valuei> screen_width, literal<value
         {
             v3f cposition = declare_e(position);
             v3f cvelocity = declare_e(velocity);
-            valuef cposition_t = declare_e(position_t_in);
+            valuef cposition_t = declare_e(position_t);
 
             v3f grid_position = world_to_grid(cposition, dim.get(), scale.get());
             valuef time_frac = (cposition_t - time_lower.get()) / (time_upper.get() - time_lower.get());
 
             time_frac = min(time_frac, valuef(1.f));
 
-            if_e(time_frac < 0, [&]{
+            /*if_e(time_frac < 0, [&]{
                  as_ref(result) = valuei(2);
                 break_e();
-            });
+            });*/
+
+            time_frac = clamp(time_frac, 0.f, 1.f);
 
             grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
             pin(grid_position);
@@ -896,5 +898,13 @@ void trace4(execution_context& ectx, literal<valuei> screen_width, literal<value
         v4f crgba = {col[0], col[1], col[2], 1.f};
 
         screen.write(ectx, {x, y}, crgba);
+    });
+
+    if_e(x == 400 && y == 400, [&]{
+        value_base se;
+        se.type = value_impl::op::SIDE_EFFECT;
+        se.abstract_value = "printf(\"adm: %i\\n\"," + value_to_string(result) + ")";
+
+        value_impl::get_context().add(se);
     });
 }

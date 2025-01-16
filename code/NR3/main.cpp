@@ -13,6 +13,7 @@
 #include <thread>
 #include "raytrace.hpp"
 #include <SFML/Graphics/Image.hpp>
+#include <GLFW/glfw3.h>
 
 using t3i = tensor<int, 3>;
 
@@ -760,10 +761,96 @@ int main()
     bool pause = false;
     float pause_time = 100;
     bool render = true;
+    bool render2 = false;
+
+    vec3f camera_pos = {0, 0, -25};;
+    quat camera_quat;
 
     while(!win.should_close())
     {
         win.poll();
+
+        if(!ImGui::GetIO().WantCaptureKeyboard)
+        {
+            float speed = 0.001;
+
+            if(ImGui::IsKeyDown(GLFW_KEY_LEFT_SHIFT))
+                speed = 0.1;
+
+            if(ImGui::IsKeyDown(GLFW_KEY_LEFT_CONTROL))
+                speed = 0.00001;
+
+            if(ImGui::IsKeyDown(GLFW_KEY_LEFT_ALT))
+                speed /= 1000;
+
+            if(ImGui::IsKeyDown(GLFW_KEY_Z))
+                speed *= 100;
+
+            if(ImGui::IsKeyDown(GLFW_KEY_X))
+                speed *= 100;
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_B))
+            {
+                camera_pos = {0, 0, -100};
+            }
+
+            if(ImGui::IsKeyPressed(GLFW_KEY_C))
+            {
+                camera_pos = {0, 0, 0};
+            }
+
+            if(ImGui::IsKeyDown(GLFW_KEY_RIGHT))
+            {
+                mat3f m = mat3f().ZRot(-M_PI/128);
+
+                quat q;
+                q.load_from_matrix(m);
+
+                camera_quat = q * camera_quat;
+            }
+
+            if(ImGui::IsKeyDown(GLFW_KEY_LEFT))
+            {
+                mat3f m = mat3f().ZRot(M_PI/128);
+
+                quat q;
+                q.load_from_matrix(m);
+
+                camera_quat = q * camera_quat;
+            }
+
+            vec3f up = {0, 0, -1};
+            vec3f right = rot_quat({1, 0, 0}, camera_quat);
+            vec3f forward_axis = rot_quat({0, 0, 1}, camera_quat);
+
+            if(ImGui::IsKeyDown(GLFW_KEY_DOWN))
+            {
+                quat q;
+                q.load_from_axis_angle({right.x(), right.y(), right.z(), M_PI/128});
+
+                camera_quat = q * camera_quat;
+            }
+
+            if(ImGui::IsKeyDown(GLFW_KEY_UP))
+            {
+                quat q;
+                q.load_from_axis_angle({right.x(), right.y(), right.z(), -M_PI/128});
+
+                camera_quat = q * camera_quat;
+            }
+
+            vec3f offset = {0,0,0};
+
+            offset += forward_axis * ((ImGui::IsKeyDown(GLFW_KEY_W) - ImGui::IsKeyDown(GLFW_KEY_S)) * speed);
+            offset += right * (ImGui::IsKeyDown(GLFW_KEY_D) - ImGui::IsKeyDown(GLFW_KEY_A)) * speed;
+            offset += up * (ImGui::IsKeyDown(GLFW_KEY_E) - ImGui::IsKeyDown(GLFW_KEY_Q)) * speed;
+
+            /*camera.y() += offset.x();
+            camera.z() += offset.y();
+            camera.w() += offset.z();*/
+
+            camera_pos += offset;
+        }
 
         step = false;
 
@@ -775,6 +862,7 @@ int main()
         ImGui::Checkbox("Run", &running);
         ImGui::Checkbox("Pause", &pause);
         ImGui::Checkbox("Render", &render);
+        ImGui::Checkbox("Render2", &render2);
 
         step = step || running;
 
@@ -823,9 +911,8 @@ int main()
         {
             rt_bssn.poll_render_resolution(screen_tex.size<2>().x(), screen_tex.size<2>().y());
 
-            cl_float4 camera = {elapsed_t,0,0,-25};
-            quat q;
-            q.load_from_axis_angle({1, 0, 0, 0});
+            cl_float4 camera = {elapsed_t,camera_pos.x(),camera_pos.y(),camera_pos.z()};
+            quat q = camera_quat;
 
             cl_float4 cq = {q.q[0], q.q[1], q.q[2], q.q[3]};
 
@@ -867,6 +954,7 @@ int main()
             }
 
             #if 1
+            if(render)
             {
                 cl::args args;
                 args.push_back(screen_width, screen_height);
@@ -887,14 +975,59 @@ int main()
             }
             #endif // 0
 
-            if(render)
+            if(render2)
             {
                 if(rt_bssn.snapshots.size() >= 2)
                 {
+                    std::vector<cl::buffer> derivs_next;
+                    std::vector<cl::buffer> derivs_cur;
+
+                    for(int i=0; i < 11 * 3; i++)
+                    {
+                        derivs_next.emplace_back(ctx);
+                        derivs_next.back().alloc(sizeof(derivative_t::interior_type) * int64_t{m.dim.x()} * m.dim.y() * m.dim.z());
+
+                        derivs_cur.emplace_back(ctx);
+                        derivs_cur.back().alloc(sizeof(derivative_t::interior_type) * int64_t{m.dim.x()} * m.dim.y() * m.dim.z());
+                    }
+
+                    rt_bssn.results.set_to_zero(cqueue);
+
+                    m.calculate_derivatives_for(cqueue, rt_bssn.snapshots.back(), derivs_next);
+
+                    float time_start = elapsed_t;
+
                     for(int i=(int)rt_bssn.snapshots.size() - 1; i >= 1; i--)
                     {
                         auto& next = rt_bssn.snapshots[i];
                         auto& current = rt_bssn.snapshots[i - 1];
+
+                        float next_time = time_start;
+                        float current_time = time_start - timestep;
+                        time_start -= timestep;
+
+                        m.calculate_derivatives_for(cqueue, current, derivs_next);
+
+                        cl::args args;
+                        args.push_back(screen_width, screen_height);
+                        args.push_back(background, screen_tex);
+                        args.push_back(bwidth, bheight, cq, rt_bssn.position, rt_bssn.velocity, dim, scale);
+                        args.push_back(next_time, current_time);
+
+                        current.append_to(args);
+                        next.append_to(args);
+
+                        for(auto& i : derivs_cur)
+                            args.push_back(i);
+
+                        for(auto& i : derivs_next)
+                            args.push_back(i);
+
+                        args.push_back(rt_bssn.results);
+
+                        cqueue.exec("trace4", args, {screen_width, screen_height}, {8, 8});
+
+                        std::swap(derivs_next, derivs_cur);
                     }
                 }
             }
