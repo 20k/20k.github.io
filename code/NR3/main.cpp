@@ -613,6 +613,8 @@ struct raytrace_bssn
 
         cqueue.exec("bssn_to_guv", args, {m.dim.x(), m.dim.y(), m.dim.z()}, {8,8,1});
 
+        printf("Captured %i\n", captured_slices);
+
         captured_slices++;
     }
 
@@ -1024,6 +1026,23 @@ int main()
                 cqueue.exec("trace3", args, {screen_width, screen_height}, {8,8});
             }
             #endif // 0
+
+            if(render2)
+            {
+                cl::args args;
+                args.push_back(screen_width, screen_height);
+                args.push_back(background);
+                args.push_back(screen_tex);
+                args.push_back(bwidth, bheight);
+                args.push_back(rt_bssn.position, rt_bssn.velocity);
+                args.push_back(dim);
+                args.push_back(scale);
+
+                for(auto& i : rt_bssn.Guv_block)
+                    args.push_back(i);
+
+                cqueue.exec("trace4x4", args, {screen_width, screen_height}, {8, 8});
+            }
 
             #if 0
             if(render2)
