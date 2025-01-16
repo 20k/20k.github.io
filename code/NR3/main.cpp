@@ -56,7 +56,7 @@ struct mesh
         #endif // MOMENTUM_CONSTRAINT_DAMPING
     }
 
-    void calculate_derivatives_for(cl::command_queue cqueue, int idx)
+    void calculate_derivatives_for(cl::command_queue cqueue, bssn_buffer_pack& pack, std::vector<cl::buffer>& into)
     {
         float scale = get_scale(simulation_width, dim);
 
@@ -64,9 +64,9 @@ struct mesh
         {
             cl::args args;
             args.push_back(buf);
-            args.push_back(derivatives.at(buffer_idx * 3 + 0));
-            args.push_back(derivatives.at(buffer_idx * 3 + 1));
-            args.push_back(derivatives.at(buffer_idx * 3 + 2));
+            args.push_back(into.at(buffer_idx * 3 + 0));
+            args.push_back(into.at(buffer_idx * 3 + 1));
+            args.push_back(into.at(buffer_idx * 3 + 2));
             args.push_back(dim);
             args.push_back(scale);
 
@@ -74,17 +74,17 @@ struct mesh
         };
 
         std::vector<cl::buffer> to_diff {
-            buffers[idx].cY[0],
-            buffers[idx].cY[1],
-            buffers[idx].cY[2],
-            buffers[idx].cY[3],
-            buffers[idx].cY[4],
-            buffers[idx].cY[5],
-            buffers[idx].gA,
-            buffers[idx].gB[0],
-            buffers[idx].gB[1],
-            buffers[idx].gB[2],
-            buffers[idx].W,
+            pack.cY[0],
+            pack.cY[1],
+            pack.cY[2],
+            pack.cY[3],
+            pack.cY[4],
+            pack.cY[5],
+            pack.gA,
+            pack.gB[0],
+            pack.gB[1],
+            pack.gB[2],
+            pack.W,
         };
 
         for(int i=0; i < (int)to_diff.size(); i++)
@@ -223,7 +223,7 @@ struct mesh
 
         //temporary_buffer.set_to_zero(cqueue);
         //temporary_single.set_to_zero(cqueue);
-        calculate_derivatives_for(cqueue, 0);
+        calculate_derivatives_for(cqueue, buffers[0], derivatives);;
         valid_derivative_buffer = 0;
     }
 
@@ -444,7 +444,7 @@ struct mesh
 
             sommerfeld_all(base_idx, in_idx, out_idx);
 
-            calculate_derivatives_for(cqueue, in_idx);
+            calculate_derivatives_for(cqueue, buffers[in_idx], derivatives);
 
             //#define CALCULATE_CONSTRAINT_ERRORS
             #ifdef CALCULATE_CONSTRAINT_ERRORS
@@ -759,6 +759,7 @@ int main()
     bool running = false;
     bool pause = false;
     float pause_time = 100;
+    bool render = true;
 
     while(!win.should_close())
     {
@@ -773,6 +774,7 @@ int main()
 
         ImGui::Checkbox("Run", &running);
         ImGui::Checkbox("Pause", &pause);
+        ImGui::Checkbox("Render", &render);
 
         step = step || running;
 
@@ -864,6 +866,7 @@ int main()
                 cqueue.exec("init_rays3", args, {screen_width, screen_height}, {8,8});
             }
 
+            #if 1
             {
                 cl::args args;
                 args.push_back(screen_width, screen_height);
@@ -881,6 +884,19 @@ int main()
                     args.push_back(i);
 
                 cqueue.exec("trace3", args, {screen_width, screen_height}, {8,8});
+            }
+            #endif // 0
+
+            if(render)
+            {
+                if(rt_bssn.snapshots.size() >= 2)
+                {
+                    for(int i=(int)rt_bssn.snapshots.size() - 1; i >= 1; i--)
+                    {
+                        auto& next = rt_bssn.snapshots[i];
+                        auto& current = rt_bssn.snapshots[i - 1];
+                    }
+                }
             }
         }
 
