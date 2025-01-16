@@ -200,8 +200,6 @@ geodesic make_lightlike_geodesic(const v4f& position, const v3f& direction, cons
 inline
 bssn_args bssn_at(v3i pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 {
-    //pos = clamp(pos, (v3i){1,1,1}, dim - (v3i){2,2,2});
-
     bssn_args args(pos, dim, in);
     return args;
 }
@@ -213,10 +211,7 @@ valuef W_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 
     auto W_at = [&](v3i pos)
     {
-        pos = clamp(pos, (v3i){1,1,1}, dim - (v3i){2,2,2});
-
         bssn_args args(pos, dim, in);
-        //pin(args.W);
         return args.W;
     };
 
@@ -230,9 +225,7 @@ valuef gA_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 
     auto func = [&](v3i pos)
     {
-        auto val = adm_at(pos, dim, in).gA;
-        //pin(val);
-        return val;
+        return adm_at(pos, dim, in).gA;
     };
 
     auto val = function_trilinear(func, pos);
@@ -247,9 +240,7 @@ tensor<valuef, 3> gB_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 
     auto func = [&](v3i pos)
     {
-        auto val = adm_at(pos, dim, in).gB;
-        //pin(val);
-        return val;
+        return adm_at(pos, dim, in).gB;
     };
 
     auto val = function_trilinear(func, pos);
@@ -264,9 +255,7 @@ metric<valuef, 3, 3> Yij_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in
 
     auto func = [&](v3i pos)
     {
-        auto val = adm_at(pos, dim, in).Yij;
-        //pin(val);
-        return val;
+        return adm_at(pos, dim, in).Yij;
     };
 
     auto val = function_trilinear(func, pos);
@@ -281,9 +270,7 @@ unit_metric<valuef, 3, 3> cY_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>
 
     auto func = [&](v3i pos)
     {
-        auto val = bssn_at(pos, dim, in).cY;
-        //pin(val);
-        return val;
+        return bssn_at(pos, dim, in).cY;
     };
 
     auto val = function_trilinear(func, pos);
@@ -298,9 +285,7 @@ inverse_metric<valuef, 3, 3> icY_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<val
 
     auto func = [&](v3i pos)
     {
-        auto val = bssn_at(pos, dim, in).cY;
-        //pin(val);
-        return val;
+        return bssn_at(pos, dim, in).cY;
     };
 
     auto val = function_trilinear(func, pos);
@@ -364,18 +349,18 @@ void init_rays3(execution_context& ectx, literal<valuei> screen_width, literal<v
 
     tetrad tetrads = {e0[0], e1[0], e2[0], e3[0]};
 
-    v4f lpos = position[0];
+    v3f grid_position = world_to_grid(position[0].yzw(), dim.get(), scale.get());
 
-    pin(lpos);
+    grid_position = clamp(grid_position, (v3f){2,2,2}, (v3f)dim.get() - (v3f){3,3,3});
+
+    pin(grid_position);
 
     ///need to differentiate some of these variables in the regular adm stuff sighghghgh
-    v3i ipos = (v3i)lpos.yzw();
-
     v3f ray_direction = get_ray_through_pixel(screen_position, screen_size, 90, camera_quat.get());
 
     geodesic my_geodesic = make_lightlike_geodesic(position[0], ray_direction, tetrads);
 
-    adm_variables init_adm = admf_at(position[0].yzw(), dim.get(), in);
+    adm_variables init_adm = admf_at(grid_position, dim.get(), in);
 
     tensor<valuef, 4> normal = get_adm_hypersurface_normal_raised(init_adm.gA, init_adm.gB);
 
@@ -444,38 +429,30 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
             v3f grid_position = world_to_grid(cposition, dim.get(), scale.get());
 
-            grid_position = clamp(grid_position, (v3f){2,2,2}, (v3f)dim.get() - 3);
+            grid_position = clamp(grid_position, (v3f){2,2,2}, (v3f)dim.get() - (v3f){3,3,3});
 
             pin(grid_position);
 
             auto dgA_at = [&](v3i pos)
             {
-                //pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
-
                 bssn_derivatives derivs(pos, dim.get(), derivatives);
                 return derivs.dgA;
             };
 
             auto dgB_at = [&](v3i pos)
             {
-                //pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
-
                 bssn_derivatives derivs(pos, dim.get(), derivatives);
-                return (tensor<valuef, 3, 3>)derivs.dgB;
+                return derivs.dgB;
             };
 
             auto dcY_at = [&](v3i pos)
             {
-                //pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
-
                 bssn_derivatives derivs(pos, dim.get(), derivatives);
                 return derivs.dcY;
             };
 
             auto dW_at = [&](v3i pos)
             {
-                //pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
-
                 bssn_derivatives derivs(pos, dim.get(), derivatives);
                 return derivs.dW;
             };

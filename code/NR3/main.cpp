@@ -498,7 +498,7 @@ struct raytrace_bssn
         {
             v3f grid = world_to_grid(position.yzw(), dim.get(), scale.get());
 
-            grid = clamp(grid, (v3f){1,1,1}, (v3f)dim.get() - 2);
+            grid = clamp(grid, (v3f){2,2,2}, (v3f)dim.get() - (v3f){3,3,3});
 
             adm_variables adm = admf_at(grid, dim.get(), in);
 

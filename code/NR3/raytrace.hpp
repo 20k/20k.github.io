@@ -65,8 +65,6 @@ adm_variables adm_at(v3i pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 {
     using namespace single_source;
 
-    //pos = clamp(pos, (v3i){1,1,1}, dim - (v3i){2,2,2});
-
     bssn_args args(pos, dim, in);
 
     return bssn_to_adm(args);
@@ -80,30 +78,22 @@ adm_variables admf_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 
     auto Yij_at = [&](v3i pos)
     {
-        auto val = adm_at(pos, dim, in).Yij;
-        //pin(val);
-        return val;
+        return adm_at(pos, dim, in).Yij;
     };
 
     auto Kij_at = [&](v3i pos)
     {
-        auto val = adm_at(pos, dim, in).Kij;
-        //pin(val);
-        return val;
+        return adm_at(pos, dim, in).Kij;
     };
 
     auto gA_at = [&](v3i pos)
     {
-        auto val = adm_at(pos, dim, in).gA;
-        //pin(val);
-        return val;
+        return adm_at(pos, dim, in).gA;
     };
 
     auto gB_at = [&](v3i pos)
     {
-        auto val = adm_at(pos, dim, in).gB;
-        //pin(val);
-        return val;
+        return adm_at(pos, dim, in).gB;
     };
 
     adm_variables out;
