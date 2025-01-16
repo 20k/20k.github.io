@@ -216,7 +216,7 @@ valuef W_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
         pos = clamp(pos, (v3i){1,1,1}, dim - (v3i){2,2,2});
 
         bssn_args args(pos, dim, in);
-        pin(args.W);
+        //pin(args.W);
         return args.W;
     };
 
@@ -231,7 +231,7 @@ valuef gA_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
     auto func = [&](v3i pos)
     {
         auto val = adm_at(pos, dim, in).gA;
-        pin(val);
+        //pin(val);
         return val;
     };
 
@@ -248,7 +248,7 @@ tensor<valuef, 3> gB_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
     auto func = [&](v3i pos)
     {
         auto val = adm_at(pos, dim, in).gB;
-        pin(val);
+        //pin(val);
         return val;
     };
 
@@ -265,7 +265,7 @@ metric<valuef, 3, 3> Yij_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in
     auto func = [&](v3i pos)
     {
         auto val = adm_at(pos, dim, in).Yij;
-        pin(val);
+        //pin(val);
         return val;
     };
 
@@ -282,7 +282,7 @@ unit_metric<valuef, 3, 3> cY_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>
     auto func = [&](v3i pos)
     {
         auto val = bssn_at(pos, dim, in).cY;
-        pin(val);
+        //pin(val);
         return val;
     };
 
@@ -299,7 +299,7 @@ inverse_metric<valuef, 3, 3> icY_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<val
     auto func = [&](v3i pos)
     {
         auto val = bssn_at(pos, dim, in).cY;
-        pin(val);
+        //pin(val);
         return val;
     };
 
@@ -495,7 +495,6 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
             pin(cY);
 
             auto Yij = cY / (W*W);
-
             pin(Yij);
 
             adm_variables args = admf_at(grid_position, dim.get(), in);
@@ -509,11 +508,13 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
             v3f d_X = args.gA * cvelocity - args.gB;
 
-            auto iYij = iYij_f_at(grid_position, dim.get(), in);
-            pin(iYij);
+            //auto iYij = iYij_f_at(grid_position, dim.get(), in);
+            //pin(iYij);
 
             auto icY = cY.invert();
             pin(icY);
+
+            auto iYij = icY * (W*W);
 
             auto christoff2_cfl = christoffel_symbols_2(icY, dcY);
             pin(christoff2_cfl);
