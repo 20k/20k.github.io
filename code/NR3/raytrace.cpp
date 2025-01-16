@@ -200,7 +200,7 @@ geodesic make_lightlike_geodesic(const v4f& position, const v3f& direction, cons
 inline
 bssn_args bssn_at(v3i pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 {
-    pos = clamp(pos, (v3i){1,1,1}, dim - (v3i){2,2,2});
+    //pos = clamp(pos, (v3i){1,1,1}, dim - (v3i){2,2,2});
 
     bssn_args args(pos, dim, in);
     return args;
@@ -444,11 +444,13 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
             v3f grid_position = world_to_grid(cposition, dim.get(), scale.get());
 
+            grid_position = clamp(grid_position, (v3f){2,2,2}, (v3f)dim.get() - 3);
+
             pin(grid_position);
 
             auto dgA_at = [&](v3i pos)
             {
-                pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
+                //pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
 
                 bssn_derivatives derivs(pos, dim.get(), derivatives);
                 return derivs.dgA;
@@ -456,7 +458,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
             auto dgB_at = [&](v3i pos)
             {
-                pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
+                //pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
 
                 bssn_derivatives derivs(pos, dim.get(), derivatives);
                 return (tensor<valuef, 3, 3>)derivs.dgB;
@@ -464,7 +466,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
             auto dcY_at = [&](v3i pos)
             {
-                pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
+                //pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
 
                 bssn_derivatives derivs(pos, dim.get(), derivatives);
                 return derivs.dcY;
@@ -472,7 +474,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
             auto dW_at = [&](v3i pos)
             {
-                pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
+                //pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
 
                 bssn_derivatives derivs(pos, dim.get(), derivatives);
                 return derivs.dW;
