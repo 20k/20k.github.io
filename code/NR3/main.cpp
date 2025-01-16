@@ -766,7 +766,7 @@ int main()
             m.step(ctx, cqueue, timestep);
 
         {
-            cl_float4 camera = {0,0,0,25};
+            cl_float4 camera = {0,0,0,-25};
             quat q;
             q.load_from_axis_angle({1, 0, 0, 0});
 

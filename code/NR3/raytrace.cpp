@@ -364,6 +364,7 @@ void init_rays3(execution_context& ectx, literal<valuei> screen_width, literal<v
 
     tensor<valuef, 4> normal = get_adm_hypersurface_normal_raised(init_adm.gA, init_adm.gB);
 
+    ///98% sure we could delete this by doing velocity_upper normal_lowered
     metric<valuef, 4, 4> init_full = calculate_real_metric(init_adm.Yij, init_adm.gA, init_adm.gB);
 
     tensor<valuef, 4> velocity_lowered = init_full.lower(my_geodesic.velocity);
@@ -372,6 +373,14 @@ void init_rays3(execution_context& ectx, literal<valuei> screen_width, literal<v
 
     tensor<valuef, 4> adm_velocity = -((my_geodesic.velocity / E) - normal);
 
+    /*if_e(x == 0 && y == 0, [&]{
+        value_base se;
+        se.type = value_impl::op::SIDE_EFFECT;
+        se.abstract_value = "printf(\"adm: %f\\n\"," + value_to_string(adm_velocity.x()) + ")";
+
+        value_impl::get_context().add(se);
+    });*/
+
     v2i out_dim = {screen_width.get(), screen_height.get()};
     v2i out_pos = {x, y};
 
@@ -379,6 +388,7 @@ void init_rays3(execution_context& ectx, literal<valuei> screen_width, literal<v
 }
 
 ///i need function support i think for linear interpolation
+///todo: figure out the projection
 void trace3(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
                      read_only_image<2> background, write_only_image<2> screen,
                      literal<valuei> background_width, literal<valuei> background_height,
@@ -532,7 +542,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
             ///todo: fix/checkme
             ///98% sure this is wrong, because ray back in time dt/dT divided gives flipped ray dir
             ///but then. Rsy going wrong way in coordinate time. bad?
-            valuef dt = -1.f * get_ct_timestep(cposition, cvelocity, W);
+            valuef dt = 1.f * get_ct_timestep(cposition, cvelocity, W);
 
             as_ref(position) = cposition + d_X * dt;
             as_ref(velocity) = cvelocity + d_V * dt;
