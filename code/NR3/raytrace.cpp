@@ -320,6 +320,8 @@ valuef get_ct_timestep(v3f position, v3f velocity, valuef W)
     return mix(valuef(0.4f), valuef(4.f), my_fraction) * 0.4f;
 }
 
+///so. I think the projection is wrong, and that we should have -dt
+///but i need to test the 4-iteration realistically
 void init_rays3(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
                buffer_mut<v3f> velocities_out,
                buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
@@ -439,10 +441,10 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
             v3f grid_position = world_to_grid(cposition, dim.get(), scale.get());
 
-            grid_position = clamp(grid_position, (v3f){2,2,2}, (v3f)dim.get() - (v3f){3,3,3});
-
+            grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
             pin(grid_position);
 
+            #if 1
             auto dgA_at = [&](v3i pos)
             {
                 bssn_derivatives derivs(pos, dim.get(), derivatives);
@@ -543,6 +545,53 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
             ///98% sure this is wrong, because ray back in time dt/dT divided gives flipped ray dir
             ///but then. Rsy going wrong way in coordinate time. bad?
             valuef dt = 1.f * get_ct_timestep(cposition, cvelocity, W);
+            #endif
+
+            #if 0
+            auto metric_at = [&](v3i pos)
+            {
+                adm_variables adm = adm_at(pos, dim.get(), in);
+
+                return calculate_real_metric(adm.Yij, adm.gA, adm.gB);
+            };
+
+            auto metric_f_at = [&](v3f pos)
+            {
+                return function_trilinear(metric_at, pos);
+            };
+
+            auto Guv = metric_f_at(grid_position);
+            tensor<valuef, 4, 4, 4> dGuv;
+
+            for(int m=0; m < 4; m++)
+            {
+                if(m == 0)
+                {
+                    for(int j=0; j < 4; j++)
+                    {
+                        for(int k=0; k < 4; k++)
+                            dGuv[m, j, k] = 0;
+                    }
+                }
+                else
+                {
+                    v3i dir;
+                    dir[m - 1] = 1;
+
+                    auto diff = (metric_f_at(grid_position + dir) - metric_f_at(grid_position - dir)) / (2 * scale);
+
+                    for(int j=0; j < 4; j++)
+                    {
+                        for(int k=0; k < 4; k++)
+                        {
+                            dGuv[m, j, k] = diff[j, k];
+                        }
+                    }
+                }
+            }
+
+            valuef dt = 0.1f;
+            #endif
 
             as_ref(position) = cposition + d_X * dt;
             as_ref(velocity) = cvelocity + d_V * dt;
