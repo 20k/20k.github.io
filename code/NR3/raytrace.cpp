@@ -365,13 +365,9 @@ void init_rays3(execution_context& ectx, literal<valuei> screen_width, literal<v
     adm_variables init_adm = admf_at(grid_position, dim.get(), in);
 
     tensor<valuef, 4> normal = get_adm_hypersurface_normal_raised(init_adm.gA, init_adm.gB);
+    tensor<valuef, 4> normal_lowered = get_adm_hypersurface_normal_lowered(init_adm.gA);
 
-    ///98% sure we could delete this by doing velocity_upper normal_lowered
-    metric<valuef, 4, 4> init_full = calculate_real_metric(init_adm.Yij, init_adm.gA, init_adm.gB);
-
-    tensor<valuef, 4> velocity_lowered = init_full.lower(my_geodesic.velocity);
-
-    valuef E = -sum_multiply(velocity_lowered, normal);
+    valuef E = -sum_multiply(my_geodesic.velocity, normal_lowered);
 
     tensor<valuef, 4> adm_velocity = -((my_geodesic.velocity / E) - normal);
 
