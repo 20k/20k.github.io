@@ -455,7 +455,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
             tensor<valuef, 3, 3, 3> dcY;
             tensor<valuef, 3> dW;
 
-            for(int m=0; m < 3; m++)
+            /*for(int m=0; m < 3; m++)
             {
                 v3f dir = {0,0,0};
                 dir[m] = 1;
@@ -484,7 +484,44 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
                         dcY[m, j, k] = (cY_r[j, k] - cY_l[j, k]) / (2 * scale.get());
                     }
                 }
-            }
+            }*/
+
+            auto dgA_at = [&](v3i pos)
+            {
+                pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
+
+                bssn_derivatives derivs(pos, dim.get(), derivatives);
+                return derivs.dgA;
+            };
+
+            auto dgB_at = [&](v3i pos)
+            {
+                pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
+
+                bssn_derivatives derivs(pos, dim.get(), derivatives);
+                return (tensor<valuef, 3, 3>)derivs.dgB;
+            };
+
+            auto dcY_at = [&](v3i pos)
+            {
+                pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
+
+                bssn_derivatives derivs(pos, dim.get(), derivatives);
+                return derivs.dcY;
+            };
+
+            auto dW_at = [&](v3i pos)
+            {
+                pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
+
+                bssn_derivatives derivs(pos, dim.get(), derivatives);
+                return derivs.dW;
+            };
+
+            dgA = function_trilinear(dgA_at, grid_position);
+            dgB = function_trilinear(dgB_at, grid_position);
+            dcY = function_trilinear(dcY_at, grid_position);
+            dW = function_trilinear(dW_at, grid_position);
 
             pin(dgA);
             pin(dgB);
