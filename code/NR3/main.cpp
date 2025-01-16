@@ -813,7 +813,7 @@ int main()
         {
             rt_bssn.poll_render_resolution(screen_tex.size<2>().x(), screen_tex.size<2>().y());
 
-            cl_float4 camera = {0,0,0,-25};
+            cl_float4 camera = {elapsed_t,0,0,-25};
             quat q;
             q.load_from_axis_angle({1, 0, 0, 0});
 

@@ -323,7 +323,7 @@ valuef get_ct_timestep(v3f position, v3f velocity, valuef W)
 ///so. I think the projection is wrong, and that we should have -dt
 ///but i need to test the 4-iteration realistically
 void init_rays3(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
-               buffer_mut<v3f> positions_out,
+               buffer_mut<v4f> positions_out,
                buffer_mut<v3f> velocities_out,
                buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
                buffer<v4f> position, literal<v4f> camera_quat,
@@ -384,7 +384,7 @@ void init_rays3(execution_context& ectx, literal<valuei> screen_width, literal<v
     v2i out_dim = {screen_width.get(), screen_height.get()};
     v2i out_pos = {x, y};
 
-    as_ref(positions_out[out_pos, out_dim]) = my_geodesic.position.yzw();
+    as_ref(positions_out[out_pos, out_dim]) = my_geodesic.position;
     as_ref(velocities_out[out_pos, out_dim]) = adm_velocity.yzw();
 }
 
@@ -394,7 +394,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
                      read_only_image<2> background, write_only_image<2> screen,
                      literal<valuei> background_width, literal<valuei> background_height,
                      literal<v4f> camera_quat,
-                     buffer<v3f> positions, buffer<v3f> velocities,
+                     buffer<v4f> positions, buffer<v3f> velocities,
                      literal<v3i> dim,
                      literal<valuef> scale,
                      bssn_args_mem<buffer<valuef>> in,
@@ -421,7 +421,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
     v2i screen_size = {screen_width.get(), screen_height.get()};
     v2i background_size = {background_width.get(), background_height.get()};
 
-    v3f pos_in = positions[screen_position, screen_size];
+    v3f pos_in = positions[screen_position, screen_size].yzw();
     v3f vel_in = velocities[screen_position, screen_size];
 
     mut<valuei> result = declare_mut_e(valuei(1));
