@@ -152,10 +152,12 @@ void bssn_to_guv(execution_context& ectx, literal<v3i> dim, literal<valuef> scal
 void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
             read_only_image<2> background, write_only_image<2> screen,
             literal<valuei> background_width, literal<valuei> background_height,
-            buffer_mut<v4f> positions, buffer_mut<v3f> velocities,
+            buffer_mut<v4f> positions, buffer_mut<v4f> velocities,
             literal<v3i> dim,
             literal<valuef> scale,
-            std::array<buffer<valueh>, 10> Guv);
+            std::array<buffer<valueh>, 10> Guv,
+            literal<valuef> last_time,
+            literal<valuei> last_slice);
 
 inline
 valuef dot(v4f u, v4f v, m44f m) {

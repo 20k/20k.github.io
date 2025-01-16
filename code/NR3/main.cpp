@@ -1041,6 +1041,9 @@ int main()
                 for(auto& i : rt_bssn.Guv_block)
                     args.push_back(i);
 
+                args.push_back(rt_bssn.last_dt);
+                args.push_back(rt_bssn.captured_slices);
+
                 cqueue.exec("trace4x4", args, {screen_width, screen_height}, {8, 8});
             }
 

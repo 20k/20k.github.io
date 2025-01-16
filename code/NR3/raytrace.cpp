@@ -975,10 +975,67 @@ void bssn_to_guv(execution_context& ectx, literal<v3i> dim, literal<valuef> scal
 void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
             read_only_image<2> background, write_only_image<2> screen,
             literal<valuei> background_width, literal<valuei> background_height,
-            buffer_mut<v4f> positions, buffer_mut<v3f> velocities,
+            buffer_mut<v4f> positions, buffer_mut<v4f> velocities,
             literal<v3i> dim,
             literal<valuef> scale,
-            std::array<buffer<valueh>, 10> Guv)
+            std::array<buffer<valueh>, 10> Guv,
+            literal<valuef> last_time,
+            literal<valuei> last_slice)
 {
+    using namespace single_source;
+
+    if_e(last_slice.get() == 0, [&]{
+        return_e();
+    });
+
+    valuei x = value_impl::get_global_id(0);
+    valuei y = value_impl::get_global_id(1);
+
+    //get_global_id() is not a const function, so assign it to an unnamed variable to avoid compilers repeatedly evaluating it
+    pin(x);
+    pin(y);
+
+    if_e(y >= screen_height.get(), [&] {
+        return_e();
+    });
+
+    if_e(x >= screen_width.get(), [&] {
+        return_e();
+    });
+
+    v2i screen_position = {x, y};
+    v2i screen_size = {screen_width.get(), screen_height.get()};
+    v2i background_size = {background_width.get(), background_height.get()};
+
+    v4f pos_in = declare_e(positions[screen_position, screen_size]);
+    v4f vel_in = declare_e(velocities[screen_position, screen_size]);
+
+    mut<valuei> result = declare_mut_e(valuei(1));
+    v4f final_position;
+
+    {
+        mut_v4f position = declare_mut_e(pos_in);
+        mut_v4f velocity = declare_mut_e(vel_in);
+
+        mut<valuei> idx = declare_mut_e("i", valuei(0));
+
+        for_e(idx < 1024, assign_b(idx, idx + 1), [&]
+        {
+            v4f cposition = declare_e(position);
+            v4f cvelocity = declare_e(velocity);
+
+            v3f grid_position = world_to_grid(cposition.yzw(), dim.get(), scale.get());
+            valuef grid_t_frac = cposition.x() / last_time.get();
+            //valuef grid_t = grid_t_frac * (last_slice.get() - 1);
+            valuef grid_t = grid_t_frac * (valuef)last_slice.get();
+
+            grid_t = clamp(grid_t, valuef(0.f), (valuef)last_slice.get() - 1);
+
+            grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
+            pin(grid_position);
+
+
+        });
+    }
 
 }
