@@ -497,10 +497,13 @@ struct raytrace_bssn
     ///where we raytrace between two slices, step a few times, then raytrace into the next slice
     ///we can still use a dynamic timestep, we just iterate until you've exceeded a certain threshold, and then
     ///recollect
-
     cl::buffer position;
     cl::buffer velocity;
     int last_size = 0;
+    bool is_snapshotting = false;
+    float elapsed_dt = 0;
+
+    std::vector<bssn_buffer_pack> snapshots;
 
     raytrace_bssn(cl::context& ctx) : position(ctx), velocity(ctx)
     {
@@ -536,6 +539,28 @@ struct raytrace_bssn
         cl::program p3 = cl::build_program_with_cache(ctx, {str3}, false);
 
         ctx.register_program(p3);
+    }
+
+    void capture_snapshots(cl::context ctx, cl::command_queue cqueue, float dt, mesh& m)
+    {
+        float time_between_snapshots = 4;
+
+        elapsed_dt += dt;
+
+        if(elapsed_dt < time_between_snapshots && snapshots.size() > 0)
+            return;
+
+        elapsed_dt -= time_between_snapshots;
+        elapsed_dt = std::max(elapsed_dt, 0.f);
+
+        bssn_buffer_pack next(ctx);
+        next.allocate(m.dim);
+
+        for(auto& i : next.cG)
+            i = cl::buffer(ctx);
+
+        printf("Captured\n");
+        snapshots.push_back(next);
     }
 
     void poll_render_resolution(int width, int height)
@@ -780,7 +805,10 @@ int main()
             step = false;
 
         if(step)
+        {
             m.step(ctx, cqueue, timestep);
+            rt_bssn.capture_snapshots(ctx, cqueue, timestep, m);
+        }
 
         {
             rt_bssn.poll_render_resolution(screen_tex.size<2>().x(), screen_tex.size<2>().y());
