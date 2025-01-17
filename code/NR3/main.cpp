@@ -569,6 +569,8 @@ struct raytrace_bssn
         ctx.register_program(p5);
     }
 
+    ///todo: downsample
+    ///todo: need to go up to at least 200 time
     void capture_snapshots(cl::context ctx, cl::command_queue cqueue, float dt, mesh& m)
     {
         float scale = get_scale(m.simulation_width, m.dim);

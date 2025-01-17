@@ -1072,6 +1072,12 @@ struct verlet_context
         v4f cvelocity = declare_e(velocity);
         valuef cds = declare_e(ds);
 
+        pin(cposition);
+        pin(cv_half);
+        pin(cv_full_approx);
+        pin(cvelocity);
+        pin(cds);
+
         auto AFull_approx = get_dV(cposition, cv_full_approx);
         pin(AFull_approx);
 
@@ -1304,7 +1310,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
         //return ternary(pos < valuef(10), valuef(1.f), valuef(1.5f));
 
         valuef dt;
-        acceleration_to_precision(acceleration, 0.0005f, &dt);
+        acceleration_to_precision(acceleration, 0.00025f, &dt);
         return dt;
 
         //return valuef(1.);
@@ -1482,7 +1488,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                 break_e();
             });*/
 
-            if_e(cposition.x() < -100.f || fabs(as_constant(ctx.velocity).x()) > 10 || as_constant(ctx.velocity).yzw().length() < 0.2f , [&]{
+            if_e(cposition.x() < -100.f || fabs(cvelocity.x()) > 10 || cvelocity.yzw().length() < 0.2f , [&]{
                 as_ref(result) = valuei(1);
                 break_e();
             });
