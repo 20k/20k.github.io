@@ -1098,7 +1098,7 @@ struct verlet_context
     valuef ds = 0;
 
     template<typename dX, typename dV, typename dS>
-    void set_up(const T& position_in, const T& velocity_in, dX&& get_dX, dV&& get_dV, dS&& get_dS)
+    void start(const T& position_in, const T& velocity_in, dX&& get_dX, dV&& get_dV, dS&& get_dS)
     {
         ds = get_dS(position_in);
 
