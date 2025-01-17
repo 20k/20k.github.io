@@ -1018,6 +1018,125 @@ valuef get_ct_timestep2(valuef W)
     return mix(valuef(1.f), valuef(4.f), my_fraction);
 }
 
+/*
+    float3 VHalf = (float3)(0,0,0);
+    float3 VFull_approx = (float3)(0,0,0);
+
+    float ds = 0;
+
+    ///so: this performs the first two iterations of verlet early
+    ///this means that the main verlet loop does not contain separate memory reads, resulting in a 40ms -> 28ms speedup due to
+    ///optimisation
+    #define VERLET_2
+    #ifdef VERLET_2
+    {
+        ds = get_static_verlet_ds(Xpos, X, scale, dim);
+
+        float3 ABase;
+        calculate_V_derivatives(&ABase, Xpos, vel, scale, dim, GET_STANDARD_ARGS());
+
+        VHalf = vel + 0.5f * ABase * ds;
+
+        VFull_approx = vel + ABase * ds;
+
+        float3 XDiff;
+        velocity_to_XDiff(&XDiff, Xpos, VHalf, scale, dim, GET_STANDARD_ARGS());
+
+        float3 XFull = Xpos + XDiff * ds;
+
+        Xpos = XFull;
+    }
+    #endif // VERLET_2
+*/
+
+/*#ifdef VERLET_2
+///finish previous iteration
+{
+    float3 AFull_approx;
+    calculate_V_derivatives(&AFull_approx, Xpos, VFull_approx, scale, dim, GET_STANDARD_ARGS());
+
+    float3 VFull = VHalf + 0.5f * AFull_approx * ds;
+
+    vel = VFull;
+}
+
+///only used in the matter case
+{
+    L += ds * get_dtL(Xpos, vel, L, scale, dim, GET_STANDARD_ARGS());
+}
+
+///next iteration
+ds = get_static_verlet_ds(Xpos, X, scale, dim);
+
+float3 XDiff;
+
+{
+    float3 ABase;
+    calculate_V_derivatives(&ABase, Xpos, vel, scale, dim, GET_STANDARD_ARGS());
+
+    VHalf = vel + 0.5f * ABase * ds;
+
+    VFull_approx = vel + ABase * ds;
+
+    velocity_to_XDiff(&XDiff, Xpos, VHalf, scale, dim, GET_STANDARD_ARGS());
+
+    float3 XFull = Xpos + XDiff * ds;
+
+    Xpos_last = Xpos;
+    Xpos = XFull;
+}*/
+
+template<typename T>
+struct verlet_context
+{
+    T position;
+
+    T v_half;
+    T v_full_approx;
+    T velocity;
+
+    valuef ds = 0;
+
+    template<typename dX, typename dV, typename dS>
+    void set_up(const T& position_in, const T& velocity_in, dX&& get_dX, dV&& get_dV, dS&& get_dS)
+    {
+        ds = get_dS(position_in);
+
+        auto acceleration = get_dV(position_in, velocity_in);
+
+        v_half = velocity_in + 0.5f * acceleration * ds;
+
+        v_full_approx = velocity_in + acceleration * ds;
+
+        auto dPosition = get_dX(position_in, v_half);
+
+        position = position_in + dPosition * ds;
+        velocity = velocity_in;
+    }
+
+    template<typename dX, typename dV, typename dS>
+    verlet_context<T> next(dX&& get_dX, dV&& get_dV, dS&& get_dS)
+    {
+        auto AFull_approx = get_dV(position, v_full_approx);
+
+        auto VFull_next = v_half + 0.5f * AFull_approx * ds;
+
+        verlet_context<T> ret;
+        ret.velocity = VFull_next;
+        ret.ds = get_dS(position);
+
+        auto ABase = get_dV(position, ret.velocity);
+
+        ret.v_half = ret.velocity + 0.5f * ABase * ret.ds;
+        ret.v_full_approx = ret.velocity + ABase * ret.ds;
+
+        auto XDiff = get_dX(position, ret.v_half);
+
+        ret.position = position + XDiff * ret.ds;
+        return ret;
+    }
+};
+
 ///tomorrow me: try just 4x4ing one slice
 void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
             read_only_image<2> background, write_only_image<2> screen,
