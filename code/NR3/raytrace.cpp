@@ -1086,22 +1086,26 @@ float3 XDiff;
     Xpos = XFull;
 }*/
 
+#define METHOD_1
 template<typename T>
 struct verlet_context
 {
     mut_v4f position;
 
+    #ifdef METHOD_1
     mut_v4f v_half;
     mut_v4f v_full_approx;
-    mut_v4f velocity;
-
     mut<valuef> ds;
+    #endif
+
+    mut_v4f velocity;
 
     template<typename dX, typename dV, typename dS>
     void start(const T& position_in, const T& velocity_in, dX&& get_dX, dV&& get_dV, dS&& get_dS)
     {
         using namespace single_source;
 
+        #ifdef METHOD_1
         ds = declare_mut_e(get_dS(position_in, velocity_in));
 
         auto acceleration = get_dV(position_in, velocity_in);
@@ -1114,6 +1118,12 @@ struct verlet_context
 
         position = declare_mut_e(position_in + dPosition * ds);
         velocity = declare_mut_e(velocity_in);
+        #endif
+
+        #ifdef METHOD_2
+        position = declare_mut_e(position_in);
+        velocity = declare_mut_e(velocity_in);
+        #endif
     }
 
     template<typename dX, typename dV, typename dS>
@@ -1121,6 +1131,7 @@ struct verlet_context
     {
         using namespace single_source;
 
+        #ifdef METHOD_1
         v4f cposition = declare_e(position);
         v4f cv_half = declare_e(v_half);
         v4f cv_full_approx = declare_e(v_full_approx);
@@ -1142,6 +1153,26 @@ struct verlet_context
         auto XDiff = get_dX(cposition, as_constant(v_half));
 
         as_ref(position) = cposition + XDiff * as_constant(ds);
+        #endif
+
+        #ifdef METHOD_2
+        v4f cposition = declare_e(position);
+        v4f cvelocity = declare_e(velocity);
+
+        auto ds = get_dS(cposition, cvelocity);
+
+        auto v_half = cvelocity + 0.5f * get_dV(cposition, cvelocity) * ds;
+        auto x_full = cposition + v_half * ds;
+
+        auto v_full_approx = cvelocity + get_dV(cposition, cvelocity) * ds;
+
+        auto a_full = get_dV(x_full, v_full_approx);
+
+        auto v_next = v_half + 0.5f * a_full * ds;
+
+        as_ref(position) = x_full;
+        as_ref(velocity) = v_next;
+        #endif
     }
 };
 
@@ -1331,7 +1362,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
         return valuef(1.f);
     };
 
-    verlet_context<v4f> ctx;
+    euler_context<v4f> ctx;
     ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS);
 
     mut<valuei> result = declare_mut_e(valuei(1));
