@@ -1137,6 +1137,35 @@ struct verlet_context
     }
 };
 
+template<typename T>
+struct euler_context
+{
+    T position;
+    T velocity;
+
+    template<typename dX, typename dV, typename dS>
+    void start(const T& position_in, const T& velocity_in, dX&& get_dX, dV&& get_dV, dS&& get_dS)
+    {
+        position = position_in;
+        velocity = position_in;
+    }
+
+    template<typename dX, typename dV, typename dS>
+    euler_context<T> next(dX&& get_dX, dV&& get_dV, dS&& get_dS)
+    {
+        auto accel = get_dV(position, velocity);
+        auto dPosition = get_dX(position, velocity);
+
+        auto ds = get_dS(position, velocity);
+
+        euler_context<T> ret;
+        ret.position = position + dPosition * ds;
+        ret.velocity = velocity + accel * ds;
+
+        return ret;
+    }
+};
+
 ///tomorrow me: try just 4x4ing one slice
 void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
             read_only_image<2> background, write_only_image<2> screen,
