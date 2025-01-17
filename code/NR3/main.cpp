@@ -507,7 +507,7 @@ struct raytrace_bssn
 
     float last_dt = 0.f;
     int captured_slices = 0;
-    float time_between_snapshots = 1;
+    float time_between_snapshots = 4;
 
     //std::vector<bssn_buffer_pack> snapshots;
 
@@ -533,7 +533,6 @@ struct raytrace_bssn
         cl::program p1 = cl::build_program_with_cache(ctx, {str}, false);
 
         ctx.register_program(p1);
-
 
         std::string str2 = value_impl::make_function(trace3, "trace3");
 

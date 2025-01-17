@@ -971,7 +971,7 @@ void bssn_to_guv(execution_context& ectx, literal<v3i> dim, literal<valuef> scal
 
         value<uint64_t> lidx = p.z() * d.x() * d.y() + p.y() * d.x() + p.x() + offset.get();
 
-        std::cout << "Vidx " << value_to_string(lidx) << std::endl;
+        //std::cout << "Vidx " << value_to_string(lidx) << std::endl;
 
         as_ref(Guv[i][lidx]) = (valueh)met[idx.x(), idx.y()];
     }
@@ -1205,7 +1205,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
             }
 
 
-            if_e(x == 400 && y == 400, [&]{
+            /*if_e(x == 400 && y == 400, [&]{
                 value_base se;
                 se.type = value_impl::op::SIDE_EFFECT;
                 //se.abstract_value = "printf(\"pos: %f %f %f\\n\"," + value_to_string(Guv[0, 0]) + "," + value_to_string(dGuv[0, 0, 0]) + "," + value_to_string(cvelocity.z()) + ")";
@@ -1213,7 +1213,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                 //se.abstract_value = "printf(\"adm: %i\\n\"," + value_to_string(result) + ")";
 
                 value_impl::get_context().add(se);
-            });
+            });*/
 
             valuef dt = 1.f;
 
