@@ -962,16 +962,22 @@ void bssn_to_guv(execution_context& ectx, literal<v3i> dim, literal<valuef> scal
         {3, 3},
     };
 
+    tensor<value<uint64_t>, 3> p = (tensor<value<uint64_t>, 3>)pos;
+    tensor<value<uint64_t>, 3> d = (tensor<value<uint64_t>, 3>)dim.get();
+
     for(int i=0; i < 10; i++)
     {
         vec2i idx = indices[i];
 
-        value<uint64_t> lidx = (value<uint64_t>)(pos.z() * dim.get().x() * dim.get().y() + pos.y() * dim.get().x() + pos.x()) + offset.get();
+        value<uint64_t> lidx = p.z() * d.x() * d.y() + p.y() * d.x() + p.x() + offset.get();
+
+        std::cout << "Vidx " << value_to_string(lidx) << std::endl;
 
         as_ref(Guv[i][lidx]) = (valueh)met[idx.x(), idx.y()];
     }
 }
 
+///tomorrow me: try just 4x4ing one slice
 void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
             read_only_image<2> background, write_only_image<2> screen,
             literal<valuei> background_width, literal<valuei> background_height,
@@ -980,7 +986,8 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
             literal<valuef> scale,
             std::array<buffer<valueh>, 10> Guv_buf,
             literal<valuef> last_time,
-            literal<valuei> last_slice)
+            literal<valuei> last_slice,
+            literal<valuef> slice_width)
 {
     using namespace single_source;
 
@@ -1031,7 +1038,11 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
             //valuef grid_t = grid_t_frac * (last_slice.get() - 1);
             valuef grid_t = grid_t_frac * (valuef)last_slice.get();
 
-            grid_t = clamp(grid_t, valuef(0.f), (valuef)last_slice.get() - 1);
+            ///how does this break stuff?
+            //grid_t = clamp(grid_t, valuef(0.f), (valuef)last_slice.get() - 1);
+
+            ///It sure looks like the slices are being broken
+            //grid_t = (valuef)last_slice.get() - 1;
 
             grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
             pin(grid_position);
@@ -1040,9 +1051,23 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
 
             auto get_Guv = [&](v4i pos)
             {
+                /*if_e(x == 400 && y == 400, [&]{
+                    value_base se;
+                    se.type = value_impl::op::SIDE_EFFECT;
+                    //se.abstract_value = "printf(\"pos: %f %f %f\\n\"," + value_to_string(Guv[0, 0]) + "," + value_to_string(dGuv[0, 0, 0]) + "," + value_to_string(cvelocity.z()) + ")";
+                    se.abstract_value = "printf(\"grid %f pos: %i\\n\"," + value_to_string(grid_t) + "," + value_to_string(pos.x()) + ")";
+                    //se.abstract_value = "printf(\"adm: %i\\n\"," + value_to_string(result) + ")";
+
+                    value_impl::get_context().add(se);
+                });*/
+
+                //pos.x() = (valuei)grid_t;
+                pos.x() = clamp(pos.x(), valuei(0), last_slice.get() - 1);
+
                 tensor<value<uint64_t>, 3> p = (tensor<value<uint64_t>, 3>)pos.yzw();
                 tensor<value<uint64_t>, 3> d = (tensor<value<uint64_t>, 3>)dim.get();
 
+                ///this might be the problem?
                 value<uint64_t> idx = ((value<uint64_t>)pos.x()) * d.x() * d.y() * d.z() + p.z() * d.x() * d.y() + p.y() * d.x() + p.x();
 
                 int indices[16] = {
@@ -1067,7 +1092,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
 
             auto get_guv_at = [&](v4f fpos)
             {
-                fpos.x() = clamp(fpos.x(), valuef(0.f), (valuef)last_slice.get() - 2);
+                //fpos.x() = clamp(fpos.x(), valuef(0.f), (valuef)last_slice.get() - 2);
 
                 return function_quadlinear(get_Guv, fpos);
             };
@@ -1081,7 +1106,14 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                 v4f dir;
                 dir[m] = 1;
 
-                auto val = (get_guv_at(grid_fpos + dir) - get_guv_at(grid_fpos - dir)) / (2 * scale.get());
+                ///oh. The timelike direction obviously doesn't have a gap of scale;
+
+                valuef divisor = 2 * scale.get();
+
+                if(m == 0)
+                    divisor = 2 * slice_width.get();
+
+                auto val = (get_guv_at(grid_fpos + dir) - get_guv_at(grid_fpos - dir)) / divisor;
 
                 for(int i=0; i < 4; i++)
                 {

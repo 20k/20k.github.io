@@ -215,7 +215,8 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
             literal<valuef> scale,
             std::array<buffer<valueh>, 10> Guv,
             literal<valuef> last_time,
-            literal<valuei> last_slice);
+            literal<valuei> last_slice,
+            literal<valuef> slice_width);
 
 inline
 valuef dot(v4f u, v4f v, m44f m) {

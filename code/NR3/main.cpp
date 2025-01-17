@@ -507,6 +507,7 @@ struct raytrace_bssn
 
     float last_dt = 0.f;
     int captured_slices = 0;
+    float time_between_snapshots = 1;
 
     //std::vector<bssn_buffer_pack> snapshots;
 
@@ -575,8 +576,6 @@ struct raytrace_bssn
 
         int slices = 40;
 
-        uint64_t array_size = sizeof(cl_half) * int64_t{m.dim.x()} * m.dim.y() * m.dim.z();
-
         if(captured_slices == 0)
         {
             for(int i=0; i < 10; i++)
@@ -584,12 +583,12 @@ struct raytrace_bssn
 
             for(auto& i : Guv_block)
             {
+                uint64_t array_size = sizeof(cl_half) * int64_t{m.dim.x()} * m.dim.y() * m.dim.z();
+
                 i.alloc(array_size * slices);
                 i.set_to_zero(cqueue);
             }
         }
-
-        float time_between_snapshots = 1;
 
         elapsed_dt += dt;
 
@@ -600,7 +599,7 @@ struct raytrace_bssn
         elapsed_dt = std::max(elapsed_dt, 0.f);
         last_dt += time_between_snapshots;
 
-        uint64_t offset = uint64_t{captured_slices} * int64_t{m.dim.x()} * m.dim.y() * m.dim.z();
+        uint64_t offset = uint64_t{captured_slices} * uint64_t{m.dim.x()} * m.dim.y() * m.dim.z();
 
         cl::args args;
         args.push_back(m.dim, scale);
@@ -1044,6 +1043,7 @@ int main()
 
                 args.push_back(rt_bssn.last_dt);
                 args.push_back(rt_bssn.captured_slices);
+                args.push_back(rt_bssn.time_between_snapshots);
 
                 cqueue.exec("trace4x4", args, {screen_width, screen_height}, {8, 8});
             }
