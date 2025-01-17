@@ -951,9 +951,10 @@ void bssn_to_guv(execution_context& ectx, literal<v3i> dim, literal<valuef> scal
     v3i pos = {x, y, z};
 
     bssn_args args(pos, dim.get(), in);
-    adm_variables adm = bssn_to_adm(args);
 
-    metric<valuef, 4, 4> met = calculate_real_metric(adm.Yij, adm.gA, adm.gB);
+    metric<valuef, 3, 3> Yij = args.cY / max(args.W * args.W, valuef(0.0001f));
+
+    metric<valuef, 4, 4> met = calculate_real_metric(Yij, args.gA, args.gB);
 
     vec2i indices[10] = {
         {0, 0}, {1, 0}, {2, 0}, {3, 0},
@@ -1018,74 +1019,6 @@ valuef get_ct_timestep2(valuef W)
     return mix(valuef(1.f), valuef(4.f), my_fraction);
 }
 
-/*
-    float3 VHalf = (float3)(0,0,0);
-    float3 VFull_approx = (float3)(0,0,0);
-
-    float ds = 0;
-
-    ///so: this performs the first two iterations of verlet early
-    ///this means that the main verlet loop does not contain separate memory reads, resulting in a 40ms -> 28ms speedup due to
-    ///optimisation
-    #define VERLET_2
-    #ifdef VERLET_2
-    {
-        ds = get_static_verlet_ds(Xpos, X, scale, dim);
-
-        float3 ABase;
-        calculate_V_derivatives(&ABase, Xpos, vel, scale, dim, GET_STANDARD_ARGS());
-
-        VHalf = vel + 0.5f * ABase * ds;
-
-        VFull_approx = vel + ABase * ds;
-
-        float3 XDiff;
-        velocity_to_XDiff(&XDiff, Xpos, VHalf, scale, dim, GET_STANDARD_ARGS());
-
-        float3 XFull = Xpos + XDiff * ds;
-
-        Xpos = XFull;
-    }
-    #endif // VERLET_2
-*/
-
-/*#ifdef VERLET_2
-///finish previous iteration
-{
-    float3 AFull_approx;
-    calculate_V_derivatives(&AFull_approx, Xpos, VFull_approx, scale, dim, GET_STANDARD_ARGS());
-
-    float3 VFull = VHalf + 0.5f * AFull_approx * ds;
-
-    vel = VFull;
-}
-
-///only used in the matter case
-{
-    L += ds * get_dtL(Xpos, vel, L, scale, dim, GET_STANDARD_ARGS());
-}
-
-///next iteration
-ds = get_static_verlet_ds(Xpos, X, scale, dim);
-
-float3 XDiff;
-
-{
-    float3 ABase;
-    calculate_V_derivatives(&ABase, Xpos, vel, scale, dim, GET_STANDARD_ARGS());
-
-    VHalf = vel + 0.5f * ABase * ds;
-
-    VFull_approx = vel + ABase * ds;
-
-    velocity_to_XDiff(&XDiff, Xpos, VHalf, scale, dim, GET_STANDARD_ARGS());
-
-    float3 XFull = Xpos + XDiff * ds;
-
-    Xpos_last = Xpos;
-    Xpos = XFull;
-}*/
-
 #define METHOD_1
 template<typename T>
 struct verlet_context
@@ -1106,9 +1039,10 @@ struct verlet_context
         using namespace single_source;
 
         #ifdef METHOD_1
-        ds = declare_mut_e(get_dS(position_in, velocity_in));
-
         auto acceleration = get_dV(position_in, velocity_in);
+        pin(acceleration);
+
+        ds = declare_mut_e(get_dS(position_in, velocity_in, acceleration));
 
         v_half = declare_mut_e(velocity_in + 0.5f * acceleration * ds);
 
@@ -1138,14 +1072,17 @@ struct verlet_context
         v4f cvelocity = declare_e(velocity);
         valuef cds = declare_e(ds);
 
-        auto AFull_approx = declare_e(get_dV(cposition, cv_full_approx));
+        auto AFull_approx = get_dV(cposition, cv_full_approx);
+        pin(AFull_approx);
 
         auto VFull_next = cv_half + 0.5f * AFull_approx * cds;
+        pin(VFull_next);
 
         as_ref(velocity) = VFull_next;
-        as_ref(ds) = get_dS(cposition, cvelocity);
+        as_ref(ds) = get_dS(cposition, cvelocity, AFull_approx);
 
-        auto ABase = declare_e(get_dV(cposition, as_constant(velocity)));
+        auto ABase = get_dV(cposition, as_constant(velocity));
+        pin(ABase);
 
         as_ref(v_half) = as_constant(velocity) + 0.5f * ABase * as_constant(ds);
         as_ref(v_full_approx) = as_constant(velocity) + ABase * as_constant(ds);
@@ -1159,7 +1096,7 @@ struct verlet_context
         v4f cposition = declare_e(position);
         v4f cvelocity = declare_e(velocity);
 
-        auto ds = get_dS(cposition, cvelocity);
+        auto ds = get_dS(cposition, cvelocity, AFull_approx);
 
         auto v_half = cvelocity + 0.5f * get_dV(cposition, cvelocity) * ds;
         auto x_full = cposition + v_half * ds;
@@ -1202,7 +1139,7 @@ struct euler_context
         auto accel = declare_e(get_dV(cposition, cvelocity));
         auto dPosition = declare_e(get_dX(cposition, cvelocity));
 
-        auto ds = declare_e(get_dS(cposition, cvelocity));
+        auto ds = declare_e(get_dS(cposition, cvelocity, accel));
 
         as_ref(position) = cposition + dPosition * ds;
         as_ref(velocity) = cvelocity + accel * ds;
@@ -1259,6 +1196,8 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
         v3f grid_position = world_to_grid(position.yzw(), dim.get(), scale.get());
         valuef grid_t_frac = position.x() / last_time.get();
         valuef grid_t = grid_t_frac * (valuef)last_slice.get();
+
+        pin(grid_t);
 
         grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
         pin(grid_position);
@@ -1354,12 +1293,21 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
             accel[uu] = -sum;
         }
 
+        pin(accel);
+
         return accel;
     };
 
-    auto get_dS = [&](v4f position, v4f velocity)
+    auto get_dS = [&](v4f position, v4f velocity, v4f acceleration)
     {
-        return valuef(1.f);
+        //valuef pos = position.yzw().length();
+        //return ternary(pos < valuef(10), valuef(1.f), valuef(1.5f));
+
+        valuef dt;
+        acceleration_to_precision(acceleration, 0.0005f, &dt);
+        return dt;
+
+        //return valuef(1.);
     };
 
     verlet_context<v4f> ctx;
@@ -1506,15 +1454,36 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
 
             valuef W = pow(Yij.det(), -1/6.f);*/
 
-            valuef dt = 1.f;// * get_ct_timestep2(W);
-
             ctx.next(get_dX, get_dV, get_dS);
 
-            valuef radius_sq = dot(as_constant(ctx.position).yzw(), as_constant(ctx.position).yzw());
+            v4f cposition = as_constant(ctx.position);
+            v4f cvelocity = as_constant(ctx.velocity);
+
+            valuef radius_sq = dot(cposition.yzw(), cposition.yzw());
 
             if_e(radius_sq > 29*29, [&] {
                 //ray escaped
                 as_ref(result) = valuei(0);
+                break_e();
+            });
+
+            /*if_e(x == screen_width.get()/2 && y == screen_height.get()/2, [&]{
+                value_base se;
+                se.type = value_impl::op::SIDE_EFFECT;
+                se.abstract_value = "printf(\"pos vel x: %f %f\\n\"," + value_to_string(cposition.x()) + "," + value_to_string(cvelocity.x()) + ")";
+                //se.abstract_value = "printf(\"val %f\\n\"," + value_to_string(d_V[0]) + ")";
+                //se.abstract_value = "printf(\"adm: %i\\n\"," + value_to_string(result) + ")";
+
+                value_impl::get_context().add(se);
+            });*/
+
+            /*if_e(as_constant(ctx.velocity).yzw().length() < 0.5f, [&]{
+                as_ref(result) = valuei(1);
+                break_e();
+            });*/
+
+            if_e(cposition.x() < -100.f || fabs(as_constant(ctx.velocity).x()) > 10 || as_constant(ctx.velocity).yzw().length() < 0.2f , [&]{
+                as_ref(result) = valuei(1);
                 break_e();
             });
 
