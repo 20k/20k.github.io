@@ -1362,7 +1362,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
         return valuef(1.f);
     };
 
-    euler_context<v4f> ctx;
+    verlet_context<v4f> ctx;
     ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS);
 
     mut<valuei> result = declare_mut_e(valuei(1));
