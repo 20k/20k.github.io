@@ -558,7 +558,7 @@ struct raytrace_bssn
 
         std::string str4 = value_impl::make_function(trace4x4, "trace4x4");
 
-        cl::program p4 = cl::build_program_with_cache(ctx, {str4}, false);
+        cl::program p4 = cl::build_program_with_cache(ctx, {str4}, false, "-cl-fast-relaxed-math");
 
         ctx.register_program(p4);
 

@@ -1095,58 +1095,53 @@ struct verlet_context
     mut_v4f v_full_approx;
     mut_v4f velocity;
 
-    mut<valuef> ds = 0;
+    mut<valuef> ds;
 
     template<typename dX, typename dV, typename dS>
     void start(const T& position_in, const T& velocity_in, dX&& get_dX, dV&& get_dV, dS&& get_dS)
     {
         using namespace single_source;
 
-        as_ref(ds) = get_dS(position_in);
+        ds = declare_mut_e(get_dS(position_in, velocity_in));
 
         auto acceleration = get_dV(position_in, velocity_in);
 
-        as_ref(v_half) = velocity_in + 0.5f * acceleration * ds;
+        v_half = declare_mut_e(velocity_in + 0.5f * acceleration * ds);
 
-        as_ref(v_full_approx) = velocity_in + acceleration * ds;
+        v_full_approx = declare_mut_e(velocity_in + acceleration * ds);
 
-        auto dPosition = get_dX(position_in, v_half);
+        auto dPosition = get_dX(position_in, as_constant(v_half));
 
-        as_ref(position) = position_in + dPosition * ds;
-        as_ref(velocity) = velocity_in;
+        position = declare_mut_e(position_in + dPosition * ds);
+        velocity = declare_mut_e(velocity_in);
     }
 
     template<typename dX, typename dV, typename dS>
-    verlet_context<T> next(dX&& get_dX, dV&& get_dV, dS&& get_dS)
+    void next(dX&& get_dX, dV&& get_dV, dS&& get_dS)
     {
         using namespace single_source;
 
-        auto AFull_approx = get_dV(position, v_full_approx);
+        v4f cposition = declare_e(position);
+        v4f cv_half = declare_e(v_half);
+        v4f cv_full_approx = declare_e(v_full_approx);
+        v4f cvelocity = declare_e(velocity);
+        valuef cds = declare_e(ds);
 
-        auto VFull_next = v_half + 0.5f * AFull_approx * ds;
+        auto AFull_approx = declare_e(get_dV(cposition, cv_full_approx));
 
-        verlet_context<T> ret;
-        ret.velocity = VFull_next;
-        ret.ds = declare_mut_e(get_dS(position));
+        auto VFull_next = cv_half + 0.5f * AFull_approx * cds;
 
-        auto ABase = get_dV(position, ret.velocity);
+        as_ref(velocity) = VFull_next;
+        as_ref(ds) = get_dS(cposition, cvelocity);
 
-        ret.v_half = declare_mut_e(ret.velocity + 0.5f * ABase * ret.ds);
-        ret.v_full_approx = declare_mut_e(ret.velocity + ABase * ret.ds);
+        auto ABase = declare_e(get_dV(cposition, as_constant(velocity)));
 
-        auto XDiff = get_dX(position, ret.v_half);
+        as_ref(v_half) = as_constant(velocity) + 0.5f * ABase * as_constant(ds);
+        as_ref(v_full_approx) = as_constant(velocity) + ABase * as_constant(ds);
 
-        ret.position = declare_mut_e(position + XDiff * ret.ds);
-        return ret;
-    }
+        auto XDiff = get_dX(cposition, as_constant(v_half));
 
-    void pull(const verlet_context<T>& other)
-    {
-        as_ref(position) = other.position;
-        as_ref(v_half) = other.v_half;
-        as_ref(v_full_approx) = other.v_full_approx;
-        as_ref(velocity) = other.velocity;
-        as_ref(ds) = other.ds;
+        as_ref(position) = cposition + XDiff * as_constant(ds);
     }
 };
 
@@ -1336,7 +1331,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
         return valuef(1.f);
     };
 
-    euler_context<v4f> ctx;
+    verlet_context<v4f> ctx;
     ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS);
 
     mut<valuei> result = declare_mut_e(valuei(1));
