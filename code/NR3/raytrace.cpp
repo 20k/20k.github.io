@@ -1089,80 +1089,97 @@ float3 XDiff;
 template<typename T>
 struct verlet_context
 {
-    T position;
+    mut_v4f position;
 
-    T v_half;
-    T v_full_approx;
-    T velocity;
+    mut_v4f v_half;
+    mut_v4f v_full_approx;
+    mut_v4f velocity;
 
-    valuef ds = 0;
+    mut<valuef> ds = 0;
 
     template<typename dX, typename dV, typename dS>
     void start(const T& position_in, const T& velocity_in, dX&& get_dX, dV&& get_dV, dS&& get_dS)
     {
-        ds = get_dS(position_in);
+        using namespace single_source;
+
+        as_ref(ds) = get_dS(position_in);
 
         auto acceleration = get_dV(position_in, velocity_in);
 
-        v_half = velocity_in + 0.5f * acceleration * ds;
+        as_ref(v_half) = velocity_in + 0.5f * acceleration * ds;
 
-        v_full_approx = velocity_in + acceleration * ds;
+        as_ref(v_full_approx) = velocity_in + acceleration * ds;
 
         auto dPosition = get_dX(position_in, v_half);
 
-        position = position_in + dPosition * ds;
-        velocity = velocity_in;
+        as_ref(position) = position_in + dPosition * ds;
+        as_ref(velocity) = velocity_in;
     }
 
     template<typename dX, typename dV, typename dS>
     verlet_context<T> next(dX&& get_dX, dV&& get_dV, dS&& get_dS)
     {
+        using namespace single_source;
+
         auto AFull_approx = get_dV(position, v_full_approx);
 
         auto VFull_next = v_half + 0.5f * AFull_approx * ds;
 
         verlet_context<T> ret;
         ret.velocity = VFull_next;
-        ret.ds = get_dS(position);
+        ret.ds = declare_mut_e(get_dS(position));
 
         auto ABase = get_dV(position, ret.velocity);
 
-        ret.v_half = ret.velocity + 0.5f * ABase * ret.ds;
-        ret.v_full_approx = ret.velocity + ABase * ret.ds;
+        ret.v_half = declare_mut_e(ret.velocity + 0.5f * ABase * ret.ds);
+        ret.v_full_approx = declare_mut_e(ret.velocity + ABase * ret.ds);
 
         auto XDiff = get_dX(position, ret.v_half);
 
-        ret.position = position + XDiff * ret.ds;
+        ret.position = declare_mut_e(position + XDiff * ret.ds);
         return ret;
+    }
+
+    void pull(const verlet_context<T>& other)
+    {
+        as_ref(position) = other.position;
+        as_ref(v_half) = other.v_half;
+        as_ref(v_full_approx) = other.v_full_approx;
+        as_ref(velocity) = other.velocity;
+        as_ref(ds) = other.ds;
     }
 };
 
 template<typename T>
 struct euler_context
 {
-    T position;
-    T velocity;
+    mut_v4f position;
+    mut_v4f velocity;
 
     template<typename dX, typename dV, typename dS>
     void start(const T& position_in, const T& velocity_in, dX&& get_dX, dV&& get_dV, dS&& get_dS)
     {
-        position = position_in;
-        velocity = position_in;
+        using namespace single_source;
+
+        position = declare_mut_e(position_in);
+        velocity = declare_mut_e(velocity_in);
     }
 
     template<typename dX, typename dV, typename dS>
-    euler_context<T> next(dX&& get_dX, dV&& get_dV, dS&& get_dS)
+    void next(dX&& get_dX, dV&& get_dV, dS&& get_dS)
     {
-        auto accel = get_dV(position, velocity);
-        auto dPosition = get_dX(position, velocity);
+        using namespace single_source;
 
-        auto ds = get_dS(position, velocity);
+        v4f cposition = declare_e(position);
+        v4f cvelocity = declare_e(velocity);
 
-        euler_context<T> ret;
-        ret.position = position + dPosition * ds;
-        ret.velocity = velocity + accel * ds;
+        auto accel = declare_e(get_dV(cposition, cvelocity));
+        auto dPosition = declare_e(get_dX(cposition, cvelocity));
 
-        return ret;
+        auto ds = declare_e(get_dS(cposition, cvelocity));
+
+        as_ref(position) = cposition + dPosition * ds;
+        as_ref(velocity) = cvelocity + accel * ds;
     }
 };
 
@@ -1206,98 +1223,132 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
     v4f pos_in = declare_e(positions[screen_position, screen_size]);
     v4f vel_in = declare_e(velocities[screen_position, screen_size]);
 
+    auto get_dX = [&](v4f position, v4f velocity)
+    {
+        return velocity;
+    };
+
+    auto get_dV = [&](v4f position, v4f velocity)
+    {
+        v3f grid_position = world_to_grid(position.yzw(), dim.get(), scale.get());
+        valuef grid_t_frac = position.x() / last_time.get();
+        valuef grid_t = grid_t_frac * (valuef)last_slice.get();
+
+        grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
+        pin(grid_position);
+
+        v4f grid_fpos = (v4f){grid_t, grid_position.x(), grid_position.y(), grid_position.z()};
+
+        auto get_Guv = [&](v4i pos)
+        {
+            //pos = {pos.w(), pos.x(), pos.y(), pos.z()};
+
+            pos.x() = clamp(pos.x(), valuei(0), last_slice.get() - 1);
+
+            tensor<value<uint64_t>, 3> p = (tensor<value<uint64_t>, 3>)pos.yzw();
+            tensor<value<uint64_t>, 3> d = (tensor<value<uint64_t>, 3>)dim.get();
+
+            ///this might be the problem?
+            value<uint64_t> idx = ((value<uint64_t>)pos.x()) * d.x() * d.y() * d.z() + p.z() * d.x() * d.y() + p.y() * d.x() + p.x();
+
+            int indices[16] = {
+                0, 1, 2, 3,
+                1, 4, 5, 6,
+                2, 5, 7, 8,
+                3, 6, 8, 9,
+            };
+
+            metric<valuef, 4, 4> met;
+
+            for(int i=0; i < 4; i++)
+            {
+                for(int j=0; j < 4; j++)
+                {
+                    met[i, j] = (valuef)Guv_buf[indices[j * 4 + i]][idx];
+                }
+            }
+
+            return met;
+        };
+
+        auto get_guv_at = [&](v4f fpos)
+        {
+            //v4f p = {fpos.y(), fpos.z(), fpos.w(), fpos.x()};
+
+            return function_quadlinear(get_Guv, fpos);
+        };
+
+        auto Guv = get_guv_at(grid_fpos);
+
+        tensor<valuef, 4, 4, 4> dGuv;
+
+        for(int m=0; m < 4; m++)
+        {
+            v4f dir;
+            dir[m] = 1;
+
+            ///oh. The timelike direction obviously doesn't have a gap of scale
+            valuef divisor = 2 * scale.get();
+
+            if(m == 0)
+                divisor = 2 * slice_width.get();
+
+            auto val = (get_guv_at(grid_fpos + dir) - get_guv_at(grid_fpos - dir)) / divisor;
+
+            for(int i=0; i < 4; i++)
+            {
+                for(int j=0; j < 4; j++)
+                {
+                    dGuv[m, i, j] = val[i, j];
+                }
+            }
+        }
+
+        pin(Guv);
+        pin(dGuv);
+
+        auto christoff2 = christoffel_symbols_2(Guv.invert(), dGuv);
+
+        pin(christoff2);
+
+        v4f accel;
+
+        for(int uu=0; uu < 4; uu++)
+        {
+            valuef sum = 0;
+
+            for(int aa = 0; aa < 4; aa++)
+            {
+                for(int bb = 0; bb < 4; bb++)
+                {
+                    sum += velocity[aa] * velocity[bb] * christoff2[uu, aa, bb];
+                }
+            }
+
+            accel[uu] = -sum;
+        }
+
+        return accel;
+    };
+
+    auto get_dS = [&](v4f position, v4f velocity)
+    {
+        return valuef(1.f);
+    };
+
+    euler_context<v4f> ctx;
+    ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS);
+
     mut<valuei> result = declare_mut_e(valuei(1));
     v4f final_position;
 
     ///todo: I think what's happening is that the clamping is breaking my time derivatives
     ///which means we need to change the initial conditions to construct our rays from an earlier point, rather than from the end?
     {
-        mut_v4f position = declare_mut_e(pos_in);
-        mut_v4f velocity = declare_mut_e(vel_in);
-
         mut<valuei> idx = declare_mut_e("i", valuei(0));
 
         for_e(idx < 1024, assign_b(idx, idx + 1), [&]
         {
-            v4f cposition = declare_e(position);
-            v4f cvelocity = declare_e(velocity);
-
-            v3f grid_position = world_to_grid(cposition.yzw(), dim.get(), scale.get());
-            valuef grid_t_frac = cposition.x() / last_time.get();
-            valuef grid_t = grid_t_frac * (valuef)last_slice.get();
-
-            grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
-            pin(grid_position);
-
-            v4f grid_fpos = (v4f){grid_t, grid_position.x(), grid_position.y(), grid_position.z()};
-
-            auto get_Guv = [&](v4i pos)
-            {
-                //pos = {pos.w(), pos.x(), pos.y(), pos.z()};
-
-                pos.x() = clamp(pos.x(), valuei(0), last_slice.get() - 1);
-
-                tensor<value<uint64_t>, 3> p = (tensor<value<uint64_t>, 3>)pos.yzw();
-                tensor<value<uint64_t>, 3> d = (tensor<value<uint64_t>, 3>)dim.get();
-
-                ///this might be the problem?
-                value<uint64_t> idx = ((value<uint64_t>)pos.x()) * d.x() * d.y() * d.z() + p.z() * d.x() * d.y() + p.y() * d.x() + p.x();
-
-                int indices[16] = {
-                    0, 1, 2, 3,
-                    1, 4, 5, 6,
-                    2, 5, 7, 8,
-                    3, 6, 8, 9,
-                };
-
-                metric<valuef, 4, 4> met;
-
-                for(int i=0; i < 4; i++)
-                {
-                    for(int j=0; j < 4; j++)
-                    {
-                        met[i, j] = (valuef)Guv_buf[indices[j * 4 + i]][idx];
-                    }
-                }
-
-                return met;
-            };
-
-            auto get_guv_at = [&](v4f fpos)
-            {
-                //v4f p = {fpos.y(), fpos.z(), fpos.w(), fpos.x()};
-
-                return function_quadlinear(get_Guv, fpos);
-            };
-
-            #if 1
-            auto Guv = get_guv_at(grid_fpos);
-
-            tensor<valuef, 4, 4, 4> dGuv;
-
-            for(int m=0; m < 4; m++)
-            {
-                v4f dir;
-                dir[m] = 1;
-
-                ///oh. The timelike direction obviously doesn't have a gap of scale
-                valuef divisor = 2 * scale.get();
-
-                if(m == 0)
-                    divisor = 2 * slice_width.get();
-
-                auto val = (get_guv_at(grid_fpos + dir) - get_guv_at(grid_fpos - dir)) / divisor;
-
-                for(int i=0; i < 4; i++)
-                {
-                    for(int j=0; j < 4; j++)
-                    {
-                        dGuv[m, i, j] = val[i, j];
-                    }
-                }
-            }
-            #endif
-
             #if 0
             tensor<m44f, 3, 3, 3, 3> block;
 
@@ -1417,30 +1468,6 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
             }
             #endif
 
-            pin(Guv);
-            pin(dGuv);
-
-            auto christoff2 = christoffel_symbols_2(Guv.invert(), dGuv);
-
-            pin(christoff2);
-
-            v4f accel;
-
-            for(int uu=0; uu < 4; uu++)
-            {
-                valuef sum = 0;
-
-                for(int aa = 0; aa < 4; aa++)
-                {
-                    for(int bb = 0; bb < 4; bb++)
-                    {
-                        sum += cvelocity[aa] * cvelocity[bb] * christoff2[uu, aa, bb];
-                    }
-                }
-
-                accel[uu] = -sum;
-            }
-
             /*metric<valuef, 3, 3> Yij;
 
             for(int i=1; i < 4; i++)
@@ -1455,12 +1482,9 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
 
             valuef dt = 1.f;// * get_ct_timestep2(W);
 
-            //valuef dt = 0.01f/accel.length();
+            ctx.next(get_dX, get_dV, get_dS);
 
-            as_ref(position) = cposition + cvelocity * dt;
-            as_ref(velocity) = cvelocity + accel * dt;
-
-            valuef radius_sq = dot(cposition.yzw(), cposition.yzw());
+            valuef radius_sq = dot(as_constant(ctx.position).yzw(), as_constant(ctx.position).yzw());
 
             if_e(radius_sq > 29*29, [&] {
                 //ray escaped
@@ -1468,14 +1492,14 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                 break_e();
             });
 
-            if_e(dot(accel, accel) < 0.2f * 0.2f, [&]
+            /*if_e(dot(accel, accel) < 0.2f * 0.2f, [&]
             {
                 //as_ref(result) = valuei(1);
                 //break_e();
-            });
+            });*/
         });
 
-        final_position = declare_e(position);
+        final_position = declare_e(ctx.position);
     }
 
     mut_v3f col = declare_mut_e((v3f){0,0,0});
