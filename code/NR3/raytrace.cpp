@@ -1076,14 +1076,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
 
             v3f grid_position = world_to_grid(cposition.yzw(), dim.get(), scale.get());
             valuef grid_t_frac = cposition.x() / last_time.get();
-            //valuef grid_t = grid_t_frac * (last_slice.get() - 1);
             valuef grid_t = grid_t_frac * (valuef)last_slice.get();
-
-            ///how does this break stuff?
-            //grid_t = clamp(grid_t, valuef(0.f), (valuef)last_slice.get() - 1);
-
-            ///It sure looks like the slices are being broken
-            //grid_t = (valuef)last_slice.get() - 1;
 
             grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
             pin(grid_position);
@@ -1125,8 +1118,6 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
             auto get_guv_at = [&](v4f fpos)
             {
                 //v4f p = {fpos.y(), fpos.z(), fpos.w(), fpos.x()};
-
-                //fpos.x() = clamp(fpos.x(), valuef(0.f), (valuef)last_slice.get() - 2);
 
                 return function_quadlinear(get_Guv, fpos);
             };
@@ -1301,18 +1292,6 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
 
                 accel[uu] = -sum;
             }
-
-            /*if_e(x == 400 && y == 400, [&]{
-                value_base se;
-                se.type = value_impl::op::SIDE_EFFECT;
-                //se.abstract_value = "printf(\"pos: %f %f %f\\n\"," + value_to_string(Guv[0, 0]) + "," + value_to_string(dGuv[0, 0, 0]) + "," + value_to_string(cvelocity.z()) + ")";
-                se.abstract_value = "printf(\"grid %f pos: %f %f %f\\n\"," + value_to_string(grid_t) + "," + value_to_string(cposition.y()) + "," + value_to_string(cposition.z()) + "," + value_to_string(cposition.w()) + ")";
-                //se.abstract_value = "printf(\"adm: %i\\n\"," + value_to_string(result) + ")";
-
-                value_impl::get_context().add(se);
-            });*/
-
-            //valuef cvellen = (cvelocity.yzw() / cvelocity.x()).length();
 
             /*metric<valuef, 3, 3> Yij;
 
