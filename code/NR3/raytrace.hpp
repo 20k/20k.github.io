@@ -68,7 +68,6 @@ auto function_quadlinear(T&& func, v4f pos)
 
     v4f frac = pos - floored;
 
-
     auto a000 = func(ipos + (v4i){0,0,0,0});
     auto a100 = func(ipos + (v4i){1,0,0,0});
 

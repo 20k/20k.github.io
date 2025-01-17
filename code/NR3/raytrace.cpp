@@ -977,6 +977,47 @@ void bssn_to_guv(execution_context& ectx, literal<v3i> dim, literal<valuef> scal
     }
 }
 
+valuef acceleration_to_precision(v4f acceleration, valuef max_acceleration, valuef* next_ds_out)
+{
+    valuef current_acceleration_err = acceleration.length() * 0.01f;
+
+    valuef experienced_acceleration_change = current_acceleration_err;
+
+    valuef err = max_acceleration;
+
+    //#define MIN_STEP 0.00001f
+    //#define MIN_STEP 0.000001f
+
+    valuef max_timestep = 100000;
+
+    valuef diff = experienced_acceleration_change;
+
+    diff = max(diff, err / pow(max_timestep, 2.f));
+
+    ///of course, as is tradition, whatever works for kerr does not work for alcubierre
+    ///the sqrt error calculation is significantly better for alcubierre, largely in terms of having no visual artifacts at all
+    ///whereas the pow version is nearly 2x faster for kerr
+    valuef next_ds = sqrt(err / diff);
+
+    *next_ds_out = next_ds;
+
+    return diff;
+}
+
+valuef get_ct_timestep2(valuef W)
+{
+    float X_far = 0.9f;
+    float X_near = 0.6f;
+
+    valuef X = W*W;
+
+    valuef my_fraction = (clamp(X, X_near, X_far) - X_near) / (X_far - X_near);
+
+    my_fraction = clamp(my_fraction, 0.f, 1.f);
+
+    return mix(valuef(1.f), valuef(4.f), my_fraction);
+}
+
 ///tomorrow me: try just 4x4ing one slice
 void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
             read_only_image<2> background, write_only_image<2> screen,
@@ -1051,17 +1092,8 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
 
             auto get_Guv = [&](v4i pos)
             {
-                /*if_e(x == 400 && y == 400, [&]{
-                    value_base se;
-                    se.type = value_impl::op::SIDE_EFFECT;
-                    //se.abstract_value = "printf(\"pos: %f %f %f\\n\"," + value_to_string(Guv[0, 0]) + "," + value_to_string(dGuv[0, 0, 0]) + "," + value_to_string(cvelocity.z()) + ")";
-                    se.abstract_value = "printf(\"grid %f pos: %i\\n\"," + value_to_string(grid_t) + "," + value_to_string(pos.x()) + ")";
-                    //se.abstract_value = "printf(\"adm: %i\\n\"," + value_to_string(result) + ")";
+                //pos = {pos.w(), pos.x(), pos.y(), pos.z()};
 
-                    value_impl::get_context().add(se);
-                });*/
-
-                //pos.x() = (valuei)grid_t;
                 pos.x() = clamp(pos.x(), valuei(0), last_slice.get() - 1);
 
                 tensor<value<uint64_t>, 3> p = (tensor<value<uint64_t>, 3>)pos.yzw();
@@ -1092,11 +1124,14 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
 
             auto get_guv_at = [&](v4f fpos)
             {
+                //v4f p = {fpos.y(), fpos.z(), fpos.w(), fpos.x()};
+
                 //fpos.x() = clamp(fpos.x(), valuef(0.f), (valuef)last_slice.get() - 2);
 
                 return function_quadlinear(get_Guv, fpos);
             };
 
+            #if 1
             auto Guv = get_guv_at(grid_fpos);
 
             tensor<valuef, 4, 4, 4> dGuv;
@@ -1106,8 +1141,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                 v4f dir;
                 dir[m] = 1;
 
-                ///oh. The timelike direction obviously doesn't have a gap of scale;
-
+                ///oh. The timelike direction obviously doesn't have a gap of scale
                 valuef divisor = 2 * scale.get();
 
                 if(m == 0)
@@ -1123,6 +1157,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                     }
                 }
             }
+            #endif
 
             #if 0
             tensor<m44f, 3, 3, 3, 3> block;
@@ -1135,18 +1170,76 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                     {
                         for(int i = 0; i < 3; i++)
                         {
-                            v3i off = {i-1, j-1, k-1};
+                            v4i off = {t-1, i-1, j-1, k-1};
 
-                            valuei slice_up = clamp(time_floor + t - 1, valuei(0), last_slice.get() - 1);
+                            //valuei slice_up = clamp(time_floor + t - 1, valuei(0), last_slice.get() - 1);
 
-                            block[t, i, j, k] = get_Guv(grid_floor + off, (value<uint64_t>)slice_up);
+                            block[t, i, j, k] = get_Guv((v4i)grid_fpos + off);
                             //pin(block[t, i, j, k]);
                         }
                     }
                 }
             }
 
-            m44f Guv = block[1, 1, 1, 1];
+            auto funcl = [&]<typename T>(T&& func, v4f frac)
+            {
+                auto a000 = func({0,0,0,0});
+                auto a100 = func({1,0,0,0});
+
+                auto a010 = func({0,1,0,0});
+                auto a110 = func({1,1,0,0});
+
+                auto a001 = func({0,0,1,0});
+                auto a101 = func({1,0,1,0});
+
+                auto a011 = func({0,1,1,0});
+                auto a111 = func({1,1,1,0});
+
+                auto a00 = a000 - frac.x() * (a000 - a100);
+                auto a01 = a001 - frac.x() * (a001 - a101);
+
+                auto a10 = a010 - frac.x() * (a010 - a110);
+                auto a11 = a011 - frac.x() * (a011 - a111);
+
+                auto a0 = a00 - frac.y() * (a00 - a10);
+                auto a1 = a01 - frac.y() * (a01 - a11);
+
+                auto linear_1 = a0 - frac.z() * (a0 - a1);
+
+                auto c000 = func({0,0,0,1});
+                auto c100 = func({1,0,0,1});
+
+                auto c010 = func({0,1,0,1});
+                auto c110 = func({1,1,0,1});
+
+                auto c001 = func({0,0,1,1});
+                auto c101 = func({1,0,1,1});
+
+                auto c011 = func({0,1,1,1});
+                auto c111 = func({1,1,1,1});
+
+                auto c00 = c000 - frac.x() * (c000 - c100);
+                auto c01 = c001 - frac.x() * (c001 - c101);
+
+                auto c10 = c010 - frac.x() * (c010 - c110);
+                auto c11 = c011 - frac.x() * (c011 - c111);
+
+                auto c0 = c00 - frac.y() * (c00 - c10);
+                auto c1 = c01 - frac.y() * (c01 - c11);
+
+                auto linear_2 = c0 - frac.z() * (c0 - c1);
+
+                return linear_1 - frac.w() * (linear_1 - linear_2);
+            };
+
+            m44f Guv = funcl([&](tensor<int, 4> pos)
+            {
+                tensor<int, 4> ipos = pos + (tensor<int, 4>){1, 1, 1, 1};
+
+                return block[ipos.x(), ipos.y(), ipos.z(), ipos.w()];
+            }, grid_fpos - floor(grid_fpos));
+
+            //m44f Guv = block[1, 1, 1, 1];
 
             tensor<valuef, 4, 4, 4> dGuv;
 
@@ -1163,12 +1256,17 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                 metric<valuef, 4, 4> right = block[r.x(), r.y(), r.z(), r.w()];
                 metric<valuef, 4, 4> left = block[l.x(), l.y(), l.z(), l.w()];
 
+                valuef divisor = 2 * scale.get();
+
+                if(m == 0)
+                    divisor = 2 * slice_width.get();
+
                 /*auto dr = (right - Guv) / scale.get();
                 auto dl = (Guv - left) / scale.get();
 
                 auto dG = mix(dl, dr, grid_fpos[m] - floor(grid_fpos[m]));*/
 
-                auto dG = (right - left) / (2 * scale.get());
+                auto dG = (right - left) / divisor;
 
                 for(int i=0; i < 4; i++)
                 {
@@ -1204,7 +1302,6 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                 accel[uu] = -sum;
             }
 
-
             /*if_e(x == 400 && y == 400, [&]{
                 value_base se;
                 se.type = value_impl::op::SIDE_EFFECT;
@@ -1215,7 +1312,23 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                 value_impl::get_context().add(se);
             });*/
 
-            valuef dt = 1.f;
+            //valuef cvellen = (cvelocity.yzw() / cvelocity.x()).length();
+
+            /*metric<valuef, 3, 3> Yij;
+
+            for(int i=1; i < 4; i++)
+            {
+                for(int j=1; j < 4; j++)
+                {
+                    Yij[i - 1, j - 1] = Guv[i, j];
+                }
+            }
+
+            valuef W = pow(Yij.det(), -1/6.f);*/
+
+            valuef dt = 1.f;// * get_ct_timestep2(W);
+
+            //valuef dt = 0.01f/accel.length();
 
             as_ref(position) = cposition + cvelocity * dt;
             as_ref(velocity) = cvelocity + accel * dt;

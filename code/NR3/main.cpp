@@ -526,7 +526,7 @@ struct raytrace_bssn
             return calculate_real_metric(adm.Yij, adm.gA, adm.gB);
         };
 
-        std::string str = value_impl::make_function(build_initial_tetrads<get_metric, bssn_args_mem<buffer<valuef>>, literal<v3i>, literal<valuef>>, "init_tetrads");
+        std::string str = value_impl::make_function(build_initial_tetrads<get_metric, bssn_args_mem<buffer<valuef>>, literal<v3i>, literal<valuef>>, "init_tetrads3");
 
         std::cout << "Got 1 " << str << std::endl;
 
@@ -983,7 +983,7 @@ int main()
                 args.push_back(dim);
                 args.push_back(scale);
 
-                cqueue.exec("init_tetrads", args, {screen_width, screen_height}, {8,8});
+                cqueue.exec("init_tetrads3", args, {screen_width, screen_height}, {8,8});
             }
 
             cl_int is_adm = 0;
