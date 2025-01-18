@@ -929,7 +929,7 @@ int main()
                 cqueue.exec("init_tetrads3", args, {screen_width, screen_height}, {8,8});
             }
 
-            if(render2)
+            if(render2 && rt_bssn.Guv_block.size() > 0)
             {
                 if(!(lock_camera_to_slider || progress_camera_time))
                     camera.s[0] -= rt_bssn.time_between_snapshots*2;
