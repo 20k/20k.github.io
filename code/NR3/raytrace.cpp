@@ -1686,17 +1686,24 @@ void build_raytrace_kernels(cl::context ctx)
     }, {"init_tetrads3"});
 
     cl::async_build_and_cache(ctx, []{
-        auto get_metric = [](v4f position, std::array<buffer<valueh>, 10> in, literal<v3i> dim, literal<valuef> scale, literal<valuef> slice_time_end, literal<valuei> slice_num)
+        auto get_metric = [](v4f position, std::array<buffer<valueh>, 10> in, literal<v3i> dim, literal<valuef> scale, literal<valuef> slice_time_end, literal<valuei> last_slice)
         {
-            /*v3f grid = world_to_grid(position.yzw(), dim.get(), scale.get());
+            v3f grid = world_to_grid(position.yzw(), dim.get(), scale.get());
 
             grid = clamp(grid, (v3f){2,2,2}, (v3f)dim.get() - (v3f){3,3,3});
 
-            adm_variables adm = admf_at(grid, dim.get(), in);
+            auto guv = [&](v4i pos)
+            {
+                return get_Guv(pos, dim.get(), in, last_slice.get());
+            };
 
-            return calculate_real_metric(adm.Yij, adm.gA, adm.gB);*/
+            valuef slice = position.x() / (valuef)slice_time_end.get();
 
-            return metric<valuef, 4, 4>();
+            slice = clamp(slice, valuef(0.f), (valuef)last_slice.get() - 1);
+
+            v4f fpos = {slice, grid.x(), grid.y(), grid.z()};
+
+            return function_quadlinear(guv, fpos);
         };
 
        return value_impl::make_function(build_initial_tetrads<get_metric, std::array<buffer<valueh>, 10>, literal<v3i>, literal<valuef>, literal<valuef>, literal<valuei>>, "init_tetrads4");
