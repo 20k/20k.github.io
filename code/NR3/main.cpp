@@ -519,8 +519,6 @@ struct raytrace_bssn
         build_raytrace_kernels(ctx);
     }
 
-    ///todo: downsample
-    ///todo: need to go up to at least 200 time
     ///shower thought: could use a circular buffer here
     void capture_snapshots(cl::context ctx, cl::command_queue cqueue, float dt, mesh& m)
     {
@@ -984,7 +982,7 @@ int main()
                 args.push_back(m.dim);
                 args.push_back(full_scale);
 
-                m.buffers[buf].append_to(args);
+                m.buffers[ ].append_to(args);
 
                 for(auto& i : m.derivatives)
                     args.push_back(i);
@@ -1013,66 +1011,6 @@ int main()
 
                 cqueue.exec("trace4x4", args, {screen_width, screen_height}, {8, 8});
             }
-
-            #if 0
-            if(render2)
-            {
-                if(rt_bssn.snapshots.size() >= 2)
-                {
-                    std::vector<cl::buffer> derivs_next;
-                    std::vector<cl::buffer> derivs_cur;
-
-                    for(int i=0; i < 11 * 3; i++)
-                    {
-                        derivs_next.emplace_back(ctx);
-                        derivs_next.back().alloc(sizeof(derivative_t::interior_type) * int64_t{m.dim.x()} * m.dim.y() * m.dim.z());
-
-                        derivs_cur.emplace_back(ctx);
-                        derivs_cur.back().alloc(sizeof(derivative_t::interior_type) * int64_t{m.dim.x()} * m.dim.y() * m.dim.z());
-                    }
-
-                    rt_bssn.results.set_to_zero(cqueue);
-
-                    m.calculate_derivatives_for(cqueue, rt_bssn.snapshots.back(), derivs_next);
-
-                    float time_start = elapsed_t;
-
-                    for(int i=(int)rt_bssn.snapshots.size() - 1; i >= 1; i--)
-                    {
-                        auto& next = rt_bssn.snapshots[i];
-                        auto& current = rt_bssn.snapshots[i - 1];
-
-                        float next_time = time_start;
-                        float current_time = time_start - timestep;
-                        time_start -= timestep;
-
-                        m.calculate_derivatives_for(cqueue, current, derivs_cur);
-                        m.calculate_derivatives_for(cqueue, next, derivs_next);
-
-                        cl::args args;
-                        args.push_back(screen_width, screen_height);
-                        args.push_back(background, screen_tex);
-                        args.push_back(bwidth, bheight, cq, rt_bssn.position, rt_bssn.velocity, dim, scale);
-                        args.push_back(current_time, next_time);
-
-                        current.append_to(args);
-                        next.append_to(args);
-
-                        for(auto& i : derivs_cur)
-                            args.push_back(i);
-
-                        for(auto& i : derivs_next)
-                            args.push_back(i);
-
-                        args.push_back(rt_bssn.results);
-
-                        cqueue.exec("trace4", args, {screen_width, screen_height}, {8, 8});
-
-                        std::swap(derivs_next, derivs_cur);
-                    }
-                }
-            }
-            #endif
         }
 
         /*{
