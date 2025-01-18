@@ -1332,21 +1332,29 @@ void build_raytrace_kernels(cl::context ctx)
     cl::async_build_and_cache(ctx, []{
         auto get_metric = [](v4f position, bssn_args_mem<buffer<valuef>> in, literal<v3i> dim, literal<valuef> scale)
         {
+            using namespace single_source;
+
             v3f grid = world_to_grid(position.yzw(), dim.get(), scale.get());
 
             grid = clamp(grid, (v3f){2,2,2}, (v3f)dim.get() - (v3f){3,3,3});
 
+            pin(grid);
+
             adm_variables adm = admf_at(grid, dim.get(), in);
 
-            return calculate_real_metric(adm.Yij, adm.gA, adm.gB);
+            auto met = calculate_real_metric(adm.Yij, adm.gA, adm.gB);
+            pin(met);
+            return met;
         };
 
-       return value_impl::make_function(build_initial_tetrads<get_metric, bssn_args_mem<buffer<valuef>>, literal<v3i>, literal<valuef>>, "init_tetrads3");
+        return value_impl::make_function(build_initial_tetrads<get_metric, bssn_args_mem<buffer<valuef>>, literal<v3i>, literal<valuef>>, "init_tetrads3");
     }, {"init_tetrads3"});
 
     cl::async_build_and_cache(ctx, []{
         auto get_metric = [](v4f position, std::array<buffer<valueh>, 10> in, literal<v3i> dim, literal<valuef> scale, literal<valuef> slice_time_end, literal<valuei> last_slice)
         {
+            using namespace single_source;
+
             v3f grid = world_to_grid(position.yzw(), dim.get(), scale.get());
 
             grid = clamp(grid, (v3f){2,2,2}, (v3f)dim.get() - (v3f){3,3,3});
@@ -1362,10 +1370,14 @@ void build_raytrace_kernels(cl::context ctx)
 
             v4f fpos = {slice, grid.x(), grid.y(), grid.z()};
 
-            return function_quadlinear(guv, fpos);
+            pin(fpos);
+
+            auto met = function_quadlinear(guv, fpos);
+            pin(met);
+            return met;
         };
 
-       return value_impl::make_function(build_initial_tetrads<get_metric, std::array<buffer<valueh>, 10>, literal<v3i>, literal<valuef>, literal<valuef>, literal<valuei>>, "init_tetrads4");
+        return value_impl::make_function(build_initial_tetrads<get_metric, std::array<buffer<valueh>, 10>, literal<v3i>, literal<valuef>, literal<valuef>, literal<valuei>>, "init_tetrads4");
     }, {"init_tetrads4"});
 
     cl::async_build_and_cache(ctx, []{
