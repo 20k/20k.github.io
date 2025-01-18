@@ -1290,6 +1290,36 @@ struct euler_context
     }
 };
 
+metric<valuef, 4, 4> get_Guv(v4i grid_pos, v3i dim, std::array<buffer<valueh>, 10> Guv_buf, valuei last_slice)
+{
+    grid_pos.x() = clamp(grid_pos.x(), valuei(0), last_slice - 1);
+
+    tensor<value<uint64_t>, 3> p = (tensor<value<uint64_t>, 3>)grid_pos.yzw();
+    tensor<value<uint64_t>, 3> d = (tensor<value<uint64_t>, 3>)dim;
+
+    ///this might be the problem?
+    value<uint64_t> idx = ((value<uint64_t>)grid_pos.x()) * d.x() * d.y() * d.z() + p.z() * d.x() * d.y() + p.y() * d.x() + p.x();
+
+    int indices[16] = {
+        0, 1, 2, 3,
+        1, 4, 5, 6,
+        2, 5, 7, 8,
+        3, 6, 8, 9,
+    };
+
+    metric<valuef, 4, 4> met;
+
+    for(int i=0; i < 4; i++)
+    {
+        for(int j=0; j < 4; j++)
+        {
+            met[i, j] = (valuef)Guv_buf[indices[j * 4 + i]][idx];
+        }
+    }
+
+    return met;
+}
+
 ///tomorrow me: try just 4x4ing one slice
 void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
             read_only_image<2> background, write_only_image<2> screen,
@@ -1348,43 +1378,16 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
 
         v4f grid_fpos = (v4f){grid_t, grid_position.x(), grid_position.y(), grid_position.z()};
 
-        auto get_Guv = [&](v4i pos)
+        auto get_Guvb = [&](v4i pos)
         {
-            //pos = {pos.w(), pos.x(), pos.y(), pos.z()};
-
-            pos.x() = clamp(pos.x(), valuei(0), last_slice.get() - 1);
-
-            tensor<value<uint64_t>, 3> p = (tensor<value<uint64_t>, 3>)pos.yzw();
-            tensor<value<uint64_t>, 3> d = (tensor<value<uint64_t>, 3>)dim.get();
-
-            ///this might be the problem?
-            value<uint64_t> idx = ((value<uint64_t>)pos.x()) * d.x() * d.y() * d.z() + p.z() * d.x() * d.y() + p.y() * d.x() + p.x();
-
-            int indices[16] = {
-                0, 1, 2, 3,
-                1, 4, 5, 6,
-                2, 5, 7, 8,
-                3, 6, 8, 9,
-            };
-
-            metric<valuef, 4, 4> met;
-
-            for(int i=0; i < 4; i++)
-            {
-                for(int j=0; j < 4; j++)
-                {
-                    met[i, j] = (valuef)Guv_buf[indices[j * 4 + i]][idx];
-                }
-            }
-
-            return met;
+            return get_Guv(pos, dim.get(), Guv_buf, last_slice.get());
         };
 
         auto get_guv_at = [&](v4f fpos)
         {
             //v4f p = {fpos.y(), fpos.z(), fpos.w(), fpos.x()};
 
-            return function_quadlinear(get_Guv, fpos);
+            return function_quadlinear(get_Guvb, fpos);
         };
 
         auto Guv = get_guv_at(grid_fpos);
@@ -1681,6 +1684,23 @@ void build_raytrace_kernels(cl::context ctx)
 
        return value_impl::make_function(build_initial_tetrads<get_metric, bssn_args_mem<buffer<valuef>>, literal<v3i>, literal<valuef>>, "init_tetrads3");
     }, {"init_tetrads3"});
+
+    cl::async_build_and_cache(ctx, []{
+        auto get_metric = [](v4f position, std::array<buffer<valueh>, 10> in, literal<v3i> dim, literal<valuef> scale, literal<valuef> slice_time_end, literal<valuei> slice_num)
+        {
+            /*v3f grid = world_to_grid(position.yzw(), dim.get(), scale.get());
+
+            grid = clamp(grid, (v3f){2,2,2}, (v3f)dim.get() - (v3f){3,3,3});
+
+            adm_variables adm = admf_at(grid, dim.get(), in);
+
+            return calculate_real_metric(adm.Yij, adm.gA, adm.gB);*/
+
+            return metric<valuef, 4, 4>();
+        };
+
+       return value_impl::make_function(build_initial_tetrads<get_metric, std::array<buffer<valueh>, 10>, literal<v3i>, literal<valuef>, literal<valuef>, literal<valuei>>, "init_tetrads4");
+    }, {"init_tetrads4"});
 
     cl::async_build_and_cache(ctx, []{
         return value_impl::make_function(trace3, "trace3");
