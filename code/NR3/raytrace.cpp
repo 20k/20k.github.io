@@ -485,20 +485,9 @@ void init_rays3(execution_context& ectx, literal<valuei> screen_width, literal<v
 
     pin(grid_position);
 
-    ///need to differentiate some of these variables in the regular adm stuff sighghghgh
     v3f ray_direction = get_ray_through_pixel(screen_position, screen_size, 90, camera_quat.get());
 
     geodesic my_geodesic = make_lightlike_geodesic(position[0], ray_direction, tetrads);
-
-    adm_variables init_adm = admf_at(grid_position, dim.get(), in);
-
-    tensor<valuef, 4> normal = get_adm_hypersurface_normal_raised(init_adm.gA, init_adm.gB);
-    tensor<valuef, 4> normal_lowered = get_adm_hypersurface_normal_lowered(init_adm.gA);
-
-    valuef E = -sum_multiply(my_geodesic.velocity, normal_lowered);
-
-    ///98% sure this is wrong, but past me had a lot of qualms about this and was careful so...
-    tensor<valuef, 4> adm_velocity = -((my_geodesic.velocity / E) - normal);
 
     /*if_e(x == 0 && y == 0, [&]{
         value_base se;
@@ -514,6 +503,17 @@ void init_rays3(execution_context& ectx, literal<valuei> screen_width, literal<v
     as_ref(positions_out[out_pos, out_dim]) = my_geodesic.position;
 
     if_e(is_adm.get() == 1, [&]{
+
+        adm_variables init_adm = admf_at(grid_position, dim.get(), in);
+
+        tensor<valuef, 4> normal = get_adm_hypersurface_normal_raised(init_adm.gA, init_adm.gB);
+        tensor<valuef, 4> normal_lowered = get_adm_hypersurface_normal_lowered(init_adm.gA);
+
+        valuef E = -sum_multiply(my_geodesic.velocity, normal_lowered);
+
+        ///98% sure this is wrong, but past me had a lot of qualms about this and was careful so...
+        tensor<valuef, 4> adm_velocity = -((my_geodesic.velocity / E) - normal);
+
         as_ref(velocities_out[out_pos, out_dim]) = adm_velocity;
     });
 
@@ -1697,7 +1697,7 @@ void build_raytrace_kernels(cl::context ctx)
                 return get_Guv(pos, dim.get(), in, last_slice.get());
             };
 
-            valuef slice = position.x() / (valuef)slice_time_end.get();
+            valuef slice = (position.x() / (valuef)slice_time_end.get()) * (valuef)last_slice.get();
 
             slice = clamp(slice, valuef(0.f), (valuef)last_slice.get() - 1);
 

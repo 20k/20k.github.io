@@ -897,6 +897,7 @@ int main()
             int buf = m.valid_derivative_buffer;
 
             ///so. The derivatigves are last valid for [2], which is super *super* hacky if I'm doing it like this
+            if(render)
             {
                 cl_float3 vel = {0,0,0};
 
@@ -909,6 +910,27 @@ int main()
                 args.push_back(full_scale);
 
                 cqueue.exec("init_tetrads3", args, {screen_width, screen_height}, {8,8});
+            }
+
+            if(render2)
+            {
+                camera.s[0] -= rt_bssn.time_between_snapshots;
+
+                cl_float3 vel = {0,0,0};
+
+                cl::args args;
+                args.push_back(camera, vel, gpu_position,
+                               tetrads[0], tetrads[1], tetrads[2], tetrads[3]);
+
+                for(auto& i : rt_bssn.Guv_block)
+                    args.push_back(i);
+
+                args.push_back(rt_bssn.reduced_dim);
+                args.push_back(reduced_scale);
+                args.push_back(rt_bssn.last_dt);
+                args.push_back(rt_bssn.captured_slices);
+
+                cqueue.exec("init_tetrads4", args, {screen_width, screen_height}, {8,8});
             }
 
             cl_int is_adm = 0;
