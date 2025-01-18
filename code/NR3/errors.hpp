@@ -1,11 +1,11 @@
 #ifndef ERRORS_HPP_INCLUDED
 #define ERRORS_HPP_INCLUDED
 
-#include <string>
+#include <toolkit/opencl.hpp>
 
-std::string make_cG_error(int idx);
-std::string make_momentum_error(int idx);
-std::string make_hamiltonian_error();
-std::string make_global_sum();
+void make_cG_error(cl::context ctx, int idx);
+void make_momentum_error(cl::context ctx, int idx);
+void make_hamiltonian_error(cl::context ctx);
+void make_global_sum(cl::context ctx);
 
 #endif // ERRORS_HPP_INCLUDED

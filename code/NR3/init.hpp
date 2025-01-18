@@ -5,6 +5,7 @@
 #include <array>
 #include "../common/value2.hpp"
 #include "../common/vec/tensor.hpp"
+#include <toolkit/opencl.hpp>
 
 using valuef = value<float>;
 using valued = value<double>;
@@ -38,7 +39,7 @@ struct bssn_args;
 
 adm_variables bssn_to_adm(const bssn_args& args);
 
-std::string make_initial_conditions();
-std::string init_christoffel();
+void make_initial_conditions(cl::context ctx);
+void init_christoffel(cl::context ctx);
 
 #endif // INIT_HPP_INCLUDED

@@ -167,9 +167,9 @@ adm_variables make_adm_variables(T&& func, v4f position)
     return adm;
 }
 
-std::string make_initial_conditions()
+void make_initial_conditions(cl::context ctx)
 {
-    auto init = [&](execution_context&, bssn_args_mem<buffer_mut<valuef>> to_fill, literal<v3i> ldim, literal<valuef> scale) {
+    auto init = [](execution_context&, bssn_args_mem<buffer_mut<valuef>> to_fill, literal<v3i> ldim, literal<valuef> scale) {
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);
@@ -215,12 +215,14 @@ std::string make_initial_conditions()
         as_ref(to_fill.K[lid]) = K;
     };
 
-    return value_impl::make_function(init, "init");
+    cl::async_build_and_cache(ctx, [=] {
+        return value_impl::make_function(init, "init");
+    }, {"init"});
 }
 
-std::string init_christoffel()
+void init_christoffel(cl::context ctx)
 {
-     auto init = [&](execution_context&, bssn_args_mem<buffer_mut<valuef>> to_fill, literal<v3i> ldim, literal<valuef> scale) {
+     auto init = [](execution_context&, bssn_args_mem<buffer_mut<valuef>> to_fill, literal<v3i> ldim, literal<valuef> scale) {
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);
@@ -294,5 +296,8 @@ std::string init_christoffel()
         }
      };
 
-     return value_impl::make_function(init, "init_christoffel");
+
+    cl::async_build_and_cache(ctx, [=] {
+        return value_impl::make_function(init, "init_christoffel");
+    }, {"init_christoffel"});
 }

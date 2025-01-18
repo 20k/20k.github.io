@@ -45,9 +45,9 @@ valuef kreiss_oliger_interior(valuef in, int order)
     return prefix * val;
 }
 
-std::string make_kreiss_oliger()
+void make_kreiss_oliger(cl::context ctx)
 {
-     auto func = [&](execution_context&, buffer<valuef> in, buffer_mut<valuef> out, buffer<valuef> W, literal<v3i> ldim, literal<valuef> scale, literal<valuef> eps) {
+    auto func = [](execution_context&, buffer<valuef> in, buffer_mut<valuef> out, buffer<valuef> W, literal<v3i> ldim, literal<valuef> scale, literal<valuef> eps) {
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);
@@ -103,7 +103,9 @@ std::string make_kreiss_oliger()
 
             value_impl::get_context().add(se);
         });*/
-     };
+    };
 
-     return value_impl::make_function(func, "kreiss_oliger");
+    cl::async_build_and_cache(ctx, [=] {
+        return value_impl::make_function(func, "kreiss_oliger");
+    }, {"kreiss_oliger"});
 }

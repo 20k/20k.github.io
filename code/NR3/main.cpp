@@ -697,47 +697,17 @@ int main()
     make_momentum_constraint(ctx);
     enforce_algebraic_constraints(ctx);
     make_sommerfeld(ctx);
-
-    std::jthread build_thread([&]()
-    {
-        steady_timer btime;
-
-        #if 1
-        std::vector<std::jthread> threads;
-
-        auto make_and_register = [&](const std::string& str)
-        {
-            cl::program p1 = cl::build_program_with_cache(ctx, {str}, false);
-
-            ctx.register_program(p1);
-        };
-
-        #define THREAD(x) threads.emplace_back([&](){make_and_register(x); printf("Buildy " #x "\n");});
-
-        THREAD(make_initial_conditions());
-        THREAD(init_christoffel());
-        THREAD(make_kreiss_oliger());
-        THREAD(make_hamiltonian_error());
-        THREAD(make_global_sum());
-        THREAD(make_momentum_error(0));
-        THREAD(make_momentum_error(1));
-        THREAD(make_momentum_error(2));
-        THREAD(make_cG_error(0));
-        THREAD(make_cG_error(1));
-        THREAD(make_cG_error(2));
-
-        for(auto& i : threads)
-            i.join();
-
-        std::cout << "Btime " << btime.get_elapsed_time_s() << std::endl;
-
-        printf("Built kernels\n");
-        #endif
-
-        //cl::async_build_and_cache(ctx, make_derivatives, )
-    });
-
-    build_thread.join();
+    make_initial_conditions(ctx);
+    init_christoffel(ctx);
+    make_kreiss_oliger(ctx);
+    make_hamiltonian_error(ctx);
+    make_global_sum(ctx);
+    make_momentum_error(ctx, 0);
+    make_momentum_error(ctx, 1);
+    make_momentum_error(ctx, 2);
+    make_cG_error(ctx, 0);
+    make_cG_error(ctx, 1);
+    make_cG_error(ctx, 2);
 
     cl::command_queue cqueue(ctx);
 
