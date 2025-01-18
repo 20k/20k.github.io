@@ -516,58 +516,7 @@ struct raytrace_bssn
 
     raytrace_bssn(cl::context& ctx) : position(ctx), velocity(ctx), results(ctx)
     {
-        auto get_metric = [](v4f position, bssn_args_mem<buffer<valuef>> in, literal<v3i> dim, literal<valuef> scale)
-        {
-            v3f grid = world_to_grid(position.yzw(), dim.get(), scale.get());
-
-            grid = clamp(grid, (v3f){2,2,2}, (v3f)dim.get() - (v3f){3,3,3});
-
-            adm_variables adm = admf_at(grid, dim.get(), in);
-
-            return calculate_real_metric(adm.Yij, adm.gA, adm.gB);
-        };
-
-        std::string str = value_impl::make_function(build_initial_tetrads<get_metric, bssn_args_mem<buffer<valuef>>, literal<v3i>, literal<valuef>>, "init_tetrads3");
-
-        std::cout << "Got 1 " << str << std::endl;
-
-        cl::program p1 = cl::build_program_with_cache(ctx, {str}, false);
-
-        ctx.register_program(p1);
-
-        std::string str2 = value_impl::make_function(trace3, "trace3");
-
-        std::cout << "Got 2 " << str2 << std::endl;
-
-        cl::program p2 = cl::build_program_with_cache(ctx, {str2}, false);
-
-        ctx.register_program(p2);
-
-        std::string str3 = value_impl::make_function(init_rays3, "init_rays3");
-
-        cl::program p3 = cl::build_program_with_cache(ctx, {str3}, false);
-
-        ctx.register_program(p3);
-
-        #if 0
-        std::string str4 = value_impl::make_function(trace4, "trace4");
-
-        cl::program p4 = cl::build_program_with_cache(ctx, {str4}, false);
-
-        ctx.register_program(p4);
-        #endif
-
-        std::string str4 = value_impl::make_function(trace4x4, "trace4x4");
-
-        cl::program p4 = cl::build_program_with_cache(ctx, {str4}, false, "-cl-fast-relaxed-math");
-
-        ctx.register_program(p4);
-
-        std::string str5 = value_impl::make_function(bssn_to_guv, "bssn_to_guv");
-
-        cl::program p5 = cl::build_program_with_cache(ctx, {str5}, false);
-
-        ctx.register_program(p5);
+        build_raytrace_kernels(ctx);
     }
 
     ///todo: downsample

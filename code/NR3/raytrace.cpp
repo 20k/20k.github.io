@@ -1537,3 +1537,37 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
         screen.write(ectx, {x, y}, crgba);
     });
 }
+
+void build_raytrace_kernels(cl::context ctx)
+{
+    cl::async_build_and_cache(ctx, []{
+        auto get_metric = [](v4f position, bssn_args_mem<buffer<valuef>> in, literal<v3i> dim, literal<valuef> scale)
+        {
+            v3f grid = world_to_grid(position.yzw(), dim.get(), scale.get());
+
+            grid = clamp(grid, (v3f){2,2,2}, (v3f)dim.get() - (v3f){3,3,3});
+
+            adm_variables adm = admf_at(grid, dim.get(), in);
+
+            return calculate_real_metric(adm.Yij, adm.gA, adm.gB);
+        };
+
+       return value_impl::make_function(build_initial_tetrads<get_metric, bssn_args_mem<buffer<valuef>>, literal<v3i>, literal<valuef>>, "init_tetrads3");
+    }, {"init_tetrads3"});
+
+    cl::async_build_and_cache(ctx, []{
+        return value_impl::make_function(trace3, "trace3");
+    }, {"trace3"});
+
+    cl::async_build_and_cache(ctx, []{
+        return value_impl::make_function(init_rays3, "init_rays3");
+    }, {"init_rays3"});
+
+    cl::async_build_and_cache(ctx, []{
+        return value_impl::make_function(bssn_to_guv, "bssn_to_guv");
+    }, {"bssn_to_guv"});
+
+    cl::async_build_and_cache(ctx, []{
+        return value_impl::make_function(trace4x4, "trace4x4");
+    }, {"trace4x4"}, "-cl-fast-relaxed-math");
+}

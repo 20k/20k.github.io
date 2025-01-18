@@ -605,4 +605,6 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
     as_ref(e3_out[0]) = boosted.v[3];
 }
 
+void build_raytrace_kernels(cl::context ctx);
+
 #endif // RAYTRACE_HPP_INCLUDED
