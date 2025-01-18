@@ -522,6 +522,38 @@ void init_rays3(execution_context& ectx, literal<valuei> screen_width, literal<v
     });
 }
 
+v3f fix_ray_position_cart(v3f cartesian_pos, v3f cartesian_velocity, float sphere_radius)
+{
+    using namespace single_source;
+
+    cartesian_velocity = cartesian_velocity.norm();
+
+    v3f C = (v3f){0,0,0};
+
+    valuef a = 1;
+    valuef b = 2 * dot(cartesian_velocity, (cartesian_pos - C));
+    valuef c = dot(C, C) + dot(cartesian_pos, cartesian_pos) - 2 * dot(cartesian_pos, C) - sphere_radius * sphere_radius;
+
+    valuef discrim = b*b - 4 * a * c;
+
+    mut_v3f out = declare_mut_e(cartesian_pos);
+
+    if_e(discrim >= 0, [&]{
+        valuef t0 = (-b - sqrt(discrim)) / (2 * a);
+        valuef t1 = (-b + sqrt(discrim)) / (2 * a);
+
+        mut<valuef> my_t = declare_mut_e(t1);
+
+        if_e(fabs(t0) < fabs(t1), [&]{
+            as_ref(my_t) = t0;
+        });
+
+        as_ref(out) = cartesian_pos + declare_e(my_t) * cartesian_velocity;
+    });
+
+    return declare_e(out);
+}
+
 ///todo: figure out the projection
 void trace3(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
                      read_only_image<2> background, write_only_image<2> screen,
@@ -559,6 +591,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
     mut<valuei> result = declare_mut_e(valuei(1));
     v3f final_position;
+    v3f final_velocity;
 
     {
         mut_v3f position = declare_mut_e(pos_in);
@@ -693,12 +726,15 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
         });
 
         final_position = declare_e(position);
+        final_velocity = declare_e(velocity);
     }
 
     mut_v3f col = declare_mut_e((v3f){0,0,0});
 
     if_e(result == 0, [&] {
-        v3f spherical = cartesian_to_spherical(final_position);
+        v3f fixed_pos = fix_ray_position_cart(final_position, final_velocity, 29);
+
+        v3f spherical = cartesian_to_spherical(fixed_pos);
 
         valuef theta = spherical[1];
         valuef phi = spherical[2];
@@ -1117,7 +1153,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
         //return ternary(pos < valuef(10), valuef(1.f), valuef(1.5f));
 
         valuef dt;
-        acceleration_to_precision(acceleration, 0.00025f, &dt);
+        acceleration_to_precision(acceleration, 0.0001f, &dt);
         return dt;
     };
 
@@ -1294,7 +1330,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                 break_e();
             });*/
 
-            if_e(cposition.x() < -100.f || fabs(cvelocity.x()) > 10 || cvelocity.yzw().length() < 0.2f , [&]{
+            if_e(cposition.x() < -100.f || fabs(cvelocity.x()) > 20 || cvelocity.yzw().length() < 0.1f, [&]{
                 as_ref(result) = valuei(1);
                 break_e();
             });
@@ -1312,8 +1348,10 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
 
     mut_v3f col = declare_mut_e((v3f){0,0,0});
 
-    if_e(result == 0, [&] {
-        v3f spherical = cartesian_to_spherical(final_position.yzw());
+    if_e(result == 0, [&]{
+        v3f fixed_pos = fix_ray_position_cart(final_position.yzw(), final_velocity.yzw(), 29);
+
+        v3f spherical = cartesian_to_spherical(fixed_pos);
 
         valuef theta = spherical[1];
         valuef phi = spherical[2];
