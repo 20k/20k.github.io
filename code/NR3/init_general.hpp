@@ -198,11 +198,9 @@ struct initial_conditions
                 as_ref(inout[lid]) = as_constant(inout[lid]) + in[lid];
             };
 
-            std::string str = value_impl::make_function(sum_buffers, "sum_buffers");
-
-            cl::program prog = cl::build_program_with_cache(ctx, {str}, false);
-
-            ctx.register_program(prog);
+            cl::async_build_and_cache(ctx, [=]{
+                return value_impl::make_function(sum_buffers, "sum_buffers");
+            }, {"sum_buffers"});
         }
 
         {
@@ -238,9 +236,9 @@ struct initial_conditions
                 as_ref(aij_aIJ_out[lid]) = sum_multiply(aij, aIJ);
             };
 
-            cl::program calc = cl::build_program_with_cache(ctx, {value_impl::make_function(calculate_aijaIJ, "aijaij")}, false);
-
-            ctx.register_program(calc);
+            cl::async_build_and_cache(ctx, [=]{
+                return value_impl::make_function(calculate_aijaIJ, "aijaij");
+            }, {"aijaij"});
         }
 
         {
@@ -315,9 +313,9 @@ struct initial_conditions
                 });
             };
 
-            cl::program calc = cl::build_program_with_cache(ctx, {value_impl::make_function(laplace_rb_mg, "laplace_rb_mg")}, false);
-
-            ctx.register_program(calc);
+            cl::async_build_and_cache(ctx, [=]{
+                return value_impl::make_function(laplace_rb_mg, "laplace_rb_mg");
+            }, {"laplace_rb_mg"});
         }
 
         {
@@ -396,19 +394,15 @@ struct initial_conditions
                     as_ref(out.gB[i][lid]) = gB[i];
             };
 
-            std::string str = value_impl::make_function(calculate_bssn_variables, "calculate_bssn_variables");
-
-            cl::program p = cl::build_program_with_cache(ctx, {str}, false);
-
-            ctx.register_program(p);
+            cl::async_build_and_cache(ctx, [=]{
+                return value_impl::make_function(calculate_bssn_variables, "calculate_bssn_variables");
+            }, {"calculate_bssn_variables"});
         }
 
         {
-            std::string str = value_impl::make_function(upscale_buffer, "upscale");
-
-            cl::program p = cl::build_program_with_cache(ctx, {str}, false);
-
-            ctx.register_program(p);
+            cl::async_build_and_cache(ctx, [=]{
+                return value_impl::make_function(upscale_buffer, "upscale");
+            }, {"upscale"});
         }
 
         {
@@ -425,11 +419,9 @@ struct initial_conditions
                 as_ref(out[0]) = buffer_read_linear(buf, pos.get(), dim.get());
             };
 
-            std::string str = value_impl::make_function(fetch_linear, "fetch_linear");
-
-            cl::program p = cl::build_program_with_cache(ctx, {str}, false);
-
-            ctx.register_program(p);
+            cl::async_build_and_cache(ctx, [=]{
+                return value_impl::make_function(fetch_linear, "fetch_linear");
+            }, {"fetch_linear"});
         }
     }
 
