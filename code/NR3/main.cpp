@@ -508,6 +508,7 @@ struct raytrace_bssn
     float last_dt = 0.f;
     int captured_slices = 0;
     float time_between_snapshots = 4;
+    t3i reduced_dim = {101, 101, 101};
 
     //std::vector<bssn_buffer_pack> snapshots;
 
@@ -571,11 +572,10 @@ struct raytrace_bssn
 
     ///todo: downsample
     ///todo: need to go up to at least 200 time
+    ///shower thought: could use a circular buffer here
     void capture_snapshots(cl::context ctx, cl::command_queue cqueue, float dt, mesh& m)
     {
-        float scale = get_scale(m.simulation_width, m.dim);
-
-        int slices = 40;
+        int slices = 60;
 
         if(captured_slices == 0)
         {
@@ -584,7 +584,7 @@ struct raytrace_bssn
 
             for(auto& i : Guv_block)
             {
-                uint64_t array_size = sizeof(cl_half) * int64_t{m.dim.x()} * m.dim.y() * m.dim.z();
+                uint64_t array_size = sizeof(cl_half) * int64_t{reduced_dim.x()} * reduced_dim.y() * reduced_dim.z();
 
                 i.alloc(array_size * slices);
                 i.set_to_zero(cqueue);
@@ -600,19 +600,17 @@ struct raytrace_bssn
         elapsed_dt = std::max(elapsed_dt, 0.f);
         last_dt += time_between_snapshots;
 
-        uint64_t offset = uint64_t{captured_slices} * uint64_t{m.dim.x()} * m.dim.y() * m.dim.z();
-
         cl::args args;
-        args.push_back(m.dim, scale);
+        args.push_back(m.dim, reduced_dim);
 
         m.buffers[m.valid_derivative_buffer].append_to(args);
 
         for(auto& i : Guv_block)
             args.push_back(i);
 
-        args.push_back(offset);
+        args.push_back(uint64_t{captured_slices});
 
-        cqueue.exec("bssn_to_guv", args, {m.dim.x(), m.dim.y(), m.dim.z()}, {8,8,1});
+        cqueue.exec("bssn_to_guv", args, {reduced_dim.x(), reduced_dim.y(), reduced_dim.z()}, {8,8,1});
 
         printf("Captured %i\n", captured_slices);
 
@@ -693,10 +691,18 @@ int main()
 
     t3i dim = {213, 213, 213};
 
+    make_derivatives(ctx);
+    make_bssn(ctx, dim);
+    init_debugging(ctx);
+    make_momentum_constraint(ctx);
+    enforce_algebraic_constraints(ctx);
+    make_sommerfeld(ctx);
+
     std::jthread build_thread([&]()
     {
         steady_timer btime;
 
+        #if 1
         std::vector<std::jthread> threads;
 
         auto make_and_register = [&](const std::string& str)
@@ -708,12 +714,8 @@ int main()
 
         #define THREAD(x) threads.emplace_back([&](){make_and_register(x); printf("Buildy " #x "\n");});
 
-        THREAD(make_derivatives());
-        THREAD(make_bssn(dim));
         THREAD(make_initial_conditions());
         THREAD(init_christoffel());
-        THREAD(init_debugging());
-        THREAD(make_momentum_constraint());
         THREAD(make_kreiss_oliger());
         THREAD(make_hamiltonian_error());
         THREAD(make_global_sum());
@@ -723,8 +725,6 @@ int main()
         THREAD(make_cG_error(0));
         THREAD(make_cG_error(1));
         THREAD(make_cG_error(2));
-        THREAD(enforce_algebraic_constraints());
-        THREAD(make_sommerfeld());
 
         for(auto& i : threads)
             i.join();
@@ -732,6 +732,9 @@ int main()
         std::cout << "Btime " << btime.get_elapsed_time_s() << std::endl;
 
         printf("Built kernels\n");
+        #endif
+
+        //cl::async_build_and_cache(ctx, make_derivatives, )
     });
 
     build_thread.join();
@@ -969,7 +972,8 @@ int main()
 
             cl_int screen_width = screen_tex.size<2>().x();
             cl_int screen_height = screen_tex.size<2>().y();
-            float scale = get_scale(simulation_width, dim);
+            float full_scale = get_scale(simulation_width, m.dim);
+            float reduced_scale = get_scale(simulation_width, rt_bssn.reduced_dim);
 
             int buf = m.valid_derivative_buffer;
 
@@ -982,8 +986,8 @@ int main()
                                tetrads[0], tetrads[1], tetrads[2], tetrads[3]);
 
                 m.buffers[buf].append_to(args);
-                args.push_back(dim);
-                args.push_back(scale);
+                args.push_back(m.dim);
+                args.push_back(full_scale);
 
                 cqueue.exec("init_tetrads3", args, {screen_width, screen_height}, {8,8});
             }
@@ -999,7 +1003,7 @@ int main()
                 args.push_back(rt_bssn.position, rt_bssn.velocity);
                 args.push_back(tetrads[0], tetrads[1], tetrads[2], tetrads[3]);
                 args.push_back(gpu_position, cq);
-                args.push_back(dim, scale, is_adm);
+                args.push_back(m.dim, full_scale, is_adm);
 
                 m.buffers[buf].append_to(args);
 
@@ -1016,8 +1020,8 @@ int main()
                 args.push_back(bwidth, bheight);
                 args.push_back(cq);
                 args.push_back(rt_bssn.position, rt_bssn.velocity);
-                args.push_back(dim);
-                args.push_back(scale);
+                args.push_back(m.dim);
+                args.push_back(full_scale);
 
                 m.buffers[buf].append_to(args);
 
@@ -1036,8 +1040,8 @@ int main()
                 args.push_back(screen_tex);
                 args.push_back(bwidth, bheight);
                 args.push_back(rt_bssn.position, rt_bssn.velocity);
-                args.push_back(dim);
-                args.push_back(scale);
+                args.push_back(rt_bssn.reduced_dim);
+                args.push_back(reduced_scale);
 
                 for(auto& i : rt_bssn.Guv_block)
                     args.push_back(i);

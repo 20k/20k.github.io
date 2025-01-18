@@ -930,9 +930,10 @@ void trace4(execution_context& ectx, literal<valuei> screen_width, literal<value
     });
 }
 #endif
-void bssn_to_guv(execution_context& ectx, literal<v3i> dim, literal<valuef> scale,
+
+void bssn_to_guv(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> lower_dim,
                  bssn_args_mem<buffer<valuef>> in,
-                 std::array<buffer_mut<valueh>, 10> Guv, literal<value<uint64_t>> offset)
+                 std::array<buffer_mut<valueh>, 10> Guv, literal<value<uint64_t>> slice)
 {
     using namespace single_source;
 
@@ -944,17 +945,33 @@ void bssn_to_guv(execution_context& ectx, literal<v3i> dim, literal<valuef> scal
     pin(y);
     pin(z);
 
-    if_e(x >= dim.get().x() || y >= dim.get().y() || z >= dim.get().z(), [&]{
+    if_e(x >= lower_dim.get().x() || y >= lower_dim.get().y() || z >= lower_dim.get().z(), [&]{
         return_e();
     });
 
-    v3i pos = {x, y, z};
+    v3i pos_lo = {x, y, z};
 
-    bssn_args args(pos, dim.get(), in);
+    auto get_metric = [&](v3i posu)
+    {
+        bssn_args args(posu, upper_dim.get(), in);
 
-    metric<valuef, 3, 3> Yij = args.cY / max(args.W * args.W, valuef(0.0001f));
+        metric<valuef, 3, 3> Yij = args.cY / max(args.W * args.W, valuef(0.0001f));
 
-    metric<valuef, 4, 4> met = calculate_real_metric(Yij, args.gA, args.gB);
+        metric<valuef, 4, 4> met = calculate_real_metric(Yij, args.gA, args.gB);
+
+        pin(met);
+
+        return met;
+    };
+
+    v3i centre_lo = (lower_dim.get() - 1)/2;
+    v3i centre_hi = (upper_dim.get() - 1)/2;
+
+    valuef to_upper = (valuef)centre_hi.x() / (valuef)centre_lo.x();
+
+    v3f f_upper = (v3f)pos_lo * to_upper;
+
+    metric<valuef, 4, 4> met = function_trilinear(get_metric, f_upper);
 
     vec2i indices[10] = {
         {0, 0}, {1, 0}, {2, 0}, {3, 0},
@@ -963,14 +980,14 @@ void bssn_to_guv(execution_context& ectx, literal<v3i> dim, literal<valuef> scal
         {3, 3},
     };
 
-    tensor<value<uint64_t>, 3> p = (tensor<value<uint64_t>, 3>)pos;
-    tensor<value<uint64_t>, 3> d = (tensor<value<uint64_t>, 3>)dim.get();
+    tensor<value<uint64_t>, 3> p = (tensor<value<uint64_t>, 3>)pos_lo;
+    tensor<value<uint64_t>, 3> d = (tensor<value<uint64_t>, 3>)lower_dim.get();
 
     for(int i=0; i < 10; i++)
     {
         vec2i idx = indices[i];
 
-        value<uint64_t> lidx = p.z() * d.x() * d.y() + p.y() * d.x() + p.x() + offset.get();
+        value<uint64_t> lidx = p.z() * d.x() * d.y() + p.y() * d.x() + p.x() + slice.get() * d.x() * d.y() * d.z();
 
         //std::cout << "Vidx " << value_to_string(lidx) << std::endl;
 
@@ -1071,12 +1088,6 @@ struct verlet_context
         v4f cv_full_approx = declare_e(v_full_approx);
         v4f cvelocity = declare_e(velocity);
         valuef cds = declare_e(ds);
-
-        pin(cposition);
-        pin(cv_half);
-        pin(cv_full_approx);
-        pin(cvelocity);
-        pin(cds);
 
         auto AFull_approx = get_dV(cposition, cv_full_approx);
         pin(AFull_approx);

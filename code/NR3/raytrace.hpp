@@ -202,7 +202,7 @@ void trace4(execution_context& ectx, literal<valuei> screen_width, literal<value
             buffer_mut<valuei> full_result);
 #endif
 
-void bssn_to_guv(execution_context& ectx, literal<v3i> dim, literal<valuef> scale,
+void bssn_to_guv(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> lower_dim,
                  bssn_args_mem<buffer<valuef>> in,
                  std::array<buffer_mut<valueh>, 10> Guv, literal<value<uint64_t>> offset);
 

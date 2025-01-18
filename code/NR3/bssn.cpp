@@ -119,9 +119,9 @@ tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const derivativ
     return Mi;
 }
 
-std::string make_derivatives()
+void make_derivatives(cl::context ctx)
 {
-    auto differentiate = [&](execution_context&, buffer<valuef> in, std::array<buffer_mut<derivative_t>, 3> out, literal<v3i> ldim, literal<valuef> scale)
+    auto differentiate = [](execution_context&, buffer<valuef> in, std::array<buffer_mut<derivative_t>, 3> out, literal<v3i> ldim, literal<valuef> scale)
     {
         using namespace single_source;
 
@@ -149,11 +149,10 @@ std::string make_derivatives()
             as_ref(out[i][pos, dim]) = (derivative_t)diff1_boundary(in, i, scale.get(), pos, dim);
     };
 
-    std::string str = value_impl::make_function(differentiate, "differentiate");
-
-    //std::cout << str << std::endl;
-
-    return str;
+    cl::async_build_and_cache(ctx, [=]
+    {
+        return value_impl::make_function(differentiate, "differentiate");;
+    }, {"differentiate"});
 }
 
 tensor<valuef, 3, 3> calculate_cRij(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
@@ -906,9 +905,9 @@ valuef apply_evolution(const valuef& base, const valuef& dt, valuef timestep)
     return base + dt * timestep;
 }
 
-std::string make_momentum_constraint()
+void make_momentum_constraint(cl::context ctx)
 {
-    auto cst = [&](execution_context&, bssn_args_mem<buffer<valuef>> in,
+    auto func = [](execution_context&, bssn_args_mem<buffer<valuef>> in,
                                        std::array<buffer_mut<momentum_t>, 3> momentum_constraint,
                                        literal<v3i> ldim,
                                        literal<valuef> scale
@@ -956,11 +955,14 @@ std::string make_momentum_constraint()
         }
     };
 
-    return value_impl::make_function(cst, "momentum_constraint");
+    cl::async_build_and_cache(ctx, [=]
+    {
+        return value_impl::make_function(func, "momentum_constraint");
+    }, {"momentum_constraint"});
 }
 
 ///https://arxiv.org/pdf/0709.3559 tested, appendix a.2
-std::string make_bssn(const tensor<int, 3>& idim)
+void make_bssn(cl::context ctx, const tensor<int, 3>& idim)
 {
     auto bssn_function = [](execution_context&, bssn_args_mem<buffer<valuef>> base,
                                                  bssn_args_mem<buffer<valuef>> in,
@@ -1058,16 +1060,15 @@ std::string make_bssn(const tensor<int, 3>& idim)
         });*/
     };
 
-    std::string str = value_impl::make_function(bssn_function, "evolve");
-
-    std::cout << str << std::endl;
-
-    return str;
+    cl::async_build_and_cache(ctx, [=]
+    {
+        return value_impl::make_function(bssn_function, "evolve");
+    }, {"evolve"});
 }
 
-std::string enforce_algebraic_constraints()
+void enforce_algebraic_constraints(cl::context ctx)
 {
-    auto func = [&](execution_context&, std::array<buffer_mut<valuef>, 6> mcY, std::array<buffer_mut<valuef>, 6> mcA, literal<v3i> idim)
+    auto func = [](execution_context&, std::array<buffer_mut<valuef>, 6> mcY, std::array<buffer_mut<valuef>, 6> mcA, literal<v3i> idim)
     {
         using namespace single_source;
 
@@ -1134,12 +1135,14 @@ std::string enforce_algebraic_constraints()
         }
     };
 
-    return value_impl::make_function(func, "enforce_algebraic_constraints");
+    cl::async_build_and_cache(ctx, [=] {
+        return value_impl::make_function(func, "enforce_algebraic_constraints");
+    }, {"enforce_algebraic_constraints"});
 }
 
-std::string init_debugging()
+void init_debugging(cl::context ctx)
 {
-    auto dbg = [&](execution_context&, bssn_args_mem<buffer_mut<valuef>> to_fill, literal<v3i> ldim, literal<valuef> scale, write_only_image<2> write) {
+    auto func = [](execution_context&, bssn_args_mem<buffer_mut<valuef>> to_fill, literal<v3i> ldim, literal<valuef> scale, write_only_image<2> write) {
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);
@@ -1173,12 +1176,14 @@ std::string init_debugging()
         });
     };
 
-    return value_impl::make_function(dbg, "debug");
+    cl::async_build_and_cache(ctx, [=] {
+        return value_impl::make_function(func, "debug");
+    }, {"debug"});
 }
 
-std::string make_sommerfeld()
+void make_sommerfeld(cl::context ctx)
 {
-    auto func = [&](execution_context&, buffer<valuef> base, buffer<valuef> in, buffer_mut<valuef> out, literal<valuef> timestep,
+    auto func = [](execution_context&, buffer<valuef> base, buffer<valuef> in, buffer_mut<valuef> out, literal<valuef> timestep,
                     literal<v3i> ldim,
                     literal<valuef> scale,
                     literal<valuef> wave_speed,
@@ -1231,5 +1236,7 @@ std::string make_sommerfeld()
         });*/
     };
 
-    return value_impl::make_function(func, "sommerfeld");
+    cl::async_build_and_cache(ctx, [=] {
+        return value_impl::make_function(func, "sommerfeld");
+    }, {"sommerfeld"});
 }

@@ -247,12 +247,12 @@ struct derivative_data;
 valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d);
 tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const derivative_data& d);
 
-std::string make_derivatives();
-std::string make_bssn(const tensor<int, 3>& dim);
-std::string enforce_algebraic_constraints();
-std::string init_debugging();
-std::string make_momentum_constraint();
-std::string make_sommerfeld();
+void make_derivatives(cl::context ctx);
+void make_bssn(cl::context ctx, const tensor<int, 3>& dim);
+void enforce_algebraic_constraints(cl::context ctx);
+void init_debugging(cl::context ctx);
+void make_momentum_constraint(cl::context ctx);
+void make_sommerfeld(cl::context ctx);
 
 template<typename T, typename U, typename V>
 inline
