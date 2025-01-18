@@ -1,6 +1,133 @@
 #include "raytrace.hpp"
 #include "tensor_algebra.hpp"
 
+template<auto GetMetric, typename... T>
+inline
+void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
+                           literal<v3f> local_velocity,
+                           buffer_mut<v4f> position_out,
+                           buffer_mut<v4f> e0_out, buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out,
+                           T... extra)
+{
+    using namespace single_source;
+
+    as_ref(position_out[0]) = position.get();
+
+    v4f v0 = {1, 0, 0, 0};
+    v4f v1 = {0, 1, 0, 0};
+    v4f v2 = {0, 0, 1, 0};
+    v4f v3 = {0, 0, 0, 1};
+
+    m44f metric = GetMetric(position.get(), extra...);
+
+    //these are actually the column vectors of the metric tensor
+    v4f lv0 = metric.lower(v0);
+    v4f lv1 = metric.lower(v1);
+    v4f lv2 = metric.lower(v2);
+    v4f lv3 = metric.lower(v3);
+
+    array_mut<v4f> as_array = declare_mut_array_e<v4f>(4, {v0, v1, v2, v3});
+    //we're in theory doing v_mu v^mu, but because only one component of v0 is nonzero, and the lower components are actually
+    //the column vectors of the metric tensor, dot(v0, lv0) is actually metric[0,0], dot(v1, lv1) is metric[1,1] etc
+    //this method therefore fails if the metric has no nonzero diagonal components
+    array_mut<valuef> lengths = declare_mut_array_e<valuef>(4, {dot(v0, lv0), dot(v1, lv1), dot(v2, lv2), dot(v3, lv3)});
+
+    mut<valuei> first_nonzero = declare_mut_e(valuei(0));
+
+    for_e(first_nonzero < 4, assign_b(first_nonzero, first_nonzero+1), [&] {
+        auto approx_eq = [](const valuef& v1, const valuef& v2) {
+            valuef bound = 0.0001f;
+
+            return v1 >= v2 - bound && v1 < v2 + bound;
+        };
+
+        if_e(!approx_eq(lengths[first_nonzero], valuef(0.f)), [&] {
+             break_e();
+        });
+    });
+
+    swap(as_array[0], as_array[first_nonzero]);
+
+    v4f iv0 = declare_e(as_array[0]);
+    v4f iv1 = declare_e(as_array[1]);
+    v4f iv2 = declare_e(as_array[2]);
+    v4f iv3 = declare_e(as_array[3]);
+
+    pin(metric);
+
+    tetrad tetrads = gram_schmidt(iv0, iv1, iv2, iv3, metric);
+
+    array_mut<v4f> tetrad_array = declare_mut_array_e<v4f>(4, {});
+
+    as_ref(tetrad_array[0]) = tetrads.v[0];
+    as_ref(tetrad_array[1]) = tetrads.v[1];
+    as_ref(tetrad_array[2]) = tetrads.v[2];
+    as_ref(tetrad_array[3]) = tetrads.v[3];
+
+    swap(tetrad_array[0], tetrad_array[first_nonzero]);
+
+    valuei timelike_coordinate = calculate_which_coordinate_is_timelike(tetrads, metric);
+
+    swap(tetrad_array[0], tetrad_array[timelike_coordinate]);
+
+    tetrad tet;
+    tet.v = {declare_e(tetrad_array[0]), declare_e(tetrad_array[1]), declare_e(tetrad_array[2]), declare_e(tetrad_array[3])};
+
+    bool should_orient = true;
+
+    if(should_orient)
+    {
+        v3f cart = position.get().yzw();
+
+        v4f dx = (v4f){0, 1, 0, 0};
+        v4f dy = (v4f){0, 0, 1, 0};
+        v4f dz = (v4f){0, 0, 0, 1};
+
+        inverse_tetrad itet = tet.invert();
+
+        pin(dx);
+        pin(dy);
+        pin(dz);
+
+        v4f lx = itet.into_frame_of_reference(dx);
+        v4f ly = itet.into_frame_of_reference(dy);
+        v4f lz = itet.into_frame_of_reference(dz);
+
+        pin(lx);
+        pin(ly);
+        pin(lz);
+
+        std::array<v3f, 3> ortho = orthonormalise(ly.yzw(), lx.yzw(), lz.yzw());
+
+        v4f x_basis = {0, ortho[1].x(), ortho[1].y(), ortho[1].z()};
+        v4f y_basis = {0, ortho[0].x(), ortho[0].y(), ortho[0].z()};
+        v4f z_basis = {0, ortho[2].x(), ortho[2].y(), ortho[2].z()};
+
+        pin(x_basis);
+        pin(y_basis);
+        pin(z_basis);
+
+        v4f x_out = tet.into_coordinate_space(x_basis);
+        v4f y_out = tet.into_coordinate_space(y_basis);
+        v4f z_out = tet.into_coordinate_space(z_basis);
+
+        pin(x_out);
+        pin(y_out);
+        pin(z_out);
+
+        tet.v[1] = x_out;
+        tet.v[2] = y_out;
+        tet.v[3] = z_out;
+    }
+
+    tetrad boosted = boost_tetrad(local_velocity.get(), tet, metric);
+
+    as_ref(e0_out[0]) = boosted.v[0];
+    as_ref(e1_out[0]) = boosted.v[1];
+    as_ref(e2_out[0]) = boosted.v[2];
+    as_ref(e3_out[0]) = boosted.v[3];
+}
+
 v2f angle_to_tex(const v2f& angle)
 {
     using namespace single_source;
