@@ -536,22 +536,14 @@ v3f fix_ray_position_cart(v3f cartesian_pos, v3f cartesian_velocity, float spher
 
     valuef discrim = b*b - 4 * a * c;
 
-    mut_v3f out = declare_mut_e(cartesian_pos);
+    valuef t0 = (-b - sqrt(discrim)) / (2 * a);
+    valuef t1 = (-b + sqrt(discrim)) / (2 * a);
 
-    if_e(discrim >= 0, [&]{
-        valuef t0 = (-b - sqrt(discrim)) / (2 * a);
-        valuef t1 = (-b + sqrt(discrim)) / (2 * a);
+    valuef my_t = ternary(fabs(t0) < fabs(t1), t0, t1);
 
-        mut<valuef> my_t = declare_mut_e(t1);
+    v3f result_good = cartesian_pos + my_t * cartesian_velocity;
 
-        if_e(fabs(t0) < fabs(t1), [&]{
-            as_ref(my_t) = t0;
-        });
-
-        as_ref(out) = cartesian_pos + declare_e(my_t) * cartesian_velocity;
-    });
-
-    return declare_e(out);
+    return ternary(discrim >= 0, result_good, cartesian_pos);
 }
 
 ///todo: figure out the projection
@@ -710,7 +702,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
             as_ref(position) = cposition + d_X * dt;
             as_ref(velocity) = cvelocity + d_V * dt;
 
-            valuef radius_sq = dot(cposition, cposition);
+            valuef radius_sq = dot(as_constant(position), as_constant(position));
 
             if_e(radius_sq > 29*29, [&] {
                 //ray escaped
@@ -732,9 +724,8 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
     mut_v3f col = declare_mut_e((v3f){0,0,0});
 
     if_e(result == 0, [&] {
-        v3f fixed_pos = fix_ray_position_cart(final_position, final_velocity, 29);
 
-        v3f spherical = cartesian_to_spherical(fixed_pos);
+        v3f spherical = cartesian_to_spherical(final_position);
 
         valuef theta = spherical[1];
         valuef phi = spherical[2];
@@ -1330,7 +1321,10 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                 break_e();
             });*/
 
-            if_e(cposition.x() < -100.f || fabs(cvelocity.x()) > 20 || cvelocity.yzw().length() < 0.1f, [&]{
+            if_e(cposition.x() < -100.f || fabs(cvelocity.x()) > 20 || cvelocity.yzw().length() < 0.1f ||
+                 !isfinite(cposition.x()) || !isfinite(cposition.y()) || !isfinite(cposition.z()) || !isfinite(cposition.w()) ||
+                 !isfinite(cvelocity.x()) || !isfinite(cvelocity.y()) || !isfinite(cvelocity.z()) || !isfinite(cvelocity.w())
+                 , [&]{
                 as_ref(result) = valuei(1);
                 break_e();
             });
