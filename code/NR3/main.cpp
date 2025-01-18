@@ -982,7 +982,7 @@ int main()
                 args.push_back(m.dim);
                 args.push_back(full_scale);
 
-                m.buffers[ ].append_to(args);
+                m.buffers[buf].append_to(args);
 
                 for(auto& i : m.derivatives)
                     args.push_back(i);
