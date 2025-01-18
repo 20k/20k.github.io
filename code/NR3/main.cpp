@@ -507,7 +507,7 @@ struct raytrace_bssn
 
     float last_dt = 0.f;
     int captured_slices = 0;
-    float time_between_snapshots = 4;
+    float time_between_snapshots = 2;
     t3i reduced_dim = {101, 101, 101};
 
     //std::vector<bssn_buffer_pack> snapshots;
@@ -524,7 +524,7 @@ struct raytrace_bssn
     ///shower thought: could use a circular buffer here
     void capture_snapshots(cl::context ctx, cl::command_queue cqueue, float dt, mesh& m)
     {
-        int slices = 60;
+        int slices = 120;
 
         if(captured_slices == 0)
         {
