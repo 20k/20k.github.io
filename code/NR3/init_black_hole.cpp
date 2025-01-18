@@ -63,9 +63,9 @@ valuef get_conformal_guess(v3f world_pos, v3f bh_pos, valuef bare_mass)
 }
 
 template<typename Type, typename Func>
-cl::buffer discretise(cl::context& ctx, cl::command_queue& cqueue, Func&& func, tensor<int, 3> dim, float scale)
+cl::buffer discretise(cl::context& ctx, cl::command_queue& cqueue, Func&& func, tensor<int, 3> cdim, float scale)
 {
-    auto kern = [&](execution_context& ctx, buffer_mut<value<Type>> out)
+    auto kern = [](execution_context& ctx, buffer_mut<value<Type>> out, literal<v3i> dim)
     {
         using namespace single_source;
 
@@ -73,13 +73,13 @@ cl::buffer discretise(cl::context& ctx, cl::command_queue& cqueue, Func&& func, 
 
         pin(lid);
 
-        if_e(lid >= dim.x() * dim.y() * dim.z(), [&]{
+        if_e(lid >= dim.get().x() * dim.get().y() * dim.get().z(), [&]{
             return_e();
         });
 
-        v3i pos = get_coordinate(lid, {dim.x(), dim.y(), dim.z()});
+        v3i pos = get_coordinate(lid, {dim.get().x(), dim.get().y(), dim.get().z()});
 
-        as_ref(out[pos, (v3i)dim]) = func(pos);
+        as_ref(out[pos, dim.get()]) = func(pos);
     };
 
     std::string str = value_impl::make_function(kern, "discretise");
@@ -89,14 +89,14 @@ cl::buffer discretise(cl::context& ctx, cl::command_queue& cqueue, Func&& func, 
     cl::kernel k(prog, "discretise");
 
     cl::buffer buf(ctx);
-    buf.alloc(sizeof(Type) * dim.x() * dim.y() * dim.z());
+    buf.alloc(sizeof(Type) * cdim.x() * cdim.y() * cdim.z());
 
     cl::args args;
-    args.push_back(buf);
+    args.push_back(buf, cdim);
 
     k.set_args(args);
 
-    cqueue.exec(k, {dim.x() * dim.y() * dim.z()}, {128});
+    cqueue.exec(k, {cdim.x() * cdim.y() * cdim.z()}, {128});
 
     return buf;
 }
