@@ -552,7 +552,7 @@ struct raytrace_bssn
         cl::args args;
         args.push_back(m.dim, reduced_dim);
 
-        m.buffers[m.valid_derivative_buffer].append_to(args);
+        m.buffers[0].append_to(args);
 
         for(auto& i : Guv_block)
             args.push_back(i);
@@ -732,13 +732,23 @@ int main()
     float pause_time = 100;
     bool render = true;
     bool render2 = false;
+    bool lock_camera_to_slider = false;
+    bool progress_camera_time = false;
 
     vec3f camera_pos = {0, 0, -25};;
     quat camera_quat;
+    steady_timer frame_time;
+
+    float cam_time = 0;
 
     while(!win.should_close())
     {
         win.poll();
+
+        float ftime_s = frame_time.restart();
+
+        if(progress_camera_time)
+            cam_time += ftime_s;
 
         if(!ImGui::GetIO().WantCaptureKeyboard)
         {
@@ -834,6 +844,12 @@ int main()
         ImGui::Checkbox("Render", &render);
         ImGui::Checkbox("Render2", &render2);
 
+        ImGui::Checkbox("Override Camera Time", &lock_camera_to_slider);
+        ImGui::Checkbox("Advance Override Camera Time", &progress_camera_time);
+
+        ///lock to camera, progress camera time
+        ImGui::DragFloat("Override Time", &cam_time, 1.f, 0.f, 400.f);
+
         step = step || running;
 
         ImGui::Text("Elapsed %f", elapsed_t);
@@ -884,6 +900,9 @@ int main()
             cl_float4 camera = {elapsed_t,camera_pos.x(),camera_pos.y(),camera_pos.z()};
             quat q = camera_quat;
 
+            if(lock_camera_to_slider || progress_camera_time)
+                camera.s[0] = cam_time;
+
             cl_float4 cq = {q.q[0], q.q[1], q.q[2], q.q[3]};
 
             cl_int bwidth = background.size<2>().x();
@@ -914,7 +933,8 @@ int main()
 
             if(render2)
             {
-                camera.s[0] -= rt_bssn.time_between_snapshots;
+                if(!(lock_camera_to_slider || progress_camera_time))
+                    camera.s[0] -= rt_bssn.time_between_snapshots*2;
 
                 cl_float3 vel = {0,0,0};
 
