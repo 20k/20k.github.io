@@ -1001,6 +1001,7 @@ int main()
                 args.push_back(rt_bssn.position, rt_bssn.velocity);
                 args.push_back(rt_bssn.reduced_dim);
                 args.push_back(reduced_scale);
+                args.push_back(tetrads[0], tetrads[1], tetrads[2], tetrads[3]);
 
                 for(auto& i : rt_bssn.Guv_block)
                     args.push_back(i);

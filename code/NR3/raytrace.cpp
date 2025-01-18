@@ -986,6 +986,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
             buffer_mut<v4f> positions, buffer_mut<v4f> velocities,
             literal<v3i> dim,
             literal<valuef> scale,
+            buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
             std::array<buffer<valueh>, 10> Guv_buf,
             literal<valuef> last_time,
             literal<valuei> last_slice,
@@ -1019,12 +1020,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
     v4f pos_in = declare_e(positions[screen_position, screen_size]);
     v4f vel_in = declare_e(velocities[screen_position, screen_size]);
 
-    auto get_dX = [&](v4f position, v4f velocity)
-    {
-        return velocity;
-    };
-
-    auto get_dV = [&](v4f position, v4f velocity)
+    auto world_to_grid4 = [&](v4f position)
     {
         v3f grid_position = world_to_grid(position.yzw(), dim.get(), scale.get());
         valuef grid_t_frac = position.x() / last_time.get();
@@ -1036,6 +1032,17 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
         pin(grid_position);
 
         v4f grid_fpos = (v4f){grid_t, grid_position.x(), grid_position.y(), grid_position.z()};
+        return grid_fpos;
+    };
+
+    auto get_dX = [&](v4f position, v4f velocity)
+    {
+        return velocity;
+    };
+
+    auto get_dV = [&](v4f position, v4f velocity)
+    {
+        v4f grid_fpos = world_to_grid4(position);
 
         auto get_Guvb = [&](v4i pos)
         {
@@ -1112,8 +1119,6 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
         valuef dt;
         acceleration_to_precision(acceleration, 0.00025f, &dt);
         return dt;
-
-        //return valuef(1.);
     };
 
     verlet_context<v4f> ctx;
@@ -1121,6 +1126,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
 
     mut<valuei> result = declare_mut_e(valuei(1));
     v4f final_position;
+    v4f final_velocity;
 
     ///todo: I think what's happening is that the clamping is breaking my time derivatives
     ///which means we need to change the initial conditions to construct our rays from an earlier point, rather than from the end?
@@ -1301,6 +1307,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
         });
 
         final_position = declare_e(ctx.position);
+        final_velocity = declare_e(ctx.velocity);
     }
 
     mut_v3f col = declare_mut_e((v3f){0,0,0});
@@ -1317,11 +1324,33 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
         valuei ty = (texture_coordinate[1] * background_size.y().to<float>() + background_size.y().to<float>()).to<int>() % background_size.y();
 
         ///linear colour
-        as_ref(col) = linear_to_srgb_gpu(background.read<float, 4>({tx, ty}).xyz());
+        as_ref(col) = background.read<float, 4>({tx, ty}).xyz();
     });
 
     if_e(result == 1 || result == 0, [&] {
-        v4f crgba = {col[0], col[1], col[2], 1.f};
+        auto get_Guvb = [&](v4i pos)
+        {
+            auto val = get_Guv(pos, dim.get(), Guv_buf, last_slice.get());
+            pin(val);
+            return val;
+        };
+
+        auto position_to_metric = [&](v4f fpos)
+        {
+            auto val = function_quadlinear(get_Guvb, world_to_grid4(fpos));
+            pin(val);
+            return val;
+        };
+
+        v3f ccol = declare_e(col);
+
+        valuef zp1 = get_zp1(pos_in, vel_in, e0[0], final_position, final_velocity, (v4f){1, 0, 0, 0}, position_to_metric);
+
+        ccol = do_redshift(ccol, zp1);
+
+        v3f cvt = linear_to_srgb_gpu(ccol);
+
+        v4f crgba = {cvt[0], cvt[1], cvt[2], 1.f};
 
         screen.write(ectx, {x, y}, crgba);
     });
