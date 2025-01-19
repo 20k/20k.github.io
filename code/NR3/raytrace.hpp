@@ -167,6 +167,8 @@ adm_variables admf_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
     return out;
 }
 
+using block_precision_t = valuef;
+
 void init_rays3(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
                 buffer_mut<v4f> positions_out,
                 buffer_mut<v4f> velocities_out,

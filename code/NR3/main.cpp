@@ -531,7 +531,7 @@ struct raytrace_bssn
 
             for(auto& i : Guv_block)
             {
-                uint64_t array_size = sizeof(cl_half) * int64_t{reduced_dim.x()} * reduced_dim.y() * reduced_dim.z();
+                uint64_t array_size = sizeof(block_precision_t::interior_type) * int64_t{reduced_dim.x()} * reduced_dim.y() * reduced_dim.z();
 
                 i.alloc(array_size * slices);
                 i.set_to_zero(cqueue);

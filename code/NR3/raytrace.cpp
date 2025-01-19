@@ -746,7 +746,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
 void bssn_to_guv(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> lower_dim,
                  bssn_args_mem<buffer<valuef>> in,
-                 std::array<buffer_mut<valueh>, 10> Guv, literal<value<uint64_t>> slice)
+                 std::array<buffer_mut<block_precision_t>, 10> Guv, literal<value<uint64_t>> slice)
 {
     using namespace single_source;
 
@@ -804,7 +804,7 @@ void bssn_to_guv(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> l
 
         //std::cout << "Vidx " << value_to_string(lidx) << std::endl;
 
-        as_ref(Guv[i][lidx]) = (valueh)met[idx.x(), idx.y()];
+        as_ref(Guv[i][lidx]) = (block_precision_t)met[idx.x(), idx.y()];
     }
 }
 
@@ -976,7 +976,7 @@ struct euler_context
     }
 };
 
-metric<valuef, 4, 4> get_Guv(v4i grid_pos, v3i dim, std::array<buffer<valueh>, 10> Guv_buf, valuei last_slice)
+metric<valuef, 4, 4> get_Guv(v4i grid_pos, v3i dim, std::array<buffer<block_precision_t>, 10> Guv_buf, valuei last_slice)
 {
     grid_pos.x() = clamp(grid_pos.x(), valuei(0), last_slice - 1);
 
@@ -1014,7 +1014,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
             literal<v3i> dim,
             literal<valuef> scale,
             buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
-            std::array<buffer<valueh>, 10> Guv_buf,
+            std::array<buffer<block_precision_t>, 10> Guv_buf,
             literal<valuef> last_time,
             literal<valuei> last_slice,
             literal<valuef> slice_width)
@@ -1412,7 +1412,7 @@ void build_raytrace_kernels(cl::context ctx)
     }, {"init_tetrads3"});
 
     cl::async_build_and_cache(ctx, []{
-        auto get_metric = [](v4f position, std::array<buffer<valueh>, 10> in, literal<v3i> dim, literal<valuef> scale, literal<valuef> slice_time_end, literal<valuei> last_slice)
+        auto get_metric = [](v4f position, std::array<buffer<block_precision_t>, 10> in, literal<v3i> dim, literal<valuef> scale, literal<valuef> slice_time_end, literal<valuei> last_slice)
         {
             using namespace single_source;
 
@@ -1438,7 +1438,7 @@ void build_raytrace_kernels(cl::context ctx)
             return met;
         };
 
-        return value_impl::make_function(build_initial_tetrads<get_metric, std::array<buffer<valueh>, 10>, literal<v3i>, literal<valuef>, literal<valuef>, literal<valuei>>, "init_tetrads4");
+        return value_impl::make_function(build_initial_tetrads<get_metric, std::array<buffer<block_precision_t>, 10>, literal<v3i>, literal<valuef>, literal<valuef>, literal<valuei>>, "init_tetrads4");
     }, {"init_tetrads4"});
 
     cl::async_build_and_cache(ctx, []{
