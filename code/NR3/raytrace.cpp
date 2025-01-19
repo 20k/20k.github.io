@@ -1055,6 +1055,14 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
 
         pin(grid_t);
 
+        /*if_e(last_slice.get() >= 3, [&]{
+            grid_t = clamp()
+        });*/
+
+        /*grid_t = ternary(last_slice.get() >= 3,
+                         clamp(grid_t, valuef(1), (valuef)last_slice.get() - 1),
+                         grid_t);*/
+
         grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
         pin(grid_position);
 
@@ -1073,7 +1081,9 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
 
         auto get_Guvb = [&](v4i pos)
         {
-            return get_Guv(pos, dim.get(), Guv_buf, last_slice.get());
+            auto v = get_Guv(pos, dim.get(), Guv_buf, last_slice.get());
+            pin(v);
+            return v;
         };
 
         auto get_guv_at = [&](v4f fpos)
@@ -1098,7 +1108,22 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
             if(m == 0)
                 divisor = 2 * slice_width.get();
 
-            auto val = (get_guv_at(grid_fpos + dir) - get_guv_at(grid_fpos - dir)) / divisor;
+            v4f p1 = grid_fpos + dir;
+            v4f p2 = grid_fpos - dir;
+
+            pin(p1);
+            pin(p2);
+
+            auto g1 = get_guv_at(p1);
+            pin(g1);
+
+            auto g2 = get_guv_at(p2);
+            pin(g2);
+
+            auto diff = g1 - g2;
+            pin(diff);
+
+            auto val = diff / divisor;
 
             for(int i=0; i < 4; i++)
             {
@@ -1112,7 +1137,10 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
         pin(Guv);
         pin(dGuv);
 
-        auto christoff2 = christoffel_symbols_2(Guv.invert(), dGuv);
+        auto iGuv = Guv.invert();
+        //pin(iGuv);
+
+        auto christoff2 = christoffel_symbols_2(iGuv, dGuv);
 
         pin(christoff2);
 
