@@ -65,7 +65,7 @@ valuef get_conformal_guess(v3f world_pos, v3f bh_pos, valuef bare_mass)
 template<typename Type, typename Func>
 cl::buffer discretise(cl::context& ctx, cl::command_queue& cqueue, Func&& func, tensor<int, 3> cdim, float scale)
 {
-    auto kern = [](execution_context& ctx, buffer_mut<value<Type>> out, literal<v3i> dim)
+    auto kern = [func](execution_context& ctx, buffer_mut<value<Type>> out, literal<v3i> dim)
     {
         using namespace single_source;
 

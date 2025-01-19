@@ -20,16 +20,16 @@ namespace value_impl
     {
         std::vector<value_base> to_execute;
         std::vector<std::pair<value_base, value_base>> aliases;
-        virtual void add(const value_base& in) = 0;
+        virtual void add(value_base&& in) = 0;
         virtual void alias(const value_base& check, const value_base& to) = 0;
         virtual int next_id() = 0;
 
         template<typename T, int... N>
-        void add(const tensor<T, N...>& inout)
+        void add(tensor<T, N...>&& inout)
         {
-            inout.for_each([&](const T& v)
+            inout.for_each([&](auto&& v)
             {
-                add(v);
+                add(std::move(v));
             });
         }
 
@@ -95,9 +95,9 @@ namespace value_impl
             aliases.push_back({check, to});
         }
 
-        void add(const value_base& in) override
+        void add(value_base&& in) override
         {
-            to_execute.push_back(in);
+            to_execute.push_back(std::move(in));
         }
 
         int next_id() override
@@ -1109,7 +1109,7 @@ namespace value_impl
                 decl.type = op::DECLARE;
                 decl.args = {decl_type, decl_name, single_read};
 
-                ectx.add(decl);
+                ectx.add(std::move(decl));
 
                 tensor<value<T>, M> ret;
 
@@ -1161,7 +1161,7 @@ namespace value_impl
                     write_op.args.push_back(val[i]);
                 }
 
-                ectx.add(write_op);
+                ectx.add(std::move(write_op));
             }
 
             template<typename T, int M>
