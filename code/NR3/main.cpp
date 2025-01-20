@@ -1046,7 +1046,7 @@ int main()
                 cqueue.exec("trace4x4", args, {screen_width, screen_height}, {8, 8});
             }
 
-            if(render || render2)
+            if(render || (render2 && rt_bssn.Guv_block.size() > 0))
             {
                 cl::args args;
                 args.push_back(screen_width, screen_height);
