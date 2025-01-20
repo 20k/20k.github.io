@@ -756,7 +756,7 @@ namespace value_impl
                 if(i == (int)v.args.size() - 1)
                     str += value;
                 else
-                    str += "|" + value;
+                    str += value + "|";
             }
 
             return "(" + str + ")";
@@ -779,6 +779,12 @@ namespace value_impl
                 pos.push_back(v.args.at(4 + i));
             }
 
+            if(num_args == 3)
+            {
+                pos.push_back(pos.back().make_constant_of_type(0));
+                num_args = 4;
+            }
+
             return "read_image" + suffix + "(" + name + ",(" + pos_type + std::to_string(num_args) + ")(" + join(pos) + "))";
         }
 
@@ -798,6 +804,12 @@ namespace value_impl
             for(int i=0; i < num_args; i++)
             {
                 pos.push_back(v.args.at(5 + i));
+            }
+
+            if(num_args == 3)
+            {
+                pos.push_back(pos.back().make_constant_of_type(0));
+                num_args = 4;
             }
 
             return "read_image" + suffix + "(" + name + "," + sampler + ",(" + pos_type + std::to_string(num_args) + ")(" + join(pos) + "))";

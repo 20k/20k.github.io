@@ -498,8 +498,8 @@ struct raytrace_bssn
     ///where we raytrace between two slices, step a few times, then raytrace into the next slice
     ///we can still use a dynamic timestep, we just iterate until you've exceeded a certain threshold, and then
     ///recollect
-    cl::buffer position;
-    cl::buffer velocity;
+    cl::buffer positions;
+    cl::buffer velocities;
     cl::buffer results;
     int last_size = 0;
     bool is_snapshotting = false;
@@ -511,12 +511,13 @@ struct raytrace_bssn
     t3i reduced_dim = {101, 101, 101};
 
     cl::buffer texture_coordinates;
+    cl::buffer zshifts;
 
     //std::vector<bssn_buffer_pack> snapshots;
 
     std::vector<cl::buffer> Guv_block;
 
-    raytrace_bssn(cl::context& ctx) : position(ctx), velocity(ctx), results(ctx), texture_coordinates(ctx)
+    raytrace_bssn(cl::context& ctx) : positions(ctx), velocities(ctx), results(ctx), texture_coordinates(ctx), zshifts(ctx)
     {
         build_raytrace_kernels(ctx);
     }
@@ -572,53 +573,82 @@ struct raytrace_bssn
             return;
 
         last_size = width * height;
-        position.alloc(width * height * sizeof(cl_float4));
-        velocity.alloc(width * height * sizeof(cl_float4));
+        positions.alloc(width * height * sizeof(cl_float4));
+        velocities.alloc(width * height * sizeof(cl_float4));
         results.alloc(width * height * sizeof(cl_int));
-        texture_coordinates.alloc(width * height * sizeof(cl_float4));
+        texture_coordinates.alloc(width * height * sizeof(cl_float2));
+        zshifts.alloc(width * height * sizeof(cl_float));
     }
 };
+
+cl::image load_mipped_image(sf::Image& img, cl::context& ctx, cl::command_queue& cqueue)
+{
+    const uint8_t* as_uint8 = reinterpret_cast<const uint8_t*>(img.getPixelsPtr());
+
+    texture_settings bsett;
+    bsett.width = img.getSize().x;
+    bsett.height = img.getSize().y;
+    bsett.is_srgb = false;
+
+    texture opengl_tex;
+    opengl_tex.load_from_memory(bsett, &as_uint8[0]);
+
+    #define MIP_LEVELS 10
+
+    int max_mips = floor(log2(std::min(img.getSize().x, img.getSize().y))) + 1;
+
+    max_mips = std::min(max_mips, MIP_LEVELS);
+
+    cl::image image_mipped(ctx);
+    image_mipped.alloc((vec3i){img.getSize().x, img.getSize().y, max_mips}, {CL_RGBA, CL_UNORM_INT8}, cl::image_flags::ARRAY);
+
+    ///and all of THIS is to work around a bug in AMDs drivers, where you cant write to a specific array level!
+    int swidth = img.getSize().x;
+    int sheight = img.getSize().y;
+
+    std::vector<vec<4, cl_uchar>> as_uniform;
+    as_uniform.reserve(max_mips * sheight * swidth);
+
+    for(int i=0; i < max_mips; i++)
+    {
+        std::vector<vec4f> mip = opengl_tex.read(i);
+
+        int cwidth = swidth / pow(2, i);
+        int cheight = sheight / pow(2, i);
+
+        assert(cwidth * cheight == mip.size());
+
+        for(int y = 0; y < sheight; y++)
+        {
+            for(int x=0; x < swidth; x++)
+            {
+                ///clamp to border
+                int lx = std::min(x, cwidth - 1);
+                int ly = std::min(y, cheight - 1);
+
+                vec4f in = mip[ly * cwidth + lx];
+
+                in = clamp(in, 0.f, 1.f);
+
+                as_uniform.push_back({in.x() * 255, in.y() * 255, in.z() * 255, in.w() * 255});
+            }
+        }
+    }
+
+    vec<3, size_t> origin = {0, 0, 0};
+    vec<3, size_t> region = {swidth, sheight, max_mips};
+
+    image_mipped.write(cqueue, (char*)as_uniform.data(), origin, region);
+
+    return image_mipped;
+}
 
 cl::image load_background(cl::context ctx, cl::command_queue cqueue, const std::string& name)
 {
     sf::Image background;
     background.loadFromFile(name);
 
-    int background_width = background.getSize().x;
-    int background_height = background.getSize().y;
-
-    std::vector<float> background_floats;
-
-    for(int y=0; y < background.getSize().y; y++)
-    {
-        for(int x=0; x < background.getSize().x; x++)
-        {
-            sf::Color col = background.getPixel(x, y);
-
-            tensor<float, 3> tcol = {col.r, col.g, col.b};
-
-            tcol = tcol / 255.f;
-            tcol = tcol.for_each([](auto&& in){return srgb_to_lin(in);});
-
-            background_floats.push_back(tcol.x());
-            background_floats.push_back(tcol.y());
-            background_floats.push_back(tcol.z());
-            background_floats.push_back(1.f);
-        }
-    }
-
-    cl_image_format fmt;
-    fmt.image_channel_order = CL_RGBA;
-    fmt.image_channel_data_type = CL_FLOAT;
-
-    int w = background.getSize().x;
-    int h = background.getSize().y;
-
-    cl::image img(ctx);
-    img.alloc({w, h}, fmt);
-    img.write<2>(cqueue, (const char*)background_floats.data(), {0,0}, {w, h});
-
-    return img;
+    return load_mipped_image(background, ctx, cqueue);
 }
 
 int main()
@@ -915,7 +945,10 @@ int main()
             float reduced_scale = get_scale(simulation_width, rt_bssn.reduced_dim);
 
             if(render || render2)
+            {
                 rt_bssn.texture_coordinates.set_to_zero(cqueue);
+                rt_bssn.zshifts.set_to_zero(cqueue);
+            }
 
             int buf = m.valid_derivative_buffer;
 
@@ -965,7 +998,7 @@ int main()
             {
                 cl::args args;
                 args.push_back(screen_width, screen_height);
-                args.push_back(rt_bssn.position, rt_bssn.velocity);
+                args.push_back(rt_bssn.positions, rt_bssn.velocities);
                 args.push_back(tetrads[0], tetrads[1], tetrads[2], tetrads[3]);
                 args.push_back(gpu_position, cq);
                 args.push_back(m.dim, full_scale, is_adm);
@@ -980,11 +1013,8 @@ int main()
             {
                 cl::args args;
                 args.push_back(screen_width, screen_height);
-                args.push_back(background);
-                args.push_back(screen_tex);
-                args.push_back(bwidth, bheight);
                 args.push_back(cq);
-                args.push_back(rt_bssn.position, rt_bssn.velocity);
+                args.push_back(rt_bssn.positions, rt_bssn.velocities, rt_bssn.results, rt_bssn.zshifts);
                 args.push_back(m.dim);
                 args.push_back(full_scale);
 
@@ -1001,10 +1031,7 @@ int main()
             {
                 cl::args args;
                 args.push_back(screen_width, screen_height);
-                args.push_back(background);
-                args.push_back(screen_tex);
-                args.push_back(bwidth, bheight);
-                args.push_back(rt_bssn.position, rt_bssn.velocity);
+                args.push_back(rt_bssn.positions, rt_bssn.velocities, rt_bssn.results, rt_bssn.zshifts);
                 args.push_back(rt_bssn.reduced_dim);
                 args.push_back(reduced_scale);
                 args.push_back(tetrads[0], tetrads[1], tetrads[2], tetrads[3]);
@@ -1017,6 +1044,27 @@ int main()
                 args.push_back(rt_bssn.time_between_snapshots);
 
                 cqueue.exec("trace4x4", args, {screen_width, screen_height}, {8, 8});
+            }
+
+            if(render || render2)
+            {
+                cl::args args;
+                args.push_back(screen_width, screen_height);
+                args.push_back(rt_bssn.positions, rt_bssn.velocities);
+                args.push_back(rt_bssn.texture_coordinates);
+
+                cqueue.exec("calculate_texture_coordinates", args, {screen_width, screen_height}, {8, 8});
+
+                cl_int2 bsize = {bwidth, bheight};
+
+                cl::args args2;
+                args2.push_back(screen_width, screen_height);
+                args2.push_back(rt_bssn.positions, rt_bssn.velocities, rt_bssn.results, rt_bssn.zshifts);
+                args2.push_back(rt_bssn.texture_coordinates);
+                args2.push_back(background, screen_tex);
+                args2.push_back(bsize);
+
+                cqueue.exec("render", args2, {screen_width, screen_height}, {8,8});
             }
         }
 

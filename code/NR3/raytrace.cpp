@@ -507,12 +507,10 @@ v3f fix_ray_position_cart(v3f cartesian_pos, v3f cartesian_velocity, float spher
     return ternary(discrim >= 0, result_good, cartesian_pos);
 }
 
-///todo: figure out the projection
 void trace3(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
-                     read_only_image<2> background, write_only_image<2> screen,
-                     literal<valuei> background_width, literal<valuei> background_height,
                      literal<v4f> camera_quat,
-                     buffer<v4f> positions, buffer<v4f> velocities,
+                     buffer_mut<v4f> positions, buffer_mut<v4f> velocities,
+                     buffer_mut<valuei> results, buffer_mut<valuef> zshift,
                      literal<v3i> dim,
                      literal<valuef> scale,
                      bssn_args_mem<buffer<valuef>> in,
@@ -537,14 +535,13 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
     v2i screen_position = {x, y};
     v2i screen_size = {screen_width.get(), screen_height.get()};
-    v2i background_size = {background_width.get(), background_height.get()};
 
-    v3f pos_in = positions[screen_position, screen_size].yzw();
-    v3f vel_in = velocities[screen_position, screen_size].yzw();
+    v3f pos_in = declare_e(positions[screen_position, screen_size]).yzw();
+    v3f vel_in = declare_e(velocities[screen_position, screen_size]).yzw();
 
-    mut<valuei> result = declare_mut_e(valuei(1));
+    mut<valuei> result = declare_mut_e(valuei(0));
     v3f final_position;
-    v3f final_velocity;
+    mut_v3f final_dX = declare_mut_e((v3f){});
 
     {
         mut_v3f position = declare_mut_e(pos_in);
@@ -556,6 +553,14 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
         {
             v3f cposition = declare_e(position);
             v3f cvelocity = declare_e(velocity);
+
+            valuef radius_sq = dot(cposition, cposition);
+
+            if_e(radius_sq > UNIVERSE_SIZE*UNIVERSE_SIZE, [&] {
+                as_ref(final_dX) = cvelocity;
+                as_ref(result) = valuei(1);
+                break_e();
+            });
 
             v3f grid_position = world_to_grid(cposition, dim.get(), scale.get());
 
@@ -602,10 +607,10 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
             pin(W);
             pin(cY);
 
+            adm_variables args = admf_at(grid_position, dim.get(), in);
+
             auto Yij = cY / (W*W);
             pin(Yij);
-
-            adm_variables args = admf_at(grid_position, dim.get(), in);
 
             valuef length_sq = dot(cvelocity, Yij.lower(cvelocity));
             valuef length = sqrt(fabs(length_sq));
@@ -613,8 +618,6 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
             cvelocity = cvelocity / length;
 
             pin(cvelocity);
-
-            v3f d_X = args.gA * cvelocity - args.gB;
 
             auto icY = cY.invert();
             pin(icY);
@@ -655,54 +658,29 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
                 }
             }
 
-            ///todo: fix/checkme
-            ///98% sure this is wrong, because ray back in time dt/dT divided gives flipped ray dir
-            ///but then. Rsy going wrong way in coordinate time. bad?
-            valuef dt = -1.f * get_ct_timestep(cposition, cvelocity, W);
+            v3f d_X = args.gA * cvelocity - args.gB;
+            pin(d_X);
 
-            as_ref(position) = cposition + d_X * dt;
-            as_ref(velocity) = cvelocity + d_V * dt;
-
-            valuef radius_sq = dot(as_constant(position), as_constant(position));
-
-            if_e(radius_sq > UNIVERSE_SIZE*UNIVERSE_SIZE, [&] {
-                //ray escaped
+            if_e(dot(d_X, d_X) < 0.2f * 0.2f, [&]
+            {
                 as_ref(result) = valuei(0);
                 break_e();
             });
 
-            if_e(dot(d_X, d_X) < 0.2f * 0.2f, [&]
-            {
-                as_ref(result) = valuei(1);
-                break_e();
-            });
+            valuef dt = -1.f * get_ct_timestep(cposition, cvelocity, W);
+
+            as_ref(position) = cposition + d_X * dt;
+            as_ref(velocity) = cvelocity + d_V * dt;
         });
 
         final_position = declare_e(position);
-        final_velocity = declare_e(velocity);
     }
 
-    mut_v3f col = declare_mut_e((v3f){0,0,0});
+    v3f vel = declare_e(final_dX);
 
-    if_e(result == 0, [&] {
-
-        v3f spherical = cartesian_to_spherical(final_position);
-
-        valuef theta = spherical[1];
-        valuef phi = spherical[2];
-
-        v2f texture_coordinate = angle_to_tex({theta, phi});
-
-        valuei tx = (texture_coordinate[0] * background_size.x().to<float>() + background_size.x().to<float>()).to<int>() % background_size.x();
-        valuei ty = (texture_coordinate[1] * background_size.y().to<float>() + background_size.y().to<float>()).to<int>() % background_size.y();
-
-        ///linear colour
-        as_ref(col) = linear_to_srgb_gpu(background.read<float, 4>({tx, ty}).xyz());
-    });
-
-    v4f crgba = {col[0], col[1], col[2], 1.f};
-
-    screen.write(ectx, {x, y}, crgba);
+    as_ref(positions[screen_position, screen_size]) = (v4f){0, final_position.x(), final_position.y(), final_position.z()};
+    as_ref(velocities[screen_position, screen_size]) = (v4f){0, vel.x(), vel.y(), vel.z()};
+    as_ref(results[screen_position, screen_size]) = as_constant(result);
 }
 
 void bssn_to_guv(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> lower_dim,
@@ -954,9 +932,8 @@ metric<valuef, 4, 4> get_Guv(v4i grid_pos, v3i dim, std::array<buffer<block_prec
 }
 
 void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
-            read_only_image<2> background, write_only_image<2> screen,
-            literal<valuei> background_width, literal<valuei> background_height,
             buffer_mut<v4f> positions, buffer_mut<v4f> velocities,
+            buffer_mut<valuei> results, buffer_mut<valuef> zshift,
             literal<v3i> dim,
             literal<valuef> scale,
             buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
@@ -988,7 +965,6 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
 
     v2i screen_position = {x, y};
     v2i screen_size = {screen_width.get(), screen_height.get()};
-    v2i background_size = {background_width.get(), background_height.get()};
 
     v4f pos_in = declare_e(positions[screen_position, screen_size]);
     v4f vel_in = declare_e(velocities[screen_position, screen_size]);
@@ -1125,7 +1101,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
     verlet_context<v4f> ctx;
     ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS);
 
-    mut<valuei> result = declare_mut_e(valuei(1));
+    mut<valuei> result = declare_mut_e(valuei(0));
     v4f final_position;
     v4f final_velocity;
 
@@ -1276,7 +1252,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
 
             if_e(radius_sq > UNIVERSE_SIZE*UNIVERSE_SIZE, [&] {
                 //ray escaped
-                as_ref(result) = valuei(0);
+                as_ref(result) = valuei(1);
                 break_e();
             });
 
@@ -1299,7 +1275,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                  !isfinite(cposition.x()) || !isfinite(cposition.y()) || !isfinite(cposition.z()) || !isfinite(cposition.w()) ||
                  !isfinite(cvelocity.x()) || !isfinite(cvelocity.y()) || !isfinite(cvelocity.z()) || !isfinite(cvelocity.w())
                  , [&]{
-                as_ref(result) = valuei(1);
+                as_ref(result) = valuei(0);
                 break_e();
             });
 
@@ -1314,52 +1290,26 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
         final_velocity = declare_e(ctx.velocity);
     }
 
-    mut_v3f col = declare_mut_e((v3f){0,0,0});
+    auto get_Guvb = [&](v4i pos)
+    {
+        auto val = get_Guv(pos, dim.get(), Guv_buf, last_slice.get());
+        pin(val);
+        return val;
+    };
 
-    if_e(result == 0, [&]{
-        v3f fixed_pos = fix_ray_position_cart(final_position.yzw(), final_velocity.yzw(), UNIVERSE_SIZE);
+    auto position_to_metric = [&](v4f fpos)
+    {
+        auto val = function_quadlinear(get_Guvb, world_to_grid4(fpos));
+        pin(val);
+        return val;
+    };
 
-        v3f spherical = cartesian_to_spherical(fixed_pos);
+    valuef zp1 = get_zp1(pos_in, vel_in, e0[0], final_position, final_velocity, (v4f){1, 0, 0, 0}, position_to_metric);
 
-        valuef theta = spherical[1];
-        valuef phi = spherical[2];
-
-        v2f texture_coordinate = angle_to_tex({theta, phi});
-
-        valuei tx = (texture_coordinate[0] * background_size.x().to<float>() + background_size.x().to<float>()).to<int>() % background_size.x();
-        valuei ty = (texture_coordinate[1] * background_size.y().to<float>() + background_size.y().to<float>()).to<int>() % background_size.y();
-
-        ///linear colour
-        as_ref(col) = background.read<float, 4>({tx, ty}).xyz();
-    });
-
-    if_e(result == 1 || result == 0, [&] {
-        auto get_Guvb = [&](v4i pos)
-        {
-            auto val = get_Guv(pos, dim.get(), Guv_buf, last_slice.get());
-            pin(val);
-            return val;
-        };
-
-        auto position_to_metric = [&](v4f fpos)
-        {
-            auto val = function_quadlinear(get_Guvb, world_to_grid4(fpos));
-            pin(val);
-            return val;
-        };
-
-        v3f ccol = declare_e(col);
-
-        valuef zp1 = get_zp1(pos_in, vel_in, e0[0], final_position, final_velocity, (v4f){1, 0, 0, 0}, position_to_metric);
-
-        ccol = do_redshift(ccol, zp1);
-
-        v3f cvt = linear_to_srgb_gpu(ccol);
-
-        v4f crgba = {cvt[0], cvt[1], cvt[2], 1.f};
-
-        screen.write(ectx, {x, y}, crgba);
-    });
+    as_ref(results[screen_position, screen_size]) = as_constant(result);
+    as_ref(zshift[screen_position, screen_size]) = zp1 - 1;
+    as_ref(positions[screen_position, screen_size]) = final_position;
+    as_ref(velocities[screen_position, screen_size]) = final_velocity;
 }
 
 void calculate_texture_coordinates(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
@@ -1400,7 +1350,8 @@ void calculate_texture_coordinates(execution_context& ectx, literal<valuei> scre
 }
 
 void render(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
-            buffer<v4f> positions, buffer<v4f> velocities, buffer<valuei> results,
+            buffer<v4f> positions, buffer<v4f> velocities, buffer<valuei> results, buffer<valuef> zshift,
+            buffer<v2f> texture_coordinates,
             read_only_image_array<2> background, write_only_image<2> screen,
             literal<v2i> background_size)
 {
@@ -1424,21 +1375,19 @@ void render(execution_context& ectx, literal<valuei> screen_width, literal<value
     v2i screen_size = {screen_width.get(), screen_height.get()};
 
     if_e(results[screen_position, screen_size] == 0, [&]{
+        screen.write(ectx, {x, y}, (v4f){0,0,0,1});
+
         return_e();
     });
 
-    v3f position3 = positions[screen_position, screen_size].yzw();
-    v3f velocity3 = velocities[screen_position, screen_size].yzw();
+    v2f texture_coordinate = texture_coordinates[screen_position, screen_size];
 
-    position3 = fix_ray_position_cart(position3, velocity3, UNIVERSE_SIZE);
-
-    v2f angle = cartesian_to_spherical(position3).yz();
-
-    v3f to_read = {angle.x(), angle.y(), 0.f};
+    v3f to_read = {texture_coordinate.x(), texture_coordinate.y(), 0.f};
 
     v3f col = background.read<float, 4>(to_read, {sampler_flag::NORMALIZED_COORDS_TRUE, sampler_flag::FILTER_LINEAR, sampler_flag::ADDRESS_REPEAT}).xyz();
 
-    v3f cvt = linear_to_srgb_gpu(col);
+    v3f cvt = col;
+    //v3f cvt = linear_to_srgb_gpu(col);
 
     v4f crgba = {cvt[0], cvt[1], cvt[2], 1.f};
 
@@ -1750,4 +1699,8 @@ void build_raytrace_kernels(cl::context ctx)
     cl::async_build_and_cache(ctx, []{
         return value_impl::make_function(calculate_texture_coordinates, "calculate_texture_coordinates");
     }, {"calculate_texture_coordinates"});
+
+    cl::async_build_and_cache(ctx, []{
+        return value_impl::make_function(render, "render");
+    }, {"render"});
 }

@@ -1001,6 +1001,7 @@ namespace value_impl
         bool invalid = true;
 
         //same value stored in concrete
+        //todo: Think this leads to horrendous blowup, constrain to same types
         std::visit([&](auto&& i1, auto&& i2)
         {
             invalid = !(i1 == i2);
