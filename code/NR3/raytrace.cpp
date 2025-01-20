@@ -1295,7 +1295,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                 break_e();
             });*/
 
-            if_e(cposition.x() < -100 || fabs(cvelocity.x()) > 20 || cvelocity.yzw().length() < 0.1f ||
+            if_e(cposition.x() < -100 || fabs(cvelocity.x()) > 20 || cvelocity.yzw().squared_length() < 0.1f * 0.1f ||
                  !isfinite(cposition.x()) || !isfinite(cposition.y()) || !isfinite(cposition.z()) || !isfinite(cposition.w()) ||
                  !isfinite(cvelocity.x()) || !isfinite(cvelocity.y()) || !isfinite(cvelocity.z()) || !isfinite(cvelocity.w())
                  , [&]{
