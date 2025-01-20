@@ -23,8 +23,6 @@ using mut_v3f = tensor<mut<valuef>, 3>;
 template<typename T>
 using dual = dual_types::dual_v<T>;
 
-#define UNIVERSE_SIZE 100
-
 template<typename T>
 inline
 auto function_trilinear(T&& func, v3f pos)

@@ -1,6 +1,8 @@
 #include "raytrace.hpp"
 #include "tensor_algebra.hpp"
 
+#define UNIVERSE_SIZE 29
+
 template<auto GetMetric, typename... T>
 inline
 void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
@@ -375,20 +377,6 @@ tensor<valuef, 3> gB_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
     return val;
 }
 
-inline
-metric<valuef, 3, 3> Yij_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
-{
-    using namespace single_source;
-
-    auto func = [&](v3i pos)
-    {
-        return adm_at(pos, dim, in).Yij;
-    };
-
-    auto val = function_trilinear(func, pos);
-    pin(val);
-    return val;
-}
 
 inline
 unit_metric<valuef, 3, 3> cY_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
@@ -403,33 +391,6 @@ unit_metric<valuef, 3, 3> cY_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>
     auto val = function_trilinear(func, pos);
     pin(val);
     return val;
-}
-
-inline
-inverse_metric<valuef, 3, 3> icY_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
-{
-    using namespace single_source;
-
-    auto func = [&](v3i pos)
-    {
-        return bssn_at(pos, dim, in).cY;
-    };
-
-    auto val = function_trilinear(func, pos);
-    pin(val);
-    return val.invert();
-}
-
-inline
-inverse_metric<valuef, 3, 3> iYij_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
-{
-    using namespace single_source;
-
-    auto W = W_f_at(pos, dim, in);
-
-    pin(W);
-
-    return icY_f_at(pos, dim, in) * W * W;
 }
 
 ///this is totally pointless, velocity = 1
@@ -704,7 +665,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
             valuef radius_sq = dot(as_constant(position), as_constant(position));
 
-            if_e(radius_sq > 29*29, [&] {
+            if_e(radius_sq > UNIVERSE_SIZE*UNIVERSE_SIZE, [&] {
                 //ray escaped
                 as_ref(result) = valuei(0);
                 break_e();
@@ -802,12 +763,11 @@ void bssn_to_guv(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> l
 
         value<uint64_t> lidx = p.z() * d.x() * d.y() + p.y() * d.x() + p.x() + slice.get() * d.x() * d.y() * d.z();
 
-        //std::cout << "Vidx " << value_to_string(lidx) << std::endl;
-
         as_ref(Guv[i][lidx]) = (block_precision_t)met[idx.x(), idx.y()];
     }
 }
 
+///todo: fixme
 valuef acceleration_to_precision(v4f acceleration, valuef max_acceleration, valuef* next_ds_out)
 {
     valuef current_acceleration_err = acceleration.length() * 0.01f;
@@ -835,19 +795,6 @@ valuef acceleration_to_precision(v4f acceleration, valuef max_acceleration, valu
     return diff;
 }
 
-valuef get_ct_timestep2(valuef W)
-{
-    float X_far = 0.9f;
-    float X_near = 0.6f;
-
-    valuef X = W*W;
-
-    valuef my_fraction = (clamp(X, X_near, X_far) - X_near) / (X_far - X_near);
-
-    my_fraction = clamp(my_fraction, 0.f, 1.f);
-
-    return mix(valuef(1.f), valuef(4.f), my_fraction);
-}
 
 #define METHOD_1
 template<typename T>
@@ -1006,7 +953,6 @@ metric<valuef, 4, 4> get_Guv(v4i grid_pos, v3i dim, std::array<buffer<block_prec
     return met;
 }
 
-///tomorrow me: try just 4x4ing one slice
 void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
             read_only_image<2> background, write_only_image<2> screen,
             literal<valuei> background_width, literal<valuei> background_height,
@@ -1059,9 +1005,9 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
             grid_t = clamp()
         });*/
 
-        /*grid_t = ternary(last_slice.get() >= 3,
-                         clamp(grid_t, valuef(1), (valuef)last_slice.get() - 1),
-                         grid_t);*/
+        grid_t = ternary(last_slice.get() > 5,
+                         clamp(grid_t, valuef(2), (valuef)last_slice.get() - 3),
+                         grid_t);
 
         grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
         pin(grid_position);
@@ -1328,7 +1274,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
 
             valuef radius_sq = dot(cposition.yzw(), cposition.yzw());
 
-            if_e(radius_sq > 29*29, [&] {
+            if_e(radius_sq > UNIVERSE_SIZE*UNIVERSE_SIZE, [&] {
                 //ray escaped
                 as_ref(result) = valuei(0);
                 break_e();
@@ -1349,7 +1295,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                 break_e();
             });*/
 
-            if_e(cposition.x() < -100.f || fabs(cvelocity.x()) > 20 || cvelocity.yzw().length() < 0.1f ||
+            if_e(cposition.x() < -UNIVERSE_SIZE - 2 || fabs(cvelocity.x()) > 20 || cvelocity.yzw().length() < 0.1f ||
                  !isfinite(cposition.x()) || !isfinite(cposition.y()) || !isfinite(cposition.z()) || !isfinite(cposition.w()) ||
                  !isfinite(cvelocity.x()) || !isfinite(cvelocity.y()) || !isfinite(cvelocity.z()) || !isfinite(cvelocity.w())
                  , [&]{
@@ -1371,7 +1317,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
     mut_v3f col = declare_mut_e((v3f){0,0,0});
 
     if_e(result == 0, [&]{
-        v3f fixed_pos = fix_ray_position_cart(final_position.yzw(), final_velocity.yzw(), 29);
+        v3f fixed_pos = fix_ray_position_cart(final_position.yzw(), final_velocity.yzw(), UNIVERSE_SIZE);
 
         v3f spherical = cartesian_to_spherical(fixed_pos);
 
