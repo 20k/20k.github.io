@@ -1084,10 +1084,29 @@ namespace value_impl
         template<int N>
         struct image {
             std::string name;
+
+            virtual bool is_read_only() const {
+                assert(false);
+            }
+
+            virtual bool is_image_array() const {
+                return false;
+            }
         };
 
         template<int N>
-        struct read_only_image : image<N> {
+        struct image_array : image<N> {
+            virtual bool is_image_array() const override {
+                return true;
+            }
+        };
+
+        template<int N, typename Base>
+        struct read_only_image_base : Base {
+            virtual bool is_read_only() const override {
+                return true;
+            }
+
             ///this is pretty basic as read/write and doesn't encompass the full set of functionality
             template<typename T, int M>
             tensor<value<T>, M> read(execution_context_base& ectx, const tensor<value<int>, N>& pos) const
@@ -1137,7 +1156,17 @@ namespace value_impl
         };
 
         template<int N>
-        struct write_only_image : image<N> {
+        using read_only_image = read_only_image_base<N, image<N>>;
+
+        template<int N>
+        using read_only_image_array = read_only_image_base<N, image_array<N>>;
+
+        template<int N, typename Base>
+        struct write_only_image_base : Base {
+            virtual bool is_read_only() const override {
+                return false;
+            }
+
             template<typename T, int M>
             void write(execution_context_base& ectx, const tensor<value<int>, N>& pos, const tensor<value<T>, M>& val) const
             {
@@ -1170,6 +1199,12 @@ namespace value_impl
                 return write(get_context(), pos, val);
             }
         };
+
+        template<int N>
+        using write_only_image = write_only_image_base<N, image<N>>;
+
+        template<int N>
+        using write_only_image_array = write_only_image_base<N, image_array<N>>;
     }
 
     template<typename T>
@@ -1252,19 +1287,6 @@ namespace value_impl
         }, v1);
     }
 
-    template<typename T>
-    using buffer = single_source::buffer<T>;
-    template<typename T>
-    using buffer_mut = single_source::buffer_mut<T>;
-    template<typename T>
-    using literal = single_source::literal<T>;
-    template<int N>
-    using image = single_source::image<N>;
-    template<int N>
-    using read_only_image = single_source::read_only_image<N>;
-    template<int N>
-    using write_only_image = single_source::write_only_image<N>;
-
     struct input;
 
     struct type_storage
@@ -1285,6 +1307,7 @@ namespace value_impl
         bool pointer = false;
         bool is_constant = false;
         bool is_image = false;
+        bool is_image_array = false;
         int image_N = 0;
         std::string name;
 
@@ -1292,10 +1315,20 @@ namespace value_impl
         {
             if(is_image)
             {
+                std::string tag;
+
                 if(is_constant)
-                    return "__read_only image" + std::to_string(image_N) + "d_t " + name;
+                    tag = "__read_only";
                 else
-                    return "__write_only image" + std::to_string(image_N) + "d_t " + name;
+                    tag = "__write_only";
+
+                std::string array_tag;
+
+                if(is_image_array)
+                    array_tag = "_array";
+
+                ///eg __write_only image2d_array_t my_image
+                return tag + " image" + std::to_string(image_N) + "d" + array_tag + "_t " + name;
             }
 
             if(pointer)
@@ -1312,7 +1345,10 @@ namespace value_impl
     };
 
     namespace builder {
+        using namespace single_source;
+
         template<typename T>
+        inline
         void add(buffer<T>& buf, type_storage& result)
         {
             input in;
@@ -1329,6 +1365,7 @@ namespace value_impl
         }
 
         template<typename T>
+        inline
         void add(buffer_mut<T>& buf, type_storage& result)
         {
             input in;
@@ -1345,6 +1382,7 @@ namespace value_impl
         }
 
         template<typename T>
+        inline
         void add(literal<T>& lit, type_storage& result)
         {
             input in;
@@ -1360,29 +1398,15 @@ namespace value_impl
         }
 
         template<int N>
-        void add(single_source::read_only_image<N>& img, type_storage& result)
-        {
-            input in;
-            in.type = "error";
-            in.is_image = true;
-            in.is_constant = true;
-            in.image_N = N;
-
-            std::string name = "img" + std::to_string(result.args.size());
-
-            in.name = name;
-            img.name = name;
-
-            result.args.push_back(in);
-        }
-
-        template<int N>
-        void add(single_source::write_only_image<N>& img, type_storage& result)
+        inline
+        void add(single_source::image<N>& img, type_storage& result)
         {
             input in;
             in.type = "error";
             in.is_image = true;
             in.image_N = N;
+            in.is_constant = img.is_read_only();
+            in.is_image_array = img.is_image_array();
 
             std::string name = "img" + std::to_string(result.args.size());
 
@@ -1750,6 +1774,7 @@ namespace value_impl
 
 
     template<typename T>
+    inline
     std::string make_function(T&& in, const std::string& kernel_name)
     {
         function_context kctx;
@@ -1784,5 +1809,11 @@ using read_only_image = value_impl::single_source::read_only_image<N>;
 
 template<int N>
 using write_only_image = value_impl::single_source::write_only_image<N>;
+
+template<int N>
+using read_only_image_array = value_impl::single_source::read_only_image_array<N>;
+
+template<int N>
+using write_only_image_array = value_impl::single_source::write_only_image_array<N>;
 
 #endif // SINGLE_SOURCE_HPP_INCLUDED

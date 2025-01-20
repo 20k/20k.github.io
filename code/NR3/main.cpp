@@ -510,11 +510,13 @@ struct raytrace_bssn
     float time_between_snapshots = 2;
     t3i reduced_dim = {101, 101, 101};
 
+    cl::buffer texture_coordinates;
+
     //std::vector<bssn_buffer_pack> snapshots;
 
     std::vector<cl::buffer> Guv_block;
 
-    raytrace_bssn(cl::context& ctx) : position(ctx), velocity(ctx), results(ctx)
+    raytrace_bssn(cl::context& ctx) : position(ctx), velocity(ctx), results(ctx), texture_coordinates(ctx)
     {
         build_raytrace_kernels(ctx);
     }
@@ -573,6 +575,7 @@ struct raytrace_bssn
         position.alloc(width * height * sizeof(cl_float4));
         velocity.alloc(width * height * sizeof(cl_float4));
         results.alloc(width * height * sizeof(cl_int));
+        texture_coordinates.alloc(width * height * sizeof(cl_float4));
     }
 };
 
@@ -910,6 +913,9 @@ int main()
             cl_int screen_height = screen_tex.size<2>().y();
             float full_scale = get_scale(simulation_width, m.dim);
             float reduced_scale = get_scale(simulation_width, rt_bssn.reduced_dim);
+
+            if(render || render2)
+                rt_bssn.texture_coordinates.set_to_zero(cqueue);
 
             int buf = m.valid_derivative_buffer;
 
