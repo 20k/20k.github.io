@@ -1401,7 +1401,8 @@ void calculate_texture_coordinates(execution_context& ectx, literal<valuei> scre
 
 void render(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
             buffer<v4f> positions, buffer<v4f> velocities, buffer<valuei> results,
-            read_only_image<2> background, write_only_image<2> screen)
+            read_only_image_array<2> background, write_only_image<2> screen,
+            literal<v2i> background_size)
 {
     using namespace single_source;
 
@@ -1433,6 +1434,15 @@ void render(execution_context& ectx, literal<valuei> screen_width, literal<value
 
     v2f angle = cartesian_to_spherical(position3).yz();
 
+    v3f to_read = {angle.x(), angle.y(), 0.f};
+
+    v3f col = background.read<float, 4>(to_read, {sampler_flag::NORMALIZED_COORDS_TRUE, sampler_flag::FILTER_LINEAR, sampler_flag::ADDRESS_REPEAT}).xyz();
+
+    v3f cvt = linear_to_srgb_gpu(col);
+
+    v4f crgba = {cvt[0], cvt[1], cvt[2], 1.f};
+
+    screen.write(ectx, {x, y}, crgba);
 
     /*
     int sx = rdat.sx;

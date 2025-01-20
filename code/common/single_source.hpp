@@ -1170,7 +1170,7 @@ namespace value_impl
             }
         };
 
-        template<int N, typename Base>
+        template<int CoordinateDim, typename Base>
         struct read_only_image_base : Base {
             virtual bool is_read_only() const override {
                 return true;
@@ -1178,7 +1178,7 @@ namespace value_impl
 
             ///this is pretty basic as read/write and doesn't encompass the full set of functionality
             template<typename T, int M, typename U>
-            tensor<value<T>, M> read(execution_context_base& ectx, const tensor<value<U>, N>& pos, const std::vector<std::string>& sampler = {}) const
+            tensor<value<T>, M> read(execution_context_base& ectx, const tensor<value<U>, CoordinateDim>& pos, const std::vector<std::string>& sampler = {}) const
             {
                 value_base type = name_type(T());
                 value_base pos_type = name_type(U());
@@ -1190,7 +1190,7 @@ namespace value_impl
                 else
                     single_read.type = op::IMAGE_READ_WITH_SAMPLER;
 
-                single_read.args = {this->name, value<int>(N), type, pos_type};
+                single_read.args = {this->name, value<int>(pos.size()), type, pos_type};
 
                 if(sampler.size() > 0)
                 {
@@ -1237,13 +1237,13 @@ namespace value_impl
             }
 
             template<typename T, int M>
-            tensor<value<T>, M> read(const tensor<value<int>, N>& pos, const std::vector<std::string>& sampler = {}) const
+            tensor<value<T>, M> read(const tensor<value<int>, CoordinateDim>& pos, const std::vector<std::string>& sampler = {}) const
             {
                 return read<T, M>(get_context(), pos, sampler);
             }
 
             template<typename T, int M, typename U>
-            tensor<value<T>, M> read(const tensor<value<U>, N>& pos, const std::vector<std::string>& sampler = {}) const
+            tensor<value<T>, M> read(const tensor<value<U>, CoordinateDim>& pos, const std::vector<std::string>& sampler = {}) const
             {
                 return read<T, M>(get_context(), pos, sampler);
             }
@@ -1253,7 +1253,7 @@ namespace value_impl
         using read_only_image = read_only_image_base<N, image<N>>;
 
         template<int N>
-        using read_only_image_array = read_only_image_base<N, image_array<N>>;
+        using read_only_image_array = read_only_image_base<N+1, image_array<N>>;
 
         template<int N, typename Base>
         struct write_only_image_base : Base {
@@ -1298,7 +1298,7 @@ namespace value_impl
         using write_only_image = write_only_image_base<N, image<N>>;
 
         template<int N>
-        using write_only_image_array = write_only_image_base<N, image_array<N>>;
+        using write_only_image_array = write_only_image_base<N+1, image_array<N>>;
     }
 
     template<typename T>
