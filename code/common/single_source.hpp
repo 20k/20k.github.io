@@ -728,14 +728,47 @@ namespace value_impl
             return str;
         };
 
+        if(v.type == op::SAMPLER)
+        {
+            std::map<std::string, std::string> sampler_mapping
+            {
+                {"normalized_coords_true", "CLK_NORMALIZED_COORDS_TRUE"},
+                {"normalized_coords_false", "CLK_NORMALIZED_COORDS_FALSE"},
+                {"address_mirrored_repeat", "CLK_ADDRESS_MIRRORED_REPEAT"},
+                {"address_repeat", "CLK_ADDRESS_REPEAT"},
+                {"address_clamp_to_edge", "CLK_ADDRESS_CLAMP_TO_EDGE"},
+                {"address_clamp", "CLK_ADDRESS_CLAMP"},
+                {"address_none", "CLK_ADDRESS_NONE"},
+                {"filter_nearest", "CLK_FILTER_NEAREST"},
+                {"filter_linear", "CLK_FILTER_LINEAR"},
+                {"none", "0"},
+            };
+
+            if(v.args.size() == 0)
+                return "0";
+
+            std::string str;
+
+            for(int i=0; i < v.args.size(); i++)
+            {
+                std::string value = sampler_mapping.at(value_to_string(v.args[i]));
+
+                if(i == (int)v.args.size() - 1)
+                    str += value;
+                else
+                    str += "|" + value;
+            }
+
+            return "(" + str + ")";
+        }
+
         if(v.type == op::IMAGE_READ)
         {
-            std::string type = value_to_string(v.args[2]);
             std::string name = value_to_string(v.args[0]);
+            int num_args = std::get<int>(v.args[1].concrete);
+            std::string type = value_to_string(v.args[2]);
 
             std::string suffix = type_to_suffix(type);
-
-            int num_args = std::get<int>(v.args[1].concrete);
 
             std::string pos_type = value_to_string(v.args.at(3));
 
@@ -747,6 +780,27 @@ namespace value_impl
             }
 
             return "read_image" + suffix + "(" + name + ",(" + pos_type + std::to_string(num_args) + ")(" + join(pos) + "))";
+        }
+
+        if(v.type == op::IMAGE_READ_WITH_SAMPLER)
+        {
+            std::string name = value_to_string(v.args[0]);
+            int num_args = std::get<int>(v.args[1].concrete);
+            std::string type = value_to_string(v.args[2]);
+
+            std::string suffix = type_to_suffix(type);
+
+            std::string pos_type = value_to_string(v.args.at(3));
+            std::string sampler = value_to_string(v.args.at(4));
+
+            std::vector<value_base> pos;
+
+            for(int i=0; i < num_args; i++)
+            {
+                pos.push_back(v.args.at(5 + i));
+            }
+
+            return "read_image" + suffix + "(" + name + "," + sampler + ",(" + pos_type + std::to_string(num_args) + ")(" + join(pos) + "))";
         }
 
         ///name, N, position[0..N], write_data_type, M, write_data[0..M]
@@ -860,7 +914,6 @@ namespace value_impl
     struct type_storage;
 
     namespace single_source {
-
         struct argument_pack {
             template<typename Self>
             void add_struct(this Self&& self, type_storage& result)
@@ -1081,6 +1134,22 @@ namespace value_impl
             }
         };
 
+        namespace sampler_flag
+        {
+            static std::string NORMALIZED_COORDS_TRUE = "normalized_coords_true";
+            static std::string NORMALIZED_COORDS_FALSE = "normalized_coords_false";
+
+            static std::string ADDRESS_MIRRORED_REPEAT = "address_mirrored_repeat";
+            static std::string ADDRESS_REPEAT = "address_repeat";
+            static std::string ADDRESS_CLAMP_TO_EDGE = "address_clamp_to_edge";
+            static std::string ADDRESS_CLAMP = "address_clamp";
+            static std::string ADDRESS_NONE = "address_none";
+            static std::string FILTER_NEAREST = "filter_nearest";
+            static std::string FILTER_LINEAR = "filter_linear";
+
+            static std::string NONE = "none";
+        }
+
         template<int N>
         struct image {
             std::string name;
@@ -1108,15 +1177,34 @@ namespace value_impl
             }
 
             ///this is pretty basic as read/write and doesn't encompass the full set of functionality
-            template<typename T, int M>
-            tensor<value<T>, M> read(execution_context_base& ectx, const tensor<value<int>, N>& pos) const
+            template<typename T, int M, typename U>
+            tensor<value<T>, M> read(execution_context_base& ectx, const tensor<value<U>, N>& pos, const std::vector<std::string>& sampler = {}) const
             {
                 value_base type = name_type(T());
-                value_base pos_type = std::string("int");
+                value_base pos_type = name_type(U());
 
                 value_base single_read;
-                single_read.type = op::IMAGE_READ;
+
+                if(sampler.size() == 0)
+                    single_read.type = op::IMAGE_READ;
+                else
+                    single_read.type = op::IMAGE_READ_WITH_SAMPLER;
+
                 single_read.args = {this->name, value<int>(N), type, pos_type};
+
+                if(sampler.size() > 0)
+                {
+                    value_base sam;
+                    sam.type = op::SAMPLER;
+
+                    for(auto& i : sampler)
+                    {
+                        value_base arg = i;
+                        sam.args.push_back(arg);
+                    }
+
+                    single_read.args.push_back(sam);
+                }
 
                 for(auto& i : pos)
                     single_read.args.push_back(i);

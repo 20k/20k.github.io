@@ -98,7 +98,9 @@ namespace value_impl
             SIDE_EFFECT,
 
             IMAGE_READ,
+            IMAGE_READ_WITH_SAMPLER,
             IMAGE_WRITE,
+            SAMPLER,
 
             CAST,
         };
