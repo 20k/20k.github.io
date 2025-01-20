@@ -1231,18 +1231,6 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
             }
             #endif
 
-            /*metric<valuef, 3, 3> Yij;
-
-            for(int i=1; i < 4; i++)
-            {
-                for(int j=1; j < 4; j++)
-                {
-                    Yij[i - 1, j - 1] = Guv[i, j];
-                }
-            }
-
-            valuef W = pow(Yij.det(), -1/6.f);*/
-
             ctx.next(get_dX, get_dV, get_dS);
 
             v4f cposition = as_constant(ctx.position);
