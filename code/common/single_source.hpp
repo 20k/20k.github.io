@@ -1237,9 +1237,15 @@ namespace value_impl
             }
 
             template<typename T, int M>
-            tensor<value<T>, M> read(const tensor<value<int>, N>& pos) const
+            tensor<value<T>, M> read(const tensor<value<int>, N>& pos, const std::vector<std::string>& sampler = {}) const
             {
-                return read<T, M>(get_context(), pos);
+                return read<T, M>(get_context(), pos, sampler);
+            }
+
+            template<typename T, int M, typename U>
+            tensor<value<T>, M> read(const tensor<value<U>, N>& pos, const std::vector<std::string>& sampler = {}) const
+            {
+                return read<T, M>(get_context(), pos, sampler);
             }
         };
 
