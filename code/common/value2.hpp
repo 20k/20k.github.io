@@ -1001,11 +1001,11 @@ namespace value_impl
         bool invalid = true;
 
         //same value stored in concrete
-        //todo: Think this leads to horrendous blowup, constrain to same types
-        std::visit([&](auto&& i1, auto&& i2)
+
+        std::visit([&]<typename T>(const T& i1)
         {
-            invalid = !(i1 == i2);
-        }, v1.concrete, v2.concrete);
+            invalid = !(i1 == std::get<T>(v2.concrete));
+        }, v1.concrete);
 
         if(invalid)
             return false;
@@ -1094,17 +1094,14 @@ namespace value_impl
 
         std::optional<value_base> out;
 
-        std::visit([&](auto&& i1, auto&& i2, auto&& i3) {
-            if constexpr(std::is_same_v<decltype(i1), decltype(i2)> && std::is_same_v<decltype(i1), decltype(i3)>)
-            {
-                value_base b;
-                b.type = op::VALUE;
-                b.concrete = func(i1, i2, i3);
+        std::visit([&]<typename V>(const V& i1)
+        {
+            value_base b;
+            b.type = op::VALUE;
+            b.concrete = func(i1, std::get<V>(v2.concrete), std::get<V>(v3.concrete));
 
-                out = b;
-            }
-
-        }, v1.concrete, v2.concrete, v3.concrete);
+            out = b;
+        }, v1.concrete);
 
         return out;
     }
@@ -1121,17 +1118,14 @@ namespace value_impl
 
         std::optional<value_base> out;
 
-        std::visit([&](auto&& i1, auto&& i2) {
-            if constexpr(std::is_same_v<decltype(i1), decltype(i2)>)
-            {
-                value_base b;
-                b.type = op::VALUE;
-                b.concrete = func(i1, i2);
+        std::visit([&]<typename V>(const V& i1)
+        {
+            value_base b;
+            b.type = op::VALUE;
+            b.concrete = func(i1, std::get<V>(v2.concrete));
 
-                out = b;
-            }
-
-        }, v1.concrete, v2.concrete);
+            out = b;
+        }, v1.concrete);
 
         return out;
     }
