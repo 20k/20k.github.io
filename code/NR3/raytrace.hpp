@@ -167,41 +167,6 @@ adm_variables admf_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 
 using block_precision_t = valuef;
 
-void init_rays3(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
-                buffer_mut<v4f> positions_out,
-                buffer_mut<v4f> velocities_out,
-                buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
-                buffer<v4f> position, literal<v4f> camera_quat,
-                literal<v3i> dim, literal<valuef> scale, literal<valuei> is_adm,
-                bssn_args_mem<buffer<valuef>> in);
-
-void trace3(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
-            read_only_image<2> background, write_only_image<2> screen,
-            literal<valuei> background_width, literal<valuei> background_height,
-            literal<v4f> camera_quat,
-            buffer<v4f> positions, buffer<v4f> velocities,
-            literal<v3i> dim,
-            literal<valuef> scale,
-            bssn_args_mem<buffer<valuef>> in,
-            bssn_derivatives_mem<buffer<derivative_t>> derivatives);
-
-#if 0
-void trace4(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
-            read_only_image<2> background, write_only_image<2> screen,
-            literal<valuei> background_width, literal<valuei> background_height,
-            literal<v4f> camera_quat,
-            buffer_mut<v4f> positions, buffer_mut<v3f> velocities,
-            literal<v3i> dim,
-            literal<valuef> scale,
-            literal<valuef> time_lower,
-            literal<valuef> time_upper,
-            bssn_args_mem<buffer<valuef>> lower,
-            bssn_args_mem<buffer<valuef>> upper,
-            bssn_derivatives_mem<buffer<derivative_t>> lower_derivatives,
-            bssn_derivatives_mem<buffer<derivative_t>> upper_derivatives,
-            buffer_mut<valuei> full_result);
-#endif
-
 inline
 valuef dot(v4f u, v4f v, m44f m) {
     v4f lowered = m.lower(u);
