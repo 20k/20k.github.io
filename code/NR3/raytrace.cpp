@@ -470,7 +470,7 @@ void init_rays3(execution_context& ectx, literal<valuei> screen_width, literal<v
         tensor<valuef, 4> normal = get_adm_hypersurface_normal_raised(init_adm.gA, init_adm.gB);
         tensor<valuef, 4> normal_lowered = get_adm_hypersurface_normal_lowered(init_adm.gA);
 
-        valuef E = -sum_multiply(my_geodesic.velocity, normal_lowered);
+        valuef E = sum_multiply(my_geodesic.velocity, normal_lowered);
 
         ///98% sure this is wrong, but past me had a lot of qualms about this and was careful so...
         tensor<valuef, 4> adm_velocity = -((my_geodesic.velocity / E) - normal);
@@ -658,7 +658,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
             ///todo: fix/checkme
             ///98% sure this is wrong, because ray back in time dt/dT divided gives flipped ray dir
             ///but then. Rsy going wrong way in coordinate time. bad?
-            valuef dt = 1.f * get_ct_timestep(cposition, cvelocity, W);
+            valuef dt = -1.f * get_ct_timestep(cposition, cvelocity, W);
 
             as_ref(position) = cposition + d_X * dt;
             as_ref(velocity) = cvelocity + d_V * dt;
@@ -1295,7 +1295,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                 break_e();
             });*/
 
-            if_e(cposition.x() < -UNIVERSE_SIZE - 2 || fabs(cvelocity.x()) > 20 || cvelocity.yzw().length() < 0.1f ||
+            if_e(cposition.x() < -100 || fabs(cvelocity.x()) > 20 || cvelocity.yzw().length() < 0.1f ||
                  !isfinite(cposition.x()) || !isfinite(cposition.y()) || !isfinite(cposition.z()) || !isfinite(cposition.w()) ||
                  !isfinite(cvelocity.x()) || !isfinite(cvelocity.y()) || !isfinite(cvelocity.z()) || !isfinite(cvelocity.w())
                  , [&]{
