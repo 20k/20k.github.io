@@ -233,6 +233,26 @@ tensor<T, 3> linear_to_srgb_gpu(const tensor<T, 3>& in)
     return ret;
 }
 
+template<typename T>
+inline
+T srgb_to_linear_gpu(const T& in)
+{
+    return ternary(in < T(0.04045f), in / 12.92f, pow((in + 0.055f) / 1.055f, T(2.4f)));
+}
+
+///https://chilliant.blogspot.com/2012/08/srgb-approximations-for-hlsl.html
+template<typename T>
+inline
+tensor<T, 3> srgb_to_linear_gpu(const tensor<T, 3>& in)
+{
+    tensor<T, 3> ret;
+
+    for(int i=0; i < 3; i++)
+        ret[i] = srgb_to_linear_gpu(in[i]);
+
+    return ret;
+}
+
 inline
 valuef get_zp1(v4f position_obs, v4f velocity_obs, v4f ref_obs, v4f position_emit, v4f velocity_emit, v4f ref_emit, auto&& get_metric)
 {
@@ -1355,6 +1375,9 @@ v3f read_mipmap(read_only_image_array<2> img, v3f coord)
 {
     using namespace single_source;
 
+    ///I don't think this is technically necessary
+    coord.z() = max(coord.z(), valuef(0.f));
+
     std::vector<std::string> flags = {sampler_flag::NORMALIZED_COORDS_TRUE, sampler_flag::FILTER_LINEAR, sampler_flag::ADDRESS_REPEAT};
 
     valuef mip_lower = floor(coord.z());
@@ -1525,12 +1548,6 @@ void render(execution_context& ectx, literal<valuei> screen_width, literal<value
 
     valuef maxLod = (valuef)background_array_length.get() - 1;
 
-    /*if(levelofdetail > maxLod)
-    {
-        levelofdetail = maxLod;
-        iProbes = 1;
-    }*/
-
     if_e(as_constant(levelofdetail) > maxLod, [&]{
         as_ref(levelofdetail) = maxLod;
         as_ref(iProbes) = valuei(1);
@@ -1599,363 +1616,25 @@ void render(execution_context& ectx, literal<valuei> screen_width, literal<value
 
             v3f fval = read_mipmap(background, {cu, cv, as_constant(levelofdetail)});
 
-            //float4 fval = read_mipmap(mip_background, mip_background2, side, (float2){cu, cv}, levelofdetail);
-
             as_ref(totalWeight) = declare_e(totalWeight) + relativeWeight * fval;
             as_ref(accumulatedProbes) = declare_e(accumulatedProbes) + relativeWeight;
             as_ref(currentN) = declare_e(currentN) + valuei(2);
         });
 
         as_ref(end_result) = as_constant(totalWeight) / accumulatedProbes;
-
-        ///odd probes
-        /*if((iProbes % 2) == 1)
-        {
-            int probeArm = (iProbes - 1) / 2;
-
-            startN = -2 * probeArm;
-        }
-        else
-        {
-            int probeArm = (iProbes / 2);
-
-            startN = -2 * probeArm - 1;
-        }*/
-
-        /*int currentN = startN;
-        float alpha = 2;
-
-        float sU = du / MIPMAP_CONDITIONAL(get_image_width);
-        float sV = dv / MIPMAP_CONDITIONAL(get_image_height);
-
-        for(int cnt = 0; cnt < iProbes; cnt++)
-        {
-            float d_2 = (currentN * currentN / 4.f) * (du * du + dv * dv) / (majorRadius * majorRadius);
-
-            ///not a performance issue
-            float relativeWeight = native_exp(-alpha * d_2);
-
-            float centreu = sxf;
-            float centrev = syf;
-
-            float cu = centreu + (currentN / 2.f) * sU;
-            float cv = centrev + (currentN / 2.f) * sV;
-
-            float4 fval = read_mipmap(mip_background, mip_background2, side, (float2){cu, cv}, levelofdetail);
-
-            totalWeight += relativeWeight * fval;
-            accumulatedProbes += relativeWeight;
-
-            currentN += 2;
-        }
-
-        end_result = totalWeight / accumulatedProbes;*/
     });
-
-    /*if(iProbes == 1 || iProbes <= 1)
-    {
-        if(iProbes < 1)
-            levelofdetail = maxLod;
-
-        as_ref(end_result) = background.read<float, 4>((v3f){sxf, syf, levelofdetail}, {sampler_flag::NORMALIZED_COORDS_TRUE, sampler_flag::FILTER_LINEAR, sampler_flag::ADDRESS_REPEAT}).xyz()
-
-        //end_result = read_mipmap(mip_background, mip_background2, side, (float2){sxf, syf}, levelofdetail);
-    }
-    else
-    {
-        float lineLength = 2 * (majorRadius - minorRadius);
-        float du = cos(theta) * lineLength / (iProbes - 1);
-        float dv = sin(theta) * lineLength / (iProbes - 1);
-
-        float4 totalWeight = 0;
-        float accumulatedProbes = 0;
-
-        int startN = 0;
-
-        ///odd probes
-        if((iProbes % 2) == 1)
-        {
-            int probeArm = (iProbes - 1) / 2;
-
-            startN = -2 * probeArm;
-        }
-        else
-        {
-            int probeArm = (iProbes / 2);
-
-            startN = -2 * probeArm - 1;
-        }
-
-        int currentN = startN;
-        float alpha = 2;
-
-        float sU = du / MIPMAP_CONDITIONAL(get_image_width);
-        float sV = dv / MIPMAP_CONDITIONAL(get_image_height);
-
-        for(int cnt = 0; cnt < iProbes; cnt++)
-        {
-            float d_2 = (currentN * currentN / 4.f) * (du * du + dv * dv) / (majorRadius * majorRadius);
-
-            ///not a performance issue
-            float relativeWeight = native_exp(-alpha * d_2);
-
-            float centreu = sxf;
-            float centrev = syf;
-
-            float cu = centreu + (currentN / 2.f) * sU;
-            float cv = centrev + (currentN / 2.f) * sV;
-
-            float4 fval = read_mipmap(mip_background, mip_background2, side, (float2){cu, cv}, levelofdetail);
-
-            totalWeight += relativeWeight * fval;
-            accumulatedProbes += relativeWeight;
-
-            currentN += 2;
-        }
-
-        end_result = totalWeight / accumulatedProbes;
-    }*/
 
     v3f cvt = declare_e(end_result);
 
     #endif // ANISOTROPIC
 
+    valuef zp1 = declare_e(zshift[screen_position, screen_size]) + 1;
+
+    cvt = linear_to_srgb_gpu(do_redshift(srgb_to_linear_gpu(cvt), zp1));
+
     v4f crgba = {cvt[0], cvt[1], cvt[2], 1.f};
 
     screen.write(ectx, {x, y}, crgba);
-
-    /*
-    int sx = rdat.sx;
-    int sy = rdat.sy;
-
-    int side = rdat.side;
-
-    if(rdat.terminated != 1)
-    {
-        write_imagef(out, (int2)(sx, sy), (float4)(0,0,0,1));
-        return;
-    }
-
-    float sxf = rdat.tex_coord.x;
-    float syf = rdat.tex_coord.y;
-
-    #if 0
-    ///we actually do have an event horizon
-    if(fabs(r_value) <= 1)
-    //if(fabs(r_value) <= rs || r_value < 0)
-    {
-        float4 val = (float4)(0,0,0,1);
-
-        int x_half = fabs(fmod((sxf + 1) * 10.f, 1.f)) > 0.5 ? 1 : 0;
-        int y_half = fabs(fmod((syf + 1) * 10.f, 1.f)) > 0.5 ? 1 : 0;
-
-        //val.x = (x_half + y_half) % 2;
-
-        val.x = x_half;
-        val.y = y_half;
-
-        if(syf < 0.1 || syf >= 0.9)
-        {
-            val.x = 0;
-            val.y = 0;
-            val.z = 1;
-        }
-
-        write_imagef(out, (int2){sx, sy}, val);
-        return;
-    }
-    #endif
-
-    #define MIPMAPPING
-    #ifdef MIPMAPPING
-    int dx = 1;
-    int dy = 1;
-
-    if(sx == width-1)
-        dx = -1;
-
-    if(sy == height-1)
-        dy = -1;
-
-    float2 tl = rdata[sy * width + sx].tex_coord;
-    float2 tr = rdata[sy * width + sx + dx].tex_coord;
-    float2 bl = rdata[(sy + dy) * width + sx].tex_coord;
-
-    ///higher = sharper
-    float bias_frac = 1.3;
-
-    //TL x 0.435143 TR 0.434950 TD -0.000149, aka (tr.x - tl.x) / 1.3
-    float2 dx_vtc = circular_diff2(tl, tr) / bias_frac;
-    float2 dy_vtc = circular_diff2(tl, bl) / bias_frac;
-
-    if(dx == -1)
-    {
-        dx_vtc = -dx_vtc;
-    }
-
-    if(dy == -1)
-    {
-        dy_vtc = -dy_vtc;
-    }
-
-    //#define TRILINEAR
-    #ifdef TRILINEAR
-    dx_vtc.x *= MIPMAP_CONDITIONAL(get_image_width);
-    dy_vtc.x *= MIPMAP_CONDITIONAL(get_image_width);
-
-    dx_vtc.y *= MIPMAP_CONDITIONAL(get_image_height);
-    dy_vtc.y *= MIPMAP_CONDITIONAL(get_image_height);
-
-    //dx_vtc.x /= 10.f;
-    //dy_vtc.x /= 10.f;
-
-    dx_vtc /= 2.f;
-    dy_vtc /= 2.f;
-
-    float delta_max_sqr = max(dot(dx_vtc, dx_vtc), dot(dy_vtc, dy_vtc));
-
-    float mip_level = 0.5 * log2(delta_max_sqr);
-
-    //mip_level -= 0.5;
-
-    float mip_clamped = clamp(mip_level, 0.f, 5.f);
-
-    float4 end_result = MIPMAP_CONDITIONAL_READ(read_imagef, sam, ((float2){sxf, syf}), mip_clamped);
-    #else
-
-    dx_vtc.x *= MIPMAP_CONDITIONAL(get_image_width);
-    dy_vtc.x *= MIPMAP_CONDITIONAL(get_image_width);
-
-    dx_vtc.y *= MIPMAP_CONDITIONAL(get_image_height);
-    dy_vtc.y *= MIPMAP_CONDITIONAL(get_image_height);
-
-    ///http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.1002.1336&rep=rep1&type=pdf
-    float dv_dx = dx_vtc.y;
-    float dv_dy = dy_vtc.y;
-
-    float du_dx = dx_vtc.x;
-    float du_dy = dy_vtc.x;
-
-    float Ann = dv_dx * dv_dx + dv_dy * dv_dy;
-    float Bnn = -2 * (du_dx * dv_dx + du_dy * dv_dy);
-    float Cnn = du_dx * du_dx + du_dy * du_dy; ///only tells lies
-
-    ///hecc
-    #define HECKBERT
-    #ifdef HECKBERT
-    Ann = dv_dx * dv_dx + dv_dy * dv_dy + 1;
-    Cnn = du_dx * du_dx + du_dy * du_dy + 1;
-    #endif // HECKBERT
-
-    float F = Ann * Cnn - Bnn * Bnn / 4;
-    float A = Ann / F;
-    float B = Bnn / F;
-    float C = Cnn / F;
-
-    float root = sqrt((A - C) * (A - C) + B*B);
-    float a_prime = (A + C - root) / 2;
-    float c_prime = (A + C + root) / 2;
-
-    float majorRadius = native_rsqrt(a_prime);
-    float minorRadius = native_rsqrt(c_prime);
-
-    float theta = atan2(B, (A - C)/2);
-
-    majorRadius = max(majorRadius, 1.f);
-    minorRadius = max(minorRadius, 1.f);
-
-    majorRadius = max(majorRadius, minorRadius);
-
-    float fProbes = 2 * (majorRadius / minorRadius) - 1;
-    int iProbes = floor(fProbes + 0.5f);
-
-    iProbes = min(iProbes, maxProbes);
-
-    if(iProbes < fProbes)
-        minorRadius = 2 * majorRadius / (iProbes + 1);
-
-    float levelofdetail = log2(minorRadius);
-
-    int maxLod = MIPMAP_CONDITIONAL(get_image_array_size) - 1;
-
-    if(levelofdetail > maxLod)
-    {
-        levelofdetail = maxLod;
-        iProbes = 1;
-    }
-
-    float4 end_result = 0;
-
-    if(iProbes == 1 || iProbes <= 1)
-    {
-        if(iProbes < 1)
-            levelofdetail = maxLod;
-
-        end_result = read_mipmap(mip_background, mip_background2, side, (float2){sxf, syf}, levelofdetail);
-    }
-    else
-    {
-        float lineLength = 2 * (majorRadius - minorRadius);
-        float du = cos(theta) * lineLength / (iProbes - 1);
-        float dv = sin(theta) * lineLength / (iProbes - 1);
-
-        float4 totalWeight = 0;
-        float accumulatedProbes = 0;
-
-        int startN = 0;
-
-        ///odd probes
-        if((iProbes % 2) == 1)
-        {
-            int probeArm = (iProbes - 1) / 2;
-
-            startN = -2 * probeArm;
-        }
-        else
-        {
-            int probeArm = (iProbes / 2);
-
-            startN = -2 * probeArm - 1;
-        }
-
-        int currentN = startN;
-        float alpha = 2;
-
-        float sU = du / MIPMAP_CONDITIONAL(get_image_width);
-        float sV = dv / MIPMAP_CONDITIONAL(get_image_height);
-
-        for(int cnt = 0; cnt < iProbes; cnt++)
-        {
-            float d_2 = (currentN * currentN / 4.f) * (du * du + dv * dv) / (majorRadius * majorRadius);
-
-            ///not a performance issue
-            float relativeWeight = native_exp(-alpha * d_2);
-
-            float centreu = sxf;
-            float centrev = syf;
-
-            float cu = centreu + (currentN / 2.f) * sU;
-            float cv = centrev + (currentN / 2.f) * sV;
-
-            float4 fval = read_mipmap(mip_background, mip_background2, side, (float2){cu, cv}, levelofdetail);
-
-            totalWeight += relativeWeight * fval;
-            accumulatedProbes += relativeWeight;
-
-            currentN += 2;
-        }
-
-        end_result = totalWeight / accumulatedProbes;
-    }
-
-    #endif // TRILINEAR
-
-    //float4 end_result = read_imagef(*background, sam, (float2){sxf, syf}, dx_vtc, dy_vtc);
-
-    #else
-    float4 end_result = read_mipmap(mip_background, mip_background2, side, sam, (float2){sxf, syf}, 0);
-    #endif // MIPMAPPING
-*/
 }
 
 void build_raytrace_kernels(cl::context ctx)
