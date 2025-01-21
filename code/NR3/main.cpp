@@ -1057,12 +1057,15 @@ int main()
 
                 cl_int2 bsize = {bwidth, bheight};
 
+                int mips = MIP_LEVELS;
+
                 cl::args args2;
                 args2.push_back(screen_width, screen_height);
                 args2.push_back(rt_bssn.positions, rt_bssn.velocities, rt_bssn.results, rt_bssn.zshifts);
                 args2.push_back(rt_bssn.texture_coordinates);
                 args2.push_back(background, screen_tex);
                 args2.push_back(bsize);
+                args2.push_back(mips);
 
                 cqueue.exec("render", args2, {screen_width, screen_height}, {8,8});
             }

@@ -1351,11 +1351,35 @@ v2f circular_diff2(v2f f1, v2f f2)
     return {circular_diff(f1.x(), f2.x(), 1.f), circular_diff(f1.y(), f2.y(), 1.f)};
 }
 
+v3f read_mipmap(read_only_image_array<2> img, v3f coord)
+{
+    using namespace single_source;
+
+    std::vector<std::string> flags = {sampler_flag::NORMALIZED_COORDS_TRUE, sampler_flag::FILTER_LINEAR, sampler_flag::ADDRESS_REPEAT};
+
+    valuef mip_lower = floor(coord.z());
+    valuef mip_upper = ceil(coord.z());
+
+    valuef lower_divisor = pow(valuef(2.f), mip_lower);
+    valuef upper_divisor = pow(valuef(2.f), mip_upper);
+
+    v2f lower_coord = coord.xy() / lower_divisor;
+    v2f upper_coord = coord.xy() / upper_divisor;
+
+    v3f full_lower_coord = (v3f){lower_coord.x(), lower_coord.y(), mip_lower};
+    v3f full_upper_coord = (v3f){upper_coord.x(), upper_coord.y(), mip_upper};
+
+    valuef weight = coord.z() - mip_lower;
+
+    return mix(img.read<float, 4>(full_lower_coord, flags), img.read<float, 4>(full_upper_coord, flags), weight).xyz();
+}
+
 void render(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
             buffer<v4f> positions, buffer<v4f> velocities, buffer<valuei> results, buffer<valuef> zshift,
             buffer<v2f> texture_coordinates,
             read_only_image_array<2> background, write_only_image<2> screen,
-            literal<v2i> background_size)
+            literal<v2i> background_size,
+            literal<valuei> background_array_length)
 {
     using namespace single_source;
 
@@ -1380,6 +1404,8 @@ void render(execution_context& ectx, literal<valuei> screen_width, literal<value
         screen.write(ectx, {x, y}, (v4f){0,0,0,1});
         return_e();
     });
+
+    //#define BILINEAR
     #ifdef BILINEAR
     v2f texture_coordinate = texture_coordinates[screen_position, screen_size];
 
@@ -1389,7 +1415,6 @@ void render(execution_context& ectx, literal<valuei> screen_width, literal<value
 
     v3f cvt = col;
     #endif
-    //v3f cvt = linear_to_srgb_gpu(col);
 
     #define ANISOTROPIC
     #ifdef ANISOTROPIC
@@ -1433,12 +1458,265 @@ void render(execution_context& ectx, literal<valuei> screen_width, literal<value
     v2f tr = texture_coordinates[screen_position + (v2i){cdx, 0}, screen_size];
     v2f bl = texture_coordinates[screen_position + (v2i){0, cdy}, screen_size];
 
+    pin(tl);
+    pin(tr);
+    pin(bl);
+
     float bias_frac = 1.3;
 
     v2f dx_vtc = (valuef)cdx * circular_diff2(tl, tr) / bias_frac;
     v2f dy_vtc = (valuef)cdy * circular_diff2(tl, bl) / bias_frac;
 
-    v3f cvt = {0,0,0};
+    dx_vtc = dx_vtc * (v2f)background_size.get();
+    dy_vtc = dy_vtc * (v2f)background_size.get();
+
+    ///http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.1002.1336&rep=rep1&type=pdf
+    valuef dv_dx = dx_vtc.y();
+    valuef dv_dy = dy_vtc.y();
+
+    valuef du_dx = dx_vtc.x();
+    valuef du_dy = dy_vtc.x();
+
+    valuef Ann = dv_dx * dv_dx + dv_dy * dv_dy;
+    valuef Bnn = -2 * (du_dx * dv_dx + du_dy * dv_dy);
+    valuef Cnn = du_dx * du_dx + du_dy * du_dy; ///only tells lies
+
+    ///hecc
+    #define HECKBERT
+    #ifdef HECKBERT
+    Ann = dv_dx * dv_dx + dv_dy * dv_dy + 1;
+    Cnn = du_dx * du_dx + du_dy * du_dy + 1;
+    #endif // HECKBERT
+
+    valuef F = Ann * Cnn - Bnn * Bnn / 4;
+    valuef A = Ann / F;
+    valuef B = Bnn / F;
+    valuef C = Cnn / F;
+
+    valuef root = sqrt((A - C) * (A - C) + B*B);
+    valuef a_prime = (A + C - root) / 2;
+    valuef c_prime = (A + C + root) / 2;
+
+    valuef majorRadius = 1/sqrt(a_prime);
+    valuef minorRadius = 1/sqrt(c_prime);
+
+    valuef theta = atan2(B, (A - C)/2);
+
+    majorRadius = max(majorRadius, valuef(1.f));
+    minorRadius = max(minorRadius, valuef(1.f));
+
+    majorRadius = max(majorRadius, minorRadius);
+
+    valuef fProbes = 2 * (majorRadius / minorRadius) - 1;
+    mut<valuei> iProbes = declare_mut_e((valuei)floor(fProbes + 0.5f));
+
+    valuei maxProbes = 32;
+
+    as_ref(iProbes) = min(declare_e(iProbes), maxProbes);
+
+    //if(iProbes < fProbes)
+    //    minorRadius = 2 * majorRadius / (iProbes + 1);
+
+    minorRadius = ternary((valuef)iProbes < fProbes,
+                          2 * majorRadius / ((valuef)iProbes + 1),
+                          minorRadius);
+
+    mut<valuef> levelofdetail = declare_mut_e(log2(minorRadius));
+
+    valuef maxLod = (valuef)background_array_length.get() - 1;
+
+    /*if(levelofdetail > maxLod)
+    {
+        levelofdetail = maxLod;
+        iProbes = 1;
+    }*/
+
+    if_e(as_constant(levelofdetail) > maxLod, [&]{
+        as_ref(levelofdetail) = maxLod;
+        as_ref(iProbes) = valuei(1);
+    });
+
+    as_ref(levelofdetail) = valuef(0);
+
+    mut_v3f end_result = declare_mut_e((v3f){0,0,0});
+
+    std::vector<std::string> flags = {sampler_flag::NORMALIZED_COORDS_TRUE, sampler_flag::FILTER_LINEAR, sampler_flag::ADDRESS_REPEAT};
+
+    value<bool> is_trilinear = iProbes == 1 || iProbes <= 1;
+
+    if_e(is_trilinear, [&]{
+        if_e(iProbes < 1, [&]{
+            as_ref(levelofdetail) = maxLod;
+        });
+
+        v3f coord = {tl.x(), tl.y(), as_constant(levelofdetail)};
+
+        as_ref(end_result) = read_mipmap(background, coord);
+    });
+
+    if_e(!is_trilinear, [&]{
+        valuef lineLength = 2 * (majorRadius - minorRadius);
+        valuef du = cos(theta) * lineLength / ((valuef)iProbes - 1);
+        valuef dv = sin(theta) * lineLength / ((valuef)iProbes - 1);
+
+        mut_v3f totalWeight = declare_mut_e((v3f){0,0,0});
+        mut<valuef> accumulatedProbes = declare_mut_e(valuef(0.f));
+
+        mut<valuei> startN = declare_mut_e(valuei(0));
+
+        value<bool> is_odd = (iProbes % 2) == 1;
+
+        if_e(is_odd, [&]{
+            valuei probeArm = (iProbes - 1) / 2;
+
+            as_ref(startN) = -2 * probeArm;
+        });
+
+        if_e(!is_odd, [&]{
+            valuei probeArm = iProbes / 2;
+
+            as_ref(startN) = -2 * probeArm - 1;
+        });
+
+        mut<valuei> currentN = declare_mut_e(startN);
+        float alpha = 2;
+
+        valuef sU = du / (valuef)background_size.get().x();
+        valuef sV = dv / (valuef)background_size.get().y();
+
+        mut<valuei> idx = declare_mut_e(valuei(0));
+
+        for_e(idx < iProbes, assign_b(idx, idx + 1), [&] {
+            valuef d_2 = ((valuef)(currentN * currentN) / 4.f) * (du * du + dv * dv) / (majorRadius * majorRadius);
+
+            valuef relativeWeight = exp(-alpha * d_2);
+
+            valuef centreu = tl.x();
+            valuef centrev = tl.y();
+
+            valuef cu = centreu + ((valuef)currentN / 2.f) * sU;
+            valuef cv = centrev + ((valuef)currentN / 2.f) * sV;
+
+            v3f fval = read_mipmap(background, {cu, cv, as_constant(levelofdetail)});
+
+            //float4 fval = read_mipmap(mip_background, mip_background2, side, (float2){cu, cv}, levelofdetail);
+
+            as_ref(totalWeight) = declare_e(totalWeight) + relativeWeight * fval;
+            as_ref(accumulatedProbes) = declare_e(accumulatedProbes) + relativeWeight;
+            as_ref(currentN) = declare_e(currentN) + valuei(2);
+        });
+
+        as_ref(end_result) = as_constant(totalWeight) / accumulatedProbes;
+
+        ///odd probes
+        /*if((iProbes % 2) == 1)
+        {
+            int probeArm = (iProbes - 1) / 2;
+
+            startN = -2 * probeArm;
+        }
+        else
+        {
+            int probeArm = (iProbes / 2);
+
+            startN = -2 * probeArm - 1;
+        }*/
+
+        /*int currentN = startN;
+        float alpha = 2;
+
+        float sU = du / MIPMAP_CONDITIONAL(get_image_width);
+        float sV = dv / MIPMAP_CONDITIONAL(get_image_height);
+
+        for(int cnt = 0; cnt < iProbes; cnt++)
+        {
+            float d_2 = (currentN * currentN / 4.f) * (du * du + dv * dv) / (majorRadius * majorRadius);
+
+            ///not a performance issue
+            float relativeWeight = native_exp(-alpha * d_2);
+
+            float centreu = sxf;
+            float centrev = syf;
+
+            float cu = centreu + (currentN / 2.f) * sU;
+            float cv = centrev + (currentN / 2.f) * sV;
+
+            float4 fval = read_mipmap(mip_background, mip_background2, side, (float2){cu, cv}, levelofdetail);
+
+            totalWeight += relativeWeight * fval;
+            accumulatedProbes += relativeWeight;
+
+            currentN += 2;
+        }
+
+        end_result = totalWeight / accumulatedProbes;*/
+    });
+
+    /*if(iProbes == 1 || iProbes <= 1)
+    {
+        if(iProbes < 1)
+            levelofdetail = maxLod;
+
+        as_ref(end_result) = background.read<float, 4>((v3f){sxf, syf, levelofdetail}, {sampler_flag::NORMALIZED_COORDS_TRUE, sampler_flag::FILTER_LINEAR, sampler_flag::ADDRESS_REPEAT}).xyz()
+
+        //end_result = read_mipmap(mip_background, mip_background2, side, (float2){sxf, syf}, levelofdetail);
+    }
+    else
+    {
+        float lineLength = 2 * (majorRadius - minorRadius);
+        float du = cos(theta) * lineLength / (iProbes - 1);
+        float dv = sin(theta) * lineLength / (iProbes - 1);
+
+        float4 totalWeight = 0;
+        float accumulatedProbes = 0;
+
+        int startN = 0;
+
+        ///odd probes
+        if((iProbes % 2) == 1)
+        {
+            int probeArm = (iProbes - 1) / 2;
+
+            startN = -2 * probeArm;
+        }
+        else
+        {
+            int probeArm = (iProbes / 2);
+
+            startN = -2 * probeArm - 1;
+        }
+
+        int currentN = startN;
+        float alpha = 2;
+
+        float sU = du / MIPMAP_CONDITIONAL(get_image_width);
+        float sV = dv / MIPMAP_CONDITIONAL(get_image_height);
+
+        for(int cnt = 0; cnt < iProbes; cnt++)
+        {
+            float d_2 = (currentN * currentN / 4.f) * (du * du + dv * dv) / (majorRadius * majorRadius);
+
+            ///not a performance issue
+            float relativeWeight = native_exp(-alpha * d_2);
+
+            float centreu = sxf;
+            float centrev = syf;
+
+            float cu = centreu + (currentN / 2.f) * sU;
+            float cv = centrev + (currentN / 2.f) * sV;
+
+            float4 fval = read_mipmap(mip_background, mip_background2, side, (float2){cu, cv}, levelofdetail);
+
+            totalWeight += relativeWeight * fval;
+            accumulatedProbes += relativeWeight;
+
+            currentN += 2;
+        }
+
+        end_result = totalWeight / accumulatedProbes;
+    }*/
+
+    v3f cvt = declare_e(end_result);
 
     #endif // ANISOTROPIC
 

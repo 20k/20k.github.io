@@ -221,6 +221,17 @@ namespace stdmath
     };
 
     constexpr
+    auto ulog2 = []<typename T>(const T& in)
+    {
+        using std::log2;
+
+        if constexpr(std::is_integral_v<T>)
+            return log2((float)in);
+        else
+            return log2(in);
+    };
+
+    constexpr
     auto uternary = []<typename T, typename U>(const T& condition, const U& if_true, const U& if_false)
     {
         if constexpr(std::is_arithmetic_v<U>)

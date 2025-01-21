@@ -53,6 +53,7 @@ namespace value_impl
             COS,
             TAN,
             LOG,
+            LOG2,
 
             ASIN,
             ACOS,
@@ -422,6 +423,7 @@ namespace value_impl
     DECL_VALUE_FUNC2(ATAN2, atan2, stdmath::uatan2);
     DECL_VALUE_FUNC1(SQRT, sqrt, stdmath::usqrt);
     DECL_VALUE_FUNC1(LOG, log, stdmath::ulog);
+    DECL_VALUE_FUNC1(LOG2, log2, stdmath::ulog2);
     DECL_VALUE_FUNC1(FABS, fabs, stdmath::ufabs);
     DECL_VALUE_FUNC1(ISFINITE, isfinite, stdmath::uisfinite);
     DECL_VALUE_FUNC2(FMOD, fmod, stdmath::ufmod);
@@ -531,6 +533,7 @@ namespace value_impl
             PROPAGATE_BASE2(ATAN2, uatan2);
 
             PROPAGATE_BASE1(LOG, ulog);
+            PROPAGATE_BASE1(LOG2, ulog2);
             PROPAGATE_BASE1(SQRT, usqrt);
             PROPAGATE_BASE1(FABS, ufabs);
             PROPAGATE_BASE1(ISFINITE, uisfinite);
@@ -773,6 +776,7 @@ namespace value_impl
         REPLAY1(ATAN, uatan);
         REPLAY2(ATAN2, uatan2);
         REPLAY1(LOG, ulog);
+        //REPLAY1(LOG2, ulog2);
         REPLAY1(SQRT, usqrt);
         REPLAY1(FABS, ufabs);
         REPLAY1(ISFINITE, uisfinite);
@@ -1500,6 +1504,16 @@ namespace value_impl
     {
         value<T> ret;
         ret.type = op::LOG;
+        ret.args = {v1};
+        return from_base<T>(optimise(ret));
+    }
+
+    template<typename T>
+    inline
+    value<T> log2(const value<T>& v1)
+    {
+        value<T> ret;
+        ret.type = op::LOG2;
         ret.args = {v1};
         return from_base<T>(optimise(ret));
     }
