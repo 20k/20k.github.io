@@ -21,6 +21,7 @@ namespace value_impl
         std::vector<value_base> to_execute;
         std::vector<std::pair<value_base, value_base>> aliases;
         virtual void add(value_base&& in) = 0;
+        virtual void add(const value_base& in) = 0;
         virtual void alias(const value_base& check, const value_base& to) = 0;
         virtual int next_id() = 0;
 
@@ -96,6 +97,11 @@ namespace value_impl
         }
 
         void add(value_base&& in) override
+        {
+            to_execute.push_back(std::move(in));
+        }
+
+        void add(const value_base& in) override
         {
             to_execute.push_back(std::move(in));
         }

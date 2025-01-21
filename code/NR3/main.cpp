@@ -740,7 +740,7 @@ int main()
 
     raytrace_bssn rt_bssn(ctx);
 
-    cl::image background = load_background(ctx, cqueue, "../common/nasa.png");
+    cl::image background = load_background(ctx, cqueue, "../common/esa.png");
 
     std::array<cl::buffer, 4> tetrads{ctx, ctx, ctx, ctx};
     cl::buffer gpu_position(ctx);

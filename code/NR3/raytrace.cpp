@@ -1397,6 +1397,244 @@ v3f read_mipmap(read_only_image_array<2> img, v3f coord)
     return mix(img.read<float, 4>(full_lower_coord, flags), img.read<float, 4>(full_upper_coord, flags), weight).xyz();
 }
 
+/*void render(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
+            buffer<v4f> positions, buffer<v4f> velocities, buffer<valuei> results, buffer<valuef> zshift,
+            buffer<v2f> texture_coordinates,
+            read_only_image_array<2> background, write_only_image<2> screen,
+            literal<v2i> background_size,
+            literal<valuei> background_array_length)*/
+
+std::string render2 = R"(
+
+float circular_diff(float f1, float f2, float period)
+{
+    f1 = f1 * (2 * M_PI/period);
+    f2 = f2 * (2 * M_PI/period);
+
+    //return period * fast_pseudo_atan2(f2 - f1) / (2 * M_PI);
+    return period * atan2(native_sin(f2 - f1), native_cos(f2 - f1)) / (2 * M_PI);
+}
+
+float2 circular_diff2(float2 f1, float2 f2)
+{
+    return (float2)(circular_diff(f1.x, f2.x, 1.f), circular_diff(f1.y, f2.y, 1.f));
+}
+
+///this function is drastically complicated by nvidias terrible opencl support
+///can't believe i fully have to implement trilinear filtering, mipmapping, and anisotropic texture filtering in raw opencl
+///such is the terrible state of support across amd and nvidia
+///amd doesn't correctly support shared opengl textures with mipmaps, and there's no anisotropic filtering i can see
+///and nvidia don't support mipmapped textxures at all, or clCreateSampler
+///what a mess!
+float4 read_mipmap(image2d_array_t mipmap1, float2 pos, float lod)
+{
+    lod = max(lod, 0.f);
+
+    sampler_t sam = CLK_NORMALIZED_COORDS_TRUE | CLK_ADDRESS_REPEAT | CLK_FILTER_LINEAR;
+
+    pos = fmod(pos, 1.f);
+
+    //lod = 0;
+
+    float mip_lower = floor(lod);
+    float mip_upper = ceil(lod);
+
+    float lower_divisor = pow(2.f, mip_lower);
+    float upper_divisor = pow(2.f, mip_upper);
+
+    float2 lower_coord = pos / lower_divisor;
+    float2 upper_coord = pos / upper_divisor;
+
+    float4 full_lower_coord = (float4)(lower_coord.xy, mip_lower, 0.f);
+    float4 full_upper_coord = (float4)(upper_coord.xy, mip_upper, 0.f);
+
+    float lower_weight = (lod - mip_lower);
+
+    return mix(read_imagef(mipmap1, sam, full_lower_coord), read_imagef(mipmap1, sam, full_upper_coord), lower_weight);
+}
+
+__kernel
+void render2(int width, int height, global float4* positions, global float4* velocities, global int* results, global float* zshift,
+            global float2* rdata, __read_only image2d_array_t mip_background, __write_only image2d_t out, int2 background_size, int background_array_length)
+{
+    int sx = get_global_id(0);
+    int sy = get_global_id(1);
+
+    if(sx >= width)
+        return;
+    if(sy >= height)
+        return;
+
+    int maxProbes = 32;
+
+    if(results[sy * width + sx] == 0)
+    {
+        write_imagef(out, (int2)(sx, sy), (float4)(0,0,0,1));
+        return;
+    }
+
+    int dx = 1;
+    int dy = 1;
+
+    if(sx == width-1)
+        dx = -1;
+
+    if(sy == height-1)
+        dy = -1;
+
+    float2 tl = rdata[sy * width + sx];
+    float2 tr = rdata[sy * width + sx + dx];
+    float2 bl = rdata[(sy + dy) * width + sx];
+
+    float sxf = tl.x;
+    float syf = tl.y;
+
+    ///higher = sharper
+    float bias_frac = 1.3;
+
+    //TL x 0.435143 TR 0.434950 TD -0.000149, aka (tr.x - tl.x) / 1.3
+    float2 dx_vtc = circular_diff2(tl, tr) / bias_frac;
+    float2 dy_vtc = circular_diff2(tl, bl) / bias_frac;
+
+    if(dx == -1)
+    {
+        dx_vtc = -dx_vtc;
+    }
+
+    if(dy == -1)
+    {
+        dy_vtc = -dy_vtc;
+    }
+
+    dx_vtc.x *= get_image_width(mip_background);
+    dy_vtc.x *= get_image_width(mip_background);
+
+    dx_vtc.y *= get_image_height(mip_background);
+    dy_vtc.y *= get_image_height(mip_background);
+
+    ///http://citeseerx.ist.psu.edu/viewdoc/download?doi=10.1.1.1002.1336&rep=rep1&type=pdf
+    float dv_dx = dx_vtc.y;
+    float dv_dy = dy_vtc.y;
+
+    float du_dx = dx_vtc.x;
+    float du_dy = dy_vtc.x;
+
+    float Ann = dv_dx * dv_dx + dv_dy * dv_dy;
+    float Bnn = -2 * (du_dx * dv_dx + du_dy * dv_dy);
+    float Cnn = du_dx * du_dx + du_dy * du_dy; ///only tells lies
+
+    ///hecc
+    #define HECKBERT
+    #ifdef HECKBERT
+    Ann = dv_dx * dv_dx + dv_dy * dv_dy + 1;
+    Cnn = du_dx * du_dx + du_dy * du_dy + 1;
+    #endif // HECKBERT
+
+    float F = Ann * Cnn - Bnn * Bnn / 4;
+    float A = Ann / F;
+    float B = Bnn / F;
+    float C = Cnn / F;
+
+    float root = sqrt((A - C) * (A - C) + B*B);
+    float a_prime = (A + C - root) / 2;
+    float c_prime = (A + C + root) / 2;
+
+    float majorRadius = native_rsqrt(a_prime);
+    float minorRadius = native_rsqrt(c_prime);
+
+    float theta = atan2(B, (A - C)/2);
+
+    majorRadius = max(majorRadius, 1.f);
+    minorRadius = max(minorRadius, 1.f);
+
+    majorRadius = max(majorRadius, minorRadius);
+
+    float fProbes = 2 * (majorRadius / minorRadius) - 1;
+    int iProbes = floor(fProbes + 0.5f);
+
+    iProbes = min(iProbes, maxProbes);
+
+    if(iProbes < fProbes)
+        minorRadius = 2 * majorRadius / (iProbes + 1);
+
+    float levelofdetail = log2(minorRadius);
+
+    int maxLod = get_image_array_size(mip_background) - 1;
+
+    if(levelofdetail > maxLod)
+    {
+        levelofdetail = maxLod;
+        iProbes = 1;
+    }
+
+    float4 end_result = 0;
+
+    if(iProbes == 1 || iProbes <= 1)
+    {
+        if(iProbes < 1)
+            levelofdetail = maxLod;
+
+        end_result = read_mipmap(mip_background, (float2){sxf, syf}, levelofdetail);
+    }
+    else
+    {
+        float lineLength = 2 * (majorRadius - minorRadius);
+        float du = cos(theta) * lineLength / (iProbes - 1);
+        float dv = sin(theta) * lineLength / (iProbes - 1);
+
+        float4 totalWeight = 0;
+        float accumulatedProbes = 0;
+
+        int startN = 0;
+
+        ///odd probes
+        if((iProbes % 2) == 1)
+        {
+            int probeArm = (iProbes - 1) / 2;
+
+            startN = -2 * probeArm;
+        }
+        else
+        {
+            int probeArm = (iProbes / 2);
+
+            startN = -2 * probeArm - 1;
+        }
+
+        int currentN = startN;
+        float alpha = 2;
+
+        float sU = du / get_image_width(mip_background);
+        float sV = dv / get_image_height(mip_background);
+
+        for(int cnt = 0; cnt < iProbes; cnt++)
+        {
+            float d_2 = (currentN * currentN / 4.f) * (du * du + dv * dv) / (majorRadius * majorRadius);
+
+            ///not a performance issue
+            float relativeWeight = native_exp(-alpha * d_2);
+
+            float centreu = sxf;
+            float centrev = syf;
+
+            float cu = centreu + (currentN / 2.f) * sU;
+            float cv = centrev + (currentN / 2.f) * sV;
+
+            float4 fval = read_mipmap(mip_background, (float2){cu, cv}, levelofdetail);
+
+            totalWeight += relativeWeight * fval;
+            accumulatedProbes += relativeWeight;
+
+            currentN += 2;
+        }
+
+        end_result = totalWeight / accumulatedProbes;
+    }
+
+    write_imagef(out, (int2){sx, sy}, end_result);
+}
+)";
+
 void render(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
             buffer<v4f> positions, buffer<v4f> velocities, buffer<valuei> results, buffer<valuef> zshift,
             buffer<v2f> texture_coordinates,
@@ -1537,6 +1775,8 @@ void render(execution_context& ectx, literal<valuei> screen_width, literal<value
 
     as_ref(iProbes) = min(declare_e(iProbes), maxProbes);
 
+    pin(iProbes);
+
     //if(iProbes < fProbes)
     //    minorRadius = 2 * majorRadius / (iProbes + 1);
 
@@ -1544,7 +1784,23 @@ void render(execution_context& ectx, literal<valuei> screen_width, literal<value
                           2 * majorRadius / ((valuef)iProbes + 1),
                           minorRadius);
 
+    if_e(x == screen_width.get()/2 && y == screen_height.get()/2,[&]{
+        value_base se;
+        se.type = value_impl::op::SIDE_EFFECT;
+        se.abstract_value = "printf(\"hi2: %f\\n\"," + value_to_string(log2(minorRadius)) + ")";
+
+        value_impl::get_context().add(se);
+    });
+
     mut<valuef> levelofdetail = declare_mut_e(log2(minorRadius));
+
+    if_e(x == screen_width.get()/2 && y == screen_height.get()/2,[&]{
+        value_base se;
+        se.type = value_impl::op::SIDE_EFFECT;
+        se.abstract_value = "printf(\"hi1: %f\\n\"," + value_to_string(levelofdetail) + ")";
+
+        value_impl::get_context().add(se);
+    });
 
     valuef maxLod = (valuef)background_array_length.get() - 1;
 
@@ -1553,7 +1809,7 @@ void render(execution_context& ectx, literal<valuei> screen_width, literal<value
         as_ref(iProbes) = valuei(1);
     });
 
-    as_ref(levelofdetail) = valuef(0);
+    //as_ref(levelofdetail) = valuef(0);
 
     mut_v3f end_result = declare_mut_e((v3f){0,0,0});
 
@@ -1625,12 +1881,23 @@ void render(execution_context& ectx, literal<valuei> screen_width, literal<value
     });
 
     v3f cvt = declare_e(end_result);
-
     #endif // ANISOTROPIC
 
     valuef zp1 = declare_e(zshift[screen_position, screen_size]) + 1;
 
-    cvt = linear_to_srgb_gpu(do_redshift(srgb_to_linear_gpu(cvt), zp1));
+    valuef lod = declare_e(levelofdetail);
+
+    if_e(x == screen_width.get()/2 && y == screen_height.get()/2,[&]{
+        value_base se;
+        se.type = value_impl::op::SIDE_EFFECT;
+        se.abstract_value = "printf(\"hi: %f\\n\"," + value_to_string(lod) + ")";
+
+        value_impl::get_context().add(se);
+    });
+
+    //cvt = {1 - lod / 10, lod / 10, lod / 10};
+
+    //cvt = linear_to_srgb_gpu(do_redshift(srgb_to_linear_gpu(cvt), zp1));
 
     v4f crgba = {cvt[0], cvt[1], cvt[2], 1.f};
 
@@ -1713,4 +1980,8 @@ void build_raytrace_kernels(cl::context ctx)
     cl::async_build_and_cache(ctx, []{
         return value_impl::make_function(render, "render");
     }, {"render"});
+
+    cl::async_build_and_cache(ctx, []{
+        return render2;
+    }, {"render2"});
 }
