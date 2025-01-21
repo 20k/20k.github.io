@@ -1337,6 +1337,20 @@ void calculate_texture_coordinates(execution_context& ectx, literal<valuei> scre
     as_ref(out[screen_position, screen_size]) = normed;
 }
 
+valuef circular_diff(valuef f1, valuef f2, valuef period)
+{
+    f1 = f1 * (2 * M_PI/period);
+    f2 = f2 * (2 * M_PI/period);
+
+    //return period * fast_pseudo_atan2(f2 - f1) / (2 * M_PI);
+    return period * atan2(sin(f2 - f1), cos(f2 - f1)) / (2 * M_PI);
+}
+
+v2f circular_diff2(v2f f1, v2f f2)
+{
+    return {circular_diff(f1.x(), f2.x(), 1.f), circular_diff(f1.y(), f2.y(), 1.f)};
+}
+
 void render(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
             buffer<v4f> positions, buffer<v4f> velocities, buffer<valuei> results, buffer<valuef> zshift,
             buffer<v2f> texture_coordinates,
@@ -1364,10 +1378,9 @@ void render(execution_context& ectx, literal<valuei> screen_width, literal<value
 
     if_e(results[screen_position, screen_size] == 0, [&]{
         screen.write(ectx, {x, y}, (v4f){0,0,0,1});
-
         return_e();
     });
-
+    #ifdef BILINEAR
     v2f texture_coordinate = texture_coordinates[screen_position, screen_size];
 
     v3f to_read = {texture_coordinate.x(), texture_coordinate.y(), 0.f};
@@ -1375,7 +1388,59 @@ void render(execution_context& ectx, literal<valuei> screen_width, literal<value
     v3f col = background.read<float, 4>(to_read, {sampler_flag::NORMALIZED_COORDS_TRUE, sampler_flag::FILTER_LINEAR, sampler_flag::ADDRESS_REPEAT}).xyz();
 
     v3f cvt = col;
+    #endif
     //v3f cvt = linear_to_srgb_gpu(col);
+
+    #define ANISOTROPIC
+    #ifdef ANISOTROPIC
+    mut<valuei> dx = declare_mut_e(valuei(1));
+    mut<valuei> dy = declare_mut_e(valuei(1));
+
+    ///check if we're on a non terminating boundary
+    {
+        v2i vdx = {declare_e(dx), valuei(0)};
+        v2i vdy = {valuei(0), declare_e(dy)};
+
+        if_e(results[screen_position + vdx, screen_size] == 0, [&]{
+            as_ref(dx) = -as_constant(dx);
+        });
+
+        if_e(results[screen_position + vdy, screen_size] == 0, [&]{
+            as_ref(dy) = -as_constant(dy);
+        });
+    }
+
+    if_e(x == screen_size.x() - 1, [&]{
+        as_ref(dx) = valuei(-1);
+    });
+
+    if_e(y == screen_size.y() - 1, [&]{
+        as_ref(dy) = valuei(-1);
+    });
+
+    if_e(x == 0, [&]{
+        as_ref(dx) = valuei(1);
+    });
+
+    if_e(y == 0, [&]{
+        as_ref(dy) = valuei(1);
+    });
+
+    valuei cdx = declare_e(dx);
+    valuei cdy = declare_e(dy);
+
+    v2f tl = texture_coordinates[screen_position, screen_size];
+    v2f tr = texture_coordinates[screen_position + (v2i){cdx, 0}, screen_size];
+    v2f bl = texture_coordinates[screen_position + (v2i){0, cdy}, screen_size];
+
+    float bias_frac = 1.3;
+
+    v2f dx_vtc = (valuef)cdx * circular_diff2(tl, tr) / bias_frac;
+    v2f dy_vtc = (valuef)cdy * circular_diff2(tl, bl) / bias_frac;
+
+    v3f cvt = {0,0,0};
+
+    #endif // ANISOTROPIC
 
     v4f crgba = {cvt[0], cvt[1], cvt[2], 1.f};
 
