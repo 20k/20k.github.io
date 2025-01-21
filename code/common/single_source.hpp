@@ -908,16 +908,12 @@ namespace value_impl
         ///todo: 32bits use atomic_, 64bits use atom_
         if(v.type == op::ATOM_ADD)
         {
-            value_base offset = v.args.at(0) + v.args.at(1);
-
-            return "atom_add(" + value_to_string(offset) + "," + value_to_string(v.args.at(2)) + ")";
+            return "atom_add(" + value_to_string(v.args.at(0)) + "+" + value_to_string(v.args.at(1)) + "," + value_to_string(v.args.at(2)) + ")";
         }
 
         if(v.type == op::ATOM_XCHG)
         {
-            value_base offset = v.args.at(0) + v.args.at(1);
-
-            return "atomic_xchg(" + value_to_string(offset) + "," + value_to_string(v.args.at(2)) + ")";
+            return "atomic_xchg(" + value_to_string(v.args.at(0)) + "+" + value_to_string(v.args.at(1)) + "," + value_to_string(v.args.at(2)) + ")";
         }
 
         return function_call_or_infix(v);

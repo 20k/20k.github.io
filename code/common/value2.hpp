@@ -127,56 +127,27 @@ namespace value_impl
         return ret;
     }
 
-    template<typename T, typename U>
+    template<typename U>
     inline
-    T make_op_with_type_function(op::type t, T v1, U&& func)
-    {
-        T ret;
-        ret.type = t;
-        ret.args = {v1};
+    value_base make_op_with_type_function(op::type t, const value_base& v1, U&& func);
 
-        std::visit([&]<typename A>(const A&){
-            ret.concrete = decltype(func(A()))();
-        }, v1.concrete);
-
-        return ret;
-    }
-
-    template<typename T, typename U>
+    template<typename U>
     inline
-    T make_op_with_type_function(op::type t, T v1, T v2, U&& func)
-    {
-        T ret;
-        ret.type = t;
-        ret.args = {v1, v2};
+    value_base make_op_with_type_function(op::type t, const value_base& v1, const value_base& v2, U&& func);
 
-        std::visit([&]<typename A, typename B>(const A&, const B&){
-            if constexpr(std::is_invocable_v<U, A, B>) {
-                ret.concrete = decltype(func(A(), B()))();
-            }
-
-        }, v1.concrete, v2.concrete);
-
-        return ret;
-    }
-
-    template<typename T, typename U>
+    ///supports eg (bool) ? float : int
+    template<typename U>
     inline
-    T make_op_with_type_function(op::type t, T v1, T v2, T v3, U&& func)
-    {
-        T ret;
-        ret.type = t;
-        ret.args = {v1, v2, v3};
+    value_base make_op_with_type_function(op::type t, const value_base& v1, const value_base& v2, const value_base& v3, U&& func);
 
-        std::visit([&]<typename A, typename B, typename C>(const A&, const B&, const C&){
-            if constexpr(std::is_invocable_v<U, A, B, C>) {
-                ret.concrete = decltype(func(A(), B(), C()))();
-            }
+    ///only supports operations where all args are same type
+    template<typename U>
+    inline
+    value_base make_op_with_type_function_all_same(op::type t, const value_base& v1, const value_base& v2, U&& func);
 
-        }, v1.concrete, v2.concrete, v3.concrete);
-
-        return ret;
-    }
+    template<typename U>
+    inline
+    value_base make_op_with_type_function_all_same(op::type t, const value_base& v1, const value_base& v2, const value_base& v3, U&& func);
 
     inline
     value_base optimise(const value_base& in);
@@ -257,19 +228,18 @@ namespace value_impl
                 auto c1 = args[0].replay_impl(type_factory, handle_value);
                 auto c2 = args[1].replay_impl(type_factory, handle_value);
 
-                return std::visit([&](auto&& v1, auto&& v2) {
-                    if constexpr(std::is_same_v<decltype(v1), decltype(v2)>)
-                    {
-                        if(type == op::PLUS)
-                            return result_t(v1 + v2);
+                return std::visit([&]<typename T>(const T& v1) {
+                    auto v2 = std::get<T>(c2);
 
-                        if(type == op::MULTIPLY)
-                            return result_t(v1 * v2);
-                    }
+                    if(type == op::PLUS)
+                        return result_t(v1 + v2);
+
+                    if(type == op::MULTIPLY)
+                        return result_t(v1 * v2);
 
                     assert(false);
                     return result_t();
-                }, c1, c2);
+                });
             }
 
             assert(false);
@@ -286,8 +256,8 @@ namespace value_impl
             }
         }
 
-        #define BASE_OPERATOR2(name, type, func) friend value_base name(const value_base& v1, const value_base& v2) {return optimise(make_op_with_type_function<value_base>(type, v1, v2, func));}
-        #define BASE_OPERATOR1(name, type, func) friend value_base name(const value_base& v1) {return optimise(make_op_with_type_function<value_base>(type, v1, func));}
+        #define BASE_OPERATOR2(name, type, func) friend value_base name(const value_base& v1, const value_base& v2) {return optimise(make_op_with_type_function_all_same(type, v1, v2, func));}
+        #define BASE_OPERATOR1(name, type, func) friend value_base name(const value_base& v1) {return optimise(make_op_with_type_function(type, v1, func));}
 
         BASE_OPERATOR2(operator%, op::MOD, stdmath::ufmod);
         BASE_OPERATOR2(operator+, op::PLUS, stdmath::op_plus);
@@ -302,7 +272,100 @@ namespace value_impl
         BASE_OPERATOR2(operator!=, op::NEQ, stdmath::op_neq);
         BASE_OPERATOR2(operator>, op::GT, stdmath::op_gt);
         BASE_OPERATOR2(operator>=, op::GTE, stdmath::op_gte);
+
+        #undef BASE_OPERATOR2
+        #undef BASE_OPERATOR1
     };
+
+    template<typename U>
+    inline
+    value_base make_op_with_type_function(op::type t, const value_base& v1, U&& func)
+    {
+        value_base ret;
+        ret.type = t;
+        ret.args = {v1};
+
+        std::visit([&]<typename A>(const A&){
+            ret.concrete = decltype(func(A()))();
+        }, v1.concrete);
+
+        return ret;
+    }
+
+    template<typename U>
+    inline
+    value_base make_op_with_type_function(op::type t, const value_base& v1, const value_base& v2, U&& func)
+    {
+        value_base ret;
+        ret.type = t;
+        ret.args = {v1, v2};
+
+        std::visit([&]<typename A, typename B>(const A&, const B&){
+            if constexpr(std::is_invocable_v<U, A, B>) {
+                ret.concrete = decltype(func(A(), B()))();
+            }
+
+        }, v1.concrete, v2.concrete);
+
+        return ret;
+    }
+
+    template<typename U>
+    inline
+    value_base make_op_with_type_function(op::type t, const value_base& v1, const value_base& v2, const value_base& v3, U&& func)
+    {
+        value_base ret;
+        ret.type = t;
+        ret.args = {v1, v2, v3};
+
+        std::visit([&]<typename A, typename B, typename C>(const A&, const B&, const C&){
+            if constexpr(std::is_invocable_v<U, A, B, C>) {
+                ret.concrete = decltype(func(A(), B(), C()))();
+            }
+
+        }, v1.concrete, v2.concrete, v3.concrete);
+
+        return ret;
+    }
+
+    template<typename U>
+    inline
+    value_base make_op_with_type_function_all_same(op::type t, const value_base& v1, const value_base& v2, U&& func)
+    {
+        assert(v1.concrete.index() == v2.concrete.index());
+
+        value_base ret;
+        ret.type = t;
+        ret.args = {v1, v2};
+
+        std::visit([&]<typename A>(const A&){
+            if constexpr(std::is_invocable_v<U, A, A>) {
+                ret.concrete = decltype(func(A(), A()))();
+            }
+        }, v1.concrete);
+
+        return ret;
+    }
+
+    template<typename U>
+    inline
+    value_base make_op_with_type_function_all_same(op::type t, const value_base& v1, const value_base& v2, const value_base& v3, U&& func)
+    {
+        assert(v1.concrete.index() == v2.concrete.index());
+        assert(v1.concrete.index() == v3.concrete.index());
+
+        value_base ret;
+        ret.type = t;
+        ret.args = {v1, v2, v3};
+
+        std::visit([&]<typename A>(const A&){
+            if constexpr(std::is_invocable_v<U, A, A, A>) {
+                ret.concrete = decltype(func(A(), A(), A()))();
+            }
+        }, v1.concrete);
+
+        return ret;
+    }
 
     inline
     bool equivalent(const value_base& v1, const value_base& v2);
@@ -325,19 +388,25 @@ namespace value_impl
     #define DECL_VALUE_FUNC1(type, name, func) \
     inline \
     value_base name(const value_base& v1) {\
-        return optimise(make_op_with_type_function<value_base>(op::type, v1, func));\
+        return optimise(make_op_with_type_function(op::type, v1, func));\
     }\
 
     #define DECL_VALUE_FUNC2(type, name, func) \
     inline \
     value_base name(const value_base& v1, const value_base& v2) {\
-        return optimise(make_op_with_type_function<value_base>(op::type, v1, v2, func));\
+        return optimise(make_op_with_type_function_all_same(op::type, v1, v2, func));\
     }\
 
     #define DECL_VALUE_FUNC3(type, name, func) \
     inline \
     value_base name(const value_base& v1, const value_base& v2, const value_base& v3) {\
-        return optimise(make_op_with_type_function<value_base>(op::type, v1, v2, v3, func));\
+        return optimise(make_op_with_type_function_all_same(op::type, v1, v2, v3, func));\
+    }\
+
+    #define DECL_VALUE_FUNC3_GEN(type, name, func) \
+    inline \
+    value_base name(const value_base& v1, const value_base& v2, const value_base& v3) {\
+        return optimise(make_op_with_type_function(op::type, v1, v2, v3, func));\
     }\
 
     DECL_VALUE_FUNC3(FMA, fma, stdmath::ufma);
@@ -360,7 +429,7 @@ namespace value_impl
     DECL_VALUE_FUNC1(FLOOR, floor, stdmath::ufloor);
     DECL_VALUE_FUNC1(CEIL, ceil, stdmath::uceil);
     DECL_VALUE_FUNC1(INVERSE_SQRT, inverse_sqrt, stdmath::uinverse_sqrt);
-    DECL_VALUE_FUNC3(TERNARY, ternary, stdmath::uternary);
+    DECL_VALUE_FUNC3_GEN(TERNARY, ternary, stdmath::uternary);
     DECL_VALUE_FUNC2(POW, pow, stdmath::upow);
     DECL_VALUE_FUNC1(EXP, exp, stdmath::uexp);
 
