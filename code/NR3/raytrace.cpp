@@ -569,7 +569,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
         mut<valuei> idx = declare_mut_e("i", valuei(0));
 
-        for_e(idx < 1024, assign_b(idx, idx + 1), [&]
+        for_e(idx < 2048, assign_b(idx, idx + 1), [&]
         {
             v3f cposition = declare_e(position);
             v3f cvelocity = declare_e(velocity);
