@@ -1394,7 +1394,9 @@ v3f read_mipmap(read_only_image_array<2> img, v3f coord)
 
     valuef weight = coord.z() - mip_lower;
 
-    return mix(img.read<float, 4>(full_lower_coord, flags), img.read<float, 4>(full_upper_coord, flags), weight).xyz();
+    v3f val = mix(img.read<float, 4>(full_lower_coord, flags), img.read<float, 4>(full_upper_coord, flags), weight).xyz();
+    pin(val);
+    return srgb_to_linear_gpu(val);
 }
 
 void render(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
@@ -1546,23 +1548,7 @@ void render(execution_context& ectx, literal<valuei> screen_width, literal<value
                           2 * majorRadius / ((valuef)iProbes + 1),
                           minorRadius);
 
-    if_e(x == screen_width.get()/2 && y == screen_height.get()/2,[&]{
-        value_base se;
-        se.type = value_impl::op::SIDE_EFFECT;
-        se.abstract_value = "printf(\"hi2: %f\\n\"," + value_to_string(log2(minorRadius)) + ")";
-
-        value_impl::get_context().add(se);
-    });
-
     mut<valuef> levelofdetail = declare_mut_e(log2(minorRadius));
-
-    if_e(x == screen_width.get()/2 && y == screen_height.get()/2,[&]{
-        value_base se;
-        se.type = value_impl::op::SIDE_EFFECT;
-        se.abstract_value = "printf(\"hi1: %f\\n\"," + value_to_string(levelofdetail) + ")";
-
-        value_impl::get_context().add(se);
-    });
 
     valuef maxLod = (valuef)background_array_length.get() - 1;
 
@@ -1570,8 +1556,6 @@ void render(execution_context& ectx, literal<valuei> screen_width, literal<value
         as_ref(levelofdetail) = maxLod;
         as_ref(iProbes) = valuei(1);
     });
-
-    //as_ref(levelofdetail) = valuef(0);
 
     mut_v3f end_result = declare_mut_e((v3f){0,0,0});
 
@@ -1647,19 +1631,7 @@ void render(execution_context& ectx, literal<valuei> screen_width, literal<value
 
     valuef zp1 = declare_e(zshift[screen_position, screen_size]) + 1;
 
-    valuef lod = declare_e(levelofdetail);
-
-    if_e(x == screen_width.get()/2 && y == screen_height.get()/2,[&]{
-        value_base se;
-        se.type = value_impl::op::SIDE_EFFECT;
-        se.abstract_value = "printf(\"hi: %f\\n\"," + value_to_string(lod) + ")";
-
-        value_impl::get_context().add(se);
-    });
-
-    //cvt = {1 - lod / 10, lod / 10, lod / 10};
-
-    //cvt = linear_to_srgb_gpu(do_redshift(srgb_to_linear_gpu(cvt), zp1));
+    cvt = linear_to_srgb_gpu(do_redshift(cvt, zp1));
 
     v4f crgba = {cvt[0], cvt[1], cvt[2], 1.f};
 
