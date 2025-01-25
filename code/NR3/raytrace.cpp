@@ -5,21 +5,21 @@
 
 ///todo: take a function in that returns a state
 #define METHOD_1
-template<typename T>
+template<typename T, int N>
 struct verlet_context
 {
-    mut_v4f position;
+    tensor<mut<T>, N> position;
 
     #ifdef METHOD_1
-    mut_v4f v_half;
-    mut_v4f v_full_approx;
-    mut<valuef> ds;
+    tensor<mut<T>, N> v_half;
+    tensor<mut<T>, N> v_full_approx;
+    mut<T> ds;
     #endif
 
-    mut_v4f velocity;
+    tensor<mut<T>, N> velocity;
 
     template<typename dX, typename dV, typename dS, typename State>
-    void start(const T& position_in, const T& velocity_in, dX&& get_dX, dV&& get_dV, dS&& get_dS, State&& get_state)
+    void start(const tensor<T, N>& position_in, const tensor<T, N>& velocity_in, dX&& get_dX, dV&& get_dV, dS&& get_dS, State&& get_state)
     {
         using namespace single_source;
 
@@ -53,11 +53,11 @@ struct verlet_context
         using namespace single_source;
 
         #ifdef METHOD_1
-        v4f cposition = declare_e(position);
-        v4f cv_half = declare_e(v_half);
-        v4f cv_full_approx = declare_e(v_full_approx);
-        v4f cvelocity = declare_e(velocity);
-        valuef cds = declare_e(ds);
+        auto cposition = declare_e(position);
+        auto cv_half = declare_e(v_half);
+        auto cv_full_approx = declare_e(v_full_approx);
+        auto cvelocity = declare_e(velocity);
+        auto cds = declare_e(ds);
 
         auto st = get_state(cposition);
 
@@ -83,8 +83,8 @@ struct verlet_context
         #endif
 
         #ifdef METHOD_2
-        v4f cposition = declare_e(position);
-        v4f cvelocity = declare_e(velocity);
+        auto cposition = declare_e(position);
+        auto cvelocity = declare_e(velocity);
 
         auto ds = get_dS(cposition, cvelocity, AFull_approx);
 
@@ -103,14 +103,14 @@ struct verlet_context
     }
 };
 
-template<typename T>
+template<typename T, int N>
 struct euler_context
 {
-    mut_v4f position;
-    mut_v4f velocity;
+    tensor<mut<T>, N> position;
+    tensor<mut<T>, N> velocity;
 
     template<typename dX, typename dV, typename dS, typename State>
-    void start(const T& position_in, const T& velocity_in, dX&& get_dX, dV&& get_dV, dS&& get_dS, State&& get_state)
+    void start(const tensor<T, N>& position_in, const tensor<T, N>& velocity_in, dX&& get_dX, dV&& get_dV, dS&& get_dS, State&& get_state)
     {
         using namespace single_source;
 
@@ -123,8 +123,8 @@ struct euler_context
     {
         using namespace single_source;
 
-        v4f cposition = declare_e(position);
-        v4f cvelocity = declare_e(velocity);
+        auto cposition = declare_e(position);
+        auto cvelocity = declare_e(velocity);
 
         auto st = get_state(cposition);
 
@@ -654,6 +654,17 @@ v3f fix_ray_position_cart(v3f cartesian_pos, v3f cartesian_velocity, float spher
     return ternary(discrim >= 0, result_good, cartesian_pos);
 }
 
+struct trace3_state
+{
+    valuef W;
+    unit_metric<valuef, 3, 3> cY;
+    tensor<valuef, 3, 3> Kij;
+    valuef gA;
+    tensor<valuef, 3> gB;
+
+    v3f grid_position;
+};
+
 void trace3(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
                      literal<v4f> camera_quat,
                      buffer_mut<v4f> positions, buffer_mut<v4f> velocities,
@@ -688,8 +699,174 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
     mut<valuei> result = declare_mut_e(valuei(0));
     v3f final_position;
-    mut_v3f final_dX = declare_mut_e((v3f){});
+    mut_v3f final_velocity = declare_mut_e((v3f){});
+    //mut_v3f final_dX = declare_mut_e((v3f){});
 
+    auto get_dX = [&](v3f position, v3f velocity, const trace3_state& args)
+    {
+        v3f d_X = args.gA * velocity - args.gB;
+        pin(d_X);
+        return d_X;
+    };
+
+    auto get_dV = [&](v3f position, v3f velocity, const trace3_state& args)
+    {
+        v3f grid_position = args.grid_position;
+
+        auto dgA_at = [&](v3i pos)
+        {
+            bssn_derivatives derivs(pos, dim.get(), derivatives);
+            return derivs.dgA;
+        };
+
+        auto dgB_at = [&](v3i pos)
+        {
+            bssn_derivatives derivs(pos, dim.get(), derivatives);
+            return derivs.dgB;
+        };
+
+        auto dcY_at = [&](v3i pos)
+        {
+            bssn_derivatives derivs(pos, dim.get(), derivatives);
+            return derivs.dcY;
+        };
+
+        auto dW_at = [&](v3i pos)
+        {
+            bssn_derivatives derivs(pos, dim.get(), derivatives);
+            return derivs.dW;
+        };
+
+        tensor<valuef, 3> dgA = function_trilinear(dgA_at, grid_position);
+        tensor<valuef, 3, 3> dgB = function_trilinear(dgB_at, grid_position);
+        tensor<valuef, 3, 3, 3> dcY = function_trilinear(dcY_at, grid_position);
+        tensor<valuef, 3> dW = function_trilinear(dW_at, grid_position);
+
+        pin(dgA);
+        pin(dgB);
+        pin(dcY);
+        pin(dW);
+
+        auto cY = args.cY;
+        auto W = args.W;
+
+        auto Yij = cY / (W*W);
+        pin(Yij);
+
+        valuef length_sq = dot(velocity, Yij.lower(velocity));
+        valuef length = sqrt(fabs(length_sq));
+
+        velocity = velocity / length;
+
+        pin(velocity);
+
+        auto icY = cY.invert();
+        pin(icY);
+
+        auto iYij = icY * (W*W);
+
+        auto christoff2_cfl = christoffel_symbols_2(icY, dcY);
+        pin(christoff2_cfl);
+
+        auto christoff2 = get_full_christoffel2(W, dW, cY, icY, christoff2_cfl);
+        pin(christoff2);
+
+        tensor<valuef, 3> d_V;
+
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                valuef kjvk = 0;
+
+                for(int k=0; k < 3; k++)
+                {
+                    kjvk += args.Kij[j, k] * velocity[k];
+                }
+
+                valuef christoffel_sum = 0;
+
+                for(int k=0; k < 3; k++)
+                {
+                    christoffel_sum += christoff2[i, j, k] * velocity[k];
+                }
+
+                valuef dlog_gA = dgA[j] / args.gA;
+
+                d_V[i] += args.gA * velocity[j] * (velocity[i] * (dlog_gA - kjvk) + 2 * raise_index(args.Kij, iYij, 0)[i, j] - christoffel_sum)
+                        - iYij[i, j] * dgA[j] - velocity[j] * dgB[j, i];
+
+            }
+        }
+
+        return d_V;
+    };
+
+    auto get_dS = [&](v3f position, v3f velocity, v3f acceleration, const trace3_state& args)
+    {
+        return -1.f * get_ct_timestep(position, velocity, args.W);
+    };
+
+    auto get_state = [&](v3f position) -> trace3_state
+    {
+        trace3_state out;
+
+        v3f grid_position = world_to_grid(position, dim.get(), scale.get());
+
+        grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
+        pin(grid_position);
+
+        auto W = W_f_at(grid_position, dim.get(), in);
+        auto cY = cY_f_at(grid_position, dim.get(), in);
+
+        pin(W);
+        pin(cY);
+
+        adm_variables args = admf_at(grid_position, dim.get(), in);
+
+        out.W = W;
+        out.cY = cY;
+        out.Kij = args.Kij;
+        out.gA = args.gA;
+        out.gB = args.gB;
+        out.grid_position = grid_position;
+
+        return out;
+    };
+
+    #if 0
+    euler_context<valuef, 3> ctx;
+    ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS, get_state);
+
+    mut<valuei> idx = declare_mut_e("i", valuei(0));
+
+    for_e(idx < 1024, assign_b(idx, idx + 1), [&]
+    {
+        v3f cposition = declare_e(ctx.position);
+        v3f cvelocity = declare_e(ctx.velocity);
+
+        valuef radius_sq = dot(cposition, cposition);
+
+        if_e(radius_sq > UNIVERSE_SIZE*UNIVERSE_SIZE, [&] {
+            as_ref(final_velocity) = cvelocity;
+            as_ref(result) = valuei(1);
+            break_e();
+        });
+
+        ctx.next(get_dX, get_dV, get_dS, get_state);
+
+        if_e(dot((cvelocity), (cvelocity)) < 0.3f * 0.3f, [&]
+        {
+            as_ref(result) = valuei(0);
+            break_e();
+        });
+    });
+
+    final_position = declare_e(ctx.position);;
+    //final_velocity = declare_e(ctx.velocity);;
+    #endif
+
+    #if 1
     {
         mut_v3f position = declare_mut_e(pos_in);
         mut_v3f velocity = declare_mut_e(vel_in);
@@ -704,7 +881,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
             valuef radius_sq = dot(cposition, cposition);
 
             if_e(radius_sq > UNIVERSE_SIZE*UNIVERSE_SIZE, [&] {
-                as_ref(final_dX) = cvelocity;
+                as_ref(final_velocity) = cvelocity;
                 as_ref(result) = valuei(1);
                 break_e();
             });
@@ -748,6 +925,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
             pin(dcY);
             pin(dW);
 
+
             auto W = W_f_at(grid_position, dim.get(), in);
             auto cY = cY_f_at(grid_position, dim.get(), in);
 
@@ -762,9 +940,9 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
             valuef length_sq = dot(cvelocity, Yij.lower(cvelocity));
             valuef length = sqrt(fabs(length_sq));
 
-            cvelocity = cvelocity / length;
+            //cvelocity = cvelocity / length;
 
-            pin(cvelocity);
+            //pin(cvelocity);
 
             auto icY = cY.invert();
             pin(icY);
@@ -822,8 +1000,9 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
         final_position = declare_e(position);
     }
+    #endif
 
-    v3f vel = declare_e(final_dX);
+    v3f vel = declare_e(final_velocity);
 
     as_ref(positions[screen_position, screen_size]) = (v4f){0, final_position.x(), final_position.y(), final_position.z()};
     as_ref(velocities[screen_position, screen_size]) = (v4f){0, vel.x(), vel.y(), vel.z()};
@@ -1127,7 +1306,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
         return trace4_state();
     };
 
-    verlet_context<v4f> ctx;
+    verlet_context<valuef, 4> ctx;
     ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS, get_state);
 
     mut<valuei> result = declare_mut_e(valuei(0));
