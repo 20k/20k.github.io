@@ -5,14 +5,14 @@
 
 ///todo: take a function in that returns a state
 #define METHOD_1
+//#define METHOD_3
 template<typename T, int N>
 struct verlet_context
 {
     tensor<mut<T>, N> position;
 
     #ifdef METHOD_1
-    tensor<mut<T>, N> v_half;
-    tensor<mut<T>, N> v_full_approx;
+    tensor<mut<T>, N> accel;
     mut<T> ds;
     #endif
 
@@ -31,11 +31,12 @@ struct verlet_context
 
         ds = declare_mut_e(get_dS(position_in, velocity_in, acceleration, st));
 
-        v_half = declare_mut_e(velocity_in + 0.5f * acceleration * ds);
+        accel = declare_mut_e(acceleration);
 
-        v_full_approx = declare_mut_e(velocity_in + acceleration * ds);
+        auto v_half = velocity_in + 0.5f * acceleration * ds;
+        pin(v_half);
 
-        auto dPosition = get_dX(position_in, as_constant(v_half), st);
+        auto dPosition = get_dX(position_in, v_half, st);
 
         position = declare_mut_e(position_in + dPosition * ds);
         velocity = declare_mut_e(velocity_in);
@@ -44,6 +45,15 @@ struct verlet_context
         #ifdef METHOD_2
         position = declare_mut_e(position_in);
         velocity = declare_mut_e(velocity_in);
+        #endif
+
+        #ifdef METHOD_3
+        position = declare_mut_e(position_in);
+        velocity = declare_mut_e(velocity_in);
+
+        auto st = get_state(position_in);
+
+        acceleration = declare_mut_e(get_dV(position_in, velocity_in, st));
         #endif
     }
 
@@ -54,10 +64,15 @@ struct verlet_context
 
         #ifdef METHOD_1
         auto cposition = declare_e(position);
-        auto cv_half = declare_e(v_half);
-        auto cv_full_approx = declare_e(v_full_approx);
         auto cvelocity = declare_e(velocity);
         auto cds = declare_e(ds);
+        auto caccel = declare_e(accel);
+
+        auto cv_half = cvelocity + 0.5f * caccel * cds;
+
+        pin(cv_half);
+
+        auto cv_full_approx = cv_half + 0.5f * caccel * cds;
 
         auto st = get_state(cposition);
 
@@ -69,15 +84,9 @@ struct verlet_context
 
         as_ref(velocity) = VFull_next;
         as_ref(ds) = get_dS(cposition, cv_full_approx, AFull_approx, st);
+        as_ref(accel) = get_dV(cposition, as_constant(velocity), st);
 
-        auto ABase = get_dV(cposition, as_constant(velocity), st);
-        pin(ABase);
-
-        as_ref(v_half) = as_constant(velocity) + 0.5f * ABase * as_constant(ds);
-        as_ref(v_full_approx) = as_constant(velocity) + ABase * as_constant(ds);
-
-        ///recalculating the full state just for this seems expensive?
-        auto XDiff = get_dX(cposition, as_constant(v_half), st);
+        auto XDiff = get_dX(cposition, cv_half, st);
 
         as_ref(position) = cposition + XDiff * as_constant(ds);
         #endif
@@ -726,11 +735,11 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
         pin(d_X);
 
         //so. This recovers the performance, but its pretty hacky
-        if_e(dot(d_X, d_X) < 0.2f * 0.2f, [&]
+        /*if_e(dot(d_X, d_X) < 0.2f * 0.2f, [&]
         {
             as_ref(result) = valuei(0);
             break_e();
-        });
+        });*/
 
         return d_X;
     };
@@ -853,7 +862,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
     };
 
     #if 1
-    euler_context<valuef, 3> ctx;
+    verlet_context<valuef, 3> ctx;
     ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS, get_state);
 
     mut<valuei> idx = declare_mut_e("i", valuei(0));
