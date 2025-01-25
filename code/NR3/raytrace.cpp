@@ -3,6 +3,141 @@
 
 #define UNIVERSE_SIZE 29
 
+///todo: take a function in that returns a state
+#define METHOD_1
+template<typename T>
+struct verlet_context
+{
+    mut_v4f position;
+
+    #ifdef METHOD_1
+    mut_v4f v_half;
+    mut_v4f v_full_approx;
+    mut<valuef> ds;
+    #endif
+
+    mut_v4f velocity;
+
+    template<typename dX, typename dV, typename dS, typename State>
+    void start(const T& position_in, const T& velocity_in, dX&& get_dX, dV&& get_dV, dS&& get_dS, State&& get_state)
+    {
+        using namespace single_source;
+
+        #ifdef METHOD_1
+        auto st = get_state(position_in);
+
+        auto acceleration = get_dV(position_in, velocity_in, st);
+        pin(acceleration);
+
+        ds = declare_mut_e(get_dS(position_in, velocity_in, acceleration, st));
+
+        v_half = declare_mut_e(velocity_in + 0.5f * acceleration * ds);
+
+        v_full_approx = declare_mut_e(velocity_in + acceleration * ds);
+
+        auto dPosition = get_dX(position_in, as_constant(v_half), st);
+
+        position = declare_mut_e(position_in + dPosition * ds);
+        velocity = declare_mut_e(velocity_in);
+        #endif
+
+        #ifdef METHOD_2
+        position = declare_mut_e(position_in);
+        velocity = declare_mut_e(velocity_in);
+        #endif
+    }
+
+    template<typename dX, typename dV, typename dS, typename State>
+    void next(dX&& get_dX, dV&& get_dV, dS&& get_dS, State&& get_state)
+    {
+        using namespace single_source;
+
+        #ifdef METHOD_1
+        v4f cposition = declare_e(position);
+        v4f cv_half = declare_e(v_half);
+        v4f cv_full_approx = declare_e(v_full_approx);
+        v4f cvelocity = declare_e(velocity);
+        valuef cds = declare_e(ds);
+
+        auto st = get_state(cposition);
+
+        auto AFull_approx = get_dV(cposition, cv_full_approx, st);
+        pin(AFull_approx);
+
+        auto VFull_next = cv_half + 0.5f * AFull_approx * cds;
+        pin(VFull_next);
+
+        as_ref(velocity) = VFull_next;
+        as_ref(ds) = get_dS(cposition, cv_full_approx, AFull_approx, st);
+
+        auto ABase = get_dV(cposition, as_constant(velocity), st);
+        pin(ABase);
+
+        as_ref(v_half) = as_constant(velocity) + 0.5f * ABase * as_constant(ds);
+        as_ref(v_full_approx) = as_constant(velocity) + ABase * as_constant(ds);
+
+        ///recalculating the full state just for this seems expensive?
+        auto XDiff = get_dX(cposition, as_constant(v_half), st);
+
+        as_ref(position) = cposition + XDiff * as_constant(ds);
+        #endif
+
+        #ifdef METHOD_2
+        v4f cposition = declare_e(position);
+        v4f cvelocity = declare_e(velocity);
+
+        auto ds = get_dS(cposition, cvelocity, AFull_approx);
+
+        auto v_half = cvelocity + 0.5f * get_dV(cposition, cvelocity) * ds;
+        auto x_full = cposition + v_half * ds;
+
+        auto v_full_approx = cvelocity + get_dV(cposition, cvelocity) * ds;
+
+        auto a_full = get_dV(x_full, v_full_approx);
+
+        auto v_next = v_half + 0.5f * a_full * ds;
+
+        as_ref(position) = x_full;
+        as_ref(velocity) = v_next;
+        #endif
+    }
+};
+
+template<typename T>
+struct euler_context
+{
+    mut_v4f position;
+    mut_v4f velocity;
+
+    template<typename dX, typename dV, typename dS, typename State>
+    void start(const T& position_in, const T& velocity_in, dX&& get_dX, dV&& get_dV, dS&& get_dS, State&& get_state)
+    {
+        using namespace single_source;
+
+        position = declare_mut_e(position_in);
+        velocity = declare_mut_e(velocity_in);
+    }
+
+    template<typename dX, typename dV, typename dS, typename State>
+    void next(dX&& get_dX, dV&& get_dV, dS&& get_dS, State&& get_state)
+    {
+        using namespace single_source;
+
+        v4f cposition = declare_e(position);
+        v4f cvelocity = declare_e(velocity);
+
+        auto st = get_state(cposition);
+
+        auto accel = declare_e(get_dV(cposition, cvelocity, st));
+        auto dPosition = declare_e(get_dX(cposition, cvelocity, st));
+
+        auto ds = declare_e(get_dS(cposition, cvelocity, accel, st));
+
+        as_ref(position) = cposition + dPosition * ds;
+        as_ref(velocity) = cvelocity + accel * ds;
+    }
+};
+
 template<auto GetMetric, typename... T>
 inline
 void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
@@ -470,14 +605,6 @@ void init_rays3(execution_context& ectx, literal<valuei> screen_width, literal<v
 
     geodesic my_geodesic = make_lightlike_geodesic(position[0], ray_direction, tetrads);
 
-    /*if_e(x == 0 && y == 0, [&]{
-        value_base se;
-        se.type = value_impl::op::SIDE_EFFECT;
-        se.abstract_value = "printf(\"adm: %f\\n\"," + value_to_string(adm_velocity.x()) + ")";
-
-        value_impl::get_context().add(se);
-    });*/
-
     v2i out_dim = {screen_width.get(), screen_height.get()};
     v2i out_pos = {x, y};
 
@@ -793,134 +920,6 @@ valuef acceleration_to_precision(v4f acceleration, valuef max_acceleration, valu
     return diff;
 }
 
-
-#define METHOD_1
-template<typename T>
-struct verlet_context
-{
-    mut_v4f position;
-
-    #ifdef METHOD_1
-    mut_v4f v_half;
-    mut_v4f v_full_approx;
-    mut<valuef> ds;
-    #endif
-
-    mut_v4f velocity;
-
-    template<typename dX, typename dV, typename dS>
-    void start(const T& position_in, const T& velocity_in, dX&& get_dX, dV&& get_dV, dS&& get_dS)
-    {
-        using namespace single_source;
-
-        #ifdef METHOD_1
-        auto acceleration = get_dV(position_in, velocity_in);
-        pin(acceleration);
-
-        ds = declare_mut_e(get_dS(position_in, velocity_in, acceleration));
-
-        v_half = declare_mut_e(velocity_in + 0.5f * acceleration * ds);
-
-        v_full_approx = declare_mut_e(velocity_in + acceleration * ds);
-
-        auto dPosition = get_dX(position_in, as_constant(v_half));
-
-        position = declare_mut_e(position_in + dPosition * ds);
-        velocity = declare_mut_e(velocity_in);
-        #endif
-
-        #ifdef METHOD_2
-        position = declare_mut_e(position_in);
-        velocity = declare_mut_e(velocity_in);
-        #endif
-    }
-
-    template<typename dX, typename dV, typename dS>
-    void next(dX&& get_dX, dV&& get_dV, dS&& get_dS)
-    {
-        using namespace single_source;
-
-        #ifdef METHOD_1
-        v4f cposition = declare_e(position);
-        v4f cv_half = declare_e(v_half);
-        v4f cv_full_approx = declare_e(v_full_approx);
-        v4f cvelocity = declare_e(velocity);
-        valuef cds = declare_e(ds);
-
-        auto AFull_approx = get_dV(cposition, cv_full_approx);
-        pin(AFull_approx);
-
-        auto VFull_next = cv_half + 0.5f * AFull_approx * cds;
-        pin(VFull_next);
-
-        as_ref(velocity) = VFull_next;
-        as_ref(ds) = get_dS(cposition, cvelocity, AFull_approx);
-
-        auto ABase = get_dV(cposition, as_constant(velocity));
-        pin(ABase);
-
-        as_ref(v_half) = as_constant(velocity) + 0.5f * ABase * as_constant(ds);
-        as_ref(v_full_approx) = as_constant(velocity) + ABase * as_constant(ds);
-
-        auto XDiff = get_dX(cposition, as_constant(v_half));
-
-        as_ref(position) = cposition + XDiff * as_constant(ds);
-        #endif
-
-        #ifdef METHOD_2
-        v4f cposition = declare_e(position);
-        v4f cvelocity = declare_e(velocity);
-
-        auto ds = get_dS(cposition, cvelocity, AFull_approx);
-
-        auto v_half = cvelocity + 0.5f * get_dV(cposition, cvelocity) * ds;
-        auto x_full = cposition + v_half * ds;
-
-        auto v_full_approx = cvelocity + get_dV(cposition, cvelocity) * ds;
-
-        auto a_full = get_dV(x_full, v_full_approx);
-
-        auto v_next = v_half + 0.5f * a_full * ds;
-
-        as_ref(position) = x_full;
-        as_ref(velocity) = v_next;
-        #endif
-    }
-};
-
-template<typename T>
-struct euler_context
-{
-    mut_v4f position;
-    mut_v4f velocity;
-
-    template<typename dX, typename dV, typename dS>
-    void start(const T& position_in, const T& velocity_in, dX&& get_dX, dV&& get_dV, dS&& get_dS)
-    {
-        using namespace single_source;
-
-        position = declare_mut_e(position_in);
-        velocity = declare_mut_e(velocity_in);
-    }
-
-    template<typename dX, typename dV, typename dS>
-    void next(dX&& get_dX, dV&& get_dV, dS&& get_dS)
-    {
-        using namespace single_source;
-
-        v4f cposition = declare_e(position);
-        v4f cvelocity = declare_e(velocity);
-
-        auto accel = declare_e(get_dV(cposition, cvelocity));
-        auto dPosition = declare_e(get_dX(cposition, cvelocity));
-
-        auto ds = declare_e(get_dS(cposition, cvelocity, accel));
-
-        as_ref(position) = cposition + dPosition * ds;
-        as_ref(velocity) = cvelocity + accel * ds;
-    }
-};
-
 metric<valuef, 4, 4> get_Guv(v4i grid_pos, v3i dim, std::array<buffer<block_precision_t>, 10> Guv_buf, valuei last_slice)
 {
     grid_pos.x() = clamp(grid_pos.x(), valuei(0), last_slice - 1);
@@ -950,6 +949,11 @@ metric<valuef, 4, 4> get_Guv(v4i grid_pos, v3i dim, std::array<buffer<block_prec
 
     return met;
 }
+
+struct trace4_state
+{
+
+};
 
 void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
             buffer_mut<v4f> positions, buffer_mut<v4f> velocities,
@@ -1012,12 +1016,12 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
         return grid_fpos;
     };
 
-    auto get_dX = [&](v4f position, v4f velocity)
+    auto get_dX = [&](v4f position, v4f velocity, trace4_state st)
     {
         return velocity;
     };
 
-    auto get_dV = [&](v4f position, v4f velocity)
+    auto get_dV = [&](v4f position, v4f velocity, trace4_state st)
     {
         v4f grid_fpos = world_to_grid4(position);
 
@@ -1108,7 +1112,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
         return accel;
     };
 
-    auto get_dS = [&](v4f position, v4f velocity, v4f acceleration)
+    auto get_dS = [&](v4f position, v4f velocity, v4f acceleration, trace4_state st)
     {
         //valuef pos = position.yzw().length();
         //return ternary(pos < valuef(10), valuef(1.f), valuef(1.5f));
@@ -1118,8 +1122,13 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
         return dt;
     };
 
+    auto get_state = [](v4f position)
+    {
+        return trace4_state();
+    };
+
     verlet_context<v4f> ctx;
-    ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS);
+    ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS, get_state);
 
     mut<valuei> result = declare_mut_e(valuei(0));
     v4f final_position;
@@ -1251,7 +1260,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
             }
             #endif
 
-            ctx.next(get_dX, get_dV, get_dS);
+            ctx.next(get_dX, get_dV, get_dS, get_state);
 
             v4f cposition = as_constant(ctx.position);
             v4f cvelocity = as_constant(ctx.velocity);
@@ -1279,7 +1288,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                 break_e();
             });*/
 
-            if_e(cposition.x() < -100 || fabs(cvelocity.x()) > 20 || cvelocity.yzw().squared_length() < 0.1f * 0.1f ||
+            if_e(cposition.x() < -150 || fabs(cvelocity.x()) > 30 || cvelocity.yzw().squared_length() < 0.1f * 0.1f ||
                  !isfinite(cposition.x()) || !isfinite(cposition.y()) || !isfinite(cposition.z()) || !isfinite(cposition.w()) ||
                  !isfinite(cvelocity.x()) || !isfinite(cvelocity.y()) || !isfinite(cvelocity.z()) || !isfinite(cvelocity.w())
                  , [&]{
