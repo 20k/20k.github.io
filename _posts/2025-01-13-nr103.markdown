@@ -1,12 +1,162 @@
 ---
 layout: post
-title:  "Numerical Relativity 103: Rendering binary black hole collisions"
+title:  "Numerical Relativity 103: Raytracing numerical spacetimes"
 date:   2026-01-12 12:33:23 +0000
 categories: C++
 ---
 
-Hi! This article is going to be a lot of fun, as we produce some high quality renderings of binary black hole collisions. We're going to render these via three different methods:
+Hi! Today we're going to look at raytracing geodesics in numerical spacetimes. We're going to explore two things:
 
-1. Approximately on a single slice
-2. Accurately via the ADM formalism
-3. Accurately via the regular general relativistic approach
+1. The ADM geodesic equations to approximately render one slice
+3. The regular geodesic equation to accurately raytrace inspiralling binary black holes
+
+Along the way, I'll present to you a modified form of the verlet algorithm which is the best bang for your buck that you can get here.
+
+Video:
+
+I'd highly recommend reading todo: this article about geodesics in general relativity, but we'll have a recap before we get started
+
+
+Todo: clamp so we don't overflow buffer
+
+# What are we trying to do?
+
+Today, we're going to raytrace light rays around our spacetime, and produce a rendering of it. If you're familiar with raytracing in general, you might imagine a raytracer which fires rays through a 3d grid
+
+In 3d, a ray has two properties: a position, and a velocity, both 3-vectors. Adding an acceleration to your rays - eg newtonian gravity, is straightforwardly modelled as an acceleration, applied at each step as you step along a ray in the 3rd volume
+
+Stretching this into 4d is straightforward. Instead of a 3d grid, we now have a 4d grid. And instead of position and velocity being 3-vectors, they now both have a 4th component attached, which allows us to represent space*time*. There's no longer a newtonian acceleration at each point in space, but a general relativistic 'acceleration'[^reallycoordinates] at each point in spacetime, dictated by the geodesic equation
+
+One of the major differences when adding a time dimension is that light rays (cast from the camera) travel backwards in time. This is because they *finish* at the camera, so we want to work out where they originated from earlier
+
+[^reallycoordinates]: It isn't a true acceleration in the physical sense, but represents the coordinate change of the light ray as it moves about
+
+## A grid in 4d
+
+In previous articles on raytracing, we've had an analytic metric tensor $g_{\mu\nu}$, which is a 4d object. We need this to calculate our acceleration. Today, we have a numerical grid - a single 3d slice, which represents the metric through some slice of spacetime defined as 'now'. Unfortunately, as our light rays travel backwards in time, we need access to earlier slices as well to re-build out 4d grid, which means storing our entire simulation history
+
+This is a problem. We're going to discuss two different approaches here:
+
+1. A debugging view by keeping our rays inaccurately to a single slice
+2. An accurate view, where we store the entire simulation history in a reduced form
+
+# Recap: What are geodesics?
+
+In general relativity, geodesics represent paths through spacetime. There are three kinds of geodesics:
+
+1. Timelike, representing the paths of observers and massive particles
+2. Null, representing the paths of massless particles like light
+3. Spacelike, representing distances that cannot be traversed causally
+
+In general, we're only interested in timelike and null geodesics. Everything in this article is applicable to both of these kinds of geodesics
+
+Geodesics have two properties:
+
+1. A 4-position, which we'll notate as $x^\mu$
+2. A 4-velocity, which we'll notate as $\frac{dx^\mu}{d\lambda}$. Note that this velocity is the derivative of the position $x^\mu$ with respect to either an affine parameter $d\lambda$ (sometimes called $ds$), or coordinate time $t$. We'll be exclusively sticking with the former, to avoid confusion
+
+As always, greek indices run from $0-4$, and latin indices run from $1-4$
+
+# The geodesic equation
+
+To calculate the path of a geodesic through spacetime, we can integrate the geodesic equation:
+
+$$\frac{d^2 x^\mu}{d\lambda^2} =-\Gamma^\mu_{\alpha \beta} \frac{dx^\alpha}{d\lambda} \frac{dx^\beta}{d\lambda}$$
+
+This gives an acceleration. $\Gamma^\mu_{\alpha \beta}$ is the christoffel symbols of the second kind. For us, the important part is that its built from the metric tensor, and its derivatives
+
+# Recap: The ADM formalism
+
+The ADM formalism is the process of taking a 4-metric $g_{\mu\nu}$, and splitting it up into a series of 3d slices (called a foliation). Each 3d slice has the following variables associated with it:
+
+| Symbol | Name | Relation to normal GR  | Description |
+|-|-|-|-|
+| $\gamma_{ij}$ | The 3-metric tensor | $g_{ij}$ | Describes curvature on the 3 surface. Symmetric |
+| $K_{ij}$ | Extrinsic curvature | $\frac{1}{2 \alpha} (D_i \beta_j + D_j \beta_i - \frac{\partial g_{ij}}{\partial_t})$ | The curvature of the 3 surface with respect to the 4th dimension. Symmetric |
+| $\alpha$ | Lapse | $\sqrt{-g_{00} + \beta^m \beta_m}$ | Part of the hypersurface normal, which points into the future |
+| $\beta^i$ | Shift | $g_{0i}$ | The other part of the hypersurface normal, which points into the future |
+
+The only general relativity you need to know for this article is:
+
+1. Raising and lowering indices
+2. How to calculate a covariant derivative. $D$ is the covariant derivative associated with $\gamma_{ij}$
+3. Tensor index notation
+
+Unlike previous articles, we'll be barely dealing with the BSSN formalism at all. I'll be mentioning it in passing, but we'll use it solely to construct our relevant ADM quantities.
+
+# The ADM geodesic equation
+
+Today we're primarily going to be dealing with the paper [3+1 geodesic equation and images in numerical
+spacetimes](https://arxiv.org/pdf/1208.3927), and discussing some of the implications. Lets get into it
+
+## Initial conditions
+
+The way we set up initial conditions is exactly as described in <this> article, with no changes. The sole difference is that we build the metric tensor $g_{\mu\nu}$ from the ADM components ($\gamma_{ij},\; \alpha,\; \beta^i$), rather than having a metric analytically. Because of this, we're going to start from the position that we already have a 4-position, and a 4-velocity to start off with. No derivatives are needed for this step, so its simply a matter of calculating the values from these tables as follows:
+
+Bssn -> ADM
+
+ADM -> metric
+
+So at this point, lets assume that we have a geodesic (either null, or massive), with a position $x^\mu$ and a velocity $dx^\mu$
+
+This paper requires us to first calculate the 4-momentum of our geodesic, $p^\mu$. For a timelike geodesic, the 4-momentum is defined as such[^lambda]:
+
+$$p^\mu = m \frac{dx^\mu}{d\tau}$$
+
+[^lambda]: For timelike geodesics, generally we set $\lambda = \tau$, ie we parameterise our geodesic by proper time
+
+Where $m$ is the rest mass, and we've set $d\lambda = d\tau$ (the proper time). For a null geodesic, the 4-momentum is equivalent to rescaling the 4-velocity, which has [no effect](https://physics.stackexchange.com/questions/350556/definition-of-p-mu-for-a-photon-in-general-relativity) on the path (as rescaling a null geodesic is equivalent to a change in the affine parameter). Therefore we set:
+
+$$p^\mu = \frac{dx^\mu}{d\lambda}$$
+
+Next up, we want to perform the adm projection, so we can get the quantities on the 3-surface. To do this, simply apply (8), and solve for $V^\mu$:
+
+$$V^\mu = \frac{p^\mu}{E} - \mathcal{n}^\mu$$
+
+Where
+
+1. $E = -p_\mu \mathcal{n}^\mu$
+2. $\mathcal{n}^\mu = (\frac{1}{\alpha}, -\frac{\beta^0}{\alpha}, -\frac{\beta^1}{\alpha}, -\frac{\beta^2}{\alpha})$
+
+In practice the quantity $E = -p^\mu \mathcal{n}_{\mu}$ is easier to calculate, as we can calculate $\mathcal{n}_{\mu} =  (-\alpha, 0, 0, 0)$ directly, and we already have $p^\mu$.
+
+$V^\mu$ is tangent to our 3-surface, and has no component in the timelike direction (ie $\mathcal{n}_\mu V^\mu = 0$). This means that $V^0 = 0$. For null geodesics, $V_i V^i = 1$, and for timelike geodesics, $V_i V^i < 1$
+
+So, for tracing a geodesic in the ADM formalism, we have two things
+
+1. A 4-position, which we've called $x$, and this paper calls $X$
+2. A 3-velocity $V^i$, which is the projection our 4-velocity onto our local hypersurface
+
+### A slight wrinkle: Photons going backwards in time
+
+Its very common in these simulations to raytrace light rays backwards in time. If you're doing this (which we are), you'll note that we have no component in the timelike direction for $V^i$. The slightly odd trick is that your timestep becomes *negative* when performing your raytracing.
+
+Please note that while I'm 95% sure that this is the correct approach, I'm not 101% sure on that fact.
+
+## Evolution equations
+
+The evolution equations for our system are given by (28a) and (28b):
+
+Eq 1
+Eq 2
+
+The only modifications we'll make are as follows:
+
+1. We can replace the dloga term with dga / ga, which is easier to calculate
+2. For null geodesics, you can enforce $V_i V^i = 1$ by rescaling the length to improve accuracy
+
+# A Single Slice
+
+## Verlet
+
+# Timelike Geodesics
+
+# Accurate rendering
+
+# Results
+
+# Discussion
+
+## Why not timelike geodesics?
+
+# Addendum (texture filtering?)

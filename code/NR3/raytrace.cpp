@@ -702,10 +702,36 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
     mut_v3f final_velocity = declare_mut_e((v3f){});
     //mut_v3f final_dX = declare_mut_e((v3f){});
 
+    auto fix_velocity = [](v3f velocity, const trace3_state& args)
+    {
+        auto cY = args.cY;
+        auto W = args.W;
+
+        auto Yij = cY / (W*W);
+        //pin(Yij);
+
+        valuef length_sq = dot(velocity, Yij.lower(velocity));
+        valuef length = sqrt(fabs(length_sq));
+
+        velocity = velocity / length;
+
+        pin(velocity);
+
+        return velocity;
+    };
+
     auto get_dX = [&](v3f position, v3f velocity, const trace3_state& args)
     {
-        v3f d_X = args.gA * velocity - args.gB;
+        v3f d_X = args.gA * fix_velocity(velocity, args) - args.gB;
         pin(d_X);
+
+        //so. This recovers the performance, but its pretty hacky
+        if_e(dot(d_X, d_X) < 0.2f * 0.2f, [&]
+        {
+            as_ref(result) = valuei(0);
+            break_e();
+        });
+
         return d_X;
     };
 
@@ -750,15 +776,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
         auto cY = args.cY;
         auto W = args.W;
 
-        auto Yij = cY / (W*W);
-        pin(Yij);
-
-        valuef length_sq = dot(velocity, Yij.lower(velocity));
-        valuef length = sqrt(fabs(length_sq));
-
-        velocity = velocity / length;
-
-        pin(velocity);
+        velocity = fix_velocity(velocity, args);
 
         auto icY = cY.invert();
         pin(icY);
@@ -834,7 +852,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
         return out;
     };
 
-    #if 0
+    #if 1
     euler_context<valuef, 3> ctx;
     ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS, get_state);
 
@@ -866,7 +884,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
     //final_velocity = declare_e(ctx.velocity);;
     #endif
 
-    #if 1
+    #if 0
     {
         mut_v3f position = declare_mut_e(pos_in);
         mut_v3f velocity = declare_mut_e(vel_in);
@@ -940,9 +958,9 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
             valuef length_sq = dot(cvelocity, Yij.lower(cvelocity));
             valuef length = sqrt(fabs(length_sq));
 
-            //cvelocity = cvelocity / length;
+            cvelocity = cvelocity / length;
 
-            //pin(cvelocity);
+            pin(cvelocity);
 
             auto icY = cY.invert();
             pin(icY);
