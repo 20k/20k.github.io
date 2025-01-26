@@ -572,7 +572,7 @@ valuef get_ct_timestep(v3f position, v3f velocity, valuef W)
 
     my_fraction = clamp(my_fraction, 0.f, 1.f);
 
-    return mix(valuef(0.4f), valuef(4.f), my_fraction) * 0.4f;
+    return mix(valuef(0.1f), valuef(1.f), my_fraction);
 }
 
 ///so. I think the projection is wrong, and that we should have -dt
@@ -623,16 +623,14 @@ void init_rays3(execution_context& ectx, literal<valuei> screen_width, literal<v
     as_ref(positions_out[out_pos, out_dim]) = my_geodesic.position;
 
     if_e(is_adm.get() == 1, [&]{
-
         adm_variables init_adm = admf_at(grid_position, dim.get(), in);
 
         tensor<valuef, 4> normal = get_adm_hypersurface_normal_raised(init_adm.gA, init_adm.gB);
         tensor<valuef, 4> normal_lowered = get_adm_hypersurface_normal_lowered(init_adm.gA);
 
-        valuef E = sum_multiply(my_geodesic.velocity, normal_lowered);
+        valuef E = -sum_multiply(my_geodesic.velocity, normal_lowered);
 
-        ///98% sure this is wrong, but past me had a lot of qualms about this and was careful so...
-        tensor<valuef, 4> adm_velocity = -((my_geodesic.velocity / E) - normal);
+        tensor<valuef, 4> adm_velocity = ((my_geodesic.velocity / E) - normal);
 
         as_ref(velocities_out[out_pos, out_dim]) = adm_velocity;
     });
@@ -834,7 +832,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
     auto get_dS = [&](v3f position, v3f velocity, v3f acceleration, const trace3_state& args)
     {
-        return -2.f * get_ct_timestep(position, velocity, args.W);
+        return -1.5f * get_ct_timestep(position, velocity, args.W);
     };
 
     auto get_state = [&](v3f position) -> trace3_state
