@@ -58,7 +58,7 @@ struct verlet_context
     }
 
     template<typename dX, typename dV, typename dS, typename State>
-    void next(dX&& get_dX, dV&& get_dV, dS&& get_dS, State&& get_state)
+    void next(dX&& get_dX, dV&& get_dV, dS&& get_dS, State&& get_state, auto&& velocity_postprocess)
     {
         using namespace single_source;
 
@@ -82,7 +82,7 @@ struct verlet_context
         auto VFull_next = cv_half + 0.5f * AFull_approx * cds;
         pin(VFull_next);
 
-        as_ref(velocity) = VFull_next;
+        as_ref(velocity) = velocity_postprocess(VFull_next, st);
         as_ref(ds) = get_dS(cposition, cv_full_approx, AFull_approx, st);
         as_ref(accel) = get_dV(cposition, as_constant(velocity), st);
 
@@ -112,6 +112,7 @@ struct verlet_context
     }
 };
 
+///do st.preprocess_velocity
 template<typename T, int N>
 struct euler_context
 {
@@ -128,7 +129,7 @@ struct euler_context
     }
 
     template<typename dX, typename dV, typename dS, typename State>
-    void next(dX&& get_dX, dV&& get_dV, dS&& get_dS, State&& get_state)
+    void next(dX&& get_dX, dV&& get_dV, dS&& get_dS, State&& get_state, auto&& velocity_postprocess)
     {
         using namespace single_source;
 
@@ -141,6 +142,8 @@ struct euler_context
         auto dPosition = declare_e(get_dX(cposition, cvelocity, st));
 
         auto ds = declare_e(get_dS(cposition, cvelocity, accel, st));
+
+        cvelocity = velocity_postprocess(cvelocity, st);
 
         as_ref(position) = cposition + dPosition * ds;
         as_ref(velocity) = cvelocity + accel * ds;
@@ -785,7 +788,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
         auto cY = args.cY;
         auto W = args.W;
 
-        velocity = fix_velocity(velocity, args);
+        //velocity = fix_velocity(velocity, args);
 
         auto icY = cY.invert();
         pin(icY);
@@ -831,7 +834,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
     auto get_dS = [&](v3f position, v3f velocity, v3f acceleration, const trace3_state& args)
     {
-        return -1.f * get_ct_timestep(position, velocity, args.W);
+        return -2.f * get_ct_timestep(position, velocity, args.W);
     };
 
     auto get_state = [&](v3f position) -> trace3_state
@@ -862,7 +865,9 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
     };
 
     #if 1
-    verlet_context<valuef, 3> ctx;
+    ///omg i forgot to correct the velocity after each step
+    ///this is such a mess. Can i truly have a generic integrator? Is it worth it?
+    euler_context<valuef, 3> ctx;
     ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS, get_state);
 
     mut<valuei> idx = declare_mut_e("i", valuei(0));
@@ -880,13 +885,13 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
             break_e();
         });
 
-        ctx.next(get_dX, get_dV, get_dS, get_state);
-
         if_e(dot((cvelocity), (cvelocity)) < 0.3f * 0.3f, [&]
         {
             as_ref(result) = valuei(0);
             break_e();
         });
+
+        ctx.next(get_dX, get_dV, get_dS, get_state, fix_velocity);
     });
 
     final_position = declare_e(ctx.position);;
@@ -1333,6 +1338,11 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
         return trace4_state();
     };
 
+    auto velocity_process = [](v4f v, const trace4_state& st)
+    {
+        return v;
+    };
+
     verlet_context<valuef, 4> ctx;
     ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS, get_state);
 
@@ -1466,7 +1476,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
             }
             #endif
 
-            ctx.next(get_dX, get_dV, get_dS, get_state);
+            ctx.next(get_dX, get_dV, get_dS, get_state, velocity_process);
 
             v4f cposition = as_constant(ctx.position);
             v4f cvelocity = as_constant(ctx.velocity);
