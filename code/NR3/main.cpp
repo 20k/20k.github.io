@@ -14,6 +14,7 @@
 #include "raytrace.hpp"
 #include <SFML/Graphics/Image.hpp>
 #include <GLFW/glfw3.h>
+#include "raytrace_init.hpp"
 
 using t3i = tensor<int, 3>;
 
@@ -532,6 +533,7 @@ struct raytrace_bssn
     raytrace_bssn(cl::context& ctx) : positions(ctx), velocities(ctx), results(ctx), texture_coordinates(ctx), zshifts(ctx)
     {
         build_raytrace_kernels(ctx);
+        build_raytrace_init_kernels(ctx);
     }
 
     ///shower thought: could use a circular buffer here
@@ -1017,7 +1019,7 @@ int main()
 
                 m.buffers[buf].append_to(args);
 
-                cqueue.exec("init_rays3", args, {screen_width, screen_height}, {8,8});
+                cqueue.exec("init_rays_generic", args, {screen_width, screen_height}, {8,8});
             }
 
             #if 1
