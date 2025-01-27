@@ -27,18 +27,6 @@ using mut_v3f = tensor<mut<valuef>, 3>;
 using t3i = tensor<int, 3>;
 using t3f = tensor<float, 3>;
 
-struct adm_variables
-{
-    metric<valuef, 3, 3> Yij;
-    tensor<valuef, 3, 3> Kij;
-    valuef gA;
-    tensor<valuef, 3> gB;
-};
-
-struct bssn_args;
-
-adm_variables bssn_to_adm(const bssn_args& args);
-
 void make_initial_conditions(cl::context ctx);
 void init_christoffel(cl::context ctx);
 

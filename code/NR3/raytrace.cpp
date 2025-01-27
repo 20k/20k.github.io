@@ -2,6 +2,7 @@
 #include "tensor_algebra.hpp"
 #include "init.hpp"
 #include "bssn.hpp"
+#include "formalisms.hpp"
 
 #define UNIVERSE_SIZE 29
 
@@ -357,16 +358,6 @@ auto function_quadlinear(T&& func, v4f pos)
     auto linear_2 = c0 - frac.z() * (c0 - c1);
 
     return linear_1 - frac.w() * (linear_1 - linear_2);
-}
-
-inline
-adm_variables adm_at(v3i pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
-{
-    using namespace single_source;
-
-    bssn_args args(pos, dim, in);
-
-    return bssn_to_adm(args);
 }
 
 ///takes GRID coordinates
@@ -875,21 +866,13 @@ geodesic make_lightlike_geodesic(const v4f& position, const v3f& direction, cons
 }
 
 inline
-bssn_args bssn_at(v3i pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
-{
-    bssn_args args(pos, dim, in);
-    return args;
-}
-
-inline
 valuef W_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 {
     using namespace single_source;
 
     auto W_at = [&](v3i pos)
     {
-        bssn_args args(pos, dim, in);
-        return args.W;
+        return in.W[pos, dim];
     };
 
     return function_trilinear(W_at, pos);
@@ -902,7 +885,7 @@ valuef gA_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 
     auto func = [&](v3i pos)
     {
-        return adm_at(pos, dim, in).gA;
+        return in.gA[pos, dim];
     };
 
     auto val = function_trilinear(func, pos);
@@ -933,7 +916,8 @@ unit_metric<valuef, 3, 3> cY_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>
 
     auto func = [&](v3i pos)
     {
-        return bssn_at(pos, dim, in).cY;
+        bssn_args args(pos, dim, in);
+        return args.cY;
     };
 
     auto val = function_trilinear(func, pos);
