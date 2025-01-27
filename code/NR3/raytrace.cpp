@@ -1537,7 +1537,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
 
     auto get_dS = [&](v4f position, v4f velocity, v4f acceleration, trace4_state st)
     {
-        return acceleration_to_precision(acceleration, 0.0003f);
+        return acceleration_to_precision(acceleration, 0.00025f);
     };
 
     auto get_state = [](v4f position)
