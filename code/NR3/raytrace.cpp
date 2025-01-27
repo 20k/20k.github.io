@@ -59,7 +59,7 @@ struct verlet_context
     }
 
     template<typename dX, typename dV, typename dS, typename State>
-    void next(dX&& get_dX, dV&& get_dV, dS&& get_dS, State&& get_state, auto&& velocity_postprocess)
+    auto next(dX&& get_dX, dV&& get_dV, dS&& get_dS, State&& get_state, auto&& velocity_postprocess)
     {
         using namespace single_source;
 
@@ -121,6 +121,8 @@ struct verlet_context
 
         as_ref(position) = x_full;
         as_ref(velocity) = v_full;
+
+        return dX_half;
         #endif
     }
 };
@@ -142,7 +144,7 @@ struct euler_context
     }
 
     template<typename dX, typename dV, typename dS, typename State>
-    void next(dX&& get_dX, dV&& get_dV, dS&& get_dS, State&& get_state, auto&& velocity_postprocess)
+    auto next(dX&& get_dX, dV&& get_dV, dS&& get_dS, State&& get_state, auto&& velocity_postprocess)
     {
         using namespace single_source;
 
@@ -160,6 +162,8 @@ struct euler_context
 
         as_ref(position) = cposition + dPosition * ds;
         as_ref(velocity) = cvelocity + accel * ds;
+
+        return dPosition;
     }
 };
 
@@ -720,13 +724,15 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
     v3f pos_in = declare_e(positions[screen_position, screen_size]).yzw();
     v3f vel_in = declare_e(velocities[screen_position, screen_size]).yzw();
 
-    mut<valuei> result = declare_mut_e(valuei(0));
+    mut<valuei> result = declare_mut_e(valuei(2));
     v3f final_position;
     v3f final_velocity = declare_e((v3f){});
     //mut_v3f final_dX = declare_mut_e((v3f){});
 
     auto fix_velocity = [](v3f velocity, const trace3_state& args)
     {
+        return velocity;
+
         auto cY = args.cY;
         auto W = args.W;
 
@@ -747,13 +753,6 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
     {
         v3f d_X = args.gA * velocity - args.gB;
         pin(d_X);
-
-        //so. This recovers the performance, but its pretty hacky
-        /*if_e(dot(d_X, d_X) < 0.2f * 0.2f, [&]
-        {
-            as_ref(result) = valuei(0);
-            break_e();
-        });*/
 
         return d_X;
     };
@@ -847,7 +846,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
     {
         //return -scale.get();
 
-        return -0.75f * get_ct_timestep(position, velocity, args.W);
+        return -1 * get_ct_timestep(position, velocity, args.W);
     };
 
     auto get_state = [&](v3f position) -> trace3_state
@@ -885,7 +884,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
     mut<valuei> idx = declare_mut_e("i", valuei(0));
 
-    for_e(idx < 1024*4, assign_b(idx, idx + 1), [&]
+    for_e(idx < 512, assign_b(idx, idx + 1), [&]
     {
         v3f cposition = declare_e(ctx.position);
         v3f cvelocity = declare_e(ctx.velocity);
@@ -897,13 +896,18 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
             break_e();
         });
 
-        if_e(dot((cvelocity), (cvelocity)) < 0.3f * 0.3f, [&]
-        {
+        if_e(!isfinite(cvelocity.x()) || !isfinite(cvelocity.y()) || !isfinite(cvelocity.z()), [&]{
             as_ref(result) = valuei(0);
             break_e();
         });
 
-        ctx.next(get_dX, get_dV, get_dS, get_state, fix_velocity);
+        v3f diff = ctx.next(get_dX, get_dV, get_dS, get_state, fix_velocity);
+
+        if_e(diff.squared_length() < 0.1f * 0.1f, [&]
+        {
+            as_ref(result) = valuei(0);
+            break_e();
+        });
     });
 
     final_position = declare_e(ctx.position);
@@ -1528,6 +1532,11 @@ void render(execution_context& ectx, literal<valuei> screen_width, literal<value
 
     if_e(results[screen_position, screen_size] == 0, [&]{
         screen.write(ectx, {x, y}, (v4f){0,0,0,1});
+        return_e();
+    });
+
+    if_e(results[screen_position, screen_size] == 2, [&]{
+        screen.write(ectx, {x, y}, (v4f){1,0,0,1});
         return_e();
     });
 
