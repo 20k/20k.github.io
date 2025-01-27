@@ -1226,7 +1226,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
     verlet_context<valuef, 4> ctx;
     ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS, get_state);
 
-    mut<valuei> result = declare_mut_e(valuei(0));
+    mut<valuei> result = declare_mut_e(valuei(2));
     v4f final_position;
     v4f final_velocity;
 
@@ -1235,7 +1235,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
     {
         mut<valuei> idx = declare_mut_e("i", valuei(0));
 
-        for_e(idx < 1024, assign_b(idx, idx + 1), [&]
+        for_e(idx < 512, assign_b(idx, idx + 1), [&]
         {
             #if 0
             tensor<m44f, 3, 3, 3, 3> block;
