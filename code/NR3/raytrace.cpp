@@ -293,8 +293,8 @@ v2f angle_to_tex(const v2f& angle)
 
     float pi = std::numbers::pi_v<float>;
 
-    mut<valuef> thetaf = declare_mut_e("theta", fmod(angle[0], valuef(2 * pi)));
-    mut<valuef> phif = declare_mut_e("phi", angle[1]);
+    mut<valuef> thetaf = declare_mut_e(fmod(angle[0], valuef(2 * pi)));
+    mut<valuef> phif = declare_mut_e(angle[1]);
 
     if_e(thetaf >= pi, [&]
     {
@@ -433,7 +433,6 @@ v3f do_redshift(v3f colour, valuef zp1)
     return redshift(colour, zp1 - 1);
 }
 
-inline
 auto cartesian_to_spherical = []<typename T>(const tensor<T, 3>& cartesian)
 {
     T r = cartesian.length();
@@ -441,39 +440,6 @@ auto cartesian_to_spherical = []<typename T>(const tensor<T, 3>& cartesian)
     T phi = atan2(cartesian[1], cartesian[0]);
 
     return tensor<T, 3>{r, theta, phi};
-};
-
-template<typename T, int N, typename Func>
-inline
-tensor<T, N> convert_velocity(Func&& f, const tensor<T, N>& pos, const tensor<T, N>& deriv)
-{
-    tensor<dual<T>, N> val;
-
-    for(int i=0; i < N; i++)
-        val[i] = dual(pos[i], deriv[i]);
-
-    auto d = f(val);
-
-    tensor<T, N> ret;
-
-    for(int i=0; i < N; i++)
-        ret[i] = d[i].dual;
-
-    return ret;
-}
-
-inline
-auto spherical_to_cartesian = []<typename T>(const tensor<T, 3>& spherical)
-{
-    T r = spherical[0];
-    T theta = spherical[1];
-    T phi = spherical[2];
-
-    T x = r * sin(theta) * cos(phi);
-    T y = r * sin(theta) * sin(phi);
-    T z = r * cos(theta);
-
-    return tensor<T, 3>{x, y, z};
 };
 
 v3f get_ray_through_pixel(v2i screen_position, v2i screen_size, float fov_degrees, v4f camera_quat) {
@@ -720,7 +686,6 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
     mut<valuei> result = declare_mut_e(valuei(2));
     v3f final_position;
     v3f final_velocity = declare_e((v3f){});
-    //mut_v3f final_dX = declare_mut_e((v3f){});
 
     auto fix_velocity = [](v3f velocity, const trace3_state& args)
     {
@@ -742,7 +707,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
         return velocity;
     };
 
-    auto get_dX = [&](v3f position, v3f velocity, const trace3_state& args)
+    auto get_dX = [](v3f position, v3f velocity, const trace3_state& args)
     {
         v3f d_X = args.gA * velocity - args.gB;
         pin(d_X);
@@ -791,8 +756,6 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
         auto cY = args.cY;
         auto W = args.W;
 
-        //velocity = fix_velocity(velocity, args);
-
         auto icY = cY.invert();
         pin(icY);
 
@@ -837,8 +800,6 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
     auto get_dS = [&](v3f position, v3f velocity, v3f acceleration, const trace3_state& args)
     {
-        //return -scale.get();
-
         return -4 * get_ct_timestep(position, velocity, args.W);
     };
 
@@ -973,31 +934,15 @@ void bssn_to_guv(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> l
 }
 
 ///todo: fixme
-valuef acceleration_to_precision(v4f acceleration, valuef max_acceleration, valuef* next_ds_out)
+valuef acceleration_to_precision(v4f acceleration, valuef max_acceleration)
 {
-    valuef current_acceleration_err = acceleration.length() * 0.01f;
-
-    valuef experienced_acceleration_change = current_acceleration_err;
-
-    valuef err = max_acceleration;
-
-    //#define MIN_STEP 0.00001f
-    //#define MIN_STEP 0.000001f
+    valuef diff = acceleration.length() * 0.01f;
 
     valuef max_timestep = 100000;
 
-    valuef diff = experienced_acceleration_change;
+    diff = max(diff, max_acceleration / pow(max_timestep, 2.f));
 
-    diff = max(diff, err / pow(max_timestep, 2.f));
-
-    ///of course, as is tradition, whatever works for kerr does not work for alcubierre
-    ///the sqrt error calculation is significantly better for alcubierre, largely in terms of having no visual artifacts at all
-    ///whereas the pow version is nearly 2x faster for kerr
-    valuef next_ds = sqrt(err / diff);
-
-    *next_ds_out = next_ds;
-
-    return diff;
+    return sqrt(max_acceleration / diff);
 }
 
 metric<valuef, 4, 4> get_Guv(v4i grid_pos, v3i dim, std::array<buffer<block_precision_t>, 10> Guv_buf, valuei last_slice)
@@ -1081,10 +1026,6 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
 
         pin(grid_t);
 
-        /*if_e(last_slice.get() >= 3, [&]{
-            grid_t = clamp()
-        });*/
-
         grid_t = ternary(last_slice.get() > 5,
                          clamp(grid_t, valuef(2), (valuef)last_slice.get() - 3),
                          grid_t);
@@ -1114,8 +1055,6 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
 
         auto get_guv_at = [&](v4f fpos)
         {
-            //v4f p = {fpos.y(), fpos.z(), fpos.w(), fpos.x()};
-
             return function_quadlinear(get_Guvb, fpos);
         };
 
@@ -1128,7 +1067,6 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
             v4f dir;
             dir[m] = 1;
 
-            ///oh. The timelike direction obviously doesn't have a gap of scale
             valuef divisor = 2 * scale.get();
 
             if(m == 0)
@@ -1194,12 +1132,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
 
     auto get_dS = [&](v4f position, v4f velocity, v4f acceleration, trace4_state st)
     {
-        //valuef pos = position.yzw().length();
-        //return ternary(pos < valuef(10), valuef(1.f), valuef(1.5f));
-
-        valuef dt;
-        acceleration_to_precision(acceleration, 0.0003f, &dt);
-        return dt;
+        return acceleration_to_precision(acceleration, 0.0003f);
     };
 
     auto get_state = [](v4f position)
@@ -1226,125 +1159,6 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
 
         for_e(idx < 512, assign_b(idx, idx + 1), [&]
         {
-            #if 0
-            tensor<m44f, 3, 3, 3, 3> block;
-
-            for(int t=0; t < 3; t++)
-            {
-                for(int k=0; k < 3; k++)
-                {
-                    for(int j=0; j < 3; j++)
-                    {
-                        for(int i = 0; i < 3; i++)
-                        {
-                            v4i off = {t-1, i-1, j-1, k-1};
-
-                            //valuei slice_up = clamp(time_floor + t - 1, valuei(0), last_slice.get() - 1);
-
-                            block[t, i, j, k] = get_Guv((v4i)grid_fpos + off);
-                            //pin(block[t, i, j, k]);
-                        }
-                    }
-                }
-            }
-
-            auto funcl = [&]<typename T>(T&& func, v4f frac)
-            {
-                auto a000 = func({0,0,0,0});
-                auto a100 = func({1,0,0,0});
-
-                auto a010 = func({0,1,0,0});
-                auto a110 = func({1,1,0,0});
-
-                auto a001 = func({0,0,1,0});
-                auto a101 = func({1,0,1,0});
-
-                auto a011 = func({0,1,1,0});
-                auto a111 = func({1,1,1,0});
-
-                auto a00 = a000 - frac.x() * (a000 - a100);
-                auto a01 = a001 - frac.x() * (a001 - a101);
-
-                auto a10 = a010 - frac.x() * (a010 - a110);
-                auto a11 = a011 - frac.x() * (a011 - a111);
-
-                auto a0 = a00 - frac.y() * (a00 - a10);
-                auto a1 = a01 - frac.y() * (a01 - a11);
-
-                auto linear_1 = a0 - frac.z() * (a0 - a1);
-
-                auto c000 = func({0,0,0,1});
-                auto c100 = func({1,0,0,1});
-
-                auto c010 = func({0,1,0,1});
-                auto c110 = func({1,1,0,1});
-
-                auto c001 = func({0,0,1,1});
-                auto c101 = func({1,0,1,1});
-
-                auto c011 = func({0,1,1,1});
-                auto c111 = func({1,1,1,1});
-
-                auto c00 = c000 - frac.x() * (c000 - c100);
-                auto c01 = c001 - frac.x() * (c001 - c101);
-
-                auto c10 = c010 - frac.x() * (c010 - c110);
-                auto c11 = c011 - frac.x() * (c011 - c111);
-
-                auto c0 = c00 - frac.y() * (c00 - c10);
-                auto c1 = c01 - frac.y() * (c01 - c11);
-
-                auto linear_2 = c0 - frac.z() * (c0 - c1);
-
-                return linear_1 - frac.w() * (linear_1 - linear_2);
-            };
-
-            m44f Guv = funcl([&](tensor<int, 4> pos)
-            {
-                tensor<int, 4> ipos = pos + (tensor<int, 4>){1, 1, 1, 1};
-
-                return block[ipos.x(), ipos.y(), ipos.z(), ipos.w()];
-            }, grid_fpos - floor(grid_fpos));
-
-            //m44f Guv = block[1, 1, 1, 1];
-
-            tensor<valuef, 4, 4, 4> dGuv;
-
-            for(int m=0; m < 4; m++)
-            {
-                tensor<int, 4> dir;
-                dir[m] = 1;
-
-                tensor<int, 4> centre = {1,1,1,1};
-
-                tensor<int, 4> r = centre + dir;
-                tensor<int, 4> l = centre - dir;
-
-                metric<valuef, 4, 4> right = block[r.x(), r.y(), r.z(), r.w()];
-                metric<valuef, 4, 4> left = block[l.x(), l.y(), l.z(), l.w()];
-
-                valuef divisor = 2 * scale.get();
-
-                if(m == 0)
-                    divisor = 2 * slice_width.get();
-
-                /*auto dr = (right - Guv) / scale.get();
-                auto dl = (Guv - left) / scale.get();
-
-                auto dG = mix(dl, dr, grid_fpos[m] - floor(grid_fpos[m]));*/
-
-                auto dG = (right - left) / divisor;
-
-                for(int i=0; i < 4; i++)
-                {
-                    for(int j=0; j < 4; j++)
-                    {
-                        dGuv[m, i, j] = dG[i, j];
-                    }
-                }
-            }
-            #endif
-
             ctx.next(get_dX, get_dV, get_dS, get_state, velocity_process);
 
             v4f cposition = as_constant(ctx.position);
@@ -1358,21 +1172,6 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                 break_e();
             });
 
-            /*if_e(x == screen_width.get()/2 && y == screen_height.get()/2, [&]{
-                value_base se;
-                se.type = value_impl::op::SIDE_EFFECT;
-                se.abstract_value = "printf(\"pos vel x: %f %f\\n\"," + value_to_string(cposition.x()) + "," + value_to_string(cvelocity.x()) + ")";
-                //se.abstract_value = "printf(\"val %f\\n\"," + value_to_string(d_V[0]) + ")";
-                //se.abstract_value = "printf(\"adm: %i\\n\"," + value_to_string(result) + ")";
-
-                value_impl::get_context().add(se);
-            });*/
-
-            /*if_e(as_constant(ctx.velocity).yzw().length() < 0.5f, [&]{
-                as_ref(result) = valuei(1);
-                break_e();
-            });*/
-
             if_e(cposition.x() < -150 || fabs(cvelocity.x()) > 30 || cvelocity.yzw().squared_length() < 0.1f * 0.1f ||
                  !isfinite(cposition.x()) || !isfinite(cposition.y()) || !isfinite(cposition.z()) || !isfinite(cposition.w()) ||
                  !isfinite(cvelocity.x()) || !isfinite(cvelocity.y()) || !isfinite(cvelocity.z()) || !isfinite(cvelocity.w())
@@ -1380,12 +1179,6 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
                 as_ref(result) = valuei(0);
                 break_e();
             });
-
-            /*if_e(dot(accel, accel) < 0.2f * 0.2f, [&]
-            {
-                //as_ref(result) = valuei(1);
-                //break_e();
-            });*/
         });
 
         final_position = declare_e(ctx.position);
