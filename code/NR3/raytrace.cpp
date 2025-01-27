@@ -5,8 +5,8 @@
 
 ///todo: take a function in that returns a state
 //#define METHOD_1
-#define METHOD_2
-//#define METHOD_3
+//#define METHOD_2
+#define METHOD_3
 template<typename T, int N>
 struct verlet_context
 {
@@ -18,7 +18,9 @@ struct verlet_context
     #endif
 
     #ifdef METHOD_3
-    tensor<mut<T>, N> acceleration;
+    tensor<mut<T>, N> acceleration_m;
+    mut<T> ds_m;
+    tensor<mut<T>, N> dX_base_m;
     #endif // METHOD_3
 
     tensor<mut<T>, N> velocity;
@@ -58,7 +60,9 @@ struct verlet_context
 
         auto st = get_state(position_in);
 
-        acceleration = declare_mut_e(get_dV(position_in, velocity_in, st));
+        acceleration_m = declare_mut_e(get_dV(position_in, velocity_in, st));
+        ds_m = declare_mut_e(get_dS(position_in, velocity_in, as_constant(acceleration_m), st));
+        dX_base_m = declare_mut_e(get_dX(position_in, velocity_in, st));
         #endif
     }
 
@@ -136,31 +140,35 @@ struct verlet_context
         auto cposition = declare_e(position);
         auto cvelocity = declare_e(velocity);
 
-        auto st = get_state(cposition);
-
-        auto acceleration = get_dV(cposition, cvelocity, st);
-        pin(acceleration);
-
-        auto ds = get_dS(cposition, cvelocity, acceleration, st);
-        pin(ds);
+        auto acceleration = declare_e(acceleration_m);
+        auto ds = declare_e(ds_m);
+        auto dX_base = declare_e(dX_base_m);
 
         auto v_half = cvelocity + 0.5f * acceleration * ds;
-
-        auto dX_base = get_dX(cposition, cvelocity, st);
         auto x_half = cposition + 0.5f * dX_base * ds;
 
-        auto dX_half = get_dX(x_half, v_half, st);
+        auto st_half = get_state(x_half);
+
+        auto dX_half = get_dX(x_half, v_half, st_half);
 
         auto x_full = cposition + dX_half * ds;
+        auto st_full = get_state(x_full);
 
         auto v_full_approx = cvelocity + acceleration * ds;
-        auto a_full = get_dV(x_full, v_full_approx, st);
+        auto a_full = get_dV(x_full, v_full_approx, st_full);
         pin(a_full);
 
         auto v_full = v_half + 0.5f * a_full * ds;
 
         as_ref(position) = x_full;
         as_ref(velocity) = v_full;
+
+        auto ds_fin = get_dS(x_full, v_full, a_full, st_full);
+        auto dX_fin = get_dX(x_full, v_full, st_full);
+
+        as_ref(acceleration_m) = a_full;
+        as_ref(ds_m) = ds_fin;
+        as_ref(dX_base_m) = dX_fin;
 
         return dX_half;
         #endif
