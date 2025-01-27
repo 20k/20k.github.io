@@ -17,6 +17,10 @@ struct verlet_context
     mut<T> ds;
     #endif
 
+    #ifdef METHOD_3
+    tensor<mut<T>, N> acceleration;
+    #endif // METHOD_3
+
     tensor<mut<T>, N> velocity;
 
     template<typename dX, typename dV, typename dS, typename State>
@@ -93,6 +97,42 @@ struct verlet_context
         #endif
 
         #ifdef METHOD_2
+        auto cposition = declare_e(position);
+        auto cvelocity = declare_e(velocity);
+
+        auto st = get_state(cposition);
+
+        auto acceleration = get_dV(cposition, cvelocity, st);
+        pin(acceleration);
+
+        auto ds = get_dS(cposition, cvelocity, acceleration, st);
+        pin(ds);
+
+        auto v_half = cvelocity + 0.5f * acceleration * ds;
+
+        auto dX_base = get_dX(cposition, cvelocity, st);
+        auto x_half = cposition + 0.5f * dX_base * ds;
+
+        auto st_half = get_state(x_half);
+
+        auto dX_half = get_dX(x_half, v_half, st_half);
+
+        auto x_full = cposition + dX_half * ds;
+        auto st_full = get_state(x_full);
+
+        auto v_full_approx = cvelocity + acceleration * ds;
+        auto a_full = get_dV(x_full, v_full_approx, st_full);
+        pin(a_full);
+
+        auto v_full = v_half + 0.5f * a_full * ds;
+
+        as_ref(position) = x_full;
+        as_ref(velocity) = v_full;
+
+        return dX_half;
+        #endif
+
+        #ifdef METHOD_3
         auto cposition = declare_e(position);
         auto cvelocity = declare_e(velocity);
 
