@@ -886,7 +886,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
     {
         //return -scale.get();
 
-        return -1 * get_ct_timestep(position, velocity, args.W);
+        return -3 * get_ct_timestep(position, velocity, args.W);
     };
 
     auto get_state = [&](v3f position) -> trace3_state
