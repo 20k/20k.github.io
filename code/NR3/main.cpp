@@ -105,6 +105,7 @@ struct mesh
         });
 
         {
+            #ifdef INSPIRAL
             black_hole_params p1;
             p1.bare_mass = 0.483f;
             p1.position = {3.257, 0, 0};
@@ -119,6 +120,16 @@ struct mesh
 
             init.add(p1);
             init.add(p2);
+            #else
+            black_hole_params p1;
+            p1.bare_mass = 0.483f;
+            p1.position = {0, 0, 0};
+            p1.linear_momentum = {0, 0, 0};
+
+            initial_conditions init(ctx, cqueue, dim);
+
+            init.add(p1);
+            #endif
 
             cl::buffer found_u = init.build(ctx, cqueue, simulation_width, buffers[0]);
 

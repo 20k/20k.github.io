@@ -4,7 +4,8 @@
 #define UNIVERSE_SIZE 29
 
 ///todo: take a function in that returns a state
-#define METHOD_1
+//#define METHOD_1
+#define METHOD_2
 //#define METHOD_3
 template<typename T, int N>
 struct verlet_context
@@ -95,19 +96,31 @@ struct verlet_context
         auto cposition = declare_e(position);
         auto cvelocity = declare_e(velocity);
 
-        auto ds = get_dS(cposition, cvelocity, AFull_approx);
+        auto st = get_state(cposition);
 
-        auto v_half = cvelocity + 0.5f * get_dV(cposition, cvelocity) * ds;
-        auto x_full = cposition + v_half * ds;
+        auto acceleration = get_dV(cposition, cvelocity, st);
+        pin(acceleration);
 
-        auto v_full_approx = cvelocity + get_dV(cposition, cvelocity) * ds;
+        auto ds = get_dS(cposition, cvelocity, acceleration, st);
+        pin(ds);
 
-        auto a_full = get_dV(x_full, v_full_approx);
+        auto v_half = cvelocity + 0.5f * acceleration * ds;
 
-        auto v_next = v_half + 0.5f * a_full * ds;
+        auto dX_base = get_dX(cposition, cvelocity, st);
+        auto x_half = cposition + 0.5f * dX_base * ds;
+
+        auto dX_half = get_dX(x_half, v_half, st);
+
+        auto x_full = cposition + dX_half * ds;
+
+        auto v_full_approx = cvelocity + acceleration * ds;
+        auto a_full = get_dV(x_full, v_full_approx, st);
+        pin(a_full);
+
+        auto v_full = v_half + 0.5f * a_full * ds;
 
         as_ref(position) = x_full;
-        as_ref(velocity) = v_next;
+        as_ref(velocity) = v_full;
         #endif
     }
 };
@@ -709,7 +722,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
     mut<valuei> result = declare_mut_e(valuei(0));
     v3f final_position;
-    mut_v3f final_velocity = declare_mut_e((v3f){});
+    v3f final_velocity = declare_e((v3f){});
     //mut_v3f final_dX = declare_mut_e((v3f){});
 
     auto fix_velocity = [](v3f velocity, const trace3_state& args)
@@ -732,7 +745,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
     auto get_dX = [&](v3f position, v3f velocity, const trace3_state& args)
     {
-        v3f d_X = args.gA * fix_velocity(velocity, args) - args.gB;
+        v3f d_X = args.gA * velocity - args.gB;
         pin(d_X);
 
         //so. This recovers the performance, but its pretty hacky
@@ -832,7 +845,9 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
     auto get_dS = [&](v3f position, v3f velocity, v3f acceleration, const trace3_state& args)
     {
-        return -1.5f * get_ct_timestep(position, velocity, args.W);
+        //return -scale.get();
+
+        return -0.75f * get_ct_timestep(position, velocity, args.W);
     };
 
     auto get_state = [&](v3f position) -> trace3_state
@@ -865,12 +880,12 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
     #if 1
     ///omg i forgot to correct the velocity after each step
     ///this is such a mess. Can i truly have a generic integrator? Is it worth it?
-    euler_context<valuef, 3> ctx;
+    verlet_context<valuef, 3> ctx;
     ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS, get_state);
 
     mut<valuei> idx = declare_mut_e("i", valuei(0));
 
-    for_e(idx < 1024, assign_b(idx, idx + 1), [&]
+    for_e(idx < 1024*4, assign_b(idx, idx + 1), [&]
     {
         v3f cposition = declare_e(ctx.position);
         v3f cvelocity = declare_e(ctx.velocity);
@@ -878,7 +893,6 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
         valuef radius_sq = dot(cposition, cposition);
 
         if_e(radius_sq > UNIVERSE_SIZE*UNIVERSE_SIZE, [&] {
-            as_ref(final_velocity) = cvelocity;
             as_ref(result) = valuei(1);
             break_e();
         });
@@ -892,144 +906,8 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
         ctx.next(get_dX, get_dV, get_dS, get_state, fix_velocity);
     });
 
-    final_position = declare_e(ctx.position);;
-    //final_velocity = declare_e(ctx.velocity);;
-    #endif
-
-    #if 0
-    {
-        mut_v3f position = declare_mut_e(pos_in);
-        mut_v3f velocity = declare_mut_e(vel_in);
-
-        mut<valuei> idx = declare_mut_e("i", valuei(0));
-
-        for_e(idx < 2048, assign_b(idx, idx + 1), [&]
-        {
-            v3f cposition = declare_e(position);
-            v3f cvelocity = declare_e(velocity);
-
-            valuef radius_sq = dot(cposition, cposition);
-
-            if_e(radius_sq > UNIVERSE_SIZE*UNIVERSE_SIZE, [&] {
-                as_ref(final_velocity) = cvelocity;
-                as_ref(result) = valuei(1);
-                break_e();
-            });
-
-            v3f grid_position = world_to_grid(cposition, dim.get(), scale.get());
-
-            grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
-            pin(grid_position);
-
-            auto dgA_at = [&](v3i pos)
-            {
-                bssn_derivatives derivs(pos, dim.get(), derivatives);
-                return derivs.dgA;
-            };
-
-            auto dgB_at = [&](v3i pos)
-            {
-                bssn_derivatives derivs(pos, dim.get(), derivatives);
-                return derivs.dgB;
-            };
-
-            auto dcY_at = [&](v3i pos)
-            {
-                bssn_derivatives derivs(pos, dim.get(), derivatives);
-                return derivs.dcY;
-            };
-
-            auto dW_at = [&](v3i pos)
-            {
-                bssn_derivatives derivs(pos, dim.get(), derivatives);
-                return derivs.dW;
-            };
-
-            tensor<valuef, 3> dgA = function_trilinear(dgA_at, grid_position);
-            tensor<valuef, 3, 3> dgB = function_trilinear(dgB_at, grid_position);
-            tensor<valuef, 3, 3, 3> dcY = function_trilinear(dcY_at, grid_position);
-            tensor<valuef, 3> dW = function_trilinear(dW_at, grid_position);
-
-            pin(dgA);
-            pin(dgB);
-            pin(dcY);
-            pin(dW);
-
-
-            auto W = W_f_at(grid_position, dim.get(), in);
-            auto cY = cY_f_at(grid_position, dim.get(), in);
-
-            pin(W);
-            pin(cY);
-
-            adm_variables args = admf_at(grid_position, dim.get(), in);
-
-            auto Yij = cY / (W*W);
-            pin(Yij);
-
-            valuef length_sq = dot(cvelocity, Yij.lower(cvelocity));
-            valuef length = sqrt(fabs(length_sq));
-
-            cvelocity = cvelocity / length;
-
-            pin(cvelocity);
-
-            auto icY = cY.invert();
-            pin(icY);
-
-            auto iYij = icY * (W*W);
-
-            auto christoff2_cfl = christoffel_symbols_2(icY, dcY);
-            pin(christoff2_cfl);
-
-            auto christoff2 = get_full_christoffel2(W, dW, cY, icY, christoff2_cfl);
-            pin(christoff2);
-
-            tensor<valuef, 3> d_V;
-
-            for(int i=0; i < 3; i++)
-            {
-                for(int j=0; j < 3; j++)
-                {
-                    valuef kjvk = 0;
-
-                    for(int k=0; k < 3; k++)
-                    {
-                        kjvk += args.Kij[j, k] * cvelocity[k];
-                    }
-
-                    valuef christoffel_sum = 0;
-
-                    for(int k=0; k < 3; k++)
-                    {
-                        christoffel_sum += christoff2[i, j, k] * cvelocity[k];
-                    }
-
-                    valuef dlog_gA = dgA[j] / args.gA;
-
-                    d_V[i] += args.gA * cvelocity[j] * (cvelocity[i] * (dlog_gA - kjvk) + 2 * raise_index(args.Kij, iYij, 0)[i, j] - christoffel_sum)
-                            - iYij[i, j] * dgA[j] - cvelocity[j] * dgB[j, i];
-
-                }
-            }
-
-            v3f d_X = args.gA * cvelocity - args.gB;
-            pin(d_X);
-
-            if_e(dot(d_X, d_X) < 0.2f * 0.2f, [&]
-            {
-                as_ref(result) = valuei(0);
-                break_e();
-            });
-
-            valuef dt = -1.f * get_ct_timestep(cposition, cvelocity, W);
-
-            as_ref(position) = cposition + d_X * dt;
-            as_ref(velocity) = cvelocity + d_V * dt;
-        });
-
-        final_position = declare_e(position);
-    }
+    final_position = declare_e(ctx.position);
+    final_velocity = declare_e(ctx.velocity);
     #endif
 
     v3f vel = declare_e(final_velocity);
