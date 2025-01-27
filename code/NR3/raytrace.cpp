@@ -869,9 +869,6 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
         return out;
     };
 
-    #if 1
-    ///omg i forgot to correct the velocity after each step
-    ///this is such a mess. Can i truly have a generic integrator? Is it worth it?
     verlet_context<valuef, 3> ctx;
     ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS, get_state);
 
@@ -905,7 +902,6 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
     final_position = declare_e(ctx.position);
     final_velocity = declare_e(ctx.velocity);
-    #endif
 
     v3f vel = declare_e(final_velocity);
 
