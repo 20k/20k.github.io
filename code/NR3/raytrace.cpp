@@ -1,6 +1,5 @@
 #include "raytrace.hpp"
 #include "tensor_algebra.hpp"
-#include "init.hpp"
 #include "bssn.hpp"
 #include "formalisms.hpp"
 
