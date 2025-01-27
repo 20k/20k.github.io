@@ -3,19 +3,12 @@
 
 #define UNIVERSE_SIZE 29
 
-///todo: take a function in that returns a state
-//#define METHOD_1
 //#define METHOD_2
 #define METHOD_3
 template<typename T, int N>
 struct verlet_context
 {
     tensor<mut<T>, N> position;
-
-    #ifdef METHOD_1
-    tensor<mut<T>, N> accel;
-    mut<T> ds;
-    #endif
 
     #ifdef METHOD_3
     tensor<mut<T>, N> acceleration_m;
@@ -29,25 +22,6 @@ struct verlet_context
     void start(const tensor<T, N>& position_in, const tensor<T, N>& velocity_in, dX&& get_dX, dV&& get_dV, dS&& get_dS, State&& get_state)
     {
         using namespace single_source;
-
-        #ifdef METHOD_1
-        auto st = get_state(position_in);
-
-        auto acceleration = get_dV(position_in, velocity_in, st);
-        pin(acceleration);
-
-        ds = declare_mut_e(get_dS(position_in, velocity_in, acceleration, st));
-
-        accel = declare_mut_e(acceleration);
-
-        auto v_half = velocity_in + 0.5f * acceleration * ds;
-        pin(v_half);
-
-        auto dPosition = get_dX(position_in, v_half, st);
-
-        position = declare_mut_e(position_in + dPosition * ds);
-        velocity = declare_mut_e(velocity_in);
-        #endif
 
         #ifdef METHOD_2
         position = declare_mut_e(position_in);
@@ -70,35 +44,6 @@ struct verlet_context
     auto next(dX&& get_dX, dV&& get_dV, dS&& get_dS, State&& get_state, auto&& velocity_postprocess)
     {
         using namespace single_source;
-
-        #ifdef METHOD_1
-        auto cposition = declare_e(position);
-        auto cvelocity = declare_e(velocity);
-        auto cds = declare_e(ds);
-        auto caccel = declare_e(accel);
-
-        auto cv_half = cvelocity + 0.5f * caccel * cds;
-
-        pin(cv_half);
-
-        auto cv_full_approx = cv_half + 0.5f * caccel * cds;
-
-        auto st = get_state(cposition);
-
-        auto AFull_approx = get_dV(cposition, cv_full_approx, st);
-        pin(AFull_approx);
-
-        auto VFull_next = cv_half + 0.5f * AFull_approx * cds;
-        pin(VFull_next);
-
-        as_ref(velocity) = velocity_postprocess(VFull_next, st);
-        as_ref(ds) = get_dS(cposition, cv_full_approx, AFull_approx, st);
-        as_ref(accel) = get_dV(cposition, as_constant(velocity), st);
-
-        auto XDiff = get_dX(cposition, cv_half, st);
-
-        as_ref(position) = cposition + XDiff * as_constant(ds);
-        #endif
 
         #ifdef METHOD_2
         auto cposition = declare_e(position);
@@ -161,7 +106,7 @@ struct verlet_context
         auto v_full = v_half + 0.5f * a_full * ds;
 
         as_ref(position) = x_full;
-        as_ref(velocity) = v_full;
+        as_ref(velocity) = velocity_postprocess(v_full, st_full);
 
         auto ds_fin = get_dS(x_full, v_full, a_full, st_full);
         auto dX_fin = get_dX(x_full, v_full, st_full);
@@ -779,7 +724,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
     auto fix_velocity = [](v3f velocity, const trace3_state& args)
     {
-        return velocity;
+        //return velocity;
 
         auto cY = args.cY;
         auto W = args.W;
@@ -894,7 +839,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
     {
         //return -scale.get();
 
-        return -3 * get_ct_timestep(position, velocity, args.W);
+        return -4 * get_ct_timestep(position, velocity, args.W);
     };
 
     auto get_state = [&](v3f position) -> trace3_state
