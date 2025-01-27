@@ -3,14 +3,14 @@
 
 #define UNIVERSE_SIZE 29
 
-//#define METHOD_2
-#define METHOD_3
+//#define METHOD_1
+#define METHOD_2
 template<typename T, int N>
 struct verlet_context
 {
     tensor<mut<T>, N> position;
 
-    #ifdef METHOD_3
+    #ifdef METHOD_2
     tensor<mut<T>, N> acceleration_m;
     mut<T> ds_m;
     tensor<mut<T>, N> dX_base_m;
@@ -23,12 +23,12 @@ struct verlet_context
     {
         using namespace single_source;
 
-        #ifdef METHOD_2
+        #ifdef METHOD_1
         position = declare_mut_e(position_in);
         velocity = declare_mut_e(velocity_in);
         #endif
 
-        #ifdef METHOD_3
+        #ifdef METHOD_2
         position = declare_mut_e(position_in);
         velocity = declare_mut_e(velocity_in);
 
@@ -45,7 +45,7 @@ struct verlet_context
     {
         using namespace single_source;
 
-        #ifdef METHOD_2
+        #ifdef METHOD_1
         auto cposition = declare_e(position);
         auto cvelocity = declare_e(velocity);
 
@@ -81,7 +81,7 @@ struct verlet_context
         return dX_half;
         #endif
 
-        #ifdef METHOD_3
+        #ifdef METHOD_2
         auto cposition = declare_e(position);
         auto cvelocity = declare_e(velocity);
 
@@ -120,7 +120,6 @@ struct verlet_context
     }
 };
 
-///do st.preprocess_velocity
 template<typename T, int N>
 struct euler_context
 {
