@@ -1723,7 +1723,7 @@ void render(execution_context& ectx, literal<valuei> screen_width, literal<value
     });
 
     if_e(results[screen_position, screen_size] == 2, [&]{
-        screen.write(ectx, {x, y}, (v4f){1,0,0,1});
+        screen.write(ectx, {x, y}, (v4f){0,0,0,1});
         return_e();
     });
 
