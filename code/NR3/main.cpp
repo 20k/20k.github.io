@@ -105,6 +105,7 @@ struct mesh
         });
 
         {
+            #define INSPIRAL
             #ifdef INSPIRAL
             black_hole_params p1;
             p1.bare_mass = 0.483f;

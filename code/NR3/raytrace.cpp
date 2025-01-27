@@ -1205,7 +1205,7 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
 
     auto get_dS = [&](v3f position, v3f velocity, v3f acceleration, const trace3_state& args)
     {
-        return -4 * get_ct_timestep(position, velocity, args.W);
+        return -3.5f * get_ct_timestep(position, velocity, args.W);
     };
 
     auto get_state = [&](v3f position) -> trace3_state
