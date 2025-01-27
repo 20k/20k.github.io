@@ -1249,7 +1249,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
         //return ternary(pos < valuef(10), valuef(1.f), valuef(1.5f));
 
         valuef dt;
-        acceleration_to_precision(acceleration, 0.0001f, &dt);
+        acceleration_to_precision(acceleration, 0.0003f, &dt);
         return dt;
     };
 
