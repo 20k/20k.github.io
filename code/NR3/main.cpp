@@ -524,7 +524,7 @@ struct raytrace_bssn
     int captured_slices = 0;
     float time_between_snapshots = 2;
     t3i reduced_dim = {101, 101, 101};
-    bool capture_4slices = false;
+    bool capture_4slices = true;
 
     cl::buffer texture_coordinates;
     cl::buffer zshifts;
@@ -551,7 +551,12 @@ struct raytrace_bssn
     void capture_snapshots(cl::context ctx, cl::command_queue cqueue, float dt, mesh& m)
     {
         if(!capture_4slices)
+        {
+            for(int i=0; i < 10; i++)
+                Guv_block[i] = cl::buffer(ctx);
+
             return;
+        }
 
         int slices = 120;
 
