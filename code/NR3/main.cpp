@@ -524,6 +524,7 @@ struct raytrace_bssn
     int captured_slices = 0;
     float time_between_snapshots = 2;
     t3i reduced_dim = {101, 101, 101};
+    bool capture_4slices = false;
 
     cl::buffer texture_coordinates;
     cl::buffer zshifts;
@@ -549,6 +550,9 @@ struct raytrace_bssn
     ///shower thought: could use a circular buffer here
     void capture_snapshots(cl::context ctx, cl::command_queue cqueue, float dt, mesh& m)
     {
+        if(!capture_4slices)
+            return;
+
         int slices = 120;
 
         if(captured_slices == 0)
@@ -1050,6 +1054,7 @@ int main()
         ImGui::Checkbox("Pause", &pause);
         ImGui::Checkbox("Render", &render);
         ImGui::Checkbox("Render2", &render2);
+        ImGui::Checkbox("Capture Render Slices", &rt_bssn.capture_4slices);
 
         ImGui::Checkbox("Override Camera Time", &lock_camera_to_slider);
         ImGui::Checkbox("Advance Override Camera Time", &progress_camera_time);
@@ -1113,17 +1118,18 @@ int main()
                 rt_bssn.render4(cqueue, camera4, camera_quat, background, screen_tex, simulation_width, m, lock_camera_to_slider, progress_camera_time);
         }
 
-        /*{
+        if(!render && !render2)
+        {
             float scale = get_scale(simulation_width, dim);
 
             cl::args args;
             m.buffers[0].append_to(args);
             args.push_back(dim);
             args.push_back(scale);
-            args.push_back(rtex);
+            args.push_back(screen_tex);
 
             cqueue.exec("debug", args, {dim.x() * dim.y() * dim.z()}, {128});
-        }*/
+        }
 
         //rtex.unacquire(cqueue);
         screen_tex.unacquire(cqueue);
