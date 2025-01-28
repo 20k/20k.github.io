@@ -1059,13 +1059,13 @@ int main()
         ImGui::Checkbox("Pause", &pause);
         ImGui::Checkbox("Render", &render);
         ImGui::Checkbox("Render2", &render2);
-        ImGui::Checkbox("Capture Render Slices", &rt_bssn.capture_4slices);
 
         ImGui::Checkbox("Override Camera Time", &lock_camera_to_slider);
         ImGui::Checkbox("Advance Override Camera Time", &progress_camera_time);
 
         ///lock to camera, progress camera time
         ImGui::DragFloat("Override Time", &cam_time, 1.f, 0.f, 400.f);
+        ImGui::Checkbox("Capture Render Slices", &rt_bssn.capture_4slices);
 
         step = step || running;
 

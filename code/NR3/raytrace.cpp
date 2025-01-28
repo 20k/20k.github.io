@@ -772,8 +772,8 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
 
         pin(grid_t);
 
-        grid_t = ternary(last_slice.get() > 5,
-                         clamp(grid_t, valuef(2), (valuef)last_slice.get() - 3),
+        grid_t = ternary(last_slice.get() >= 5,
+                         clamp(grid_t, valuef(1), (valuef)last_slice.get() - 3),
                          grid_t);
 
         grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
