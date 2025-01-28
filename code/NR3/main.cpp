@@ -898,20 +898,6 @@ int main()
 
     printf("Post init\n");
 
-    //m.load_from(cqueue);
-
-    texture_settings tsett;
-    tsett.width = dim.x();
-    tsett.height = dim.y();
-    tsett.is_srgb = false;
-    tsett.generate_mipmaps = false;
-
-    texture tex;
-    tex.load_from_memory(tsett, nullptr);
-
-    cl::gl_rendertexture rtex{ctx};
-    rtex.create_from_texture(tex.handle);
-
     texture_settings tsett2;
     tsett2.width = sett.width;
     tsett2.height = sett.height;
@@ -1095,8 +1081,6 @@ int main()
 
         steady_timer t;
 
-        //rtex.acquire(cqueue);
-
         screen_tex.acquire(cqueue);
 
         if(pause && elapsed_t > 100)
@@ -1133,7 +1117,6 @@ int main()
             cqueue.exec("debug", args, {dim.x() * dim.y() * dim.z()}, {128});
         }
 
-        //rtex.unacquire(cqueue);
         screen_tex.unacquire(cqueue);
 
         ImGui::GetBackgroundDrawList()->AddImage((void*)tex2.handle, ImVec2(0,0), ImVec2(tex2.get_size().x(), tex2.get_size().y()));
