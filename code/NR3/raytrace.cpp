@@ -427,7 +427,7 @@ struct trace3_state
     v3f grid_position;
 };
 
-void trace3(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
+void trace3(execution_context& ectx, literal<v2i> screen_sizel,
                      literal<v4f> camera_quat,
                      buffer_mut<v4f> positions, buffer_mut<v4f> velocities,
                      buffer_mut<valuei> results, buffer_mut<valuef> zshift,
@@ -445,16 +445,17 @@ void trace3(execution_context& ectx, literal<valuei> screen_width, literal<value
     pin(x);
     pin(y);
 
-    if_e(y >= screen_height.get(), [&] {
+    v2i screen_size = screen_sizel.get();
+
+    if_e(y >= screen_size.y(), [&] {
         return_e();
     });
 
-    if_e(x >= screen_width.get(), [&] {
+    if_e(x >= screen_size.x(), [&] {
         return_e();
     });
 
     v2i screen_position = {x, y};
-    v2i screen_size = {screen_width.get(), screen_height.get()};
 
     v3f pos_in = declare_e(positions[screen_position, screen_size]).yzw();
     v3f vel_in = declare_e(velocities[screen_position, screen_size]).yzw();
@@ -726,7 +727,7 @@ struct trace4_state
 
 };
 
-void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
+void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
             buffer_mut<v4f> positions, buffer_mut<v4f> velocities,
             buffer_mut<valuei> results, buffer_mut<valuef> zshift,
             literal<v3i> dim,
@@ -750,16 +751,17 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
     pin(x);
     pin(y);
 
-    if_e(y >= screen_height.get(), [&] {
+    v2i screen_size = screen_sizel.get();
+
+    if_e(y >= screen_size.y(), [&] {
         return_e();
     });
 
-    if_e(x >= screen_width.get(), [&] {
+    if_e(x >= screen_size.x(), [&] {
         return_e();
     });
 
     v2i screen_position = {x, y};
-    v2i screen_size = {screen_width.get(), screen_height.get()};
 
     v4f pos_in = declare_e(positions[screen_position, screen_size]);
     v4f vel_in = declare_e(velocities[screen_position, screen_size]);
@@ -953,7 +955,7 @@ void trace4x4(execution_context& ectx, literal<valuei> screen_width, literal<val
     as_ref(velocities[screen_position, screen_size]) = final_velocity;
 }
 
-void calculate_texture_coordinates(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
+void calculate_texture_coordinates(execution_context& ectx, literal<v2i> screen_sizel,
                                    buffer<v4f> positions, buffer<v4f> velocities,
                                    buffer_mut<v2f> out)
 {
@@ -965,16 +967,17 @@ void calculate_texture_coordinates(execution_context& ectx, literal<valuei> scre
     pin(x);
     pin(y);
 
-    if_e(y >= screen_height.get(), [&] {
+    v2i screen_size = screen_sizel.get();
+
+    if_e(y >= screen_size.y(), [&] {
         return_e();
     });
 
-    if_e(x >= screen_width.get(), [&] {
+    if_e(x >= screen_size.x(), [&] {
         return_e();
     });
 
     v2i screen_position = {x, y};
-    v2i screen_size = {screen_width.get(), screen_height.get()};
 
     v3f position3 = positions[screen_position, screen_size].yzw();
     v3f velocity3 = velocities[screen_position, screen_size].yzw();
@@ -1032,7 +1035,7 @@ v3f read_mipmap(read_only_image_array<2> img, v3f coord)
     return srgb_to_linear_gpu(val);
 }
 
-void render(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
+void render(execution_context& ectx, literal<v2i> screen_sizel,
             buffer<v4f> positions, buffer<v4f> velocities, buffer<valuei> results, buffer<valuef> zshift,
             buffer<v2f> texture_coordinates,
             read_only_image_array<2> background, write_only_image<2> screen,
@@ -1047,16 +1050,17 @@ void render(execution_context& ectx, literal<valuei> screen_width, literal<value
     pin(x);
     pin(y);
 
-    if_e(y >= screen_height.get(), [&] {
+    v2i screen_size = screen_sizel.get();
+
+    if_e(y >= screen_size.y(), [&] {
         return_e();
     });
 
-    if_e(x >= screen_width.get(), [&] {
+    if_e(x >= screen_size.x(), [&] {
         return_e();
     });
 
     v2i screen_position = {x, y};
-    v2i screen_size = {screen_width.get(), screen_height.get()};
 
     if_e(results[screen_position, screen_size] == 0, [&]{
         screen.write(ectx, {x, y}, (v4f){0,0,0,1});

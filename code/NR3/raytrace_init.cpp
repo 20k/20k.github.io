@@ -425,7 +425,7 @@ geodesic make_lightlike_geodesic(const v4f& position, const v3f& direction, cons
 
 ///so. I think the projection is wrong, and that we should have -dt
 ///but i need to test the 4-iteration realistically
-void init_rays_generic(execution_context& ectx, literal<valuei> screen_width, literal<valuei> screen_height,
+void init_rays_generic(execution_context& ectx, literal<v2i> screen_sizel,
                        buffer_mut<v4f> positions_out,
                        buffer_mut<v4f> velocities_out,
                        buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
@@ -442,16 +442,17 @@ void init_rays_generic(execution_context& ectx, literal<valuei> screen_width, li
     pin(x);
     pin(y);
 
-    if_e(y >= screen_height.get(), [&] {
+    v2i screen_size = screen_sizel.get();
+
+    if_e(y >= screen_size.y(), [&] {
         return_e();
     });
 
-    if_e(x >= screen_width.get(), [&] {
+    if_e(x >= screen_size.x(), [&] {
         return_e();
     });
 
     v2i screen_position = {x, y};
-    v2i screen_size = {screen_width.get(), screen_height.get()};
 
     tetrad tetrads = {e0[0], e1[0], e2[0], e3[0]};
 
@@ -465,7 +466,7 @@ void init_rays_generic(execution_context& ectx, literal<valuei> screen_width, li
 
     geodesic my_geodesic = make_lightlike_geodesic(position[0], ray_direction, tetrads);
 
-    v2i out_dim = {screen_width.get(), screen_height.get()};
+    v2i out_dim = screen_sizel.get();
     v2i out_pos = {x, y};
 
     as_ref(positions_out[out_pos, out_dim]) = my_geodesic.position;

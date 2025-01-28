@@ -506,7 +506,7 @@ float get_timestep(float simulation_width, t3i size)
 
 #define MIP_LEVELS 10
 
-struct raytrace_bssn
+struct raytrace_manager
 {
     ///SO
     ///i think that perhaps we should take multi kernel approach
@@ -533,11 +533,9 @@ struct raytrace_bssn
 
     std::array<cl::buffer, 4> tetrads;
 
-    //std::vector<bssn_buffer_pack> snapshots;
-
     std::vector<cl::buffer> Guv_block;
 
-    raytrace_bssn(cl::context& ctx) : positions(ctx), velocities(ctx), results(ctx), texture_coordinates(ctx), zshifts(ctx), gpu_position(ctx), tetrads{ctx, ctx, ctx, ctx}
+    raytrace_manager(cl::context& ctx) : positions(ctx), velocities(ctx), results(ctx), texture_coordinates(ctx), zshifts(ctx), gpu_position(ctx), tetrads{ctx, ctx, ctx, ctx}
     {
         build_raytrace_kernels(ctx);
         build_raytrace_init_kernels(ctx);
@@ -619,8 +617,7 @@ struct raytrace_bssn
     void render3(cl::command_queue& cqueue, tensor<float, 4> camera_pos, quat camera_quat, cl::image& background, cl::gl_rendertexture& screen_tex, float simulation_width, mesh& m,
                  bool lock_camera_to_slider, bool progress_camera_time)
     {
-        cl_int screen_width = screen_tex.size<2>().x();
-        cl_int screen_height = screen_tex.size<2>().y();
+        tensor<int, 2> screen_size = {screen_tex.size<2>().x(), screen_tex.size<2>().y()};
 
         float full_scale = get_scale(simulation_width, m.dim);
 
@@ -640,7 +637,7 @@ struct raytrace_bssn
             args.push_back(m.dim);
             args.push_back(full_scale);
 
-            cqueue.exec("init_tetrads3", args, {screen_width, screen_height}, {8,8});
+            cqueue.exec("init_tetrads3", args, {screen_size.x(), screen_size.y()}, {8,8});
         }
 
         {
@@ -648,7 +645,7 @@ struct raytrace_bssn
             int buf = 0;
 
             cl::args args;
-            args.push_back(screen_width, screen_height);
+            args.push_back(screen_size);
             args.push_back(positions, velocities);
             args.push_back(tetrads[0], tetrads[1], tetrads[2], tetrads[3]);
             args.push_back(gpu_position, camera_quat.q);
@@ -656,12 +653,12 @@ struct raytrace_bssn
 
             m.buffers[buf].append_to(args);
 
-            cqueue.exec("init_rays_generic", args, {screen_width, screen_height}, {8,8});
+            cqueue.exec("init_rays_generic", args, {screen_size.x(), screen_size.y()}, {8,8});
         }
 
         {
             cl::args args;
-            args.push_back(screen_width, screen_height);
+            args.push_back(screen_size);
             args.push_back(camera_quat.q);
             args.push_back(positions, velocities, results, zshifts);
             args.push_back(m.dim);
@@ -672,7 +669,7 @@ struct raytrace_bssn
             for(auto& i : m.derivatives)
                 args.push_back(i);
 
-            cqueue.exec("trace3", args, {screen_width, screen_height}, {8,8});
+            cqueue.exec("trace3", args, {screen_size.x(), screen_size.y()}, {8,8});
         }
 
         blit(cqueue, background, screen_tex);
@@ -687,8 +684,7 @@ struct raytrace_bssn
         float full_scale = get_scale(simulation_width, m.dim);
         float reduced_scale = get_scale(simulation_width, reduced_dim);
 
-        cl_int screen_width = screen_tex.size<2>().x();
-        cl_int screen_height = screen_tex.size<2>().y();
+        tensor<int, 2> screen_size = {screen_tex.size<2>().x(), screen_tex.size<2>().y()};
 
         if(!(lock_camera_to_slider || progress_camera_time))
             camera_pos.x() -= time_between_snapshots*2;
@@ -711,7 +707,7 @@ struct raytrace_bssn
             args.push_back(last_dt);
             args.push_back(captured_slices);
 
-            cqueue.exec("init_tetrads4", args, {screen_width, screen_height}, {8,8});
+            cqueue.exec("init_tetrads4", args, {screen_size.x(), screen_size.y()}, {8,8});
         }
 
         {
@@ -719,7 +715,7 @@ struct raytrace_bssn
             int buf = 0;
 
             cl::args args;
-            args.push_back(screen_width, screen_height);
+            args.push_back(screen_size);
             args.push_back(positions, velocities);
             args.push_back(tetrads[0], tetrads[1], tetrads[2], tetrads[3]);
             args.push_back(gpu_position, camera_quat.q);
@@ -727,11 +723,11 @@ struct raytrace_bssn
 
             m.buffers[buf].append_to(args);
 
-            cqueue.exec("init_rays_generic", args, {screen_width, screen_height}, {8,8});
+            cqueue.exec("init_rays_generic", args, {screen_size.x(), screen_size.y()}, {8,8});
         }
 
         cl::args args;
-        args.push_back(screen_width, screen_height);
+        args.push_back(screen_size);
         args.push_back(positions, velocities, results, zshifts);
         args.push_back(reduced_dim);
         args.push_back(reduced_scale);
@@ -744,38 +740,34 @@ struct raytrace_bssn
         args.push_back(captured_slices);
         args.push_back(time_between_snapshots);
 
-        cqueue.exec("trace4x4", args, {screen_width, screen_height}, {8, 8});
+        cqueue.exec("trace4x4", args, {screen_size.x(), screen_size.y()}, {8, 8});
 
         blit(cqueue, background, screen_tex);
     }
 
     void blit(cl::command_queue& cqueue, cl::image background, cl::gl_rendertexture& screen_tex)
     {
-        cl_int screen_width = screen_tex.size<2>().x();
-        cl_int screen_height = screen_tex.size<2>().y();
-        cl_int bwidth = background.size<2>().x();
-        cl_int bheight = background.size<2>().y();
+        tensor<int, 2> screen_size = {screen_tex.size<2>().x(), screen_tex.size<2>().y()};
+        tensor<int, 2> background_size = {background.size<2>().x(), background.size<2>().y()};
 
         cl::args args;
-        args.push_back(screen_width, screen_height);
+        args.push_back(screen_size);
         args.push_back(positions, velocities);
         args.push_back(texture_coordinates);
 
-        cqueue.exec("calculate_texture_coordinates", args, {screen_width, screen_height}, {8, 8});
-
-        cl_int2 bsize = {bwidth, bheight};
+        cqueue.exec("calculate_texture_coordinates", args, {screen_size.x(), screen_size.y()}, {8, 8});
 
         int mips = MIP_LEVELS;
 
         cl::args args2;
-        args2.push_back(screen_width, screen_height);
+        args2.push_back(screen_size);
         args2.push_back(positions, velocities, results, zshifts);
         args2.push_back(texture_coordinates);
         args2.push_back(background, screen_tex);
-        args2.push_back(bsize);
+        args2.push_back(background_size);
         args2.push_back(mips);
 
-        cqueue.exec("render", args2, {screen_width, screen_height}, {8,8});
+        cqueue.exec("render", args2, {screen_size.x(), screen_size.y()}, {8,8});
     }
 };
 
@@ -934,7 +926,7 @@ int main()
 
     cqueue.block();
 
-    raytrace_bssn rt_bssn(ctx);
+    raytrace_manager rt_bssn(ctx);
 
     cl::image background = load_background(ctx, cqueue, "../common/esa.png");
 
@@ -951,6 +943,7 @@ int main()
     float pause_time = 100;
     bool render = true;
     bool render2 = false;
+    bool debug_render = false;
     bool lock_camera_to_slider = false;
     bool progress_camera_time = false;
 
@@ -1062,6 +1055,7 @@ int main()
         ImGui::Checkbox("Pause", &pause);
         ImGui::Checkbox("Render", &render);
         ImGui::Checkbox("Render2", &render2);
+        ImGui::Checkbox("Debug Render", &debug_render);
 
         ImGui::Checkbox("Override Camera Time", &lock_camera_to_slider);
         ImGui::Checkbox("Advance Override Camera Time", &progress_camera_time);
@@ -1126,7 +1120,7 @@ int main()
                 rt_bssn.render4(cqueue, camera4, camera_quat, background, screen_tex, simulation_width, m, lock_camera_to_slider, progress_camera_time);
         }
 
-        if(!render && !render2)
+        if(!render && !render2 && debug_render)
         {
             float scale = get_scale(simulation_width, dim);
 
