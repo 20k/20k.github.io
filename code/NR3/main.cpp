@@ -583,6 +583,9 @@ struct raytrace_bssn
         elapsed_dt = std::max(elapsed_dt, 0.f);
         last_dt += time_between_snapshots;
 
+        if(captured_slices >= slices)
+            return;
+
         cl::args args;
         args.push_back(m.dim, reduced_dim);
 

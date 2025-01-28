@@ -82,7 +82,6 @@ metric<valuef, 4, 4> Guv_at(v4i grid_pos, v3i dim, std::array<buffer<block_preci
     tensor<value<uint64_t>, 3> p = (tensor<value<uint64_t>, 3>)grid_pos.yzw();
     tensor<value<uint64_t>, 3> d = (tensor<value<uint64_t>, 3>)dim;
 
-    ///this might be the problem?
     value<uint64_t> idx = ((value<uint64_t>)grid_pos.x()) * d.x() * d.y() * d.z() + p.z() * d.x() * d.y() + p.y() * d.x() + p.x();
 
     int indices[16] = {
