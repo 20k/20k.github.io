@@ -928,6 +928,7 @@ int main()
     bool pause = false;
     float pause_time = 100;
     bool render = true;
+    int render_skipping = 4;
     bool render2 = false;
     bool debug_render = false;
     bool lock_camera_to_slider = false;
@@ -938,6 +939,7 @@ int main()
     steady_timer frame_time;
 
     float cam_time = 0;
+    uint32_t render_frame_idx = 0;
 
     while(!win.should_close())
     {
@@ -1049,6 +1051,7 @@ int main()
         ///lock to camera, progress camera time
         ImGui::DragFloat("Override Time", &cam_time, 1.f, 0.f, 400.f);
         ImGui::Checkbox("Capture Render Slices", &rt_bssn.capture_4slices);
+        ImGui::SliderInt("Render Skipping", &render_skipping, 1, 32);
 
         step = step || running;
 
@@ -1097,7 +1100,7 @@ int main()
 
             tensor<float, 4> camera4 = {elapsed_t, camera_pos.x(), camera_pos.y(), camera_pos.z()};
 
-            if(render)
+            if(render && (render_frame_idx % render_skipping) == 0)
                 rt_bssn.render3(cqueue, camera4, camera_quat, background, screen_tex, simulation_width, m, lock_camera_to_slider, progress_camera_time);
 
             if(render2)
@@ -1128,5 +1131,7 @@ int main()
 
         if(step)
             elapsed_t += timestep;
+
+        render_frame_idx++;
     }
 }
