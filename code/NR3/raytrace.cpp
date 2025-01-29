@@ -9,7 +9,8 @@
 //#define METHOD_1
 //#define METHOD_2
 //#define METHOD_3
-#define METHOD_4
+//#define METHOD_4
+#define METHOD_5
 template<typename T, int N>
 struct verlet_context
 {
@@ -20,6 +21,11 @@ struct verlet_context
     mut<T> ds_m;
     tensor<mut<T>, N> dX_base_m;
     #endif // METHOD_3
+
+    #ifdef METHOD_5
+    mut<T> ds_m;
+    tensor<mut<T>, N> last_v_half;
+    #endif // METHOD_5
 
     tensor<mut<T>, N> velocity;
 
@@ -38,6 +44,51 @@ struct verlet_context
         ds_m = declare_mut_e(get_dS(position_in, velocity_in, as_constant(acceleration_m), st));
         dX_base_m = declare_mut_e(get_dX(position_in, velocity_in, st));
         #endif
+
+        #ifdef METHOD_5
+        auto cposition = declare_e(position);
+        auto cvelocity = declare_e(velocity);
+
+        auto st = get_state(cposition);
+
+        auto acceleration = get_dV(cposition, cvelocity, st);
+        pin(acceleration);
+
+        auto ds = get_dS(cposition, cvelocity, acceleration, st);
+        pin(ds);
+
+        auto v_half = cvelocity + 0.5f * ds * get_dV(cposition, cvelocity, st);
+
+        //#define IMPLICIT_V
+        #ifdef IMPLICIT_V
+        v_half = cvelocity + 0.5f * ds * get_dV(cposition, v_half, st);
+        #endif
+
+        auto x_full_approx = cposition + ds * get_dX(cposition, cvelocity, st);
+
+        auto st_full_approx = get_state(x_full_approx);
+
+        auto x_full = cposition + 0.5f * ds * (get_dX(cposition, v_half, st) + get_dX(x_full_approx, v_half, st_full_approx));
+
+        //#define IMPLICIT_X
+        #ifdef IMPLICIT_X
+        auto st_full_implicit = get_state(x_full);
+        x_full = cposition + 0.5f * ds * (get_dX(cposition, v_half, st) + get_dX(x_full, v_half, st_full_implicit));
+        #endif
+
+        ///so, I want to migrate this to the start
+        ///which means finishing off a previous iteration
+        ///which also means starting off 95% of a previous iteration, doing the x_full update
+        ///as well as store v_half, and ds
+        auto st_full = get_state(x_full);
+
+        //auto v_full = v_half + 0.5f * ds * get_dV(x_full, v_half, st_full);
+
+        last_v_half = declare_mut_e(v_half);
+        ds_m = declare_mut_e(ds);
+        as_ref(position) = x_full;
+        //as_ref(velocity) = velocity_postprocess(v_full, st_full);
+        #endif // METHOD_5
     }
 
     template<typename dX, typename dV, typename dS, typename State>
@@ -46,7 +97,46 @@ struct verlet_context
         using namespace single_source;
 
         auto cposition = declare_e(position);
-        auto cvelocity = declare_e(velocity);
+        //auto cvelocity = declare_e(velocity);
+
+        auto last_half = declare_e(last_v_half);
+        auto last_ds = declare_e(ds_m);
+
+        auto st = get_state(cposition);
+
+        auto cvelocity = last_half + 0.5f * last_ds * get_dV(cposition, last_half, st);
+
+        cvelocity = velocity_postprocess(cvelocity, st);
+
+        auto acceleration = get_dV(cposition, cvelocity, st);
+        pin(acceleration);
+
+        auto ds = get_dS(cposition, cvelocity, acceleration, st);
+        pin(ds);
+
+        auto v_half = cvelocity + 0.5f * ds * get_dV(cposition, cvelocity, st);
+
+        auto x_full_approx = cposition + ds * get_dX(cposition, cvelocity, st);
+
+        auto st_full_approx = get_state(x_full_approx);
+
+        auto x_full = cposition + 0.5f * ds * (get_dX(cposition, v_half, st) + get_dX(x_full_approx, v_half, st_full_approx));
+
+        ///so, I want to migrate this to the start
+        ///which means finishing off a previous iteration
+        ///which also means starting off 95% of a previous iteration, doing the x_full update
+        ///as well as store v_half, and ds
+        auto st_full = get_state(x_full);
+
+        auto v_full = v_half + 0.5f * ds * get_dV(x_full, v_half, st_full);
+
+        as_ref(position) = x_full;
+        as_ref(last_v_half) = v_half;
+        as_ref(ds_m) = ds;
+        as_ref(velocity) = v_half;
+        //as_ref(velocity) = velocity_postprocess(v_full, st_full);
+
+        return get_dX(cposition, v_half, st);
 
         #ifdef METHOD_1
         auto st = get_state(cposition);
@@ -146,35 +236,6 @@ struct verlet_context
         #endif // METHOD_3
         #endif
 
-        #if 0
-        auto st_1 = get_state(cposition);
-
-        cvelocity = velocity_postprocess(cvelocity, st_1);
-
-        auto acceleration = get_dV(cposition, cvelocity, st_1);
-
-        auto ds = get_dS(cposition, cvelocity, acceleration, st_1);
-        pin(ds);
-
-        auto x_half_approx = cposition + 0.5f * ds * get_dX(cposition, cvelocity, st_1);
-        auto st_half_approx = get_state(x_half_approx);
-
-        auto x_half = cposition + 0.5f * ds * get_dX(x_half_approx, cvelocity, st_half_approx);
-
-        auto st_half = get_state(x_half);
-
-        auto v_next_approx = cvelocity + acceleration * ds;
-
-        auto v_next = cvelocity + 0.5f * ds * (get_dV(x_half, cvelocity, st_half) + get_dV(x_half, v_next_approx, st_half));
-
-        auto x_full = x_half + 0.5f * ds * get_dX(x_half, v_next, st_half);
-
-        as_ref(position) = x_full;
-        as_ref(velocity) = v_next;
-        return get_dX(x_half, v_next, st_half);
-
-        #endif // 0
-
         #ifdef METHOD_4
         auto st = get_state(cposition);
 
@@ -186,7 +247,7 @@ struct verlet_context
 
         auto v_half = cvelocity + 0.5f * ds * get_dV(cposition, cvelocity, st);
 
-        #define IMPLICIT_V
+        //#define IMPLICIT_V
         #ifdef IMPLICIT_V
         v_half = cvelocity + 0.5f * ds * get_dV(cposition, v_half, st);
         #endif
@@ -197,12 +258,16 @@ struct verlet_context
 
         auto x_full = cposition + 0.5f * ds * (get_dX(cposition, v_half, st) + get_dX(x_full_approx, v_half, st_full_approx));
 
-        #define IMPLICIT_X
+        //#define IMPLICIT_X
         #ifdef IMPLICIT_X
         auto st_full_implicit = get_state(x_full);
         x_full = cposition + 0.5f * ds * (get_dX(cposition, v_half, st) + get_dX(x_full, v_half, st_full_implicit));
         #endif
 
+        ///so, I want to migrate this to the start
+        ///which means finishing off a previous iteration
+        ///which also means starting off 95% of a previous iteration, doing the x_full update
+        ///as well as store v_half, and ds
         auto st_full = get_state(x_full);
 
         auto v_full = v_half + 0.5f * ds * get_dV(x_full, v_half, st_full);
