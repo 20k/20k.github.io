@@ -1100,6 +1100,9 @@ int main()
 
             tensor<float, 4> camera4 = {elapsed_t, camera_pos.x(), camera_pos.y(), camera_pos.z()};
 
+            if(lock_camera_to_slider || progress_camera_time)
+                camera4.x() = cam_time;
+
             if(render && (render_frame_idx % render_skipping) == 0)
                 rt_bssn.render3(cqueue, camera4, camera_quat, background, screen_tex, simulation_width, m, lock_camera_to_slider, progress_camera_time);
 
