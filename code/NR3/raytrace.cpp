@@ -186,11 +186,22 @@ struct verlet_context
 
         auto v_half = cvelocity + 0.5f * ds * get_dV(cposition, cvelocity, st);
 
+        #define IMPLICIT_V
+        #ifdef IMPLICIT_V
+        v_half = cvelocity + 0.5f * ds * get_dV(cposition, v_half, st);
+        #endif
+
         auto x_full_approx = cposition + ds * get_dX(cposition, cvelocity, st);
 
         auto st_full_approx = get_state(x_full_approx);
 
         auto x_full = cposition + 0.5f * ds * (get_dX(cposition, v_half, st) + get_dX(x_full_approx, v_half, st_full_approx));
+
+        #define IMPLICIT_X
+        #ifdef IMPLICIT_X
+        auto st_full_implicit = get_state(x_full);
+        x_full = cposition + 0.5f * ds * (get_dX(cposition, v_half, st) + get_dX(x_full, v_half, st_full_implicit));
+        #endif
 
         auto st_full = get_state(x_full);
 
