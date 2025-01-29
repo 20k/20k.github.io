@@ -90,9 +90,6 @@ struct verlet_context
 
         auto x_full = x_n + 0.5f * ds * (get_dX(x_n, v_half, st) + get_dX(x_full_approx, v_half, st_full_approx));
 
-        auto st_full = get_state(x_full);
-        auto v_full = v_half + 0.5f * ds * get_dV(x_full, v_half, st_full);
-
         as_ref(position) = x_full;
         as_ref(last_v_half) = v_half;
         as_ref(ds_m) = ds;
