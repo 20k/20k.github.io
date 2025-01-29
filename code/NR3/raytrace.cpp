@@ -7,7 +7,8 @@
 #define UNIVERSE_SIZE 29
 
 //#define METHOD_1
-#define METHOD_2
+//#define METHOD_2
+#define METHOD_3
 template<typename T, int N>
 struct verlet_context
 {
@@ -41,6 +42,11 @@ struct verlet_context
         ds_m = declare_mut_e(get_dS(position_in, velocity_in, as_constant(acceleration_m), st));
         dX_base_m = declare_mut_e(get_dX(position_in, velocity_in, st));
         #endif
+
+        #ifdef METHOD_3
+        position = declare_mut_e(position_in);
+        velocity = declare_mut_e(velocity_in);
+        #endif // METHOD_3
     }
 
     template<typename dX, typename dV, typename dS, typename State>
@@ -48,9 +54,10 @@ struct verlet_context
     {
         using namespace single_source;
 
-        #ifdef METHOD_1
         auto cposition = declare_e(position);
         auto cvelocity = declare_e(velocity);
+
+        #ifdef METHOD_1
 
         auto st = get_state(cposition);
 
@@ -120,6 +127,83 @@ struct verlet_context
 
         return dX_half;
         #endif
+
+        #if 0
+        #ifdef METHOD_3
+        auto cposition = declare_e(position);
+        auto cvelocity = declare_e(velocity);
+
+        auto st_1 = get_state(cposition);
+
+        auto acceleration = get_dV(cposition, cvelocity, st_1);
+
+        auto ds = get_dS(cposition, cvelocity, acceleration, st_1);
+        pin(ds);
+
+        auto v_n_half = cvelocity + 0.5f * acceleration * ds;
+
+        auto x_next_approx = cposition + get_dX(cposition, cvelocity, st_1) * ds;
+
+        auto st_2_approx = get_state(x_next_approx);
+
+        auto x_next = cposition + 0.5f * (get_dX(cposition, v_n_half, st_1) + get_dX(x_next_approx, v_n_half, st_2_approx)) * ds;
+
+        auto st_2 = get_state(x_next);
+
+        auto v_next = v_n_half + 0.5f * get_dV(x_next, v_n_half, st_2) * ds;
+
+        as_ref(position) = x_next;
+        as_ref(velocity) = velocity_postprocess(v_next, st_2);
+
+        return get_dX(cposition, v_n_half, st_1);
+        #endif // METHOD_3
+        #endif
+
+        /*auto cposition = declare_e(position);
+        auto cvelocity = declare_e(velocity);
+
+        auto g = [](auto a, auto b)
+        {
+            auto st = get_state(b);
+
+            return get_dX(b, a, st);
+        };
+
+        auto f = [](auto a, auto b)
+        {
+            auto st = get_state(b);
+
+            return get_dV(b, a, st);
+        };*/
+
+        #if 1
+        auto st_1 = get_state(cposition);
+
+        cvelocity = velocity_postprocess(cvelocity, st_1);
+
+        auto acceleration = get_dV(cposition, cvelocity, st_1);
+
+        auto ds = get_dS(cposition, cvelocity, acceleration, st_1);
+        pin(ds);
+
+        auto x_half_approx = cposition + 0.5f * ds * get_dX(cposition, cvelocity, st_1);
+        auto st_half_approx = get_state(x_half_approx);
+
+        auto x_half = cposition + 0.5f * ds * get_dX(x_half_approx, cvelocity, st_half_approx);
+
+        auto st_half = get_state(x_half);
+
+        auto v_next_approx = cvelocity + acceleration * ds;
+
+        auto v_next = cvelocity + 0.5f * ds * (get_dV(x_half, cvelocity, st_half) + get_dV(x_half, v_next_approx, st_half));
+
+        auto x_full = x_half + 0.5f * ds * get_dX(x_half, v_next, st_half);
+
+        as_ref(position) = x_full;
+        as_ref(velocity) = v_next;
+        #endif // 0
+
+        return get_dX(x_half, v_next, st_half);
     }
 };
 
