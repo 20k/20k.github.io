@@ -7,23 +7,20 @@ categories: C++
 
 Hi! Today we're going to look at raytracing geodesics in numerical spacetimes. We're going to explore two things:
 
-1. The ADM geodesic equations to approximately render one slice
+1. The ADM geodesic equations to produce a fast approximate rendering, mainly for debugging reasons
 3. The regular geodesic equation to accurately raytrace inspiralling binary black holes
 
-Along the way, I'll present to you a modified form of the verlet algorithm which is the best bang for your buck that you can get here.
+Along the way, I'll present to you a modified form of the verlet algorithm which is the best bang for your buck that you can get.
 
 Video:
 
 I'd highly recommend reading todo: this article about geodesics in general relativity, but we'll have a recap before we get started
 
-
-Todo: clamp so we don't overflow buffer
-
 # What are we trying to do?
 
 Today, we're going to raytrace light rays around our spacetime, and produce a rendering of it. If you're familiar with raytracing in general, you might imagine a raytracer which fires rays through a 3d grid
 
-In 3d, a ray has two properties: a position, and a velocity, both 3-vectors. Adding an acceleration to your rays - eg newtonian gravity, is straightforwardly modelled as an acceleration, applied at each step as you step along a ray in the 3rd volume
+In 3d, a ray has two properties: a position, and a velocity, both 3-vectors. Adding an acceleration to your rays is straightforwardly modelled as an acceleration, applied at each step as you step along a ray in the 3rd volume
 
 Stretching this into 4d is straightforward. Instead of a 3d grid, we now have a 4d grid. And instead of position and velocity being 3-vectors, they now both have a 4th component attached, which allows us to represent space*time*. There's no longer a newtonian acceleration at each point in space, but a general relativistic 'acceleration'[^reallycoordinates] at each point in spacetime, dictated by the geodesic equation
 
@@ -33,14 +30,18 @@ One of the major differences when adding a time dimension is that light rays (ca
 
 ## A grid in 4d
 
-In previous articles on raytracing, we've had an analytic metric tensor $g_{\mu\nu}$, which is a 4d object. We need this to calculate our acceleration. Today, we have a numerical grid - a single 3d slice, which represents the metric through some slice of spacetime defined as 'now'. Unfortunately, as our light rays travel backwards in time, we need access to earlier slices as well to re-build out 4d grid, which means storing our entire simulation history
+not super happy on this segment, or the above
+
+In previous articles on raytracing, we've had an analytic metric tensor $g_{\mu\nu}$, which is a 4d object. We need this to calculate our acceleration. In these simulations so far, we've had a numerical grid which is a single 3d slice, that represents the metric of some slice of spacetime defined as 'now'. Unfortunately, as our light rays travel backwards in time, we need access to earlier slices, which means storing our entire simulation history
 
 This is a problem. We're going to discuss two different approaches here:
 
 1. A debugging view by keeping our rays inaccurately to a single slice
 2. An accurate view, where we store the entire simulation history in a reduced form
 
-# Recap: What are geodesics?
+# Recap
+
+## What are geodesics?
 
 In general relativity, geodesics represent paths through spacetime. There are three kinds of geodesics:
 
@@ -48,7 +49,7 @@ In general relativity, geodesics represent paths through spacetime. There are th
 2. Null, representing the paths of massless particles like light
 3. Spacelike, representing distances that cannot be traversed causally
 
-In general, we're only interested in timelike and null geodesics. Everything in this article is applicable to both of these kinds of geodesics
+In general, we're only interested in timelike and null geodesics. Everything in this article is applicable to both of these kinds of geodesics - though we're not going to simulate timelike geodesics today
 
 Geodesics have two properties:
 
@@ -57,7 +58,7 @@ Geodesics have two properties:
 
 As always, greek indices run from $0-4$, and latin indices run from $1-4$
 
-# The geodesic equation
+## The geodesic equation
 
 To calculate the path of a geodesic through spacetime, we can integrate the geodesic equation:
 
@@ -65,7 +66,7 @@ $$\frac{d^2 x^\mu}{d\lambda^2} =-\Gamma^\mu_{\alpha \beta} \frac{dx^\alpha}{d\la
 
 This gives an acceleration. $\Gamma^\mu_{\alpha \beta}$ is the christoffel symbols of the second kind. For us, the important part is that its built from the metric tensor, and its derivatives
 
-# Recap: The ADM formalism
+## Recap: The ADM formalism
 
 The ADM formalism is the process of taking a 4-metric $g_{\mu\nu}$, and splitting it up into a series of 3d slices (called a foliation). Each 3d slice has the following variables associated with it:
 
@@ -91,15 +92,11 @@ spacetimes](https://arxiv.org/pdf/1208.3927), and discussing some of the implica
 
 ## Initial conditions
 
-The way we set up initial conditions is exactly as described in <this> article, with no changes. The sole difference is that we build the metric tensor $g_{\mu\nu}$ from the ADM components ($\gamma_{ij},\; \alpha,\; \beta^i$), rather than having a metric analytically. Because of this, we're going to start from the position that we already have a 4-position, and a 4-velocity to start off with. No derivatives are needed for this step, so its simply a matter of calculating the values from these tables as follows:
+The way we set up initial conditions is exactly as described in <this> article, with no changes. The sole difference is that we build the metric tensor $g_{\mu\nu}$ from the ADM components ($\gamma_{ij},\; \alpha,\; \beta^i$), rather than having a metric analytically. You'll want to implement trilinear interpolation on the fields, if your camera lives on a non integer coordinate
 
-Bssn -> ADM
+Because there's nothing special here, lets assume that we have a geodesic (either null, or massive), with a position $x^\mu$ and a velocity $dx^\mu$
 
-ADM -> metric
-
-So at this point, lets assume that we have a geodesic (either null, or massive), with a position $x^\mu$ and a velocity $dx^\mu$
-
-This paper requires us to first calculate the 4-momentum of our geodesic, $p^\mu$. For a timelike geodesic, the 4-momentum is defined as such[^lambda]:
+So first up, this paper requires us to calculate the 4-momentum of our geodesic, $p^\mu$. For a timelike geodesic, the 4-momentum is defined as such[^lambda]:
 
 $$p^\mu = m \frac{dx^\mu}{d\tau}$$
 
@@ -109,7 +106,7 @@ Where $m$ is the rest mass, and we've set $d\lambda = d\tau$ (the proper time). 
 
 $$p^\mu = \frac{dx^\mu}{d\lambda}$$
 
-Next up, we want to perform the adm projection, so we can get the quantities on the 3-surface. To do this, simply apply (8), and solve for $V^\mu$:
+Next up, we want to find the 3-quantity on our local slice which is the projection of our 4-velocity - ie we're translating from GR to ADM. To do this, simply apply (8), and solve for $V^\mu$:
 
 $$V^\mu = \frac{p^\mu}{E} - \mathcal{n}^\mu$$
 
@@ -120,34 +117,97 @@ Where
 
 In practice the quantity $E = -p^\mu \mathcal{n}_{\mu}$ is easier to calculate, as we can calculate $\mathcal{n}_{\mu} =  (-\alpha, 0, 0, 0)$ directly, and we already have $p^\mu$.
 
-$V^\mu$ is tangent to our 3-surface, and has no component in the timelike direction (ie $\mathcal{n}_\mu V^\mu = 0$). This means that $V^0 = 0$. For null geodesics, $V_i V^i = 1$, and for timelike geodesics, $V_i V^i < 1$
+$V^\mu$ is the ray velocity which is tangent to our 3-surface, and has no component in the timelike direction (ie $\mathcal{n}_\mu V^\mu = 0$). This means that $V^0 = 0$. For null geodesics, $V_i V^i = 1$, and for timelike geodesics, $V_i V^i < 1$
 
 So, for tracing a geodesic in the ADM formalism, we have two things
 
-1. A 4-position, which we've called $x$, and this paper calls $X$
+1. A 4-position, which we've called $x^\mu$, and this paper calls $X^\mu$
 2. A 3-velocity $V^i$, which is the projection our 4-velocity onto our local hypersurface
+
+The 3-position of our ray's 4-position $x^\mu$ is trivially $x^i$
 
 ### A slight wrinkle: Photons going backwards in time
 
-Its very common in these simulations to raytrace light rays backwards in time. If you're doing this (which we are), you'll note that we have no component in the timelike direction for $V^i$. The slightly odd trick is that your timestep becomes *negative* when performing your raytracing.
-
-Please note that while I'm 95% sure that this is the correct approach, I'm not 101% sure on that fact.
+Its very common in these simulations to raytrace light rays backwards in time. If you're doing this (which we are), you'll note that we have no component in the timelike direction for $V^i$. The slightly odd thing to realise is that your timestep becomes *negative* when performing your raytracing, as we're quite literally doing negative steps through coordinate tim
 
 ## Evolution equations
 
 The evolution equations for our system are given by (28a) and (28b):
 
-Eq 1
-Eq 2
+$$\begin{align}
+\frac{dX^i}{dt} &= \alpha V^i - \beta ^i \\
+\frac{dV^i}{dt} &= \alpha V^j (V^i (\partial_j \ln(\alpha) - K_{ij} V^k) + 2 K^i_j - ^3\Gamma^i_{jk} V^k) \\&- \gamma^{ij} \partial_j \alpha - V^j \partial_j \beta^i \\
+\end{align}$$
+
+Where $^3 \Gamma^i_{jk}$ are the christoffel symbols associated with $\gamma_{ij}$. I've also converted this papers notation to ours, ie $\alpha = N$
 
 The only modifications we'll make are as follows:
 
-1. We can replace the dloga term with dga / ga, which is easier to calculate
-2. For null geodesics, you can enforce $V_i V^i = 1$ by rescaling the length to improve accuracy
+1. We can replace the $\partial_j \ln(\alpha)$ term with $\frac{\partial_j \alpha}{\alpha}$, which is easier to calculate
+2. For null geodesics, you can enforce $V_i V^i = 1$ by rescaling the length to improve accuracy, after each time step
 
-# A Single Slice
+Note that unlike with regular geodesics, $V^i$ is *not* the velocity of $X^i$, which will complicate our lives
+
+# Implementation on a single slice
+
+With the evolution equations in hand, we'll want to get to implementing. We're going to be using this just to produce a debug visualisation on a single slice. The reason why we won't be using this for our accurate raytracing, is that its much less memory efficient - which is something that will become apparently when we get there
+
+The first thing we need before we get started, is to pick an integrator
 
 ## Verlet
+
+Euler integration is not very good for these problems. It tends to be have poor performance for its accuracy, and additionally it isn't symplectic. This means that a rays energy tends to diverge, which isn't ideal
+
+From a lot of experience, I can tell you that Verlet integration is by far the best choice here. First off, I'm going to present how to implement the basic verlet algorithm for this problem, and then we'll tweak it to improve performance
+
+### Velocity verlet for non separable hamiltonians
+
+Wikipedia lists a form of the velocity verlet algorithm which isn't super helpful to us. Unfortunately, we have two problems
+
+1. Our velocity $v$ is not directly the velocity of $x$
+2. Our acceleration is a function of the position *and* velocity
+
+These are both really the same problem: what we have is what is known as a non separable hamiltonian. This means our equations are of the form:
+
+$$\begin{align}
+\dot{q} &= g(q, v)\\
+\dot{v} &= f(q, v)
+\end{align}$$
+
+Ie, we have two functions which provide the rate of change of a variable, both of which are mutually dependent. We need a slightly more general form of verlet integration to combat this
+
+We're going to implement (1.24) from [this](https://www.math.kit.edu/ianm3/lehre/geonumint2009s/media/gni_by_stoermer-verlet.pdf) paper instead, which is a great paper with a tonne of information about integrators in it
+
+The choice of which function is $g$ or $f$ determines which variable is $q$ or $v$. In our case, we'll pick the following convention:
+
+1. $f(q, v) = dX(x(t), v(t))$
+2. $g(q, v) = dV(x(t), v(t))$
+
+Ie, $q$ is our position $X^i$, $v$ is our velocity $V^i$, $f$ is $dX$, and $g$ is $dV$. We could however reverse this, and end up with an equivalent integrator. We're going to then integrate this:
+
+$$\begin{align}
+V_{n+\frac{1}{2}} &= V_n + \frac{h}{2}dX(q_n, v_{n+\frac{1}{2}})\\
+X_{n+1} &= X_n + \frac{h}{2}(dV(X_n, V_{n+\frac{1}{2}}) + dV(X_{n+1}, V_{n+\frac{1}{2}}))\\
+V_{n+1} &= V_{n+\frac{1}{2}} + \frac{h}{2} dX(X_{n+1}, V_{n+\frac{1}{2}})\\
+\end{align}$$
+
+Where $h$ is the timestep, and $n$ is the iteration variable. You might notice that these equations are implicit. Solving these equations efficiently might seem prohibitely expensive right off the bat, especially compared to just lowering the timestep with a simple euler scheme
+
+
+And approximate the velocity in our acceleration step as $\bar{v}(t + \Delta t) = v(t) + a (t) \Delta t$. Technically, this is an implicit equation in reality, but this simple guess works well
+
+https://www.math.kit.edu/ianm3/lehre/geonumint2009s/media/gni_by_stoermer-verlet.pdf
+
+$$\begin{align}
+v(t + \frac{1}{2}\Delta t) &= v(t) + \frac{1}{2} dV(x(t), v(t)) \Delta t \\
+x(t + \frac{1}{2} \Delta t) &= x(t) + \frac{1}{2} dX(x(t), v(t)) \Delta t \\
+x(t + \Delta t) &= x(t) + dX(x(t + \frac{1}{2} \Delta t), v(t + \frac{1}{2} \Delta t)) \Delta t \\
+\bar{v}(t + \Delta t) &= v(t) + dV(x(t), v(t)) \Delta t \\
+a(t + \Delta t) &= dV(x(t + \Delta t), \bar{v}(t + \Delta t)) \\
+v(t + \Delta t) &= v(t + \frac{1}{2}\Delta t) +\frac{1}{2} a(t + \Delta t) \Delta t\\
+\end{align}$$
+
+## Implementation
 
 # Timelike Geodesics
 
@@ -158,5 +218,7 @@ The only modifications we'll make are as follows:
 # Discussion
 
 ## Why not timelike geodesics?
+
+While the ADM equations of motion presented in this article are applicable to timelike geodesics, in practice integrating them into a simulation is radically different than what you'd do for lightlike geodesics. Its sufficiently different that - beyond the specific equations themselves - there's little commonality in terms of implementation. We'll be doing timelike geodesics when we hit N-body particle dynamics
 
 # Addendum (texture filtering?)

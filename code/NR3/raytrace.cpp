@@ -16,12 +16,6 @@ struct verlet_context
 {
     tensor<mut<T>, N> position;
 
-    #ifdef METHOD_2
-    tensor<mut<T>, N> acceleration_m;
-    mut<T> ds_m;
-    tensor<mut<T>, N> dX_base_m;
-    #endif // METHOD_3
-
     #ifdef METHOD_5
     mut<T> ds_m;
     tensor<mut<T>, N> last_v_half;
@@ -76,12 +70,7 @@ struct verlet_context
         x_full = cposition + 0.5f * ds * (get_dX(cposition, v_half, st) + get_dX(x_full, v_half, st_full_implicit));
         #endif
 
-        ///so, I want to migrate this to the start
-        ///which means finishing off a previous iteration
-        ///which also means starting off 95% of a previous iteration, doing the x_full update
-        ///as well as store v_half, and ds
-        auto st_full = get_state(x_full);
-
+        //auto st_full = get_state(x_full);
         //auto v_full = v_half + 0.5f * ds * get_dV(x_full, v_half, st_full);
 
         last_v_half = declare_mut_e(v_half);
@@ -107,6 +96,8 @@ struct verlet_context
         auto cvelocity = last_half + 0.5f * last_ds * get_dV(cposition, last_half, st);
 
         cvelocity = velocity_postprocess(cvelocity, st);
+
+        pin(cvelocity);
 
         auto acceleration = get_dV(cposition, cvelocity, st);
         pin(acceleration);
@@ -137,146 +128,6 @@ struct verlet_context
         //as_ref(velocity) = velocity_postprocess(v_full, st_full);
 
         return get_dX(cposition, v_half, st);
-
-        #ifdef METHOD_1
-        auto st = get_state(cposition);
-
-        auto acceleration = get_dV(cposition, cvelocity, st);
-        pin(acceleration);
-
-        auto ds = get_dS(cposition, cvelocity, acceleration, st);
-        pin(ds);
-
-        auto v_half = cvelocity + 0.5f * acceleration * ds;
-
-        auto dX_base = get_dX(cposition, cvelocity, st);
-        auto x_half = cposition + 0.5f * dX_base * ds;
-
-        auto st_half = get_state(x_half);
-
-        auto dX_half = get_dX(x_half, v_half, st_half);
-
-        auto x_full = cposition + dX_half * ds;
-        auto st_full = get_state(x_full);
-
-        auto v_full_approx = cvelocity + acceleration * ds;
-        auto a_full = get_dV(x_full, v_full_approx, st_full);
-        pin(a_full);
-
-        auto v_full = v_half + 0.5f * a_full * ds;
-
-        as_ref(position) = x_full;
-        as_ref(velocity) = v_full;
-
-        return dX_half;
-        #endif
-
-        #ifdef METHOD_2
-        auto acceleration = declare_e(acceleration_m);
-        auto ds = declare_e(ds_m);
-        auto dX_base = declare_e(dX_base_m);
-
-        auto v_half = cvelocity + 0.5f * acceleration * ds;
-        auto x_half = cposition + 0.5f * dX_base * ds;
-
-        auto st_half = get_state(x_half);
-
-        auto dX_half = get_dX(x_half, v_half, st_half);
-
-        auto x_full = cposition + dX_half * ds;
-        auto st_full = get_state(x_full);
-
-        auto v_full_approx = cvelocity + acceleration * ds;
-        auto a_full = get_dV(x_full, v_full_approx, st_full);
-        pin(a_full);
-
-        auto v_full = v_half + 0.5f * a_full * ds;
-
-        as_ref(position) = x_full;
-        as_ref(velocity) = velocity_postprocess(v_full, st_full);
-
-        auto ds_fin = get_dS(x_full, v_full, a_full, st_full);
-        auto dX_fin = get_dX(x_full, v_full, st_full);
-
-        as_ref(acceleration_m) = a_full;
-        as_ref(ds_m) = ds_fin;
-        as_ref(dX_base_m) = dX_fin;
-
-        return dX_half;
-        #endif
-
-        #if 0
-        #ifdef METHOD_3
-        auto cposition = declare_e(position);
-        auto cvelocity = declare_e(velocity);
-
-        auto st_1 = get_state(cposition);
-
-        auto acceleration = get_dV(cposition, cvelocity, st_1);
-
-        auto ds = get_dS(cposition, cvelocity, acceleration, st_1);
-        pin(ds);
-
-        auto v_n_half = cvelocity + 0.5f * acceleration * ds;
-
-        auto x_next_approx = cposition + get_dX(cposition, cvelocity, st_1) * ds;
-
-        auto st_2_approx = get_state(x_next_approx);
-
-        auto x_next = cposition + 0.5f * (get_dX(cposition, v_n_half, st_1) + get_dX(x_next_approx, v_n_half, st_2_approx)) * ds;
-
-        auto st_2 = get_state(x_next);
-
-        auto v_next = v_n_half + 0.5f * get_dV(x_next, v_n_half, st_2) * ds;
-
-        as_ref(position) = x_next;
-        as_ref(velocity) = velocity_postprocess(v_next, st_2);
-
-        return get_dX(cposition, v_n_half, st_1);
-        #endif // METHOD_3
-        #endif
-
-        #ifdef METHOD_4
-        auto st = get_state(cposition);
-
-        auto acceleration = get_dV(cposition, cvelocity, st);
-        pin(acceleration);
-
-        auto ds = get_dS(cposition, cvelocity, acceleration, st);
-        pin(ds);
-
-        auto v_half = cvelocity + 0.5f * ds * get_dV(cposition, cvelocity, st);
-
-        //#define IMPLICIT_V
-        #ifdef IMPLICIT_V
-        v_half = cvelocity + 0.5f * ds * get_dV(cposition, v_half, st);
-        #endif
-
-        auto x_full_approx = cposition + ds * get_dX(cposition, cvelocity, st);
-
-        auto st_full_approx = get_state(x_full_approx);
-
-        auto x_full = cposition + 0.5f * ds * (get_dX(cposition, v_half, st) + get_dX(x_full_approx, v_half, st_full_approx));
-
-        //#define IMPLICIT_X
-        #ifdef IMPLICIT_X
-        auto st_full_implicit = get_state(x_full);
-        x_full = cposition + 0.5f * ds * (get_dX(cposition, v_half, st) + get_dX(x_full, v_half, st_full_implicit));
-        #endif
-
-        ///so, I want to migrate this to the start
-        ///which means finishing off a previous iteration
-        ///which also means starting off 95% of a previous iteration, doing the x_full update
-        ///as well as store v_half, and ds
-        auto st_full = get_state(x_full);
-
-        auto v_full = v_half + 0.5f * ds * get_dV(x_full, v_half, st_full);
-
-        as_ref(position) = x_full;
-        as_ref(velocity) = velocity_postprocess(v_full, st_full);
-
-        return get_dX(cposition, v_half, st);
-        #endif // METHOD_4
     }
 };
 
