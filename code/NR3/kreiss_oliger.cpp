@@ -5,15 +5,6 @@
 #include "derivatives.hpp"
 #include "bssn.hpp"
 
-/*valuef diffnth(const valuef& in, int idx, valuei n)
-{
-    valuef v2 = diff2nd(in, idx);
-    valuef v4 = diff4th(in, idx);
-    valuef v6 = diff6th(in, idx);
-
-    return ternary(n == 6, v6, ternary(n == 4, v4, v2));
-}*/
-
 valuef kreiss_oliger_interior(valuef in, int order)
 {
     ///boundary is at 1 and dim - 2

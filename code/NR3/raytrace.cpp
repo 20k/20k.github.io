@@ -6,63 +6,45 @@
 
 #define UNIVERSE_SIZE 29
 
-//#define METHOD_1
-//#define METHOD_2
-//#define METHOD_3
-//#define METHOD_4
-#define METHOD_5
 template<typename T, int N>
 struct verlet_context
 {
     tensor<mut<T>, N> position;
-
-    #ifdef METHOD_5
     mut<T> ds_m;
     tensor<mut<T>, N> last_v_half;
-    #endif // METHOD_5
-
     tensor<mut<T>, N> velocity;
 
     template<typename dX, typename dV, typename dS, typename State>
-    void start(const tensor<T, N>& position_in, const tensor<T, N>& velocity_in, dX&& get_dX, dV&& get_dV, dS&& get_dS, State&& get_state)
+    void start(const tensor<T, N>& X_in, const tensor<T, N>& V_in, dX&& get_dX, dV&& get_dV, dS&& get_dS, State&& get_state)
     {
         using namespace single_source;
 
-        position = declare_mut_e(position_in);
-        velocity = declare_mut_e(velocity_in);
+        position = declare_mut_e(X_in);
+        velocity = declare_mut_e(V_in);
 
-        #ifdef METHOD_2
-        auto st = get_state(position_in);
+        auto x_0 = declare_e(X_in);
+        auto v_0 = declare_e(V_in);
 
-        acceleration_m = declare_mut_e(get_dV(position_in, velocity_in, st));
-        ds_m = declare_mut_e(get_dS(position_in, velocity_in, as_constant(acceleration_m), st));
-        dX_base_m = declare_mut_e(get_dX(position_in, velocity_in, st));
-        #endif
+        auto st = get_state(x_0);
 
-        #ifdef METHOD_5
-        auto cposition = declare_e(position);
-        auto cvelocity = declare_e(velocity);
-
-        auto st = get_state(cposition);
-
-        auto acceleration = get_dV(cposition, cvelocity, st);
+        auto acceleration = get_dV(x_0, v_0, st);
         pin(acceleration);
 
-        auto ds = get_dS(cposition, cvelocity, acceleration, st);
+        auto ds = get_dS(x_0, v_0, acceleration, st);
         pin(ds);
 
-        auto v_half = cvelocity + 0.5f * ds * get_dV(cposition, cvelocity, st);
+        auto v_half = v_0 + 0.5f * ds * get_dV(x_0, v_0, st);
 
         //#define IMPLICIT_V
         #ifdef IMPLICIT_V
-        v_half = cvelocity + 0.5f * ds * get_dV(cposition, v_half, st);
+        v_half = v_0 + 0.5f * ds * get_dV(x_0, v_half, st);
         #endif
 
-        auto x_full_approx = cposition + ds * get_dX(cposition, cvelocity, st);
+        auto x_full_approx = x_0 + ds * get_dX(x_0, v_0, st);
 
         auto st_full_approx = get_state(x_full_approx);
 
-        auto x_full = cposition + 0.5f * ds * (get_dX(cposition, v_half, st) + get_dX(x_full_approx, v_half, st_full_approx));
+        auto x_full = x_0 + 0.5f * ds * (get_dX(x_0, v_half, st) + get_dX(x_full_approx, v_half, st_full_approx));
 
         //#define IMPLICIT_X
         #ifdef IMPLICIT_X
@@ -76,58 +58,48 @@ struct verlet_context
         last_v_half = declare_mut_e(v_half);
         ds_m = declare_mut_e(ds);
         as_ref(position) = x_full;
-        //as_ref(velocity) = velocity_postprocess(v_full, st_full);
-        #endif // METHOD_5
     }
 
     template<typename dX, typename dV, typename dS, typename State>
-    auto next(dX&& get_dX, dV&& get_dV, dS&& get_dS, State&& get_state, auto&& velocity_postprocess)
+    auto next(dX&& get_dX, dV&& get_dV, dS&& get_dS, State&& get_state, auto&& enforce_velocity_constraint)
     {
         using namespace single_source;
 
-        auto cposition = declare_e(position);
-        //auto cvelocity = declare_e(velocity);
+        auto x_n = declare_e(position);
+        auto v_nhalf = declare_e(last_v_half);
+        auto ds_n1 = declare_e(ds_m);
 
-        auto last_half = declare_e(last_v_half);
-        auto last_ds = declare_e(ds_m);
+        auto st = get_state(x_n);
 
-        auto st = get_state(cposition);
+        auto v_n = v_nhalf + 0.5f * ds_n1 * get_dV(x_n, v_nhalf, st);
 
-        auto cvelocity = last_half + 0.5f * last_ds * get_dV(cposition, last_half, st);
+        v_n = enforce_velocity_constraint(v_n, st);
 
-        cvelocity = velocity_postprocess(cvelocity, st);
+        pin(v_n);
 
-        pin(cvelocity);
-
-        auto acceleration = get_dV(cposition, cvelocity, st);
+        auto acceleration = get_dV(x_n, v_n, st);
         pin(acceleration);
 
-        auto ds = get_dS(cposition, cvelocity, acceleration, st);
+        auto ds = get_dS(x_n, v_n, acceleration, st);
         pin(ds);
 
-        auto v_half = cvelocity + 0.5f * ds * get_dV(cposition, cvelocity, st);
+        auto v_half = v_n + 0.5f * ds * get_dV(x_n, v_n, st);
 
-        auto x_full_approx = cposition + ds * get_dX(cposition, cvelocity, st);
-
+        auto x_full_approx = x_n + ds * get_dX(x_n, v_n, st);
         auto st_full_approx = get_state(x_full_approx);
 
-        auto x_full = cposition + 0.5f * ds * (get_dX(cposition, v_half, st) + get_dX(x_full_approx, v_half, st_full_approx));
+        auto x_full = x_n + 0.5f * ds * (get_dX(x_n, v_half, st) + get_dX(x_full_approx, v_half, st_full_approx));
 
-        ///so, I want to migrate this to the start
-        ///which means finishing off a previous iteration
-        ///which also means starting off 95% of a previous iteration, doing the x_full update
-        ///as well as store v_half, and ds
         auto st_full = get_state(x_full);
-
         auto v_full = v_half + 0.5f * ds * get_dV(x_full, v_half, st_full);
 
         as_ref(position) = x_full;
         as_ref(last_v_half) = v_half;
         as_ref(ds_m) = ds;
+        //I only update this for rasterisation reasons
         as_ref(velocity) = v_half;
-        //as_ref(velocity) = velocity_postprocess(v_full, st_full);
 
-        return get_dX(cposition, v_half, st);
+        return get_dX(x_n, v_half, st);
     }
 };
 
