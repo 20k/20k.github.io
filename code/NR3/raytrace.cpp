@@ -159,23 +159,6 @@ struct verlet_context
         #endif // METHOD_3
         #endif
 
-        /*auto cposition = declare_e(position);
-        auto cvelocity = declare_e(velocity);
-
-        auto g = [](auto a, auto b)
-        {
-            auto st = get_state(b);
-
-            return get_dX(b, a, st);
-        };
-
-        auto f = [](auto a, auto b)
-        {
-            auto st = get_state(b);
-
-            return get_dV(b, a, st);
-        };*/
-
         #if 1
         auto st_1 = get_state(cposition);
 
