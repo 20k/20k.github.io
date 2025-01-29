@@ -8,7 +8,8 @@
 
 //#define METHOD_1
 //#define METHOD_2
-#define METHOD_3
+//#define METHOD_3
+#define METHOD_4
 template<typename T, int N>
 struct verlet_context
 {
@@ -27,26 +28,16 @@ struct verlet_context
     {
         using namespace single_source;
 
-        #ifdef METHOD_1
         position = declare_mut_e(position_in);
         velocity = declare_mut_e(velocity_in);
-        #endif
 
         #ifdef METHOD_2
-        position = declare_mut_e(position_in);
-        velocity = declare_mut_e(velocity_in);
-
         auto st = get_state(position_in);
 
         acceleration_m = declare_mut_e(get_dV(position_in, velocity_in, st));
         ds_m = declare_mut_e(get_dS(position_in, velocity_in, as_constant(acceleration_m), st));
         dX_base_m = declare_mut_e(get_dX(position_in, velocity_in, st));
         #endif
-
-        #ifdef METHOD_3
-        position = declare_mut_e(position_in);
-        velocity = declare_mut_e(velocity_in);
-        #endif // METHOD_3
     }
 
     template<typename dX, typename dV, typename dS, typename State>
@@ -58,7 +49,6 @@ struct verlet_context
         auto cvelocity = declare_e(velocity);
 
         #ifdef METHOD_1
-
         auto st = get_state(cposition);
 
         auto acceleration = get_dV(cposition, cvelocity, st);
@@ -92,9 +82,6 @@ struct verlet_context
         #endif
 
         #ifdef METHOD_2
-        auto cposition = declare_e(position);
-        auto cvelocity = declare_e(velocity);
-
         auto acceleration = declare_e(acceleration_m);
         auto ds = declare_e(ds_m);
         auto dX_base = declare_e(dX_base_m);
@@ -159,7 +146,7 @@ struct verlet_context
         #endif // METHOD_3
         #endif
 
-        #if 1
+        #if 0
         auto st_1 = get_state(cposition);
 
         cvelocity = velocity_postprocess(cvelocity, st_1);
@@ -184,9 +171,36 @@ struct verlet_context
 
         as_ref(position) = x_full;
         as_ref(velocity) = v_next;
+        return get_dX(x_half, v_next, st_half);
+
         #endif // 0
 
-        return get_dX(x_half, v_next, st_half);
+        #ifdef METHOD_4
+        auto st = get_state(cposition);
+
+        auto acceleration = get_dV(cposition, cvelocity, st);
+        pin(acceleration);
+
+        auto ds = get_dS(cposition, cvelocity, acceleration, st);
+        pin(ds);
+
+        auto v_half = cvelocity + 0.5f * ds * get_dV(cposition, cvelocity, st);
+
+        auto x_full_approx = cposition + ds * get_dX(cposition, cvelocity, st);
+
+        auto st_full_approx = get_state(x_full_approx);
+
+        auto x_full = cposition + 0.5f * ds * (get_dX(cposition, v_half, st) + get_dX(x_full_approx, v_half, st_full_approx));
+
+        auto st_full = get_state(x_full);
+
+        auto v_full = v_half + 0.5f * ds * get_dV(x_full, v_half, st_full);
+
+        as_ref(position) = x_full;
+        as_ref(velocity) = velocity_postprocess(v_full, st_full);
+
+        return get_dX(cposition, v_half, st);
+        #endif // METHOD_4
     }
 };
 
