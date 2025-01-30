@@ -18,6 +18,8 @@ I'd highly recommend reading todo: this article about geodesics in general relat
 
 # What are we trying to do?
 
+scrap 99% of this, and just use a 4d argument
+
 Today, we're going to raytrace light rays around our spacetime, and produce a rendering of it. If you're familiar with raytracing in general, you might imagine a raytracer which fires rays through a 3d grid
 
 In 3d, a ray has two properties: a position, and a velocity, both 3-vectors. Adding an acceleration to your rays is straightforwardly modelled as an acceleration, applied at each step as you step along a ray in the 3rd volume
@@ -128,7 +130,7 @@ The 3-position of our ray's 4-position $x^\mu$ is trivially $x^i$
 
 ### A slight wrinkle: Photons going backwards in time
 
-Its very common in these simulations to raytrace light rays backwards in time. If you're doing this (which we are), you'll note that we have no component in the timelike direction for $V^i$. The slightly odd thing to realise is that your timestep becomes *negative* when performing your raytracing, as we're quite literally doing negative steps through coordinate tim
+Its very common in these simulations to raytrace light rays backwards in time. If you're doing this (which we are), you'll note that we have no component in the timelike direction for $V^i$. The slightly odd thing to realise is that your timestep becomes *negative* when performing your raytracing, as we're quite literally doing negative steps through coordinate time
 
 ## Evolution equations
 
@@ -145,6 +147,7 @@ The only modifications we'll make are as follows:
 
 1. We can replace the $\partial_j \ln(\alpha)$ term with $\frac{\partial_j \alpha}{\alpha}$, which is easier to calculate
 2. For null geodesics, you can enforce $V_i V^i = 1$ by rescaling the length to improve accuracy, after each time step
+3. We can calculate the christoffel symbols from the BSSN variables directly, eg see [(A3)](https://arxiv.org/pdf/1202.1038)
 
 Note that unlike with regular geodesics, $V^i$ is *not* the velocity of $X^i$, which will complicate our lives
 
@@ -156,13 +159,13 @@ The first thing we need before we get started, is to pick an integrator
 
 ## Verlet
 
-Euler integration is not very good for these problems. It tends to be have poor performance for its accuracy, and additionally it isn't symplectic. This means that a rays energy tends to diverge, which isn't ideal
+Euler integration is not very good for these problems, even if it does tend to be the default integrator for many problems. It has poor performance for its accuracy, and additionally it isn't symplectic. This means that a rays energy tends to diverge, and its not a great choice in general
 
-From a lot of experience, I can tell you that Verlet integration is by far the best choice here. First off, I'm going to present how to implement the basic verlet algorithm for this problem, and then we'll tweak it to improve performance
+From a lot of experience, I can tell you that Verlet integration is by far the best choice here. First off, I'm going to present the basic Verlet algorithm for this problem, and then we'll tweak it to improve performance
 
-### Velocity verlet for non separable hamiltonians
+### Verlet for non separable hamiltonians
 
-Wikipedia lists a form of the velocity verlet algorithm which isn't super helpful to us. Unfortunately, we have two problems
+Wikipedia lists a form of the velocity Verlet algorithm which isn't super helpful to us. Unfortunately, we have two problems
 
 1. Our velocity $v$ is not directly the velocity of $x$
 2. Our acceleration is a function of the position *and* velocity
@@ -174,44 +177,291 @@ $$\begin{align}
 \dot{v} &= f(q, v)
 \end{align}$$
 
-Ie, we have two functions which provide the rate of change of a variable, both of which are mutually dependent. We need a slightly more general form of verlet integration to combat this
-
-We're going to implement (1.24) from [this](https://www.math.kit.edu/ianm3/lehre/geonumint2009s/media/gni_by_stoermer-verlet.pdf) paper instead, which is a great paper with a tonne of information about integrators in it
+We need a slightly more general form of Verlet integration to combat this. We're instead going to implement (1.24) from [this](https://www.math.kit.edu/ianm3/lehre/geonumint2009s/media/gni_by_stoermer-verlet.pdf) paper, which lists the more general form of velocity Verlet integration - which is applicable to our problem
 
 The choice of which function is $g$ or $f$ determines which variable is $q$ or $v$. In our case, we'll pick the following convention:
 
-1. $f(q, v) = dX(x(t), v(t))$
-2. $g(q, v) = dV(x(t), v(t))$
+1. $g(q, v) = dX(x(t), v(t))$
+2. $f(q, v) = dV(x(t), v(t))$
 
-Ie, $q$ is our position $X^i$, $v$ is our velocity $V^i$, $f$ is $dX$, and $g$ is $dV$. We could however reverse this, and end up with an equivalent integrator. We're going to then integrate this:
-
-$$\begin{align}
-V_{n+\frac{1}{2}} &= V_n + \frac{h}{2}dX(q_n, v_{n+\frac{1}{2}})\\
-X_{n+1} &= X_n + \frac{h}{2}(dV(X_n, V_{n+\frac{1}{2}}) + dV(X_{n+1}, V_{n+\frac{1}{2}}))\\
-V_{n+1} &= V_{n+\frac{1}{2}} + \frac{h}{2} dX(X_{n+1}, V_{n+\frac{1}{2}})\\
-\end{align}$$
-
-Where $h$ is the timestep, and $n$ is the iteration variable. You might notice that these equations are implicit. Solving these equations efficiently might seem prohibitely expensive right off the bat, especially compared to just lowering the timestep with a simple euler scheme
-
-
-And approximate the velocity in our acceleration step as $\bar{v}(t + \Delta t) = v(t) + a (t) \Delta t$. Technically, this is an implicit equation in reality, but this simple guess works well
-
-https://www.math.kit.edu/ianm3/lehre/geonumint2009s/media/gni_by_stoermer-verlet.pdf
+Ie, $q$ is our position $X^i$, $v$ is our velocity $V^i$, $g$ is $dX$, and $f$ is $dV$. We could reverse this, and end up with an equivalent integrator. This gives us the following integration scheme:
 
 $$\begin{align}
-v(t + \frac{1}{2}\Delta t) &= v(t) + \frac{1}{2} dV(x(t), v(t)) \Delta t \\
-x(t + \frac{1}{2} \Delta t) &= x(t) + \frac{1}{2} dX(x(t), v(t)) \Delta t \\
-x(t + \Delta t) &= x(t) + dX(x(t + \frac{1}{2} \Delta t), v(t + \frac{1}{2} \Delta t)) \Delta t \\
-\bar{v}(t + \Delta t) &= v(t) + dV(x(t), v(t)) \Delta t \\
-a(t + \Delta t) &= dV(x(t + \Delta t), \bar{v}(t + \Delta t)) \\
-v(t + \Delta t) &= v(t + \frac{1}{2}\Delta t) +\frac{1}{2} a(t + \Delta t) \Delta t\\
+V_{n+\frac{1}{2}} &= V_n + \frac{h}{2}dV(X_n, V_{n+\frac{1}{2}})\\
+X_{n+1} &= X_n + \frac{h}{2}(dX(X_n, V_{n+\frac{1}{2}}) + dX(X_{n+1}, V_{n+\frac{1}{2}}))\\
+V_{n+1} &= V_{n+\frac{1}{2}} + \frac{h}{2} dV(X_{n+1}, V_{n+\frac{1}{2}})\\
 \end{align}$$
 
-## Implementation
+Where $h$ is the timestep, and $n$ is the iteration variable. You might notice that these equations are implicit. Solving these equations efficiently might seem prohibitely expensive right off the bat, especially compared to just lowering the timestep with a simple Euler scheme - luckily the problem we're trying to solve allows us to make some simplifications:
 
-# Timelike Geodesics
+1. $dV(X, V)$ is expensive to evaluate for different values of $X$, but cheap to evaluate for different values of $V$
+2. $dV(X, V)$ is only weakly dependent on the value of $V$, ie $dV(X, V + \epsilon) \approx dV(X, V)$
+3. $dX(X, V)$ is cheap to evaluate
+4. The underlying problem is not numerically unstable, and is very well conditioned
+
+So, lets do some approximating and rewrite these equations in an explicit form:
+
+$$\begin{align}
+V_{n+\frac{1}{2}} &= V_n + \frac{h}{2}dV(X_n, V_n)\\
+\bar{X}_{n+1} &= X_n + h \; dX(X_n, V_n)\\
+X_{n+1} &= X_n + \frac{h}{2}(dX(X_n, V_{n+\frac{1}{2}}) + dX(\bar{X}_{n+1}, V_{n+\frac{1}{2}}))\\
+V_{n+1} &= V_{n+\frac{1}{2}} + \frac{h}{2} dV(X_{n+1}, V_{n+\frac{1}{2}})\\
+\end{align}$$
+
+While in theory this reduces the stability and accuracy, in practice due to the nature of the problem we're trying to solve, this works extremely well[^vsolve]
+
+[^vsolve]: Its worth noting that due to the cheapness of re-evaluating $dV$ with different values of $V$, you could solve the first equation via fixed point iteration - but due to the relatively weak dependence of the solution on pertubations in $V$, it provides relatively minimal benefits. Particularly, because we're able to *enforce* the constraint $V_i V^i = 1$ for lightlike geodesics, we are less exposed to numerical errors
+
+The last thing we need to do is solve the double evaluation of $dV$ - we can straightforwardly rework these equations to only evaluate dV once per iteration. To do this, we'll split this up into two phases: initialisation, and then our iteration step. I'll also be relabling $h$ as $h_n$, as our timestep is dynamic:
+
+Initialisation:
+
+$$\begin{align}
+V_{\frac{1}{2}} &= V_0 + \frac{h_0}{2}dV(X_0, V_0)\\
+\bar{X}_{1} &= X_0 + h_0 \; dX(X_0, V_0)\\
+X_{1} &= X_0 + \frac{h_0}{2}(dX(X_0, V_{0+\frac{1}{2}}) + dX(\bar{X}_{1}, V_{\frac{1}{2}}))\\
+\end{align}$$
+
+Iteration, starting at $n=1$:
+
+$$\begin{align}
+V_{n} &= V_{n-\frac{1}{2}} + \frac{h_{n-1}}{2} dV(X_{n}, V_{n-\frac{1}{2}})\\
+V_{n+\frac{1}{2}} &= V_n + \frac{h_n}{2}dV(X_n, V_n)\\
+\bar{X}_{n+1} &= X_n + h_n \; dX(X_n, V_n)\\
+X_{n+1} &= X_n + \frac{h_n}{2}(dX(X_n, V_{n+\frac{1}{2}}) + dX(\bar{X}_{n+1}, V_{n+\frac{1}{2}}))\\
+\end{align}$$
+
+We now only evaluate $dV$ for the same $X_n$ within an iteration, which is roughly a 2x performance speedup. One oddity here is that our velocity iteration variable becomes $V_{n+\frac{1}{2}}$, and you do not need to store $V_n$. You also need to store $h_n$ as a variable as well, as its value is carried across loops
+
+## Implementating Verlet
+
+We're going to be using this verlet integrator for both the ADM equations, *and* the regular geodesic equation, as it works for both. Because of this, I'll present to you the generic form:
+
+```c++
+template<typename T, int N>
+struct verlet_context
+{
+    tensor<mut<T>, N> position;
+    mut<T> ds_m;
+    tensor<mut<T>, N> last_v_half;
+    tensor<mut<T>, N> velocity;
+
+    template<typename dX, typename dV, typename dS, typename State>
+    void start(const tensor<T, N>& X_in, const tensor<T, N>& V_in, dX&& get_dX, dV&& get_dV, dS&& get_dS, State&& get_state)
+    {
+        using namespace single_source;
+
+        position = declare_mut_e(X_in);
+        velocity = declare_mut_e(V_in);
+
+        auto x_0 = declare_e(X_in);
+        auto v_0 = declare_e(V_in);
+
+        auto st = get_state(x_0);
+
+        auto acceleration = get_dV(x_0, v_0, st);
+        pin(acceleration);
+
+        auto ds = get_dS(x_0, v_0, acceleration, st);
+        pin(ds);
+
+        auto v_half = v_0 + 0.5f * ds * get_dV(x_0, v_0, st);
+
+        auto x_full_approx = x_0 + ds * get_dX(x_0, v_0, st);
+        auto st_full_approx = get_state(x_full_approx);
+
+        auto x_full = x_0 + 0.5f * ds * (get_dX(x_0, v_half, st) + get_dX(x_full_approx, v_half, st_full_approx));
+
+        last_v_half = declare_mut_e(v_half);
+        ds_m = declare_mut_e(ds);
+        as_ref(position) = x_full;
+    }
+
+    template<typename dX, typename dV, typename dS, typename State>
+    auto next(dX&& get_dX, dV&& get_dV, dS&& get_dS, State&& get_state, auto&& enforce_velocity_constraint)
+    {
+        using namespace single_source;
+
+        auto x_n = declare_e(position);
+        auto v_nhalf = declare_e(last_v_half);
+        auto ds_n1 = declare_e(ds_m);
+
+        auto st = get_state(x_n);
+
+        auto v_n = v_nhalf + 0.5f * ds_n1 * get_dV(x_n, v_nhalf, st);
+
+        v_n = enforce_velocity_constraint(v_n, st);
+        pin(v_n);
+
+        auto acceleration = get_dV(x_n, v_n, st);
+        pin(acceleration);
+
+        auto ds = get_dS(x_n, v_n, acceleration, st);
+        pin(ds);
+
+        auto v_half = v_n + 0.5f * ds * get_dV(x_n, v_n, st);
+
+        auto x_full_approx = x_n + ds * get_dX(x_n, v_n, st);
+        auto st_full_approx = get_state(x_full_approx);
+
+        auto x_full = x_n + 0.5f * ds * (get_dX(x_n, v_half, st) + get_dX(x_full_approx, v_half, st_full_approx));
+
+        as_ref(position) = x_full;
+        as_ref(last_v_half) = v_half;
+        as_ref(ds_m) = ds;
+        //I only update this for rasterisation reasons
+        as_ref(velocity) = v_half;
+
+        //this is returned so we can use it for termination conditions
+        return get_dX(x_n, v_half, st);
+    }
+};
+```
+
+Here, the timestep is called $ds$, and is assumed to be some function of position, velocity, and acceleration (we'll get around to timestepping very shortly). We also carry a state around, which is used to avoid reevaluating the same expression repeatedly
+
+With all of this together, Verlet is about 3-5x better than Euler in terms of step size, for a similar cost of evaluating the equations - as we only evaluate the expensive part of $dV$ once per iteration. It does come with a register and compute penalty, but its worth the tradeoff
+
+## Implementing ADM
+
+### Initialisation
+
+The setup in this segment is straightforward. The only thing that we do differently in this article is construct the 4-metric from the bssn variables. See todo: this article for more details
+
+```c++
+auto get_metric = [](v4f position, bssn_args_mem<buffer<valuef>> in, literal<v3i> dim, literal<valuef> scale)
+{
+    using namespace single_source;
+
+    v3f grid = world_to_grid(position.yzw(), dim.get(), scale.get());
+
+    //our boundary is at {1,1,1}, and we need room for trilinear interpolation to touch adjacent cells
+    grid = clamp(grid, (v3f){2,2,2}, (v3f)dim.get() - (v3f){3,3,3});
+
+    pin(grid);
+
+    adm_variables adm = admf_at(grid, dim.get(), in);
+
+    auto met = calculate_real_metric(adm.Yij, adm.gA, adm.gB);
+    pin(met);
+    return met;
+};
+```
+
+Converting the ADM variables from the BSSN variables works as follows:
+
+```c++
+adm_variables bssn_to_adm(const bssn_args& args)
+{
+    adm_variables ret;
+
+    ret.Yij.from_tensor(args.cY.to_tensor() / (args.W * args.W));
+    ret.Kij = (args.cA / (args.W * args.W)) + ret.Yij.to_tensor() * (args.K / 3.f);
+
+    ret.gA = args.gA;
+    ret.gB = args.gB;
+
+    return ret;
+}
+
+
+adm_variables adm_at(v3i pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
+{
+    using namespace single_source;
+
+    bssn_args args(pos, dim, in);
+
+    return bssn_to_adm(args);
+}
+```
+
+With the 4-metric being constructed as such:
+
+```c++
+metric<valuef, 4, 4> calculate_real_metric(const metric<valuef, 3, 3>& adm, const valuef& gA, const tensor<valuef, 3>& gB)
+{
+    tensor<valuef, 3> lower_gB = lower_index(gB, adm, 0);
+
+    metric<valuef, 4, 4> ret;
+
+    valuef gB_sum = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        gB_sum = gB_sum + lower_gB[i] * gB[i];
+    }
+
+    ///https://arxiv.org/pdf/gr-qc/0703035.pdf 4.43
+    ret[0, 0] = -gA * gA + gB_sum;
+
+    ///latin indices run from 1-4
+    for(int i=1; i < 4; i++)
+    {
+        ///https://arxiv.org/pdf/gr-qc/0703035.pdf 4.45
+        ret[i, 0] = lower_gB[i - 1];
+        ret[0, i] = ret[i, 0]; ///symmetry
+    }
+
+    for(int i=1; i < 4; i++)
+    {
+        for(int j=1; j < 4; j++)
+        {
+            ret[i, j] = adm[i-1, j-1];
+        }
+    }
+
+    return ret;
+}
+```
+
+The ADM variables are constructed via a trilinear interpolation, which is terribly unexciting:
+
+```c++
+
+adm_variables admf_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
+{
+    using namespace single_source;
+
+    auto Yij_at = [&](v3i pos) {
+        return adm_at(pos, dim, in).Yij;
+    };
+
+    auto Kij_at = [&](v3i pos) {
+        return adm_at(pos, dim, in).Kij;
+    };
+
+    auto gA_at = [&](v3i pos) {
+        return adm_at(pos, dim, in).gA;
+    };
+
+    auto gB_at = [&](v3i pos) {
+        return adm_at(pos, dim, in).gB;
+    };
+
+    adm_variables out;
+    out.Yij = function_trilinear(Yij_at, pos);
+    out.Kij = function_trilinear(Kij_at, pos);
+    out.gA = function_trilinear(gA_at, pos);
+    out.gB = function_trilinear(gB_at, pos);
+
+    pin(out.Yij);
+    pin(out.Kij);
+    pin(out.gA);
+    pin(out.gB);
+
+    return out;
+}
+```
+
+### Raytracing
+
+The basic form of any raytracing scheme is as follows:
+
+Todo: Initialisation, raytracing, rasterisation
 
 # Accurate rendering
+
+geodesic equation wooooooooooo i'm too tired for this
 
 # Results
 
@@ -219,6 +469,6 @@ v(t + \Delta t) &= v(t + \frac{1}{2}\Delta t) +\frac{1}{2} a(t + \Delta t) \Delt
 
 ## Why not timelike geodesics?
 
-While the ADM equations of motion presented in this article are applicable to timelike geodesics, in practice integrating them into a simulation is radically different than what you'd do for lightlike geodesics. Its sufficiently different that - beyond the specific equations themselves - there's little commonality in terms of implementation. We'll be doing timelike geodesics when we hit N-body particle dynamics
+While the ADM equations of motion presented in this article are applicable to timelike geodesics, in practice integrating them into a simulation is radically different than what you'd do for lightlike geodesics. Its sufficiently different that - beyond the specific equations themselves - there's little commonality in terms of implementation. We'll be doing timelike geodesics when we hit N-body particle dynamics - likely in a few articles time
 
 # Addendum (texture filtering?)
