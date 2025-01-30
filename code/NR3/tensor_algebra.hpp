@@ -323,6 +323,7 @@ tensor<valuef, 4> get_adm_hypersurface_normal_lowered(const valuef& gA)
 
 ///X = W^2
 ///dx = 2 dW W
+///https://arxiv.org/pdf/1202.1038 a3
 template<typename T>
 inline
 tensor<T, 3, 3, 3> get_full_christoffel2(const T& W, const tensor<T, 3>& dW, const metric<T, 3, 3>& cY, const inverse_metric<T, 3, 3>& icY, tensor<T, 3, 3, 3>& christoff2)
