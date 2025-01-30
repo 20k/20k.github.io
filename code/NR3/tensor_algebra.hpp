@@ -275,16 +275,11 @@ tensor<T, N, N> lower_both(const tensor<T, N, N>& mT, const metric<T, N, N>& met
 inline
 metric<valuef, 4, 4> calculate_real_metric(const metric<valuef, 3, 3>& adm, const valuef& gA, const tensor<valuef, 3>& gB)
 {
-    tensor<valuef, 3> lower_gB = lower_index(gB, adm, 0);
+    tensor<valuef, 3> gB_lower = lower_index(gB, adm, 0);
 
     metric<valuef, 4, 4> ret;
 
-    valuef gB_sum = 0;
-
-    for(int i=0; i < 3; i++)
-    {
-        gB_sum = gB_sum + lower_gB[i] * gB[i];
-    }
+    valuef gB_sum = sum_multiply(gB_lower, gB);
 
     ///https://arxiv.org/pdf/gr-qc/0703035.pdf 4.43
     ret[0, 0] = -gA * gA + gB_sum;
@@ -293,7 +288,7 @@ metric<valuef, 4, 4> calculate_real_metric(const metric<valuef, 3, 3>& adm, cons
     for(int i=1; i < 4; i++)
     {
         ///https://arxiv.org/pdf/gr-qc/0703035.pdf 4.45
-        ret[i, 0] = lower_gB[i - 1];
+        ret[i, 0] = gB_lower[i - 1];
         ret[0, i] = ret[i, 0]; ///symmetry
     }
 
