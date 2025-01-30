@@ -33,31 +33,49 @@ adm_variables admf_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 {
     using namespace single_source;
 
-    auto Yij_at = [&](v3i pos)
+    adm_variables out;
+
+    auto cY_at = [&](v3i pos)
     {
-        return adm_at(pos, dim, in).Yij;
+        return bssn_at(pos, dim, in).cY;
     };
 
-    auto Kij_at = [&](v3i pos)
+    auto W_at = [&](v3i pos)
     {
-        return adm_at(pos, dim, in).Kij;
+        return bssn_at(pos, dim, in).W;
+    };
+
+    auto cA_at = [&](v3i pos)
+    {
+        return bssn_at(pos, dim, in).cA;
+    };
+
+    auto K_at = [&](v3i pos)
+    {
+        return bssn_at(pos, dim, in).K;
     };
 
     auto gA_at = [&](v3i pos)
     {
-        return adm_at(pos, dim, in).gA;
+        return bssn_at(pos, dim, in).gA;
     };
 
     auto gB_at = [&](v3i pos)
     {
-        return adm_at(pos, dim, in).gB;
+        return bssn_at(pos, dim, in).gB;
     };
 
-    adm_variables out;
-    out.Yij = function_trilinear(Yij_at, pos);
-    out.Kij = function_trilinear(Kij_at, pos);
-    out.gA = function_trilinear(gA_at, pos);
-    out.gB = function_trilinear(gB_at, pos);
+    auto cY = function_trilinear(cY_at, pos);
+    auto cA = function_trilinear(cA_at, pos);
+    auto W = function_trilinear(W_at, pos);
+    auto K = function_trilinear(K_at, pos);
+    auto gA = function_trilinear(gA_at, pos);
+    auto gB = function_trilinear(gB_at, pos);
+
+    out.Yij.from_tensor(cY.to_tensor() / (W*W));
+    out.Kij = (cA + cY.to_tensor() * (K/3.f)) / (W*W);
+    out.gA = gA;
+    out.gB = gB;
 
     pin(out.Yij);
     pin(out.Kij);
