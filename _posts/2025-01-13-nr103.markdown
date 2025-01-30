@@ -328,6 +328,8 @@ With all of this together, Verlet is about 3-5x better than Euler in terms of st
 
 The setup in this segment is straightforward. The only thing that we do differently in this article is construct the 4-metric from the bssn variables. See todo: this article for more details
 
+This is the full routine that I use for the metric $g_{\mu\nu}$ calculation:
+
 ```c++
 auto get_metric = [](v4f position, bssn_args_mem<buffer<valuef>> in, literal<v3i> dim, literal<valuef> scale)
 {
@@ -348,34 +350,7 @@ auto get_metric = [](v4f position, bssn_args_mem<buffer<valuef>> in, literal<v3i
 };
 ```
 
-Converting the ADM variables from the BSSN variables works as follows:
-
-```c++
-adm_variables bssn_to_adm(const bssn_args& args)
-{
-    adm_variables ret;
-
-    ret.Yij.from_tensor(args.cY.to_tensor() / (args.W * args.W));
-    ret.Kij = (args.cA / (args.W * args.W)) + ret.Yij.to_tensor() * (args.K / 3.f);
-
-    ret.gA = args.gA;
-    ret.gB = args.gB;
-
-    return ret;
-}
-
-
-adm_variables adm_at(v3i pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
-{
-    using namespace single_source;
-
-    bssn_args args(pos, dim, in);
-
-    return bssn_to_adm(args);
-}
-```
-
-With the 4-metric being constructed as such:
+Where 4-metric can be calculated from the ADM variables as follows:
 
 ```c++
 metric<valuef, 4, 4> calculate_real_metric(const metric<valuef, 3, 3>& adm, const valuef& gA, const tensor<valuef, 3>& gB)
@@ -414,35 +389,50 @@ metric<valuef, 4, 4> calculate_real_metric(const metric<valuef, 3, 3>& adm, cons
 }
 ```
 
-The ADM variables are constructed via a trilinear interpolation, which is terribly unexciting:
+And here I construct the ADM variables from the interpolated BSSN variables, via a standard trilinear interpolation:
 
 ```c++
-
 adm_variables admf_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 {
     using namespace single_source;
 
-    auto Yij_at = [&](v3i pos) {
-        return adm_at(pos, dim, in).Yij;
+    adm_variables out;
+
+    auto cY_at = [&](v3i pos) {
+        return bssn_at(pos, dim, in).cY;
     };
 
-    auto Kij_at = [&](v3i pos) {
-        return adm_at(pos, dim, in).Kij;
+    auto W_at = [&](v3i pos) {
+        return bssn_at(pos, dim, in).W;
+    };
+
+    auto cA_at = [&](v3i pos) {
+        return bssn_at(pos, dim, in).cA;
+    };
+
+    auto K_at = [&](v3i pos) {
+        return bssn_at(pos, dim, in).K;
     };
 
     auto gA_at = [&](v3i pos) {
-        return adm_at(pos, dim, in).gA;
+        return bssn_at(pos, dim, in).gA;
     };
 
     auto gB_at = [&](v3i pos) {
-        return adm_at(pos, dim, in).gB;
+        return bssn_at(pos, dim, in).gB;
     };
 
-    adm_variables out;
-    out.Yij = function_trilinear(Yij_at, pos);
-    out.Kij = function_trilinear(Kij_at, pos);
-    out.gA = function_trilinear(gA_at, pos);
-    out.gB = function_trilinear(gB_at, pos);
+    auto cY = function_trilinear(cY_at, pos);
+    auto cA = function_trilinear(cA_at, pos);
+    auto W = function_trilinear(W_at, pos);
+    auto K = function_trilinear(K_at, pos);
+    auto gA = function_trilinear(gA_at, pos);
+    auto gB = function_trilinear(gB_at, pos);
+
+    out.Yij.from_tensor(cY.to_tensor() / (W*W));
+    out.Kij = (cA + cY.to_tensor() * (K/3.f)) / (W*W);
+    out.gA = gA;
+    out.gB = gB;
 
     pin(out.Yij);
     pin(out.Kij);
@@ -457,7 +447,7 @@ adm_variables admf_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 
 The basic form of any raytracing scheme is as follows:
 
-Todo: Initialisation, raytracing, rasterisation
+show loop structure
 
 # Accurate rendering
 
