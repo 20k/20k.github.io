@@ -661,14 +661,56 @@ auto get_state = [&](v3f position) -> trace3_state
     out.cY = cY;
     out.Kij = args.Kij;
     out.gA = args.gA;
-    out.gB = args.gB;
-    out.grid_position = grid_position;
+    out.gB = args.gB
+    out.grid_position = grid_position
+    return out
+}
+```
+We take advantage here of the fact that we have the derivaties available, as a by product of the main simulation
 
-    return out;
-};
+### Rendering
+
+The actual rasterisation in this article simply looks up the background colour from a texture by converting our final position (which is in cartesian coordinates, of the form $(t, x, y, z)$) into an angle $(\theta, \phi)$. This is fundamentally identical to the approach described in previous articles. I should note that for this article I took the time to implement some high quality 32x anisotropic filtering on the GPU, but the description of it has nothing to do with general relativity and is just used to improve the final texture quality
+
+One trick to improve the quality of the rendering is to find the exact intersection point between the ray when it terminates, and the virtual sphere that the rays terminate at. Performing this correct is a basic ray - sphere intersection:
+
+```c++
+v3f fix_ray_position_cart(v3f cartesian_pos, v3f cartesian_velocity, float sphere_radius)
+{
+    using namespace single_source;
+
+    cartesian_velocity = cartesian_velocity.norm();
+
+    v3f C = (v3f){0,0,0};
+
+    valuef a = 1;
+    valuef b = 2 * dot(cartesian_velocity, (cartesian_pos - C));
+    valuef c = dot(C, C) + dot(cartesian_pos, cartesian_pos) - 2 * dot(cartesian_pos, C) - sphere_radius * sphere_radius;
+
+    valuef discrim = b*b - 4 * a * c;
+
+    valuef t0 = (-b - sqrt(discrim)) / (2 * a);
+    valuef t1 = (-b + sqrt(discrim)) / (2 * a);
+
+    valuef my_t = ternary(fabs(t0) < fabs(t1), t0, t1);
+
+    v3f result_good = cartesian_pos + my_t * cartesian_velocity;
+
+    return ternary(discrim >= 0, result_good, cartesian_pos);
+}
 ```
 
-show loop structure
+## Results:
+
+With all of this implemented, we get the following picture on the initial slice:
+
+todo: pic
+
+As well as this view of an inspiral:
+
+Todo: video
+
+While this is an inaccurate view, it is extremely useful for debugging. Given that it takes ~55ms/frame, its fast enough that we can use it to debug problems - and it essentially shows us an approximate view of the black hole's on every slice. Plus its just less horrible to look at than the old 2d slice
 
 # Accurate rendering
 
@@ -680,6 +722,6 @@ geodesic equation wooooooooooo i'm too tired for this
 
 ## Why not timelike geodesics?
 
-While the ADM equations of motion presented in this article are applicable to timelike geodesics, in practice integrating them into a simulation is radically different than what you'd do for lightlike geodesics. Its sufficiently different that - beyond the specific equations themselves - there's little commonality in terms of implementation. We'll be doing timelike geodesics when we hit N-body particle dynamics - likely in a few articles time
+While the ADM equations of motion presented in this article are applicable to timelike geodesics, in practice integrating them into a simulation is radically different than what you'd do for lightlike geodesics. Its sufficiently different that - beyond the specific equations themselves - there's very little commonality in terms of implementation - and we'll need a totally different setup. We'll be doing timelike geodesics when we hit N-body particle dynamics - likely in a few articles time
 
 # Addendum (texture filtering?)
