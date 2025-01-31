@@ -493,11 +493,13 @@ void trace3(execution_context& ectx, literal<v2i> screen_sizel,
 
         valuef radius_sq = dot(cposition, cposition);
 
+        //terminate if we're out of the sim
         if_e(radius_sq > UNIVERSE_SIZE*UNIVERSE_SIZE, [&] {
             as_ref(result) = valuei(1);
             break_e();
         });
 
+        //terminate if our rays become non finite
         if_e(!isfinite(cvelocity.x()) || !isfinite(cvelocity.y()) || !isfinite(cvelocity.z()), [&]{
             as_ref(result) = valuei(0);
             break_e();
@@ -505,6 +507,7 @@ void trace3(execution_context& ectx, literal<v2i> screen_sizel,
 
         v3f diff = ctx.next(get_dX, get_dV, get_dS, get_state, fix_velocity);
 
+        //terminate if the movement of our ray through coordinate space becomes trapped, its likely hit an event horizon
         if_e(diff.squared_length() < 0.1f * 0.1f, [&]
         {
             as_ref(result) = valuei(0);
