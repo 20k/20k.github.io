@@ -736,8 +736,7 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
     v4f pos_in = declare_e(positions[screen_position, screen_size]);
     v4f vel_in = declare_e(velocities[screen_position, screen_size]);
 
-    auto world_to_grid4 = [&](v4f position)
-    {
+    auto world_to_grid4 = [&](v4f position) {
         v3f grid_position = world_to_grid(position.yzw(), dim.get(), scale.get());
         valuef grid_t_frac = position.x() / last_time.get();
         valuef grid_t = grid_t_frac * (valuef)last_slice.get();
@@ -755,24 +754,20 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
         return grid_fpos;
     };
 
-    auto get_dX = [&](v4f position, v4f velocity, trace4_state st)
-    {
+    auto get_dX = [&](v4f position, v4f velocity, trace4_state st) {
         return velocity;
     };
 
-    auto get_dV = [&](v4f position, v4f velocity, trace4_state st)
-    {
+    auto get_dV = [&](v4f position, v4f velocity, trace4_state st) {
         v4f grid_fpos = world_to_grid4(position);
 
-        auto get_Guvb = [&](v4i pos)
-        {
+        auto get_Guvb = [&](v4i pos) {
             auto v = Guv_at(pos, dim.get(), Guv_buf, last_slice.get());
             pin(v);
             return v;
         };
 
-        auto get_guv_at = [&](v4f fpos)
-        {
+        auto get_guv_at = [&](v4f fpos) {
             return function_quadlinear(get_Guvb, fpos);
         };
 
@@ -848,18 +843,15 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
         return accel;
     };
 
-    auto get_dS = [&](v4f position, v4f velocity, v4f acceleration, trace4_state st)
-    {
-        return acceleration_to_precision(acceleration, 0.00025f);
+    auto get_dS = [&](v4f position, v4f velocity, v4f acceleration, trace4_state st) {
+        return acceleration_to_precision(acceleration, 0.0002f);
     };
 
-    auto get_state = [](v4f position)
-    {
+    auto get_state = [](v4f position) {
         return trace4_state();
     };
 
-    auto velocity_process = [](v4f v, const trace4_state& st)
-    {
+    auto velocity_process = [](v4f v, const trace4_state& st) {
         return v;
     };
 
@@ -867,41 +859,34 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
     ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS, get_state);
 
     mut<valuei> result = declare_mut_e(valuei(2));
-    v4f final_position;
-    v4f final_velocity;
+    mut<valuei> idx = declare_mut_e("i", valuei(0));
 
-    ///todo: I think what's happening is that the clamping is breaking my time derivatives
-    ///which means we need to change the initial conditions to construct our rays from an earlier point, rather than from the end?
+    for_e(idx < 512, assign_b(idx, idx + 1), [&]
     {
-        mut<valuei> idx = declare_mut_e("i", valuei(0));
+        ctx.next(get_dX, get_dV, get_dS, get_state, velocity_process);
 
-        for_e(idx < 512, assign_b(idx, idx + 1), [&]
-        {
-            ctx.next(get_dX, get_dV, get_dS, get_state, velocity_process);
+        v4f cposition = as_constant(ctx.position);
+        v4f cvelocity = as_constant(ctx.velocity);
 
-            v4f cposition = as_constant(ctx.position);
-            v4f cvelocity = as_constant(ctx.velocity);
+        valuef radius_sq = dot(cposition.yzw(), cposition.yzw());
 
-            valuef radius_sq = dot(cposition.yzw(), cposition.yzw());
-
-            if_e(radius_sq > UNIVERSE_SIZE*UNIVERSE_SIZE, [&] {
-                //ray escaped
-                as_ref(result) = valuei(1);
-                break_e();
-            });
-
-            if_e(cposition.x() < -150 || fabs(cvelocity.x()) > 30 || cvelocity.yzw().squared_length() < 0.1f * 0.1f ||
-                 !isfinite(cposition.x()) || !isfinite(cposition.y()) || !isfinite(cposition.z()) || !isfinite(cposition.w()) ||
-                 !isfinite(cvelocity.x()) || !isfinite(cvelocity.y()) || !isfinite(cvelocity.z()) || !isfinite(cvelocity.w())
-                 , [&]{
-                as_ref(result) = valuei(0);
-                break_e();
-            });
+        if_e(radius_sq > UNIVERSE_SIZE*UNIVERSE_SIZE, [&] {
+            //ray escaped
+            as_ref(result) = valuei(1);
+            break_e();
         });
 
-        final_position = declare_e(ctx.position);
-        final_velocity = declare_e(ctx.velocity);
-    }
+        if_e(cposition.x() < -150 || fabs(cvelocity.x()) > 30 || cvelocity.yzw().squared_length() < 0.1f * 0.1f ||
+                !isfinite(cposition.x()) || !isfinite(cposition.y()) || !isfinite(cposition.z()) || !isfinite(cposition.w()) ||
+                !isfinite(cvelocity.x()) || !isfinite(cvelocity.y()) || !isfinite(cvelocity.z()) || !isfinite(cvelocity.w())
+                , [&]{
+            as_ref(result) = valuei(0);
+            break_e();
+        });
+    });
+
+    v4f final_position = declare_e(ctx.position);
+    v4f final_velocity = declare_e(ctx.velocity);
 
     auto get_Guvb = [&](v4i pos)
     {

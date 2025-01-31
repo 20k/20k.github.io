@@ -124,7 +124,7 @@ $V^\mu$ is the ray velocity which is tangent to our 3-surface, and has no compon
 So, for tracing a geodesic in the ADM formalism, we have two things
 
 1. A 4-position, which we've called $x^\mu$, and this paper calls $X^\mu$
-2. A 3-velocity $V^i$, which is the projection our 4-velocity onto our local hypersurface
+2. A 3-velocity $V^i$, which is the projection our 4-velocity onto our local hypersurface. Its important to note that this is *not* the derivative of $x^i$
 
 The 3-position of our ray's 4-position $x^\mu$ is trivially $x^i$
 
@@ -151,7 +151,7 @@ The only modifications we'll make are as follows:
 
 Note that unlike with regular geodesics, $V^i$ is *not* the velocity of $X^i$, which will complicate our lives
 
-# Implementation on a single slice
+# Approximate rendering on a single slice
 
 With the evolution equations in hand, we'll want to get to implementing. We're going to be using this just to produce a debug visualisation on a single slice. The reason why we won't be using this for our accurate raytracing, is that its much less memory efficient - which is something that will become apparently when we get there
 
@@ -700,7 +700,7 @@ v3f fix_ray_position_cart(v3f cartesian_pos, v3f cartesian_velocity, float spher
 }
 ```
 
-## Results:
+## Results
 
 With all of this implemented, we get the following picture on the initial slice:
 
@@ -714,14 +714,391 @@ While this is an inaccurate view, it is extremely useful for debugging. Given th
 
 # Accurate rendering
 
-geodesic equation wooooooooooo i'm too tired for this
+Up until now we've been largely doing all of this for the purposes of debugging, to make things less painful on the eyes when we're looking at these simulations and checking if they've gone horrendously wrong. If we want to perform an accurate rendering of a binary black hole collision, we're going to need to store the history of our simulation, so we can sample from earlier times as we raytrace backwards
 
-# Results
+## Design theory
+
+There two options for how we can produce an accurate rendering of numerical spacetimes:
+
+1. Store the ADM variables, and raytrace using the ADM geodesic equations
+2. Store the 4-metric, and raytrace using the geodesic equation
+
+### Pros of sticking with ADM
+
+1. The time derivatives are encoded in the ADM variables, eliminating calculating derivatives in the time dimension
+2. Likely fewer memory accesses overall
+3. We have well defined high quality derivatives at our simulation boundaries (in time)
+
+### Cons of sticking with ADM
+
+1. It requires storing 18 fields (6x Yij, 1x gA, 3x gB, 6x Kij) instead of 10 (Guv). We cannot eliminate Kij, as we have to take the derivatives of it, and it itself is constructed of derivatives. This is nearly twice the memory stored per-slice, and its not clear that it brings any benefit
+2. The ADM equations are non separable, and are more troublesome to integrate
+3. While we don't have to differentiate in the timelike direction, we still have to interpolate in it, which is similar in complexity
+4. The equations of motion have a higher computational complexity
+5. Neither technique can use the pre-calculated or stored derivatives as its too memory intensive, so we won't be able to reuse our existing code all that much
+6. Its more difficult to work with the ADM formalism compared to standard GR, and there is less information available on it. Unfortunately, there's only a small smattering of papers on integrating the ADM equations of motion for geodesics
+
+### Decision
+
+In the end, the memory consumption is going to be the limiting factor here, so we're going to change gears entirely to using the standard geodesic integration techniques. Its also important to note: whatever we do, the performance is going to be.. interesting as we attempt to trace through gigabytes of data, so we're focusing on offline rendering performance largely (though it'll still be interactive)
+
+If it seems disappointingly like we're chucking a lot of work into the bin: we're not. Both of these techniques have their places and are useful in different situations. We'll be implementing all of this for a third time in the future for N-body simulations: c'est la vie. And likely exploring other techniques in the future as well, for solving similar problems. Its delightful
+
+### Performance constraints
+
+Because geodesics travel at the speed of light, and our simulation is $30$ wide, it'll take $30$ + some trips around our black holes before rays are able to successfully pass by a black hole. This means that if our collision is roughly at ~$t=todo$, we'll need to have data until ~$t=240$ to account for the delay in causality as we raytrace light rays
+
+I've got about 12 GB of vram to work with here[^overcommit], so lets put some numbers in here and work out some of our constraints. If we're using single[^half] precision, and assume that roughly ~2 units of time between snapshots is good enough (though you can get away with less), our maximum vram consumption is
+
+[^half]: If you're thinking about half precision, its too low quality unfortunately. It results in a simulation that looks like its underwater. If you're determined to try, consider applying the idea behind [(3)](https://arxiv.org/pdf/2404.01137), ie subtract out the identity matrix from $g_{\mu\nu}$ to improve precision, or use 16-bit fixed point. I haven't tested either yet and would be interested to know if you do
+
+[^overcommit]: You can overcommit but it'll destroy your performance trying to keep that much memory resident simultaneously. Overcommit does play out in our favour though. If you're thinking that having our giant vram buffer, *and* our giant bssn state + derivatives allocated all simultaneously will destroy performance, amazingly enough it actually works out perfectly. As far as I can tell, the GPU driver bumps our simulation's giant history onto the CPU, while the BSSN evolution equations are stored on the GPU. It seems that because we only write to the simulation history while actively simulating (and periodically at that), it simply performs the writes across pcie. This is much better than ending up with a gigantic hitch as 10+ GB of data are streamed onto the GPU. Its a very interesting performance testcase, and it results in virtually 0 overhead in this technique and allows us to get much higher quality results than if we had to keep all data truly resident
+
+`10 (fields) * 4 (sizeof(float)) * dim^3 * snapshot_count (=120)`
+
+If we were to naively snap at our native grid res of $213^3$, this would take up 46 GB. This is - how you would say - bad
+
+Instead, solving for 12 GB, we get a maximum resolution of ~$138^3$. In practice, I pick a lower value, because allocating allocating all of your vram is liable to cause Problems[^desktop], so I'm slightly arbitrarily picking $101^3$. Luckily, this is good-enough resolution wise, both in time and space. Note that
+
+[^desktop]: I run these simulations on my desktop pc, and believe me when I say I'd go absolutely bonkers if I couldn't use it while recording hours of footage for these articles
+
+## Theory
+
+The geodesic equation is pretty straightforward compared to the ADM geodesic equations. Given a position $x^\mu$, our velocity is $\frac{dx^\mu}{d\lambda}$. We'll straightforwardly calculate the christoffel symbols of the second kind via the usual equation:
+
+$$ \Gamma^\mu_{\alpha\beta} = \frac{1}{2} g^{\mu\sigma} (\partial_\beta g_{\sigma\alpha} + \partial_\alpha g_{\sigma\beta} - \partial_\sigma g_{\alpha\beta})$$
+
+Then plug it into the geodesic equation that we listed earlier
+
+Lets run through the major steps now:
+
+1. Taking our simulation snapshots and downsampling
+2. Implementing the geodesic equation
+
+## Snapshots
+
+```c++
+void bssn_to_guv(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> lower_dim,
+                 bssn_args_mem<buffer<valuef>> in,
+                 std::array<buffer_mut<block_precision_t>, 10> Guv, literal<value<uint64_t>> slice)
+{
+    using namespace single_source;
+
+    valuei x = value_impl::get_global_id(0);
+    valuei y = value_impl::get_global_id(1);
+    valuei z = value_impl::get_global_id(2);
+
+    pin(x);
+    pin(y);
+    pin(z);
+
+    if_e(x >= lower_dim.get().x() || y >= lower_dim.get().y() || z >= lower_dim.get().z(), [&]{
+        return_e();
+    });
+
+    v3i pos_lo = {x, y, z};
+
+    auto get_metric = [&](v3i posu)
+    {
+        bssn_args args(posu, upper_dim.get(), in);
+
+        metric<valuef, 3, 3> Yij = args.cY / max(args.W * args.W, valuef(0.0001f));
+
+        metric<valuef, 4, 4> met = calculate_real_metric(Yij, args.gA, args.gB);
+
+        pin(met);
+
+        return met;
+    };
+
+    v3i centre_lo = (lower_dim.get() - 1)/2;
+    v3i centre_hi = (upper_dim.get() - 1)/2;
+
+    valuef to_upper = (valuef)centre_hi.x() / (valuef)centre_lo.x();
+
+    v3f f_upper = (v3f)pos_lo * to_upper;
+
+    metric<valuef, 4, 4> met = function_trilinear(get_metric, f_upper);
+
+    vec2i indices[10] = {
+        {0, 0}, {1, 0}, {2, 0}, {3, 0},
+        {1, 1}, {2, 1}, {3, 1},
+        {2, 2}, {3, 2},
+        {3, 3},
+    };
+
+    tensor<value<uint64_t>, 3> p = (tensor<value<uint64_t>, 3>)pos_lo;
+    tensor<value<uint64_t>, 3> d = (tensor<value<uint64_t>, 3>)lower_dim.get();
+
+    for(int i=0; i < 10; i++)
+    {
+        vec2i idx = indices[i];
+
+        value<uint64_t> lidx = p.z() * d.x() * d.y() + p.y() * d.x() + p.x() + slice.get() * d.x() * d.y() * d.z();
+
+        as_ref(Guv[i][lidx]) = (block_precision_t)met[idx.x(), idx.y()];
+    }
+}
+```
+
+This function performs the downsampling and metric calculation in a single step. It operates over the downsampled grid resolution, performing a trilinear interpolation of the upper grid variables, and converting them to the 4-metric. This interpolation is only linear, which is likely a potential point of improvement for getting the most of our grid resolution. As we're poking into offsets of more than 2GB, its important to make sure you're using 64bit indexing
+
+One thing that is unsupported here is a change in the observable simulation size, here fixed to $30$. It may help you get the best bang for your buck if you want to use even lower resolutions
+
+## Geodesic tracing
+
+The basic structure of our geodesic tracing is identical to the ADM geodesic case:
+
+```c++
+
+void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
+            buffer_mut<v4f> positions, buffer_mut<v4f> velocities,
+            buffer_mut<valuei> results, buffer_mut<valuef> zshift,
+            literal<v3i> dim,
+            literal<valuef> scale,
+            buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
+            std::array<buffer<block_precision_t>, 10> Guv_buf,
+            literal<valuef> last_time,
+            literal<valuei> last_slice,
+            literal<valuef> slice_width)
+{
+    using namespace single_source;
+
+    if_e(last_slice.get() == 0, [&]{
+        return_e();
+    });
+
+    valuei x = value_impl::get_global_id(0);
+    valuei y = value_impl::get_global_id(1);
+
+    //get_global_id() is not a const function, so assign it to an unnamed variable to avoid compilers repeatedly evaluating it
+    pin(x);
+    pin(y);
+
+    v2i screen_size = screen_sizel.get();
+
+    if_e(y >= screen_size.y(), [&] {
+        return_e();
+    });
+
+    if_e(x >= screen_size.x(), [&] {
+        return_e();
+    });
+
+    v2i screen_position = {x, y};
+
+    v4f pos_in = declare_e(positions[screen_position, screen_size]);
+    v4f vel_in = declare_e(velocities[screen_position, screen_size]);
+
+    <State Update Functions Go Here>
+
+    verlet_context<valuef, 4> ctx;
+    ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS, get_state);
+
+    mut<valuei> result = declare_mut_e(valuei(2));
+    mut<valuei> idx = declare_mut_e("i", valuei(0));
+
+    for_e(idx < 512, assign_b(idx, idx + 1), [&]
+    {
+        ctx.next(get_dX, get_dV, get_dS, get_state, velocity_process);
+
+        v4f cposition = as_constant(ctx.position);
+        v4f cvelocity = as_constant(ctx.velocity);
+
+        valuef radius_sq = dot(cposition.yzw(), cposition.yzw());
+
+        if_e(radius_sq > UNIVERSE_SIZE*UNIVERSE_SIZE, [&] {
+            //ray escaped
+            as_ref(result) = valuei(1);
+            break_e();
+        });
+
+        if_e(cposition.x() < -150 || fabs(cvelocity.x()) > 30 || cvelocity.yzw().squared_length() < 0.1f * 0.1f ||
+                !isfinite(cposition.x()) || !isfinite(cposition.y()) || !isfinite(cposition.z()) || !isfinite(cposition.w()) ||
+                !isfinite(cvelocity.x()) || !isfinite(cvelocity.y()) || !isfinite(cvelocity.z()) || !isfinite(cvelocity.w())
+                , [&]{
+            as_ref(result) = valuei(0);
+            break_e();
+        });
+    });
+
+    v4f final_position = declare_e(ctx.position);
+    v4f final_velocity = declare_e(ctx.velocity);
+
+    auto get_Guvb = [&](v4i pos) {
+        auto val = Guv_at(pos, dim.get(), Guv_buf, last_slice.get());
+        pin(val);
+        return val;
+    };
+
+    auto position_to_metric = [&](v4f fpos) {
+        auto val = function_quadlinear(get_Guvb, world_to_grid4(fpos));
+        pin(val);
+        return val;
+    };
+
+    valuef zp1 = get_zp1(pos_in, vel_in, e0[0], final_position, final_velocity, (v4f){1, 0, 0, 0}, position_to_metric);
+
+    as_ref(results[screen_position, screen_size]) = as_constant(result);
+    as_ref(zshift[screen_position, screen_size]) = zp1 - 1;
+    as_ref(positions[screen_position, screen_size]) = final_position;
+    as_ref(velocities[screen_position, screen_size]) = final_velocity;
+}
+```
+
+Once difference is that I've chosen to calculate redshift, as it now has a physically meaningful value. Additionally, the ray breaking constraints are different: notably, we use the divergence of the time coordinate as our metric for if a ray is trapped on the event horizon, as well as the change in coordinate space
+
+Other than that, its nearly identical. The update functions are as follows:
+
+```c++
+auto world_to_grid4 = [&](v4f position) {
+    v3f grid_position = world_to_grid(position.yzw(), dim.get(), scale.get());
+    valuef grid_t_frac = position.x() / last_time.get();
+    valuef grid_t = grid_t_frac * (valuef)last_slice.get();
+
+    pin(grid_t);
+
+    grid_t = ternary(last_slice.get() >= 5,
+                        clamp(grid_t, valuef(1), (valuef)last_slice.get() - 3),
+                        grid_t);
+
+    grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
+    pin(grid_position);
+
+    v4f grid_fpos = (v4f){grid_t, grid_position.x(), grid_position.y(), grid_position.z()};
+    return grid_fpos;
+};
+
+auto get_dX = [&](v4f position, v4f velocity, trace4_state st) {
+    return velocity;
+};
+
+auto get_dV = [&](v4f position, v4f velocity, trace4_state st) {
+    v4f grid_fpos = world_to_grid4(position);
+
+    auto get_Guvb = [&](v4i pos) {
+        auto v = Guv_at(pos, dim.get(), Guv_buf, last_slice.get());
+        pin(v);
+        return v;
+    };
+
+    auto get_guv_at = [&](v4f fpos) {
+        return function_quadlinear(get_Guvb, fpos);
+    };
+
+    auto Guv = get_guv_at(grid_fpos);
+
+    tensor<valuef, 4, 4, 4> dGuv;
+
+    for(int m=0; m < 4; m++)
+    {
+        v4f dir;
+        dir[m] = 1;
+
+        valuef divisor = 2 * scale.get();
+
+        if(m == 0)
+            divisor = 2 * slice_width.get();
+
+        v4f p1 = grid_fpos + dir;
+        v4f p2 = grid_fpos - dir;
+
+        pin(p1);
+        pin(p2);
+
+        auto g1 = get_guv_at(p1);
+        pin(g1);
+
+        auto g2 = get_guv_at(p2);
+        pin(g2);
+
+        auto diff = g1 - g2;
+        pin(diff);
+
+        auto val = diff / divisor;
+
+        for(int i=0; i < 4; i++)
+        {
+            for(int j=0; j < 4; j++)
+            {
+                dGuv[m, i, j] = val[i, j];
+            }
+        }
+    }
+
+    pin(Guv);
+    pin(dGuv);
+
+    //4x4 matrix inversion
+    auto iGuv = Guv.invert();
+    //pin(iGuv);
+
+    auto christoff2 = christoffel_symbols_2(iGuv, dGuv);
+    pin(christoff2);
+
+    v4f accel;
+
+    for(int uu=0; uu < 4; uu++)
+    {
+        valuef sum = 0;
+
+        for(int aa = 0; aa < 4; aa++)
+        {
+            for(int bb = 0; bb < 4; bb++)
+            {
+                sum += velocity[aa] * velocity[bb] * christoff2[uu, aa, bb];
+            }
+        }
+
+        accel[uu] = -sum;
+    }
+
+    pin(accel);
+
+    return accel;
+};
+
+auto get_dS = [&](v4f position, v4f velocity, v4f acceleration, trace4_state st) {
+    return acceleration_to_precision(acceleration, 0.0002f);
+};
+
+auto get_state = [](v4f position) {
+    return trace4_state();
+};
+
+auto velocity_process = [](v4f v, const trace4_state& st) {
+    return v;
+};
+```
+
+We have a very unfortunate performance combo here: 4d quadralinear interpolation, and using that to calculate numerical derivatives. This is not good for performance, unsurprisingly. For simplicitly I'm relying on the GPUs cache[^cache] - its likely we could get better performance if we laid this all out by hand and eliminated the redundant memory accesses. Given that the goal is not super high performance here, I've chosen to invest in my sanity instead
+
+[^cache]: Interestingly, this pattern might run terribly on datacentre GPUs which don't have an l3 cache
+
+One thing to note is: until our simulation has sufficient history available, our derivatives on the 0th slice will be gibberish. Even with one sided derivatives, they'll be inaccurate. I've chosen to implement some clamping once we have *some* derivatives available, but until our rays have enough history available (~$t=40$), we'll get inaccurate results
+
+## Host side
+
+The way I run these rasterisations is to fully run the simulation until ~$t=240$, pause it, and then run the camera on its own frametime-dependent timer to do the full rasterisation. This allows the GPU to page out all our BSSN variables and derivatives, and page in the full metric data instead for much better rendering performance
+
+The driver for the host side of things isn't very interesting otherwise, and can be found over here: todo
+
+## Results
+
+With this implemented, our first frame looks like this:
+
+todo: garbage
+
+As a video, we get this:
+
+Which is pretty great once the history fills in. Performance here is todo/frame, which is absolutely fine for producing videos or the occasional debugging
 
 # Discussion
+
+Overall, I'm extremely happy with the results here. The debugging single-slice raytracing case is incredibly helpful for visualising errors with the black holes as they travel about, and the accurate raytracer has virtually 0 overhead even when unused. It also runs fast-enough that it isn't too painful to use, which is more than good enough
+
+# Addendum
 
 ## Why not timelike geodesics?
 
 While the ADM equations of motion presented in this article are applicable to timelike geodesics, in practice integrating them into a simulation is radically different than what you'd do for lightlike geodesics. Its sufficiently different that - beyond the specific equations themselves - there's very little commonality in terms of implementation - and we'll need a totally different setup. We'll be doing timelike geodesics when we hit N-body particle dynamics - likely in a few articles time
-
-# Addendum (texture filtering?)
