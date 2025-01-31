@@ -405,13 +405,13 @@ struct trace3_state
 };
 
 void trace3(execution_context& ectx, literal<v2i> screen_sizel,
-                     literal<v4f> camera_quat,
-                     buffer_mut<v4f> positions, buffer_mut<v4f> velocities,
-                     buffer_mut<valuei> results, buffer_mut<valuef> zshift,
-                     literal<v3i> dim,
-                     literal<valuef> scale,
-                     bssn_args_mem<buffer<valuef>> in,
-                     bssn_derivatives_mem<buffer<derivative_t>> derivatives)
+            literal<v4f> camera_quat,
+            buffer_mut<v4f> positions, buffer_mut<v4f> velocities,
+            buffer_mut<valuei> results, buffer_mut<valuef> zshift,
+            literal<v3i> dim,
+            literal<valuef> scale,
+            bssn_args_mem<buffer<valuef>> in,
+            bssn_derivatives_mem<buffer<derivative_t>> derivatives)
 {
     using namespace single_source;
 
@@ -438,13 +438,9 @@ void trace3(execution_context& ectx, literal<v2i> screen_sizel,
     v3f vel_in = declare_e(velocities[screen_position, screen_size]).yzw();
 
     mut<valuei> result = declare_mut_e(valuei(2));
-    v3f final_position;
-    v3f final_velocity = declare_e((v3f){});
 
     auto fix_velocity = [](v3f velocity, const trace3_state& args)
     {
-        //return velocity;
-
         auto cY = args.cY;
         auto W = args.W;
 
@@ -615,13 +611,11 @@ void trace3(execution_context& ectx, literal<v2i> screen_sizel,
         });
     });
 
-    final_position = declare_e(ctx.position);
-    final_velocity = declare_e(ctx.velocity);
-
-    v3f vel = declare_e(final_velocity);
+    v3f final_position = declare_e(ctx.position);
+    v3f final_velocity = declare_e(ctx.velocity);
 
     as_ref(positions[screen_position, screen_size]) = (v4f){0, final_position.x(), final_position.y(), final_position.z()};
-    as_ref(velocities[screen_position, screen_size]) = (v4f){0, vel.x(), vel.y(), vel.z()};
+    as_ref(velocities[screen_position, screen_size]) = (v4f){0, final_velocity.x(), final_velocity.y(), final_velocity.z()};
     as_ref(results[screen_position, screen_size]) = as_constant(result);
 }
 

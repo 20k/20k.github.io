@@ -440,7 +440,86 @@ adm_variables admf_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 
 ### Raytracing
 
-The basic form of any raytracing scheme is as follows:
+The basic form of our raytracing scheme is as follows:
+
+```c++
+
+void trace3(execution_context& ectx, literal<v2i> screen_sizel,
+            literal<v4f> camera_quat,
+            buffer_mut<v4f> positions, buffer_mut<v4f> velocities,
+            buffer_mut<valuei> results, buffer_mut<valuef> zshift,
+            literal<v3i> dim,
+            literal<valuef> scale,
+            bssn_args_mem<buffer<valuef>> in,
+            bssn_derivatives_mem<buffer<derivative_t>> derivatives)
+{
+    using namespace single_source;
+
+    valuei x = value_impl::get_global_id(0);
+    valuei y = value_impl::get_global_id(1);
+
+    //get_global_id() is not a const function, so assign it to an unnamed variable to avoid compilers repeatedly evaluating it
+    pin(x);
+    pin(y);
+
+    v2i screen_size = screen_sizel.get();
+
+    if_e(y >= screen_size.y(), [&] {
+        return_e();
+    });
+
+    if_e(x >= screen_size.x(), [&] {
+        return_e();
+    });
+
+    v2i screen_position = {x, y};
+
+    v3f pos_in = declare_e(positions[screen_position, screen_size]).yzw();
+    v3f vel_in = declare_e(velocities[screen_position, screen_size]).yzw();
+
+    mut<valuei> result = declare_mut_e(valuei(2));
+
+    <Todo: DEFINE get_dX, get_dV, get_dS, get_state here!>
+
+    verlet_context<valuef, 3> ctx;
+    ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS, get_state);
+
+    mut<valuei> idx = declare_mut_e("i", valuei(0));
+
+    for_e(idx < 512, assign_b(idx, idx + 1), [&]
+    {
+        v3f cposition = declare_e(ctx.position);
+        v3f cvelocity = declare_e(ctx.velocity);
+
+        valuef radius_sq = dot(cposition, cposition);
+
+        if_e(radius_sq > UNIVERSE_SIZE*UNIVERSE_SIZE, [&] {
+            as_ref(result) = valuei(1);
+            break_e();
+        });
+
+        if_e(!isfinite(cvelocity.x()) || !isfinite(cvelocity.y()) || !isfinite(cvelocity.z()), [&]{
+            as_ref(result) = valuei(0);
+            break_e();
+        });
+
+        v3f diff = ctx.next(get_dX, get_dV, get_dS, get_state, fix_velocity);
+
+        if_e(diff.squared_length() < 0.1f * 0.1f, [&]
+        {
+            as_ref(result) = valuei(0);
+            break_e();
+        });
+    });
+
+    v3f final_position = declare_e(ctx.position);
+    v3f final_velocity = declare_e(ctx.velocity);
+
+    as_ref(positions[screen_position, screen_size]) = (v4f){0, final_position.x(), final_position.y(), final_position.z()};
+    as_ref(velocities[screen_position, screen_size]) = (v4f){0, final_velocity.x(), final_velocity.y(), final_velocity.z()};
+    as_ref(results[screen_position, screen_size]) = as_constant(result);
+}
+```
 
 show loop structure
 
