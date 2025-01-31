@@ -318,7 +318,7 @@ struct verlet_context
 };
 ```
 
-Here, the timestep is called $ds$, and is assumed to be some function of position, velocity, and acceleration (we'll get around to timestepping very shortly). We also carry a state around, which is used to avoid reevaluating the same expression repeatedly
+Here, the timestep is called $ds$, and is assumed to be some function of position, velocity, and acceleration. We also carry a state around, which is used to avoid reevaluating the same expression repeatedly
 
 With all of this together, Verlet is about 3-5x better than Euler in terms of step size, for a similar cost of evaluating the equations - as we only evaluate the expensive part of $dV$ once per iteration. It does come with a register and compute penalty, but its worth the tradeoff
 
@@ -522,6 +522,150 @@ void trace3(execution_context& ectx, literal<v2i> screen_sizel,
     as_ref(velocities[screen_position, screen_size]) = (v4f){0, final_velocity.x(), final_velocity.y(), final_velocity.z()};
     as_ref(results[screen_position, screen_size]) = as_constant(result);
 }
+```
+
+This is the basic loop structure without the update functions to give you a basic idea of what we're looking at. The update functions are as follows:
+
+```c++
+//This enforces V_i V^i = 1
+auto fix_velocity = [](v3f velocity, const trace3_state& args)
+{
+    auto cY = args.cY;
+    auto W = args.W;
+
+    auto Yij = cY / (W*W);
+    //pin(Yij);
+
+    valuef length_sq = dot(velocity, Yij.lower(velocity));
+    valuef length = sqrt(fabs(length_sq));
+
+    velocity = velocity / length;
+
+    pin(velocity);
+
+    return velocity;
+};
+
+auto get_dX = [](v3f position, v3f velocity, const trace3_state& args)
+{
+    v3f d_X = args.gA * velocity - args.gB;
+    pin(d_X);
+
+    return d_X;
+};
+
+auto get_dV = [&](v3f position, v3f velocity, const trace3_state& args)
+{
+    v3f grid_position = args.grid_position;
+
+    auto dgA_at = [&](v3i pos) {
+        bssn_derivatives derivs(pos, dim.get(), derivatives);
+        return derivs.dgA;
+    };
+
+    auto dgB_at = [&](v3i pos) {
+        bssn_derivatives derivs(pos, dim.get(), derivatives);
+        return derivs.dgB;
+    };
+
+    auto dcY_at = [&](v3i pos) {
+        bssn_derivatives derivs(pos, dim.get(), derivatives);
+        return derivs.dcY;
+    };
+
+    auto dW_at = [&](v3i pos) {
+        bssn_derivatives derivs(pos, dim.get(), derivatives);
+        return derivs.dW;
+    };
+
+    tensor<valuef, 3> dgA = function_trilinear(dgA_at, grid_position);
+    tensor<valuef, 3, 3> dgB = function_trilinear(dgB_at, grid_position);
+    tensor<valuef, 3, 3, 3> dcY = function_trilinear(dcY_at, grid_position);
+    tensor<valuef, 3> dW = function_trilinear(dW_at, grid_position);
+
+    pin(dgA);
+    pin(dgB);
+    pin(dcY);
+    pin(dW);
+
+    auto cY = args.cY;
+    auto W = args.W;
+
+    auto icY = cY.invert();
+    pin(icY);
+
+    //much faster than calling args.Yij.invert()
+    auto iYij = icY * (W*W);
+
+    auto christoff2_cfl = christoffel_symbols_2(icY, dcY);
+    pin(christoff2_cfl);
+
+    auto christoff2 = get_full_christoffel2(W, dW, cY, icY, christoff2_cfl);
+    pin(christoff2);
+
+    tensor<valuef, 3> d_V;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            valuef kjvk = 0;
+
+            for(int k=0; k < 3; k++)
+            {
+                kjvk += args.Kij[j, k] * velocity[k];
+            }
+
+            valuef christoffel_sum = 0;
+
+            for(int k=0; k < 3; k++)
+            {
+                christoffel_sum += christoff2[i, j, k] * velocity[k];
+            }
+
+            valuef dlog_gA = dgA[j] / args.gA;
+
+            d_V[i] += args.gA * velocity[j] * (velocity[i] * (dlog_gA - kjvk) + 2 * raise_index(args.Kij, iYij, 0)[i, j] - christoffel_sum)
+                    - iYij[i, j] * dgA[j] - velocity[j] * dgB[j, i];
+
+        }
+    }
+
+    return d_V;
+};
+
+auto get_dS = [&](v3f position, v3f velocity, v3f acceleration, const trace3_state& args)
+{
+    //timestepping is proportional to W*W, as ~W is a good metric of how close we are to the black hole
+    return -3.5f * get_ct_timestep(position, velocity, args.W);
+};
+
+auto get_state = [&](v3f position) -> trace3_state
+{
+    trace3_state out;
+
+    v3f grid_position = world_to_grid(position, dim.get(), scale.get());
+
+    grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
+    pin(grid_position);
+
+    auto W = W_f_at(grid_position, dim.get(), in);
+    auto cY = cY_f_at(grid_position, dim.get(), in);
+
+    pin(W);
+    pin(cY);
+
+    adm_variables args = admf_at(grid_position, dim.get(), in);
+
+    out.W = W;
+    out.cY = cY;
+    out.Kij = args.Kij;
+    out.gA = args.gA;
+    out.gB = args.gB;
+    out.grid_position = grid_position;
+
+    return out;
+};
 ```
 
 show loop structure

@@ -35,33 +35,27 @@ adm_variables admf_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 
     adm_variables out;
 
-    auto cY_at = [&](v3i pos)
-    {
+    auto cY_at = [&](v3i pos) {
         return bssn_at(pos, dim, in).cY;
     };
 
-    auto W_at = [&](v3i pos)
-    {
+    auto W_at = [&](v3i pos) {
         return bssn_at(pos, dim, in).W;
     };
 
-    auto cA_at = [&](v3i pos)
-    {
+    auto cA_at = [&](v3i pos) {
         return bssn_at(pos, dim, in).cA;
     };
 
-    auto K_at = [&](v3i pos)
-    {
+    auto K_at = [&](v3i pos) {
         return bssn_at(pos, dim, in).K;
     };
 
-    auto gA_at = [&](v3i pos)
-    {
+    auto gA_at = [&](v3i pos) {
         return bssn_at(pos, dim, in).gA;
     };
 
-    auto gB_at = [&](v3i pos)
-    {
+    auto gB_at = [&](v3i pos) {
         return bssn_at(pos, dim, in).gB;
     };
 

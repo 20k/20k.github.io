@@ -469,26 +469,22 @@ void trace3(execution_context& ectx, literal<v2i> screen_sizel,
     {
         v3f grid_position = args.grid_position;
 
-        auto dgA_at = [&](v3i pos)
-        {
+        auto dgA_at = [&](v3i pos) {
             bssn_derivatives derivs(pos, dim.get(), derivatives);
             return derivs.dgA;
         };
 
-        auto dgB_at = [&](v3i pos)
-        {
+        auto dgB_at = [&](v3i pos) {
             bssn_derivatives derivs(pos, dim.get(), derivatives);
             return derivs.dgB;
         };
 
-        auto dcY_at = [&](v3i pos)
-        {
+        auto dcY_at = [&](v3i pos) {
             bssn_derivatives derivs(pos, dim.get(), derivatives);
             return derivs.dcY;
         };
 
-        auto dW_at = [&](v3i pos)
-        {
+        auto dW_at = [&](v3i pos) {
             bssn_derivatives derivs(pos, dim.get(), derivatives);
             return derivs.dW;
         };
