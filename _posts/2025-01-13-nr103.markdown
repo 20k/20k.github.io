@@ -5,47 +5,43 @@ date:   2026-01-12 12:33:23 +0000
 categories: C++
 ---
 
-Hi! Today we're going to look at raytracing geodesics in numerical spacetimes. We're going to explore two things:
+Hi! Today we're going to look at raytracing numerical spacetimes. We're going to explore two things:
 
-1. The ADM geodesic equations to produce a fast approximate rendering, mainly for debugging reasons
-3. The regular geodesic equation to accurately raytrace inspiralling binary black holes
+1. The ADM geodesic equations to produce a fast approximate rendering, on a single slice through spacetime
+2. The regular geodesic equation to accurately raytrace inspiralling binary black holes
 
-Along the way, I'll present to you a modified form of the verlet algorithm which is the best bang for your buck that you can get.
+Along the way, I'll present to you a modified form of the verlet algorithm, which is particularly well suited for integrating these kinds of problems
 
-Video:
+Todo: Video:
 
-I'd highly recommend reading todo: this article about geodesics in general relativity, but we'll have a recap before we get started
+I'd highly recommend reading todo: this article about geodesics in general relativity, as it will describe our initial conditions, and gives a good structure on how these simulations work in general
 
-# What are we trying to do?
+Todo: Discuss and present timestepping
+Todo: Compare the two methods end states
+Todo: The first few slices suck a lot, mention this, adjust clamping code
+Todo: Mention potential improvements at the end: namely, the circular buffer, better stepping, or dynamic time slicing
 
-scrap 99% of this, and just use a 4d argument
+# What's the general structure of what we'll be doing?
 
-Today, we're going to raytrace light rays around our spacetime, and produce a rendering of it. If you're familiar with raytracing in general, you might imagine a raytracer which fires rays through a 3d grid
+Like any traditional raytracer, our raytracer comes in three parts
 
-In 3d, a ray has two properties: a position, and a velocity, both 3-vectors. Adding an acceleration to your rays is straightforwardly modelled as an acceleration, applied at each step as you step along a ray in the 3rd volume
+1. Initialisation
+2. Integration
+3. Termination conditions
 
-Stretching this into 4d is straightforward. Instead of a 3d grid, we now have a 4d grid. And instead of position and velocity being 3-vectors, they now both have a 4th component attached, which allows us to represent space*time*. There's no longer a newtonian acceleration at each point in space, but a general relativistic 'acceleration'[^reallycoordinates] at each point in spacetime, dictated by the geodesic equation
+In general, a raytracer of this form involves setting up light rays (that travel backwards in time), and tracking their movement around a grid - where our acceleration is a function of the grid variables. We'll be checking if our rays have *probably* hit a black hole, or if they've escaped into the wider universe as our termination conditions
 
-One of the major differences when adding a time dimension is that light rays (cast from the camera) travel backwards in time. This is because they *finish* at the camera, so we want to work out where they originated from earlier
+In the single-slice case, we'll be restricting our rays to our current 3d simulation state, and producing an approximate rendering of it. This is super useful for diagnosing problems with black holes, incorrect paths, spotting the origin of instabilities, and in general its a great debugging tool that's less painful on the eyes than our old 2d slice
 
-[^reallycoordinates]: It isn't a true acceleration in the physical sense, but represents the coordinate change of the light ray as it moves about
+In the accurate case, we'll need a full 4d grid representing the whole of our spacetime into the past (or at least as much as we can muster), which is clearly going to be a lot more performance intensive. Its worth mentioning that in a stationary spacetime, these two methods are equivalent - which means we can use them to cross check each other when our simulation has settled into a steady state
 
-## A grid in 4d
-
-not super happy on this segment, or the above
-
-In previous articles on raytracing, we've had an analytic metric tensor $g_{\mu\nu}$, which is a 4d object. We need this to calculate our acceleration. In these simulations so far, we've had a numerical grid which is a single 3d slice, that represents the metric of some slice of spacetime defined as 'now'. Unfortunately, as our light rays travel backwards in time, we need access to earlier slices, which means storing our entire simulation history
-
-This is a problem. We're going to discuss two different approaches here:
-
-1. A debugging view by keeping our rays inaccurately to a single slice
-2. An accurate view, where we store the entire simulation history in a reduced form
+In general, the initial conditions and termination conditions are not particularly interesting and are fully described in the article linked at the beginning - so we'll largely be dealing with the integration step here
 
 # Recap
 
 ## What are geodesics?
 
-In general relativity, geodesics represent paths through spacetime. There are three kinds of geodesics:
+In general relativity, geodesics represent paths through spacetime. They come in three types:
 
 1. Timelike, representing the paths of observers and massive particles
 2. Null, representing the paths of massless particles like light
@@ -58,7 +54,7 @@ Geodesics have two properties:
 1. A 4-position, which we'll notate as $x^\mu$
 2. A 4-velocity, which we'll notate as $\frac{dx^\mu}{d\lambda}$. Note that this velocity is the derivative of the position $x^\mu$ with respect to either an affine parameter $d\lambda$ (sometimes called $ds$), or coordinate time $t$. We'll be exclusively sticking with the former, to avoid confusion
 
-As always, greek indices run from $0-4$, and latin indices run from $1-4$
+Greek indices run from $0-4$ and represent quantities on our 4d hypersurface, and latin indices run from $1-4$ and generally represents quantities on our 3d hypersurface
 
 ## The geodesic equation
 
@@ -66,24 +62,17 @@ To calculate the path of a geodesic through spacetime, we can integrate the geod
 
 $$\frac{d^2 x^\mu}{d\lambda^2} =-\Gamma^\mu_{\alpha \beta} \frac{dx^\alpha}{d\lambda} \frac{dx^\beta}{d\lambda}$$
 
-This gives an acceleration. $\Gamma^\mu_{\alpha \beta}$ is the christoffel symbols of the second kind. For us, the important part is that its built from the metric tensor, and its derivatives
+where
 
-## Recap: The ADM formalism
+$$ \Gamma^\mu_{\alpha\beta} = \frac{1}{2} g^{\mu\sigma} (\partial_\beta g_{\sigma\alpha} + \partial_\alpha g_{\sigma\beta} - \partial_\sigma g_{\alpha\beta})$$
 
-The ADM formalism is the process of taking a 4-metric $g_{\mu\nu}$, and splitting it up into a series of 3d slices (called a foliation). Each 3d slice has the following variables associated with it:
+This gives an acceleration[^acceleration], and we can use standard integration techniques on this. $\Gamma^\mu_{\alpha \beta}$ is the christoffel symbols of the second kind
 
-| Symbol | Name | Relation to normal GR  | Description |
-|-|-|-|-|
-| $\gamma_{ij}$ | The 3-metric tensor | $g_{ij}$ | Describes curvature on the 3 surface. Symmetric |
-| $K_{ij}$ | Extrinsic curvature | $\frac{1}{2 \alpha} (D_i \beta_j + D_j \beta_i - \frac{\partial g_{ij}}{\partial_t})$ | The curvature of the 3 surface with respect to the 4th dimension. Symmetric |
-| $\alpha$ | Lapse | $\sqrt{-g_{00} + \beta^m \beta_m}$ | Part of the hypersurface normal, which points into the future |
-| $\beta^i$ | Shift | $g_{0i}$ | The other part of the hypersurface normal, which points into the future |
+[^acceleration]: Not a physical acceleration, just a change in our coordinates
 
-The only general relativity you need to know for this article is:
+## The ADM formalism
 
-1. Raising and lowering indices
-2. How to calculate a covariant derivative. $D$ is the covariant derivative associated with $\gamma_{ij}$
-3. Tensor index notation
+The ADM formalism is the process of taking a 4-metric $g_{\mu\nu}$, and splitting it up into a series of 3d slices (called a foliation). Each 3d slice has a number of variables associated with them: $\gamma_{ij},\;K_{ij},\;\alpha,\;\beta^i$. I'll list a table of all the relevant conversions at the end of this article
 
 Unlike previous articles, we'll be barely dealing with the BSSN formalism at all. I'll be mentioning it in passing, but we'll use it solely to construct our relevant ADM quantities.
 
@@ -96,7 +85,7 @@ spacetimes](https://arxiv.org/pdf/1208.3927), and discussing some of the implica
 
 The way we set up initial conditions is exactly as described in <this> article, with no changes. The sole difference is that we build the metric tensor $g_{\mu\nu}$ from the ADM components ($\gamma_{ij},\; \alpha,\; \beta^i$), rather than having a metric analytically. You'll want to implement trilinear interpolation on the fields, if your camera lives on a non integer coordinate
 
-Because there's nothing special here, lets assume that we have a geodesic (either null, or massive), with a position $x^\mu$ and a velocity $dx^\mu$
+Because there's nothing special here, lets assume that we have a geodesic (either null, or massive), with a position $x^\mu$ and a velocity $\frac{dx^\mu}{d\lambda}$
 
 So first up, this paper requires us to calculate the 4-momentum of our geodesic, $p^\mu$. For a timelike geodesic, the 4-momentum is defined as such[^lambda]:
 
@@ -108,7 +97,7 @@ Where $m$ is the rest mass, and we've set $d\lambda = d\tau$ (the proper time). 
 
 $$p^\mu = \frac{dx^\mu}{d\lambda}$$
 
-Next up, we want to find the 3-quantity on our local slice which is the projection of our 4-velocity - ie we're translating from GR to ADM. To do this, simply apply (8), and solve for $V^\mu$:
+Next up, we want to find the 3-velocity on our local slice which is the projection of our 4-velocity - ie we're translating from GR to ADM. To do this, simply apply (8), and solve for $V^\mu$:
 
 $$V^\mu = \frac{p^\mu}{E} - \mathcal{n}^\mu$$
 
@@ -123,10 +112,8 @@ $V^\mu$ is the ray velocity which is tangent to our 3-surface, and has no compon
 
 So, for tracing a geodesic in the ADM formalism, we have two things
 
-1. A 4-position, which we've called $x^\mu$, and this paper calls $X^\mu$
-2. A 3-velocity $V^i$, which is the projection our 4-velocity onto our local hypersurface. Its important to note that this is *not* the derivative of $x^i$
-
-The 3-position of our ray's 4-position $x^\mu$ is trivially $x^i$
+1. A 3-position, which we've called $x^i$, and this paper calls $X^i$. This is the trivial projection of $x^\mu$ (ie we literally just take the last 3 components)
+2. A 3-velocity $V^i$, which is the projection our 4-velocity onto our local hypersurface. It is important to note that this is *not* the derivative of $x^i$
 
 ### A slight wrinkle: Photons going backwards in time
 
@@ -146,14 +133,12 @@ Where $^3 \Gamma^i_{jk}$ are the christoffel symbols associated with $\gamma_{ij
 The only modifications we'll make are as follows:
 
 1. We can replace the $\partial_j \ln(\alpha)$ term with $\frac{\partial_j \alpha}{\alpha}$, which is easier to calculate
-2. For null geodesics, you can enforce $V_i V^i = 1$ by rescaling the length to improve accuracy, after each time step
+2. For null geodesics, you can enforce $V_i V^i = 1$ by rescaling the length to improve accuracy
 3. We can calculate the christoffel symbols from the BSSN variables directly, eg see [(A3)](https://arxiv.org/pdf/1202.1038)
-
-Note that unlike with regular geodesics, $V^i$ is *not* the velocity of $X^i$, which will complicate our lives
 
 # Approximate rendering on a single slice
 
-With the evolution equations in hand, we'll want to get to implementing. We're going to be using this just to produce a debug visualisation on a single slice. The reason why we won't be using this for our accurate raytracing, is that its much less memory efficient - which is something that will become apparently when we get there
+With the evolution equations in hand, we'll want to get to implementing. We're going to be using this just to produce a debug visualisation on a single slice. The reason why we won't be using this for our accurate raytracing is that its much less memory efficient - which is something that will become apparent when we get there
 
 The first thing we need before we get started, is to pick an integrator
 
@@ -161,13 +146,13 @@ The first thing we need before we get started, is to pick an integrator
 
 Euler integration is not very good for these problems, even if it does tend to be the default integrator for many problems. It has poor performance for its accuracy, and additionally it isn't symplectic. This means that a rays energy tends to diverge, and its not a great choice in general
 
-From a lot of experience, I can tell you that Verlet integration is by far the best choice here. First off, I'm going to present the basic Verlet algorithm for this problem, and then we'll tweak it to improve performance
+We can pick a much better algorithm: Verlet. First off, we'll take a look at the basic Verlet algorithm for this problem, and then we'll tweak it to improve performance
 
 ### Verlet for non separable hamiltonians
 
 Wikipedia lists a form of the velocity Verlet algorithm which isn't super helpful to us. Unfortunately, we have two problems
 
-1. Our velocity $v$ is not directly the velocity of $x$
+1. Our velocity $V^i$ is not directly the velocity of $X^i$
 2. Our acceleration is a function of the position *and* velocity
 
 These are both really the same problem: what we have is what is known as a non separable hamiltonian. This means our equations are of the form:
@@ -177,14 +162,16 @@ $$\begin{align}
 \dot{v} &= f(q, v)
 \end{align}$$
 
-We need a slightly more general form of Verlet integration to combat this. We're instead going to implement (1.24) from [this](https://www.math.kit.edu/ianm3/lehre/geonumint2009s/media/gni_by_stoermer-verlet.pdf) paper, which lists the more general form of velocity Verlet integration - which is applicable to our problem
+We need a slightly more general form of Verlet integration to combat this. We're instead going to implement [(1.24) here](https://www.math.kit.edu/ianm3/lehre/geonumint2009s/media/gni_by_stoermer-verlet.pdf), which lists the more general form of velocity Verlet integration - which *is* applicable to our problem
 
-The choice of which function is $g$ or $f$ determines which variable is $q$ or $v$. In our case, we'll pick the following convention:
+The choice of which function is $g$ or $f$ determines which variable is $q$ or $v$. In our case, we'll pick the following convention[^arbitrarily]:
+
+[^arbitrarily]: We could reverse this convention and end up with a similar integrator
 
 1. $g(q, v) = dX(x(t), v(t))$
 2. $f(q, v) = dV(x(t), v(t))$
 
-Ie, $q$ is our position $X^i$, $v$ is our velocity $V^i$, $g$ is $dX$, and $f$ is $dV$. We could reverse this, and end up with an equivalent integrator. This gives us the following integration scheme:
+Where $q$ is our position $X^i$, $v$ is our velocity $V^i$, $g$ is $dX$, and $f$ is $dV$. This gives us the following integration scheme:
 
 $$\begin{align}
 V_{n+\frac{1}{2}} &= V_n + \frac{h}{2}dV(X_n, V_{n+\frac{1}{2}})\\
@@ -192,12 +179,12 @@ X_{n+1} &= X_n + \frac{h}{2}(dX(X_n, V_{n+\frac{1}{2}}) + dX(X_{n+1}, V_{n+\frac
 V_{n+1} &= V_{n+\frac{1}{2}} + \frac{h}{2} dV(X_{n+1}, V_{n+\frac{1}{2}})\\
 \end{align}$$
 
-Where $h$ is the timestep, and $n$ is the iteration variable. You might notice that these equations are implicit. Solving these equations efficiently might seem prohibitely expensive right off the bat, especially compared to just lowering the timestep with a simple Euler scheme - luckily the problem we're trying to solve allows us to make some simplifications:
+Where $h$ is the timestep, and $n$ is the iteration variable. You might notice that these equations are implicit, ie we have terms which are on both sides of the equation. Solving these equations efficiently might seem prohibitively expensive right off the bat, especially compared to just lowering the timestep with a simple Euler scheme. Luckily the problem we're trying to solve allows us to make some simplifications and assumptions:
 
 1. $dV(X, V)$ is expensive to evaluate for different values of $X$, but cheap to evaluate for different values of $V$
 2. $dV(X, V)$ is only weakly dependent on the value of $V$, ie $dV(X, V + \epsilon) \approx dV(X, V)$
 3. $dX(X, V)$ is cheap to evaluate
-4. The underlying problem is not numerically unstable, and is very well conditioned
+4. The underlying problem is not numerically unstable, and is well conditioned
 
 So, lets do some approximating and rewrite these equations in an explicit form:
 
@@ -210,9 +197,9 @@ V_{n+1} &= V_{n+\frac{1}{2}} + \frac{h}{2} dV(X_{n+1}, V_{n+\frac{1}{2}})\\
 
 While in theory this reduces the stability and accuracy, in practice due to the nature of the problem we're trying to solve, this works extremely well[^vsolve]
 
-[^vsolve]: Its worth noting that due to the cheapness of re-evaluating $dV$ with different values of $V$, you could solve the first equation via fixed point iteration - but due to the relatively weak dependence of the solution on pertubations in $V$, it provides relatively minimal benefits. Particularly, because we're able to *enforce* the constraint $V_i V^i = 1$ for lightlike geodesics, we are less exposed to numerical errors
+[^vsolve]: Its worth noting that due to the cheapness of re-evaluating $dV$ with different values of $V$, you could solve the first equation via fixed point iteration - but due to the relatively weak dependence of the solution on pertubations in $V$, it provides minimal benefits. Particularly, because we're able to *enforce* the constraint $V_i V^i = 1$ for lightlike geodesics, we are less exposed to numerical errors
 
-The last thing we need to do is solve the double evaluation of $dV$ - we can straightforwardly rework these equations to only evaluate dV once per iteration. To do this, we'll split this up into two phases: initialisation, and then our iteration step. I'll also be relabling $h$ as $h_n$, as our timestep is dynamic:
+The last thing we need to do is solve the double evaluation of $dV$ - we can straightforwardly rework these equations to only evaluate dV once per iteration. To do this, we'll split this up into two phases: initialisation, and then our iteration step. I'll also be relabling $h$ as $h_n$, as the timestep is dynamic:
 
 Initialisation:
 
@@ -231,11 +218,11 @@ V_{n+\frac{1}{2}} &= V_n + \frac{h_n}{2}dV(X_n, V_n)\\
 X_{n+1} &= X_n + \frac{h_n}{2}(dX(X_n, V_{n+\frac{1}{2}}) + dX(\bar{X}_{n+1}, V_{n+\frac{1}{2}}))\\
 \end{align}$$
 
-We now only evaluate $dV$ for the same $X_n$ within an iteration, which is roughly a 2x performance speedup. One oddity here is that our velocity iteration variable becomes $V_{n+\frac{1}{2}}$, and you do not need to store $V_n$. You also need to store $h_n$ as a variable as well, as its value is carried across loops
+We now only evaluate $dV$ for the same $X_n$ within an iteration, which is roughly a 2x performance speedup. One oddity here is that the velocity iteration variable becomes $V_{n+\frac{1}{2}}$, and there's no need to store $V_n$. $h_n$ is also promoted to a variable as well, as its value is carried across loops
 
 ## Implementating Verlet
 
-We're going to be using this verlet integrator for both the ADM equations, *and* the regular geodesic equation, as it works for both. Because of this, I'll present to you the generic form:
+This form of verlet integration is well suited for both the ADM equations, *and* the regular geodesic equation. Because of this, I decided to finally implement a generic verlet integrator that I can reuse:
 
 ```c++
 template<typename T, int N>
@@ -318,11 +305,11 @@ struct verlet_context
 };
 ```
 
-Here, the timestep is called $ds$, and is assumed to be some function of position, velocity, and acceleration. We also carry a state around, which is used to avoid reevaluating the same expression repeatedly
+Here, the timestep is called $ds$, and is assumed to be some function of position, velocity, and acceleration. We also carry a state around, which is used to avoid reevaluating the same expressions repeatedly
 
 With all of this together, Verlet is about 3-5x better than Euler in terms of step size, for a similar cost of evaluating the equations - as we only evaluate the expensive part of $dV$ once per iteration. It does come with a register and compute penalty, but its worth the tradeoff
 
-## Implementing ADM
+## Implementing The ADM geodesic equations
 
 ### Initialisation
 
@@ -350,7 +337,7 @@ auto get_metric = [](v4f position, bssn_args_mem<buffer<valuef>> in, literal<v3i
 };
 ```
 
-Where 4-metric can be calculated from the ADM variables as follows:
+Where $g_{\mu\nu}$ can be calculated from the ADM variables as follows:
 
 ```c++
 metric<valuef, 4, 4> calculate_real_metric(const metric<valuef, 3, 3>& adm, const valuef& gA, const tensor<valuef, 3>& gB)
@@ -438,9 +425,31 @@ adm_variables admf_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 }
 ```
 
+### Timestepping
+
+The timestepping here is pretty simple. $W$ is assumed to be a good measure of how close we are to a black hole, and $W^2$ turns out to be a reasonably good variable for determining the precision:
+
+```c++
+valuef get_ct_timestep(valuef W)
+{
+    float X_far = 0.9f;
+    float X_near = 0.6f;
+
+    valuef X = W*W;
+
+    valuef my_fraction = (clamp(X, X_near, X_far) - X_near) / (X_far - X_near);
+
+    my_fraction = clamp(my_fraction, 0.f, 1.f);
+
+    return mix(valuef(0.1f), valuef(1.f), my_fraction);
+}
+```
+
+These constants are a bit arbitrary, but work fine
+
 ### Raytracing
 
-The basic form of our raytracing scheme is as follows:
+The basic form of the raytracing scheme is as follows:
 
 ```c++
 
@@ -479,7 +488,7 @@ void trace3(execution_context& ectx, literal<v2i> screen_sizel,
 
     mut<valuei> result = declare_mut_e(valuei(2));
 
-    <Todo: DEFINE get_dX, get_dV, get_dS, get_state here!>
+    <get_dX, get_dV, get_dS, get_state, and fix_velocity go here>
 
     verlet_context<valuef, 3> ctx;
     ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS, get_state);
@@ -524,7 +533,7 @@ void trace3(execution_context& ectx, literal<v2i> screen_sizel,
 }
 ```
 
-This is the basic loop structure without the update functions to give you a basic idea of what we're looking at. The update functions are as follows:
+This is the loop structure without the update functions to give you a basic idea of what we're looking at. The update functions are as follows:
 
 ```c++
 //This enforces V_i V^i = 1
@@ -594,7 +603,6 @@ auto get_dV = [&](v3f position, v3f velocity, const trace3_state& args)
     auto icY = cY.invert();
     pin(icY);
 
-    //much faster than calling args.Yij.invert()
     auto iYij = icY * (W*W);
 
     auto christoff2_cfl = christoffel_symbols_2(icY, dcY);
@@ -636,8 +644,7 @@ auto get_dV = [&](v3f position, v3f velocity, const trace3_state& args)
 
 auto get_dS = [&](v3f position, v3f velocity, v3f acceleration, const trace3_state& args)
 {
-    //timestepping is proportional to W*W, as ~W is a good metric of how close we are to the black hole
-    return -3.5f * get_ct_timestep(position, velocity, args.W);
+    return -3.5f * get_ct_timestep(args.W);
 };
 
 auto get_state = [&](v3f position) -> trace3_state
@@ -661,18 +668,19 @@ auto get_state = [&](v3f position) -> trace3_state
     out.cY = cY;
     out.Kij = args.Kij;
     out.gA = args.gA;
-    out.gB = args.gB
-    out.grid_position = grid_position
-    return out
-}
+    out.gB = args.gB;
+    out.grid_position = grid_position;
+
+    return out;
+};
 ```
-We take advantage here of the fact that we have the derivaties available, as a by product of the main simulation
+We take advantage here of the fact that we have the derivatives of our conformal variables available from the main BSSN simulation
 
 ### Rendering
 
-The actual rasterisation in this article simply looks up the background colour from a texture by converting our final position (which is in cartesian coordinates, of the form $(t, x, y, z)$) into an angle $(\theta, \phi)$. This is fundamentally identical to the approach described in previous articles. I should note that for this article I took the time to implement some high quality 32x anisotropic filtering on the GPU, but the description of it has nothing to do with general relativity and is just used to improve the final texture quality
+The actual rasterisation in this article simply looks up the background colour from a texture by converting our final position (which is in cartesian coordinates, of the form $(t, x, y, z)$) into an angle $(\theta, \phi)$. This is fundamentally identical to the approach described in previous articles. I should note that for this article I took the time to implement some high quality 32x anisotropic filtering on the GPU, but the description of it has nothing to do with general relativity and is just used to improve the final texture quality. If you're interested, the rasterisation step can be found todo: here
 
-One trick to improve the quality of the rendering is to find the exact intersection point between the ray when it terminates, and the virtual sphere that the rays terminate at. Performing this correct is a basic ray - sphere intersection:
+One trick to improve the quality of the rendering is to find the exact intersection point between the ray when it terminates, and the virtual sphere that the rays terminate at. Performing this correction is a basic ray - sphere intersection:
 
 ```c++
 v3f fix_ray_position_cart(v3f cartesian_pos, v3f cartesian_velocity, float sphere_radius)
@@ -764,13 +772,14 @@ Instead, solving for 12 GB, we get a maximum resolution of ~$138^3$. In practice
 
 ## Theory
 
-The geodesic equation is pretty straightforward compared to the ADM geodesic equations. Given a position $x^\mu$, our velocity is $\frac{dx^\mu}{d\lambda}$. We'll straightforwardly calculate the christoffel symbols of the second kind via the usual equation:
+The geodesic equation is fairly straightforward compared to the ADM geodesic equations. Given a position $x^\mu$, our velocity is $\frac{dx^\mu}{d\lambda}$. We'll first calculate the christoffel symbols of the second kind, and then plug this in to the geodesic equation:
 
-$$ \Gamma^\mu_{\alpha\beta} = \frac{1}{2} g^{\mu\sigma} (\partial_\beta g_{\sigma\alpha} + \partial_\alpha g_{\sigma\beta} - \partial_\sigma g_{\alpha\beta})$$
+$$\begin{align}
+\Gamma^\mu_{\alpha\beta} &= \frac{1}{2} g^{\mu\sigma} (\partial_\beta g_{\sigma\alpha} + \partial_\alpha g_{\sigma\beta} - \partial_\sigma g_{\alpha\beta})\\
+\frac{d^2 x^\mu}{d\lambda^2} &=-\Gamma^\mu_{\alpha \beta} \frac{dx^\alpha}{d\lambda} \frac{dx^\beta}{d\lambda}\\
+\end{align}$$
 
-Then plug it into the geodesic equation that we listed earlier
-
-Lets run through the major steps now:
+Lets run through the implementation of the major steps now:
 
 1. Taking our simulation snapshots and downsampling
 2. Implementing the geodesic equation
@@ -845,7 +854,20 @@ This function performs the downsampling and metric calculation in a single step.
 
 One thing that is unsupported here is a change in the observable simulation size, here fixed to $30$. It may help you get the best bang for your buck if you want to use even lower resolutions
 
-## Geodesic tracing
+## Timestepping
+
+The timestepping here is based on the acceleration of the rays, and is quite straightforward. The higher the acceleration, the lower the timestep
+
+```c++
+valuef acceleration_to_precision(v4f acceleration, valuef max_acceleration)
+{
+    valuef diff = acceleration.length() * 0.01f;
+
+    return sqrt(max_acceleration / diff);
+}
+```
+
+## Raytracing
 
 The basic structure of our geodesic tracing is identical to the ADM geodesic case:
 
@@ -890,7 +912,7 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
     v4f pos_in = declare_e(positions[screen_position, screen_size]);
     v4f vel_in = declare_e(velocities[screen_position, screen_size]);
 
-    <State Update Functions Go Here>
+    <get_dX, get_dV, get_dS, get_state, and velocity_process go here>
 
     verlet_context<valuef, 4> ctx;
     ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS, get_state);
@@ -925,13 +947,15 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
     v4f final_position = declare_e(ctx.position);
     v4f final_velocity = declare_e(ctx.velocity);
 
-    auto get_Guvb = [&](v4i pos) {
+    auto get_Guvb = [&](v4i pos)
+    {
         auto val = Guv_at(pos, dim.get(), Guv_buf, last_slice.get());
         pin(val);
         return val;
     };
 
-    auto position_to_metric = [&](v4f fpos) {
+    auto position_to_metric = [&](v4f fpos)
+    {
         auto val = function_quadlinear(get_Guvb, world_to_grid4(fpos));
         pin(val);
         return val;
@@ -1029,11 +1053,11 @@ auto get_dV = [&](v4f position, v4f velocity, trace4_state st) {
     pin(Guv);
     pin(dGuv);
 
-    //4x4 matrix inversion
     auto iGuv = Guv.invert();
     //pin(iGuv);
 
     auto christoff2 = christoffel_symbols_2(iGuv, dGuv);
+
     pin(christoff2);
 
     v4f accel;
@@ -1071,7 +1095,7 @@ auto velocity_process = [](v4f v, const trace4_state& st) {
 };
 ```
 
-We have a very unfortunate performance combo here: 4d quadralinear interpolation, and using that to calculate numerical derivatives. This is not good for performance, unsurprisingly. For simplicitly I'm relying on the GPUs cache[^cache] - its likely we could get better performance if we laid this all out by hand and eliminated the redundant memory accesses. Given that the goal is not super high performance here, I've chosen to invest in my sanity instead
+We have a very unfortunate performance combo here: 4d quadralinear interpolation, and using that to calculate numerical derivatives in 4 directions. This is not good for performance, unsurprisingly. For simplicitly I'm relying on the GPUs cache[^cache] - its likely we could get better performance if we laid this all out by hand and eliminated the redundant memory accesses. Given that the goal is not super high performance here, I've chosen to invest in my sanity instead
 
 [^cache]: Interestingly, this pattern might run terribly on datacentre GPUs which don't have an l3 cache
 
@@ -1097,8 +1121,35 @@ Which is pretty great once the history fills in. Performance here is todo/frame,
 
 Overall, I'm extremely happy with the results here. The debugging single-slice raytracing case is incredibly helpful for visualising errors with the black holes as they travel about, and the accurate raytracer has virtually 0 overhead even when unused. It also runs fast-enough that it isn't too painful to use, which is more than good enough
 
+Comparing ADM and the accurate case, we find that after the merger at t=240, we have this result:
+
+Todo: Picture comparison
+
+Which shows that these methods converge to the same result, which is great. In general the performance is good enough that its not too much of a problem, which is nice too!
+
 # Addendum
 
 ## Why not timelike geodesics?
 
-While the ADM equations of motion presented in this article are applicable to timelike geodesics, in practice integrating them into a simulation is radically different than what you'd do for lightlike geodesics. Its sufficiently different that - beyond the specific equations themselves - there's very little commonality in terms of implementation - and we'll need a totally different setup. We'll be doing timelike geodesics when we hit N-body particle dynamics - likely in a few articles time
+While the ADM equations of motion presented in this article are applicable to timelike geodesics, in practice integrating them into a simulation is radically different than what you'd do for lightlike geodesics. Its sufficiently different that - beyond the specific equations themselves - there's very little commonality in terms of implementation - and we'll need a totally different setup. We'll be covering timelike geodesics thoroughly when we hit N-body particle dynamics - likely in a few articles time
+
+## ADM formalism conversions
+
+| Symbol | Name | Relation to normal GR  | Description |
+|-|-|-|-|
+| $\gamma_{ij}$ | The 3-metric tensor | $g_{ij}$ | Describes curvature on the 3 surface. Symmetric |
+| $K_{ij}$ | Extrinsic curvature | $\frac{1}{2 \alpha} (D_i \beta_j + D_j \beta_i - \frac{\partial g_{ij}}{\partial_t})$ | The curvature of the 3 surface with respect to the 4th dimension. Symmetric |
+| $\alpha$ | Lapse | $\sqrt{-g_{00} + \beta^m \beta_m}$ | Part of the hypersurface normal, which points into the future |
+| $\beta^i$ | Shift | $g_{0i}$ | The other part of the hypersurface normal, which points into the future |
+
+## BSSN formalism conversions
+
+| Symbol | Name | Relation to ADM | Notes |
+|-|-|-|-|
+| $W$ | Conformal factor | $det(\gamma_{ij})^{-\frac{1}{6}}$ | Describes the relationship between the ADM variables, and the conformal BSSN variables. $W=0$ at the singularity |
+| $\tilde{\gamma}_{ij} $ | Conformal metric tensor | $W^2 \gamma_{ij}$ | Raises and lowers the indices of conformal variables. Inverted as if it were a 3x3 matrix. Symmetric, and has a unit determinant |
+| $K$ | Trace of the extrinsic curvature | $\gamma^{ij} K_{ij}$ | |
+| $\tilde{A}_{ij}$ | Conformal extrinsic curvature | $W^2 (K_{ij} - \frac{1}{3} \gamma_{ij} K)$ | Trace free, symmetric |
+| $\tilde{\Gamma}^i$ | Conformal Christoffel symbol | $\tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk}$ | Evolved numerically despite having an analytic value from conformal variables, for stability reasons |
+| $\alpha$ | Lapse | $\alpha$ | No change |
+| $\beta^i$ | Shift | $\beta^i$ | No change |

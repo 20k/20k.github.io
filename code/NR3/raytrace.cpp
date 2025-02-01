@@ -354,8 +354,7 @@ unit_metric<valuef, 3, 3> cY_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>
     return val;
 }
 
-///this is totally pointless, velocity = 1
-valuef get_ct_timestep(v3f position, v3f velocity, valuef W)
+valuef get_ct_timestep(valuef W)
 {
     float X_far = 0.9f;
     float X_near = 0.6f;
@@ -546,7 +545,7 @@ void trace3(execution_context& ectx, literal<v2i> screen_sizel,
 
     auto get_dS = [&](v3f position, v3f velocity, v3f acceleration, const trace3_state& args)
     {
-        return -3.5f * get_ct_timestep(position, velocity, args.W);
+        return -3.5f * get_ct_timestep(args.W);
     };
 
     auto get_state = [&](v3f position) -> trace3_state
@@ -680,14 +679,9 @@ void bssn_to_guv(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> l
     }
 }
 
-///todo: fixme
 valuef acceleration_to_precision(v4f acceleration, valuef max_acceleration)
 {
     valuef diff = acceleration.length() * 0.01f;
-
-    valuef max_timestep = 100000;
-
-    diff = max(diff, max_acceleration / pow(max_timestep, 2.f));
 
     return sqrt(max_acceleration / diff);
 }
