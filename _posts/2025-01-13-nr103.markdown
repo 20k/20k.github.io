@@ -772,7 +772,7 @@ I've got about 12 GB of vram to work with here[^overcommit], so lets put some nu
 
 If we were to naively snap at our native grid res of $213^3$, this would take up 46 GB. This is - how you would say - bad
 
-Instead, solving for 12 GB, we get a maximum resolution of ~$138^3$. In practice, I pick a lower value, because allocating allocating all of your vram is liable to cause Problems[^desktop], so I'm slightly arbitrarily picking $101^3$. Luckily, this is good-enough resolution wise, both in time and space. Note that
+Instead, solving for 12 GB, we get a maximum resolution of ~$138^3$. In practice, I pick a lower value, because allocating allocating all of your vram is liable to cause Problems[^desktop], so I'm slightly arbitrarily picking $101^3$. Luckily, this is good-enough resolution wise, both in time and space
 
 [^desktop]: I run these simulations on my desktop pc, and believe me when I say I'd go absolutely bonkers if I couldn't use it while recording hours of footage for these articles
 
@@ -1151,6 +1151,11 @@ For my use cases, this works well enough. There are a few possible improvements 
 1. We can only see a certain amount into the past. We could turn our big buffer chunk into a circular buffer, to exploit this fact and allow for rasterising indefinitely long simulations
 2. The timestepping could likely be improved
 3. The time between slices could be dynamic, with more slices when the simulation is changing faster
+4. Higher order derivatives would let you get better results at a lower resolution. Its likely that swapping to 4th order would be a large improvement, albeit with a reasonable runtime cost
+
+# Next time
+
+The next article will either be on neutron star collisions (which is a big topic), or gravitational wave extraction
 
 # Addendum
 
