@@ -10,9 +10,9 @@ Hi! Today we're going to look at raytracing numerical spacetimes. We're going to
 1. The ADM geodesic equations to produce a fast approximate rendering, on a single slice through spacetime
 2. The regular geodesic equation to accurately raytrace inspiralling binary black holes
 
-Along the way, I'll present to you a modified form of the verlet algorithm, which is particularly well suited for integrating these kinds of problems
+Along the way, I'll present to you a modified form of the verlet algorithm, which is particularly well suited for integrating these kinds of problems. At the end of the article, we'll have this:
 
-Todo: Video:
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/pCgLdA0WTvs?si=2vvbUwnhKObdafuS" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 I'd highly recommend reading todo: this article about geodesics in general relativity, as it will describe our initial conditions, and gives a good structure on how these simulations work in general
 
@@ -674,7 +674,8 @@ auto get_state = [&](v3f position) -> trace3_state
     return out;
 };
 ```
-We take advantage here of the fact that we have the derivatives of our conformal variables available from the main BSSN simulation
+
+I take advantage here of the fact that the derivatives of the conformal variables are available from the main BSSN simulation
 
 ### Rendering
 
@@ -710,15 +711,15 @@ v3f fix_ray_position_cart(v3f cartesian_pos, v3f cartesian_velocity, float spher
 
 ## Results
 
-With all of this implemented, we get the following picture on the initial slice:
+With all of this implemented, this is what our first frame looks like:
 
-todo: pic
+![niceadm1](/assets/nr3_first_frame_adm.png)
 
-As well as this view of an inspiral:
+And we get this view of our inspiral:
 
-Todo: video
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/CCxFQQKLvrU?si=mOrABtsZVTkjK4SA" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-While this is an inaccurate view, it is extremely useful for debugging. Given that it takes ~55ms/frame, its fast enough that we can use it to debug problems - and it essentially shows us an approximate view of the black hole's on every slice. Plus its just less horrible to look at than the old 2d slice
+While this is an inaccurate view, it is extremely useful for debugging. Given that it takes ~55ms/frame, its fast enough that we can use it to debug problems - and it essentially shows us an approximate view of the black hole's on every slice. Plus its just less horrible to look at than the old 2d slice. You can see some of the numerical issues (sharp corners) that we have as the black holes inspiral, giving us some clues as to the issues this kind of simulation faces at low resolutions
 
 # Accurate rendering
 
@@ -1111,11 +1112,15 @@ The driver for the host side of things isn't very interesting otherwise, and can
 
 With this implemented, our first frame looks like this:
 
-todo: garbage
+![garbage](/assets/nr3_first_frame_oddity.png)
 
 As a video, we get this:
 
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/1M5ZYqqNQRI?si=r4nY7m_uKIrbpi76" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
 Which is pretty great once the history fills in. Performance here is todo/frame, which is absolutely fine for producing videos or the occasional debugging
+
+~210ms/frame
 
 # Discussion
 
