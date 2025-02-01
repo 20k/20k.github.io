@@ -16,9 +16,7 @@ Along the way, I'll present to you a modified form of the verlet algorithm, whic
 
 I'd highly recommend reading todo: this article about geodesics in general relativity, as it will describe our initial conditions, and gives a good structure on how these simulations work in general
 
-Todo: Discuss and present timestepping
-Todo: Compare the two methods end states
-Todo: The first few slices suck a lot, mention this, adjust clamping code
+Todo: The first few slices suck a lot, mention this
 Todo: Mention potential improvements at the end: namely, the circular buffer, better stepping, or dynamic time slicing
 
 # What's the general structure of what we'll be doing?
