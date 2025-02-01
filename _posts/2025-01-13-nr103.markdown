@@ -1122,6 +1122,20 @@ Which is pretty great once the history fills in. Performance here is todo/frame,
 
 ~210ms/frame
 
+## Compared To ADM
+
+As a final check, we can have a look at the final resting state of ADM vs the geodesic simulation, to check how close our results are to each other. Given that these are two entirely unrelated techniques, if they match and visually look like black holes - we're probably close enough with regards to accuracy
+
+Single slice:
+
+![ADM](/assets/nr3_kerr_adm.png)
+
+All slices:
+
+![guv](/assets/nr3_kerr_guv.png)
+
+We can see that the shadow of the black hole is slightly smaller in our full raytracing simulation - likely because of the super low resolution - but they're very similar. You may also be able to notice that these are clearly both Kerr black holes (as they are asymmetric), and both look to have the same (low) spin value. This is another good sign that we've gotten a pretty decent result
+
 # Discussion
 
 Overall, I'm extremely happy with the results here. The debugging single-slice raytracing case is incredibly helpful for visualising errors with the black holes as they travel about, and the accurate raytracer has virtually 0 overhead even when unused. It also runs fast-enough that it isn't too painful to use, which is more than good enough
