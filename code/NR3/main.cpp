@@ -508,11 +508,6 @@ float get_timestep(float simulation_width, t3i size)
 
 struct raytrace_manager
 {
-    ///SO
-    ///i think that perhaps we should take multi kernel approach
-    ///where we raytrace between two slices, step a few times, then raytrace into the next slice
-    ///we can still use a dynamic timestep, we just iterate until you've exceeded a certain threshold, and then
-    ///recollect
     cl::buffer positions;
     cl::buffer velocities;
     cl::buffer results;
