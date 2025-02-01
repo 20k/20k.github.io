@@ -22,7 +22,7 @@ If you're looking for someone with a lot of enthusiasm for GPU programming, and 
 
 The code for this article is available over [here](https://github.com/20k/20k.github.io/tree/master/code/NR3)
 
-Todo: cat pictures
+![box_cat](/assets/nr3_box_cat.jpg)
 
 # What's the general structure of what we'll be doing?
 
@@ -80,6 +80,8 @@ This gives an acceleration[^acceleration], and we can use standard integration t
 The ADM formalism is the process of taking a 4-metric $g_{\mu\nu}$, and splitting it up into a series of 3d slices (called a foliation). Each 3d slice has a number of variables associated with it: $\gamma_{ij},\;K_{ij},\;\alpha,\;\beta^i$. I'll list a table of all the relevant conversions at the end of this article
 
 Unlike previous articles, we'll be barely dealing with the BSSN formalism (an offshoot of ADM) at all. I'll be mentioning it in passing, but we'll use it solely to construct our relevant ADM quantities
+
+![box_cat2](/assets/nr3_box_cat2.jpg)
 
 # The ADM geodesic equation
 
@@ -224,6 +226,8 @@ X_{n+1} &= X_n + \frac{h_n}{2}(dX(X_n, V_{n+\frac{1}{2}}) + dX(\bar{X}_{n+1}, V_
 \end{align}$$
 
 We now only evaluate $dV$ for the same $X_n$ within an iteration, which is roughly a 2x performance speedup. One oddity here is that the velocity iteration variable becomes $V_{n+\frac{1}{2}}$, and there's no need to store $V_n$. $h_n$ is also promoted to a variable as well, as its value is carried across loops
+
+![wesleycute](/assets/nr3_wesley_sit.jpg)
 
 ## Implementating Verlet
 
@@ -681,6 +685,8 @@ auto get_state = [&](v3f position) -> trace3_state
 ```
 
 I take advantage here of the fact that the derivatives of the conformal variables are available from the main BSSN simulation
+
+![wesleysnooze](/assets/nr3_wesley_snooze.jpg)
 
 ### Rendering
 
@@ -1155,7 +1161,9 @@ For my use cases, this works well enough. There are a few possible improvements 
 
 # Next time
 
-The next article will either be on neutron star collisions (which is a big topic), or gravitational wave extraction
+The next article will either be on neutron star collisions (which is a big topic), or gravitational wave extraction. Until then:
+
+![wesleyface](/assets/nr3_wesley_face.jpg)
 
 # Addendum
 
