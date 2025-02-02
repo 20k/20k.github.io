@@ -12,9 +12,9 @@ Hi! Today we're going to look at raytracing numerical spacetimes. We're going to
 
 Along the way, I'll present a modified form of the verlet algorithm, which is particularly well suited for integrating these kinds of problems. At the end of the article, we'll have rendered out this:
 
-\<iframe width="560" height="315" src="https://www.youtube.com/embed/pCgLdA0WTvs?si=2vvbUwnhKObdafuS" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/pCgLdA0WTvs?si=2vvbUwnhKObdafuS" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-I'd highly recommend reading [this](https://20k.github.io/c++/2024/05/31/schwarzschild.html) article about geodesics in general relativity as it gives a good structure on how these simulations work, and [this](https://20k.github.io/c++/2024/06/19/tetrads.html#tetrads) article describes the process we'll be using to construct our initial conditions
+I'd highly recommend reading [this introduction to geodesics in general relativity](https://20k.github.io/c++/2024/05/31/schwarzschild.html) as it gives a good structure on how these simulations work, and [this article about tetrads](https://20k.github.io/c++/2024/06/19/tetrads.html#tetrads) describes the process we'll be using to construct our initial conditions
 
 If you're looking for someone with a lot of enthusiasm for GPU programming, and who'd rather love to do a PhD in numerical relativity - please give me a shout! [^shout]
 
@@ -31,21 +31,19 @@ Todo: Maybe I should modify the structure of how this article flows, so its theo
 
 # What's the general structure of what we'll be doing?
 
-Like any traditional raytracer, our raytracer comes in three parts:
+Like any traditional raytracer, there are three parts to what we're doing:
 
-1. Initialisation
+1. Initial conditions
 2. Integration
 3. Termination conditions
 
-In general, a raytracer of this form involves setting up light rays (that travel backwards in time), and tracking their movement around a grid - where our acceleration is a function of the grid variables. We'll be checking if our rays have *probably*[^probably] hit a black hole, or if they've escaped into the wider universe as our termination conditions
+In general, a raytracer of this form involves setting up light rays that travel backwards in time, and tracking their movement around a grid - where our acceleration is a function of the grid variables. We'll be checking if our rays have *probably*[^probably] hit a black hole, or if they've escaped into the wider universe
+
+We'll either be keeping rays on a single slice for debugging, or allowing rays to traverse multiple slices for accurate rendering
 
 [^probably]: There's no way to detect if they've actually hit a black hole, you have to use a heuristic
 
-In the single-slice case, we'll be restricting our rays to our current 3d simulation state, and producing an approximate rendering of it. This is super useful for diagnosing problems with black holes, incorrect paths, spotting the origin of instabilities etc. In general its a great debugging tool that's less painful on the eyes when checking in on a simulations state
-
-In the accurate case, we'll need a full 4d grid representing the whole of our spacetime into the past (or at least as much as we can muster), which is clearly going to be a lot more performance intensive. Its worth mentioning that in a stationary spacetime, these two methods are equivalent - which means we can use them to cross check each other when our simulation has settled into a steady state
-
-In general, the initial conditions and termination conditions are no different in a numerical simulation compared to an analytic system, and are fully described in the articles linked at the beginning. I'll be largely be dealing with the integration steps here
+In general, the initial conditions and termination conditions are no different in a numerical simulation compared to an analytic system, and are fully described in the articles linked at the beginning. I'll be largely be dealing with the integration step as a result
 
 # Recap
 
@@ -54,31 +52,17 @@ In general, the initial conditions and termination conditions are no different i
 In general relativity, geodesics represent paths through spacetime. They come in three types:
 
 1. Timelike, representing the paths of observers and massive particles
-2. Null, representing the paths of massless particles like light
-3. Spacelike, representing distances that cannot be traversed causally
+2. Null (or lightlike), representing the paths of massless particles like light
+3. Spacelike, representing paths that cannot be traversed causally
 
 In general, we're only interested in timelike and null geodesics. Everything in this article is applicable to both of these kinds of geodesics - though we're not going to simulate timelike geodesics today
 
 Geodesics have two properties:
 
 1. A 4-position, which we'll notate as $x^\mu$
-2. A 4-velocity, which we'll notate as $\frac{dx^\mu}{d\lambda}$. Note that this velocity is the derivative of the position $x^\mu$ with respect to either an affine parameter $d\lambda$ (sometimes called $ds$), or coordinate time $t$. We'll be exclusively sticking with the former, to avoid confusion
+2. A 4-velocity, which we'll notate as $\frac{dx^\mu}{d\lambda}$. Note that this velocity is the derivative of the position $x^\mu$ with respect to either an affine parameter $d\lambda$ (sometimes called $ds$), or coordinate time $dt$. We'll be exclusively sticking with the former, to avoid confusion
 
-Greek indices run from $0-4$ and represent quantities on our 4d hypersurface. Latin indices run from $1-4$, and generally represents quantities on our 3d hypersurface
-
-## The geodesic equation
-
-To calculate the path of a geodesic through spacetime, we can integrate the geodesic equation:
-
-$$\frac{d^2 x^\mu}{d\lambda^2} =-\Gamma^\mu_{\alpha \beta} \frac{dx^\alpha}{d\lambda} \frac{dx^\beta}{d\lambda}$$
-
-where
-
-$$ \Gamma^\mu_{\alpha\beta} = \frac{1}{2} g^{\mu\sigma} (\partial_\beta g_{\sigma\alpha} + \partial_\alpha g_{\sigma\beta} - \partial_\sigma g_{\alpha\beta})$$
-
-This gives an acceleration[^acceleration], and we can use standard integration techniques on this. $\Gamma^\mu_{\alpha \beta}$ is the christoffel symbols of the second kind
-
-[^acceleration]: Not a physical acceleration, just a change in our coordinates
+Greek indices run from $0-4$ and represent quantities on our 4d hypersurface. Latin indices run from $1-4$, and generally represent quantities on our 3d hypersurface
 
 ## The ADM formalism
 
@@ -99,32 +83,33 @@ The way we set up initial conditions is exactly as described in previous article
 
 Because there's nothing special here, lets assume that we have a geodesic (either null, or timelike), with a position $x^\mu$ and a velocity $\frac{dx^\mu}{d\lambda}$
 
-This paper requires us to first calculate the 4-momentum of our geodesic, $p^\mu$. For a timelike geodesic, the 4-momentum is defined as such[^lambda]:
+This paper requires us to calculate the 4-momentum of our geodesic, $p^\mu$. This is slightly different for timelike, and null geodesics:
 
-$$p^\mu = m \frac{dx^\mu}{d\tau}$$
+|Type|Relation|
+|-|-|
+|Timelike|$$p^\mu = m \frac{dx^\mu}{d\tau}$$[^lambda]|
+|Null|$$p^\mu = \frac{dx^\mu}{d\lambda}$$|
 
 [^lambda]: For timelike geodesics, generally we set $\lambda = \tau$, ie we parameterise our geodesic by proper time
 
-Where $m$ is the rest mass, and we've set $d\lambda = d\tau$ (the proper time). For a null geodesic, the 4-momentum is equivalent to rescaling the 4-velocity, which has [no effect](https://physics.stackexchange.com/questions/350556/definition-of-p-mu-for-a-photon-in-general-relativity) on the path (as rescaling a null geodesic is equivalent to a change in the affine parameter). Therefore we set:
+Where $m$ is the rest mass, and we've set $d\lambda = d\tau$ (the proper time) for timelike geodesics. For a null geodesic, the 4-momentum is equivalent to rescaling the 4-velocity, which has [no effect](https://physics.stackexchange.com/questions/350556/definition-of-p-mu-for-a-photon-in-general-relativity) on the path (as rescaling a null geodesic is equivalent to a change in the affine parameter)
 
-$$p^\mu = \frac{dx^\mu}{d\lambda}$$
-
-Next up, we want to find the 3-velocity on our local slice which is the projection of our 4-velocity - ie we're translating from GR to ADM. To do this, simply apply (8), and solve for $V^\mu$:
+Next up, we want to find the 3-velocity of the ray, which is the projection of our 4-velocity on the 3-surface - ie we're translating from GR to ADM. To do this, simply apply (8), and solve for $V^\mu$:
 
 $$V^\mu = \frac{p^\mu}{E} - \mathcal{n}^\mu$$
 
-Where
+Where:
 
 1. $E = -p_\mu \mathcal{n}^\mu$
 2. $\mathcal{n}^\mu = (\frac{1}{\alpha}, -\frac{\beta^0}{\alpha}, -\frac{\beta^1}{\alpha}, -\frac{\beta^2}{\alpha})$
 
-In practice the quantity $E = -p^\mu \mathcal{n}_{\mu}$ is easier to calculate, as we can calculate $\mathcal{n}_{\mu} =  (-\alpha, 0, 0, 0)$ directly, and we already have $p^\mu$
+In practice the quantity $$E = -p^\mu \mathcal{n}_\mu$$ is easier to calculate, as $$ \mathcal{n}_\mu = (-\alpha, 0, 0, 0) $$, and we already have $p^\mu$ . This means there's no need to calculate $g_{\mu\nu}$
 
 $V^\mu$ is the ray velocity which is tangent to our 3-surface, and has no component in the timelike direction (ie $\mathcal{n}_\mu V^\mu = 0$). This means that $V^0 = 0$. For null geodesics, $V_i V^i = 1$, and for timelike geodesics, $V_i V^i < 1$
 
 So, for tracing a geodesic in the ADM formalism, we have two things at the end of our initial conditions:
 
-1. A 3-position, which we've called $x^i$, and this paper calls $X^i$. This is the trivial 'projection' of $x^\mu$ (ie we literally just take the last 3 components)
+1. A 3-position, which we've called $x^i$, and this paper calls $X^i$. This is just the last three coordinates of $x^\mu$
 2. A 3-velocity $V^i$, which is the projection our 4-velocity onto our local hypersurface. It is important to note that this is *not* the derivative of $x^i$
 
 ## Implementation: Projection
@@ -132,80 +117,41 @@ So, for tracing a geodesic in the ADM formalism, we have two things at the end o
 Because the initial conditions for ADM are the same as the non ADM version but with a projection step, I mix together both into one common routine. There's nothing too exciting in here
 
 ```c++
-void init_rays_generic(execution_context& ectx, literal<v2i> screen_sizel,
-                       buffer_mut<v4f> positions_out,
-                       buffer_mut<v4f> velocities_out,
-                       buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
-                       buffer<v4f> position, literal<v4f> camera_quat,
-                       literal<v3i> dim, literal<valuef> scale, literal<valuei> is_adm,
-                       bssn_args_mem<buffer<valuef>> in)
-{
-    using namespace single_source;
+geodesic my_geodesic = <setup>
 
-    valuei x = value_impl::get_global_id(0);
-    valuei y = value_impl::get_global_id(1);
+v2i out_dim = screen_sizel.get();
+v2i out_pos = {x, y};
 
-    //get_global_id() is not a const function, so assign it to an unnamed variable to avoid compilers repeatedly evaluating it
-    pin(x);
-    pin(y);
+//use the format (t, x, y, z) for both formalisms
+as_ref(positions_out[out_pos, out_dim]) = my_geodesic.position;
 
-    v2i screen_size = screen_sizel.get();
+//adm formalism: do the projection
+if_e(is_adm.get() == 1, [&]{
+    adm_variables init_adm = admf_at(grid_position, dim.get(), in);
 
-    if_e(y >= screen_size.y(), [&] {
-        return_e();
-    });
+    tensor<valuef, 4> normal = get_adm_hypersurface_normal_raised(init_adm.gA, init_adm.gB);
+    tensor<valuef, 4> normal_lowered = get_adm_hypersurface_normal_lowered(init_adm.gA);
 
-    if_e(x >= screen_size.x(), [&] {
-        return_e();
-    });
+    //energy
+    valuef E = -sum_multiply(my_geodesic.velocity, normal_lowered);
 
-    v2i screen_position = {x, y};
+    //projection
+    tensor<valuef, 4> adm_velocity = ((my_geodesic.velocity / E) - normal);
 
-    //assume tetrads are precalculated somewhere else, via gram-schmidt
-    tetrad tetrads = {e0[0], e1[0], e2[0], e3[0]};
+    as_ref(velocities_out[out_pos, out_dim]) = adm_velocity;
+});
 
-    v3f grid_position = world_to_grid(position[0].yzw(), dim.get(), scale.get());
-
-    grid_position = clamp(grid_position, (v3f){2,2,2}, (v3f)dim.get() - (v3f){3,3,3});
-
-    pin(grid_position);
-
-    v3f ray_direction = get_ray_through_pixel(screen_position, screen_size, 90, camera_quat.get());
-
-    geodesic my_geodesic = make_lightlike_geodesic(position[0], ray_direction, tetrads);
-
-    v2i out_dim = screen_sizel.get();
-    v2i out_pos = {x, y};
-
-    //i use the format (t, x, y, z) for both formalisms
-    as_ref(positions_out[out_pos, out_dim]) = my_geodesic.position;
-
-    //adm formalism: do the projection
-    if_e(is_adm.get() == 1, [&]{
-        adm_variables init_adm = admf_at(grid_position, dim.get(), in);
-
-        tensor<valuef, 4> normal = get_adm_hypersurface_normal_raised(init_adm.gA, init_adm.gB);
-        tensor<valuef, 4> normal_lowered = get_adm_hypersurface_normal_lowered(init_adm.gA);
-
-        //energy
-        valuef E = -sum_multiply(my_geodesic.velocity, normal_lowered);
-
-        //projection
-        tensor<valuef, 4> adm_velocity = ((my_geodesic.velocity / E) - normal);
-
-        as_ref(velocities_out[out_pos, out_dim]) = adm_velocity;
-    });
-
-    //no projection necessary in the non adm case
-    if_e(is_adm.get() == 0, [&]{
-        as_ref(velocities_out[out_pos, out_dim]) = my_geodesic.velocity;
-    });
-}
+//no projection necessary in the non adm case
+if_e(is_adm.get() == 0, [&]{
+    as_ref(velocities_out[out_pos, out_dim]) = my_geodesic.velocity;
+});
 ```
+
+As usual I'm just pulling out the interesting bits, and the code for this is over [here](https://github.com/20k/20k.github.io/master/tree/code/NR3/raytrace_init.cpp)
 
 ## Implementation: BSSN -> ADM
 
-To construct the ADM variables from the interpolated BSSN variables, I use a standard trilinear interpolation:
+To construct the ADM variables from the BSSN variables, I use a standard trilinear interpolation:
 
 ```c++
 adm_variables admf_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
@@ -261,11 +207,11 @@ adm_variables admf_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 
 ### A slight wrinkle: Photons going backwards in time
 
-Its very common in these simulations to raytrace light rays backwards in time. If you're doing this (which we are), you'll note that we have no component in the timelike direction for $V^i$. The slightly odd thing to realise is that your timestep becomes *negative* when performing your raytracing, as we're quite literally doing negative steps through coordinate time
+The standard in these simulations it to raytrace light rays backwards in time. If you're doing this (which we are), you'll note that we have no component in the timelike direction for $V^i$. The slightly odd thing to realise is that the timestep becomes *negative* when performing the raytracing integration, as we're quite literally doing negative steps through coordinate time
 
 ## Evolution equations
 
-The evolution equations for our system are given by (28a) and (28b):
+The evolution equations for our system are given by [(28a) and (28b)](https://arxiv.org/pdf/1208.3927):
 
 $$\begin{align}
 \frac{dX^i}{dt} &= \alpha V^i - \beta ^i \\
@@ -279,6 +225,10 @@ The only modifications we'll make are as follows:
 1. We can replace the $\partial_j \ln(\alpha)$ term with $\frac{\partial_j \alpha}{\alpha}$, which is easier to calculate
 2. For null geodesics, you can enforce $V_i V^i = 1$ by rescaling the length to improve accuracy
 3. We can calculate the christoffel symbols from the BSSN variables directly, eg see [(A3)](https://arxiv.org/pdf/1202.1038)
+
+That is to say:
+
+$$\Gamma^i_{jk} = \tilde{\Gamma}^i_{jk} + \frac{\delta^i_j \partial_k W + \delta^i_k \partial_j W - \tilde{\gamma}_{jk} \partial^i W}{W}$$
 
 # Approximate rendering on a single slice
 
@@ -757,7 +707,7 @@ With all of this implemented, this is what the first frame looks like:
 
 And we get this view of the inspiral:
 
-\<iframe width="560" height="315" src="https://www.youtube.com/embed/CCxFQQKLvrU?si=mOrABtsZVTkjK4SA" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/CCxFQQKLvrU?si=mOrABtsZVTkjK4SA" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 While this is an inaccurate view, it is extremely useful for debugging, and it is equivalent in stationary spacetimes. Given that it takes ~55ms/frame, its fast enough that we can use it to debug problems - and it essentially shows us an approximate view of the black holes on every slice. Plus its just less horrible to look at than the old 2d slice. You can see some of the numerical issues (sharp corners) that we have as the black holes inspiral, giving us some clues as to the issues this kind of simulation faces at low resolutions
 
@@ -812,16 +762,22 @@ Instead, solving for 12 GB, we get a maximum resolution of ~$138^3$. In practice
 
 [^desktop]: I run these simulations on my desktop pc, and believe me when I say I'd go absolutely bonkers if I couldn't use it while recording hours of footage for these articles
 
-## Theory
+## The geodesic equation
 
 The geodesic equation is fairly straightforward compared to the ADM geodesic equations. Given a position $x^\mu$, our velocity is $\frac{dx^\mu}{d\lambda}$. We'll first calculate the christoffel symbols of the second kind, and then plug this in to the geodesic equation:
+
+$$\frac{d^2 x^\mu}{d\lambda^2} =-\Gamma^\mu_{\alpha \beta} \frac{dx^\alpha}{d\lambda} \frac{dx^\beta}{d\lambda}$$
+
+where
 
 $$\begin{align}
 \Gamma^\mu_{\alpha\beta} &= \frac{1}{2} g^{\mu\sigma} (\partial_\beta g_{\sigma\alpha} + \partial_\alpha g_{\sigma\beta} - \partial_\sigma g_{\alpha\beta})\\
 \frac{d^2 x^\mu}{d\lambda^2} &=-\Gamma^\mu_{\alpha \beta} \frac{dx^\alpha}{d\lambda} \frac{dx^\beta}{d\lambda}\\
 \end{align}$$
 
-Lets run through the implementation of the major steps now:
+This gives an acceleration[^acceleration], and we can use standard integration techniques on this. $\Gamma^\mu_{\alpha \beta}$ is the christoffel symbols of the second kind. Lets run through the implementation of the major steps now:
+
+[^acceleration]: Not a physical acceleration, just a change in our coordinates
 
 1. Taking our simulation snapshots and downsampling
 2. Implementing the geodesic equation
@@ -1196,13 +1152,13 @@ With this implemented, our first frame looks like this:
 
 As a video, we get this:
 
-\<iframe width="560" height="315" src="https://www.youtube.com/embed/1M5ZYqqNQRI?si=r4nY7m_uKIrbpi76" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<iframe width="560" height="315" src="https://www.youtube.com/embed/1M5ZYqqNQRI?si=r4nY7m_uKIrbpi76" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 Which is pretty great once the history fills in. Performance here is ~210ms/frame, which is absolutely fine for producing videos or the occasional debugging
 
 ## Compared To ADM
 
-As a final check, we can have a look at the final resting state of ADM vs the geodesic simulation, to check how close our results are to each other. Given that these are two entirely unrelated techniques, if they match and visually look like black holes - we're probably close enough with regards to accuracy
+As a final check, we can have a look at the final resting state of ADM vs the geodesic simulation, to check how close our results are to each other - as they are equivalent in a stationary spacetime. Given that these are two entirely unrelated techniques, if they match and visually look like black holes - we're probably close enough with regards to accuracy
 
 Single slice:
 
