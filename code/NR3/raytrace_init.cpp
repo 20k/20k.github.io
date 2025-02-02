@@ -422,9 +422,6 @@ geodesic make_lightlike_geodesic(const v4f& position, const v3f& direction, cons
     return g;
 }
 
-
-///so. I think the projection is wrong, and that we should have -dt
-///but i need to test the 4-iteration realistically
 void init_rays_generic(execution_context& ectx, literal<v2i> screen_sizel,
                        buffer_mut<v4f> positions_out,
                        buffer_mut<v4f> velocities_out,

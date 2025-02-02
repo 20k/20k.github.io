@@ -24,6 +24,11 @@ The code for this article is available over [here](https://github.com/20k/20k.gi
 
 ![box_cat](/assets/nr3_box_cat.jpg)
 
+Todo: Tidy up in general
+Todo: View through jekyll and the browser directly
+Todo: maybe some more comments
+Todo: Maybe I should modify the structure of how this article flows, so its theory -> code -> theory -> code, rather than all theory -> all code
+
 # What's the general structure of what we'll be doing?
 
 Like any traditional raytracer, our raytracer comes in three parts:
@@ -121,6 +126,138 @@ So, for tracing a geodesic in the ADM formalism, we have two things at the end o
 
 1. A 3-position, which we've called $x^i$, and this paper calls $X^i$. This is the trivial 'projection' of $x^\mu$ (ie we literally just take the last 3 components)
 2. A 3-velocity $V^i$, which is the projection our 4-velocity onto our local hypersurface. It is important to note that this is *not* the derivative of $x^i$
+
+## Implementation: Projection
+
+Because the initial conditions for ADM are the same as the non ADM version but with a projection step, I mix together both into one common routine. There's nothing too exciting in here
+
+```c++
+void init_rays_generic(execution_context& ectx, literal<v2i> screen_sizel,
+                       buffer_mut<v4f> positions_out,
+                       buffer_mut<v4f> velocities_out,
+                       buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
+                       buffer<v4f> position, literal<v4f> camera_quat,
+                       literal<v3i> dim, literal<valuef> scale, literal<valuei> is_adm,
+                       bssn_args_mem<buffer<valuef>> in)
+{
+    using namespace single_source;
+
+    valuei x = value_impl::get_global_id(0);
+    valuei y = value_impl::get_global_id(1);
+
+    //get_global_id() is not a const function, so assign it to an unnamed variable to avoid compilers repeatedly evaluating it
+    pin(x);
+    pin(y);
+
+    v2i screen_size = screen_sizel.get();
+
+    if_e(y >= screen_size.y(), [&] {
+        return_e();
+    });
+
+    if_e(x >= screen_size.x(), [&] {
+        return_e();
+    });
+
+    v2i screen_position = {x, y};
+
+    //assume tetrads are precalculated somewhere else, via gram-schmidt
+    tetrad tetrads = {e0[0], e1[0], e2[0], e3[0]};
+
+    v3f grid_position = world_to_grid(position[0].yzw(), dim.get(), scale.get());
+
+    grid_position = clamp(grid_position, (v3f){2,2,2}, (v3f)dim.get() - (v3f){3,3,3});
+
+    pin(grid_position);
+
+    v3f ray_direction = get_ray_through_pixel(screen_position, screen_size, 90, camera_quat.get());
+
+    geodesic my_geodesic = make_lightlike_geodesic(position[0], ray_direction, tetrads);
+
+    v2i out_dim = screen_sizel.get();
+    v2i out_pos = {x, y};
+
+    //i use the format (t, x, y, z) for both formalisms
+    as_ref(positions_out[out_pos, out_dim]) = my_geodesic.position;
+
+    //adm formalism: do the projection
+    if_e(is_adm.get() == 1, [&]{
+        adm_variables init_adm = admf_at(grid_position, dim.get(), in);
+
+        tensor<valuef, 4> normal = get_adm_hypersurface_normal_raised(init_adm.gA, init_adm.gB);
+        tensor<valuef, 4> normal_lowered = get_adm_hypersurface_normal_lowered(init_adm.gA);
+
+        //energy
+        valuef E = -sum_multiply(my_geodesic.velocity, normal_lowered);
+
+        //projection
+        tensor<valuef, 4> adm_velocity = ((my_geodesic.velocity / E) - normal);
+
+        as_ref(velocities_out[out_pos, out_dim]) = adm_velocity;
+    });
+
+    //no projection necessary in the non adm case
+    if_e(is_adm.get() == 0, [&]{
+        as_ref(velocities_out[out_pos, out_dim]) = my_geodesic.velocity;
+    });
+}
+```
+
+## Implementation: BSSN -> ADM
+
+To construct the ADM variables from the interpolated BSSN variables, I use a standard trilinear interpolation:
+
+```c++
+adm_variables admf_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
+{
+    using namespace single_source;
+
+    adm_variables out;
+
+    auto cY_at = [&](v3i pos) {
+        return bssn_at(pos, dim, in).cY;
+    };
+
+    auto W_at = [&](v3i pos) {
+        return bssn_at(pos, dim, in).W;
+    };
+
+    auto cA_at = [&](v3i pos) {
+        return bssn_at(pos, dim, in).cA;
+    };
+
+    auto K_at = [&](v3i pos) {
+        return bssn_at(pos, dim, in).K;
+    };
+
+    auto gA_at = [&](v3i pos) {
+        return bssn_at(pos, dim, in).gA;
+    };
+
+    auto gB_at = [&](v3i pos) {
+        return bssn_at(pos, dim, in).gB;
+    };
+
+    auto cY = function_trilinear(cY_at, pos);
+    auto cA = function_trilinear(cA_at, pos);
+    auto W = function_trilinear(W_at, pos);
+    auto K = function_trilinear(K_at, pos);
+    auto gA = function_trilinear(gA_at, pos);
+    auto gB = function_trilinear(gB_at, pos);
+
+    out.Yij.from_tensor(cY.to_tensor() / (W*W));
+    out.Kij = (cA + cY.to_tensor() * (K/3.f)) / (W*W);
+    out.gA = gA;
+    out.gB = gB;
+
+    pin(out.Yij);
+    pin(out.Kij);
+    pin(out.gA);
+    pin(out.gB);
+
+    return out;
+}
+```
 
 ### A slight wrinkle: Photons going backwards in time
 
@@ -320,120 +457,6 @@ With all of this together, Verlet is about 3-5x better than Euler in terms of st
 
 ## Implementing The ADM geodesic equations
 
-### Initialisation
-
-The setup in this segment is straightforward. The only thing that we do differently in this article is construct the 4-metric from the bssn variables. See todo: this article for more details
-
-This is the full routine that I use for the metric $g_{\mu\nu}$ calculation:
-
-```c++
-auto get_metric = [](v4f position, bssn_args_mem<buffer<valuef>> in, literal<v3i> dim, literal<valuef> scale)
-{
-    using namespace single_source;
-
-    v3f grid = world_to_grid(position.yzw(), dim.get(), scale.get());
-
-    //our boundary is at {1,1,1}, and we need room for trilinear interpolation to touch adjacent cells
-    grid = clamp(grid, (v3f){2,2,2}, (v3f)dim.get() - (v3f){3,3,3});
-
-    pin(grid);
-
-    adm_variables adm = admf_at(grid, dim.get(), in);
-
-    auto met = calculate_real_metric(adm.Yij, adm.gA, adm.gB);
-    pin(met);
-    return met;
-};
-```
-
-Where $g_{\mu\nu}$ can be calculated from the ADM variables as follows:
-
-```c++
-metric<valuef, 4, 4> calculate_real_metric(const metric<valuef, 3, 3>& adm, const valuef& gA, const tensor<valuef, 3>& gB)
-{
-    tensor<valuef, 3> gB_lower = lower_index(gB, adm, 0);
-
-    metric<valuef, 4, 4> ret;
-
-    valuef gB_sum = sum_multiply(gB_lower, gB);
-
-    ///https://arxiv.org/pdf/gr-qc/0703035.pdf 4.43
-    ret[0, 0] = -gA * gA + gB_sum;
-
-    ///latin indices really run from 1-4
-    for(int i=1; i < 4; i++)
-    {
-        ///https://arxiv.org/pdf/gr-qc/0703035.pdf 4.45
-        ret[i, 0] = gB_lower[i - 1];
-        ret[0, i] = ret[i, 0]; ///symmetry
-    }
-
-    for(int i=1; i < 4; i++)
-    {
-        for(int j=1; j < 4; j++)
-        {
-            ret[i, j] = adm[i-1, j-1];
-        }
-    }
-
-    return ret;
-}
-```
-
-And here I construct the ADM variables from the interpolated BSSN variables, via a standard trilinear interpolation:
-
-```c++
-adm_variables admf_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
-{
-    using namespace single_source;
-
-    adm_variables out;
-
-    auto cY_at = [&](v3i pos) {
-        return bssn_at(pos, dim, in).cY;
-    };
-
-    auto W_at = [&](v3i pos) {
-        return bssn_at(pos, dim, in).W;
-    };
-
-    auto cA_at = [&](v3i pos) {
-        return bssn_at(pos, dim, in).cA;
-    };
-
-    auto K_at = [&](v3i pos) {
-        return bssn_at(pos, dim, in).K;
-    };
-
-    auto gA_at = [&](v3i pos) {
-        return bssn_at(pos, dim, in).gA;
-    };
-
-    auto gB_at = [&](v3i pos) {
-        return bssn_at(pos, dim, in).gB;
-    };
-
-    auto cY = function_trilinear(cY_at, pos);
-    auto cA = function_trilinear(cA_at, pos);
-    auto W = function_trilinear(W_at, pos);
-    auto K = function_trilinear(K_at, pos);
-    auto gA = function_trilinear(gA_at, pos);
-    auto gB = function_trilinear(gB_at, pos);
-
-    out.Yij.from_tensor(cY.to_tensor() / (W*W));
-    out.Kij = (cA + cY.to_tensor() * (K/3.f)) / (W*W);
-    out.gA = gA;
-    out.gB = gB;
-
-    pin(out.Yij);
-    pin(out.Kij);
-    pin(out.gA);
-    pin(out.gB);
-
-    return out;
-}
-```
-
 ### Timestepping
 
 The timestepping here is pretty simple. $W$ is assumed to be a good measure of how close we are to a black hole, and $W^2$ turns out to be a reasonably good variable for determining the precision:
@@ -482,6 +505,7 @@ void trace3(execution_context& ectx, literal<v2i> screen_sizel,
 
     v2i screen_size = screen_sizel.get();
 
+    //terminate if we're out of bounds
     if_e(y >= screen_size.y(), [&] {
         return_e();
     });
@@ -525,7 +549,7 @@ void trace3(execution_context& ectx, literal<v2i> screen_sizel,
 
         v3f diff = ctx.next(get_dX, get_dV, get_dS, get_state, fix_velocity);
 
-        //terminate if the movement of our ray through coordinate space becomes trapped, its likely hit an event horizon
+        //terminate if the movement of our ray through coordinate space becomes approximately zero, its likely hit an event horizon
         if_e(diff.squared_length() < 0.1f * 0.1f, [&]
         {
             as_ref(result) = valuei(0);
@@ -596,6 +620,7 @@ auto get_dV = [&](v3f position, v3f velocity, const trace3_state& args)
         return derivs.dW;
     };
 
+    //interpolate all the BSSN derivatives
     tensor<valuef, 3> dgA = function_trilinear(dgA_at, grid_position);
     tensor<valuef, 3, 3> dgB = function_trilinear(dgB_at, grid_position);
     tensor<valuef, 3, 3, 3> dcY = function_trilinear(dcY_at, grid_position);
@@ -612,11 +637,14 @@ auto get_dV = [&](v3f position, v3f velocity, const trace3_state& args)
     auto icY = cY.invert();
     pin(icY);
 
+    ///inverse of the full adm metric
     auto iYij = icY * (W*W);
 
+    //bssn christoffel symbols
     auto christoff2_cfl = christoffel_symbols_2(icY, dcY);
     pin(christoff2_cfl);
 
+    //adm christoffel symbols
     auto christoff2 = get_full_christoffel2(W, dW, cY, icY, christoff2_cfl);
     pin(christoff2);
 
@@ -653,6 +681,7 @@ auto get_dV = [&](v3f position, v3f velocity, const trace3_state& args)
 
 auto get_dS = [&](v3f position, v3f velocity, v3f acceleration, const trace3_state& args)
 {
+    //3.5f chosen by hand
     return -3.5f * get_ct_timestep(args.W);
 };
 
@@ -690,9 +719,9 @@ I take advantage here of the fact that the derivatives of the conformal variable
 
 ### Rendering
 
-The actual rasterisation in this article simply looks up the background colour from a texture by converting our final position (which is in cartesian coordinates, of the form $(t, x, y, z)$) into an angle $(\theta, \phi)$. This is fundamentally identical to the approach described in previous articles. I should note that for this article I took the time to implement some high quality 32x anisotropic filtering on the GPU, but the description of it has nothing to do with general relativity and is just used to improve the final texture quality. The code is all available on the github
+The actual rasterisation in this article simply looks up the background colour from a texture by converting our final position (which is in cartesian coordinates, of the form $(t, x, y, z)$) into an angle $(\theta, \phi)$. This is fundamentally identical to the approach described in previous articles. I should note that for this article I took the time to implement some high quality 32x anisotropic filtering on the GPU, but the description of it has nothing to do with general relativity and is just used to improve the final texture quality. The code is all available on the github [here](https://github.com/20k/20k.github.io/tree/master/code/NR3/raytrace.cpp)
 
-One trick to improve the quality of the rendering is to find the exact intersection point between the ray when it terminates, and the virtual sphere that the rays terminate at. Performing this correction is a basic ray - sphere intersection:
+One trick to improve the quality of the rendering is to find the exact intersection point between the ray when it terminates, and the virtual sphere that encompasses the simulation. Performing this correction is a basic ray - sphere intersection:
 
 ```c++
 v3f fix_ray_position_cart(v3f cartesian_pos, v3f cartesian_velocity, float sphere_radius)
@@ -722,15 +751,15 @@ v3f fix_ray_position_cart(v3f cartesian_pos, v3f cartesian_velocity, float spher
 
 ## Results
 
-With all of this implemented, this is what our first frame looks like:
+With all of this implemented, this is what the first frame looks like:
 
 ![niceadm1](/assets/nr3_first_frame_adm.png)
 
-And we get this view of our inspiral:
+And we get this view of the inspiral:
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/CCxFQQKLvrU?si=mOrABtsZVTkjK4SA" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-While this is an inaccurate view, it is extremely useful for debugging. Given that it takes ~55ms/frame, its fast enough that we can use it to debug problems - and it essentially shows us an approximate view of the black hole's on every slice. Plus its just less horrible to look at than the old 2d slice. You can see some of the numerical issues (sharp corners) that we have as the black holes inspiral, giving us some clues as to the issues this kind of simulation faces at low resolutions
+While this is an inaccurate view, it is extremely useful for debugging, and it is equivalent in stationary spacetimes. Given that it takes ~55ms/frame, its fast enough that we can use it to debug problems - and it essentially shows us an approximate view of the black holes on every slice. Plus its just less horrible to look at than the old 2d slice. You can see some of the numerical issues (sharp corners) that we have as the black holes inspiral, giving us some clues as to the issues this kind of simulation faces at low resolutions
 
 # Accurate rendering
 
@@ -741,19 +770,20 @@ Up until now we've been largely doing all of this for the purposes of debugging,
 There two options for how we can produce an accurate rendering of numerical spacetimes:
 
 1. Store the ADM variables, and raytrace using the ADM geodesic equations
-2. Store the 4-metric, and raytrace using the geodesic equation
+2. Store the 4-metric, and raytrace using the regular geodesic equation
 
 ### Pros of sticking with ADM
 
 1. The time derivatives are encoded in the ADM variables, eliminating calculating derivatives in the time dimension
 2. Likely fewer memory accesses overall
 3. We have well defined high quality derivatives at our simulation boundaries (in time)
+4. There's some code reuse
 
 ### Cons of sticking with ADM
 
-1. It requires storing 18 fields (6x Yij, 1x gA, 3x gB, 6x Kij) instead of 10 (Guv). We cannot eliminate Kij, as we have to take the derivatives of it, and it itself is constructed of derivatives. This is nearly twice the memory stored per-slice, and its not clear that it brings any benefit
+1. It requires storing 18 fields (6x $\gamma_{ij}$, 1x $\alpha$, 3x $\beta^i$, 6x $K_{ij}$) instead of 10 ($g_{\mu\nu}$). We *could* in theory eliminate $K_{ij}$, as it has a [definition (3.44)](https://arxiv.org/pdf/2210.10103) in terms of the other ADM variables, but this adds complexity
 2. The ADM equations are non separable, and are more troublesome to integrate
-3. While we don't have to differentiate in the timelike direction, we still have to interpolate in it, which is similar in complexity
+3. While we don't have to differentiate in the timelike direction for ADM, we still have to interpolate in it, which is similar in complexity
 4. The equations of motion have a higher computational complexity
 5. Neither technique can use the pre-calculated or stored derivatives as its too memory intensive, so we won't be able to reuse our existing code all that much
 6. Its more difficult to work with the ADM formalism compared to standard GR, and there is less information available on it. Unfortunately, there's only a small smattering of papers on integrating the ADM equations of motion for geodesics
@@ -862,7 +892,45 @@ void bssn_to_guv(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> l
 }
 ```
 
-This function performs the downsampling and metric calculation in a single step. It operates over the downsampled grid resolution, performing a trilinear interpolation of the upper grid variables, and converting them to the 4-metric. This interpolation is only linear, which is likely a potential point of improvement for getting the most of our grid resolution. As we're poking into offsets of more than 2GB, its important to make sure you're using 64bit indexing
+The metric calculation is done as follows:
+
+```c++
+This is the routine that I use for the metric $g_{\mu\nu}$ calculation:
+
+```c++
+metric<valuef, 4, 4> calculate_real_metric(const metric<valuef, 3, 3>& adm, const valuef& gA, const tensor<valuef, 3>& gB)
+{
+    tensor<valuef, 3> gB_lower = lower_index(gB, adm, 0);
+
+    metric<valuef, 4, 4> ret;
+
+    valuef gB_sum = sum_multiply(gB_lower, gB);
+
+    //https://arxiv.org/pdf/gr-qc/0703035.pdf 4.43
+    ret[0, 0] = -gA * gA + gB_sum;
+
+    //latin indices really run from 1-4
+    for(int i=1; i < 4; i++)
+    {
+        //https://arxiv.org/pdf/gr-qc/0703035.pdf 4.45
+        ret[i, 0] = gB_lower[i - 1];
+        ret[0, i] = ret[i, 0]; ///symmetry
+    }
+
+    //build spatial components
+    for(int i=1; i < 4; i++)
+    {
+        for(int j=1; j < 4; j++)
+        {
+            ret[i, j] = adm[i-1, j-1];
+        }
+    }
+
+    return ret;
+}
+```
+
+I'm performing the downsampling and metric calculation in a single step here. It operates over the downsampled grid resolution, performing a trilinear interpolation of the upper grid variables, and converting them to the 4-metric. This interpolation is only linear, which is likely a potential point of improvement for getting the most of our grid resolution. As we're poking into offsets of more than 2GB, its important to make sure you're using 64bit indexing
 
 One thing that is unsupported here is a change in the observable simulation size, here fixed to $30$. It may help you get the best bang for your buck if you want to use even lower resolutions
 
@@ -1112,7 +1180,7 @@ We have a very unfortunate performance combo here: 4d quadrilinear interpolation
 
 One thing to note is: until our simulation has sufficient history available, our derivatives on the 0th slice will be gibberish. Even with one sided derivatives, they'll be inaccurate. I've chosen to implement some clamping once we have *some* derivatives available, but until our rays have enough history available (~$t=40$), we'll get inaccurate results
 
-In general, one of the downsides of this method is the poor quality of the timelike derivatives in the earlier phases of the simulation, which is reflected in the numerically poor results we get very early on
+In general, one of the downsides of this method is the poor quality of the time derivatives in the earlier phases of the simulation, which is reflected in the numerically poor results we get very early on
 
 ## Host side
 
@@ -1158,6 +1226,7 @@ For my use cases, this works well enough. There are a few possible improvements 
 2. The timestepping could likely be improved
 3. The time between slices could be dynamic, with more slices when the simulation is changing faster
 4. Higher order derivatives would let you get better results at a lower resolution. Its likely that swapping to 4th order would be a large improvement, albeit with a reasonable runtime cost
+5. It would be interesting to explore a version of this where we eliminate $K_{ij}$ and use the ADM geodesic equations. In theory, we only have to take 6 time derivatives for the components of $$\dot{\gamma}_{ij}$$, instead of 10 for $\partial_0 g_{\mu\nu}$. In theory, this might provide better results, for less computational cost
 
 # Next time
 
