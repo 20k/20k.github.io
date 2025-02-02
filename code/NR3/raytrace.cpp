@@ -361,7 +361,7 @@ valuef get_ct_timestep(valuef W)
 
     valuef X = W*W;
 
-    valuef my_fraction = (clamp(X, X_near, X_far) - X_near) / (X_far - X_near);
+    valuef my_fraction = (X - X_near) / (X_far - X_near);
 
     my_fraction = clamp(my_fraction, 0.f, 1.f);
 
@@ -699,6 +699,7 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
             buffer_mut<valuei> results, buffer_mut<valuef> zshift,
             literal<v3i> dim,
             literal<valuef> scale,
+            buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
             std::array<buffer<block_precision_t>, 10> Guv_buf,
             literal<valuef> last_time,
             literal<valuei> last_slice,
