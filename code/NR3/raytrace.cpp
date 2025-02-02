@@ -637,14 +637,13 @@ void bssn_to_guv(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> l
 
     v3i pos_lo = {x, y, z};
 
+    //builds the 4-metric from the bssn variables
     auto get_metric = [&](v3i posu)
     {
         bssn_args args(posu, upper_dim.get(), in);
 
         metric<valuef, 3, 3> Yij = args.cY / max(args.W * args.W, valuef(0.0001f));
-
         metric<valuef, 4, 4> met = calculate_real_metric(Yij, args.gA, args.gB);
-
         pin(met);
 
         return met;
@@ -653,10 +652,13 @@ void bssn_to_guv(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> l
     v3i centre_lo = (lower_dim.get() - 1)/2;
     v3i centre_hi = (upper_dim.get() - 1)/2;
 
+    //calculating the scaling factor, to convert from the smaller mesh's coordinate system to the larger mesh
     valuef to_upper = (valuef)centre_hi.x() / (valuef)centre_lo.x();
 
+    //larger mesh coordinate
     v3f f_upper = (v3f)pos_lo * to_upper;
 
+    //calculate and interpolate the metric from the higher resolution mesh, and the bssn variables
     metric<valuef, 4, 4> met = function_trilinear(get_metric, f_upper);
 
     vec2i indices[10] = {
@@ -673,6 +675,7 @@ void bssn_to_guv(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> l
     {
         vec2i idx = indices[i];
 
+        //the index coordinate system is t, z, y, x
         value<uint64_t> lidx = p.z() * d.x() * d.y() + p.y() * d.x() + p.x() + slice.get() * d.x() * d.y() * d.z();
 
         as_ref(Guv[i][lidx]) = (block_precision_t)met[idx.x(), idx.y()];

@@ -18,16 +18,11 @@ I'd highly recommend reading [this introduction to geodesics in general relativi
 
 If you're looking for someone with a lot of enthusiasm for GPU programming, and who'd rather love to do a PhD in numerical relativity - please give me a shout! [^shout]
 
-[^shout]: I'm very bad at plugging myself. Contact me at icedshot@gmail.com, or if you'd like follow my bluesky at [@spacejames.bsky.social](https://bsky.app/profile/spacejames.bsky.social). I also built a tool for rasterising generic metric tensors, which you might enjoy as well: [Raytracer](https://github.com/20k/geodesic_raytracing). Please feel free to contact me for any reason, even if you want to just chit chat or nerd out about space.
+[^shout]: I'm very bad at plugging myself. Contact me at icedshot@gmail.com, or if you'd like - follow my bluesky at [@spacejames.bsky.social](https://bsky.app/profile/spacejames.bsky.social). I also built a tool for rasterising generic metric tensors, which you might enjoy as well: [Raytracer](https://github.com/20k/geodesic_raytracing). Please feel free to contact me for any reason, even if you want to just chit chat or nerd out about space.
 
 The code for this article is available over [here](https://github.com/20k/20k.github.io/tree/master/code/NR3)
 
 ![box_cat](/assets/nr3_box_cat.jpg)
-
-Todo: Tidy up in general
-Todo: View through jekyll and the browser directly
-Todo: maybe some more comments
-Todo: Maybe I should modify the structure of how this article flows, so its theory -> code -> theory -> code, rather than all theory -> all code
 
 # What's the general structure of what we'll be doing?
 
@@ -222,9 +217,9 @@ Where $^3 \Gamma^i_{jk}$ are the christoffel symbols associated with $\gamma_{ij
 
 The only modifications we'll make are as follows:
 
-1. We can replace the $\partial_j \ln(\alpha)$ term with $\frac{\partial_j \alpha}{\alpha}$, which is easier to calculate
-2. For null geodesics, you can enforce $V_i V^i = 1$ by rescaling the length to improve accuracy
-3. We can calculate the christoffel symbols from the BSSN variables directly, eg see [(A3)](https://arxiv.org/pdf/1202.1038)
+1. Replacing $\partial_j \ln(\alpha)$ with $\frac{\partial_j \alpha}{\alpha}$ is easier to calculate
+2. For null geodesics, enforcing $V_i V^i = 1$ by rescaling the length improves accuracy
+3. The christoffel symbols can be calculated from the BSSN variables directly, eg see [(A3)](https://arxiv.org/pdf/1202.1038)
 
 That is to say:
 
@@ -234,7 +229,7 @@ $$\Gamma^i_{jk} = \tilde{\Gamma}^i_{jk} + \frac{\delta^i_j \partial_k W + \delta
 
 With the evolution equations in hand, we'll want to get to implementing. We're going to be using this just to produce a debug visualisation on a single slice. The reason why we won't be using this for our accurate raytracing is that its much less memory efficient - which is something that will become apparent when we get there
 
-The first thing we need before we get started, is to pick an integrator
+The first thing we need before we get started however, is to pick an integrator
 
 ## Verlet
 
@@ -244,19 +239,19 @@ We can pick a much better algorithm: Verlet. First off, we'll take a look at the
 
 ### Verlet for non separable hamiltonians
 
-Wikipedia lists a form of the velocity Verlet algorithm which isn't super helpful to us. Unfortunately, we have two problems
+[Wikipedia](https://en.wikipedia.org/wiki/Verlet_integration#Velocity_Verlet) lists a form of the velocity Verlet algorithm which isn't super helpful to us. Unfortunately, we have two problems
 
 1. Our velocity $V^i$ is not directly the velocity of $X^i$
 2. Our acceleration is a function of the position *and* velocity
 
-These are both really the same problem: what we have is what is known as a non separable hamiltonian. This means our equations are of the form:
+These are both really the same problem: what we have is known as a non separable hamiltonian. This means our equations are of the form:
 
 $$\begin{align}
 \dot{q} &= g(q, v)\\
 \dot{v} &= f(q, v)
 \end{align}$$
 
-We need a slightly more general form of Verlet integration to combat this. We're instead going to implement [(1.24) here](https://www.math.kit.edu/ianm3/lehre/geonumint2009s/media/gni_by_stoermer-verlet.pdf), which lists the more general form of velocity Verlet integration - which *is* applicable to our problem
+We need a slightly more general form of Verlet integration to combat this. We're instead going to implement [(1.24) here](https://www.math.kit.edu/ianm3/lehre/geonumint2009s/media/gni_by_stoermer-verlet.pdf), which lists the more general form of Verlet - which *is* applicable to our problem
 
 The choice of which function is $g$ or $f$ determines which variable is $q$ or $v$. In our case, we'll pick the following convention[^arbitrarily]:
 
@@ -265,7 +260,7 @@ The choice of which function is $g$ or $f$ determines which variable is $q$ or $
 1. $g(q, v) = dX(x(t), v(t))$
 2. $f(q, v) = dV(x(t), v(t))$
 
-Where $q$ is our position $X^i$, $v$ is our velocity $V^i$, $g$ is $dX$, and $f$ is $dV$. This gives us the following integration scheme:
+Where $q$ is the position $X^i$, $v$ is the velocity $V^i$, $g$ is $dX$, and $f$ is $dV$. This gives us the following integration scheme:
 
 $$\begin{align}
 V_{n+\frac{1}{2}} &= V_n + \frac{h}{2}dV(X_n, V_{n+\frac{1}{2}})\\
@@ -293,7 +288,7 @@ While in theory this reduces the stability and accuracy, in practice due to the 
 
 [^vsolve]: Its worth noting that due to the cheapness of re-evaluating $dV$ with different values of $V$, you could solve the first equation via fixed point iteration - but due to the relatively weak dependence of the solution on pertubations in $V$, it provides minimal benefits. Particularly, because we're able to *enforce* the constraint $V_i V^i = 1$ for lightlike geodesics, we are less exposed to numerical errors
 
-The last thing we need to do is solve the double evaluation of $dV$ - we can straightforwardly rework these equations to only evaluate $dV$ once per iteration. To do this, we'll split this up into two phases: initialisation, and then our iteration step. I'll also be relabling $h$ as $h_n$, as the timestep is dynamic:
+The last thing we need to do is solve the evaluation of $dV$ with different values of $X$ - we can straightforwardly rework these equations to only evaluate $dV$ for a single $X$. To do this, we'll split this up into two phases: initialisation, and then our iteration step. I'll also be relabling $h$ as $h_n$, as the timestep is dynamic:
 
 Initialisation:
 
@@ -709,7 +704,9 @@ And we get this view of the inspiral:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/CCxFQQKLvrU?si=mOrABtsZVTkjK4SA" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-While this is an inaccurate view, it is extremely useful for debugging, and it is equivalent in stationary spacetimes. Given that it takes ~55ms/frame, its fast enough that we can use it to debug problems - and it essentially shows us an approximate view of the black holes on every slice. Plus its just less horrible to look at than the old 2d slice. You can see some of the numerical issues (sharp corners) that we have as the black holes inspiral, giving us some clues as to the issues this kind of simulation faces at low resolutions
+While this is an inaccurate view, it is extremely useful for debugging, and it is equivalent in stationary spacetimes to the accurate view. Given that it takes ~55ms/frame, its fast enough that we can use it to debug problems - and it essentially shows us an approximate view of the black holes on every slice. Plus its just less horrible to look at than the old 2d slice
+
+There are some notable features here: you can see the black holes 'inflating' at the beginning. You can see some of the numerical issues (sharp corners) that we have as the black holes inspiral, giving us some clues as to the issues this kind of simulation faces at low resolutions
 
 # Accurate rendering
 
@@ -740,15 +737,15 @@ There two options for how we can produce an accurate rendering of numerical spac
 
 ### Decision
 
-In the end, the memory consumption is going to be the limiting factor here, so we're going to change gears entirely to using the standard geodesic integration techniques. Its also important to note: whatever we do, the performance is going to be.. interesting as we attempt to trace through gigabytes of data, so we're focusing on offline rendering performance largely (though it'll still be interactive)
+In the end, the memory consumption is going to be the limiting factor here, so we're going to change gears entirely to using the standard geodesic integration techniques. Whatever we do, the performance is going to be a bit sketchy at best as we attempt to visualise gigabytes of data
 
-If it seems disappointingly like we're chucking a lot of work into the bin: we're not. Both of these techniques have their places and are useful in different situations. We'll be implementing all of this for a third time in the future for N-body simulations: c'est la vie. And likely exploring other techniques in the future as well, for solving similar problems. Its delightful
+If it seems disappointingly like we're chucking a lot of work into the bin: we're not. Both of these techniques have their places and are useful in different situations. We'll be implementing all of this for a third time in the future for N-body simulations: c'est la vie
 
 ### Performance constraints
 
-Because geodesics travel at the speed of light, and our simulation is $30$ wide, it'll take $30$ + some trips around our black holes before rays are able to successfully pass by a black hole. This means that if our collision is roughly at ~$t=todo$, we'll need to have data until ~$t=240$ to account for the delay in causality as we raytrace light rays
+Because null geodesics travel at the speed of light, and our simulation is $30$ wide, it'll take $30$ + some trips around our black holes before rays are able to successfully pass by a black hole. This means that if our collision is roughly at ~$t=150$, we'll need to have data until ~$t=180$ to account for the delay in causality as we raytrace light rays to see it. We also want to check out the gravitational waves as well, and in practice we need to simulate until $t=240$
 
-I've got about 12 GB of vram to work with here[^overcommit], so lets put some numbers in here and work out some of our constraints. If we're using single[^half] precision, and assume that roughly ~2 units of time between snapshots is good enough (though you can get away with less), our maximum vram consumption is
+I've got about 12 GB of vram to work with here[^overcommit], so lets crunch some numbers. If we're using single[^half] precision, and assume that roughly ~2 units of time between snapshots is good enough (though you can get away with a wider spacing), our maximum vram consumption is:
 
 [^half]: If you're thinking about half precision, its too low quality unfortunately. It results in a simulation that looks like its underwater. If you're determined to try, consider applying the idea behind [(3)](https://arxiv.org/pdf/2404.01137), ie subtract out the identity matrix from $g_{\mu\nu}$ to improve precision, or use 16-bit fixed point. I haven't tested either yet and would be interested to know if you do
 
@@ -756,9 +753,7 @@ I've got about 12 GB of vram to work with here[^overcommit], so lets put some nu
 
 `10 (fields) * 4 (sizeof(float)) * dim^3 * snapshot_count (=120)`
 
-If we were to naively snap at our native grid res of $213^3$, this would take up 46 GB. This is - how you would say - bad
-
-Instead, solving for 12 GB, we get a maximum resolution of ~$138^3$. In practice, I pick a lower value, because allocating allocating all of your vram is liable to cause Problems[^desktop], so I'm slightly arbitrarily picking $101^3$. Luckily, this is good-enough resolution wise, both in time and space
+If we were to naively snap at our native grid res of $213^3$, this would take up 46 GB. This is - how you would say - bad. Solving for 12 GB, we get a maximum resolution of ~$138^3$. In practice, I pick a lower value of $101^3$, because allocating allocating all of your vram is liable to cause Problems[^desktop]. This is probably about the minimum spatial resolution that you can get away with
 
 [^desktop]: I run these simulations on my desktop pc, and believe me when I say I'd go absolutely bonkers if I couldn't use it while recording hours of footage for these articles
 
@@ -766,16 +761,12 @@ Instead, solving for 12 GB, we get a maximum resolution of ~$138^3$. In practice
 
 The geodesic equation is fairly straightforward compared to the ADM geodesic equations. Given a position $x^\mu$, our velocity is $\frac{dx^\mu}{d\lambda}$. We'll first calculate the christoffel symbols of the second kind, and then plug this in to the geodesic equation:
 
-$$\frac{d^2 x^\mu}{d\lambda^2} =-\Gamma^\mu_{\alpha \beta} \frac{dx^\alpha}{d\lambda} \frac{dx^\beta}{d\lambda}$$
-
-where
-
 $$\begin{align}
 \Gamma^\mu_{\alpha\beta} &= \frac{1}{2} g^{\mu\sigma} (\partial_\beta g_{\sigma\alpha} + \partial_\alpha g_{\sigma\beta} - \partial_\sigma g_{\alpha\beta})\\
 \frac{d^2 x^\mu}{d\lambda^2} &=-\Gamma^\mu_{\alpha \beta} \frac{dx^\alpha}{d\lambda} \frac{dx^\beta}{d\lambda}\\
 \end{align}$$
 
-This gives an acceleration[^acceleration], and we can use standard integration techniques on this. $\Gamma^\mu_{\alpha \beta}$ is the christoffel symbols of the second kind. Lets run through the implementation of the major steps now:
+This gives the acceleration[^acceleration] $$\frac{d^2 x^\mu}{d\lambda^2}$$, and we can use standard integration techniques on this. Lets run through the implementation of the major steps now:
 
 [^acceleration]: Not a physical acceleration, just a change in our coordinates
 
@@ -805,14 +796,13 @@ void bssn_to_guv(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> l
 
     v3i pos_lo = {x, y, z};
 
+    //builds the 4-metric from the bssn variables
     auto get_metric = [&](v3i posu)
     {
         bssn_args args(posu, upper_dim.get(), in);
 
         metric<valuef, 3, 3> Yij = args.cY / max(args.W * args.W, valuef(0.0001f));
-
         metric<valuef, 4, 4> met = calculate_real_metric(Yij, args.gA, args.gB);
-
         pin(met);
 
         return met;
@@ -821,10 +811,13 @@ void bssn_to_guv(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> l
     v3i centre_lo = (lower_dim.get() - 1)/2;
     v3i centre_hi = (upper_dim.get() - 1)/2;
 
+    //calculating the scaling factor, to convert from the smaller mesh's coordinate system to the larger mesh
     valuef to_upper = (valuef)centre_hi.x() / (valuef)centre_lo.x();
 
+    //larger mesh coordinate
     v3f f_upper = (v3f)pos_lo * to_upper;
 
+    //calculate and interpolate the metric from the higher resolution mesh, and the bssn variables
     metric<valuef, 4, 4> met = function_trilinear(get_metric, f_upper);
 
     vec2i indices[10] = {
@@ -841,6 +834,7 @@ void bssn_to_guv(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> l
     {
         vec2i idx = indices[i];
 
+        //the index coordinate system is t, z, y, x
         value<uint64_t> lidx = p.z() * d.x() * d.y() + p.y() * d.x() + p.x() + slice.get() * d.x() * d.y() * d.z();
 
         as_ref(Guv[i][lidx]) = (block_precision_t)met[idx.x(), idx.y()];
@@ -848,10 +842,11 @@ void bssn_to_guv(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> l
 }
 ```
 
-The metric calculation is done as follows:
+I'm performing the downsampling and metric calculation in a single step here. It operates over the downsampled grid resolution, performing a trilinear interpolation of the upper grid variables, and converting them to the 4-metric. This interpolation is only linear, which is likely a potential point of improvement for getting the most of our grid resolution. As we're poking into offsets of more than 2GB, its important to make sure you're using 64bit indexing
 
-```c++
-This is the routine that I use for the metric $g_{\mu\nu}$ calculation:
+One thing that is unsupported here is a change in the observable simulation size, here fixed to $30$. It may help you get the best bang for your buck if you want to use even lower resolutions
+
+The metric $g_{\mu\nu}$ calculation is done as follows:
 
 ```c++
 metric<valuef, 4, 4> calculate_real_metric(const metric<valuef, 3, 3>& adm, const valuef& gA, const tensor<valuef, 3>& gB)
@@ -885,10 +880,6 @@ metric<valuef, 4, 4> calculate_real_metric(const metric<valuef, 3, 3>& adm, cons
     return ret;
 }
 ```
-
-I'm performing the downsampling and metric calculation in a single step here. It operates over the downsampled grid resolution, performing a trilinear interpolation of the upper grid variables, and converting them to the 4-metric. This interpolation is only linear, which is likely a potential point of improvement for getting the most of our grid resolution. As we're poking into offsets of more than 2GB, its important to make sure you're using 64bit indexing
-
-One thing that is unsupported here is a change in the observable simulation size, here fixed to $30$. It may help you get the best bang for your buck if you want to use even lower resolutions
 
 ## Timestepping
 
@@ -1006,7 +997,7 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
 }
 ```
 
-Once difference is that I've chosen to calculate redshift, as it now has a physically meaningful value. Additionally, the ray termination constraints are different: notably, we use the divergence of the time coordinate as our measure for if a ray is trapped on the event horizon, as well as the change in coordinate space
+One difference is that I've chosen to calculate redshift, as it now has a meaningful value. Additionally, the ray termination constraints are different: notably, the divergence of the time coordinate is used as a measure for if a ray is trapped on the event horizon, as well as the change in coordinate space
 
 Other than that, its nearly identical. The update functions are as follows:
 
@@ -1130,23 +1121,23 @@ auto velocity_process = [](v4f v, const trace4_state& st) {
 };
 ```
 
-We have a very unfortunate performance combo here: 4d quadrilinear interpolation, and using that to calculate numerical derivatives in 4 directions. This is not good for performance, unsurprisingly. For simplicitly I'm relying on the GPUs cache[^cache] - its likely we could get better performance if we laid this all out by hand and eliminated the redundant memory accesses. Given that the goal is not super high performance here, I've chosen to invest in my sanity instead
+We have a very unfortunate performance combo here: 4d quadrilinear interpolation, and using that to calculate numerical derivatives in 4 directions. This is not ideal, unsurprisingly. For simplicitly I'm relying on the GPUs cache[^cache] - its likely we could get better performance if we laid this all out by hand and eliminated the redundant memory accesses. Given that the goal is not super high performance here, I've chosen to invest in my sanity instead
 
 [^cache]: Interestingly, this pattern might run terribly on datacentre GPUs which don't have an l3 cache
 
-One thing to note is: until our simulation has sufficient history available, our derivatives on the 0th slice will be gibberish. Even with one sided derivatives, they'll be inaccurate. I've chosen to implement some clamping once we have *some* derivatives available, but until our rays have enough history available (~$t=40$), we'll get inaccurate results
+One thing to note is: until our simulation has sufficient history available, our derivatives on the 0th slice will be gibberish. Even with one sided derivatives, they'll be inaccurate. I've chosen to implement some clamping once we have *some* derivatives available, but until the rays have enough history available (~$t=40$), we'll get very inaccurate results
 
 In general, one of the downsides of this method is the poor quality of the time derivatives in the earlier phases of the simulation, which is reflected in the numerically poor results we get very early on
 
 ## Host side
 
-The way I run these rasterisations is to fully run the simulation until ~$t=240$, pause it, and then run the camera on its own frametime-dependent timer to do the full rasterisation. This allows the GPU to page out all our BSSN variables and derivatives, and page in the full metric data instead for much better rendering performance
+The way I run these rasterisations is to fully run the simulation until ~$t=240$, pause it, and then run the camera on its own frametime-dependent timer to do the full rasterisation. This allows the GPU to page out the BSSN variables and derivatives, and page in the full metric data instead. This results in much better rendering performance
 
 The driver for the host side of things isn't very interesting otherwise, and can be found as the [raytrace_manager](https://github.com/20k/20k.github.io/blob/master/code/NR2/main.cpp)
 
 ## Results
 
-With this implemented, our first frame looks like this:
+With this implemented, the first frame looks like this:
 
 ![garbage](/assets/nr3_first_frame_oddity.png)
 
@@ -1154,11 +1145,11 @@ As a video, we get this:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/1M5ZYqqNQRI?si=r4nY7m_uKIrbpi76" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Which is pretty great once the history fills in. Performance here is ~210ms/frame, which is absolutely fine for producing videos or the occasional debugging
+Which is pretty great once the history fills in. Performance here is ~210ms/frame, which is absolutely fine for producing videos, or for debugging
 
 ## Compared To ADM
 
-As a final check, we can have a look at the final resting state of ADM vs the geodesic simulation, to check how close our results are to each other - as they are equivalent in a stationary spacetime. Given that these are two entirely unrelated techniques, if they match and visually look like black holes - we're probably close enough with regards to accuracy
+As a final check, we can have a look at the final resting state of the approximate ADM raytracer vs the accurate raytracer, to check how close our results are to each other. They are strictly equivalent in a stationary spacetime, so once the simulation has settled - we should get identical results. Given that these are two entirely unrelated techniques, if they match and visually look like black holes - we're probably close enough with regards to accuracy
 
 Single slice:
 
@@ -1182,7 +1173,7 @@ For my use cases, this works well enough. There are a few possible improvements 
 2. The timestepping could likely be improved
 3. The time between slices could be dynamic, with more slices when the simulation is changing faster
 4. Higher order derivatives would let you get better results at a lower resolution. Its likely that swapping to 4th order would be a large improvement, albeit with a reasonable runtime cost
-5. It would be interesting to explore a version of this where we eliminate $K_{ij}$ and use the ADM geodesic equations. In theory, we only have to take 6 time derivatives for the components of $$\dot{\gamma}_{ij}$$, instead of 10 for $\partial_0 g_{\mu\nu}$. In theory, this might provide better results, for less computational cost
+5. It would be interesting to explore a version of this where we eliminate $K_{ij}$ and use the ADM geodesic equations. In theory, we only have to take 6 time derivatives for the components of $$\dot{\gamma}_{ij}$$, instead of 10 for $\partial_0 g_{\mu\nu}$. This might provide better results, for less computational cost
 
 # Next time
 
@@ -1194,14 +1185,14 @@ The next article will either be on neutron star collisions (which is a big topic
 
 ## Why not timelike geodesics?
 
-While the ADM equations of motion presented in this article are applicable to timelike geodesics, in practice integrating them into a simulation is radically different than what you do for lightlike geodesics. Its sufficiently different that - beyond the specific equations themselves - there's very little commonality in terms of implementation - and we'll need a totally different setup. We'll be covering timelike geodesics thoroughly when we hit N-body particle dynamics - likely in a few articles time
+While the ADM equations of motion presented in this article are applicable to timelike geodesics, in practice integrating them into a simulation is radically different than what you do for lightlike geodesics. Its sufficiently different that - beyond the specific equations themselves - there's very little commonality in terms of implementation and we'll need a radically different setup. We'll be covering timelike geodesics thoroughly when we hit N-body particle dynamics - likely in a few articles time
 
 ## ADM formalism conversions
 
 | Symbol | Name | Relation to normal GR  | Description |
 |-|-|-|-|
 | $\gamma_{ij}$ | The 3-metric tensor | $g_{ij}$ | Describes curvature on the 3 surface. Symmetric |
-| $K_{ij}$ | Extrinsic curvature | $\frac{1}{2 \alpha} (D_i \beta_j + D_j \beta_i - \frac{\partial g_{ij}}{\partial_t})$ | The curvature of the 3 surface with respect to the 4th dimension. Symmetric |
+| $K_{ij}$ | Extrinsic curvature | $\frac{1}{2 \alpha} (D_i \beta_j + D_j \beta_i - \frac{\partial g_{ij}}{\partial_t})$ | The curvature of the 3 surface with respect to the 4th dimension. Symmetric. Note that  $\frac{\partial g_{ij}}{\partial_t} = \frac{\partial \gamma_{ij}}{\partial_t}$|
 | $\alpha$ | Lapse | $\sqrt{-g_{00} + \beta^m \beta_m}$ | Part of the hypersurface normal, which points into the future |
 | $\beta^i$ | Shift | $g_{0i}$ | The other part of the hypersurface normal, which points into the future |
 
