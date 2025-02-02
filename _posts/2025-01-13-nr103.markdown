@@ -1,7 +1,7 @@
 ---
 layout: post
 title:  "Numerical Relativity 103: Raytracing numerical spacetimes"
-date:   2026-01-12 12:33:23 +0000
+date:   2025-02-02 12:33:23 +0000
 categories: C++
 ---
 
