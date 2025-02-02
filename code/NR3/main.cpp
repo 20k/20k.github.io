@@ -726,6 +726,7 @@ struct raytrace_manager
         args.push_back(positions, velocities, results, zshifts);
         args.push_back(reduced_dim);
         args.push_back(reduced_scale);
+        args.push_back(tetrads[0], tetrads[1], tetrads[2], tetrads[3]);
 
         for(auto& i : Guv_block)
             args.push_back(i);
