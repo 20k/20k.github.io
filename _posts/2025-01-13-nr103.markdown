@@ -50,7 +50,7 @@ In general relativity, geodesics represent paths through spacetime. They come in
 2. Null (or lightlike), representing the paths of massless particles like light
 3. Spacelike, representing paths that cannot be traversed causally
 
-In general, we're only interested in timelike and null geodesics. Everything in this article is applicable to both of these kinds of geodesics - though we're not going to simulate timelike geodesics today
+In general, we're only interested in timelike and null geodesics. Everything in this article is applicable to both of these kinds of geodesics unless otherwise mentioned - though we're not going to simulate timelike geodesics today
 
 Geodesics have two properties:
 
@@ -63,7 +63,7 @@ Greek indices run from $0-4$ and represent quantities on our 4d hypersurface. La
 
 The ADM formalism is the process of taking a 4-metric $g_{\mu\nu}$, and splitting it up into a series of 3d slices (called a foliation). Each 3d slice has a number of variables associated with it: $\gamma_{ij},\;K_{ij},\;\alpha,\;\beta^i$. I'll list a table of all the relevant conversions and definitions at the end of this article. The main one to remember is that $\gamma_{ij}$ is the metric tensor on the current 3d slice (the 'induced' metric)
 
-Unlike previous articles, we'll be barely dealing with the BSSN formalism (an offshoot of ADM) at all. I'll be mentioning it in passing, but we'll use it solely to construct our relevant ADM quantities
+Unlike previous articles, we'll be barely dealing with the BSSN formalism (an offshoot of ADM) at all. I'll be mentioning it in passing, but we'll use it solely to construct the relevant ADM quantities
 
 ![box_cat2](/assets/nr3_box_cat2.jpg)
 
@@ -87,7 +87,7 @@ This paper requires us to calculate the 4-momentum of our geodesic, $p^\mu$. Thi
 
 [^lambda]: For timelike geodesics, generally we set $\lambda = \tau$, ie we parameterise our geodesic by proper time
 
-Where $m$ is the rest mass, and we've set $d\lambda = d\tau$ (the proper time) for timelike geodesics. For a null geodesic, the 4-momentum is equivalent to rescaling the 4-velocity, which has [no effect](https://physics.stackexchange.com/questions/350556/definition-of-p-mu-for-a-photon-in-general-relativity) on the path (as rescaling a null geodesic is equivalent to a change in the affine parameter)
+Where $m$ is the rest mass, and we've set $d\lambda = d\tau$ (the proper time) for timelike geodesics. For null geodesics, the 4-momentum is equivalent to rescaling the 4-velocity, which has [no effect](https://physics.stackexchange.com/questions/350556/definition-of-p-mu-for-a-photon-in-general-relativity) on the path (as rescaling a null geodesic is equivalent to a change in the affine parameter)
 
 Next up, we want to find the 3-velocity of the ray, which is the projection of our 4-velocity on the 3-surface - ie we're translating from GR to ADM. To do this, simply apply (8), and solve for $V^\mu$:
 
@@ -103,9 +103,9 @@ Where:
 This procedure breaks up the momentum $p^\mu$ into two parts:
 
 1. A component $V^i$ tangent to our hypersurface. This means $V^\mu$ has no component in the timelike direction ($\mathcal{n}_\mu V^\mu = 0$, and $V^0 = 0$)
-2. A component which is normal to the hypersurface, ie pointing forwards in a timelike direction. Finding the evolution of $V^i$ in the normal direction gives us the geodesic equations
+2. A component which is normal to the hypersurface, ie pointing forwards in a timelike direction. Finding the evolution of $V^i$ in the normal direction ($\mathcal{n}^\mu$) gives us the geodesic equations
 
-For null geodesics, $V_i V^i = 1$, and for timelike geodesics, $V_i V^i < 1$
+For null geodesics, $V_i V^i = 1$, and for timelike geodesics, $V_i V^i < 1$. Indices are raised and lowered with $\gamma_{ij}$ as normal
 
 So, for tracing a geodesic in the ADM formalism, we have two things at the end of our initial conditions:
 
@@ -228,26 +228,28 @@ The only modifications we'll make are as follows:
 
 That is to say:
 
-$$\Gamma^i_{jk} = \tilde{\Gamma}^i_{jk} + \frac{\delta^i_j \partial_k W + \delta^i_k \partial_j W - \tilde{\gamma}_{jk} \partial^i W}{W}$$
+$$\Gamma^i_{jk} = \tilde{\Gamma}^i_{jk} - \frac{\delta^i_j \partial_k W + \delta^i_k \partial_j W - \tilde{\gamma}_{jk} \partial^i W}{W}$$
+
+Where $\delta^i_j$ is the kronecker delta, and $$\partial^i = \tilde{\gamma}^{ij} \partial_j $$
 
 # Approximate rendering on a single slice
 
-With the evolution equations in hand, we'll want to get to implementing. We're going to be using this just to produce a debug visualisation on a single slice. The reason why we won't be using this for our accurate raytracing is that its much less memory efficient - which is something that will become apparent when we get there
+With the evolution equations in hand, we'll want to get to implementing. We're going to be using this just to produce a debug visualisation on a single slice. The reason why we won't be using this for accurate raytracing is that its much less memory efficient - which is something that will become apparent when we get there
 
 The first thing we need before we get started however, is to pick an integrator. Its important to pick a good choice here, as it'll govern our performance
 
 ## Verlet
 
-Euler integration is not very good for these problems, even if it does tend to be the default integrator for many problems. It has poor performance for its accuracy, and additionally it isn't symplectic. This means that a rays energy tends to diverge, and its not a great choice in general
+Euler integration is not very good for these problems, even if it does tend to be the default integrator for many problems. It has poor performance for its accuracy, and additionally it isn't symplectic. This means that a ray's energy tends to diverge, and its not a great choice in general
 
-We can pick a much better algorithm: Verlet. First off, we'll take a look at the basic Verlet algorithm for this problem, and then we'll tweak it to improve performance
+We can pick a much better algorithm: Verlet. First off, we'll take a look at the basic Verlet algorithm for this problem, and then tweak it to improve performance
 
 ### Verlet for non separable hamiltonians
 
-[Wikipedia](https://en.wikipedia.org/wiki/Verlet_integration#Velocity_Verlet) lists a form of the velocity Verlet algorithm which isn't super helpful to us. Unfortunately, we have two problems
+[Wikipedia](https://en.wikipedia.org/wiki/Verlet_integration#Velocity_Verlet) lists a form of the velocity Verlet algorithm which isn't super helpful to us. Unfortunately, we have two problems:
 
-1. Our velocity $V^i$ is not directly the velocity of $X^i$
-2. Our acceleration is a function of the position *and* velocity
+1. The velocity $V^i$ is not directly the velocity of $X^i$
+2. The acceleration is a function of the position *and* velocity
 
 These are both really the same problem: what we have is known as a non separable hamiltonian. This means our equations are of the form:
 
@@ -256,7 +258,7 @@ $$\begin{align}
 \dot{v} &= f(q, v)
 \end{align}$$
 
-We need a slightly more general form of Verlet integration to combat this. We're instead going to implement [(1.24) here](https://www.math.kit.edu/ianm3/lehre/geonumint2009s/media/gni_by_stoermer-verlet.pdf), which lists the more general form of Verlet - which *is* applicable to our problem
+We need a slightly more general form of Verlet integration to combat this. A more useful form is defined by [(1.24) here](https://www.math.kit.edu/ianm3/lehre/geonumint2009s/media/gni_by_stoermer-verlet.pdf) - which *is* applicable to our problem
 
 The choice of which function is $g$ or $f$ determines which variable is $q$ or $v$. In our case, we'll pick the following convention[^arbitrarily]:
 
@@ -265,7 +267,7 @@ The choice of which function is $g$ or $f$ determines which variable is $q$ or $
 1. $g(q, v) = dX(x(t), v(t))$
 2. $f(q, v) = dV(x(t), v(t))$
 
-Where $q$ is the position $X^i$, $v$ is the velocity $V^i$, $g$ is $dX$, and $f$ is $dV$. This gives us the following integration scheme:
+Where $q$ is the position $X^i$, $v$ is the velocity $V^i$, $g$ is $dX$, and $f$ is $dV$. This gives the following integration scheme:
 
 $$\begin{align}
 V_{n+\frac{1}{2}} &= V_n + \frac{h}{2}dV(X_n, V_{n+\frac{1}{2}})\\
@@ -273,7 +275,7 @@ X_{n+1} &= X_n + \frac{h}{2}(dX(X_n, V_{n+\frac{1}{2}}) + dX(X_{n+1}, V_{n+\frac
 V_{n+1} &= V_{n+\frac{1}{2}} + \frac{h}{2} dV(X_{n+1}, V_{n+\frac{1}{2}})\\
 \end{align}$$
 
-Where $h$ is the timestep, and $n$ is the iteration variable. You might notice that these equations are implicit, ie we have terms which are on both sides of the equation. Solving these equations efficiently might seem prohibitively expensive right off the bat, especially compared to just lowering the timestep with a simple Euler scheme. Luckily the problem we're trying to solve allows us to make some simplifications and assumptions:
+Where $h$ is the timestep, and $n$ is the iteration variable. You might notice that these equations are implicit, ie we have terms which are on both sides of the equation. Solving these equations efficiently might seem prohibitively expensive right off the bat, especially compared to just lowering the timestep with a simple Euler scheme. Luckily the problem we're trying to solve allows us to make some simplifications and assumptions, based on its characteristics:
 
 1. $dV(X, V)$ is expensive to evaluate for different values of $X$, but cheap to evaluate for different values of $V$
 2. $dV(X, V)$ is only weakly dependent on the value of $V$, ie $dV(X, V + \epsilon) \approx dV(X, V)$
@@ -710,7 +712,7 @@ And we get this view of the inspiral:
 
 While this is an inaccurate view, it is extremely useful for debugging, and it is equivalent in stationary spacetimes to the accurate view. Given that it takes ~55ms/frame, its fast enough that we can use it to debug problems - and it essentially shows us an approximate view of the black holes on every slice. Plus its just less horrible to look at than the old 2d slice
 
-There are some notable features here: you can see the black holes 'inflating' at the beginning. You can see some of the numerical issues (sharp corners) that we have as the black holes inspiral, giving us some clues as to the issues this kind of simulation faces at low resolutions
+There are some notable features here: you can see the black holes 'inflating' at the beginning. There is also evidence of some of the numerical problems (sharp corners) that we have as the black holes inspiral, giving us some clues as to the issues this kind of simulation faces at low resolutions
 
 # Accurate rendering
 
@@ -747,7 +749,7 @@ If it seems disappointingly like we're chucking a lot of work into the bin: we'r
 
 ### Performance constraints
 
-Because null geodesics travel at the speed of light $c=1$, and this simulation is $30$ wide, it'll take $30$ + some trips around our black holes before rays are able to fully trace a path through the simulation. This means that if our collision is roughly at ~$t=150$, we'll need to have data until ~$t=165$ (+ some extra room for the derivatives, in practice its more like $t=180$ with everything taken into account), to account for the delay in causality as we raytrace light rays to see it. We also want to check out ringdown + gravitational waves, and for all of this we'll need to simulate until $t=240$ and store this data somehow
+Because null geodesics travel at the speed of light $c=1$, and this simulation is $30$ wide, it'll take $30$ + some trips around our black holes before rays are able to fully trace a path through the simulation. In practice, once we've accounted for causality and how much of the simulation we want to view - we'll need to store the simulation's history up until ~$t=240$
 
 I've got about 12 GB of vram to work with here[^overcommit], so lets crunch some numbers. If we're using single[^half] precision, and assume that roughly ~2 units of time between snapshots is good enough (though you can get away with a wider spacing), our maximum vram consumption is:
 
@@ -763,7 +765,7 @@ If we were to naively snap at our native grid res of $213^3$, this would take up
 
 ## The geodesic equation
 
-The geodesic equation is fairly straightforward compared to the ADM geodesic equations. Given a position $x^\mu$, our velocity is $\frac{dx^\mu}{d\lambda}$. We'll first calculate the Christoffel symbols of the second kind, and then plug this in to the geodesic equation:
+The geodesic equation is fairly straightforward compared to the ADM geodesic equations. Lets assume we have a position $x^\mu$ and velocity $\frac{dx^\mu}{d\lambda}$. We'll first calculate the Christoffel symbols of the second kind, and then plug this in to the geodesic equation:
 
 $$\begin{align}
 \Gamma^\mu_{\alpha\beta} &= \frac{1}{2} g^{\mu\sigma} (\partial_\beta g_{\sigma\alpha} + \partial_\alpha g_{\sigma\beta} - \partial_\sigma g_{\alpha\beta})\\
@@ -774,7 +776,7 @@ This gives the acceleration[^acceleration] $$\frac{d^2 x^\mu}{d\lambda^2}$$, and
 
 [^acceleration]: Not a physical acceleration, just a change in our coordinates
 
-1. Taking simulation snapshots and downsampling
+1. Taking simulation snapshots and downsampling to $101^3$
 2. Implementing the geodesic equation
 
 ## Snapshots
@@ -847,7 +849,7 @@ void bssn_to_guv(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> l
 }
 ```
 
-I'm performing the downsampling and metric calculation in a single step here. It operates over the downsampled grid resolution, and calculates the metric from the trilinearly interpolated higher resolution grid variables. This interpolation is only linear, which is a potential point of improvement for getting the most out of a low grid resolution. As this requires poking into offsets of more than 2GB, its important to make sure you're using 64bit indexing
+I'm performing the downsampling and metric calculation in a single step here. It operates over the downsampled grid resolution, and calculates the metric from the trilinearly interpolated higher resolution grid variables. This interpolation is only linear, which is a potential point of improvement for getting the most out of a low grid resolution. As this may require poking into offsets of more than 2GB, its important to make sure you're using 64bit indexing
 
 One thing that is unsupported here is a change in the observable simulation size, here fixed to $30$. It may help you get the best bang for your buck if you want to use even lower resolutions
 
@@ -1036,6 +1038,7 @@ auto get_dV = [&](v4f position, v4f velocity, trace4_state st) {
 
         valuef divisor = 2 * scale.get();
 
+        //the spacing is different when differentiating in the time direction
         if(m == 0)
             divisor = 2 * slice_width.get();
 
@@ -1111,11 +1114,11 @@ auto velocity_process = [](v4f v, const trace4_state& st) {
 };
 ```
 
-We have a very unfortunate performance combo here: 4d quadrilinear interpolation, and using that to calculate numerical derivatives in 4 directions. This is not ideal, unsurprisingly. For simplicitly I'm relying on the GPUs cache[^cache] - its likely we could get better performance if we laid this all out by hand and eliminated the redundant memory accesses. Given that the goal is not super high performance here, I've chosen to invest in my sanity instead
+We have a very unfortunate performance combo here: 4d quadrilinear interpolation, and using that to calculate numerical derivatives in 4 directions. This is not ideal, unsurprisingly. For simplicitly I'm relying on the GPU's cache[^cache] - its likely we could get better performance if we laid this all out by hand and eliminated the redundant memory accesses. Given that the goal is not super high performance here, I've chosen to invest in my sanity instead
 
 [^cache]: Interestingly, this pattern might run terribly on datacentre GPUs which don't have an l3 cache
 
-One thing to note is: until our simulation has sufficient history available, our derivatives on the 0th slice will be gibberish. Even with one sided derivatives, they'll be inaccurate. I've chosen to implement some clamping once we have *some* derivatives available, but until the rays have enough history available (~$t=40$), we'll get very inaccurate results
+One thing to note is: until the simulation has sufficient history available, derivatives on the 0th slice will be gibberish. Even with one sided derivatives, they'll be inaccurate. I've chosen to implement some clamping once we have *some* derivatives available, but until the rays have enough history available (~$t=40$), the results will still be very inaccurate
 
 In general, one of the downsides of this method is the poor quality of the time derivatives in the earlier phases of the simulation, which is reflected in the numerically poor results we get very early on. Its also tied to the fact that our initial conditions are approximate, and take a bit to collapse into a steady state, which renders our approximation (constant derivatives) much less valid
 
