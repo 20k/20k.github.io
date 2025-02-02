@@ -20,7 +20,7 @@ If you're looking for someone with a lot of enthusiasm for GPU programming, and 
 
 [^shout]: I'm very bad at plugging myself. Contact me at icedshot@gmail.com, or if you'd like - follow my bluesky at [@spacejames.bsky.social](https://bsky.app/profile/spacejames.bsky.social). I also built a tool for rasterising generic metric tensors, which you might enjoy as well: [Raytracer](https://github.com/20k/geodesic_raytracing). Please feel free to contact me for any reason, even if you want to just chit chat or nerd out about space.
 
-The code for this article is available over [here](https://github.com/20k/20k.github.io/tree/master/code/NR3)
+The code for this article is available over [here](https://github.com/20k/20k.github.io/tree/master/code/NR3) as always
 
 ![box_cat](/assets/nr3_box_cat.jpg)
 
