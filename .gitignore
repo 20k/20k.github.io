@@ -3,3 +3,9 @@ _site
 .jekyll-cache
 .jekyll-metadata
 vendor
+.xmake
+bin
+build
+cache
+generated
+obj
