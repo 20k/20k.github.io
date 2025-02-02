@@ -40,7 +40,7 @@ if is_plat("mingw") then
     add_ldflags("-mwindows")
 end
 
-target("nr2")
+target("nr3")
     set_kind("binary")
     add_files("main.cpp")
     add_files("*.cpp")
