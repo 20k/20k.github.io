@@ -26,7 +26,7 @@ The code for this article is available over [here](https://github.com/20k/20k.gi
 
 # What's the general structure of what we'll be doing?
 
-Like any traditional raytracer, there are three parts to what we're doing:
+Like any traditional raytracer, there are three parts:
 
 1. Initial conditions
 2. Integration
