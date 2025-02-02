@@ -165,13 +165,11 @@ v2f angle_to_tex(const v2f& angle)
 }
 
 //calculate Y of XYZ
-inline
 valuef energy_of(v3f v)
 {
     return v.x()*0.2125f + v.y()*0.7154f + v.z()*0.0721f;
 }
 
-inline
 v3f redshift(v3f v, valuef z)
 {
     using namespace single_source;
@@ -224,14 +222,12 @@ v3f redshift(v3f v, valuef z)
 }
 
 template<typename T>
-inline
 T linear_to_srgb_gpu(const T& in)
 {
     return ternary(in <= T(0.0031308f), in * 12.92f, 1.055f * pow(in, 1.0f / 2.4f) - 0.055f);
 }
 
 template<typename T>
-inline
 tensor<T, 3> linear_to_srgb_gpu(const tensor<T, 3>& in)
 {
     tensor<T, 3> ret;
@@ -243,7 +239,6 @@ tensor<T, 3> linear_to_srgb_gpu(const tensor<T, 3>& in)
 }
 
 template<typename T>
-inline
 T srgb_to_linear_gpu(const T& in)
 {
     return ternary(in < T(0.04045f), in / 12.92f, pow((in + 0.055f) / 1.055f, T(2.4f)));
@@ -251,7 +246,6 @@ T srgb_to_linear_gpu(const T& in)
 
 ///https://chilliant.blogspot.com/2012/08/srgb-approximations-for-hlsl.html
 template<typename T>
-inline
 tensor<T, 3> srgb_to_linear_gpu(const tensor<T, 3>& in)
 {
     tensor<T, 3> ret;
@@ -262,7 +256,6 @@ tensor<T, 3> srgb_to_linear_gpu(const tensor<T, 3>& in)
     return ret;
 }
 
-inline
 valuef get_zp1(v4f position_obs, v4f velocity_obs, v4f ref_obs, v4f position_emit, v4f velocity_emit, v4f ref_emit, auto&& get_metric)
 {
     using namespace single_source;
@@ -277,7 +270,6 @@ valuef get_zp1(v4f position_obs, v4f velocity_obs, v4f ref_obs, v4f position_emi
     return zp1;
 }
 
-inline
 v3f do_redshift(v3f colour, valuef zp1)
 {
     using namespace single_source;
@@ -294,7 +286,6 @@ auto cartesian_to_spherical = []<typename T>(const tensor<T, 3>& cartesian)
     return tensor<T, 3>{r, theta, phi};
 };
 
-inline
 valuef W_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 {
     using namespace single_source;
@@ -307,7 +298,6 @@ valuef W_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
     return function_trilinear(W_at, pos);
 }
 
-inline
 valuef gA_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 {
     using namespace single_source;
@@ -322,7 +312,6 @@ valuef gA_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
     return val;
 }
 
-inline
 tensor<valuef, 3> gB_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 {
     using namespace single_source;
@@ -337,8 +326,6 @@ tensor<valuef, 3> gB_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
     return val;
 }
 
-
-inline
 unit_metric<valuef, 3, 3> cY_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 {
     using namespace single_source;

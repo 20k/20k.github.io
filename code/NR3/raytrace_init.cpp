@@ -6,14 +6,12 @@
 #include "formalisms.hpp"
 #include "interpolation.hpp"
 
-inline
 valuef dot(v4f u, v4f v, m44f m) {
     v4f lowered = m.lower(u);
 
     return dot(lowered, v);
 }
 
-inline
 v4f gram_project(v4f u, v4f v, m44f m) {
     valuef top = dot_metric(u, v, m);
     valuef bottom = dot_metric(u, u, m);
@@ -21,7 +19,6 @@ v4f gram_project(v4f u, v4f v, m44f m) {
     return (top / bottom) * u;
 }
 
-inline
 v4f normalise(v4f in, m44f m)
 {
     valuef d = dot_metric(in, in, m);
@@ -78,7 +75,6 @@ struct tetrad
     }
 };
 
-inline
 tetrad gram_schmidt(v4f v0, v4f v1, v4f v2, v4f v3, m44f m)
 {
     using namespace single_source;
@@ -117,7 +113,6 @@ tetrad gram_schmidt(v4f v0, v4f v1, v4f v2, v4f v3, m44f m)
 }
 
 template<typename T>
-inline
 void swap(const T& v1, const T& v2)
 {
     auto intermediate = single_source::declare_e(v1);
@@ -126,7 +121,6 @@ void swap(const T& v1, const T& v2)
 }
 
 ///specifically: cartesian minkowski
-inline
 m44f get_local_minkowski(const tetrad& tetrads, const m44f& met)
 {
     m44f minkowski;
@@ -162,7 +156,6 @@ m44f get_local_minkowski(const tetrad& tetrads, const m44f& met)
     return minkowski;
 }
 
-inline
 valuei calculate_which_coordinate_is_timelike(const tetrad& tetrads, const m44f& met)
 {
     m44f minkowski = get_local_minkowski(tetrads, met);
@@ -183,7 +176,6 @@ valuei calculate_which_coordinate_is_timelike(const tetrad& tetrads, const m44f&
     return lowest_index;
 }
 
-inline
 v4f get_timelike_vector(v3f velocity, const tetrad& tetrads)
 {
     v4f coordinate_time = {1, velocity.x(), velocity.y(), velocity.z()};
@@ -196,7 +188,6 @@ v4f get_timelike_vector(v3f velocity, const tetrad& tetrads)
     return proper_time.x() * tetrads.v[0] + proper_time.y() * tetrads.v[1] + proper_time.z() * tetrads.v[2] + proper_time.w() * tetrads.v[3];
 }
 
-inline
 tetrad boost_tetrad(v3f velocity, const tetrad& tetrads, const metric<valuef, 4, 4>& m)
 {
     using namespace single_source;
@@ -242,13 +233,11 @@ tetrad boost_tetrad(v3f velocity, const tetrad& tetrads, const metric<valuef, 4,
     return next;
 }
 
-inline
 v3f project(v3f u, v3f v)
 {
     return (dot(u, v) / dot(u, u)) * u;
 }
 
-inline
 std::array<v3f, 3> orthonormalise(v3f i1, v3f i2, v3f i3)
 {
     v3f u1 = i1;
@@ -269,7 +258,6 @@ std::array<v3f, 3> orthonormalise(v3f i1, v3f i2, v3f i3)
 
 
 template<auto GetMetric, typename... T>
-inline
 void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
                            literal<v3f> local_velocity,
                            buffer_mut<v4f> position_out,
