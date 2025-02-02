@@ -147,7 +147,7 @@ if_e(is_adm.get() == 0, [&]{
 });
 ```
 
-As usual I'm just pulling out the interesting bits, and the code for this is available over [here](https://github.com/20k/20k.github.io/master/tree/code/NR3/raytrace_init.cpp)
+As usual I'm just pulling out the interesting bits, and the code for this is available over [here](https://github.com/20k/20k.github.io/blob/master/code/NR3/raytrace_init.cpp)
 
 ## Implementation: BSSN -> ADM
 
