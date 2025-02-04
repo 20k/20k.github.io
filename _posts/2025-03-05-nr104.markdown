@@ -1,6 +1,110 @@
 ---
 layout: post
-title:  "Numerical Relativity 104: Simulating binary neutron star collisions"
+title:  "Numerical Relativity 104: Simulating binary neutron star collisions (N body relativistic eularian hydrodynamics)"
 date:   2026-02-02 12:33:23 +0000
 categories: C++
 ---
+
+Some things are easy. Some things are hard. Some things are neutron star collisions. Lets get into it
+
+# What even is a neutron star anyway?
+
+Neutron stars are one of the possible final resting states of a star, when they run out of fuel, and begin to collapse. There are three mainstream kinds of stellar remnants:
+
+1. White dwarves, made up of ordinary matter. These are supported by electron degeneracy pressure
+2. Neutron stars, when the intense gravity forces electrons and protons to merge, forming neutrons. These are supported by neutron degeneracy pressure
+3. Black holes, when gravity overcomes everything and there's no return
+
+Today we're going to be looking at #2, and we'll dabble in #3
+
+# Modelling a neutron star
+
+Fun fact: Nobody really knows what neutron stars are made up of internally. There's a wide range of theories, and the radius of a neutron star is pretty unknown. Because of this, we have to pick a model
+
+If we want to distribute matter in space in, we need the following variables:
+
+1. The total mass of the object, $M$
+2. The radius, $r_0$
+3. $\rho_0$ the (rest) density of matter at any particular point within our object
+4. $p$ the pressure
+
+The simplest model of a neutron star is what is called a [polytrope](https://en.wikipedia.org/wiki/Polytrope). This links together the pressure, and the density, by prescribing a relationship between the two:
+
+$$p = K \rho_0^\Gamma$$
+
+Where $K$ is a proportionality constant, and $\Gamma$ is the polytropic index. Please note that there are multiple definitions of this equation: if you see an $n$ its a different convention. This is great altogether, we can pick values of $\Gamma$ and $K$, and this ties together two of our neutron star variables. Unfortunately however, neither the pressure or density are a constant, so we need some kind of model for their distribution
+
+Unfortunately there is no analytic solution for arbitrary polytropic indices. For $\Gamma=2$, we can use an analytic model, from eg [here (page 3)](https://www.aanda.org/articles/aa/pdf/2010/06/aa12738-09.pdf). This does luckily turn out to be a decent model for a neutron star. We're going to sidestep this and go for the most general solution
+
+## A body in hydrodynamic equilibrium: Tolman-Oppenheimer-Volkoff (TOV)
+
+Luckily, there *is* a straightforward solution to our problem. Given a relation between density $\rho_0$, and pressure $p$ $F(\rho, p)$, we can solve for. The TOV model gives the quantity $\frac{dp}{dr}$, as well as prescribing the mass layout. This also does not have an analytic solution, and instead is given by the distribution $\frac{dm}{dr}$
+
+There's a more fundamental issues as well: In the spinning neutron star case, we cannot ignore the metric tensor. So given that the metric is dependent on the mass layout and the mass layout depends on the metric: how on earth do we actually solve for anything?
+
+At this point, we can no longer neglect the numerical aspects of this simulation, so lets get into it
+
+## Bowen-York Type Initial Data for Binaries with Neutron Stars
+
+The actual paper we're going to be implementing today is [this](https://arxiv.org/pdf/1606.04881) one. It is not the simplest paper in the whole universe. The actual information is also a bit scattered around in various places, so I'm going to dig into this in a kind of depth first fashion to explain to you the different bits of theory, and then we'll linearise our thinking at the end to provide a full end to end solution
+
+If you remember from our black hole initial conditions paper, the basic idea for many kinds of initial conditions is that of conformal flatness. That is to say, we take our adm metric $\gamma_{ij}$, and perform a conformal transform on it by a scalar, to end up with a conformal metric. In this paper, our ADM variables are transformed as follows:
+
+$$\begin{align}
+\gamma_{ij} &= \Phi^4 \tilde{\gamma}_{ij}\\
+A_{ij} &= \Phi^{-2} \tilde{A}_{ij}
+\end{align}$$
+
+Where $$\tilde{\gamma}_{ij}$$ is the conformally flat (ie the identity matrix) metric tensor, $A_{ij}$ is the extrinsic curvature, and $\Phi$ is the conformal factor. Its important to note that this is the same conformal decomposition as the black hole initial conditions we used previously[^explicitly]
+
+[^explicitly]: I explicitly picked this paper because it allows us to construct multiple black holes and neutron stars together
+
+You can see how this identity metric might solve our TOV problem, if we can express TOV in conformally flat coordinates. Luckily, as this paper works out, you absolutely can. Hooray! The metric in this form is:
+
+$$\partial^i \partial_i \Phi = -\frac{1}{8} \Phi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \Phi^5 \rho_H$$
+
+One thing to note is that any time you see a $pi$, its a sure fire bet that it means there are matter terms involved. This may look familiar from our black hole initial conditions
+
+|Variable|Meaning|
+|-|-|
+|$\Phi$|Conformal factor, unknown|
+|$\bar{A}_{ij}$| Conformal extrinsic curvature|
+|$\rho_H$| TODO: I DONT HAVE A CLUE|
+
+If you have an analytic layout for the neutron stars matter, you can solve this equation directly. We do not, so we have to go for more digging. The way to actually *solve* this is via (77), (78), and (79)
+
+## (77), (78), (79)
+
+If you're getting to this point in the paper and thinking, jesus this looks like a lot of work, the answer is yes. We need to reach a new level of zen when dealing with this paper. Lets break things down step by step, and translate into terms I can understand. The first thing to spot is that these are only one dimensional as they are spherically symmetric. Translating into slightly more familiar notation:
+
+$$\begin{align}
+\frac{1}{r^2} \frac{d(r^2 \frac{d(\Phi)}{dr})}{dr} &= -2 \pi \Phi^5 \rho\\
+\frac{1}{r^2} \frac{d(r^2 \frac{d(\Theta)}{dr})}{dr} &= -2 \pi \Theta \Phi^4 (\rho + 6 p)\\
+\end{align}$$
+
+We can also expand this out a bit, by applying the product rule to the left hand side:
+
+$$ddx(uv) = u dv/dx + v du/dx$$
+
+$$ \frac{1}{r^2} \frac{d(r^2 \frac{d(\Phi)}{dr})}{dr} = \frac{d^2\Phi}{dr^2} + 2 \frac{1}{r} \frac{d\Phi}{dr}$$
+
+Which gives for both sides:
+
+$$\begin{align}
+&\frac{d^2\Phi}{dr^2} + \frac{2}{r} \frac{d\Phi}{dr} + 2 \pi \Phi^5 \rho = 0\\
+&\frac{d^2\Theta}{dr^2} + \frac{2}{r} \frac{d\Theta}{dr} + 2 \pi \Theta \Phi^4 (\rho + 6 p) = 0
+\end{align}
+$$
+
+We still, notably, have no answer for what $\rho$ is. To do this, we'll need to solve this equation:
+
+
+## papers
+
+Analytic: https://www.aanda.org/articles/aa/pdf/2010/06/aa12738-09.pdf
+
+Numerical: https://arxiv.org/pdf/1606.04881
+
+Useful ref: https://arxiv.org/pdf/gr-qc/0403029
+
+Today
