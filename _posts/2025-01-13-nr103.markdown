@@ -57,7 +57,7 @@ Geodesics have two properties:
 1. A 4-position, which we'll notate as $x^\mu$
 2. A 4-velocity, which we'll notate as $\frac{dx^\mu}{d\lambda}$. Note that this velocity is the derivative of the position $x^\mu$ with respect to either an affine parameter $d\lambda$ (sometimes called $ds$), or coordinate time $dt$. We'll be exclusively sticking with the former, to avoid confusion
 
-Greek indices run from $0-4$ and represent quantities on our 4d hypersurface. Latin indices run from $1-4$, and generally represent quantities on our 3d hypersurface
+Greek indices run from $[0,4)$ and represent quantities on the 4d spacetime. Latin indices run from $[1,4)$, and generally represent quantities on the 3d hypersurface
 
 ## The ADM formalism
 
@@ -867,7 +867,7 @@ metric<valuef, 4, 4> calculate_real_metric(const metric<valuef, 3, 3>& adm, cons
     //https://arxiv.org/pdf/gr-qc/0703035.pdf 4.43
     ret[0, 0] = -gA * gA + gB_sum;
 
-    //latin indices really run from 1-4
+    //latin indices really run from [1-4)
     for(int i=1; i < 4; i++)
     {
         //https://arxiv.org/pdf/gr-qc/0703035.pdf 4.45
