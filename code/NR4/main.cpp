@@ -834,8 +834,267 @@ cl::image load_background(cl::context ctx, cl::command_queue cqueue, const std::
     return load_mipped_image(background, ctx, cqueue);
 }
 
+float next_guess(const std::vector<float>& F, int x, float A, float B, float C, float h)
+{
+    if(x == 0)
+    {
+        return -(A * F[x + 2] - 2 * A * F[x + 1] + B * h * F[x + 1]) / (A - B * h + C*h*h);
+    }
+
+    if(x == (int)F.size() - 1)
+    {
+        return (2 * A * F[x - 1] - A * F[x - 2] + B * h * F[x-1]) / (A + B * h + C * h * h);
+    }
+
+    return (2 * A * (F[x - 1] + F[x + 1]) + B * h * (F[x + 1] - F[x - 1])) / (4 * A - 2 * C * h * h);
+}
+
+float sdiff(const std::vector<float>& F, int x, float scale)
+{
+    if(x == 0)
+    {
+        return (-F[0] + F[1]) / scale;
+    }
+
+    if(x == F.size() - 1)
+    {
+        return (-F[x - 1] + F[x]) / scale;
+    }
+
+    return (F[x + 1] - F[x-1]) / (2 * scale);
+}
+
+template<typename T, typename U>
+inline
+auto integrate_1d(const T& func, int n, const U& upper, const U& lower)
+{
+    using variable_type = decltype(func(0.f));
+
+    variable_type sum = 0;
+
+    for(int k=1; k < n; k++)
+    {
+        auto coordinate = lower + k * (upper - lower) / n;
+
+        auto val = func(coordinate);
+
+        sum += val;
+    }
+
+    return ((upper - lower) / n) * (func(lower)/2.f + sum + func(upper)/2.f);
+}
+
+
+void solve()
+{
+    float Gamma = 2;
+    float K = 1;
+
+    float p_centre = 0.01;
+
+    /*auto get_p0 = [&](float rho, float p)
+    {
+        return rho - p / (gamma - 1);
+    };*/
+
+    auto p0_to_p = [&](float p0)
+    {
+        return K * std::pow(p0, Gamma);
+    };
+
+    auto p_to_p0 = [&](float p)
+    {
+        return std::pow(p/K, 1/Gamma);
+    };
+
+    auto p0_to_rho = [&](float p0)
+    {
+        return p0 + K * std::pow(p0, Gamma) / (Gamma - 1);
+    };
+
+    auto p_to_rho = [&](float p)
+    {
+        float p0 = p_to_p0(p);
+        return p0_to_rho(p0);
+    };
+
+    std::vector<float> phi;
+    std::vector<float> theta;
+    std::vector<float> p;
+
+    int cells = 100;
+
+    phi.resize(cells);
+    theta.resize(cells);
+    p.resize(cells);
+
+    for(int i=0; i < cells; i++)
+    {
+        float frac = (float)i / cells;
+        p[i] = (1 - frac) * p0_to_p(p_centre);
+
+        printf("%f p\n", p[i]);
+    }
+
+    for(auto& i : phi)
+        i = 1;
+    for(auto& i : theta)
+        i = 1;
+
+    float width = 1;
+    float scale = width / cells;
+
+    auto idx_b = [&](float i, const std::vector<float>& b)
+    {
+        if(i <= 0)
+            return b[0];
+
+        if(i >= b.size() - 1)
+            return b.back();
+
+        float v1 = b[(int)i];
+        float v2 = b[(int)i + 1];
+
+        return mix(v1, v2, i - floor(i));
+    };
+
+    float neutron_radius = 1;
+
+    auto get_mass = [&]()
+    {
+        return 2 * M_PI * integrate_1d([&](float r)
+        {
+            float fidx = r / scale;
+
+            float lphi = idx_b(fidx, phi);
+            float lrho = idx_b(fidx, p);
+
+            return r*r * pow(lphi, 5.f) * lrho;
+        }, 10, neutron_radius, 0.f);
+    };
+
+    std::vector<float> nphi;
+    std::vector<float> ntheta;
+    std::vector<float> np;
+
+    nphi.resize(cells);
+    ntheta.resize(cells);
+    np.resize(cells);
+
+    for(int i=0; i < 1024; i++)
+    {
+        float M = get_mass();
+        float Phi_c = 1 + M / (2 * neutron_radius);
+        float Theta_c = 1 - M / (2 * neutron_radius);
+
+        phi.back() = Phi_c;
+        theta.back() = Theta_c;
+        p.back() = 0;
+        p.front() = p0_to_p(p_centre);
+
+        printf("%f M\n", M);
+
+        //phi.front() = 0;
+
+        for(int j=0; j < 100; j++)
+        {
+            for(int kk=0; kk < cells; kk++)
+            {
+                float rho = p_to_rho(p[kk]);
+
+                float r = ((float)kk / cells) * neutron_radius;
+                float lp = p[kk];
+
+                //printf("Phi %f theta %f p %f\n", phi[kk], theta[kk], p[kk]);
+
+                float next_phi = next_guess(phi, kk, r, 2, 2 * M_PI * r * std::pow(phi[kk], 4.f) * rho, scale);
+                float next_theta = next_guess(theta, kk, r, 2, 2 * M_PI * r * std::pow(phi[kk], 4.f) * (rho + 6 * lp), scale);
+
+                /*float dtheta = sdiff(theta, kk, scale);
+                float dphi = sdiff(phi, kk, scale);
+
+                //printf("Dtheta %f dphi %f\n", dtheta, dphi);
+
+                float itheta = 1/std::max(theta[kk], 0.001f);
+                float iphi = 1/std::max(phi[kk], 0.001f);
+
+                ///(F[x + 1] - F[x - 1]) / (2h) = -rho A - F[x] A
+                ///F[x] = ((-df) - rho A) / A
+
+                float mul = itheta * dtheta - iphi * dphi;
+
+                float pressure_deriv = sdiff(p, kk, scale);
+
+                float next_p = (-pressure_deriv - rho * mul) / std::max(mul, 0.0001f);*/
+
+                if(kk < 5)
+                {
+                    printf("Phi %f theta %f p %f\n", phi[kk], theta[kk], p[kk]);
+
+                    //printf("Phi %f theta %f p %f next_phi %f next_theta %f next_p %f\n", phi[kk], theta[kk], p[kk], next_phi, next_theta, next_p);
+
+                    //printf("Pressure deriv %f rho %f mul %f\n", pressure_deriv, rho, mul);
+                    //printf("Pressure deriv %f rho %f mul %f\n", pressure_deriv, rho, mul);
+                }
+
+                nphi[kk] = mix(next_phi, phi[kk], 0.1f);
+                ntheta[kk] = mix(next_theta, theta[kk], 0.1f);
+                //np[kk] = mix(next_p, p[kk], 0.1f);
+
+                //float next_p = next_guess(p, kk, 0, -(rho + lp) * (itheta * dtheta - iphi * dphi);
+            }
+
+
+            std::swap(nphi, phi);
+            std::swap(ntheta, theta);
+        }
+
+
+        for(int kk=0; kk < cells; kk++)
+        {
+            float dtheta = sdiff(theta, kk, scale);
+            float dphi = sdiff(phi, kk, scale);
+
+            //printf("Dtheta %f dphi %f\n", dtheta, dphi);
+
+            float itheta = 1/std::max(theta[kk], 0.001f);
+            float iphi = 1/std::max(phi[kk], 0.001f);
+
+            ///(F[x + 1] - F[x - 1]) / (2h) = -rho A - F[x] A
+            ///F[x] = ((-df) - rho A) / A
+
+            float A = itheta * dtheta - iphi * dphi;
+
+            float pressure_deriv = sdiff(p, kk, scale);
+
+            float rho = p_to_rho(p[kk]);
+
+
+            ///dp = -(rho + p) * A;
+            ///(dP / A) = -rho - p
+            ///dP / A + rho = -p
+            ///p = -dP/A - rho
+
+            float next_p = -pressure_deriv / std::max(A, 0.0001f) - rho;
+
+            //float next_p = (-pressure_deriv / std::max(mul, 0.0001f) - rho);
+
+            if(kk < 5)
+            printf("P %f next_p %f mul %f rho %f deriv %f\n", p[kk], next_p, A, rho, pressure_deriv);
+
+            np[kk] = mix(next_p, p[kk], 0.9999f);
+        }
+
+        std::swap(nphi, phi);
+        std::swap(ntheta, theta);
+        std::swap(np, p);
+    }
+}
+
 int main()
 {
+    solve();
+
     render_settings sett;
     sett.width = 1280;
     sett.height = 720;
