@@ -885,17 +885,51 @@ auto integrate_1d(const T& func, int n, const U& upper, const U& lower)
 }
 
 
+///todo: maybe lets do this in real units
 void solve()
 {
+    double M_sol = 1.988 * pow(10., 30.);
+    double m_to_kg = 1.3466 * pow(10., 27.);
+
+    ///presumably this is now in m^2
+    double paper_k_nat = 123.641 * (M_sol / m_to_kg) * (M_sol / m_to_kg);
+
+    std::cout << "paper k nat " << paper_k_nat << std::endl;
+
+    /*h1.bare_mass = 0.075;
+    h1.momentum = {0, 0.133 * 0.8 * 0.113, 0};
+    h1.position = {-4.257, 0.f, 0.f};*/
+    //float mass = 0.075;
+
+    ///meters
+
+    double M_neutron_sol = 1.4;
+    double M_neutron_m = M_neutron_sol * M_sol / m_to_kg;
+
+    double sim_M = 1;
+    double M_m = M_sol / m_to_kg;
+
+    double mass = M_neutron_m / M_m;
+
+    //double mass = 0.075;
+
+    std::cout << "Test Mass " << mass << std::endl;
+
+    float compactness = 0.06f;
+    float radius = mass / compactness;
+
+    double radius_m = M_neutron_m / compactness;
+
+    double paper_p_central = M_neutron_m / ((4/M_PI) * pow(radius_m, 3.));
+
+    std::cout << "paper p central " << paper_p_central << std::endl;
+
     float Gamma = 2;
-    float K = 10;
+    //float K = (2/M_PI) * radius * radius;
+    //float p_centre = 0.0001;
+    float K = 1000;
 
-    float p_centre = 0.01;
-
-    /*auto get_p0 = [&](float rho, float p)
-    {
-        return rho - p / (gamma - 1);
-    };*/
+    float p_centre = paper_p_central * M_m * M_m;
 
     auto p0_to_p = [&](float p0)
     {
@@ -907,15 +941,17 @@ void solve()
         return std::pow(p/K, 1/Gamma);
     };
 
-    auto p0_to_rho = [&](float p0)
+    /*auto p0_to_rho = [&](float p0)
     {
         return p0 + K * std::pow(p0, Gamma) / (Gamma - 1);
-    };
+    };*/
 
     auto p_to_rho = [&](float p)
     {
-        float p0 = p_to_p0(p);
-        return p0_to_rho(p0);
+        return p_to_p0(p) + p / (Gamma - 1);
+
+        //float p0 = p_to_p0(p);
+        //return p0_to_rho(p0);
     };
 
     std::vector<float> phi;
@@ -928,20 +964,12 @@ void solve()
     theta.resize(cells);
     p.resize(cells);
 
-    for(int i=0; i < cells; i++)
-    {
-        float frac = (float)i / cells;
-        p[i] = (1 - frac) * p0_to_p(p_centre);
-
-        printf("%f p\n", p[i]);
-    }
-
     for(auto& i : phi)
         i = 1;
     for(auto& i : theta)
         i = 1;
 
-    float width = 1;
+    float width = radius;
     float scale = width / cells;
 
     auto idx_b = [&](float i, const std::vector<float>& b)
@@ -958,8 +986,6 @@ void solve()
         return mix(v1, v2, i - floor(i));
     };
 
-    float neutron_radius = 1;
-
     auto get_mass = [&]()
     {
         return 2 * M_PI * integrate_1d([&](float r)
@@ -967,10 +993,10 @@ void solve()
             float fidx = r / scale;
 
             float lphi = idx_b(fidx, phi);
-            float lrho = idx_b(fidx, p);
+            float lpressure = idx_b(fidx, p);
 
-            return r*r * pow(lphi, 5.f) * lrho;
-        }, 10, neutron_radius, 0.f);
+            return r*r * pow(lphi, 5.f) * p_to_rho(lpressure);
+        }, 50, radius, 0.f);
     };
 
     std::vector<float> nphi;
@@ -983,18 +1009,8 @@ void solve()
 
     for(int i=0; i < 10024; i++)
     {
-        float M = get_mass();
-        float Phi_c = 1 + M / (2 * neutron_radius);
-        float Theta_c = 1 - M / (2 * neutron_radius);
-
-        phi.back() = Phi_c;
-        theta.back() = Theta_c;
         p.back() = 0;
         p.front() = p0_to_p(p_centre);
-
-        printf("%f M\n", M);
-
-        //phi.front() = 0;
 
         float p_current = p0_to_p(p_centre);
 
@@ -1014,7 +1030,7 @@ void solve()
 
             float dp_dr = -(rho + p_current) * A;
 
-            if(kk < 5)
+            if(kk == 50)
                 printf("P %f next_p %f mul %f rho %f deriv %f\n", p[kk], p_current, A, rho, pressure_deriv);
 
             np[kk] = mix(p_current, p[kk], 0.1f);
@@ -1024,11 +1040,20 @@ void solve()
 
         std::swap(np, p);
 
+        float lM = get_mass();
+        printf("%f M\n", lM);
+
+        float Phi_c = 1 + lM / (2 * radius);
+        float Theta_c = 1 - lM / (2 * radius);
+
+        phi.back() = Phi_c;
+        theta.back() = Theta_c;
+
         for(int kk=0; kk < cells; kk++)
         {
             float rho = p_to_rho(p[kk]);
 
-            float r = ((float)kk / cells) * neutron_radius;
+            float r = ((float)kk / cells) * radius;
             float lp = p[kk];
 
             //printf("Phi %f theta %f p %f\n", phi[kk], theta[kk], p[kk]);
@@ -1036,10 +1061,8 @@ void solve()
             float next_phi = next_guess(phi, kk, r, 2, 2 * M_PI * r * std::pow(phi[kk], 4.f) * rho, scale);
             float next_theta = next_guess(theta, kk, r, 2, 2 * M_PI * r * std::pow(phi[kk], 4.f) * (rho + 6 * lp), scale);
 
-            if(kk < 5)
-            {
+            if(kk == 50)
                 printf("Phi %f theta %f p %f\n", phi[kk], theta[kk], p[kk]);
-            }
 
             nphi[kk] = mix(next_phi, phi[kk], 0.1f);
             ntheta[kk] = mix(next_theta, theta[kk], 0.1f);
