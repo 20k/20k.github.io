@@ -834,7 +834,8 @@ cl::image load_background(cl::context ctx, cl::command_queue cqueue, const std::
     return load_mipped_image(background, ctx, cqueue);
 }
 
-float next_guess(const std::vector<float>& F, int x, float A, float B, float C, float h)
+template<typename T>
+T next_guess(const std::vector<T>& F, int x, T A, T B, T C, T h)
 {
     if(x == 0)
     {
@@ -849,7 +850,8 @@ float next_guess(const std::vector<float>& F, int x, float A, float B, float C, 
     return (2 * A * (F[x - 1] + F[x + 1]) + B * h * (F[x + 1] - F[x - 1])) / (4 * A - 2 * C * h * h);
 }
 
-float sdiff(const std::vector<float>& F, int x, float scale)
+template<typename T>
+T sdiff(const std::vector<T>& F, int x, T scale)
 {
     if(x == 0)
     {
@@ -885,10 +887,154 @@ auto integrate_1d(const T& func, int n, const U& upper, const U& lower)
 }
 
 
+template<typename T>
+void solve_for(T mass, T radius, T p_centre, T K, T Gamma)
+{
+
+    auto p0_to_p = [&](T p0)
+    {
+        return K * std::pow(p0, Gamma);
+    };
+
+    auto p_to_p0 = [&](T p)
+    {
+        return std::pow(p/K, 1/Gamma);
+    };
+
+    auto p_to_rho = [&](T p)
+    {
+        return p_to_p0(p) + p / (Gamma - 1);
+    };
+
+    std::vector<T> phi;
+    std::vector<T> theta;
+    std::vector<T> p;
+
+    int cells = 100;
+
+    phi.resize(cells);
+    theta.resize(cells);
+    p.resize(cells);
+
+    for(auto& i : phi)
+        i = 1;
+    for(auto& i : theta)
+        i = 1;
+
+    T width = radius;
+    T scale = width / cells;
+
+    auto idx_b = [&](T i, const std::vector<T>& b)
+    {
+        if(i <= 0)
+            return b[0];
+
+        if(i >= b.size() - 1)
+            return b.back();
+
+        T v1 = b[(int)i];
+        T v2 = b[(int)i + 1];
+
+        return mix(v1, v2, i - T{std::floor(i)});
+    };
+
+    auto get_mass = [&]()
+    {
+        return 2 * M_PI * integrate_1d([&](T r)
+        {
+            T fidx = r / scale;
+
+            T lphi = idx_b(fidx, phi);
+            T lpressure = idx_b(fidx, p);
+
+            return r*r * std::pow(lphi, T{5.f}) * p_to_rho(lpressure);
+        }, 50, radius, T{0.f});
+    };
+
+    std::vector<T> nphi;
+    std::vector<T> ntheta;
+    std::vector<T> np;
+
+    nphi.resize(cells);
+    ntheta.resize(cells);
+    np.resize(cells);
+
+    for(int i=0; i < 10024; i++)
+    {
+        p.back() = 0;
+        p.front() = p0_to_p(p_centre);
+
+        T p_current = p0_to_p(p_centre);
+
+        for(int kk=0; kk < cells; kk++)
+        {
+            T dtheta = sdiff(theta, kk, scale);
+            T dphi = sdiff(phi, kk, scale);
+
+            T itheta = 1/std::max(theta[kk], T{0.001f});
+            T iphi = 1/std::max(phi[kk], T{0.001f});
+
+            T A = itheta * dtheta - iphi * dphi;
+
+            T pressure_deriv = sdiff(p, kk, scale);
+
+            T rho = p_to_rho(p_current);
+
+            T dp_dr = -(rho + p_current) * A;
+
+            if(kk == 50)
+                printf("P %f next_p %f mul %f rho %f deriv %f\n", p[kk], p_current, A, rho, pressure_deriv);
+
+            np[kk] = mix(p_current, p[kk], T{0.1});
+
+            p_current += dp_dr * scale;
+        }
+
+        std::swap(np, p);
+
+        T lM = get_mass();
+        printf("%f M\n", lM);
+
+        T Phi_c = 1 + lM / (2 * radius);
+        T Theta_c = 1 - lM / (2 * radius);
+
+        phi.back() = Phi_c;
+        theta.back() = Theta_c;
+
+        for(int kk=0; kk < cells; kk++)
+        {
+            T rho = p_to_rho(p[kk]);
+
+            T r = ((T)kk / cells) * radius;
+            T lp = p[kk];
+
+            //printf("Phi %f theta %f p %f\n", phi[kk], theta[kk], p[kk]);
+
+            T next_phi = next_guess<T>(phi, kk, r, 2, 2 * M_PI * r * std::pow(phi[kk], T{4.f}) * rho, scale);
+            T next_theta = next_guess<T>(theta, kk, r, 2, 2 * M_PI * r * std::pow(phi[kk], T{4.f}) * (rho + 6 * lp), scale);
+
+            if(kk == 50)
+                printf("Phi %f theta %f p %f\n", phi[kk], theta[kk], p[kk]);
+
+            nphi[kk] = mix(next_phi, phi[kk], T{0.1f});
+            ntheta[kk] = mix(next_theta, theta[kk], T{0.1f});
+        }
+
+        std::swap(nphi, phi);
+        std::swap(ntheta, theta);
+    }
+}
+
 ///todo: maybe lets do this in real units
 void solve()
 {
     double M_sol = 1.988 * pow(10., 30.);
+
+    double mass = 1.4 * M_sol;
+    double G = 6.6743015 * pow(10., -11.);
+    double C = 299792458;
+
+    #if 0
     double m_to_kg = 1.3466 * pow(10., 27.);
 
     ///presumably this is now in m^2
@@ -930,148 +1076,9 @@ void solve()
     float K = 1000;
 
     float p_centre = paper_p_central * M_m * M_m;
+    #endif
 
-    auto p0_to_p = [&](float p0)
-    {
-        return K * std::pow(p0, Gamma);
-    };
-
-    auto p_to_p0 = [&](float p)
-    {
-        return std::pow(p/K, 1/Gamma);
-    };
-
-    /*auto p0_to_rho = [&](float p0)
-    {
-        return p0 + K * std::pow(p0, Gamma) / (Gamma - 1);
-    };*/
-
-    auto p_to_rho = [&](float p)
-    {
-        return p_to_p0(p) + p / (Gamma - 1);
-
-        //float p0 = p_to_p0(p);
-        //return p0_to_rho(p0);
-    };
-
-    std::vector<float> phi;
-    std::vector<float> theta;
-    std::vector<float> p;
-
-    int cells = 100;
-
-    phi.resize(cells);
-    theta.resize(cells);
-    p.resize(cells);
-
-    for(auto& i : phi)
-        i = 1;
-    for(auto& i : theta)
-        i = 1;
-
-    float width = radius;
-    float scale = width / cells;
-
-    auto idx_b = [&](float i, const std::vector<float>& b)
-    {
-        if(i <= 0)
-            return b[0];
-
-        if(i >= b.size() - 1)
-            return b.back();
-
-        float v1 = b[(int)i];
-        float v2 = b[(int)i + 1];
-
-        return mix(v1, v2, i - floor(i));
-    };
-
-    auto get_mass = [&]()
-    {
-        return 2 * M_PI * integrate_1d([&](float r)
-        {
-            float fidx = r / scale;
-
-            float lphi = idx_b(fidx, phi);
-            float lpressure = idx_b(fidx, p);
-
-            return r*r * pow(lphi, 5.f) * p_to_rho(lpressure);
-        }, 50, radius, 0.f);
-    };
-
-    std::vector<float> nphi;
-    std::vector<float> ntheta;
-    std::vector<float> np;
-
-    nphi.resize(cells);
-    ntheta.resize(cells);
-    np.resize(cells);
-
-    for(int i=0; i < 10024; i++)
-    {
-        p.back() = 0;
-        p.front() = p0_to_p(p_centre);
-
-        float p_current = p0_to_p(p_centre);
-
-        for(int kk=0; kk < cells; kk++)
-        {
-            float dtheta = sdiff(theta, kk, scale);
-            float dphi = sdiff(phi, kk, scale);
-
-            float itheta = 1/std::max(theta[kk], 0.001f);
-            float iphi = 1/std::max(phi[kk], 0.001f);
-
-            float A = itheta * dtheta - iphi * dphi;
-
-            float pressure_deriv = sdiff(p, kk, scale);
-
-            float rho = p_to_rho(p_current);
-
-            float dp_dr = -(rho + p_current) * A;
-
-            if(kk == 50)
-                printf("P %f next_p %f mul %f rho %f deriv %f\n", p[kk], p_current, A, rho, pressure_deriv);
-
-            np[kk] = mix(p_current, p[kk], 0.1f);
-
-            p_current += dp_dr * scale;
-        }
-
-        std::swap(np, p);
-
-        float lM = get_mass();
-        printf("%f M\n", lM);
-
-        float Phi_c = 1 + lM / (2 * radius);
-        float Theta_c = 1 - lM / (2 * radius);
-
-        phi.back() = Phi_c;
-        theta.back() = Theta_c;
-
-        for(int kk=0; kk < cells; kk++)
-        {
-            float rho = p_to_rho(p[kk]);
-
-            float r = ((float)kk / cells) * radius;
-            float lp = p[kk];
-
-            //printf("Phi %f theta %f p %f\n", phi[kk], theta[kk], p[kk]);
-
-            float next_phi = next_guess(phi, kk, r, 2, 2 * M_PI * r * std::pow(phi[kk], 4.f) * rho, scale);
-            float next_theta = next_guess(theta, kk, r, 2, 2 * M_PI * r * std::pow(phi[kk], 4.f) * (rho + 6 * lp), scale);
-
-            if(kk == 50)
-                printf("Phi %f theta %f p %f\n", phi[kk], theta[kk], p[kk]);
-
-            nphi[kk] = mix(next_phi, phi[kk], 0.1f);
-            ntheta[kk] = mix(next_theta, theta[kk], 0.1f);
-        }
-
-        std::swap(nphi, phi);
-        std::swap(ntheta, theta);
-
-    }
+    solve_for<double>(0.075f, 1.f, 0.0001f, 100.f, 2.f);
 }
 
 int main()
