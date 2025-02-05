@@ -38,9 +38,7 @@ Unfortunately there is no analytic solution for arbitrary polytropic indices. Fo
 
 ## A body in hydrodynamic equilibrium: Tolman-Oppenheimer-Volkoff (TOV)
 
-Luckily, there *is* a straightforward solution to our problem. Given a relation between density $\rho_0$, and pressure $p$ $F(\rho, p)$, we can solve for. The TOV model gives the quantity $\frac{dp}{dr}$, as well as prescribing the mass layout. This also does not have an analytic solution, and instead is given by the distribution $\frac{dm}{dr}$
-
-There's a more fundamental issues as well: In the spinning neutron star case, we cannot ignore the metric tensor. So given that the metric is dependent on the mass layout and the mass layout depends on the metric: how on earth do we actually solve for anything?
+Luckily, there *is* a straightforward solution to our problem. Given a relation between density $\rho_0$, and pressure $p$ $F(\rho, p)$, we can solve for. The TOV model gives the quantity $\frac{dp}{dr}$, as well as prescribing the mass layout. This also does not have an analytic solution, and instead is given as a differential equation: $\frac{dm}{dr}$
 
 At this point, we can no longer neglect the numerical aspects of this simulation, so lets get into it
 
@@ -59,7 +57,7 @@ Where $$\tilde{\gamma}_{ij}$$ is the conformally flat (ie the identity matrix) m
 
 [^explicitly]: I explicitly picked this paper because it allows us to construct multiple black holes and neutron stars together
 
-You can see how this identity metric might solve our TOV problem, if we can express TOV in conformally flat coordinates. Luckily, as this paper works out, you absolutely can. Hooray! The metric in this form is:
+The metric in this form is:
 
 $$\partial^i \partial_i \Phi = -\frac{1}{8} \Phi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \Phi^5 \rho_H$$
 
@@ -91,12 +89,83 @@ $$ \frac{1}{r^2} \frac{d(r^2 \frac{d(\Phi)}{dr})}{dr} = \frac{d^2\Phi}{dr^2} + 2
 Which gives for both sides:
 
 $$\begin{align}
-&\frac{d^2\Phi}{dr^2} + \frac{2}{r} \frac{d\Phi}{dr} + 2 \pi \Phi^5 \rho = 0\\
-&\frac{d^2\Theta}{dr^2} + \frac{2}{r} \frac{d\Theta}{dr} + 2 \pi \Theta \Phi^4 (\rho + 6 p) = 0
+&r\frac{d^2\Phi}{dr^2} + 2 \frac{d\Phi}{dr} + 2 \pi r \Phi^5 \rho = 0\\
+&r\frac{d^2\Theta}{dr^2} + 2 \frac{d\Theta}{dr} + 2 \pi r \Theta \Phi^4 (\rho + 6 p) = 0
 \end{align}
 $$
 
 We still, notably, have no answer for what $\rho$ is. To do this, we'll need to solve this equation:
+
+$$\frac{dp}{dr} = -(\rho + p) (\frac{1}{\Theta}\frac{d\Theta}{dr} - \frac{1}{\Phi}\frac{d\Phi}{dr})$$
+
+This is solvable if we use our equation of state, $p = K \rho_0^\Gamma$. To calculate $\rho_0$ from $\rho$, we need to take a trip through my least favourite set of equations:
+
+$$\begin{align}
+e &= \rho_0 + \frac{p}{\Gamma - 1}\\
+\epsilon &= \frac{e}{\rho_0} - 1\\
+\rho &= \rho_0 (1+\epsilon)
+\end{align}
+$$
+
+Its tricky to find a reference for the quantity $\epsilon$, and this chain of calculations seems extremely redundant. There doesn't seem to be standardised notation here unfortunately, but this is my best understanding of what we're dealing with
+
+Sometimes I think its important that you experience my suffering along with me:
+
+$$\begin{align}
+\rho_0 &= \frac{\rho}{1 + \epsilon}\\
+\rho_0 &= \frac{\rho}{1 + \frac{e}{\rho_0} - 1} \\
+\rho_0 &= \frac{\rho}{1 + \frac{\rho_0 + \frac{p}{\Gamma - 1}}{\rho_0} - 1} \\
+\rho_0 &= \frac{\rho}{\frac{\rho_0 + \frac{p}{\Gamma - 1}}{\rho_0}} \\
+\rho_0 &= \frac{\rho}{\frac{p}{(\Gamma-1) \rho_0} + 1} \\
+\rho_0 (\frac{p}{(\Gamma-1) \rho_0} + 1) &= \rho \\
+\frac{p}{(\Gamma-1)} + \rho_0 &= \rho \\
+\rho_0 &= \rho - \frac{p}{(\Gamma-1)} \\
+\end{align}
+$$
+
+With this in mind, all we need now is a central density, $\rho_c$, which is the boundary condition at $r=0$, when integrating $\frac{d\rho}{dr}$. How do we pick this?
+
+The answer is that there is no way to pick this. You must solve (82) to calculate the ADM mass, and then perform a binary search. A secret message from the future tells me that we can guess the central density as $\rho_c = \frac{M}{\frac{4}{\pi}R^3}$, and we'll get around to how we know this when we check if this is correct
+
+$$M = 2\pi \int_0^{r_0} r^2 \Phi^5 \rho dr$$
+
+## Solving our differential equations
+
+We now have 3 coupled differential equations, and one integration. The boundary conditions are:
+
+|Variable|$r=0$|$r=r_0$|
+|-|-|-|
+|$\Phi$|None|$1 + \frac{M}{2 r_0}$|
+|$\Theta$|None|$1 - \frac{M}{2 r_0}$|
+|$p$|Worked out from $\rho_c$|$0$|
+
+Deep joy. To solve these, we need to perform a basic discretisation, and rearrange (taking into account that we'll need one sided derivatives in some cases)
+
+Our equations are of the form $A\frac{d^2f}{dr^2} + B\frac{df}{dr} + C F[x] = 0$. A central discretisation is this:
+
+$$A \frac{F[x-1] - 2 F[x] + F[x+1]}{h^2} + B \frac{-0.5 F[x-1] + 0.5 F[x]}{h}+ C F[x] = 0$$
+
+A right discretisation is this:
+
+$$A \frac{F[x] - 2 F[x+1] + F[x+2]}{h^2} + B \frac{-F[x] + F[x+1]}{h}+ C F[x] = 0$$
+
+A left discretisation is this:
+
+$$A \frac{F[x-2] - 2 F[x-1] + F[x]}{h^2} + B \frac{-F[x-1] + F[x]}{h}+ C F[x] = 0$$
+
+Our iterative update scheme is given by solving for $F[x]$:
+
+Central:
+
+$$F[x] = \frac{2 A(F[x-1] + F[x+1]) - B h F[x-1]}{4A - Bh + 2Ch^2}$$
+
+Right:
+
+$$F[x] = -\frac{A F[x+2] - 2 A F[x+1] + B h F[x+1]}{A - Bh + Ch^2}$$
+
+Left:
+
+$$F[x] = \frac{2 A F[x-1] - A F[x-2] + B h F[x-1]}{A + Bh + Ch^2}$$
 
 
 ## papers
