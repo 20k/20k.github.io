@@ -109,7 +109,23 @@ $$
 
 Its tricky to find a reference for the quantity $\epsilon$, and this chain of calculations seems extremely redundant. There doesn't seem to be standardised notation here unfortunately, but this is my best understanding of what we're dealing with
 
-Sometimes I think its important that you experience my suffering along with me:
+$$p = K \rho_0^\Gamma\\
+e = \rho_0 + \frac{p}{\Gamma - 1}
+$$
+
+$$
+e = \rho_0 + \frac{K \rho_0^\Gamma}{\Gamma - 1} \\
+\epsilon = \frac{K \rho_0^{\Gamma-1}}{\Gamma - 1}\\
+\rho = \rho_0 (1 + \frac{K \rho_0^{\Gamma-1}}{\Gamma - 1})\\
+\rho = \rho_0 + \frac{K \rho_0^{\Gamma}}{\Gamma - 1}\\
+\rho_0 = \sqrt[g]{\frac{p}{K}}\\
+$$
+
+Nope!
+
+After some suffering, we get this:
+
+$$\rho_0 = \rho - \frac{p}{(\Gamma-1)}$$
 
 $$\begin{align}
 \rho_0 &= \frac{\rho}{1 + \epsilon}\\
@@ -119,7 +135,6 @@ $$\begin{align}
 \rho_0 &= \frac{\rho}{\frac{p}{(\Gamma-1) \rho_0} + 1} \\
 \rho_0 (\frac{p}{(\Gamma-1) \rho_0} + 1) &= \rho \\
 \frac{p}{(\Gamma-1)} + \rho_0 &= \rho \\
-\rho_0 &= \rho - \frac{p}{(\Gamma-1)} \\
 \end{align}
 $$
 
@@ -143,7 +158,7 @@ Deep joy. To solve these, we need to perform a basic discretisation, and rearran
 
 Our equations are of the form $A\frac{d^2f}{dr^2} + B\frac{df}{dr} + C F[x] = 0$. A central discretisation is this:
 
-$$A \frac{F[x-1] - 2 F[x] + F[x+1]}{h^2} + B \frac{-0.5 F[x-1] + 0.5 F[x]}{h}+ C F[x] = 0$$
+$$A \frac{F[x-1] - 2 F[x] + F[x+1]}{h^2} + B \frac{-0.5 F[x-1] + 0.5 F[x+1]}{h}+ C F[x] = 0$$
 
 A right discretisation is this:
 
@@ -157,13 +172,19 @@ Our iterative update scheme is given by solving for $F[x]$:
 
 Central:
 
-$$F[x] = \frac{2 A(F[x-1] + F[x+1]) - B h F[x-1]}{4A - Bh + 2Ch^2}$$
+https://www.wolframalpha.com/input?i=A+%28L+-+2+x+%2B+R%29%2Fh%5E2+%2B+B%28-0.5+L+%2B+0.5+R%29+%2F+h+%2B+C+x+%3D+0+solve+for+x
+
+$$F[x] = \frac{2 A(F[x-1] + F[x+1]) + B h (F[x+1] - F[x-1])}{4A - 2Ch^2}$$
 
 Right:
+
+https://www.wolframalpha.com/input?i=A+%28x+-+2R+%2B+M%29%2Fh%5E2+%2B+B%28-x+%2B+R%29+%2F+h+%2B+C+x+%3D+0+solve+for+x
 
 $$F[x] = -\frac{A F[x+2] - 2 A F[x+1] + B h F[x+1]}{A - Bh + Ch^2}$$
 
 Left:
+
+https://www.wolframalpha.com/input?i=A+%28M+-+2L+%2B+x%29%2Fh%5E2+%2B+B%28-L+%2B+x%29+%2F+h+%2B+C+x+%3D+0+solve+for+x
 
 $$F[x] = \frac{2 A F[x-1] - A F[x-2] + B h F[x-1]}{A + Bh + Ch^2}$$
 
