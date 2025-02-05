@@ -996,62 +996,6 @@ void solve()
 
         //phi.front() = 0;
 
-        //for(int j=0; j < 100; j++)
-        {
-            for(int kk=0; kk < cells; kk++)
-            {
-                float rho = p_to_rho(p[kk]);
-
-                float r = ((float)kk / cells) * neutron_radius;
-                float lp = p[kk];
-
-                //printf("Phi %f theta %f p %f\n", phi[kk], theta[kk], p[kk]);
-
-                float next_phi = next_guess(phi, kk, r, 2, 2 * M_PI * r * std::pow(phi[kk], 4.f) * rho, scale);
-                float next_theta = next_guess(theta, kk, r, 2, 2 * M_PI * r * std::pow(phi[kk], 4.f) * (rho + 6 * lp), scale);
-
-                /*float dtheta = sdiff(theta, kk, scale);
-                float dphi = sdiff(phi, kk, scale);
-
-                //printf("Dtheta %f dphi %f\n", dtheta, dphi);
-
-                float itheta = 1/std::max(theta[kk], 0.001f);
-                float iphi = 1/std::max(phi[kk], 0.001f);
-
-                ///(F[x + 1] - F[x - 1]) / (2h) = -rho A - F[x] A
-                ///F[x] = ((-df) - rho A) / A
-
-                float mul = itheta * dtheta - iphi * dphi;
-
-                float pressure_deriv = sdiff(p, kk, scale);
-
-                float next_p = (-pressure_deriv - rho * mul) / std::max(mul, 0.0001f);*/
-
-                if(kk < 1)
-                {
-                    printf("Phi %f theta %f p %f\n", phi[kk], theta[kk], p[kk]);
-
-                    //printf("Phi %f theta %f p %f next_phi %f next_theta %f next_p %f\n", phi[kk], theta[kk], p[kk], next_phi, next_theta, next_p);
-
-                    //printf("Pressure deriv %f rho %f mul %f\n", pressure_deriv, rho, mul);
-                    //printf("Pressure deriv %f rho %f mul %f\n", pressure_deriv, rho, mul);
-                }
-
-                nphi[kk] = mix(next_phi, phi[kk], 0.1f);
-                ntheta[kk] = mix(next_theta, theta[kk], 0.1f);
-                //np[kk] = mix(next_p, p[kk], 0.1f);
-
-                //float next_p = next_guess(p, kk, 0, -(rho + lp) * (itheta * dtheta - iphi * dphi);
-            }
-
-
-            //std::swap(nphi, phi);
-            //std::swap(ntheta, theta);
-        }
-
-        ///so, we have du/dr = f(u(r))
-        //if i had du/dt = f(u(t))) i wouldn't be finding this difficult
-
         float p_current = p0_to_p(p_centre);
 
         for(int kk=0; kk < cells; kk++)
@@ -1070,7 +1014,7 @@ void solve()
 
             float dp_dr = -(rho + p_current) * A;
 
-            if(kk < 1)
+            if(kk < 5)
                 printf("P %f next_p %f mul %f rho %f deriv %f\n", p[kk], p_current, A, rho, pressure_deriv);
 
             np[kk] = mix(p_current, p[kk], 0.1f);
@@ -1078,9 +1022,32 @@ void solve()
             p_current += dp_dr * scale;
         }
 
+        std::swap(np, p);
+
+        for(int kk=0; kk < cells; kk++)
+        {
+            float rho = p_to_rho(p[kk]);
+
+            float r = ((float)kk / cells) * neutron_radius;
+            float lp = p[kk];
+
+            //printf("Phi %f theta %f p %f\n", phi[kk], theta[kk], p[kk]);
+
+            float next_phi = next_guess(phi, kk, r, 2, 2 * M_PI * r * std::pow(phi[kk], 4.f) * rho, scale);
+            float next_theta = next_guess(theta, kk, r, 2, 2 * M_PI * r * std::pow(phi[kk], 4.f) * (rho + 6 * lp), scale);
+
+            if(kk < 5)
+            {
+                printf("Phi %f theta %f p %f\n", phi[kk], theta[kk], p[kk]);
+            }
+
+            nphi[kk] = mix(next_phi, phi[kk], 0.1f);
+            ntheta[kk] = mix(next_theta, theta[kk], 0.1f);
+        }
+
         std::swap(nphi, phi);
         std::swap(ntheta, theta);
-        std::swap(np, p);
+
     }
 }
 
