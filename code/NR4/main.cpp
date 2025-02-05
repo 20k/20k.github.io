@@ -888,7 +888,7 @@ auto integrate_1d(const T& func, int n, const U& upper, const U& lower)
 void solve()
 {
     float Gamma = 2;
-    float K = 1;
+    float K = 10;
 
     float p_centre = 0.01;
 
@@ -996,7 +996,7 @@ void solve()
 
         //phi.front() = 0;
 
-        for(int j=0; j < 100; j++)
+        //for(int j=0; j < 100; j++)
         {
             for(int kk=0; kk < cells; kk++)
             {
@@ -1049,40 +1049,33 @@ void solve()
             std::swap(ntheta, theta);
         }
 
+        ///so, we have du/dr = f(u(r))
+        //if i had du/dt = f(u(t))) i wouldn't be finding this difficult
+
+        float p_current = p0_to_p(p_centre);
 
         for(int kk=0; kk < cells; kk++)
         {
             float dtheta = sdiff(theta, kk, scale);
             float dphi = sdiff(phi, kk, scale);
 
-            //printf("Dtheta %f dphi %f\n", dtheta, dphi);
-
             float itheta = 1/std::max(theta[kk], 0.001f);
             float iphi = 1/std::max(phi[kk], 0.001f);
-
-            ///(F[x + 1] - F[x - 1]) / (2h) = -rho A - F[x] A
-            ///F[x] = ((-df) - rho A) / A
 
             float A = itheta * dtheta - iphi * dphi;
 
             float pressure_deriv = sdiff(p, kk, scale);
 
-            float rho = p_to_rho(p[kk]);
+            float rho = p_to_rho(p_current);
 
-
-            ///dp = -(rho + p) * A;
-            ///(dP / A) = -rho - p
-            ///dP / A + rho = -p
-            ///p = -dP/A - rho
-
-            float next_p = -pressure_deriv / std::max(A, 0.0001f) - rho;
-
-            //float next_p = (-pressure_deriv / std::max(mul, 0.0001f) - rho);
+            float dp_dr = -(rho + p_current) * A;
 
             if(kk < 5)
-            printf("P %f next_p %f mul %f rho %f deriv %f\n", p[kk], next_p, A, rho, pressure_deriv);
+                printf("P %f next_p %f mul %f rho %f deriv %f\n", p[kk], p_current, A, rho, pressure_deriv);
 
-            np[kk] = mix(next_p, p[kk], 0.9999f);
+            np[kk] = mix(p_current, p[kk], 0.1f);
+
+            p_current += dp_dr * scale;
         }
 
         std::swap(nphi, phi);
