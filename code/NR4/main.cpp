@@ -981,7 +981,7 @@ void solve()
     ntheta.resize(cells);
     np.resize(cells);
 
-    for(int i=0; i < 1024; i++)
+    for(int i=0; i < 10024; i++)
     {
         float M = get_mass();
         float Phi_c = 1 + M / (2 * neutron_radius);
@@ -1027,7 +1027,7 @@ void solve()
 
                 float next_p = (-pressure_deriv - rho * mul) / std::max(mul, 0.0001f);*/
 
-                if(kk < 5)
+                if(kk < 1)
                 {
                     printf("Phi %f theta %f p %f\n", phi[kk], theta[kk], p[kk]);
 
@@ -1045,8 +1045,8 @@ void solve()
             }
 
 
-            std::swap(nphi, phi);
-            std::swap(ntheta, theta);
+            //std::swap(nphi, phi);
+            //std::swap(ntheta, theta);
         }
 
         ///so, we have du/dr = f(u(r))
@@ -1070,7 +1070,7 @@ void solve()
 
             float dp_dr = -(rho + p_current) * A;
 
-            if(kk < 5)
+            if(kk < 1)
                 printf("P %f next_p %f mul %f rho %f deriv %f\n", p[kk], p_current, A, rho, pressure_deriv);
 
             np[kk] = mix(p_current, p[kk], 0.1f);
