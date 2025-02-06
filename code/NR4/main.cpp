@@ -913,7 +913,7 @@ double convert_quantity_to_geometric(double quantity, double kg_exponent, double
     double G = 6.6743015 * pow(10., -11.);
     double C = 299792458;
 
-    double factor = pow(G, -kg_exponent) * pow(C, 2 * kg_exponent - s_exponent);
+    double factor = std::pow(G, -kg_exponent) * std::pow(C, 2 * kg_exponent - s_exponent);
 
     return quantity / factor;
 }
@@ -936,8 +936,6 @@ void solve_for(T central_rest_mass, T radius, T K, T Gamma)
         return p_to_p0(p) + p / (Gamma - 1);
     };
 
-    int cells = 1000;
-
     //float scale = radius / cells;
 
     /*auto idx_b = [&](T i, const std::vector<T>& b)
@@ -954,12 +952,12 @@ void solve_for(T central_rest_mass, T radius, T K, T Gamma)
         return mix(v1, v2, i - T{std::floor(i)});
     };*/
 
-    auto rest_mass_to_E = [&](T rest_mass)
+    /*auto rest_mass_to_E = [&](T rest_mass)
     {
         T E = rest_mass + (K / (Gamma-1)) * std::pow(rest_mass, Gamma);
 
         return E;
-    };
+    };*/
 
     /*auto get_mass = [&](float up_to_radius)
     {
@@ -975,6 +973,7 @@ void solve_for(T central_rest_mass, T radius, T K, T Gamma)
         }, 50, up_to_radius, T{0.f});
     };*/
 
+    #if 0
     auto calculate_h = [&](T P)
     {
         float p0 = p_to_p0(P);
@@ -991,10 +990,6 @@ void solve_for(T central_rest_mass, T radius, T K, T Gamma)
     {
         return h_to_nu(calculate_h(P));
     };
-
-    T p_start = p0_to_p(central_rest_mass);
-
-    T nu_current = P_to_nu(p_start);
 
     auto rho_nu = [&](T nu)
     {
@@ -1024,14 +1019,52 @@ void solve_for(T central_rest_mass, T radius, T K, T Gamma)
         return rho_nu(nu) * (1 + (ai + ni * nu) / (ni + 1));
     };
 
-    T P_current = 0;
-    T m_current = 0;
+    int cells = 100000;
 
-    #if 0
+    T p_start = p0_to_p(central_rest_mass);
+
+    T nu_current = P_to_nu(p_start);
+
+    T scale = nu_current / cells;
+
+    T r = 0;
+    T m = 0;
+
+    for(int i=0; i < cells; i++)
+    {
+        T n = nu_current;
+
+        T dr_dn = -((r * (r - 2 * m)) / (m + 4 * M_PI * r*r*r * P_nu(n))) * (1 / (n + 1));
+        T dm_dn = 4 * M_PI * r*r * E_nu(n) * dr_dn;
+
+        std::cout <<  P_nu(n) << std::endl;
+
+        assert(false);
+
+        //std::cout << "dr_dn " << dr_dn << " dm_dn " << dm_dn << std::endl;
+
+        T dn = -scale;
+
+        nu_current += dn;
+        r += dr_dn * dn;
+        m += dm_dn * dn;
+
+        std::cout << "Nu " << nu_current << " r " << r << " m " << m << std::endl;
+    }
+
+    assert(false);
+    #endif
+
+    //T P_current = 0;
+    //T m_current = 0;
+
+    #if 1
     T P_current = p0_to_p(central_rest_mass);
     T m_current = 0;
 
-    {
+    //std::cout << "p0 " << p_to_p0(P_current) << " P " << P_current << std::endl;
+
+    /*{
         T r = (T{1.}/cells) * radius;
 
         T pressure = P_current;
@@ -1043,7 +1076,7 @@ void solve_for(T central_rest_mass, T radius, T K, T Gamma)
         T dM_dr = 4 * M_PI * r*r * E;
 
         m_current = dM_dr * scale;
-    }
+    }*/
 
     m_current = 0;
 
@@ -1053,14 +1086,47 @@ void solve_for(T central_rest_mass, T radius, T K, T Gamma)
     //std::vector<T> p;
     //p.resize(cells);
 
-    ///i might be integrating in the wrong direction?
+    auto dM_dr = [&](T p, T r)
+    {
+        //T rest_mass = p_to_p0(p);
+
+        T E = p_to_rho(p);
+
+        //T E = rest_mass_to_E(rest_mass);
+
+        T dM_dr = 4 * M_PI * r*r * E;
+
+        return dM_dr;
+    };
+
+    auto dP_dr = [&](T p, T r, T m)
+    {
+        T cr = std::max(r, T{0.001f});
+        //T cr = r + 0.01f;
+
+        //T rest_mass = p_to_p0(p);
+        //T E = rest_mass_to_E(rest_mass);
+
+        T E = p_to_rho(p);
+
+        //T E = p_to_rho(p);
+
+        return -(E + p) * (m + 4 * M_PI * r*r*r * p) / (cr * (cr - 2 * m));
+    };
+
+    int cells = 100000000;
+    float scale = radius / cells;
 
     ///https://www.as.utexas.edu/astronomy/education/spring13/bromm/secure/TOC_Supplement.pdf
-    for(int cell = 1; cell < cells; cell++)
+    for(int cell = 0; cell < cells; cell++)
     {
         T r = ((T)cell / cells) * radius;
+        T r1 = ((T)(cell + 1) / cells) * radius;
 
-        T cr = std::max(r, T{0.0001f});
+        /*
+        //T cr = std::max(r, T{0.0001f});
+
+        T cr = r + 0.001f;
 
         //T m = get_mass(r);
 
@@ -1072,7 +1138,9 @@ void solve_for(T central_rest_mass, T radius, T K, T Gamma)
         T m = m_current;
         T dP_dr = -(E + P_current) * (m + 4 * M_PI * r*r*r * P_current) / (cr * (cr - 2 * m));
 
-        std::cout << "Bad Mass " << cr - 2 * m << std::endl;
+        std::cout << "Bad Mass " << cr - 2 * m << std::endl;*/
+
+
 
         ///ok so. The equations break when r^2 - 2 mr < 0
         //ie r^2 < 2mr
@@ -1083,15 +1151,33 @@ void solve_for(T central_rest_mass, T radius, T K, T Gamma)
         //std::cout << "Top " << m + 4 * M_PI * r*r*r * pressure << std::endl;
         //std::cout << "Bottom " <<(cr * (cr - 2 * m)) << std::endl;
 
-
         if(cell > 10)
             assert(false);
 
+        //std::cout << "Rho " << p_to_rho(P_current) << std::endl;
+
+        T dP = dP_dr(P_current, r, m_current);
+        T dM = dM_dr(P_current, r);
+
+        //P_current += dP * scale;
+        //m_current += dM * scale;
+
+        T P_next = P_current + dP * scale;
+        T m_next = m_current + dM * scale;
+
+        dP = dP_dr(P_next, r1, m_next);
+        dM = dM_dr(P_next, r1);
+
+        std::cout << "dP " << dP * scale << " dM " << dM * scale << std::endl;
+        std::cout << "P " << P_current << " M " << m_current << std::endl;
+
+        P_current += dP * scale;
+        m_current += dM * scale;
 
         //printf("dM_dr %f\n", dM_dr);
         //printf("M %f\n", m_current);
 
-        std::cout << "dP " << dP_dr * scale << " dM " << dM_dr * scale << std::endl;
+        /*std::cout << "dP " << dP_dr * scale << " dM " << dM_dr * scale << std::endl;
         std::cout << "P " << P_current << " M " << m_current << std::endl;
 
         //printf("dP %f dM %f\n", dP_dr, dM_dr);
@@ -1102,7 +1188,7 @@ void solve_for(T central_rest_mass, T radius, T K, T Gamma)
         //p[cell] = P_current;
 
         P_current += dP_dr * scale;
-        m_current += dM_dr * scale;
+        m_current += dM_dr * scale;*/
 
         ///total energy = rest_mass c^2 + internal energy littlee
         //tov uses total energy density
@@ -1110,7 +1196,14 @@ void solve_for(T central_rest_mass, T radius, T K, T Gamma)
     #endif
 
 
-    printf("Total M %f Total P %f\n", m_current, P_current);
+    //printf("Total M %f Total P %f\n", m_current, P_current);
+}
+
+double m_to_sm(double amount, double exponent)
+{
+    double conv = pow(10., 36.);
+
+    return amount * pow(conv, -exponent);
 }
 
 void solve()
@@ -1143,9 +1236,54 @@ void solve()
 
     double geometric_K = convert_quantity_to_geometric(paper_K, 1-Gamma, -2);
 
+    std::cout << "Geom " << paper_K << std::endl;
+
+    ///i think the basic problem is that geometric_K is too large
+    ///geometric K has units of m^(1-gamma 3gamma - 1 - 2), aka 2gamma - 2
+    ///central_nat has units of kg/m^3 ie m/m^3
+    ///radius_real has units of m
+    ///gamma has units of 2
+
+    double central_cvt = m_to_sm(central_nat, -2);
+    double radius_cvt = m_to_sm(radius_real, 1);
+    double K_cvt = m_to_sm(geometric_K, 2 * Gamma - 2);
+
+    std::cout << "My New K " << K_cvt << std::endl;
+    std::cout << "My New C " << central_cvt << std::endl;
+    std::cout << "My New R " << radius_cvt << std::endl;
+
+    solve_for<double>(central_cvt, radius_cvt, K_cvt, Gamma);
+    //solve_for<double>(central_nat, radius_real, geometric_K, Gamma);
+
+    /*double K = paper_K;
+
+    double A = 1/K;
+    ///gdash = G / (ab^2)
+
+    ///p/k = pa / khat, where khat = 1
+    ///p/k = pa
+    ///a = 1/k
+
+    ///ghat = G / (ab^2)
+    ///ghat = 1
+    ///1 = G / (ab^2)
+    ///b^2 = G/a
+    ///b = sqrt(G/A)
+
+    double B = sqrt(G/A);
+
+    auto get_central_pressure = [](float K, float p0, float Gamma)
+    {
+        return K * std::pow(p0, Gamma);
+    };
+
+    double sK = 1;
+
+    double srad = A * radius_real;*/
 
 
-    solve_for<double>(central_nat, radius_real, geometric_K, Gamma);
+    //std::cout << "Ga " << G / (A * B*B) << std::endl;
+
 }
 
 
