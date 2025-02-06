@@ -936,9 +936,9 @@ void solve_for(T central_rest_mass, T radius, T K, T Gamma)
         return p_to_p0(p) + p / (Gamma - 1);
     };
 
-    int cells = 100;
+    int cells = 1000;
 
-    float scale = radius / cells;
+    //float scale = radius / cells;
 
     /*auto idx_b = [&](T i, const std::vector<T>& b)
     {
@@ -956,9 +956,8 @@ void solve_for(T central_rest_mass, T radius, T K, T Gamma)
 
     auto rest_mass_to_E = [&](T rest_mass)
     {
-        T E_over_rest_mass = (K / (Gamma-1)) * std::pow(rest_mass, Gamma - 1);
+        T E = rest_mass + (K / (Gamma-1)) * std::pow(rest_mass, Gamma);
 
-        T E = E_over_rest_mass * rest_mass;
         return E;
     };
 
@@ -976,31 +975,129 @@ void solve_for(T central_rest_mass, T radius, T K, T Gamma)
         }, 50, up_to_radius, T{0.f});
     };*/
 
+    auto calculate_h = [&](T P)
+    {
+        float p0 = p_to_p0(P);
+
+        return 1 + (Gamma / (Gamma - 1)) * P / p0;
+    };
+
+    auto h_to_nu = [&](T h)
+    {
+        return h-1;
+    };
+
+    auto P_to_nu = [&](T P)
+    {
+        return h_to_nu(calculate_h(P));
+    };
+
+    T p_start = p0_to_p(central_rest_mass);
+
+    T nu_current = P_to_nu(p_start);
+
+    auto rho_nu = [&](T nu)
+    {
+        T ni = 1/(Gamma - 1);
+        T ai = 0;
+        T Ki = K;
+
+        return pow((nu - ai) / (Ki * (ni + 1)), ni);
+    };
+
+    auto P_nu = [&](T nu)
+    {
+        T ni = 1/(Gamma - 1);
+        T ai = 0;
+        T Ki = K;
+
+        return K * pow((nu - ai) / (Ki * (ni + 1)), ni);
+    };
+
+    ///praise be lord e nu
+    auto E_nu = [&](T nu)
+    {
+        T ni = 1/(Gamma - 1);
+        T ai = 0;
+        T Ki = K;
+
+        return rho_nu(nu) * (1 + (ai + ni * nu) / (ni + 1));
+    };
+
+    T P_current = 0;
+    T m_current = 0;
+
+    #if 0
     T P_current = p0_to_p(central_rest_mass);
     T m_current = 0;
 
-    //std::vector<T> p;
-    //p.resize(cells);
-
-    ///https://www.as.utexas.edu/astronomy/education/spring13/bromm/secure/TOC_Supplement.pdf
-    for(int cell = 0; cell < cells; cell++)
     {
-        T r = (T)cell / cells;
-
-        r = std::max(r, T{0.0001f});
-
-        //T m = get_mass(r);
-
-        T m = m_current;
+        T r = (T{1.}/cells) * radius;
 
         T pressure = P_current;
         T rest_mass = p_to_p0(pressure);
 
-        T E = rest_mass_to_e(rest_mass);
+        //printf("Pressure %f Rest mass %f\n",  pressure, rest_mass);
 
-        T dP_dr = -(E + pressure) * (m + 4 * M_PI * r*r*r * pressure) / (r * (r - 2 * m));
-
+        T E = rest_mass_to_E(rest_mass);
         T dM_dr = 4 * M_PI * r*r * E;
+
+        m_current = dM_dr * scale;
+    }
+
+    m_current = 0;
+
+    std::cout << "Start pressure " << P_current << std::endl;
+    std::cout << "Start Mass " << m_current << std::endl;
+
+    //std::vector<T> p;
+    //p.resize(cells);
+
+    ///i might be integrating in the wrong direction?
+
+    ///https://www.as.utexas.edu/astronomy/education/spring13/bromm/secure/TOC_Supplement.pdf
+    for(int cell = 1; cell < cells; cell++)
+    {
+        T r = ((T)cell / cells) * radius;
+
+        T cr = std::max(r, T{0.0001f});
+
+        //T m = get_mass(r);
+
+        T rest_mass = p_to_p0(P_current);
+
+        T E = rest_mass_to_E(rest_mass);
+        T dM_dr = 4 * M_PI * r*r * E;
+
+        T m = m_current;
+        T dP_dr = -(E + P_current) * (m + 4 * M_PI * r*r*r * P_current) / (cr * (cr - 2 * m));
+
+        std::cout << "Bad Mass " << cr - 2 * m << std::endl;
+
+        ///ok so. The equations break when r^2 - 2 mr < 0
+        //ie r^2 < 2mr
+        //2mr > r^2
+        //2m > r
+
+        //std::cout << "E+P " << E + pressure << std::endl;
+        //std::cout << "Top " << m + 4 * M_PI * r*r*r * pressure << std::endl;
+        //std::cout << "Bottom " <<(cr * (cr - 2 * m)) << std::endl;
+
+
+        if(cell > 10)
+            assert(false);
+
+
+        //printf("dM_dr %f\n", dM_dr);
+        //printf("M %f\n", m_current);
+
+        std::cout << "dP " << dP_dr * scale << " dM " << dM_dr * scale << std::endl;
+        std::cout << "P " << P_current << " M " << m_current << std::endl;
+
+        //printf("dP %f dM %f\n", dP_dr, dM_dr);
+        //printf("P %f M %f\n", P_current, m_current);
+
+        //printf("Dp %f dM %f\n", dP_dr, dM_dr);
 
         //p[cell] = P_current;
 
@@ -1010,13 +1107,45 @@ void solve_for(T central_rest_mass, T radius, T K, T Gamma)
         ///total energy = rest_mass c^2 + internal energy littlee
         //tov uses total energy density
     }
+    #endif
+
 
     printf("Total M %f Total P %f\n", m_current, P_current);
 }
 
 void solve()
 {
+    double M_sol = 1.988 * pow(10., 30.);
 
+    double mass_kg = 1.543 * M_sol;
+    double G = 6.6743015 * pow(10., -11.);
+    double C = 299792458;
+    double m_to_kg = 1.3466 * pow(10., 27.);
+
+    double radius_real = 13.4 * 1000;
+
+    double central_density = 6.235 * pow(10., 17.);
+
+    double central_nat = convert_quantity_to_geometric(central_density, 1, 0);
+
+    std::cout << "central_nat " << central_nat << std::endl;
+
+    double mass_natural = mass_kg / m_to_kg;
+
+    std::cout << "Mass " << mass_natural << std::endl;
+
+    ///ok so, K has insane units good right fine
+    double paper_K = 123.641 * M_sol * M_sol;
+
+    ///K has units of kg^(1-gamma), m^(3gamma-1), s^-2
+
+    double Gamma = 2;
+
+    double geometric_K = convert_quantity_to_geometric(paper_K, 1-Gamma, -2);
+
+
+
+    solve_for<double>(central_nat, radius_real, geometric_K, Gamma);
 }
 
 
