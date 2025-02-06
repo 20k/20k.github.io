@@ -866,6 +866,22 @@ T sdiff(const std::vector<T>& F, int x, T scale)
     return (F[x + 1] - F[x-1]) / (2 * scale);
 }
 
+template<typename T>
+T sdiff2(const std::vector<T>& F, int x, T scale)
+{
+    if(x == 0)
+    {
+        return (F[0] - 2 * F[1] + F[2]) / (scale * scale);
+    }
+
+    if(x == F.size() - 1)
+    {
+        return (F[x-2] - 2 * F[x-1] + F[x]) / (scale * scale);
+    }
+
+    return (F[x-1] - 2 * F[x] + F[x+1]) / (scale * scale);
+}
+
 template<typename T, typename U>
 inline
 auto integrate_1d(const T& func, int n, const U& upper, const U& lower)
@@ -887,10 +903,128 @@ auto integrate_1d(const T& func, int n, const U& upper, const U& lower)
 }
 
 
+double convert_quantity_to_geometric(double quantity, double kg_exponent, double s_exponent)
+{
+    //double m_to_kg = 1.3466 * pow(10., 27.);
+    //double m_to_s = 3.3356 * pow(10., -9.);
+
+    //return quantity * pow(m_to_kg, -kg_exponent) * pow(m_to_s, -s_exponent);
+
+    double G = 6.6743015 * pow(10., -11.);
+    double C = 299792458;
+
+    double factor = pow(G, -kg_exponent) * pow(C, 2 * kg_exponent - s_exponent);
+
+    return quantity / factor;
+}
+
 template<typename T>
-void solve_for(T mass, T radius, T p_centre, T K, T Gamma)
+void solve_for(T central_rest_mass, T radius, T K, T Gamma)
+{
+    auto p0_to_p = [&](T p0)
+    {
+        return K * std::pow(p0, Gamma);
+    };
+
+    auto p_to_p0 = [&](T p)
+    {
+        return std::pow(p/K, 1/Gamma);
+    };
+
+    auto p_to_rho = [&](T p)
+    {
+        return p_to_p0(p) + p / (Gamma - 1);
+    };
+
+    int cells = 100;
+
+    float scale = radius / cells;
+
+    /*auto idx_b = [&](T i, const std::vector<T>& b)
+    {
+        if(i <= 0)
+            return b[0];
+
+        if(i >= b.size() - 1)
+            return b.back();
+
+        T v1 = b[(int)i];
+        T v2 = b[(int)i + 1];
+
+        return mix(v1, v2, i - T{std::floor(i)});
+    };*/
+
+    auto rest_mass_to_E = [&](T rest_mass)
+    {
+        T E_over_rest_mass = (K / (Gamma-1)) * std::pow(rest_mass, Gamma - 1);
+
+        T E = E_over_rest_mass * rest_mass;
+        return E;
+    };
+
+    /*auto get_mass = [&](float up_to_radius)
+    {
+        return 2 * M_PI * integrate_1d([&](T r)
+        {
+            T fidx = r / scale;
+
+            T lpressure = idx_b(fidx, p);
+
+            T rest_mass = p_to_p0(lpressure);
+
+            return 4 * M_PI * r*r * rest_mass_to_E(rest_mass);
+        }, 50, up_to_radius, T{0.f});
+    };*/
+
+    T P_current = p0_to_p(central_rest_mass);
+    T m_current = 0;
+
+    //std::vector<T> p;
+    //p.resize(cells);
+
+    ///https://www.as.utexas.edu/astronomy/education/spring13/bromm/secure/TOC_Supplement.pdf
+    for(int cell = 0; cell < cells; cell++)
+    {
+        T r = (T)cell / cells;
+
+        r = std::max(r, T{0.0001f});
+
+        //T m = get_mass(r);
+
+        T m = m_current;
+
+        T pressure = P_current;
+        T rest_mass = p_to_p0(pressure);
+
+        T E = rest_mass_to_e(rest_mass);
+
+        T dP_dr = -(E + pressure) * (m + 4 * M_PI * r*r*r * pressure) / (r * (r - 2 * m));
+
+        T dM_dr = 4 * M_PI * r*r * E;
+
+        //p[cell] = P_current;
+
+        P_current += dP_dr * scale;
+        m_current += dM_dr * scale;
+
+        ///total energy = rest_mass c^2 + internal energy littlee
+        //tov uses total energy density
+    }
+
+    printf("Total M %f Total P %f\n", m_current, P_current);
+}
+
+void solve()
 {
 
+}
+
+
+#if 0
+///think i'm doing something fundamentally wrong with the integration
+template<typename T>
+void solve_for(T mass, T radius, T p0_centre, T K, T Gamma)
+{
     auto p0_to_p = [&](T p0)
     {
         return K * std::pow(p0, Gamma);
@@ -962,17 +1096,17 @@ void solve_for(T mass, T radius, T p_centre, T K, T Gamma)
     for(int i=0; i < 10024; i++)
     {
         p.back() = 0;
-        p.front() = p0_to_p(p_centre);
+        p.front() = p0_to_p(p0_centre);
 
-        T p_current = p0_to_p(p_centre);
+        T p_current = p0_to_p(p0_centre);
 
         for(int kk=0; kk < cells; kk++)
         {
             T dtheta = sdiff(theta, kk, scale);
             T dphi = sdiff(phi, kk, scale);
 
-            T itheta = 1/std::max(theta[kk], T{0.001f});
-            T iphi = 1/std::max(phi[kk], T{0.001f});
+            T itheta = 1/std::max(theta[kk], T{0.000000001});
+            T iphi = 1/std::max(phi[kk], T{0.000000001});
 
             T A = itheta * dtheta - iphi * dphi;
 
@@ -982,10 +1116,10 @@ void solve_for(T mass, T radius, T p_centre, T K, T Gamma)
 
             T dp_dr = -(rho + p_current) * A;
 
-            if(kk == 50)
-                printf("P %f next_p %f mul %f rho %f deriv %f\n", p[kk], p_current, A, rho, pressure_deriv);
+            //if(kk == 50)
+            //    printf("P %f next_p %f mul %f rho %f deriv %f\n", p[kk], p_current, A, rho, pressure_deriv);
 
-            np[kk] = mix(p_current, p[kk], T{0.1});
+            np[kk] = mix(p_current, p[kk], T{0.99});
 
             p_current += dp_dr * scale;
         }
@@ -993,17 +1127,22 @@ void solve_for(T mass, T radius, T p_centre, T K, T Gamma)
         std::swap(np, p);
 
         T lM = get_mass();
-        printf("%f M\n", lM);
+        std::cout << lM << " Mass " << std::endl;
 
         T Phi_c = 1 + lM / (2 * radius);
         T Theta_c = 1 - lM / (2 * radius);
 
-        phi.back() = Phi_c;
-        theta.back() = Theta_c;
+        //phi.back() = Phi_c;
+        //theta.back() = Theta_c;
 
         for(int kk=0; kk < cells; kk++)
         {
             T rho = p_to_rho(p[kk]);
+
+            /*if(kk == 25)
+            {
+                std::cout << "P_in " << p[kk] << " rho " << rho << " p0 " << p_to_p0(p[kk]) << std::endl;
+            }*/
 
             T r = ((T)kk / cells) * radius;
             T lp = p[kk];
@@ -1013,11 +1152,32 @@ void solve_for(T mass, T radius, T p_centre, T K, T Gamma)
             T next_phi = next_guess<T>(phi, kk, r, 2, 2 * M_PI * r * std::pow(phi[kk], T{4.f}) * rho, scale);
             T next_theta = next_guess<T>(theta, kk, r, 2, 2 * M_PI * r * std::pow(phi[kk], T{4.f}) * (rho + 6 * lp), scale);
 
-            if(kk == 50)
-                printf("Phi %f theta %f p %f\n", phi[kk], theta[kk], p[kk]);
+            /*if(kk == cells - 1)
+            {
+                double d2 = r * sdiff2(phi, kk, scale);
+                double d1 = 2 * sdiff(phi, kk, scale);
+                double d0 = 2 * M_PI * r * pow(phi[kk], 5.) * rho;
 
-            nphi[kk] = mix(next_phi, phi[kk], T{0.1f});
-            ntheta[kk] = mix(next_theta, theta[kk], T{0.1f});
+                double err = d0 + d1 + d2;
+
+                double p2 = r * sdiff2(theta, kk, scale);
+                double p1 = 2 * sdiff(theta, kk, scale);
+                double p0 = 2 * M_PI * r * pow(phi[kk], 4.) * theta[kk] * (rho + 6 * p[kk]);
+
+                double err2 = p0 + p1 + p2;
+
+
+                std::cout << "Err " << err << std::endl;
+                std::cout << "Err2 " << err2 << std::endl;
+
+                printf("Phi %f theta %f p %f rho %f\n", phi[kk], theta[kk], p[kk], rho);
+            }*/
+
+            //if(kk == 50)
+            //    printf("Phi %f theta %f p %f rho %f\n", phi[kk], theta[kk], p[kk], rho);
+
+            nphi[kk] = mix(next_phi, phi[kk], T{0.99f});
+            ntheta[kk] = mix(next_theta, theta[kk], T{0.99f});
         }
 
         std::swap(nphi, phi);
@@ -1030,13 +1190,46 @@ void solve()
 {
     double M_sol = 1.988 * pow(10., 30.);
 
-    double mass = 1.4 * M_sol;
+    double mass_kg = 1.543 * M_sol;
     double G = 6.6743015 * pow(10., -11.);
     double C = 299792458;
-
-    #if 0
     double m_to_kg = 1.3466 * pow(10., 27.);
 
+    //double compactness = 0.06;
+    //double radius_real = mass_natural / compactness;
+
+    double radius_real = 13.4 * 1000;
+
+    double central_density = 6.235 * pow(10., 17.);
+
+    double central_nat = convert_quantity_to_geometric(central_density, 1, 0);
+
+    std::cout << "central_nat " << central_nat << std::endl;
+
+    double mass_natural = mass_kg / m_to_kg;
+
+    std::cout << "Mass " << mass_natural << std::endl;
+
+    std::cout << "Tmass " << (4./3.) * M_PI * pow(radius_real, 3.) * central_nat << std::endl;
+
+    ///ok so, K has insane units good right fine
+    double paper_K = 123.641 * M_sol * M_sol;
+
+    ///K has units of kg^(1-gamma), m^(3gamma-1), s^-2
+
+    double Gamma = 2;
+
+    double geometric_K = convert_quantity_to_geometric(paper_K, 1-Gamma, -2);
+
+    /*std::cout << "geometric " << geometric_K << std::endl;
+
+    double calculated_geometric_K = (2/M_PI) * radius_real * radius_real;
+
+    std::cout << "calculated " << calculated_geometric_K << std::endl;
+
+    assert(false);*/
+
+    #if 0
     ///presumably this is now in m^2
     double paper_k_nat = 123.641 * (M_sol / m_to_kg) * (M_sol / m_to_kg);
 
@@ -1078,8 +1271,11 @@ void solve()
     float p_centre = paper_p_central * M_m * M_m;
     #endif
 
-    solve_for<double>(0.075f, 1.f, 0.0001f, 100.f, 2.f);
+    ///so. I think I *have* to solve in units of c=g=1
+
+    solve_for<double>(mass_natural, radius_real, central_nat, geometric_K, Gamma);
 }
+#endif
 
 int main()
 {
