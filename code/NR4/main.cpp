@@ -960,9 +960,9 @@ struct integration_dr
     double dp = 0;
 };
 
-integration_dr get_derivs(double r, const integration_state& st, const parameters& params)
+integration_dr get_derivs(double r, const integration_state& st, const parameters& param)
 {
-    p_eos eos = calc_p_eos(st.p, params);
+    p_eos eos = calc_p_eos(st.p, param);
 
     double p = st.p;
     double m = st.m;
@@ -976,7 +976,37 @@ integration_dr get_derivs(double r, const integration_state& st, const parameter
 
 void solve()
 {
+    double rmin = 1e-6;
+    double rmax = 20;
+    double p0 = 1.28e-3;
 
+    parameters param;
+    param.Gamma = 2;
+    param.K = 100;
+
+    integration_state st = make_integration_state(p0, rmin, param);
+
+    double min_pressure = 0;
+
+    for(int i=0; i < 1024; i++)
+    {
+        double dt = (rmax - rmin) / 1024;
+        double r = rmin + dt * i;
+
+        integration_dr dr = get_derivs(r, st, param);
+
+        std::cout << "m " << st.m << std::endl;
+        std::cout << "p " << st.p << std::endl;
+
+        std::cout << "Dm " << dr.dm << std::endl;
+        std::cout << "Dp " << dr.dp << std::endl;
+
+        st.m += dr.dm * dt;
+        st.p += dr.dp * dt;
+
+        if(st.p < min_pressure)
+            break;
+    }
 }
 
 #if 0
