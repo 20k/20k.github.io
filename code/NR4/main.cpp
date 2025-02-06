@@ -974,10 +974,26 @@ integration_dr get_derivs(double r, const integration_state& st, const parameter
     return out;
 }
 
+///https://www.seas.upenn.edu/~amyers/NaturalUnits.pdf
+//https://nssdc.gsfc.nasa.gov/planetary/factsheet/sunfact.html
+double geom_to_msol(double meters, double exponent)
+{
+    double m_to_kg = 1.3466 * pow(10., 27.);
+    double msol_kg = 1.988416 * pow(10., 30.);
+    double msol_meters = msol_kg / m_to_kg;
+
+    return meters / pow(msol_meters, exponent);
+}
+
+///units are c=g=msol
+///i think i can just convert msol into natural units, and redefine length
 void solve()
 {
     double rmin = 1e-6;
     double rmax = 20;
+
+    ///ok. The only thing I need to do is convert from kg/m^3 to whatever our
+    ///new density system is
     double p0 = 1.28e-3;
 
     parameters param;
