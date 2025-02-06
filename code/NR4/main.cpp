@@ -902,7 +902,84 @@ auto integrate_1d(const T& func, int n, const U& upper, const U& lower)
     return ((upper - lower) / n) * (func(lower)/2.f + sum + func(upper)/2.f);
 }
 
+struct parameters
+{
+    double K = 0;
+    double Gamma = 0;
+};
 
+///https://colab.research.google.com/drive/1yMD2j3Y6TcsykCI59YWiW9WAMW-SPf12#scrollTo=6vWjt7CWaVyV
+struct p_eos
+{
+    double energy = 0;
+    double p0 = 0;
+};
+
+p_eos calc_p_eos(double p, const parameters& param)
+{
+    p_eos s;
+    s.energy = pow(p/param.K, 1/param.Gamma) + p/(param.Gamma-1);
+    s.p0 = pow(p/param.K, 1/param.Gamma);
+    return s;
+}
+
+struct p0_eos
+{
+    double p;
+    double e;
+};
+
+p0_eos calc_p0_eos(double p0, const parameters& param)
+{
+    p0_eos r;
+    r.p = param.K * pow(p0, param.Gamma);
+    r.e = p0 + r.p/(param.Gamma-1);
+    return r;
+}
+
+struct integration_state
+{
+    double m = 0;
+    double p = 0;
+};
+
+integration_state make_integration_state(double p0, double rmin, const parameters& param)
+{
+    p0_eos eos = calc_p0_eos(p0, param);
+    double m = (4./3.) * M_PI * eos.e * pow(rmin, 3.);
+
+    integration_state out;
+    out.p = eos.p;
+    out.m = m;
+    return out;
+}
+
+struct integration_dr
+{
+    double dm = 0;
+    double dp = 0;
+};
+
+integration_dr get_derivs(double r, const integration_state& st, const parameters& params)
+{
+    p_eos eos = calc_p_eos(st.p, params);
+
+    double p = st.p;
+    double m = st.m;
+
+    integration_dr out;
+
+    out.dm = 4 * M_PI * eos.energy * pow(r, 2.);
+    out.dp = -(eos.energy + p) * (m + 4 * M_PI * r*r*r * p) / (r * (r - 2 * m));
+    return out;
+}
+
+void solve()
+{
+
+}
+
+#if 0
 double convert_quantity_to_geometric(double quantity, double kg_exponent, double s_exponent)
 {
     //double m_to_kg = 1.3466 * pow(10., 27.);
@@ -1228,6 +1305,8 @@ void solve()
     std::cout << "Mass " << mass_natural << std::endl;
 
     ///ok so, K has insane units good right fine
+    ///nope! their K is in units of C=G=1
+    ///this explains a lot. Ok i'm getting closer to unfucking this
     double paper_K = 123.641 * M_sol * M_sol;
 
     ///K has units of kg^(1-gamma), m^(3gamma-1), s^-2
@@ -1243,6 +1322,57 @@ void solve()
     ///central_nat has units of kg/m^3 ie m/m^3
     ///radius_real has units of m
     ///gamma has units of 2
+
+    ///G = kg^-1 m^3 s^-2
+    ///central = kg/m^3
+    ///K = kg^(1-gamma), m^(3gamma-1), s^-2
+    ///so it looks like they redefine kg, and s, so that G = 1 and K=1
+
+
+    ///G/ab^2 = 1
+    ///ok so. M -> km = divide by 1000, which is km expressed in M
+    ///M^n -> (Xm)^n = divide by x^n
+    ///Q M^n -> Q/(x^n) (Xm)^n
+    ///K / (x^(1-gamma)) = 1
+    ///K = x^(1-gamma)
+    ///x = (1-g)th root of K
+    ///remember that i'm redefining c as well
+
+    /*double kg_cvt_constant = pow(paper_K, 1/(1-Gamma));
+
+    double K_norm = paper_K / pow(kg_cvt_constant, 1 - Gamma);
+    double central_norm = central_density / pow(kg_cvt_constant, 1);
+    double G_norm = G / pow(kg_cvt_constant, -1);
+
+    double s_cvt_constant = pow(G_norm, 1/-2.);
+
+    double G_fin = G_norm / pow(s_cvt_constant, -2);*/
+
+    ///done goofed, G and K share units
+
+    ///1 = G a^-1 b^-2
+    ///1 = K a^(1-gamma) b^-2
+
+    ///G a^-1 b^3 = 1
+    ///K a^(1-gamma) b^(3gamma-1) = 1
+
+    ///so I think I can do this, need to find the right pairs of values for it
+
+    double b = 1;
+
+    ///1 = k a^(1-gamma) b^-2
+    ///1 = (G/K) a^-1 / a^(1-gamma) = (G/K) a^(gamma-2)
+    ///(K/G) = a^(gamma-2)
+    ///a = (gamma-2)th root of (K/G)
+    ///nope need to redefine meter
+
+    double a = 1/
+
+    std::cout << "G_fin " << G_fin << std::endl;
+
+    std::cout << "Cnorm " << central_norm << std::endl;
+
+    //std::cout << "nK " << nK << std::endl;
 
     double central_cvt = m_to_sm(central_nat, -2);
     double radius_cvt = m_to_sm(radius_real, 1);
@@ -1285,6 +1415,7 @@ void solve()
     //std::cout << "Ga " << G / (A * B*B) << std::endl;
 
 }
+#endif
 
 
 #if 0
