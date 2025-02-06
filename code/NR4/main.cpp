@@ -976,7 +976,7 @@ integration_dr get_derivs(double r, const integration_state& st, const parameter
 
 ///https://www.seas.upenn.edu/~amyers/NaturalUnits.pdf
 //https://nssdc.gsfc.nasa.gov/planetary/factsheet/sunfact.html
-double geom_to_msol(double meters, double exponent)
+double meters_to_msol(double meters, double exponent)
 {
     double m_to_kg = 1.3466 * pow(10., 27.);
     double msol_kg = 1.988416 * pow(10., 30.);
@@ -985,10 +985,22 @@ double geom_to_msol(double meters, double exponent)
     return meters / pow(msol_meters, exponent);
 }
 
+double msol_to_meters(double distance, double exponent)
+{
+    double m_to_kg = 1.3466 * pow(10., 27.);
+    double msol_kg = 1.988416 * pow(10., 30.);
+    double msol_meters = msol_kg / m_to_kg;
+
+    return distance * msol_meters;
+}
+
 ///units are c=g=msol
 ///i think i can just convert msol into natural units, and redefine length
 void solve()
 {
+    //std::cout << "meters " << msol_to_meters(1, 1) << std::endl;
+    assert(false);
+
     double rmin = 1e-6;
     double rmax = 20;
 
