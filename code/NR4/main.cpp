@@ -16,6 +16,7 @@
 #include <GLFW/glfw3.h>
 #include "raytrace_init.hpp"
 #include "tov.hpp"
+#include "laplace.hpp"
 
 using t3i = tensor<int, 3>;
 
@@ -913,6 +914,8 @@ int main()
     make_cG_error(ctx, 2);
 
     cl::command_queue cqueue(ctx);
+
+    laplace_solver::init(ctx);
 
     ImFontAtlas* atlas = ImGui::GetIO().Fonts;
     atlas->FontBuilderFlags = ImGuiFreeTypeBuilderFlags_LCD | ImGuiFreeTypeBuilderFlags_FILTER_DEFAULT | ImGuiFreeTypeBuilderFlags_LoadColor;
