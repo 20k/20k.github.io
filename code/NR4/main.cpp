@@ -968,6 +968,7 @@ struct integration_solution
     //in meters
     double R = 0;
 
+    std::vector<double> energy_density;
     std::vector<double> pressure;
     std::vector<double> mass;
     std::vector<double> radius;
@@ -988,6 +989,7 @@ integration_solution solve_tov(const integration_state& start, const parameters&
 
     while(1)
     {
+        sol.energy_density.push_back(param.pressure_to_energy_density(st.p));
         sol.pressure.push_back(st.p);
         sol.mass.push_back(st.m);
 

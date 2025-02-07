@@ -439,7 +439,7 @@ One thing to note is that any time you see a $\pi$, its a sure fire bet that it 
 |$\bar{A}_{ij}$| Conformal extrinsic curvature|
 |$\rho_H$| TODO: I DONT HAVE A CLUE|
 
-This paper in theory lets us solve the TOV equations in a conformally flat spacetime, via (77, 78, + 79), but we've deliberately skipped this step, as the TOV equations are much easier to solve directly.
+This paper in theory lets us solve the TOV equations in a conformally flat spacetime, via (77, 78, + 79), but we've deliberately skipped this step, as the TOV equations are much easier to solve directly. Its also nice, because if you want to it becomes easy to plug in new equations of state
 
 ## Getting started: Solving for $\Phi$
 
@@ -450,7 +450,7 @@ The procedure in this paper is as follows:
 3. Use that $\bar{A}_{ij}$ solution to construct $\Phi$, the real conformal factor
 4. Bob's your uncle
 
-Note that this paper defines $\rho$ as what we've been calling $\epsilon$, and it calls $\epsilon$ a separate quantity we don't have (specific internal energy density). I'm going to keep our existing notation, and translate where appropriate, to try and staunch the insanity
+Note that this paper defines $\rho$ as what we've been calling $\epsilon$, and it calls $\epsilon$ a separate quantity we don't have (specific internal energy density). I'm going to keep our existing notation, and translate where appropriate, to try and stem the incredibly random notation
 
 The laplacian we need to solve for $\Phi_{tov}$, is (74) but with the constraints $\beta^i = 0, A_{ij} = 0, \epsilon_h = \epsilon$. This gives:
 
