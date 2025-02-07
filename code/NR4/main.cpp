@@ -915,8 +915,6 @@ int main()
 
     cl::command_queue cqueue(ctx);
 
-    laplace_solver::init(ctx);
-
     ImFontAtlas* atlas = ImGui::GetIO().Fonts;
     atlas->FontBuilderFlags = ImGuiFreeTypeBuilderFlags_LCD | ImGuiFreeTypeBuilderFlags_FILTER_DEFAULT | ImGuiFreeTypeBuilderFlags_LoadColor;
 
