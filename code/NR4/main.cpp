@@ -922,7 +922,9 @@ integration_state make_integration_state(double p0, double rmin, const parameter
 //p0 in si units
 integration_state make_integration_state_si(double p0, double rmin, const parameters& param)
 {
+    //kg/m^3 -> m/m^3 -> 1/m^2
     double p0_geom = si_to_geometric(p0, 1, 0);
+    //m^-2 -> msol^-2
     double p0_msol = geometric_to_msol(p0_geom, -2);
 
     return make_integration_state(p0_msol, rmin, param);
@@ -959,7 +961,6 @@ struct integration_solution
     std::vector<double> mass;
     std::vector<double> radius;
 };
-
 
 ///units are c=g=msol
 ///i think i can just convert msol into natural units, and redefine length
@@ -1006,18 +1007,19 @@ integration_solution solve_tov(const integration_state& start, const parameters&
 void solve()
 {
     //kg/m^3
-    double paper_p0 = 6.235 * pow(10., 17.);
+    //double paper_p0 = 6.235 * pow(10., 17.);
 
     //this is in c=g=msol, so you'd need to use make_integration_state()
-    //double p0 = 1.28e-3
+    double p0 = 1.28e-3;
 
     parameters param;
-    param.K = 123.641;
+    param.K = 100;
     param.Gamma = 2;
 
     double rmin = 1e-6;
 
-    integration_state st = make_integration_state_si(paper_p0, rmin, param);
+    integration_state st = make_integration_state(p0, rmin, param);
+    //integration_state st = make_integration_state_si(paper_p0, rmin, param);
 
     integration_solution sol = solve_tov(st, param, 1e-6, 0);
 
