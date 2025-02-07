@@ -133,20 +133,24 @@ void upscale_buffer(execution_context& ctx, buffer<valuef> in, buffer_mut<valuef
     as_ref(out[pos, dim]) = buffer_read_linear(in, lower_pos, in_dim.get());
 }
 
+inline
+int init_laplace(cl::context ctx)
+{
+    cl::async_build_and_cache(ctx, [=]{
+        return value_impl::make_function(upscale_buffer, "upscale");
+    }, {"upscale"});
+    return 0;
+}
+
 struct laplace_solver
 {
     std::string kernel_name;
 
-    static void init(cl::context ctx)
-    {
-        cl::async_build_and_cache(ctx, [=]{
-            return value_impl::make_function(upscale_buffer, "upscale");
-        }, {"upscale"});
-    }
-
     template<typename T, typename U>
     void boot(cl::context ctx, T get_rhs, U arg_pack_unused, std::string kname)
     {
+        static int _ = init_laplace(ctx);
+
         static_assert(std::is_base_of_v<value_impl::single_source::argument_pack, U>);
 
         kernel_name = kname;
