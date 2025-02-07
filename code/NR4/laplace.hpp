@@ -243,13 +243,6 @@ struct laplace_solver
 
             cl::buffer u_found(ctx);
 
-            /*initial_pack pack(ctx, cqueue, dim, scale);
-
-            for(auto& i : params_bh)
-                pack.add(ctx, cqueue, i);
-
-            pack.finalise(cqueue);*/
-
             auto data = data_getter(dim, scale);
 
             {
@@ -339,8 +332,6 @@ struct laplace_solver
         {
             printf("Dims %i %f\n", dims[i].x(), relax[i]);
         }
-
-        //std::optional<std::tuple<cl::buffer, initial_pack>> last;
 
         {
             std::optional<std::pair<cl::buffer, t3i>> last_u;
