@@ -917,20 +917,15 @@ struct integration_state
     double p = 0;
 };
 
-integration_state make_integration_state_with_pressure(double P, double rmin, const parameters& param)
+integration_state make_integration_state(double p0, double rmin, const parameters& param)
 {
-    double e = param.pressure_to_energy_density(P);
+    double e = param.rest_mass_density_to_energy_density(p0);
     double m = (4./3.) * M_PI * e * pow(rmin, 3.);
 
     integration_state out;
-    out.p = P;
+    out.p = param.rest_mass_density_to_pressure(p0);
     out.m = m;
     return out;
-}
-
-integration_state make_integration_state(double p0, double rmin, const parameters& param)
-{
-    return make_integration_state_with_pressure(param.rest_mass_density_to_pressure(p0), rmin, param);
 }
 
 //p0 in si units
@@ -1083,7 +1078,12 @@ void solve()
     param.K = 123.641;
     param.Gamma = 2;
 
-    secant_search_for_adm_mass(1.543, param);
+    auto results = search_for_adm_mass(1.543, param);
+
+    for(auto& i : results)
+    {
+        std::cout << "Density " << i << std::endl;
+    }
 
     assert(false);
 
