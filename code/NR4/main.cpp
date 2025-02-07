@@ -994,7 +994,7 @@ integration_solution solve_tov(const integration_state& start, const parameters&
         st.p += data.dp * dr;
         current_r += dr;
 
-        if(st.p < min_pressure)
+        if(st.p <= min_pressure)
             break;
     }
 
@@ -1007,21 +1007,21 @@ integration_solution solve_tov(const integration_state& start, const parameters&
 void solve()
 {
     //kg/m^3
-    //double paper_p0 = 6.235 * pow(10., 17.);
+    double paper_p0 = 6.235 * pow(10., 17.);
 
     //this is in c=g=msol, so you'd need to use make_integration_state()
-    double p0 = 1.28e-3;
+    //double p0 = 1.28e-3;
 
     parameters param;
-    param.K = 100;
+    param.K = 123.641;
     param.Gamma = 2;
 
     double rmin = 1e-6;
 
-    integration_state st = make_integration_state(p0, rmin, param);
-    //integration_state st = make_integration_state_si(paper_p0, rmin, param);
+    //integration_state st = make_integration_state(p0, rmin, param);
+    integration_state st = make_integration_state_si(paper_p0, rmin, param);
 
-    integration_solution sol = solve_tov(st, param, 1e-6, 0);
+    integration_solution sol = solve_tov(st, param, rmin, 0);
 
     std::cout << "Solved for " << sol.R / 1000. << "km " << sol.M << " msols " << std::endl;
 
