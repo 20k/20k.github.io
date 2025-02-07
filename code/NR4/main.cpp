@@ -948,63 +948,82 @@ integration_dr get_derivs(double r, const integration_state& st, const parameter
     return out;
 }
 
+struct integration_solution
+{
+    //in msols
+    double M = 0;
+    //in meters
+    double R = 0;
+
+    std::vector<double> pressure;
+    std::vector<double> mass;
+    std::vector<double> radius;
+};
+
 
 ///units are c=g=msol
 ///i think i can just convert msol into natural units, and redefine length
-void solve()
+integration_solution solve_tov(const integration_state& start, const parameters& param, double min_radius, double min_pressure)
 {
-    //std::cout << "meters " << msol_to_geometric(1, 1) << std::endl;
-    //assert(false);
+    integration_state st = start;
 
-    //std::cout << "msol " << geometric_to_msol(si_to_geometric(1.988416 * pow(10., 30.), 1, 0), 1) << std::endl;
+    double current_r = min_radius;
+    double dr = 1. / 1024.;
 
-    ///kg/m^3
-    double paper_p0 = 6.235 * pow(10., 17.);
+    integration_solution sol;
 
-    double paper_p0_geometric = si_to_geometric(paper_p0, 1, 0);
-    //kg/m^3 = m/m^3 = 1/m^2
-    double paper_p0_msol = geometric_to_msol(paper_p0_geometric, -2);
+    double last_r = 0;
+    double last_m = 0;
 
-    std::cout << "Paper p0 " << paper_p0_msol << std::endl;
-
-    double rmin = 1e-6;
-    ///todo: unbounded rmax
-    ///todo: unbounded iteration count
-    double rmax = 20;
-
-    ///ok. The only thing I need to do is convert from kg/m^3 to whatever our
-    ///new density system is
-    double p0 = 1.28e-3;
-
-    //double p0 = paper_p0_msol;
-
-    parameters param;
-    param.Gamma = 2;
-    param.K = 100;
-
-    integration_state st = make_integration_state(p0, rmin, param);
-
-    double min_pressure = 0;
-
-    for(int i=0; i < 1024; i++)
+    while(1)
     {
-        double dt = (rmax - rmin) / 1024;
-        double r = rmin + dt * i;
+        sol.pressure.push_back(st.p);
+        sol.mass.push_back(st.m);
 
-        integration_dr dr = get_derivs(r, st, param);
+        double r = current_r;
 
-        std::cout << "m " << st.m << std::endl;
-        std::cout << "p " << st.p << std::endl;
+        sol.radius.push_back(r);
 
-        std::cout << "Dm " << dr.dm << std::endl;
-        std::cout << "Dp " << dr.dp << std::endl;
+        last_r = r;
+        last_m = st.m;
 
-        st.m += dr.dm * dt;
-        st.p += dr.dp * dt;
+        integration_dr data = get_derivs(r, st, param);
+
+        st.m += data.dm * dr;
+        st.p += data.dp * dr;
+        current_r += dr;
 
         if(st.p < min_pressure)
             break;
     }
+
+    sol.R = msol_to_geometric(last_r, 1);
+    sol.M = last_m;
+
+    return sol;
+}
+
+void solve()
+{
+    //kg/m^3
+    double paper_p0 = 6.235 * pow(10., 17.);
+
+    //this is in c=g=msol, so you'd need to use make_integration_state()
+    //double p0 = 1.28e-3
+
+    parameters param;
+    param.K = 123.641;
+    param.Gamma = 2;
+
+    double rmin = 1e-6;
+
+    integration_state st = make_integration_state_si(paper_p0, rmin, param);
+
+    integration_solution sol = solve_tov(st, param, 1e-6, 0);
+
+    std::cout << "Solved for " << sol.R / 1000. << "km " << sol.M << " msols " << std::endl;
+
+    assert(false);
 }
 
 int main()
