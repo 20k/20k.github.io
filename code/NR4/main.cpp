@@ -902,41 +902,42 @@ auto integrate_1d(const T& func, int n, const U& upper, const U& lower)
     return ((upper - lower) / n) * (func(lower)/2.f + sum + func(upper)/2.f);
 }
 
+///https://colab.research.google.com/drive/1yMD2j3Y6TcsykCI59YWiW9WAMW-SPf12#scrollTo=6vWjt7CWaVyV
+
 struct parameters
 {
     double K = 0;
     double Gamma = 0;
+
+    ///p0 -> p
+    ///equation of state
+    double rest_mass_density_to_pressure(double rest_mass_density) const
+    {
+        return K * pow(rest_mass_density, Gamma);
+    }
+
+    double rest_mass_density_to_energy_density(double rest_mass_density) const
+    {
+        double p = rest_mass_density_to_pressure(rest_mass_density);
+
+        double p0 = rest_mass_density;
+
+        return p0 + p/(Gamma-1);
+    }
+
+
+    ///inverse equation of state
+    ///p -> p0
+    double pressure_to_rest_mass_density(double p) const
+    {
+        return std::pow(p/K, 1/Gamma);
+    }
+
+    double pressure_to_energy_density(double p) const
+    {
+        return pressure_to_rest_mass_density(p) + p / (Gamma - 1);
+    }
 };
-
-///https://colab.research.google.com/drive/1yMD2j3Y6TcsykCI59YWiW9WAMW-SPf12#scrollTo=6vWjt7CWaVyV
-///equation of state
-///p0 -> p
-double rest_mass_density_to_pressure(double rest_mass_density, const parameters& param)
-{
-    return param.K * pow(rest_mass_density, param.Gamma);
-}
-
-///p0 -> e
-double rest_mass_density_to_energy_density(double rest_mass_density, const parameters& param)
-{
-    double p = rest_mass_density_to_pressure(rest_mass_density, param);
-
-    double p0 = rest_mass_density;
-
-    return p0 + p/(param.Gamma-1);
-}
-
-///inverse equation of state
-///p -> p0
-double pressure_to_rest_mass_density(double p, const parameters& param)
-{
-    return std::pow(p/param.K, 1/param.Gamma);
-}
-
-double pressure_to_energy_density(double p, const parameters& param)
-{
-    return pressure_to_rest_mass_density(p, param) + p / (param.Gamma - 1);
-}
 
 struct integration_state
 {
@@ -946,11 +947,11 @@ struct integration_state
 
 integration_state make_integration_state(double p0, double rmin, const parameters& param)
 {
-    double e = rest_mass_density_to_energy_density(p0, param);
+    double e = param.rest_mass_density_to_energy_density(p0);
     double m = (4./3.) * M_PI * e * pow(rmin, 3.);
 
     integration_state out;
-    out.p = rest_mass_density_to_pressure(p0, param);
+    out.p = param.rest_mass_density_to_pressure(p0);
     out.m = m;
     return out;
 }
@@ -963,7 +964,7 @@ struct integration_dr
 
 integration_dr get_derivs(double r, const integration_state& st, const parameters& param)
 {
-    double e = pressure_to_energy_density(st.p, param);
+    double e = param.pressure_to_energy_density(st.p);
 
     double p = st.p;
     double m = st.m;
