@@ -27,11 +27,9 @@ Where $K$ is a proportionality constant, $\Gamma$ is the polytropic index, $\rho
 
 For $\Gamma=2$, there are approximations that can be used from eg [here (page 3)](https://www.aanda.org/articles/aa/pdf/2010/06/aa12738-09.pdf), but there's no general analytic solution to this. We're going to have to numerically solve some equations instead, if we want to go the whole hog and build a neutron star from scratch
 
-We're going to go for the whole hog and build a neutron star from scratch
-
 ## A body in hydrodynamic equilibrium: Tolman-Oppenheimer-Volkoff (TOV)
 
-The equation that governs a relativistic, spherically symmetric body in hydrostatic equilibrium is called the TOV equation. This is a set of two coupled partial differential equations, which we must solve simultaneously. Wikipedia lists an unnecessarily complicated form of the equations, so [here's (17)](https://www.as.utexas.edu/astronomy/education/spring13/bromm/secure/TOC_Supplement.pdf) a nicer form (in units of $c=g=1$):
+The equation that governs a relativistic, spherically symmetric body in hydrostatic equilibrium is called the TOV equation. This is a set of two coupled partial differential equations, which we must solve simultaneously. Wikipedia lists an unnecessarily complicated form of the equations, so [here's (17)](https://www.as.utexas.edu/astronomy/education/spring13/bromm/secure/TOC_Supplement.pdf) a nicer form (in units of $c=G=1$):
 
 $$\begin{align}
 \frac{dm}{dr} &= 4 \pi r^2 \epsilon\\
@@ -54,9 +52,17 @@ This is one of the areas of the literature where the notation is, frankly, reall
 |$P$|Pressure|$\mathrm{kg}\;\mathrm{m}^{-1} \; \mathrm{s}^{-2}$|$\mathrm{m}^{-2}$|$P$|$K \rho_0^\Gamma$|
 |$K$|Polytropic Constant (informal)|$\mathrm{kg}^{1-\Gamma} \; \mathrm{m}^{3\Gamma-1}\;\mathrm{s}^{-2}$|$\mathrm{m}^{2\Gamma-2}$|||
 
-It is extremely common to perform these simulations in units of $c=g=M_\odot$, where $M_\odot$ is the mass of the sun. This is why I've provided all the units up above, and we're going go through [converting](https://www.seas.upenn.edu/~amyers/NaturalUnits.pdf) into that unit system. In general, you need to redefine mass to avoid your numbers blowing up too much
+It is extremely common to perform these simulations in units of $c=G=M_\odot$, where $M_\odot$ is the mass of the sun. This is why I've provided all the units up above, and we're going go through [converting](https://www.seas.upenn.edu/~amyers/NaturalUnits.pdf) from SI units, to geometric units ($c=G=1$), to that new unit system ($c=G=M_\odot$). In general, you need to redefine mass to avoid your numbers blowing up too much
 
-To get an idea of how it works, first notice that we can convert the mass of the sun from kilograms, to meters. Then, we can change our scale, such that the mass of the sun is $1$ in meters. Unit conversions proceed as you'd expect then, and I'll be showing you the code for how to do this
+To get an idea of how it works, first notice that we can convert the mass of the sun from kilograms, to meters. Then, we can change our scale, such that the mass of the sun is $1$, in units of new distance. Unit conversions proceed as you'd expect then, giving the following procedure:
+
+1. Convert everything into geometric units
+2. Convert the mass of the sun, $1.988416 * 10^30 \mathrm{kg}$, into meters, lets say $M_m$
+3. Divide your quantity in $\mathrm{m}^n$ (eg $\mathrm{m}^2$) by $(M_m)^n$
+
+I'll be showing you the code for how to do this. One thing to note is that $K$ is frequently given in geometric units instead of physical units, so I'll flag up when things are wonky
+
+## Solving the TOV equations
 
 ## Bowen-York Type Initial Data for Binaries with Neutron Stars
 
