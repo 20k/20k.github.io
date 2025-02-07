@@ -334,15 +334,80 @@ I think we both know deep down in our hearts that this section wasn't going to r
 
 $$M = \frac{4}{3} \pi r^3 \epsilon$$
 
-Ie, we assume a constant $\epsilon$ through the star, then calculate this as a density. This is at least in the ballpark. From there, you can simply bruteforce over a range of values, eg $\epsilon/10$ -> $\epsilon*100$
+Ie, we assume a constant $\epsilon$ through the star, then calculate this as a density. We'll have to guess our neutron star mass as well: the ratio of mass to radius is called the compactness factor $C$, and we can do $R=\frac{M}{C=0.06}$ as a guess. We're just looking for a vague ballpacrk range here
 
-There's a teeny small problem. Neutron star ADM masses are not unique. You see, the graph of radius vs mass looks like this:
+From there, you can simply bruteforce over a range of central density values, eg $\frac{\epsilon}{100}$ -> $5 \epsilon$, converted to rest densities
 
+There's a teeny problem here. Neutron star ADM masses are not unique. You see, the graph of radius vs mass looks like this:
 
+![neutron](/assets/nr4_neutron.PNG)
+
+This means that there might be multiple solutions for central density for a specific ADM mass, and for realistic neutron stars there are at least two. Which makes this problem much more annoying. Anyway, lets write a basic procedure for this:
+
+```c++
+
+std::vector<double> search_for_adm_mass(double adm_mass, const parameters& param)
+{
+    double r_approx = adm_mass / 0.06;
+
+    double start_E = adm_mass / ((4./3.) * M_PI * r_approx*r_approx*r_approx);
+    double start_P = param.energy_density_to_pressure(start_E);
+    double start_density = param.pressure_to_rest_mass_density(start_P);
+
+    double rmin = 1e-6;
+
+    std::vector<double> densities;
+    std::vector<double> masses;
+
+    int to_check = 2000;
+    densities.resize(to_check);
+    masses.resize(to_check);
+
+    double min_density = start_density / 100;
+    double max_density = start_density * 5;
+
+    for(int i=0; i < to_check; i++)
+    {
+        double frac = (double)i / to_check;
+
+        double test_density = mix(min_density, max_density, frac);
+
+        integration_state next_st = make_integration_state(test_density, rmin, param);
+        integration_solution next_sol = solve_tov(next_st, param, rmin, 0.);
+
+        densities[i] = test_density;
+        masses[i] = next_sol.M;
+    }
+
+    std::vector<double> out;
+
+    for(int i=0; i < to_check - 1; i++)
+    {
+        double current = masses[i];
+        double next = masses[i+1];
+
+        double min_mass = std::min(current, next);
+        double max_mass = std::max(current, next);
+
+        if(adm_mass >= min_mass && adm_mass < max_mass)
+        {
+            double frac = (adm_mass - min_mass) / (max_mass - min_mass);
+
+            out.push_back(mix(densities[i], densities[i+1], frac));
+        }
+    }
+
+    return out;
+}
+```
+
+This performs a pretty basic bruteforce through the parameter space, and looks for mass crossings which match our result. Something smarter would refine the result more closely instead of linearly bruteforcing, but it works fine. The lower density branch here (with larger radius) is the correct neutron star in our case, which we simply have to know a-priori
 
 ## Key takeaways from solving TOV
 
-At the end of this process, we've gained the ability to describe the following variables of our neutron star: rest mass density $\rho_0$, energy $\epsilon$, ADM mass $M$, and pressure $P$. Keep this in mind as we carry on forwards
+At the end of this process, we've gained the ability to describe the following variables of our neutron star: rest mass density $\rho_0$, energy $\epsilon$, ADM mass $M$, and pressure $P$. Keep this in mind as we carry on forwards. We've now solved the first step in our initial conditions procedure: constructing a static neutron star
+
+Next up, we need to give it momentum and spin. This is where things get a bit complicated
 
 # Bowen-York Type Initial Data for Binaries with Neutron Stars
 
