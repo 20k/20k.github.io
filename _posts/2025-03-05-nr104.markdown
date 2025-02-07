@@ -7,6 +7,20 @@ categories: C++
 
 Some things are easy. Some things are hard. Some things are neutron star collisions. Lets get into it
 
+# What are we doing today?
+
+Modelling and simulating neutron stars is a multi step process. Lets break this down into two phases, and then break them down further as we get there
+
+1. Initial conditions
+2. Evolution equations
+
+## Initial conditions
+
+This involves solving multiple things, in sequence
+
+1. First we must constructed an isolated neutron star. This will be modelled as a self gravitating fluid in equilibrium. We'll be solving an equation known as the TOV equation, which will fully describe our star
+2. Then, we must re-describe that same star as a spinning, moving star. This involves solving a set of initial conditions, based around that initial star model, hoping that it closely enough approximates a real spinning neutron star. Doing this is a generalisation of our black hole initial conditions
+
 # What even is a neutron star anyway?
 
 Neutron stars are one of the possible final resting states of a star, when they run out of fuel, and begin to collapse. There are three mainstream kinds of stellar remnants:
@@ -19,19 +33,19 @@ Today we're going to be looking at #2, and we'll dabble in #3
 
 # Modelling a neutron star
 
-Fun fact: Nobody really knows what neutron stars are made up of internally. There's a wide range of theories, and the radius of a neutron star is pretty unknown. Because of this, we have to pick a model: The simplest model of a neutron star is what is called a [polytrope](https://en.wikipedia.org/wiki/Polytrope). This links together the pressure, and the (rest) density, by prescribing a relationship between the two:
+Fun fact: Nobody really knows how neutron stars are structured internally. There's a wide range of theories, and the radius of a neutron star is pretty unknown. Because of this, we have to pick a model: The simplest model of a neutron star is what is called a [polytrope](https://en.wikipedia.org/wiki/Polytrope). This links together the pressure, and the (rest) density, by prescribing a relationship between the two:
 
 $$P = K \rho_0^\Gamma$$
 
 Where $K$ is a proportionality constant, $\Gamma$ is the polytropic index, $\rho_0$ is the rest mass, and $P$ is the pressure. Please note that there are multiple definitions of this equation: if you see an $n$ its a different convention. If we pick values of $\Gamma$ and $K$, this ties together $p_0$ and $P$. At this point, all we need is a central rest mass density, $\rho_c$, and we have (in theory) completely determined the structure of our star
 
-Unfortunately, there is no analytic solution to any of this, because that would simply be too easy. So lets dig into some numerics:
+Unfortunately, there is no analytic solution to any of this, because that would simply be too easy
 
 ## A body in hydrodynamic equilibrium: Tolman-Oppenheimer-Volkoff (TOV)
 
-The equation that governs a relativistic, spherically symmetric body in hydrostatic equilibrium is called the TOV equation. This is a set of two coupled partial differential equations, which we must solve simultaneously. They only have one parameter, which is the central density: the rest density of matter, at the centre
+The equation that governs a relativistic, spherically symmetric body in hydrostatic equilibrium is called the TOV equation. This is a set of two coupled partial differential equations, which we must solve simultaneously. They are fully described by one parameter, which is the central density: the rest density of matter, at the centre of your body. Additionally, we have to supply an equation of state - our polytropic equation - that links the density and pressure together
 
-. Wikipedia lists an unnecessarily complicated form of the equations, so [here's (17)](https://www.as.utexas.edu/astronomy/education/spring13/bromm/secure/TOC_Supplement.pdf) a nicer form (in units of $c=G=1$):
+Wikipedia lists an unnecessarily complicated form of the equations, so [here's (17)](https://www.as.utexas.edu/astronomy/education/spring13/bromm/secure/TOC_Supplement.pdf) a nicer form (in units of $c=G=1$):
 
 $$\begin{align}
 \frac{dm}{dr} &= 4 \pi r^2 \epsilon\\
@@ -56,7 +70,7 @@ This is one of the areas of the literature where the notation is, frankly, reall
 
 It is common to solve these equations in units of $c=G=M_\odot$, where $M_\odot$ is the mass of the sun. This is why I've provided all the units up above, and we're going go through [converting](https://www.seas.upenn.edu/~amyers/NaturalUnits.pdf) from SI units, to geometric units ($c=G=1$), to that new unit system ($c=G=M_\odot$). In general, you need to redefine mass to avoid your numbers blowing up too much
 
-To get an idea of how it works, first notice that we can convert the mass of the sun from kilograms, to meters. Then, we can change our scale, such that the mass of the sun is $1$, in units of new distance. Unit conversions proceed as you'd expect then, giving the following procedure:
+The procedure is as follows:
 
 1. Convert your quantity into geometric units
 2. Convert the mass of the sun, $1.988416 * 10^{30} \mathrm{kg}$, into meters, which is Todo:
@@ -72,7 +86,7 @@ Then, we need initial values for our other variables, at $r=r_{min}$:
 
 |Variable|Value|
 |-|-|
-|$M$| $\frac{4}{3} \pi r_{min}^3 \epsilon$ |
+|$M$| $\frac{4}{3} \pi r_{min}^3 \epsilon\;$ (the integral of $\frac{dm}{dr}$, with $\epsilon$ held constant) |
 |$P$| $K \rho_c^\Gamma$ |
 
 Once we've done this, lets integrate. This is done by spotting that these are simple first order in 'time' (where $dt=dr$) systems, and can be solved with euler integration
@@ -304,15 +318,29 @@ void solve()
 }
 ```
 
-Testing, we get blahblah link code
+We get this: `15.8102km 1.54315 msols`. Now, our mass is absolutely spot on, which is great, but it looks like the radius is wrong. This is slightly puzzling
 
-## Approximations
+Interestingly, a separate test case [here](https://colab.research.google.com/drive/1yMD2j3Y6TcsykCI59YWiW9WAMW-SPf12#scrollTo=00FWl5YzbSaB) actually gives the wrong answer, because their value of $N$ is too low. Increasing it, we're able to match their results for $\rho_c = 1.28 * 10^{-3}$ and $K=100$ in units of $c=G=M_{\odot}=1$, giving:
 
-Todo:
+`14.1461km 1.40021msols`, which is extremely close. That code gives `14.136399564110704 1.400270088513766` with better precision, which is pretty close
 
-For $\Gamma=2$, there are approximations that can be used from eg [here (page 3)](https://www.aanda.org/articles/aa/pdf/2010/06/aa12738-09.pdf)
+Its unclear exactly what's going on here. Given that we have exactly the correct mass, but a wrong radius: a few things could be happening, eg they may be using a more conservative definition of radius. It would sure be helpful if there was a link to the code somewhere. it seems unlikely that we're completely wrong (that mass isn't an accident), so we're going to carry on for the moment
 
-## Bowen-York Type Initial Data for Binaries with Neutron Stars
+## Solving for a specific ADM mass
+
+You might notice, the ADM mass is not our free parameter - despite generally being what we want to specify - but instead the central density is
+
+I think we both know deep down in our hearts that this section wasn't going to read "here's how to calculate the central density from the ADM mass", and that instead we'd be forced to bruteforce it. Firstly, we can pick an initial guess for the central energy as follows:
+
+$$M = \frac{4}{3} \pi r^3 \epsilon$$
+
+Ie, we assume a constant $\epsilon$ through the star, then calculate this as a density. This is at least in the ballpark. From there, its a secant search. Lets go!
+
+## Key takeaways from solving TOV
+
+At the end of this process, we've gained the ability to describe the following variables of our neutron star: rest mass density $\rho_0$, energy $\epsilon$, ADM mass $M$, and pressure $P$. Keep this in mind as we carry on forwards
+
+# Bowen-York Type Initial Data for Binaries with Neutron Stars
 
 The actual paper we're going to be implementing today is [this](https://arxiv.org/pdf/1606.04881) one. It is not the simplest paper in the whole universe. The actual information is also a bit scattered around in various places, so I'm going to dig into this in a kind of depth first fashion to explain to you the different bits of theory, and then we'll linearise our thinking at the end to provide a full end to end solution
 
@@ -348,3 +376,7 @@ Numerical: https://arxiv.org/pdf/1606.04881
 Useful ref: https://arxiv.org/pdf/gr-qc/0403029
 
 Today
+
+## Approximating TOV
+
+For $\Gamma=2$, there are approximations that can be used from eg [here (page 3)](https://www.aanda.org/articles/aa/pdf/2010/06/aa12738-09.pdf). I actually used this one for a while, and would highly recommend it if you don't want to solve TOV yourself
