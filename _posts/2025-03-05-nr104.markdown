@@ -405,36 +405,58 @@ This performs a pretty basic bruteforce through the parameter space, and looks f
 
 ## Key takeaways from solving TOV
 
-At the end of this process, we've gained the ability to describe the following variables of our neutron star: rest mass density $\rho_0$, energy $\epsilon$, ADM mass $M$, and pressure $P$. Keep this in mind as we carry on forwards. We've now solved the first step in our initial conditions procedure: constructing a static neutron star
+At the end of this process, we've gained the ability to describe the following variables of our neutron star: rest mass density $\rho_0$, energy density $\epsilon$, ADM mass $M$, and pressure $P$. Keep this in mind as we carry on forwards. We've now solved the first step in our initial conditions procedure: constructing a static neutron star
 
 Next up, we need to give it momentum and spin. This is where things get a bit complicated
 
 # Bowen-York Type Initial Data for Binaries with Neutron Stars
 
-The actual paper we're going to be implementing today is [this](https://arxiv.org/pdf/1606.04881) one. It is not the simplest paper in the whole universe. The actual information is also a bit scattered around in various places, so I'm going to dig into this in a kind of depth first fashion to explain to you the different bits of theory, and then we'll linearise our thinking at the end to provide a full end to end solution
+The actual paper we're going to be implementing today is [this](https://arxiv.org/pdf/1606.04881) one. Its going to be a step up in complexity compared to things we've solved previously together
 
 If you remember from our black hole initial conditions paper, the basic idea for many kinds of initial conditions is that of conformal flatness. That is to say, we take our adm metric $\gamma_{ij}$, and perform a conformal transform on it by a scalar, to end up with a conformal metric. In this paper, our ADM variables are transformed as follows:
 
 $$\begin{align}
-\gamma_{ij} &= \Phi^4 \tilde{\gamma}_{ij}\\
-A_{ij} &= \Phi^{-2} \tilde{A}_{ij}
+\gamma_{ij} &= \Phi^4 \bar{\gamma}_{ij}\\
+A_{ij} &= \Phi^{-2} \bar{A}_{ij}
 \end{align}$$
 
-Where $$\tilde{\gamma}_{ij}$$ is the conformally flat (ie the identity matrix) metric tensor, $A_{ij}$ is the extrinsic curvature, and $\Phi$ is the conformal factor. Its important to note that this is the same conformal decomposition as the black hole initial conditions we used previously[^explicitly]
+Where $$\bar{\gamma}_{ij}$$ is the conformally flat (ie the identity matrix) metric tensor, $A_{ij}$ is the extrinsic curvature, and $\Phi$ is the conformal factor. Its important to note that this is the same conformal decomposition as the black hole initial conditions we've used previously[^explicitly]. Similarly, we're trying to solve for exactly two things only in this paper
+
+1. The conformal factor $\Phi$
+2. The extrinsic curvature $$\bar{A}_{ij}$$
 
 [^explicitly]: I explicitly picked this paper because it allows us to construct multiple black holes and neutron stars together
 
-The metric in this form is:
+The conformally flatness assumption, as well as the maximal slice assumption, give us a familiar looking constraint to solve:
 
-$$\partial^i \partial_i \Phi = -\frac{1}{8} \Phi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \Phi^5 \rho_H$$
+$$\partial^i \partial_i \Phi = -\frac{1}{8} \Phi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \Phi^5 \epsilon_H$$
 
-One thing to note is that any time you see a $pi$, its a sure fire bet that it means there are matter terms involved. This may look familiar from our black hole initial conditions
+One thing to note is that any time you see a $\pi$, its a sure fire bet that it means there are matter terms involved
 
 |Variable|Meaning|
 |-|-|
 |$\Phi$|Conformal factor, unknown|
 |$\bar{A}_{ij}$| Conformal extrinsic curvature|
 |$\rho_H$| TODO: I DONT HAVE A CLUE|
+
+This paper in theory lets us solve the TOV equations in a conformally flat spacetime, via (77, 78, + 79), but we've deliberately skipped this step, as the TOV equations are much easier to solve directly.
+
+## Getting started: Solving for $\Phi$
+
+The procedure in this paper is as follows:
+
+1. Solve for $\Phi_{tov}$, a conformal factor for the isotropic TOV solution
+2. Use that to calculate $\bar{A}_{ij}$
+3. Use that $\bar{A}_{ij}$ solution to construct $\Phi$, the real conformal factor
+4. Bob's your uncle
+
+Note that this paper defines $\rho$ as what we've been calling $\epsilon$, and it calls $\epsilon$ a separate quantity we don't have (specific internal energy density). I'm going to keep our existing notation, and translate where appropriate, to try and staunch the insanity
+
+The laplacian we need to solve for $\Phi_{tov}$, is (74) but with the constraints $\beta^i = 0, A_{ij} = 0, \epsilon_h = \epsilon$. This gives:
+
+$$\Delta \Phi_{tov} = -2 \pi \Phi_{tov}^5 \epsilon_{tov}$$
+
+This is easy enough to solve. We'll need to first discretise $\epsilon$ onto a grid, and then solve this in 3d
 
 ## papers
 
