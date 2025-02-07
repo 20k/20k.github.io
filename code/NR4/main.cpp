@@ -896,6 +896,7 @@ struct parameters
         return std::pow(p/K, 1/Gamma);
     }
 
+    ///e = p0 + P/(Gamma-1)
     double pressure_to_energy_density(double p) const
     {
         return pressure_to_rest_mass_density(p) + p / (Gamma - 1);
@@ -908,15 +909,20 @@ struct integration_state
     double p = 0;
 };
 
-integration_state make_integration_state(double p0, double rmin, const parameters& param)
+integration_state make_integration_state_with_pressure(double P, double rmin, const parameters& param)
 {
-    double e = param.rest_mass_density_to_energy_density(p0);
+    double e = param.pressure_to_energy_density(P);
     double m = (4./3.) * M_PI * e * pow(rmin, 3.);
 
     integration_state out;
-    out.p = param.rest_mass_density_to_pressure(p0);
+    out.p = P;
     out.m = m;
     return out;
+}
+
+integration_state make_integration_state(double p0, double rmin, const parameters& param)
+{
+    return make_integration_state_with_pressure(param.rest_mass_density_to_pressure(p0), rmin, param);
 }
 
 //p0 in si units
@@ -1004,6 +1010,14 @@ integration_solution solve_tov(const integration_state& start, const parameters&
     return sol;
 }
 
+void secant_search_for_adm_mass(double adm_mass, const parameters& param)
+{
+    //double start_E = adm_mass / ((4./3.) * M_PI * r*r*r);
+    //double start_p0 = param.
+
+    //integration_solution first = solve_tov()
+}
+
 void solve()
 {
     //kg/m^3
@@ -1013,6 +1027,7 @@ void solve()
     //double p0 = 1.28e-3;
 
     parameters param;
+    //param.K = 100;
     param.K = 123.641;
     param.Gamma = 2;
 
