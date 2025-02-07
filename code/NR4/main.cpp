@@ -909,32 +909,33 @@ struct parameters
 };
 
 ///https://colab.research.google.com/drive/1yMD2j3Y6TcsykCI59YWiW9WAMW-SPf12#scrollTo=6vWjt7CWaVyV
-struct p_eos
+///equation of state
+///p0 -> p
+double rest_mass_density_to_pressure(double rest_mass_density, const parameters& param)
 {
-    double energy = 0;
-    double p0 = 0;
-};
-
-p_eos calc_p_eos(double p, const parameters& param)
-{
-    p_eos s;
-    s.energy = pow(p/param.K, 1/param.Gamma) + p/(param.Gamma-1);
-    s.p0 = pow(p/param.K, 1/param.Gamma);
-    return s;
+    return param.K * pow(rest_mass_density, param.Gamma);
 }
 
-struct p0_eos
+///p0 -> e
+double rest_mass_density_to_energy_density(double rest_mass_density, const parameters& param)
 {
-    double p;
-    double e;
-};
+    double p = rest_mass_density_to_pressure(rest_mass_density, param);
 
-p0_eos calc_p0_eos(double p0, const parameters& param)
+    double p0 = rest_mass_density;
+
+    return p0 + p/(param.Gamma-1);
+}
+
+///inverse equation of state
+///p -> p0
+double pressure_to_rest_mass_density(double p, const parameters& param)
 {
-    p0_eos r;
-    r.p = param.K * pow(p0, param.Gamma);
-    r.e = p0 + r.p/(param.Gamma-1);
-    return r;
+    return std::pow(p/param.K, 1/param.Gamma);
+}
+
+double pressure_to_energy_density(double p, const parameters& param)
+{
+    return pressure_to_rest_mass_density(p, param) + p / (param.Gamma - 1);
 }
 
 struct integration_state
@@ -945,11 +946,11 @@ struct integration_state
 
 integration_state make_integration_state(double p0, double rmin, const parameters& param)
 {
-    p0_eos eos = calc_p0_eos(p0, param);
-    double m = (4./3.) * M_PI * eos.e * pow(rmin, 3.);
+    double e = rest_mass_density_to_energy_density(p0, param);
+    double m = (4./3.) * M_PI * e * pow(rmin, 3.);
 
     integration_state out;
-    out.p = eos.p;
+    out.p = rest_mass_density_to_pressure(p0, param);
     out.m = m;
     return out;
 }
@@ -962,15 +963,15 @@ struct integration_dr
 
 integration_dr get_derivs(double r, const integration_state& st, const parameters& param)
 {
-    p_eos eos = calc_p_eos(st.p, param);
+    double e = pressure_to_energy_density(st.p, param);
 
     double p = st.p;
     double m = st.m;
 
     integration_dr out;
 
-    out.dm = 4 * M_PI * eos.energy * pow(r, 2.);
-    out.dp = -(eos.energy + p) * (m + 4 * M_PI * r*r*r * p) / (r * (r - 2 * m));
+    out.dm = 4 * M_PI * e * pow(r, 2.);
+    out.dp = -(e + p) * (m + 4 * M_PI * r*r*r * p) / (r * (r - 2 * m));
     return out;
 }
 
