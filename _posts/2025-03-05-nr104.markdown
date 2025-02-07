@@ -19,21 +19,13 @@ Today we're going to be looking at #2, and we'll dabble in #3
 
 # Modelling a neutron star
 
-Fun fact: Nobody really knows what neutron stars are made up of internally. There's a wide range of theories, and the radius of a neutron star is pretty unknown. Because of this, we have to pick a model
+Fun fact: Nobody really knows what neutron stars are made up of internally. There's a wide range of theories, and the radius of a neutron star is pretty unknown. Because of this, we have to pick a model: The simplest model of a neutron star is what is called a [polytrope](https://en.wikipedia.org/wiki/Polytrope). This links together the pressure, and the density, by prescribing a relationship between the two:
 
-First off, we need the following variables:
+$$P = K \rho_0^\Gamma$$
 
-1. $\rho_0$ the (rest) density of matter at any particular point within our object
-2. $p$ the pressure
-3. The rest mass density at the centre of our object, $\rho_c$
+Where $K$ is a proportionality constant, $\Gamma$ is the polytropic index, $\rho_0$ is the rest mass, and $P$ is the pressure. Please note that there are multiple definitions of this equation: if you see an $n$ its a different convention. If we pick values of $\Gamma$ and $K$, this ties $p$ and $P$. At this point, all we need is a central rest mass density, $\rho_0$, and we have (in theory) completely determined the structure of our star
 
-The simplest model of a neutron star is what is called a [polytrope](https://en.wikipedia.org/wiki/Polytrope). This links together the pressure, and the density, by prescribing a relationship between the two:
-
-$$p = K \rho_0^\Gamma$$
-
-Where $K$ is a proportionality constant, and $\Gamma$ is the polytropic index. Please note that there are multiple definitions of this equation: if you see an $n$ its a different convention. This is great altogether, we can pick values of $\Gamma$ and $K$, and this ties together two of our neutron star variables. Unfortunately however, neither the pressure or density are a constant, so we need some kind of model for their distribution
-
-There is no analytic solution for arbitrary polytropic indices. For $\Gamma=2$, there are approximations that can be used from eg [here (page 3)](https://www.aanda.org/articles/aa/pdf/2010/06/aa12738-09.pdf)
+For $\Gamma=2$, there are approximations that can be used from eg [here (page 3)](https://www.aanda.org/articles/aa/pdf/2010/06/aa12738-09.pdf), but there's no general analytic solution to this. We're going to have to numerically solve some equations instead, if we want to go the whole hog and build a neutron star from scratch
 
 We're going to go for the whole hog and build a neutron star from scratch
 
