@@ -15,6 +15,7 @@
 #include <SFML/Graphics/Image.hpp>
 #include <GLFW/glfw3.h>
 #include "raytrace_init.hpp"
+#include "tov.hpp"
 
 using t3i = tensor<int, 3>;
 
@@ -834,253 +835,14 @@ cl::image load_background(cl::context ctx, cl::command_queue cqueue, const std::
     return load_mipped_image(background, ctx, cqueue);
 }
 
-///https://www.seas.upenn.edu/~amyers/NaturalUnits.pdf
-//https://nssdc.gsfc.nasa.gov/planetary/factsheet/sunfact.html
-double geometric_to_msol(double meters, double m_exponent)
-{
-    double m_to_kg = 1.3466 * pow(10., 27.);
-    double msol_kg = 1.988416 * pow(10., 30.);
-    double msol_meters = msol_kg / m_to_kg;
-
-    return meters / pow(msol_meters, m_exponent);
-}
-
-double msol_to_geometric(double distance, double m_exponent)
-{
-    return geometric_to_msol(distance, -m_exponent);
-}
-
-double si_to_geometric(double quantity, double kg_exponent, double s_exponent)
-{
-    double G = 6.6743015 * pow(10., -11.);
-    double C = 299792458;
-
-    double factor = std::pow(G, -kg_exponent) * std::pow(C, 2 * kg_exponent - s_exponent);
-
-    return quantity / factor;
-}
-
-double geometric_to_si(double quantity, double kg_exponent, double s_exponent)
-{
-    return si_to_geometric(quantity, -kg_exponent, -s_exponent);
-}
-
-///https://colab.research.google.com/drive/1yMD2j3Y6TcsykCI59YWiW9WAMW-SPf12#scrollTo=6vWjt7CWaVyV
-///https://www.as.utexas.edu/astronomy/education/spring13/bromm/secure/TOC_Supplement.pdf
-///https://arxiv.org/pdf/gr-qc/0403029
-struct parameters
-{
-    double K = 0;
-    double Gamma = 0;
-
-    ///p0 -> p
-    ///equation of state
-    double rest_mass_density_to_pressure(double rest_mass_density) const
-    {
-        return K * pow(rest_mass_density, Gamma);
-    }
-
-    double rest_mass_density_to_energy_density(double rest_mass_density) const
-    {
-        double p = rest_mass_density_to_pressure(rest_mass_density);
-
-        double p0 = rest_mass_density;
-
-        return p0 + p/(Gamma-1);
-    }
-
-    ///inverse equation of state
-    ///p -> p0
-    double pressure_to_rest_mass_density(double p) const
-    {
-        return std::pow(p/K, 1/Gamma);
-    }
-
-    ///e = p0 + P/(Gamma-1)
-    double pressure_to_energy_density(double p) const
-    {
-        return pressure_to_rest_mass_density(p) + p / (Gamma - 1);
-    }
-
-    double energy_density_to_pressure(double e) const
-    {
-        ///e = p0 + P/(Gamma-1)
-        ///e = (P/K)^(1/Gamma) + P/(Gamma-1)
-        ///P = (1-1/g)th root of ((1-G)K^(-1/G)
-        return pow((1-Gamma) * pow(K, -1/Gamma), 1/(1-(1/Gamma)));
-    }
-};
-
-struct integration_state
-{
-    double m = 0;
-    double p = 0;
-};
-
-integration_state make_integration_state(double p0, double rmin, const parameters& param)
-{
-    double e = param.rest_mass_density_to_energy_density(p0);
-    double m = (4./3.) * M_PI * e * pow(rmin, 3.);
-
-    integration_state out;
-    out.p = param.rest_mass_density_to_pressure(p0);
-    out.m = m;
-    return out;
-}
-
-//p0 in si units
-integration_state make_integration_state_si(double p0, double rmin, const parameters& param)
-{
-    //kg/m^3 -> m/m^3 -> 1/m^2
-    double p0_geom = si_to_geometric(p0, 1, 0);
-    //m^-2 -> msol^-2
-    double p0_msol = geometric_to_msol(p0_geom, -2);
-
-    std::cout << "density " << p0_msol << std::endl;
-
-    return make_integration_state(p0_msol, rmin, param);
-}
-
-struct integration_dr
-{
-    double dm = 0;
-    double dp = 0;
-};
-
-integration_dr get_derivs(double r, const integration_state& st, const parameters& param)
-{
-    double e = param.pressure_to_energy_density(st.p);
-
-    double p = st.p;
-    double m = st.m;
-
-    integration_dr out;
-
-    out.dm = 4 * M_PI * e * pow(r, 2.);
-    out.dp = -(e + p) * (m + 4 * M_PI * r*r*r * p) / (r * (r - 2 * m));
-    return out;
-}
-
-struct integration_solution
-{
-    //in msols
-    double M = 0;
-    //in meters
-    double R = 0;
-
-    std::vector<double> energy_density;
-    std::vector<double> pressure;
-    std::vector<double> mass;
-    std::vector<double> radius;
-};
-
-///units are c=g=msol
-integration_solution solve_tov(const integration_state& start, const parameters& param, double min_radius, double min_pressure)
-{
-    integration_state st = start;
-
-    double current_r = min_radius;
-    double dr = 1. / 1024.;
-
-    integration_solution sol;
-
-    double last_r = 0;
-    double last_m = 0;
-
-    while(1)
-    {
-        sol.energy_density.push_back(param.pressure_to_energy_density(st.p));
-        sol.pressure.push_back(st.p);
-        sol.mass.push_back(st.m);
-
-        double r = current_r;
-
-        sol.radius.push_back(r);
-
-        last_r = r;
-        last_m = st.m;
-
-        integration_dr data = get_derivs(r, st, param);
-
-        st.m += data.dm * dr;
-        st.p += data.dp * dr;
-        current_r += dr;
-
-        if(!std::isfinite(st.m) || !std::isfinite(st.p))
-            break;
-
-        if(st.p <= min_pressure)
-            break;
-    }
-
-    sol.R = msol_to_geometric(last_r, 1);
-    sol.M = last_m;
-
-    return sol;
-}
-
-std::vector<double> search_for_adm_mass(double adm_mass, const parameters& param)
-{
-    double r_approx = adm_mass / 0.06;
-
-    double start_E = adm_mass / ((4./3.) * M_PI * r_approx*r_approx*r_approx);
-    double start_P = param.energy_density_to_pressure(start_E);
-    double start_density = param.pressure_to_rest_mass_density(start_P);
-
-    double rmin = 1e-6;
-
-    std::vector<double> densities;
-    std::vector<double> masses;
-
-    int to_check = 2000;
-    densities.resize(to_check);
-    masses.resize(to_check);
-
-    double min_density = start_density / 100;
-    double max_density = start_density * 5;
-
-    for(int i=0; i < to_check; i++)
-    {
-        double frac = (double)i / to_check;
-
-        double test_density = mix(min_density, max_density, frac);
-
-        integration_state next_st = make_integration_state(test_density, rmin, param);
-        integration_solution next_sol = solve_tov(next_st, param, rmin, 0.);
-
-        densities[i] = test_density;
-        masses[i] = next_sol.M;
-    }
-
-    std::vector<double> out;
-
-    for(int i=0; i < to_check - 1; i++)
-    {
-        double current = masses[i];
-        double next = masses[i+1];
-
-        double min_mass = std::min(current, next);
-        double max_mass = std::max(current, next);
-
-        if(adm_mass >= min_mass && adm_mass < max_mass)
-        {
-            double frac = (adm_mass - min_mass) / (max_mass - min_mass);
-
-            out.push_back(mix(densities[i], densities[i+1], frac));
-        }
-    }
-
-    return out;
-}
-
 void solve()
 {
-    parameters param;
+    tov::parameters param;
     //param.K = 100;
     param.K = 123.641;
     param.Gamma = 2;
 
-    auto results = search_for_adm_mass(1.543, param);
+    auto results = tov::search_for_adm_mass(1.543, param);
 
     for(auto& i : results)
     {
@@ -1099,9 +861,9 @@ void solve()
     double rmin = 1e-6;
 
     //integration_state st = make_integration_state(p0, rmin, param);
-    integration_state st = make_integration_state_si(paper_p0, rmin, param);
+    tov::integration_state st = tov::make_integration_state_si(paper_p0, rmin, param);
 
-    integration_solution sol = solve_tov(st, param, rmin, 0);
+    tov::integration_solution sol = tov::solve_tov(st, param, rmin, 0);
 
     std::cout << "Solved for " << sol.R / 1000. << "km " << sol.M << " msols " << std::endl;
 
