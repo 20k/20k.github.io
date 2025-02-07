@@ -976,30 +976,52 @@ integration_dr get_derivs(double r, const integration_state& st, const parameter
 
 ///https://www.seas.upenn.edu/~amyers/NaturalUnits.pdf
 //https://nssdc.gsfc.nasa.gov/planetary/factsheet/sunfact.html
-double meters_to_msol(double meters, double exponent)
+double geometric_to_msol(double meters, double m_exponent)
 {
     double m_to_kg = 1.3466 * pow(10., 27.);
     double msol_kg = 1.988416 * pow(10., 30.);
     double msol_meters = msol_kg / m_to_kg;
 
-    return meters / pow(msol_meters, exponent);
+    return meters / pow(msol_meters, m_exponent);
 }
 
-double msol_to_meters(double distance, double exponent)
+double msol_to_geometric(double distance, double m_exponent)
 {
-    double m_to_kg = 1.3466 * pow(10., 27.);
-    double msol_kg = 1.988416 * pow(10., 30.);
-    double msol_meters = msol_kg / m_to_kg;
+    return geometric_to_msol(distance, -m_exponent);
+}
 
-    return distance * msol_meters;
+double si_to_geometric(double quantity, double kg_exponent, double s_exponent)
+{
+    double G = 6.6743015 * pow(10., -11.);
+    double C = 299792458;
+
+    double factor = std::pow(G, -kg_exponent) * std::pow(C, 2 * kg_exponent - s_exponent);
+
+    return quantity / factor;
+}
+
+double geometric_to_si(double quantity, double kg_exponent, double s_exponent)
+{
+    return si_to_geometric(quantity, -kg_exponent, -s_exponent);
 }
 
 ///units are c=g=msol
 ///i think i can just convert msol into natural units, and redefine length
 void solve()
 {
-    //std::cout << "meters " << msol_to_meters(1, 1) << std::endl;
-    assert(false);
+    //std::cout << "meters " << msol_to_geometric(1, 1) << std::endl;
+    //assert(false);
+
+    //std::cout << "msol " << geometric_to_msol(si_to_geometric(1.988416 * pow(10., 30.), 1, 0), 1) << std::endl;
+
+    ///kg/m^3
+    double paper_p0 = 6.235 * pow(10., 17.);
+
+    double paper_p0_geometric = si_to_geometric(paper_p0, 1, 0);
+    //kg/m^3 = m/m^3 = 1/m^2
+    double paper_p0_msol = geometric_to_msol(paper_p0_geometric, -2);
+
+    std::cout << "Paper p0 " << paper_p0_msol << std::endl;
 
     double rmin = 1e-6;
     double rmax = 20;
@@ -1007,6 +1029,8 @@ void solve()
     ///ok. The only thing I need to do is convert from kg/m^3 to whatever our
     ///new density system is
     double p0 = 1.28e-3;
+
+    //double p0 = paper_p0_msol;
 
     parameters param;
     param.Gamma = 2;
