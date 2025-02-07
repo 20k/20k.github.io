@@ -21,12 +21,11 @@ Today we're going to be looking at #2, and we'll dabble in #3
 
 Fun fact: Nobody really knows what neutron stars are made up of internally. There's a wide range of theories, and the radius of a neutron star is pretty unknown. Because of this, we have to pick a model
 
-If we want to distribute matter in space in, we need the following variables:
+First off, we need the following variables:
 
-1. The total mass of the object, $M$
-2. The radius, $r_0$
-3. $\rho_0$ the (rest) density of matter at any particular point within our object
-4. $p$ the pressure
+1. $\rho_0$ the (rest) density of matter at any particular point within our object
+2. $p$ the pressure
+3. The rest mass density at the centre of our object, $\rho_c$
 
 The simplest model of a neutron star is what is called a [polytrope](https://en.wikipedia.org/wiki/Polytrope). This links together the pressure, and the density, by prescribing a relationship between the two:
 
@@ -34,13 +33,38 @@ $$p = K \rho_0^\Gamma$$
 
 Where $K$ is a proportionality constant, and $\Gamma$ is the polytropic index. Please note that there are multiple definitions of this equation: if you see an $n$ its a different convention. This is great altogether, we can pick values of $\Gamma$ and $K$, and this ties together two of our neutron star variables. Unfortunately however, neither the pressure or density are a constant, so we need some kind of model for their distribution
 
-Unfortunately there is no analytic solution for arbitrary polytropic indices. For $\Gamma=2$, we can use an analytic model, from eg [here (page 3)](https://www.aanda.org/articles/aa/pdf/2010/06/aa12738-09.pdf). This does luckily turn out to be a decent model for a neutron star. We're going to sidestep this and go for the most general solution
+There is no analytic solution for arbitrary polytropic indices. For $\Gamma=2$, there are approximations that can be used from eg [here (page 3)](https://www.aanda.org/articles/aa/pdf/2010/06/aa12738-09.pdf)
+
+We're going to go for the whole hog and build a neutron star from scratch
 
 ## A body in hydrodynamic equilibrium: Tolman-Oppenheimer-Volkoff (TOV)
 
-Luckily, there *is* a straightforward solution to our problem. Given a relation between density $\rho_0$, and pressure $p$ $F(\rho, p)$, we can solve for. The TOV model gives the quantity $\frac{dp}{dr}$, as well as prescribing the mass layout. This also does not have an analytic solution, and instead is given as a differential equation: $\frac{dm}{dr}$
+The equation that governs a relativistic, spherically symmetric body in hydrostatic equilibrium is called the TOV equation. This is a set of two coupled partial differential equations, which we must solve simultaneously. Wikipedia lists an unnecessarily complicated form of the equations, so [here's (17)](https://www.as.utexas.edu/astronomy/education/spring13/bromm/secure/TOC_Supplement.pdf) a nicer form (in units of $c=g=1$):
 
-At this point, we can no longer neglect the numerical aspects of this simulation, so lets get into it
+$$\begin{align}
+\frac{dm}{dr} &= 4 \pi r^2 \epsilon\\
+\frac{dP}{dr} &= -(\epsilon + P)\frac{m + 4 \pi r^3 P}{r(r-2m)}
+\end{align}$$
+
+|Symbol|Meaning|
+|-|-|
+|$m$|The mass at a radius of less than $r$. Corresponds to the ADM mass|
+|$P$|Pressure at $r$|
+|$\epsilon$| Total internal energy density at $r$. This isn't the energy density integrated, 'total' refers to a combination of different energies - but at a specific point|
+|$r$| The radius |
+
+This is one of the areas of the literature where the notation is, frankly, really bad. I have no idea why, but people re-use the same symbols for everything, and they are sometimes even redefined on the fly. Here's how to actually calculate everything, and how it all relates:
+
+|Symbol|Name|Si Units|Geometric Units|Derivation from $P$|Derivation from $\rho_0$|
+|-|-|-|-|-|-|
+|$\rho_0$|Rest Mass Density|$\mathrm{kg}\; \mathrm{m}^{-3}$|$\mathrm{m}^{-2}$|$(\frac{P}{K})^{1/\Gamma}$|$\rho_0$|
+|$\epsilon$|Total Energy Density|$\mathrm{kg}\; \mathrm{m}^{-1}\; \mathrm{s}^{-2}$|$\mathrm{m}^{-2}$|$(\frac{P}{K})^{1/\Gamma} + \frac{P}{\Gamma-1}$|$\rho_0 + K \frac{\rho_0^\Gamma}{\Gamma-1}$|
+|$P$|Pressure|$\mathrm{kg}\;\mathrm{m}^{-1} \; \mathrm{s}^{-2}$|$\mathrm{m}^{-2}$|$P$|$K \rho_0^\Gamma$|
+|$K$|Polytropic Constant (informal)|$\mathrm{kg}^{1-\Gamma} \; \mathrm{m}^{3\Gamma-1}\;\mathrm{s}^{-2}$|$\mathrm{m}^{2\Gamma-2}$|||
+
+It is extremely common to perform these simulations in units of $c=g=M_\odot$, where $M_\odot$ is the mass of the sun. This is why I've provided all the units up above, and we're going go through [converting](https://www.seas.upenn.edu/~amyers/NaturalUnits.pdf) into that unit system. In general, you need to redefine mass to avoid your numbers blowing up too much
+
+To get an idea of how it works, first notice that we can convert the mass of the sun from kilograms, to meters. Then, we can change our scale, such that the mass of the sun is $1$ in meters. Unit conversions proceed as you'd expect then, and I'll be showing you the code for how to do this
 
 ## Bowen-York Type Initial Data for Binaries with Neutron Stars
 
@@ -68,126 +92,6 @@ One thing to note is that any time you see a $pi$, its a sure fire bet that it m
 |$\Phi$|Conformal factor, unknown|
 |$\bar{A}_{ij}$| Conformal extrinsic curvature|
 |$\rho_H$| TODO: I DONT HAVE A CLUE|
-
-If you have an analytic layout for the neutron stars matter, you can solve this equation directly. We do not, so we have to go for more digging. The way to actually *solve* this is via (77), (78), and (79)
-
-## (77), (78), (79)
-
-If you're getting to this point in the paper and thinking, jesus this looks like a lot of work, the answer is yes. We need to reach a new level of zen when dealing with this paper. Lets break things down step by step, and translate into terms I can understand. The first thing to spot is that these are only one dimensional as they are spherically symmetric. Translating into slightly more familiar notation:
-
-$$\begin{align}
-\frac{1}{r^2} \frac{d(r^2 \frac{d(\Phi)}{dr})}{dr} &= -2 \pi \Phi^5 \rho\\
-\frac{1}{r^2} \frac{d(r^2 \frac{d(\Theta)}{dr})}{dr} &= -2 \pi \Theta \Phi^4 (\rho + 6 p)\\
-\end{align}$$
-
-We can also expand this out a bit, by applying the product rule to the left hand side:
-
-$$ddx(uv) = u dv/dx + v du/dx$$
-
-$$ \frac{1}{r^2} \frac{d(r^2 \frac{d(\Phi)}{dr})}{dr} = \frac{d^2\Phi}{dr^2} + 2 \frac{1}{r} \frac{d\Phi}{dr}$$
-
-Which gives for both sides:
-
-$$\begin{align}
-&r\frac{d^2\Phi}{dr^2} + 2 \frac{d\Phi}{dr} + 2 \pi r \Phi^5 \rho = 0\\
-&r\frac{d^2\Theta}{dr^2} + 2 \frac{d\Theta}{dr} + 2 \pi r \Theta \Phi^4 (\rho + 6 p) = 0
-\end{align}
-$$
-
-We still, notably, have no answer for what $\rho$ is. To do this, we'll need to solve this equation:
-
-$$\frac{dp}{dr} = -(\rho + p) (\frac{1}{\Theta}\frac{d\Theta}{dr} - \frac{1}{\Phi}\frac{d\Phi}{dr})$$
-
-This is solvable if we use our equation of state, $p = K \rho_0^\Gamma$. To calculate $\rho_0$ from $\rho$, we need to take a trip through my least favourite set of equations:
-
-$$\begin{align}
-e &= \rho_0 + \frac{p}{\Gamma - 1}\\
-\epsilon &= \frac{e}{\rho_0} - 1\\
-\rho &= \rho_0 (1+\epsilon)
-\end{align}
-$$
-
-Its tricky to find a reference for the quantity $\epsilon$, and this chain of calculations seems extremely redundant. There doesn't seem to be standardised notation here unfortunately, but this is my best understanding of what we're dealing with
-
-$$p = K \rho_0^\Gamma\\
-e = \rho_0 + \frac{p}{\Gamma - 1}
-$$
-
-$$
-e = \rho_0 + \frac{K \rho_0^\Gamma}{\Gamma - 1} \\
-\epsilon = \frac{K \rho_0^{\Gamma-1}}{\Gamma - 1}\\
-\rho = \rho_0 (1 + \frac{K \rho_0^{\Gamma-1}}{\Gamma - 1})\\
-\rho = \rho_0 + \frac{K \rho_0^{\Gamma}}{\Gamma - 1}\\
-\rho_0 = \sqrt[g]{\frac{p}{K}}\\
-$$
-
-Nope!
-
-After some suffering, we get this:
-
-$$\rho_0 = \rho - \frac{p}{(\Gamma-1)}$$
-
-$$\begin{align}
-\rho_0 &= \frac{\rho}{1 + \epsilon}\\
-\rho_0 &= \frac{\rho}{1 + \frac{e}{\rho_0} - 1} \\
-\rho_0 &= \frac{\rho}{1 + \frac{\rho_0 + \frac{p}{\Gamma - 1}}{\rho_0} - 1} \\
-\rho_0 &= \frac{\rho}{\frac{\rho_0 + \frac{p}{\Gamma - 1}}{\rho_0}} \\
-\rho_0 &= \frac{\rho}{\frac{p}{(\Gamma-1) \rho_0} + 1} \\
-\rho_0 (\frac{p}{(\Gamma-1) \rho_0} + 1) &= \rho \\
-\frac{p}{(\Gamma-1)} + \rho_0 &= \rho \\
-\end{align}
-$$
-
-With this in mind, all we need now is a central density, $\rho_c$, which is the boundary condition at $r=0$, when integrating $\frac{d\rho}{dr}$. How do we pick this?
-
-The answer is that there is no way to pick this. You must solve (82) to calculate the ADM mass, and then perform a binary search. A secret message from the future tells me that we can guess the central density as $\rho_c = \frac{M}{\frac{4}{\pi}R^3}$, and we'll get around to how we know this when we check if this is correct
-
-$$M = 2\pi \int_0^{r_0} r^2 \Phi^5 \rho dr$$
-
-## Solving our differential equations
-
-We now have 3 coupled differential equations, and one integration. The boundary conditions are:
-
-|Variable|$r=0$|$r=r_0$|
-|-|-|-|
-|$\Phi$|None|$1 + \frac{M}{2 r_0}$|
-|$\Theta$|None|$1 - \frac{M}{2 r_0}$|
-|$p$|Worked out from $\rho_c$|$0$|
-
-Deep joy. To solve these, we need to perform a basic discretisation, and rearrange (taking into account that we'll need one sided derivatives in some cases)
-
-Our equations are of the form $A\frac{d^2f}{dr^2} + B\frac{df}{dr} + C F[x] = 0$. A central discretisation is this:
-
-$$A \frac{F[x-1] - 2 F[x] + F[x+1]}{h^2} + B \frac{-0.5 F[x-1] + 0.5 F[x+1]}{h}+ C F[x] = 0$$
-
-A right discretisation is this:
-
-$$A \frac{F[x] - 2 F[x+1] + F[x+2]}{h^2} + B \frac{-F[x] + F[x+1]}{h}+ C F[x] = 0$$
-
-A left discretisation is this:
-
-$$A \frac{F[x-2] - 2 F[x-1] + F[x]}{h^2} + B \frac{-F[x-1] + F[x]}{h}+ C F[x] = 0$$
-
-Our iterative update scheme is given by solving for $F[x]$:
-
-Central:
-
-https://www.wolframalpha.com/input?i=A+%28L+-+2+x+%2B+R%29%2Fh%5E2+%2B+B%28-0.5+L+%2B+0.5+R%29+%2F+h+%2B+C+x+%3D+0+solve+for+x
-
-$$F[x] = \frac{2 A(F[x-1] + F[x+1]) + B h (F[x+1] - F[x-1])}{4A - 2Ch^2}$$
-
-Right:
-
-https://www.wolframalpha.com/input?i=A+%28x+-+2R+%2B+M%29%2Fh%5E2+%2B+B%28-x+%2B+R%29+%2F+h+%2B+C+x+%3D+0+solve+for+x
-
-$$F[x] = -\frac{A F[x+2] - 2 A F[x+1] + B h F[x+1]}{A - Bh + Ch^2}$$
-
-Left:
-
-https://www.wolframalpha.com/input?i=A+%28M+-+2L+%2B+x%29%2Fh%5E2+%2B+B%28-L+%2B+x%29+%2F+h+%2B+C+x+%3D+0+solve+for+x
-
-$$F[x] = \frac{2 A F[x-1] - A F[x-2] + B h F[x-1]}{A + Bh + Ch^2}$$
-
 
 ## papers
 
