@@ -925,7 +925,6 @@ struct parameters
         return p0 + p/(Gamma-1);
     }
 
-
     ///inverse equation of state
     ///p -> p0
     double pressure_to_rest_mass_density(double p) const
