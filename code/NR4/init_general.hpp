@@ -3,6 +3,7 @@
 
 #include "init_black_hole.hpp"
 #include "tensor_algebra.hpp"
+#include "laplace.hpp"
 
 template<typename T>
 inline
@@ -172,11 +173,27 @@ struct initial_pack
     }
 };
 
+struct bh_laplace_args : value_impl::single_source::argument_pack
+{
+    buffer<valuef> cfl;
+    buffer<valuef> aij_aIJ;
+
+    void build(auto& in)
+    {
+        using namespace value_impl::builder;
+
+        add(cfl, in);
+        add(aij_aIJ, in);
+    }
+};
+
 struct initial_conditions
 {
     tensor<int, 3> dim;
 
     std::vector<black_hole_params> params_bh;
+
+    laplace_solver laplace;
 
     initial_conditions(cl::context& ctx, cl::command_queue& cqueue, tensor<int, 3> _dim)
     {
@@ -241,6 +258,12 @@ struct initial_conditions
             }, {"aijaij"});
         }
 
+        laplace.boot(ctx, [](buffer<valuef> u, bh_laplace_args args, valuei lid)
+        {
+            return -(1.f/8.f) * pow(args.cfl[lid] + u[lid], -7.f) * args.aij_aIJ[lid];
+        }, bh_laplace_args(), "laplace_rb_mg");
+
+        #if 0
         {
             auto laplace_rb_mg = [](execution_context& ectx, buffer_mut<valuef> inout, buffer<valuef> cfl, buffer<valuef> aij_aIJ,
                                     literal<valuef> lscale, literal<v3i> ldim, literal<valuei> iteration,
@@ -317,6 +340,7 @@ struct initial_conditions
                 return value_impl::make_function(laplace_rb_mg, "laplace_rb_mg");
             }, {"laplace_rb_mg"});
         }
+        #endif
 
         {
             auto calculate_bssn_variables = [](execution_context& ectx,

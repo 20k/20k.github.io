@@ -60,4 +60,13 @@ namespace tov
     integration_solution solve_tov(const integration_state& start, const parameters& param, double min_radius, double min_pressure);
     std::vector<double> search_for_adm_mass(double adm_mass, const parameters& param);
 }
+
+namespace initial
+{
+    struct neutron_star
+    {
+        tov::integration_solution sol;
+    };
+}
+
 #endif // TOV_HPP_INCLUDED

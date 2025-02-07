@@ -837,6 +837,8 @@ cl::image load_background(cl::context ctx, cl::command_queue cqueue, const std::
 
 void solve()
 {
+    return;
+
     tov::parameters param;
     //param.K = 100;
     param.K = 123.641;
