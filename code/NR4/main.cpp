@@ -901,6 +901,14 @@ struct parameters
     {
         return pressure_to_rest_mass_density(p) + p / (Gamma - 1);
     }
+
+    double energy_density_to_pressure(double e) const
+    {
+        ///e = p0 + P/(Gamma-1)
+        ///e = (P/K)^(1/Gamma) + P/(Gamma-1)
+        ///P = (1-1/g)th root of ((1-G)K^(-1/G)
+        return pow((1-Gamma) * pow(K, -1/Gamma), 1/(1-(1/Gamma)));
+    }
 };
 
 struct integration_state
@@ -932,6 +940,8 @@ integration_state make_integration_state_si(double p0, double rmin, const parame
     double p0_geom = si_to_geometric(p0, 1, 0);
     //m^-2 -> msol^-2
     double p0_msol = geometric_to_msol(p0_geom, -2);
+
+    std::cout << "density " << p0_msol << std::endl;
 
     return make_integration_state(p0_msol, rmin, param);
 }
@@ -969,7 +979,6 @@ struct integration_solution
 };
 
 ///units are c=g=msol
-///i think i can just convert msol into natural units, and redefine length
 integration_solution solve_tov(const integration_state& start, const parameters& param, double min_radius, double min_pressure)
 {
     integration_state st = start;
@@ -1000,6 +1009,9 @@ integration_solution solve_tov(const integration_state& start, const parameters&
         st.p += data.dp * dr;
         current_r += dr;
 
+        if(!std::isfinite(st.m) || !std::isfinite(st.p))
+            break;
+
         if(st.p <= min_pressure)
             break;
     }
@@ -1010,26 +1022,77 @@ integration_solution solve_tov(const integration_state& start, const parameters&
     return sol;
 }
 
-void secant_search_for_adm_mass(double adm_mass, const parameters& param)
+std::vector<double> search_for_adm_mass(double adm_mass, const parameters& param)
 {
-    //double start_E = adm_mass / ((4./3.) * M_PI * r*r*r);
-    //double start_p0 = param.
+    double r_approx = adm_mass / 0.06;
 
-    //integration_solution first = solve_tov()
+    double start_E = adm_mass / ((4./3.) * M_PI * r_approx*r_approx*r_approx);
+    double start_P = param.energy_density_to_pressure(start_E);
+    double start_density = param.pressure_to_rest_mass_density(start_P);
+
+    double rmin = 1e-6;
+
+    std::vector<double> densities;
+    std::vector<double> masses;
+
+    int to_check = 2000;
+    densities.resize(to_check);
+    masses.resize(to_check);
+
+    double min_density = start_density / 100;
+    double max_density = start_density * 5;
+
+    for(int i=0; i < to_check; i++)
+    {
+        double frac = (double)i / to_check;
+
+        double test_density = mix(min_density, max_density, frac);
+
+        integration_state next_st = make_integration_state(test_density, rmin, param);
+        integration_solution next_sol = solve_tov(next_st, param, rmin, 0.);
+
+        densities[i] = test_density;
+        masses[i] = next_sol.M;
+    }
+
+    std::vector<double> out;
+
+    for(int i=0; i < to_check - 1; i++)
+    {
+        double current = masses[i];
+        double next = masses[i+1];
+
+        double min_mass = std::min(current, next);
+        double max_mass = std::max(current, next);
+
+        if(adm_mass >= min_mass && adm_mass < max_mass)
+        {
+            double frac = (adm_mass - min_mass) / (max_mass - min_mass);
+
+            out.push_back(mix(densities[i], densities[i+1], frac));
+        }
+    }
+
+    return out;
 }
 
 void solve()
 {
+    parameters param;
+    //param.K = 100;
+    param.K = 123.641;
+    param.Gamma = 2;
+
+    secant_search_for_adm_mass(1.543, param);
+
+    assert(false);
+
     //kg/m^3
     double paper_p0 = 6.235 * pow(10., 17.);
 
     //this is in c=g=msol, so you'd need to use make_integration_state()
     //double p0 = 1.28e-3;
 
-    parameters param;
-    //param.K = 100;
-    param.K = 123.641;
-    param.Gamma = 2;
 
     double rmin = 1e-6;
 

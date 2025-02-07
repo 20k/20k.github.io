@@ -334,7 +334,11 @@ I think we both know deep down in our hearts that this section wasn't going to r
 
 $$M = \frac{4}{3} \pi r^3 \epsilon$$
 
-Ie, we assume a constant $\epsilon$ through the star, then calculate this as a density. This is at least in the ballpark. From there, its a secant search. Lets go!
+Ie, we assume a constant $\epsilon$ through the star, then calculate this as a density. This is at least in the ballpark. From there, you can simply bruteforce over a range of values, eg $\epsilon/10$ -> $\epsilon*100$
+
+There's a teeny small problem. Neutron star ADM masses are not unique. You see, the graph of radius vs mass looks like this:
+
+
 
 ## Key takeaways from solving TOV
 
