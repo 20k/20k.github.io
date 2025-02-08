@@ -324,7 +324,7 @@ Interestingly, a separate test case [here](https://colab.research.google.com/dri
 
 `14.1461km 1.40021msols`, which is extremely close. That code gives `14.136399564110704 1.400270088513766` with better precision, which is pretty close
 
-Its unclear exactly what's going on here. Given that we have exactly the correct mass, but a wrong radius: a few things could be happening, eg they may be using a more conservative definition of radius. It would sure be helpful if there was a link to the code somewhere. it seems unlikely that we're completely wrong (that mass isn't an accident), so we're going to carry on for the moment
+Its unclear exactly what's going on here. Given that we have exactly the correct mass, but a wrong radius: a few things could be happening, eg they may be using a more conservative definition of radius, or their solver may default to adding a crust. It would sure be helpful if there was a link to the code somewhere. it seems unlikely that we're completely wrong (that mass isn't an accident), so we're going to carry on for the moment
 
 ## Solving for a specific ADM mass
 
@@ -427,7 +427,7 @@ Where $$\bar{\gamma}_{ij}$$ is the conformally flat (ie the identity matrix) met
 
 [^explicitly]: I explicitly picked this paper because it allows us to construct multiple black holes and neutron stars together
 
-The conformally flatness assumption, as well as the maximal slice assumption, give us a familiar looking constraint to solve:
+The conformally flatness assumption, as well as the maximal slice assumption, gives us a familiar looking constraint to solve:
 
 $$\partial^i \partial_i \Phi = -\frac{1}{8} \Phi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \Phi^5 \epsilon_H$$
 
@@ -441,7 +441,7 @@ One thing to note is that any time you see a $\pi$, its a sure fire bet that it 
 
 This paper in theory lets us solve the TOV equations in a conformally flat spacetime, via (77, 78, + 79), but we've deliberately skipped this step, as the TOV equations are much easier to solve directly. Its also nice, because if you want to it becomes easy to plug in new equations of state
 
-## Getting started: Solving for $\Phi$
+## Implementing this paper
 
 The procedure in this paper is as follows:
 
@@ -451,6 +451,8 @@ The procedure in this paper is as follows:
 4. Bob's your uncle
 
 Note that this paper defines $\rho$ as what we've been calling $\epsilon$, and it calls $\epsilon$ a separate quantity we don't have (specific internal energy density). I'm going to keep our existing notation, and translate where appropriate, to try and stem the incredibly random notation
+
+## Solvign for $\Phi_{tov}$
 
 The laplacian we need to solve for $\Phi_{tov}$, is (74) but with the constraints $\beta^i = 0, A_{ij} = 0, \epsilon_h = \epsilon$. This gives:
 

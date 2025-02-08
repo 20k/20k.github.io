@@ -2,6 +2,26 @@
 #include <cmath>
 #define M_PI 3.14159265358979323846
 #include <vec/vec.hpp>
+#include "../common/value2.hpp"
+#include "../common/single_source.hpp"
+
+using derivative_t = value<float16>;
+using valuef = value<float>;
+using valued = value<double>;
+using valuei = value<int>;
+using valueh = value<float16>;
+
+using v2f = tensor<valuef, 2>;
+using v3f = tensor<valuef, 3>;
+using v4f = tensor<valuef, 4>;
+using v2i = tensor<valuei, 2>;
+using v3i = tensor<valuei, 3>;
+using v4i = tensor<valuei, 4>;
+using m44f = metric<valuef, 4, 4>;
+using v3h = tensor<valueh, 3>;
+
+using mut_v4f = tensor<mut<valuef>, 4>;
+using mut_v3f = tensor<mut<valuef>, 3>;
 
 ///https://www.seas.upenn.edu/~amyers/NaturalUnits.pdf
 //https://nssdc.gsfc.nasa.gov/planetary/factsheet/sunfact.html
@@ -213,4 +233,24 @@ std::vector<double> tov::search_for_adm_mass(double adm_mass, const parameters& 
     }
 
     return out;
+}
+
+struct tov_data
+{
+    //linear in terms of radius, padded so that at cell max, our radius is max rad
+    buffer<valuef> epsilon;
+    literal<valuef> max_rad;
+};
+
+cl::buffer initial::tov_solve_full_grid(cl::context ctx, cl::command_queue cqueue, float scale, t3i dim, const initial::neutron_star& star)
+{
+    auto get_epsilon = [&](t3i idim, float iscale)
+    {
+        cl::buffer epsilon(ctx);
+        epsilon.alloc(sizeof(cl_float) * idim.x() * idim.y() * idim.z());
+        epsilon.set_to_zero(cqueue);
+
+    };
+
+
 }

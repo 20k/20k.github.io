@@ -2,6 +2,11 @@
 #define TOV_HPP_INCLUDED
 
 #include <vector>
+#include <vec/tensor.hpp>
+#include <toolkit/opencl.hpp>
+
+using t3i = tensor<int, 3>;
+using t3f = tensor<float, 3>;
 
 double geometric_to_msol(double meters, double m_exponent);
 double msol_to_geometric(double distance, double m_exponent);
@@ -65,8 +70,12 @@ namespace initial
 {
     struct neutron_star
     {
+        t3f world_pos;
+
         tov::integration_solution sol;
     };
+
+    cl::buffer tov_solve_full_grid(cl::context ctx, cl::command_queue cqueue, float scale, t3i dim, const neutron_star& star);
 }
 
 #endif // TOV_HPP_INCLUDED

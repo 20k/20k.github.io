@@ -163,9 +163,9 @@ struct initial_conditions
             }, {"aijaij"});
         }
 
-        laplace.boot(ctx, [](buffer<valuef> u, bh_laplace_args args, valuei lid)
+        laplace.boot(ctx, [](buffer<valuef> u, bh_laplace_args args, v3i pos, v3i dim)
         {
-            return -(1.f/8.f) * pow(args.cfl[lid] + u[lid], -7.f) * args.aij_aIJ[lid];
+            return -(1.f/8.f) * pow(args.cfl[pos, dim] + u[pos, dim], -7.f) * args.aij_aIJ[pos, dim];
         }, bh_laplace_args(), "laplace_rb_mg");
 
         {
