@@ -4,6 +4,7 @@
 #include <vec/vec.hpp>
 #include "../common/value2.hpp"
 #include "../common/single_source.hpp"
+#include "laplace.hpp"
 
 using derivative_t = value<float16>;
 using valuef = value<float>;
@@ -313,8 +314,7 @@ cl::buffer initial::tov_solve_full_grid(cl::context ctx, cl::command_queue cqueu
     epsilon.alloc(sizeof(cl_float) * samples);
     epsilon.write(cqueue, linearised_epsilon);
 
-    auto get_data = [&](t3i idim, float iscale)
-    {
+    auto get_data = [&](t3i idim, float iscale) {
         tov_pack pack(ctx);
         pack.epsilon = epsilon;
         pack.max_rad = max_r;
@@ -322,5 +322,18 @@ cl::buffer initial::tov_solve_full_grid(cl::context ctx, cl::command_queue cqueu
         return pack;
     };
 
+    auto get_rhs = [&](laplace_params params, tov_data data)
+    {
+        v3i centre = (params.dim-1)/2;
+        auto u = params.u;
+        v3i pos = params.pos;
+        v3i dim = params.dim;
 
+        using namespace single_source;
+
+        valuef phi = u[pos, dim];
+        pin(phi);
+
+        //return -2 * M_PI * pow(phi, valuef{5}) *
+    };
 }
