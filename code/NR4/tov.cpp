@@ -250,11 +250,33 @@ std::vector<double> tov::search_for_adm_mass(double adm_mass, const parameters& 
     return out;
 }
 
-struct tov_data
+struct tov_data : value_impl::single_source::argument_pack
 {
     //linear in terms of radius, padded so that at cell max, our radius is max rad
     buffer<valuef> epsilon;
     literal<valuef> max_rad;
+
+    void build(auto& in)
+    {
+        using namespace value_impl::builder;
+
+        add(epsilon, in);
+        add(max_rad, in);
+    }
+};
+
+struct tov_pack
+{
+    cl::buffer epsilon;
+    float max_rad = 0;
+
+    tov_pack(cl::context ctx) : epsilon(ctx){}
+
+    void push(cl::args& args)
+    {
+        args.push_back(epsilon);
+        args.push_back(max_rad);
+    }
 };
 
 cl::buffer initial::tov_solve_full_grid(cl::context ctx, cl::command_queue cqueue, float scale, t3i dim, const initial::neutron_star& star)
@@ -288,14 +310,16 @@ cl::buffer initial::tov_solve_full_grid(cl::context ctx, cl::command_queue cqueu
     }
 
     cl::buffer epsilon(ctx);
+    epsilon.alloc(sizeof(cl_float) * samples);
+    epsilon.write(cqueue, linearised_epsilon);
 
-    auto get_epsilon = [&](t3i idim, float iscale)
+    auto get_data = [&](t3i idim, float iscale)
     {
-        cl::buffer epsilon(ctx);
-        epsilon.alloc(sizeof(cl_float) * idim.x() * idim.y() * idim.z());
-        epsilon.set_to_zero(cqueue);
+        tov_pack pack(ctx);
+        pack.epsilon = epsilon;
+        pack.max_rad = max_r;
 
-        return epsilon;
+        return pack;
     };
 
 
