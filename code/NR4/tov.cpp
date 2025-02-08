@@ -114,6 +114,21 @@ tov::integration_state tov::make_integration_state_si(double p0, double rmin, co
     return make_integration_state(p0_msol, rmin, param);
 }
 
+int tov::integration_solution::radius_to_index(double r) const
+{
+    assert(radius.size() > 0);
+
+    if(r < radius.front())
+        return 0;
+
+    for(int i=1; i < radius.size(); i++)
+    {
+        if(r < radius[i])
+            return i;
+    }
+
+    return radius.size() - 1;
+}
 
 struct integration_dr
 {
@@ -244,12 +259,43 @@ struct tov_data
 
 cl::buffer initial::tov_solve_full_grid(cl::context ctx, cl::command_queue cqueue, float scale, t3i dim, const initial::neutron_star& star)
 {
+    std::vector<float> linearised_epsilon;
+    int samples = 100;
+
+    float min_r = 0;
+    float max_r = star.sol.R;
+
+    for(int i=0; i < samples; i++)
+    {
+        float dr = (max_r - min_r) / samples;
+        double r = i * dr;
+
+        int e1 = star.sol.radius_to_index(r);
+        int e2 = star.sol.radius_to_index(r + dr);
+
+        float en1 = star.sol.energy_density.at(e1);
+        float en2 = star.sol.energy_density.at(e2);
+
+        float r1 = star.sol.radius.at(e1);
+        float r2 = star.sol.radius.at(e2);
+
+        float frac = 0;
+
+        if(fabs(r1 - r2) > 0.0001f)
+            frac = (r - r1) / (r2 - r1);
+
+        linearised_epsilon.push_back(mix(en1, en2, frac));
+    }
+
+    cl::buffer epsilon(ctx);
+
     auto get_epsilon = [&](t3i idim, float iscale)
     {
         cl::buffer epsilon(ctx);
         epsilon.alloc(sizeof(cl_float) * idim.x() * idim.y() * idim.z());
         epsilon.set_to_zero(cqueue);
 
+        return epsilon;
     };
 
 
