@@ -186,7 +186,7 @@ struct laplace_solver
                 return_e();
             });
 
-            valuef rhs = get_rhs(inout, pack, lid);
+            valuef rhs = get_rhs(inout, pack, pos, dim);
 
             valuef h2f0 = lscale.get() * lscale.get() * rhs;
 
