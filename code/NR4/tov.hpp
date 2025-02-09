@@ -77,6 +77,7 @@ namespace tov
 
 namespace initial
 {
+    std::vector<double> calculate_isotropic_r(const tov::integration_solution& sol);
     std::vector<double> calculate_tov_phi(const tov::integration_solution& sol);
 
     struct neutron_star

@@ -331,7 +331,7 @@ T interpolate_by_radius(const std::vector<double>& radius, const std::vector<T>&
     return quantity.back();
 }
 
-std::vector<double> initial::calculate_tov_phi(const tov::integration_solution& sol)
+std::vector<double> initial::calculate_isotropic_r(const tov::integration_solution& sol)
 {
     std::vector<double> dlog_dr;
     dlog_dr.reserve(sol.cumulative_mass.size());
@@ -346,7 +346,7 @@ std::vector<double> initial::calculate_tov_phi(const tov::integration_solution& 
     }
 
     std::vector<double> r_hat;
-    double r_dot_root = 0;
+    //double r_dot_root = 0;
     double last_r = 0;
     double log_rhat_r = 0;
 
@@ -358,234 +358,70 @@ std::vector<double> initial::calculate_tov_phi(const tov::integration_solution& 
 
         log_rhat_r += dr * dlog_dr[i];
 
+        //std::cout << "step size " << dr * dlog_dr[i] << std::endl;
+
         double lr_hat = exp(log_rhat_r);
 
-        r_hat.push_back(lr_hat * r);
+        r_hat.push_back(lr_hat);
 
         last_r = r;
     }
 
+    {
+        double final_r = r_hat.back();
+
+        double R = sol.radius.back();
+        double M = sol.cumulative_mass.back();
+
+        double scale = (1/(2*R)) * (sqrt(R*R - 2 * M * R) + R - M) / final_r;
+
+        //for(auto& i : r_hat)
+        for(int i=0; i < (int)sol.radius.size(); i++)
+        {
+            r_hat[i] *= sol.radius[i] * scale;
+        }
+    }
+
+    return r_hat;
+}
+
+std::vector<double> initial::calculate_tov_phi(const tov::integration_solution& sol)
+{
+    auto isotropic_r = calculate_isotropic_r(sol);
+
     auto isotropic_to_schwarzschild = [&](float isotropic_in)
     {
-        return interpolate_by_radius(r_hat, sol.radius, isotropic_in);
+        return interpolate_by_radius(isotropic_r, sol.radius, isotropic_in);
     };
 
-    /*for(auto& i : sol.radius)
+    int samples = sol.radius.size();
+
+    std::vector<double> phi;
+    phi.resize(samples);
+
+    for(int i=0; i < (int)sol.radius.size(); i++)
     {
-        std::cout << "hello "  << i << std::endl;
+        phi[i] = pow((sol.radius[i] * sol.radius[i]) / (isotropic_r[i] * isotropic_r[i]), 1./4.);
     }
-
-    for(auto& i : r_hat)
-    {
-        std::cout << i << " real " << isotropic_to_schwarzschild(i) << std::endl;
-    }*/
-
-    /*for(auto& i : r_hat)
-    {
-        std::cout << "r_hat " << i << std::endl;
-    }*/
-
-    std::vector<double> ret;
-
-    #if 0
-    auto diff = [](const std::vector<double>& buf, const std::vector<double>& radius, int idx)
-    {
-        if(idx == buf.size() - 1)
-        {
-            double h = radius[idx] - radius[idx - 1];
-            return (buf[idx] - buf[idx - 1]) / h;
-        }
-
-        double h = radius[idx + 1] - radius[idx];
-        return (buf[idx + 1] - buf[idx]) / h;
-    };
-
-    ret.reserve(sol.energy_density.size());
-
-    for(int i=0; i < (int)sol.mass.size(); i++)
-    {
-        double dm_dr = diff(sol.mass, sol.radius, i);
-        double r = sol.radius[i];
-        double e = sol.energy_density[i];
-
-        std::cout << "dm_dr " << dm_dr << std::endl;
-
-        std::cout << "e? " << e << std::endl;;
-
-        double phi_5 = dm_dr / (2 * M_PI * r*r * e);
-
-        double phi = pow(phi_5, 1/5.);
-
-        std::cout << "phi " << phi << std::endl;
-
-        ret[i] = phi;
-    }
-    ///make sure i handle the integration constants
-    #endif // 0
-
-    ///todo: it cannot possibly be right that the answer is phi = 2^(1/5)
-
-    #if 0
-    for(int i=0; i < (int)sol.mass.size(); i++)
-    {
-        ret.push_back(pow(2., 1/5.));
-    }
-
-    //ok this is officially insane and i'm very confused
-    //is the distribution of phi wrong here?
-    double check_mass = 0;
-
-    for(int i=0; i < (int)sol.mass.size() - 1; i++)
-    {
-        double r = sol.radius[i];
-        double e = sol.energy_density[i];
-
-        check_mass += 2 * M_PI * r*r * pow(ret[i], 5.) * e * (sol.radius[i + 1] - sol.radius[i]);
-    }
-
-    std::cout << "Check Mass " << check_mass << std::endl;
-    #endif
-
-    assert(sol.cumulative_mass.size() == sol.energy_density.size());
-
-    std::vector<float> linearised_epsilon;
-    int samples = sol.energy_density.size();
-
-    float min_r = 0;
-    float max_r = sol.R_msol;
-
-    for(int i=0; i < samples; i++)
-    {
-        float dr = (max_r - min_r) / samples;
-        double r = i * dr;
-
-        int e1 = sol.radius_to_index(r);
-        int e2 = sol.radius_to_index(r + dr);
-
-        float en1 = sol.energy_density.at(e1);
-        float en2 = sol.energy_density.at(e2);
-
-        float r1 = sol.radius.at(e1);
-        float r2 = sol.radius.at(e2);
-
-        float frac = 0;
-
-        if(fabs(r1 - r2) > 0.0001f)
-            frac = (r - r1) / (r2 - r1);
-
-        linearised_epsilon.push_back(mix(en1, en2, frac));
-    }
-
-    //linearised_epsilon.push_back(0);
-
-    double scale = max_r / samples;
-
-    std::vector<double> phi_current;
-    std::vector<double> phi_next;
-
-    phi_current.resize(linearised_epsilon.size());
-    phi_next.resize(linearised_epsilon.size());
-
-    //for(auto& i : phi_current)
-    //    i = 1;
-
-    //phi_current.push_back(1.f);
-    //phi_next.push_back(1.f);
-
-    for(int i=0; i < (int)phi_current.size(); i++)
-    {
-        phi_current[i] = 1;
-
-        //phi_current[i] = (1 - (float)i / phi_current.size()) + 0.1f;
-    }
-
-    for(int i=0; i < 10240; i++)
-    {
-        for(int kk=0; kk < samples; kk++)
-        {
-            double phi = phi_current[kk];
-            double e = linearised_epsilon[kk];
-            double r = ((double)kk / samples) * sol.R_msol;
-
-            //std::cout << "e " << e << std::endl;
-
-            //std::cout << "r " << r << std::endl;
-
-            //std::cout << "Pcurrent " << phi_current[kk] << " r " << r << " rhs " << 2 * M_PI * r * std::pow(phi, 4.) * e << " scale " << scale << std::endl;
-            //double next_phi = next_guess<double>(phi_current, kk, r, 2, 2 * M_PI * r * std::pow(phi, 4.) * e, scale);
-
-            ///(1, -2, 1) phi = h^2 RHS
-            ///-2 phi = h^2 RHS - (phi[-1] + phi[1])
-            ///phi = (h^2 RHS - (phi[-1] + phi[1])) / -2
-
-            double rhs = -((sdiff(phi_current, kk, scale) * 2/std::max(r, 0.001)) + 2 * M_PI * pow(phi, 5.) * e);
-
-            double d = 0;
-
-            if(kk == 0)
-                d = phi_current[2] + phi_current[0];
-
-            else if(kk == samples - 1)
-                d = phi_current[kk] + phi_current[kk - 2];
-
-            else
-                d = phi_current[kk + 1] + phi_current[kk - 1];
-
-            double next_phi = (scale*scale * rhs - d) / -2;
-
-            //if(kk == 50)
-            //std::cout << "Nphi " << next_phi << std::endl;
-
-            //if(kk == samples - 2 && (i % 1000) == 0)
-            //s    std::cout << "Nphi " << next_phi << std::endl;
-
-            phi_next[kk] = mix(phi, next_phi, 0.99);
-        }
-
-        std::swap(phi_current, phi_next);
-    }
-
-    /*for(auto& i : phi_current)
-    {
-        std::cout << "Phi " << i << std::endl;
-    }*/
 
     double check_mass = 0;
+    double last_r_bar = 0;
 
-    for(int i=0; i < (int)samples - 1; i++)
+    for(int i=0; i < (int)samples; i++)
     {
-        double r = ((double)i / samples) * sol.R_msol;
-        double e = linearised_epsilon[i];
+        double r_bar = isotropic_r[i];
 
-        check_mass += 2 * M_PI * r*r * pow(phi_current[i], 5.) * e * (sol.radius[i + 1] - sol.radius[i]);
-    }
+        double r = isotropic_to_schwarzschild(r_bar);
+        double e = interpolate_by_radius(sol.radius, sol.energy_density, r);
 
-    double phi_at_radius = phi_current.back();
+        check_mass += 2 * M_PI * r_bar*r_bar * pow(phi[i], 5.) * e * (r_bar - last_r_bar);
 
-    double new_phi = 1 + check_mass / (2 * sol.R_msol);
-
-    double diff = (new_phi / phi_at_radius);
-
-    std::cout << "diff " << diff << std::endl;
-
-    for(auto& i : phi_current)
-        i *= diff;
-
-    check_mass = 0;
-
-    for(int i=0; i < (int)samples - 1; i++)
-    {
-        double r = ((double)i / samples) * sol.R_msol;
-        double e = linearised_epsilon[i];
-
-        check_mass += 2 * M_PI * r*r * pow(phi_current[i], 5.) * e * (sol.radius[i + 1] - sol.radius[i]);
+        last_r_bar = r_bar;
     }
 
     std::cout << "Check Mass " << check_mass << std::endl;
 
-    //T next_phi = next_guess<T>(phi, kk, r, 2, 2 * M_PI * r * std::pow(phi[kk], T{4.f}) * rho, scale);
-
-    return phi_current;
+    return phi;
 }
 
 #if 0

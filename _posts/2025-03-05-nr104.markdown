@@ -487,7 +487,7 @@ $$ds^2 = -e^{2\phi} dt^2 +e^{2\Lambda}(d\bar{r}^2 + \bar{r}^2 d\Omega^2)$$
 
 We can see that $e^{2\Lambda} = \Phi_{tov}^4$. And, helpfully, someone smarter than I am has worked out that $e^{\Lambda} = \frac{r}{\bar{r}}$
 
-This is a much nicer way of calculating this, as $\Phi_{tov} = (\frac{r}{\bar{r}})^2$. No laplacians required. We'll also have to note: in the future, if we take the pressure at a radius, we'll need to perform a coordinate conversion if that radius is in isotropic coordinates: ie we need to keep on hand the function $r = f(\bar{r})$, which you should tabulate somewhere
+This is a much nicer way of calculating this, as $\Phi_{tov}^4 = (\frac{r}{\bar{r}})^2$. No laplacians required. We'll also have to note: in the future, if we take the pressure at a radius, we'll need to perform a coordinate conversion if that radius is in isotropic coordinates: ie we need to keep on hand the function $r = f(\bar{r})$, which you should tabulate somewhere
 
 # This article, abridged
 
