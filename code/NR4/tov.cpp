@@ -375,7 +375,6 @@ std::vector<double> initial::calculate_isotropic_r(const tov::integration_soluti
 
         double scale = (1/(2*R)) * (sqrt(R*R - 2 * M * R) + R - M) / final_r;
 
-        //for(auto& i : r_hat)
         for(int i=0; i < (int)sol.radius.size(); i++)
         {
             r_hat[i] *= sol.radius[i] * scale;
@@ -404,6 +403,7 @@ std::vector<double> initial::calculate_tov_phi(const tov::integration_solution& 
         phi[i] = pow((sol.radius[i] * sol.radius[i]) / (isotropic_r[i] * isotropic_r[i]), 1./4.);
     }
 
+    #if 0
     double check_mass = 0;
     double last_r_bar = 0;
 
@@ -420,6 +420,7 @@ std::vector<double> initial::calculate_tov_phi(const tov::integration_solution& 
     }
 
     std::cout << "Check Mass " << check_mass << std::endl;
+    #endif
 
     return phi;
 }
