@@ -128,7 +128,7 @@ double geometric_to_si(double quantity, double kg_exponent, double s_exponent)
 }
 ```
 
-The conversions between different quantities generally require $K$ and $\Gamma$, so I've implemented these all in a `parameters` struct for simplicity:
+The conversions between different quantities generally require $K$ and $\Gamma$, so I've implemented these all in a `parameters` struct for simplicity (todo: update):
 
 ```c++
 
@@ -170,7 +170,7 @@ struct parameters
 };
 ```
 
-Initialising our state, with our initial conditions in units of $c=G=M\odot$ is extremely straightforward as well:
+Initialising the integration state in units of $c=G=M\odot$ is straightforward:
 
 ```c++
 struct integration_state
@@ -206,7 +206,9 @@ integration_state make_integration_state_si(double p0, double rmin, const parame
 }
 ```
 
-The actual integration itself is massively straightforward. While we could go much more complicated with the integrator, these equations appear to be fairly numerically stable and are super cheap to evaluate, so I'm just going route one:
+The actual integration itself is easy. While we could go much more complicated with the integrator, these equations appear to be fairly numerically stable and are super cheap to evaluate, so I'm just going route one:
+
+Todo: Update and unscrew up code
 
 ```c++
 struct integration_dr
@@ -242,7 +244,6 @@ struct integration_solution
 };
 
 ///units are c=g=msol
-///i think i can just convert msol into natural units, and redefine length
 integration_solution solve_tov(const integration_state& start, const parameters& param, double min_radius, double min_pressure)
 {
     integration_state st = start;
@@ -290,7 +291,7 @@ Lets check out section [VII](https://arxiv.org/pdf/1606.04881) of this paper, wh
 
 |Parameter|Value|
 |-|-|
-|$\rho_c$|$\rho_c = 6.235\; 10^{17}\; \mathrm{kg}\;\mathrm{m}^{-3}$|
+|$\rho_c$|$6.235\; 10^{17}\; \mathrm{kg}\;\mathrm{m}^{-3}$|
 |$K$|$123.641 M_{\odot}^2$ in **geometric** units[^waste]|
 |$\Gamma$|$2$|
 
@@ -305,7 +306,7 @@ void solve()
     double paper_p0 = 6.235 * pow(10., 17.);
 
     parameters param;
-    param.K = 123.641;
+    param.K = 123.641; //in units of c=g=msol
     param.Gamma = 2;
 
     double rmin = 1e-6;
@@ -318,15 +319,11 @@ void solve()
 }
 ```
 
-We get this: `15.8102km 1.54315 msols`. Now, our mass is absolutely spot on, which is great, but it looks like the radius is wrong. This is slightly puzzling
+We get this: `15.8102km 1.54315 msols`. Our mass is spot on, but our radius differs: we're actually in a different coordinate system at the moment, which is something we'll sort out later. I also suspect they're using a different measure of radius than us, but it isn't well defined in this paper
 
 Interestingly, a separate test case [here](https://colab.research.google.com/drive/1yMD2j3Y6TcsykCI59YWiW9WAMW-SPf12#scrollTo=00FWl5YzbSaB) actually gives the wrong answer, because their value of $N$ is too low. Increasing it, we're able to match their results for $\rho_c = 1.28 * 10^{-3}$ and $K=100$ in units of $c=G=M_{\odot}=1$, giving:
 
-`14.1461km 1.40021msols`, which is extremely close. That code gives `14.136399564110704 1.400270088513766` with better precision, which is pretty close
-
-TODO: IM PRETTY SURE ITS THE ISOTROPIC COORDINATES YA EEJIT
-
-Its unclear exactly what's going on here. Given that we have exactly the correct mass, but a wrong radius: a few things could be happening, eg they may be using a more conservative definition of radius, or their solver may default to adding a crust. It would sure be helpful if there was a link to the code somewhere. it seems unlikely that we're completely wrong (that mass isn't an accident), so we're going to carry on for the moment
+`14.1461km 1.40021msols`, which is extremely close. That code gives `14.136399564110704km 1.400270088513766msols` with better precision, which is pretty close. We also match the [cactus](https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html#x1-2004r4) toolkit test case exactly, which appears to be the same. All in all: working great
 
 ## Solving for a specific ADM mass
 
@@ -336,7 +333,7 @@ I think we both know deep down in our hearts that this section wasn't going to r
 
 $$M = \frac{4}{3} \pi r^3 \epsilon$$
 
-Ie, we assume a constant $\epsilon$ through the star, then calculate this as a density. We'll have to guess our neutron star mass as well: the ratio of mass to radius is called the compactness factor $C$, and we can do $R=\frac{M}{C=0.06}$ as a guess. We're just looking for a vague ballpacrk range here
+Ie, we assume a constant $\epsilon$ through the star, then calculate this as a density. We'll have to guess our neutron star mass as well: the ratio of mass to radius is called the compactness factor $C$, and we can do $R=\frac{M}{C=0.06}$ as a guess. We're just looking for a vague ballpark range here
 
 From there, you can simply bruteforce over a range of central density values, eg $\frac{\epsilon}{100}$ -> $5 \epsilon$, converted to rest densities
 
@@ -403,7 +400,7 @@ std::vector<double> search_for_adm_mass(double adm_mass, const parameters& param
 }
 ```
 
-This performs a pretty basic bruteforce through the parameter space, and looks for mass crossings which match our result. Something smarter would refine the result more closely instead of linearly bruteforcing, but it works fine. The lower density branch here (with larger radius) is the correct neutron star in our case, which we simply have to know a-priori
+This performs a pretty basic bruteforce through the parameter space, and looks for masses which match our result. Something smarter would refine the result more closely instead of linearly bruteforcing, but it works fine. The lower density branch here (with larger radius) is the correct neutron star in our case, which we simply have to know a-priori
 
 ## Key takeaways from solving TOV
 
@@ -415,9 +412,12 @@ Next up, we need to give it momentum and spin. This is where things get a bit co
 
 The actual paper we're going to be implementing today is [this](https://arxiv.org/pdf/1606.04881) one. Its going to be a step up in complexity compared to things we've solved previously together. One of the key things today in this article is that I'm going to present you with a simpler and fast procedure for implementing this paper, without losing any generality, as I've been able to skip some of the complexity. For consistency, we'll be keeping our existing notation, and below is the conversions we'll make
 
-Todo: Notational layout conversions
+|Symbol|This article|Paper
+|-|-|-|
+|Total energy density|$\epsilon$|$\rho$|
+|Pressure|$P$ or $p$|$p$|
 
-Todo: This is a table now. Note that this paper defines $\rho$ as what we've been calling $\epsilon$, and it calls $\epsilon$ a separate quantity we don't have (specific internal energy density). I'm going to keep our existing notation, and translate where appropriate, to try and stem the incredibly random notation
+I'm trying to stem the incredibly random notational divergence in the literature a bit to make things less crazy to follow, which is why I'm converting. We'll also be swapping from $P$ to $p$, because $P^i$ will be used for the ADM momentum
 
 If you remember from our black hole initial conditions paper, the basic idea for many kinds of initial conditions is that of conformal flatness. That is to say, we take our adm metric $\gamma_{ij}$, and perform a conformal transform on it by a scalar, to end up with a conformal metric. In this paper, our ADM variables are transformed as follows:
 
@@ -443,7 +443,7 @@ One thing to note is that any time you see a $\pi$, its a sure fire bet that it 
 |-|-|
 |$\Phi$|Conformal factor, unknown|
 |$\bar{A}_{ij}$| Conformal extrinsic curvature|
-|$\epsilon_H$| TODO: I DONT HAVE A CLUE|
+|$\epsilon_H$| Scalar matter source for the ADM equations|
 
 This paper in theory lets us solve the TOV equations in a conformally flat spacetime, via (77-79), but we've deliberately skipping this step, as solving the TOV equations directly is much simpler. In general I wouldn't recommend implementing section VI (other than (83-84)), and I think eq (82) is incorrect unfortunately
 
@@ -531,11 +531,11 @@ The first thing we need is to calculate $\mathcal{M}$. This is straightforward v
 
 $$\mathcal{M} = 4\pi \int^{r_0}_0 (\bar{\epsilon} + \bar{p}) r^2 dr$$
 
-Integrating this is a straightforward piecewise numerical integration. $r_0$ is the isotropic radius of our neutron star. Note that this quantity is not the same as $M$
+Integrating this is a straightforward piecewise numerical integration. $r_0$ is the isotropic radius of our neutron star, and $r$ is the integration variable. Note that this quantity is not the same as $M$
 
 #### $\sigma$
 
-Next up, we'll calculate sigma. This is straightforwardly done via (57):
+Next up, we'll calculate sigma. This is done via (57):
 
 $$\sigma = \frac{\bar{\epsilon} + \bar{p}}{\mathcal{M}}$$
 
@@ -574,7 +574,7 @@ As previously, we'll dig into the procedure for calculating $N$, and linearise t
 
 You might be wondering if having two functions named $\mathcal{N}$ and $N$ might have resulted in days of confusion for a poor lost developer several years ago, who was reading this as an early paper in their NR journey when they didn't know any better than to be hypervigilant of notational issues
 
-Implementing this is under (64):
+Anyway. Implementing this is under (64):
 
 $$\mathcal{N} = \frac{8 \pi}{3} = \int^{r_0}_0 (\bar{\epsilon} + \bar{p}) r^4\; dr$$
 
@@ -586,11 +586,11 @@ Where $r_0$ is the isotropic radius of our neutron star, and $r$ is the integrat
 
 $$\kappa =\frac{\bar{\epsilon} + \bar{p}}{\mathcal{N}}$$
 
-#### N
+#### $N$
 
 (55)
 
-$$N(r) = \frac{8 \pi}{3} \int^r_0 \kappa x^4 dx$$
+$$N(r) = \frac{8 \pi}{3} \int^r_0 \kappa x^4\;dx$$
 
 Remembering that $\kappa(x)$ is a function, and $x$ is the integration variable
 
@@ -602,9 +602,11 @@ We now have $\bar{\epsilon}$, $\bar{p}$, and $\bar{A}^{ij} = \bar{A}^{ij}_P + \b
 
 $$\Delta \Phi = -\frac{1}{8} \Phi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \Phi^{-3} \bar{\epsilon}_H$$
 
-This is a standard laplacian. We're going to go over the details of how to perform our full construction after we finish up our next step, which is solving for $\epsilon_H$. It can't be too bad right?
+This is a standard laplacian. We're going to go over the details of how to perform our full construction after we finish up our next step, which is solving for $\epsilon_H$. Whatever it is, it can't be that bad, right?
 
-### Solving for $\epsilon_H$ was indeed that bad
+Todo: Londo (wesley?)
+
+### Solving for $\epsilon_H$ is indeed that bad
 
 The definition can be found by applying $\Phi_{tov}^8$ to $\epsilon_H$ (6 + 20):
 
@@ -633,7 +635,7 @@ Sometimes I wish I'd taken up fishing
 
 #### Combining lorentz factors
 
-Of course, we can't simply *add* lorentz factors together, that'd be madness. Instead we have to use the rapidity formula. This gives us:
+Of course, we can't simply *add* lorentz factors together, that'd be madness. Instead you use the rapidity formula. This gives us:
 
 $$W = \mathrm{cosh}(\mathrm{arccosh}(W_P) + \mathrm{arccosh}(W_J)) $$
 
@@ -641,8 +643,46 @@ With this done, its finally over, and I can now describe the procedure for solvi
 
 ### Solving the laplacian, finally
 
+Here, I'm going to describe how to mix together neutron stars, and black holes. For both neutron stars, and black holes, we have an extrinsic curvature $\bar{A}^{ij}$. For black holes, use the procedure as specified here in Todo article. This is great, we simply sum every extrinsic curvature linearly, and then calculate $\bar{A}^{ij} \bar{A}_{ij}$
 
-# This article, abridged
+Next up, we need to do a bit of work (oh no!). First off, we need to remember that we can express our conformal factor $\Phi = 1 + u + F$. $u$ is a correction, and what we solve for in the laplacian. We didn't dig into this, but as black holes have no matter distribution, the term $F$ (originally called: $\frac{1}{a}$) is to stop the solution from being trivially conformally flat. This isn't a problem for neutron stars, as you can see in our laplacian we have the term
+
+$$- 2 \pi \Phi^{-3} \bar{\epsilon}_H$$
+
+Which is a matter term on the right hand side to prevent it from being flat. To make this all interoperate correctly and give correct solutions, I'll lay out how this works:
+
+|Type|Function|
+|-|-|
+|Neutron Star|$F_{(i)} = 0$|
+|Black Hole| $F_{(i)} = \frac{m_i}{2 \mid \overrightarrow{r} - \overrightarrow{x}_{(i)} \mid}$ |
+
+To calculate $F$, sum over $F_{(i)}$ for every object
+
+The last thing to do is figure out what to do with our individual $\bar{\epsilon}_H$ terms. Luckily, you simply sum these, and make sure that an individual neutron stars contribution is $0$ outside of its radius. To make this super explicit:
+
+$$\begin{align}
+\bar{A}_{ij}^{sum} &= \sum^N_{k=1} \bar{A}_{ij}^{(k)}\\
+F^{sum} &= \sum^N_{k=1} F_{(k)} \\
+\bar{\epsilon}^{sum}_H &= \sum^N_{k=1} \bar{\epsilon}_H^{(k)}\\
+\Delta u &= -\frac{1}{8} \Phi^{-7} \bar{A}_{ij}^{sum} \bar{A}^{ij}_{sum} - 2 \pi \Phi^{-3} \bar{\epsilon}^{sum}_H
+\end{align}$$
+
+That's it, we're good to go. From here on, its just a standard laplacian of exactly the same form we solved in todo: this article, and there's absolutely nothing special whatsoever
+
+This lets us solve for our ADM quantities:
+
+|Name|ADM|Value|
+|-|-|-|
+|Metric Tensor|$\gamma_{ij}$|$$\Phi^4 \bar{\eta}_{ij}$$|
+|Extrinsic Curvature|$$K_{ij}$$|$$\Phi^{-2} \bar{A}{ij}$$|
+| Initial Adm Matter Source | $$\epsilon_H$$ | $$\Phi^{-8} \bar{\epsilon}_H$$ |
+| Initial Adm Matter Source | $$S^i$$ | $$\Phi^{-10} S^i$$ |
+| Initial Pressure | $P$ | $\Phi^{-8} P$ |
+| Initial Energy Density | $\epsilon$ | $\Phi^{-8} \epsilon$ |
+
+# Relativistic Eularian Hydrodynamics
+
+# Initial conditions, abridged
 
 ## Step 1
 
@@ -653,7 +693,7 @@ $$\begin{align}
 \frac{dP}{dr} &= -(\epsilon + P)\frac{m + 4 \pi r^3 P}{r(r-2m)}
 \end{align}$$
 
-With the relation:
+With the equation of state:
 
 $$P = K \rho_0^\Gamma$$
 
