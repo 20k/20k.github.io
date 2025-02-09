@@ -838,13 +838,12 @@ cl::image load_background(cl::context ctx, cl::command_queue cqueue, const std::
 
 void solve()
 {
-    return;
-
     tov::parameters param;
     //param.K = 100;
     param.K = 123.641;
     param.Gamma = 2;
 
+    /*return;
     auto results = tov::search_for_adm_mass(1.543, param);
 
     for(auto& i : results)
@@ -852,7 +851,7 @@ void solve()
         std::cout << "Density " << i << std::endl;
     }
 
-    assert(false);
+    assert(false);*/
 
     //kg/m^3
     double paper_p0 = 6.235 * pow(10., 17.);
@@ -869,6 +868,9 @@ void solve()
     tov::integration_solution sol = tov::solve_tov(st, param, rmin, 0);
 
     std::cout << "Solved for " << sol.R / 1000. << "km " << sol.M << " msols " << std::endl;
+
+    std::vector<double> tov_phi = initial::calculate_tov_phi(sol);
+
 
     assert(false);
 }
