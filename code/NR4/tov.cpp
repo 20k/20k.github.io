@@ -400,7 +400,7 @@ std::vector<double> initial::calculate_tov_phi(const tov::integration_solution& 
 
     for(int i=0; i < (int)sol.radius.size(); i++)
     {
-        phi[i] = pow((sol.radius[i] * sol.radius[i]) / (isotropic_r[i] * isotropic_r[i]), 1./4.);
+        phi[i] = pow(sol.radius[i] / isotropic_r[i], 1./2.);
     }
 
     #if 0
