@@ -304,6 +304,33 @@ T next_guess(const std::vector<T>& F, int x, T A, T B, T C, T h)
     return (2 * A * (F[x - 1] + F[x + 1]) + B * h * (F[x + 1] - F[x - 1])) / (4 * A - 2 * C * h * h);
 }
 
+template<typename T>
+T interpolate_by_radius(const std::vector<double>& radius, const std::vector<T>& quantity, double r)
+{
+    assert(radius.size() >= 2);
+
+    if(r <= radius.front())
+        return quantity.front();
+
+    if(r >= radius.back())
+        return quantity.back();
+
+    for(int i=0; i < (int)radius.size() - 1; i++)
+    {
+        double r1 = radius[i];
+        double r2 = radius[i + 1];
+
+        if(r > r1 && r <= r2)
+        {
+            double frac = (r - r1) / (r2 - r1);
+
+            return mix(quantity[i], quantity[i + 1], frac);
+        }
+    }
+
+    return quantity.back();
+}
+
 std::vector<double> initial::calculate_tov_phi(const tov::integration_solution& sol)
 {
     std::vector<double> dlog_dr;
@@ -325,16 +352,33 @@ std::vector<double> initial::calculate_tov_phi(const tov::integration_solution& 
 
     for(int i=0; i < (int)sol.radius.size(); i++)
     {
-        double dr = sol.radius[i] - last_r;
+        double r = sol.radius[i];
+
+        double dr = r - last_r;
 
         log_rhat_r += dr * dlog_dr[i];
 
         double lr_hat = exp(log_rhat_r);
 
-        r_hat.push_back(lr_hat * sol.radius[i]);
+        r_hat.push_back(lr_hat * r);
 
-        last_r = sol.radius[i];
+        last_r = r;
     }
+
+    auto isotropic_to_schwarzschild = [&](float isotropic_in)
+    {
+        return interpolate_by_radius(r_hat, sol.radius, isotropic_in);
+    };
+
+    /*for(auto& i : sol.radius)
+    {
+        std::cout << "hello "  << i << std::endl;
+    }
+
+    for(auto& i : r_hat)
+    {
+        std::cout << i << " real " << isotropic_to_schwarzschild(i) << std::endl;
+    }*/
 
     /*for(auto& i : r_hat)
     {

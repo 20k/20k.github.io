@@ -45,7 +45,7 @@ Unfortunately, there is no analytic solution to any of this, because that would 
 
 The equation that governs a relativistic, spherically symmetric body in hydrostatic equilibrium is called the TOV equation. This is a set of two coupled partial differential equations, which we must solve simultaneously. They are fully described by one parameter, which is the central density: the rest density of matter, at the centre of your body. Additionally, we have to supply an equation of state - our polytropic equation - that links the density and pressure together
 
-Wikipedia lists an unnecessarily complicated form of the equations, so [here's (17)](https://www.as.utexas.edu/astronomy/education/spring13/bromm/secure/TOC_Supplement.pdf) a nicer form (in units of $c=G=1$):
+Wikipedia lists an unnecessarily complicated form of the equations, so [here's (17)](https://www.as.utexas.edu/astronomy/education/spring13/bromm/secure/TOC_Supplement.pdf) a nicer form (in units of $c=G=1$, schwarzschild coordinates):
 
 $$\begin{align}
 \frac{dm}{dr} &= 4 \pi r^2 \epsilon\\
@@ -461,37 +461,33 @@ The procedure in this paper is as follows:
 
 ## Solving for $\Phi_{tov}$
 
-TODO: THEY ARE IN ISOTROPIC, WE ARE IN SCHWARZSCHILD
-
 The 3d laplacian to solve for $\Phi_{tov}$, is (86). This is:
 
 $$\Delta \Phi_{tov} = -2 \pi \Phi_{tov}^5 \epsilon_{tov}$$
 
 We could also solve the 1d laplacian (77):
 
-$$\frac{1}{r^2}\frac{d(r^2 \frac{d\Phi_{tov}}{dr})}{dr} = -2 \pi \Phi_{tov}^5 \epsilon_{tov}$$
+$$\frac{1}{\bar{r}^2}\frac{d(\bar{r}^2 \frac{d\Phi_{tov}}{d\bar{r}})}{d\bar{r}} = -2 \pi \Phi_{tov}^5 \epsilon_{tov}$$
 
 Which is more usefully expressed as:
 
-$$r\frac{d^2\Phi_{tov}}{dr^2} + 2 \frac{d\Phi_{tov}}{dr} + 2 \pi r \Phi_{tov}^5 \epsilon_{tov} = 0$$
+$$\bar{r}\frac{d^2\Phi_{tov}}{d\bar{r}^2} + 2 \frac{d\Phi_{tov}}{d\bar{r}} + 2 \pi \bar{r} \Phi_{tov}^5 \epsilon_{tov} = 0$$
 
-Todo: we must reconfigure our tov - in schwarzschild coordinates - to isotropic coordinates
+There's a nicer way of solving this, but first we should talk about $\bar{r}$. One thing that absolutely must be noted is that the paper we're working on is in *isotropic* coordinates with the radial coordinate $\bar{r}$. Up until now, we've been working in *schwarzschild* coordinates with the radial coordinate $r$. We're going to have to perform a conversion between the two. It isn't too complicated, the conversion function is defined [as follows](https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html#x1-2004r4):
 
-Todo: This analysis i think is wrong
+$$\frac{d(\log(\frac{\bar{r}}{r}))}{\partial r} = \frac{r^{\frac{1}{2}} - (r - 2m)^\frac{1}{2}}{r(r - 2m)\frac{1}{2}}$$
 
-That said, equation (82) is looking *very* interesting:
+Integrating this is straightforward, and can be done with an euler technique. $m(r)$ is still the cumulative mass from earlier. To get back to the topic at hand, note that we're looking for a $\Phi_{tov}$ from a metric defined as follows:
 
-Todo: insert look back meme, possibly with wesleys face over the dudes face
+$$ds^2 = -\alpha^2(\bar{r}) dt^2 + (\Phi_{tov}(\bar{r}))^4(d\bar{r}^2 + \bar{r}^2 d\Omega)$$
 
-$$M = 2 \pi \int_0^{r_0} r^2 \Phi_{tov}^5 \epsilon_{tov} dr$$
+The einstein toolkit page lists TOV in isotropic coordinates as:
 
-Where $r_0$ is the radius of our neutron star. Note that, from our TOV solution we already a-piori have $M$, $\epsilon_{tov}$, and $r_0$. So all we really need to do is differentiate this, to get:
+$$ds^2 = -e^{2\phi} dt^2 +e^{2\Lambda}(d\bar{r}^2 + \bar{r}^2 d\Omega^2)$$
 
-$$\frac{dM}{dr} = 2 \pi r^2 \Phi_{tov}^5 \epsilon_{tov}$$
+We can see that $e^{2\Lambda} = \Phi_{tov}^4$. And, helpfully, someone smarter than I am has worked out that $e^{\Lambda} = \frac{r}{\bar{r}}$
 
-Which you'll notice is the same equation we had for TOV, but with a different scaling and a $\Phi_{tov}$. With this in hand, calculating $\Phi_{tov}$ (remembering that its a function of radius) becomes trivial. There's no loss in generality for our solution by doing this, and it is a free win. Things are simple for once! We've actually managed to significantly simplify the procedure outlined in this paper so far, which is nice[^nice]
-
-[^nice]: I actually realised this entirely by accident while procrastinating from solving (86) or (77)
+This is a much nicer way of calculating this, as $\Phi_{tov} = (\frac{r}{\bar{r}})^2$. No laplacians required. We'll also have to note: in the future, if we take the pressure at a radius, we'll need to perform a coordinate conversion if that radius is in isotropic coordinates: ie we need to keep on hand the function $r = f(\bar{r})$, which you should tabulate somewhere
 
 # This article, abridged
 
@@ -517,9 +513,6 @@ Todo: List $\epsilon$
 
 ## Step 2
 
-Solve the following equation for $\Phi_{tov}$, with $r_0 = R$, and $\epsilon_{tov} = \epsilon$
-
-$$\frac{dM}{dr} = 2 \pi r^2 \Phi_{tov}^5 \epsilon_{tov}$$
 
 ## papers
 

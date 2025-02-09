@@ -66,7 +66,7 @@ namespace tov
         std::vector<double> energy_density;
         std::vector<double> pressure;
         std::vector<double> cumulative_mass;
-        std::vector<double> radius;
+        std::vector<double> radius; //in schwarzschild coordinates, in units of c=G=mSol = 1
 
         int radius_to_index(double r) const;
     };
