@@ -483,6 +483,34 @@ Which you'll notice is the same equation we had for TOV, but with a different sc
 
 [^nice]: I actually realised this entirely by accident while procrastinating from solving (86) or (77)
 
+# This article, abridged
+
+## Step 1
+
+Solve these two equations for the following quantities: mass ($M$), radius ($R$), and energy density ($\epsilon$). Stop integrating when $P <= 0$. This determines $R$. The integration should start at $r=r_{min}$
+
+$$\begin{align}
+\frac{dm}{dr} &= 4 \pi r^2 \epsilon\\
+\frac{dP}{dr} &= -(\epsilon + P)\frac{m + 4 \pi r^3 P}{r(r-2m)}
+\end{align}$$
+
+With the relation:
+
+$$P = K \rho_0^\Gamma$$
+
+Boundary conditions are:
+
+1. $M(0) = \frac{4}{3} \pi r_{min}^3 \epsilon_0$,
+2. $P(0) = K \rho_{c}^\Gamma$, where $\rho_{c}$ is the central rest mass density
+
+Todo: List $\epsilon$
+
+## Step 2
+
+Solve the following equation for $\Phi_{tov}$, with $r_0 = R$, and $\epsilon_{tov} = \epsilon$
+
+$$\frac{dM}{dr} = 2 \pi r^2 \Phi_{tov}^5 \epsilon_{tov}$$
+
 ## papers
 
 Analytic: https://www.aanda.org/articles/aa/pdf/2010/06/aa12738-09.pdf
