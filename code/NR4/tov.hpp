@@ -79,15 +79,6 @@ namespace initial
 {
     std::vector<double> calculate_isotropic_r(const tov::integration_solution& sol);
     std::vector<double> calculate_tov_phi(const tov::integration_solution& sol);
-
-    struct neutron_star
-    {
-        t3f world_pos;
-
-        tov::integration_solution sol;
-    };
-
-    cl::buffer tov_solve_full_grid(cl::context ctx, cl::command_queue cqueue, float scale, t3i dim, const neutron_star& star);
 }
 
 #endif // TOV_HPP_INCLUDED
