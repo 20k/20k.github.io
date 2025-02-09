@@ -306,6 +306,41 @@ T next_guess(const std::vector<T>& F, int x, T A, T B, T C, T h)
 
 std::vector<double> initial::calculate_tov_phi(const tov::integration_solution& sol)
 {
+    std::vector<double> dlog_dr;
+    dlog_dr.reserve(sol.cumulative_mass.size());
+
+    for(int i=0; i < (int)sol.cumulative_mass.size(); i++)
+    {
+        double r = sol.radius[i];
+        double m = sol.cumulative_mass[i];
+
+        double rhs = (pow(r, 0.5) - pow(r - 2 * m, 0.5)) / (r * pow(r - 2 * m, 0.5));
+        dlog_dr.push_back(rhs);
+    }
+
+    std::vector<double> r_hat;
+    double r_dot_root = 0;
+    double last_r = 0;
+    double log_rhat_r = 0;
+
+    for(int i=0; i < (int)sol.radius.size(); i++)
+    {
+        double dr = sol.radius[i] - last_r;
+
+        log_rhat_r += dr * dlog_dr[i];
+
+        double lr_hat = exp(log_rhat_r);
+
+        r_hat.push_back(lr_hat * sol.radius[i]);
+
+        last_r = sol.radius[i];
+    }
+
+    /*for(auto& i : r_hat)
+    {
+        std::cout << "r_hat " << i << std::endl;
+    }*/
+
     std::vector<double> ret;
 
     #if 0

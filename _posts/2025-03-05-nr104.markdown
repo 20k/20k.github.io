@@ -324,6 +324,8 @@ Interestingly, a separate test case [here](https://colab.research.google.com/dri
 
 `14.1461km 1.40021msols`, which is extremely close. That code gives `14.136399564110704 1.400270088513766` with better precision, which is pretty close
 
+TODO: IM PRETTY SURE ITS THE ISOTROPIC COORDINATES YA EEJIT
+
 Its unclear exactly what's going on here. Given that we have exactly the correct mass, but a wrong radius: a few things could be happening, eg they may be using a more conservative definition of radius, or their solver may default to adding a crust. It would sure be helpful if there was a link to the code somewhere. it seems unlikely that we're completely wrong (that mass isn't an accident), so we're going to carry on for the moment
 
 ## Solving for a specific ADM mass
