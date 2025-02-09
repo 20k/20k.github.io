@@ -409,6 +409,8 @@ At the end of this process, we've gained the ability to describe the following v
 
 Next up, we need to give it momentum and spin. This is where things get a bit complicated
 
+Todo: the main segment below this needs to be scrapped, because its mostly wrong
+
 # Bowen-York Type Initial Data for Binaries with Neutron Stars
 
 The actual paper we're going to be implementing today is [this](https://arxiv.org/pdf/1606.04881) one. Its going to be a step up in complexity compared to things we've solved previously together. Here's our notational conversions
@@ -457,6 +459,8 @@ The procedure in this paper is as follows:
 
 ## Solving for $\Phi_{tov}$
 
+TODO: THEY ARE IN ISOTROPIC, WE ARE IN SCHWARZSCHILD
+
 The 3d laplacian to solve for $\Phi_{tov}$, is (86). This is:
 
 $$\Delta \Phi_{tov} = -2 \pi \Phi_{tov}^5 \epsilon_{tov}$$
@@ -468,6 +472,10 @@ $$\frac{1}{r^2}\frac{d(r^2 \frac{d\Phi_{tov}}{dr})}{dr} = -2 \pi \Phi_{tov}^5 \e
 Which is more usefully expressed as:
 
 $$r\frac{d^2\Phi_{tov}}{dr^2} + 2 \frac{d\Phi_{tov}}{dr} + 2 \pi r \Phi_{tov}^5 \epsilon_{tov} = 0$$
+
+Todo: we must reconfigure our tov - in schwarzschild coordinates - to isotropic coordinates
+
+Todo: This analysis i think is wrong
 
 That said, equation (82) is looking *very* interesting:
 
