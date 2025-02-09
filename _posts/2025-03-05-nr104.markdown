@@ -411,16 +411,13 @@ At the end of this process, we've gained the ability to describe the following v
 
 Next up, we need to give it momentum and spin. This is where things get a bit complicated
 
-Todo: the main segment below this needs to be scrapped, because its mostly wrong
-
 # Bowen-York Type Initial Data for Binaries with Neutron Stars
 
-The actual paper we're going to be implementing today is [this](https://arxiv.org/pdf/1606.04881) one. Its going to be a step up in complexity compared to things we've solved previously together. Here's our notational conversions
+The actual paper we're going to be implementing today is [this](https://arxiv.org/pdf/1606.04881) one. Its going to be a step up in complexity compared to things we've solved previously together. One of the key things today in this article is that I'm going to present you with a simpler and fast procedure for implementing this paper, without losing any generality, as I've been able to skip some of the complexity. For consistency, we'll be keeping our existing notation, and below is the conversions we'll make
 
 Todo: Notational layout conversions
 
 Todo: This is a table now. Note that this paper defines $\rho$ as what we've been calling $\epsilon$, and it calls $\epsilon$ a separate quantity we don't have (specific internal energy density). I'm going to keep our existing notation, and translate where appropriate, to try and stem the incredibly random notation
-
 
 If you remember from our black hole initial conditions paper, the basic idea for many kinds of initial conditions is that of conformal flatness. That is to say, we take our adm metric $\gamma_{ij}$, and perform a conformal transform on it by a scalar, to end up with a conformal metric. In this paper, our ADM variables are transformed as follows:
 
@@ -446,9 +443,9 @@ One thing to note is that any time you see a $\pi$, its a sure fire bet that it 
 |-|-|
 |$\Phi$|Conformal factor, unknown|
 |$\bar{A}_{ij}$| Conformal extrinsic curvature|
-|$\rho_H$| TODO: I DONT HAVE A CLUE|
+|$\epsilon_H$| TODO: I DONT HAVE A CLUE|
 
-This paper in theory lets us solve the TOV equations in a conformally flat spacetime, via 77-79, but we've deliberately skipped this step, as the TOV equations are much easier to solve directly. Its also nice, because if you want to it becomes easy to plug in new equations of state, we're in a much more standard formalism
+This paper in theory lets us solve the TOV equations in a conformally flat spacetime, via (77-79), but we've deliberately skipping this step, as solving the TOV equations directly is much simpler. In general I wouldn't recommend implementing section VI (other than (83-84)), and I think eq (82) is incorrect unfortunately
 
 ## Implementing this paper
 
@@ -461,11 +458,11 @@ The procedure in this paper is as follows:
 
 ## Solving for $\Phi_{tov}$
 
-The 3d laplacian to solve for $\Phi_{tov}$, is (86). This is:
+First off, we need to start over in section VI. Given that we a-priori have our matter distribution, we don't need to solve for $\alpha$, or $\Theta$ luckily, and the only variable we need is $\Phi_{tov}$. The standard approach to solving for $\Phi_{tov}$ is either (86):
 
 $$\Delta \Phi_{tov} = -2 \pi \Phi_{tov}^5 \epsilon_{tov}$$
 
-We could also solve the 1d laplacian (77):
+Or we could also solve the 1d equation (77):
 
 $$\frac{1}{\bar{r}^2}\frac{d(\bar{r}^2 \frac{d\Phi_{tov}}{d\bar{r}})}{d\bar{r}} = -2 \pi \Phi_{tov}^5 \epsilon_{tov}$$
 
@@ -473,7 +470,7 @@ Which is more usefully expressed as:
 
 $$\bar{r}\frac{d^2\Phi_{tov}}{d\bar{r}^2} + 2 \frac{d\Phi_{tov}}{d\bar{r}} + 2 \pi \bar{r} \Phi_{tov}^5 \epsilon_{tov} = 0$$
 
-There's a nicer way of solving this, but first we should talk about $\bar{r}$. One thing that absolutely must be noted is that the paper we're working on is in *isotropic* coordinates with the radial coordinate $\bar{r}$. Up until now, we've been working in *schwarzschild* coordinates with the radial coordinate $r$. We're going to have to perform a conversion between the two. It isn't too complicated, the conversion function is defined [as follows](https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html#x1-2004r4):
+There's a nicer way of solving for $\Phi_{tov}$, but first we should talk about $\bar{r}$. One thing that absolutely must be noted is that the paper we're working on is in *isotropic* coordinates with the radial coordinate $\bar{r}$. Up until now, we've been working in *schwarzschild* coordinates with the radial coordinate $r$. We're going to have to perform a conversion between the two. It isn't too complicated, the conversion function is defined [as follows (15)](https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html#x1-2004r4):
 
 $$\frac{d(\log(\frac{\bar{r}}{r}))}{\partial r} = \frac{r^{\frac{1}{2}} - (r - 2m)^\frac{1}{2}}{r(r - 2m)\frac{1}{2}}$$
 
@@ -487,7 +484,161 @@ $$ds^2 = -e^{2\phi} dt^2 +e^{2\Lambda}(d\bar{r}^2 + \bar{r}^2 d\Omega^2)$$
 
 We can see that $e^{2\Lambda} = \Phi_{tov}^4$. And, helpfully, someone smarter than I am has worked out that $e^{\Lambda} = \frac{r}{\bar{r}}$
 
-This is a much nicer way of calculating this, as $\Phi_{tov}^4 = (\frac{r}{\bar{r}})^2$. No laplacians required. We'll also have to note: in the future, if we take the pressure at a radius, we'll need to perform a coordinate conversion if that radius is in isotropic coordinates: ie we need to keep on hand the function $r = f(\bar{r})$, which you should tabulate somewhere
+This is a much nicer way of calculating this, as $\Phi_{tov} = (\frac{r}{\bar{r}})^\frac{1}{2}$. No laplacians required. We'll also have to note: in the future, if we take the pressure at a radius, we'll need to perform a coordinate conversion if that radius is in isotropic coordinates: ie we need to keep on hand the function $r = f(\bar{r})$, which you should tabulate somewhere
+
+Todo: Matching parameters to star exterior
+
+## Calculating $\bar{A}^{ij}$
+
+Next up: The extrinsic curvature. First off, we calculate (83-84), remembering that we're using slightly different notation from this paper:
+
+$$\begin{align}
+\bar{\epsilon} &= \Phi_{tov}^8 \epsilon_{tov}\\
+\bar{p} &= \Phi_{tov}^8 p_{tov}
+\end{align}$$
+
+From here, its time to dig into the really fun bits. As with our black hole solution, we have two parameters we can specify: the ADM momentum $P^i$, and the angular momentum $J^i$. These are broken up into two equations: (51), and (54) - which we simply sum together
+
+### $P^i$ (linear momentum)
+
+To calculate the contribution from the linear momentum, we need to calculate this equation:
+
+$$\begin{align}
+\bar{A}^{ij}_P &=\frac{3Q}{2r^2}(P^i l^j + P^j l^i - (\eta^{ij} - l^i l^j)(P^k l_k)) \\
+&+ \frac{3C}{r^4} (P^i l^j + P^j l^i + (\eta^{ij} - 5l^i l^j)(P^k l_k))\\
+\end{align}
+$$
+
+Here's what everything means
+
+|Symbol|Definition|
+|-|-|
+|$P^i$|ADM linear momentum|
+|$r$|Coordinate distance (in isotropic coordinates) from the neutron star's origin|
+|$\eta^{ij}$| The inverse of the conformally flat metric tensor (here: the identity matrix)|
+|$l^i$| $l^i=\frac{x^i}{r}$, a unit radial vector|
+|$Q$ and $C$| We'll get to these|
+
+The quantities here are trivial to calculate, except for $Q$ and $C$. This is where the information in this paper gets a bit.. scattered, so I'm simply going to present the order of things to calculate
+
+From now on, **our $r$ coordinate is always isotropic**. You should either re-layout your quantities from schwarzschild to isotropic, or dynamically convert the coordinate to schwarzschild and look them up
+
+#### $\mathcal{M}$
+
+The first thing we need is to calculate $\mathcal{M}$. This is straightforward via (59)
+
+$$\mathcal{M} = 4\pi \int^{r_0}_0 (\bar{\epsilon} + \bar{p}) r^2 dr$$
+
+Integrating this is a straightforward piecewise numerical integration. $r_0$ is the isotropic radius of our neutron star. Note that this quantity is not the same as $M$
+
+#### $\sigma$
+
+Next up, we'll calculate sigma. This is straightforwardly done via (57):
+
+$$\sigma = \frac{\bar{\epsilon} + \bar{p}}{\mathcal{M}}$$
+
+#### $Q$ and $C$
+
+These functions are both functions of the radius. To emphasise this, I'll specify them as follows:
+
+$$\begin{align}
+Q(r) &= 4 \pi \int^r_0 \sigma x^2\; dx\\
+C(r) &= \frac{2}{3} \pi \int^r_0 \sigma x^4\; dx\\
+\end{align}
+$$
+
+When $r > r_0$, $Q(r)=1$, and you should enforce this. The paper does not specify a value for $C(r)$ where $r > r_0$, so I set $C(r) = C(r_0)$ in this region
+
+I personally found the $r'$ notation to be pretty confusing given that its also used for differentiation when I first read this paper, so I've swapped the notation to make it clearer that it is an integration variable. Note that $\sigma$ is also a function, so here we'd be doing $\sigma(x)$
+
+### $J^i$ (angular momentum)
+
+The equation for this is (54):
+
+$$\bar{A}^{ij}_J =\frac{6}{r^3}l^{(i} \epsilon^{{j)}kl}J_k l_l N$$
+
+Here's what everything means
+
+|Symbol|Definition|
+|-|-|
+|$J^i$|ADM angular momentum (lower with $\eta_{ij}$, here the identity matrix)|
+|$r$|Coordinate distance (in isotropic coordinates) from the neutron stars origin|
+|$l^i$| $l^i=\frac{x^i}{r}$, a unit radial vector (lower with $\eta_{ij}$)|
+|$N$| We'll get to this|
+
+As previously, we'll dig into the procedure for calculating $N$, and linearise the procedure because the functions are a bit scattered
+
+#### $\mathcal{N}$
+
+You might be wondering if having two functions named $\mathcal{N}$ and $N$ might have resulted in days of confusion for a poor lost developer several years ago, who was reading this as an early paper in their NR journey when they didn't know any better than to be hypervigilant of notational issues
+
+Implementing this is under (64):
+
+$$\mathcal{N} = \frac{8 \pi}{3} = \int^{r_0}_0 (\bar{\epsilon} + \bar{p}) r^4\; dr$$
+
+Where $r_0$ is the isotropic radius of our neutron star, and $r$ is the integration variable. Perhaps this goes without saying for people with better reading skills than me, but this function is **not** $N$ >:|
+
+#### $\kappa$
+
+(62)
+
+$$\kappa =\frac{\bar{\epsilon} + \bar{p}}{\mathcal{N}}$$
+
+#### N
+
+(55)
+
+$$N(r) = \frac{8 \pi}{3} \int^r_0 \kappa x^4 dx$$
+
+Remembering that $\kappa(x)$ is a function, and $x$ is the integration variable
+
+When $r>r_0$, $N(r) = 1$, and you should enforce this
+
+## Calculating $\Phi$, the conformal factor
+
+We now have $\bar{\epsilon}$, $\bar{p}$, and $\bar{A}^{ij} = \bar{A}^{ij}_P + \bar{A}^{ij}_J$. We're going to put this all together, and solve the final piece of our puzzle (22):
+
+$$\Delta \Phi = -\frac{1}{8} \Phi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \Phi^{-3} \bar{\epsilon}_H$$
+
+This is a standard laplacian. We're going to go over the details of how to perform our full construction after we finish up our next step, which is solving for $\epsilon_H$. It can't be too bad right?
+
+### Solving for $\epsilon_H$ was indeed that bad
+
+The definition can be found by applying $\Phi_{tov}^8$ to $\epsilon_H$ (6 + 20):
+
+$$\bar{\epsilon}_H = (\bar{\epsilon} + \bar{p})W^2 - \bar{p}$$
+
+Which should be set to $0$ when $r>r_0$. What's $W$?
+
+#### $W$, aka the lorentz factor
+
+There are two lorentz factors in this paper. One for the linear momentum, and one for the angular momentum
+
+Linear (60):
+
+$$W_{P}^2 = \frac{1}{2}(1 + \sqrt{1 + \frac{4 P_i P^i}{\mathcal{M}^2}})$$
+
+Angular (65):
+
+$$\begin{align}
+W_{J}^2 &=\frac{1}{2}(1 + \sqrt{1 + \frac{4 J_i J^i r^2 \sin^2 \theta}{\mathcal{N}^2}})\\
+\sin^2 \theta &= 1 - (J^i l_i)^2 \\
+\end{align}$$
+
+$l_i$ is the same unit normal as earlier. For $\sin^2 \theta$, you'll want to ensure that $J^i$ and $l_i$ are normalised to a length of $1$, as we're using the formula $\mathrm{dot}(a, b) = \cos \theta ||a||\;||b||$
+
+Sometimes I wish I'd taken up fishing
+
+#### Combining lorentz factors
+
+Of course, we can't simply *add* lorentz factors together, that'd be madness. Instead we have to use the rapidity formula. This gives us:
+
+$$W = \mathrm{cosh}(\mathrm{arccosh}(W_P) + \mathrm{arccosh}(W_J)) $$
+
+With this done, its finally over, and I can now describe the procedure for solving our laplacian
+
+### Solving the laplacian, finally
+
 
 # This article, abridged
 
@@ -527,3 +678,7 @@ Today
 ## Approximating TOV
 
 For $\Gamma=2$, there are approximations that can be used from eg [here (page 3)](https://www.aanda.org/articles/aa/pdf/2010/06/aa12738-09.pdf). I actually used this one for a while, and would highly recommend it if you don't want to solve TOV yourself
+
+## I think there's an error in one of the equations
+
+I'm 80% sure that (82) is incorrect, and that the leading factor of $2 \pi$ should be $4 \pi$. It gives exactly half the expected ADM mass for me
