@@ -65,7 +65,7 @@ namespace tov
 
         std::vector<double> energy_density;
         std::vector<double> pressure;
-        std::vector<double> mass;
+        std::vector<double> cumulative_mass;
         std::vector<double> radius;
 
         int radius_to_index(double r) const;
