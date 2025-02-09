@@ -387,7 +387,7 @@ std::vector<double> initial::calculate_tov_phi(const tov::integration_solution& 
 {
     auto isotropic_r = calculate_isotropic_r(sol);
 
-    auto isotropic_to_schwarzschild = [&](float isotropic_in)
+    auto isotropic_to_schwarzschild = [&](auto isotropic_in)
     {
         return interpolate_by_radius(isotropic_r, sol.radius, isotropic_in);
     };
