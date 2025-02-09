@@ -479,7 +479,7 @@ Where $r_0$ is the radius of our neutron star. Note that, from our TOV solution 
 
 $$\frac{dM}{dr} = 2 \pi r^2 \Phi_{tov}^5 \epsilon_{tov}$$
 
-Which you'll notice is the same equation we had for TOV, but with a different scaling and a $\Phi_{tov}$. With this in hand, calculating $\Phi_{tov}$ (remembering that its a function of radius) becomes trivial. There's no loss in generality for our solution by doing this, its just literally a free win. Things are simple for once! We've actually managed to significantly simplify the procedure outlined in this paper so far, which is nice[^nice]
+Which you'll notice is the same equation we had for TOV, but with a different scaling and a $\Phi_{tov}$. With this in hand, calculating $\Phi_{tov}$ (remembering that its a function of radius) becomes trivial. There's no loss in generality for our solution by doing this, and it is a free win. Things are simple for once! We've actually managed to significantly simplify the procedure outlined in this paper so far, which is nice[^nice]
 
 [^nice]: I actually realised this entirely by accident while procrastinating from solving (86) or (77)
 
