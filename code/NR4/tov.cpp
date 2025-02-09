@@ -257,52 +257,6 @@ std::vector<double> tov::search_for_adm_mass(double adm_mass, const parameters& 
     return out;
 }
 
-struct tov_data : value_impl::single_source::argument_pack
-{
-    //linear in terms of radius, padded so that at cell max, our radius is max rad
-    buffer<valuef> epsilon;
-    literal<valuef> max_rad;
-
-    void build(auto& in)
-    {
-        using namespace value_impl::builder;
-
-        add(epsilon, in);
-        add(max_rad, in);
-    }
-};
-
-template<typename T>
-T sdiff(const std::vector<T>& F, int x, T scale)
-{
-    if(x == 0)
-    {
-        return (-F[0] + F[1]) / scale;
-    }
-
-    if(x == F.size() - 1)
-    {
-        return (-F[x - 1] + F[x]) / scale;
-    }
-
-    return (F[x + 1] - F[x-1]) / (2 * scale);
-}
-
-template<typename T>
-T next_guess(const std::vector<T>& F, int x, T A, T B, T C, T h)
-{
-    if(x == 0)
-    {
-        return -(A * F[x + 2] - 2 * A * F[x + 1] + B * h * F[x + 1]) / (A - B * h + C*h*h);
-    }
-
-    if(x == (int)F.size() - 1)
-    {
-        return (2 * A * F[x - 1] - A * F[x - 2] + B * h * F[x-1]) / (A + B * h + C * h * h);
-    }
-
-    return (2 * A * (F[x - 1] + F[x + 1]) + B * h * (F[x + 1] - F[x - 1])) / (4 * A - 2 * C * h * h);
-}
 
 template<typename T>
 T interpolate_by_radius(const std::vector<double>& radius, const std::vector<T>& quantity, double r)
