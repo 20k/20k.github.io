@@ -56,6 +56,13 @@ namespace tov
         //in meters
         double R = 0;
 
+        ///keeping these as stable api endpoints
+        ///todo: fixme, this code is crap
+        double M_msol = 0;
+        double R_msol = 0;
+        double M_geometric = 0;
+        double R_geometric = 0;
+
         std::vector<double> energy_density;
         std::vector<double> pressure;
         std::vector<double> mass;
@@ -70,6 +77,8 @@ namespace tov
 
 namespace initial
 {
+    std::vector<double> calculate_tov_phi(const tov::integration_solution& sol);
+
     struct neutron_star
     {
         t3f world_pos;

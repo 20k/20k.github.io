@@ -193,6 +193,12 @@ tov::integration_solution tov::solve_tov(const integration_state& start, const p
     sol.R = msol_to_geometric(last_r, 1);
     sol.M = last_m;
 
+    sol.R_msol = last_r;
+    sol.M_msol = last_m;
+
+    sol.R_geometric = msol_to_geometric(last_r, 1);
+    sol.M_geometric = msol_to_geometric(last_m, 1);
+
     return sol;
 }
 
@@ -265,6 +271,40 @@ struct tov_data : value_impl::single_source::argument_pack
         add(max_rad, in);
     }
 };
+
+std::vector<double> initial::calculate_tov_phi(const tov::integration_solution& sol)
+{
+    std::vector<double> ret;
+
+    auto diff = [](const std::vector<double>& buf, const std::vector<double>& radius, int idx)
+    {
+        if(idx == buf.size() - 1)
+        {
+            double h = radius[idx] - radius[idx - 1];
+            return (buf[idx] - buf[idx - 1]) / h;
+        }
+
+        double h = radius[idx + 1] - radius[idx];
+        return (buf[idx + 1] - buf[idx]) / h;
+    };
+
+    ret.reserve(sol.energy_density.size());
+
+    for(int i=0; i < (int)sol.mass.size(); i++)
+    {
+        double dm_dr = diff(sol.mass, sol.radius, i);
+        double r = sol.radius[i];
+        double e = sol.energy_density[i];
+
+        double phi_5 = dm_dr / (2 * M_PI * r*r * e);
+
+        double phi = pow(phi_5, 1/5.);
+
+        ret[i] = phi;
+    }
+
+    return ret;
+}
 
 #if 0
 struct tov_pack
