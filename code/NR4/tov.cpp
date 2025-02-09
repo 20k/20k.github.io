@@ -346,7 +346,6 @@ std::vector<double> initial::calculate_isotropic_r(const tov::integration_soluti
     }
 
     std::vector<double> r_hat;
-    //double r_dot_root = 0;
     double last_r = 0;
     double log_rhat_r = 0;
 
@@ -424,77 +423,3 @@ std::vector<double> initial::calculate_tov_phi(const tov::integration_solution& 
 
     return phi;
 }
-
-#if 0
-struct tov_pack
-{
-    cl::buffer epsilon;
-    float max_rad = 0;
-
-    tov_pack(cl::context ctx) : epsilon(ctx){}
-
-    void push(cl::args& args)
-    {
-        args.push_back(epsilon);
-        args.push_back(max_rad);
-    }
-};
-
-cl::buffer initial::tov_solve_full_grid(cl::context ctx, cl::command_queue cqueue, float scale, t3i dim, const initial::neutron_star& star)
-{
-    std::vector<float> linearised_epsilon;
-    int samples = 100;
-
-    float min_r = 0;
-    float max_r = star.sol.R_msol;
-
-    for(int i=0; i < samples; i++)
-    {
-        float dr = (max_r - min_r) / samples;
-        double r = i * dr;
-
-        int e1 = star.sol.radius_to_index(r);
-        int e2 = star.sol.radius_to_index(r + dr);
-
-        float en1 = star.sol.energy_density.at(e1);
-        float en2 = star.sol.energy_density.at(e2);
-
-        float r1 = star.sol.radius.at(e1);
-        float r2 = star.sol.radius.at(e2);
-
-        float frac = 0;
-
-        if(fabs(r1 - r2) > 0.0001f)
-            frac = (r - r1) / (r2 - r1);
-
-        linearised_epsilon.push_back(mix(en1, en2, frac));
-    }
-
-    cl::buffer epsilon(ctx);
-    epsilon.alloc(sizeof(cl_float) * samples);
-    epsilon.write(cqueue, linearised_epsilon);
-
-    auto get_data = [&](t3i idim, float iscale) {
-        tov_pack pack(ctx);
-        pack.epsilon = epsilon;
-        pack.max_rad = max_r;
-
-        return pack;
-    };
-
-    auto get_rhs = [&](laplace_params params, tov_data data)
-    {
-        v3i centre = (params.dim-1)/2;
-        auto u = params.u;
-        v3i pos = params.pos;
-        v3i dim = params.dim;
-
-        using namespace single_source;
-
-        valuef phi = u[pos, dim];
-        pin(phi);
-
-        //return -2 * M_PI * pow(phi, valuef{5}) *
-    };
-}
-#endif
