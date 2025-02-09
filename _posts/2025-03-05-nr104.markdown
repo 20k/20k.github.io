@@ -411,7 +411,12 @@ Next up, we need to give it momentum and spin. This is where things get a bit co
 
 # Bowen-York Type Initial Data for Binaries with Neutron Stars
 
-The actual paper we're going to be implementing today is [this](https://arxiv.org/pdf/1606.04881) one. Its going to be a step up in complexity compared to things we've solved previously together
+The actual paper we're going to be implementing today is [this](https://arxiv.org/pdf/1606.04881) one. Its going to be a step up in complexity compared to things we've solved previously together. Here's our notational conversions
+
+Todo: Notational layout conversions
+
+Todo: This is a table now. Note that this paper defines $\rho$ as what we've been calling $\epsilon$, and it calls $\epsilon$ a separate quantity we don't have (specific internal energy density). I'm going to keep our existing notation, and translate where appropriate, to try and stem the incredibly random notation
+
 
 If you remember from our black hole initial conditions paper, the basic idea for many kinds of initial conditions is that of conformal flatness. That is to say, we take our adm metric $\gamma_{ij}$, and perform a conformal transform on it by a scalar, to end up with a conformal metric. In this paper, our ADM variables are transformed as follows:
 
@@ -439,7 +444,7 @@ One thing to note is that any time you see a $\pi$, its a sure fire bet that it 
 |$\bar{A}_{ij}$| Conformal extrinsic curvature|
 |$\rho_H$| TODO: I DONT HAVE A CLUE|
 
-This paper in theory lets us solve the TOV equations in a conformally flat spacetime, via (77, 78, + 79), but we've deliberately skipped this step, as the TOV equations are much easier to solve directly. Its also nice, because if you want to it becomes easy to plug in new equations of state
+This paper in theory lets us solve the TOV equations in a conformally flat spacetime, via 77-79, but we've deliberately skipped this step, as the TOV equations are much easier to solve directly. Its also nice, because if you want to it becomes easy to plug in new equations of state, we're in a much more standard formalism
 
 ## Implementing this paper
 
@@ -449,8 +454,6 @@ The procedure in this paper is as follows:
 2. Use that to calculate $\bar{A}_{ij}$
 3. Use that $\bar{A}_{ij}$ solution to construct $\Phi$, the real conformal factor
 4. Bob's your uncle
-
-Note that this paper defines $\rho$ as what we've been calling $\epsilon$, and it calls $\epsilon$ a separate quantity we don't have (specific internal energy density). I'm going to keep our existing notation, and translate where appropriate, to try and stem the incredibly random notation
 
 ## Solving for $\Phi_{tov}$
 
@@ -472,7 +475,7 @@ Todo: insert look back meme, possibly with wesleys face over the dudes face
 
 $$M = 2 \pi \int_0^{r_0} r^2 \Phi_{tov}^5 \epsilon_{tov} dr$$
 
-Where $r_0$ is the radius of our neutron star. Note that, from our TOV solution we already a-piori have $M$. And $\epsilon$. So all we really need to do is differentiate this, to get:
+Where $r_0$ is the radius of our neutron star. Note that, from our TOV solution we already a-piori have $M$, $\epsilon_{tov}$, and $r_0$. So all we really need to do is differentiate this, to get:
 
 $$\frac{dM}{dr} = 2 \pi r^2 \Phi_{tov}^5 \epsilon_{tov}$$
 
