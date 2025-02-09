@@ -266,6 +266,7 @@ struct tov_data : value_impl::single_source::argument_pack
     }
 };
 
+#if 0
 struct tov_pack
 {
     cl::buffer epsilon;
@@ -337,3 +338,4 @@ cl::buffer initial::tov_solve_full_grid(cl::context ctx, cl::command_queue cqueu
         //return -2 * M_PI * pow(phi, valuef{5}) *
     };
 }
+#endif
