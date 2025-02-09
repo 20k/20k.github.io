@@ -470,7 +470,7 @@ Which is more usefully expressed as:
 
 $$\bar{r}\frac{d^2\Phi_{tov}}{d\bar{r}^2} + 2 \frac{d\Phi_{tov}}{d\bar{r}} + 2 \pi \bar{r} \Phi_{tov}^5 \epsilon_{tov} = 0$$
 
-There's a nicer way of solving for $\Phi_{tov}$, but first we should talk about $\bar{r}$. One thing that absolutely must be noted is that the paper we're working on is in *isotropic* coordinates with the radial coordinate $\bar{r}$. Up until now, we've been working in *schwarzschild* coordinates with the radial coordinate $r$. We're going to have to perform a conversion between the two. It isn't too complicated, the conversion function is defined [as follows (15)](https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html#x1-2004r4):
+There's a nicer way of solving for $\Phi_{tov}$, but first we should talk about $\bar{r}$. One thing that absolutely must be noted is that the paper we're working on is in *isotropic* coordinates with the radial coordinate $\bar{r}$. Up until now, we've been working in *schwarzschild* coordinates with the radial coordinate $r$. We're going to have to perform a conversion between the two. It isn't too complicated: the conversion function is defined [as follows (15)](https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html#x1-2004r4):
 
 $$\frac{d(\log(\frac{\bar{r}}{r}))}{\partial r} = \frac{r^{\frac{1}{2}} - (r - 2m)^\frac{1}{2}}{r(r - 2m)\frac{1}{2}}$$
 
@@ -482,7 +482,9 @@ The einstein toolkit page lists TOV in isotropic coordinates as:
 
 $$ds^2 = -e^{2\phi} dt^2 +e^{2\Lambda}(d\bar{r}^2 + \bar{r}^2 d\Omega^2)$$
 
-We can see that $e^{2\Lambda} = \Phi_{tov}^4$. And, helpfully, someone smarter than I am has worked out that $e^{\Lambda} = \frac{r}{\bar{r}}$
+We can see that $e^{2\Lambda} = \Phi_{tov}^4$. And, helpfully, someone smarter[^smrt] than I am has worked out that $e^{\Lambda} = \frac{r}{\bar{r}}$
+
+[^smrt]: [https://physics.stackexchange.com/questions/145342/schwarzschild-metric-in-isotropic-coordinates](https://physics.stackexchange.com/questions/145342/schwarzschild-metric-in-isotropic-coordinates)
 
 This is a much nicer way of calculating this, as $\Phi_{tov} = (\frac{r}{\bar{r}})^\frac{1}{2}$. No laplacians required. We'll also have to note: in the future, if we take the pressure at a radius, we'll need to perform a coordinate conversion if that radius is in isotropic coordinates: ie we need to keep on hand the function $r = f(\bar{r})$, which you should tabulate somewhere
 
