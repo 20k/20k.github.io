@@ -37,7 +37,7 @@ Fun fact: Nobody really knows how neutron stars are structured internally. There
 
 $$P = K \rho_0^\Gamma$$
 
-Where $K$ is a proportionality constant, $\Gamma$ is the polytropic index, $\rho_0$ is the rest mass, and $P$ is the pressure. Please note that there are multiple definitions of this equation: if you see an $n$ its a different convention. If we pick values of $\Gamma$ and $K$, this ties together $p_0$ and $P$. At this point, all we need is a central rest mass density, $\rho_c$, and we have (in theory) completely determined the structure of our star
+Where $K$ is a proportionality constant, $\Gamma$ is the polytropic index, $\rho_0$ is the rest mass, and $P$ is the pressure. Please note that there are multiple definitions of this equation: if you see an $n$ its a different convention. If we pick values of $\Gamma$ and $K$, this ties together $\rho_0$ and $P$. At this point, all we need is a central rest mass density, $\rho_c$, and we have (in theory) completely determined the structure of our star
 
 Unfortunately, there is no analytic solution to any of this, because that would simply be too easy
 
@@ -75,8 +75,8 @@ Here's some useful equations:
 |-|
 |$\mu = \rho_0(1 + \epsilon)$|
 |$P = (\Gamma-1) \rho_0 \epsilon$|
-|$h = 1 + \epsilon + \frac{P}{p_0}$|
-|$p_0h = \mu + P$|
+|$h = 1 + \epsilon + \frac{P}{\rho_0}$|
+|$\rho_0h = \mu + P$|
 
 
 It is common to solve these equations in units of $c=G=M_\odot$, where $M_\odot$ is the mass of the sun. This is why I've provided all the units up above, and we're going go through [converting](https://www.seas.upenn.edu/~amyers/NaturalUnits.pdf) from SI units, to geometric units ($c=G=1$), to that new unit system ($c=G=M_\odot$). In general, you need to redefine mass to avoid your numbers blowing up too much
@@ -507,6 +507,8 @@ Todo: Matching parameters to star exterior
 
 Next up: The extrinsic curvature. First off, we calculate (83-84), remembering that we're using slightly different notation from this paper:
 
+Todo: specify paper notation
+
 $$\begin{align}
 \bar{\mu} &= \Phi_{tov}^8 \mu_{tov}\\
 \bar{p} &= \Phi_{tov}^8 p_{tov}
@@ -590,7 +592,7 @@ You might be wondering if having two functions named $\mathcal{N}$ and $N$ might
 
 Anyway. Implementing this is under (64):
 
-$$\mathcal{N} = \frac{8 \pi}{3} = \int^{r_0}_0 (\bar{\mu} + \bar{p}) r^4\; dr$$
+$$\mathcal{N} = \frac{8 \pi}{3} \int^{r_0}_0 (\bar{\mu} + \bar{p}) r^4\; dr$$
 
 Where $r_0$ is the isotropic radius of our neutron star, and $r$ is the integration variable. Perhaps this goes without saying for people with better reading skills than me, but this function is **not** $N$ >:|
 
@@ -714,7 +716,10 @@ We'll also need to modify the BSSN equations a bit to add matter terms in
 
 Todo: Brief recap of ADM
 
+## Paper notation and equations
+
 Todo: Up front, specify variables, what they mean, their ranges and bounds
+Todo: List all the helper equations in the article
 
 ## Initial conditions
 
@@ -725,17 +730,19 @@ Todo: Use 22 to calculate $h$
 
 Todo: tablify
 Todo: phi -> W
+Todo; delta phi
 
 $$\gamma_{lorentz}^2 =\frac{\mu_H + P}{\mu + P}$$
 $$u^0 = \gamma_{lorentz}$$
-$$p_* = \rho \alpha u^0 e^{6\phi}$$
-$$e_* = (p_0 \epsilon)^\frac{1}{\Gamma}\alpha u^0 e^{6\phi}$$
+$$p_* = \rho_0 \alpha u^0 e^{6\phi}$$
+$$e_* = (\rho_0 \epsilon)^\frac{1}{\Gamma}\alpha u^0 e^{6\phi}$$
+$$P = (\Gamma-1) \rho_0 \epsilon$$
 
-Note that $\Gamma=2$ is used in the gamma law equation of state: $(\Gamma-1) p_0 \epsilon$
+Note that $\Gamma=2$ is used in the gamma law equation of state: $(\Gamma-1) \rho_0 \epsilon$
 
 $$\tilde{S}_i = e^{6\phi} \gamma_{ij} S^j$$
 
-$$p_0 \epsilon = \frac{P}{\Gamma-1}$$
+$$\rho_0 \epsilon = \frac{P}{\Gamma-1}$$
 
 ## Equations
 
@@ -749,6 +756,8 @@ First off, we need to convert from the old style conformal factor $\phi$, to our
 |$\frac{1}{W}$|$e^{2\phi}$|
 |$\frac{1}{W^2}$|$e^{4\phi}$|
 |$\frac{1}{W^3}$|$e^{6\phi}$|
+
+Todo: dphi
 
 I know this is basic, but it saves a lot of time looking things up when you check the reference paper
 
@@ -766,7 +775,7 @@ $$
 
 $$-\frac{2ah(w^2 - p_*^2)}{w} = -2ahw + \frac{p_*^2}{w}$$
 
-Todo: Ok, you can calculate $w^2 - p_*^2$ directly, to avoid doing a $p_*^2$. That's pretty spicy
+Todo: Ok, you can calculate $w^2 - p_*^2$ directly, to avoid doing a $p_*^2$. That's pretty spicy. Its sort of not because we do a p*2 to calculate w so do i really care
 
 There are two quantities we need to calculate here, $v^i$ and $w$
 
@@ -818,9 +827,9 @@ There's also a special case here when $\Gamma = 2$, in that the factor of $p_*$ 
 
 ### Recovering the primitive variables
 
-$p_0$ and $\epsilon$ are often called the primitive variables, and recovering them requires $w$. Once you have that, you can calculate:
+$\rho_0$ and $\epsilon$ are often called the primitive variables, and recovering them requires $w$. Once you have that, you can calculate:
 
-$$p_0 = \frac{e^{-6\phi} p_*^2}{w}$$
+$$\rho_0 = \frac{e^{-6\phi} p_*^2}{w}$$
 
 And
 
@@ -830,7 +839,7 @@ Both of these non regular divisions have their limits at $0$
 
 Other usefully optimised quantities are:
 
-$$p_0 \epsilon = (e_* e^{-6\phi} \frac{p_*}{w})^\Gamma$$
+$$\rho_0 \epsilon = (e_* e^{-6\phi} \frac{p_*}{w})^\Gamma$$
 
 $$h = 1 + \Gamma \epsilon$$
 
@@ -891,10 +900,10 @@ $$P = K \rho_0^\Gamma$$
 
 Boundary conditions are:
 
-1. $M(0) = \frac{4}{3} \pi r_{min}^3 \mu_0$,
+1. $M(0) = \frac{4}{3} \pi r_{min}^3 \mu_c$,
 2. $P(0) = K \rho_{c}^\Gamma$, where $\rho_{c}$ is the central rest mass density
 
-$\mu_0$ is the energy density at the centre of the star, calculated from the rest central density
+$\mu_c$ is the energy density at the centre of the star, calculated from the rest central density
 
 ## Step 2
 
