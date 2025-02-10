@@ -77,4 +77,26 @@ neutron_star::solution neutron_star::solve(const tov::integration_solution& sol)
     {
         return mu_cfl[idx] * pressure_cfl[idx] * pow(radius_iso[idx], 2.);
     }, samples).back();
+
+    std::vector<double> sigma;
+    sigma.reserve(samples);
+
+    for(int i=0; i < samples; i++)
+    {
+        sigma.push_back((mu_cfl[i] + pressure_cfl[i]) / M);
+    }
+
+    std::vector<double> Q = integrate_to_index([&](int idx)
+    {
+        double r = radius_iso[idx];
+
+        return 4 * M_PI * sigma[idx] * r*r;
+    }, samples);
+
+    std::vector<double> C = integrate_to_index([&](int idx)
+    {
+        double r = radius_iso[idx];
+
+        return (2./3.) * M_PI * sigma[idx] * pow(r, 4.);
+    }, samples);
 }

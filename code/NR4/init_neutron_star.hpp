@@ -12,7 +12,7 @@ namespace neutron_star
     struct solution
     {
         std::vector<double> ph_cfl;
-        std::vector<tensor<double, 3, 3>> AIJ_cfl;
+        //std::vector<tensor<double, 3, 3>> AIJ_cfl;
     };
 
     solution solve(const tov::integration_solution& sol);
