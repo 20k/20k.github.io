@@ -806,6 +806,24 @@ Additionally, near the singularity ($\W^2 = 0$) the quantity $A$ diverges. We'll
 
 There's also a special case here when $\Gamma = 2$, in that the factor of $p_*$ drops out. Its worth hardcoding this special case in, because it'll be good for your performance
 
+### Recovering the primitive variables
+
+$p_0$ and $E^z$ are often called the primitive variables, and recovering them requires $w$. Once you have that, you can calculate:
+
+$$p_0 = \frac{e^{-6\phi} p_*^2}{w}$$
+
+And
+
+$$E^z = e_*^\Gamma p_*^{\Gamma - 2} \frac{e^{-6\phi}}{w}^{\Gamma - 1}$$
+
+Both of these non regular divisions have their limits at $0$
+
+Other usefully optimised quantities are:
+
+$$p_0 E^z = (e_* e^{-6\phi} \frac{p_*}{w})^\Gamma$$
+
+$$h = 1 + \Gamma E^z$$
+
 # Initial conditions, abridged
 
 ## Step 1
