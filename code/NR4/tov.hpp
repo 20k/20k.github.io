@@ -15,6 +15,34 @@ double geometric_to_si(double quantity, double kg_exponent, double s_exponent);
 
 namespace tov
 {
+    template<typename T>
+    inline
+    T interpolate_by_radius(const std::vector<double>& radius, const std::vector<T>& quantity, double r)
+    {
+        assert(radius.size() >= 2);
+
+        if(r <= radius.front())
+            return quantity.front();
+
+        if(r >= radius.back())
+            return quantity.back();
+
+        for(int i=0; i < (int)radius.size() - 1; i++)
+        {
+            double r1 = radius[i];
+            double r2 = radius[i + 1];
+
+            if(r > r1 && r <= r2)
+            {
+                double frac = (r - r1) / (r2 - r1);
+
+                return mix(quantity[i], quantity[i + 1], frac);
+            }
+        }
+
+        return quantity.back();
+    }
+
     ///https://colab.research.google.com/drive/1yMD2j3Y6TcsykCI59YWiW9WAMW-SPf12#scrollTo=6vWjt7CWaVyV
     ///https://www.as.utexas.edu/astronomy/education/spring13/bromm/secure/TOC_Supplement.pdf
     ///https://arxiv.org/pdf/gr-qc/0403029
