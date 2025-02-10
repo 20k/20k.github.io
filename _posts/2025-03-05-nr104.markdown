@@ -749,21 +749,7 @@ $$\begin{align}
 \end{align}
 $$
 
-$$-\frac{2ah(w^2 - p_*^2)}{w}$$
-
-looks pretty sus
-
-$$-2ahw + \frac{p_*^2}{w}$$
-
-$$\frac{p_*^2}{w} = \frac{p_*}{\alpha u^0} = p_0 e^{6\phi}$$
-
-$$-2ahw + p_0 e^{6\phi}$$
-
-$$p_0 = \frac{p_*}{\alpha u^0 e^{6\phi}}\\
-\alpha u^0 = \frac{w}{p_*}\\
-p_0 = \frac{p_*^2}{w e^{6\phi}}$$
-
-We can actually calculate $p_0 e^{6\phi} = \frac{p_*^2}{w}$
+$$-\frac{2ah(w^2 - p_*^2)}{w} = -2ahw + \frac{p_*^2}{w}$$
 
 There are two quantities we need to calculate here, $v^i$ and $w$
 
