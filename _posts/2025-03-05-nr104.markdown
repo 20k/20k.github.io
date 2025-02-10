@@ -848,6 +848,16 @@ $$
 
 We'll have to modify our BSSN source term to match the absorbed $W^2$ term, but now our source terms become regular at the metric tensor. This is a nice improvement over the standard arrangement
 
+## The BSSN equations
+
+The modifications are straightforward
+
+1. $$\partial_t K += 4 \pi \alpha (S + \rho_s)$$
+2. $$\partial_t \tilde{A}_{ij} += -8 \pi \alpha \tilde{S}_{ij}^{TF}$$
+3. $$\partial \tilde{\Gamma}^i += -16 \pi \alpha \tilde{\gamma}^{ij} S_j$$
+
+Things conspire very conveniently to avoid having to calculate infinite quantities at the singularity, as these terms are all finite at the singularity
+
 # Initial conditions, abridged
 
 ## Step 1
