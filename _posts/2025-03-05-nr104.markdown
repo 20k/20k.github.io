@@ -779,7 +779,32 @@ There are two problems
 1. There is no analytic solution
 2. It divides by zero a fair bit
 
-We can solve #1 by using fixed point iteration with the initial guess $w=1$ as this is a lorentz factor. #2 is more of a pain
+We can solve #1 by using fixed point iteration with the initial guess $w=1$ (or perhaps, $w=p_*$) as this is a lorentz factor multiplied by density terms. #2 is more of a pain
+
+The way this equation is structured is a little messy. Lets rearrange it a bit:
+
+Todo: Make sure when implementing, that i perform the optimisation a^0 = 1
+
+$$\begin{align}
+A = (e^{-6\phi})^{\Gamma-1}\\
+D = \frac{w^{\Gamma-1}}{w^{\Gamma-1} + A \Gamma e_*^{\Gamma} p_*^{\Gamma-2}}\\
+w = \sqrt{p_*^2 + W^2 \tilde{\gamma}^{ij} \tilde{S}_i \tilde{S}_j D^2}\\
+\end{align}
+$$
+
+Todo: If Gamma = 2, this equation set is kinda inappropriate due to the 1/Ws. we also get:
+
+Correct: https://www.wolframalpha.com/input?i=%281+%2B+T%2F%28P%28w+K+%2F+P%29%5E%28G-1%29%29%29%5E-2
+
+$$
+D = \frac{1}{1 + A w^{1-\Gamma} \Gamma e_*^{\Gamma} p_*^{\Gamma-2}}\\
+$$
+
+No matter how we rearrange this though to make it easier to work with, we do need to work out what the limit of $w$ is as $\frac{1}{w} -> 0$. In our case, you can assume that its either because $\alpha = 0$, in which case we're at a singularity, or $p_* = 0$, in which case there's no matter
+
+Additionally, near the singularity ($\W^2 = 0$) the quantity $A$ diverges. We'll also tend this quantity to zero as well
+
+There's also a special case here when $\Gamma = 2$, in that the factor of $p_*$ drops out. Its worth hardcoding this special case in, because it'll be good for your performance
 
 # Initial conditions, abridged
 
