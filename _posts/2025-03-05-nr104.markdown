@@ -718,16 +718,14 @@ Todo: Brief recap of ADM
 
 First off, we need to translate from our ADM quantities, to this paper's quantities:
 
-Todo: Define $\epsilon$
-Todo: It would be better to calculate this from $S^i$, though it might be too annoying?
+Todo: It would be better to calculate w^2 from $S^i$, though it might be too annoying?
 Todo: Use 22 to calculate $h$
 
 Todo: tablify
-Todo: We have a huge problem: The lorentz factor, and our conformal factor share notation. Consider using $W_l$ for lorentz
 Todo: phi -> W
 
-$$W^2 =\frac{\mu_H + P}{\mu + P}$$
-$$u^0 = W$$
+$$\gamma_{lorentz}^2 =\frac{\mu_H + P}{\mu + P}$$
+$$u^0 = \gamma_{lorentz}$$
 $$p_* = \rho \alpha u^0 e^{6\phi}$$
 $$e_* = (p_0 \epsilon)^\frac{1}{\Gamma}\alpha u^0 e^{6\phi}$$
 
@@ -751,6 +749,22 @@ $$\begin{align}
 \end{align}
 $$
 
+$$-\frac{2ah(w^2 - p_*^2)}{w}$$
+
+looks pretty sus
+
+$$-2ahw + \frac{p_*^2}{w}$$
+
+$$\frac{p_*^2}{w} = \frac{p_*}{\alpha u^0} = p_0 e^{6\phi}$$
+
+$$-2ahw + p_0 e^{6\phi}$$
+
+$$p_0 = \frac{p_*}{\alpha u^0 e^{6\phi}}\\
+\alpha u^0 = \frac{w}{p_*}\\
+p_0 = \frac{p_*^2}{w e^{6\phi}}$$
+
+We can actually calculate $p_0 e^{6\phi} = \frac{p_*^2}{w}$
+
 There are two quantities we need to calculate here, $v^i$ and $w$
 
 ### $v^i$
@@ -761,7 +775,7 @@ Then, we calculate $v^i = -\beta + \frac{p_* \alpha h \tilde{\gamma}^{ij} u_j}{w
 
 Conveniently, this quantity is actually:
 
-$v^i = -\beta + \frac{W^2 \alpha \tilde{\gamma}^{ij} \tilde{S}_j}{w h}$
+$v^i = -\beta^i + \frac{W^2 \alpha \tilde{\gamma}^{ij} \tilde{S}_j}{w h}$
 
 Which removes a problematic division by 0, in calculating $u_k$
 
@@ -791,13 +805,7 @@ w = \sqrt{p_*^2 + W^2 \tilde{\gamma}^{ij} \tilde{S}_i \tilde{S}_j D^2}\\
 \end{align}
 $$
 
-Todo: If Gamma = 2, this equation set is kinda inappropriate due to the 1/Ws. we also get. I'm super dumb. Gamma = 2 is fine, past me was smrt. Todo: Delete the below
-
-Correct: https://www.wolframalpha.com/input?i=%281+%2B+T%2F%28P%28w+K+%2F+P%29%5E%28G-1%29%29%29%5E-2
-
-$$
-D = \frac{1}{1 + A w^{1-\Gamma} \Gamma e_*^{\Gamma} p_*^{\Gamma-2}}\\
-$$
+Todo: Only limit the bottom right term of D
 
 No matter how we rearrange this though to make it easier to work with, we do need to work out what the limit of $w$ is as $\frac{1}{w} -> 0$. In our case, you can assume that its either because $\alpha = 0$, in which case we're at a singularity, or $p_* = 0$, in which case there's no matter
 
