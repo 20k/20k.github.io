@@ -737,19 +737,34 @@ $$p_0 \epsilon = \frac{P}{\Gamma-1}$$
 
 ## Equations
 
+First off, we need to convert from the old style conformal factor $\phi$, to ours $W^2$. The conformal decomposition is defined as follows: $$\tilde{\gamma}_{ij} = W^2 \gamma_{ij} = e^{-4\phi} \gamma_{ij}$$
+
+|Ours|Theirs|
+|-|-|
+|$W$|$e^{-2\phi}$|
+|$W^2$|$e^{-4\phi}$|
+|$W^3$|$e^{-6\phi}$|
+|$\frac{1}{W}$|$e^{2\phi}$|
+|$\frac{1}{W^2}$|$e^{4\phi}$|
+|$\frac{1}{W^3}$|$e^{6\phi}$|
+
+I know this is basic, but it saves a lot of time looking things up when you check the reference paper
+
 The equations themselves are straightforward:
 
 $$\begin{align}
 \partial_t p_* = &-\partial_i(p_* v^i)\\
 \partial_t e_* = &-\partial_i(e_* v^i)\\
 \partial_t \tilde{S}_k = &-\partial_i(\tilde{S}_k v^i) \\
-                       &- \alpha e^{6\phi} \partial_k P - w h \partial_k \alpha \\
-                       &-\tilde{S}_j \partial_k \beta^j + \frac{\alpha e^{-4\phi}\tilde{S}_i \tilde{S}_j}{2wh} \partial_k \tilde{\gamma}^{ij}\\
+                       &- \alpha \frac{1}{W^3} \partial_k P - w h \partial_k \alpha \\
+                       &-\tilde{S}_j \partial_k \beta^j + \frac{\alpha W^2\tilde{S}_i \tilde{S}_j}{2wh} \partial_k \tilde{\gamma}^{ij}\\
                        &- \frac{2 \alpha h(w^2 - p_*^2)}{w} \partial_k \phi
 \end{align}
 $$
 
 $$-\frac{2ah(w^2 - p_*^2)}{w} = -2ahw + \frac{p_*^2}{w}$$
+
+Todo: Ok, you can calculate $w^2 - p_*^2$ directly, to avoid doing a $p_*^2$. That's pretty spicy
 
 There are two quantities we need to calculate here, $v^i$ and $w$
 
@@ -785,9 +800,9 @@ The way this equation is structured is a little messy. Lets rearrange it a bit:
 Todo: Make sure when implementing, that i perform the optimisation a^0 = 1
 
 $$\begin{align}
-A = (e^{-6\phi})^{\Gamma-1}\\
+A = (W^3)^{\Gamma-1}\\
 D = \frac{w^{\Gamma-1}}{w^{\Gamma-1} + A \Gamma e_*^{\Gamma} p_*^{\Gamma-2}}\\
-w = \sqrt{p_*^2 + W^2 \tilde{\gamma}^{ij} \tilde{S}_i \tilde{S}_j D^2}\\
+w^2 = p_*^2 + W^2 \tilde{\gamma}^{ij} \tilde{S}_i \tilde{S}_j D^2\\
 \end{align}
 $$
 
