@@ -802,7 +802,7 @@ $$
 
 No matter how we rearrange this though to make it easier to work with, we do need to work out what the limit of $w$ is as $\frac{1}{w} -> 0$. In our case, you can assume that its either because $\alpha = 0$, in which case we're at a singularity, or $p_* = 0$, in which case there's no matter
 
-Additionally, near the singularity ($\W^2 = 0$) the quantity $A$ diverges. We'll also tend this quantity to zero as well
+Additionally, near the singularity ($W^2 = 0$) the quantity $A$ diverges. We'll also tend this quantity to zero as well
 
 There's also a special case here when $\Gamma = 2$, in that the factor of $p_*$ drops out. Its worth hardcoding this special case in, because it'll be good for your performance
 
@@ -814,7 +814,7 @@ $$p_0 = \frac{e^{-6\phi} p_*^2}{w}$$
 
 And
 
-$$E^z = e_*^\Gamma p_*^{\Gamma - 2} \frac{e^{-6\phi}}{w}^{\Gamma - 1}$$
+$$E^z = e_*^\Gamma p_*^{\Gamma - 2} (\frac{e^{-6\phi}}{w})^{\Gamma - 1}$$
 
 Both of these non regular divisions have their limits at $0$
 
@@ -823,6 +823,30 @@ Other usefully optimised quantities are:
 $$p_0 E^z = (e_* e^{-6\phi} \frac{p_*}{w})^\Gamma$$
 
 $$h = 1 + \Gamma E^z$$
+
+## ADM Source terms
+
+There are four standard adm source terms. These make up the components of the stress energy tensor, which are fed into our ADM equations to make matter work
+
+$$\begin{align}
+\rho_s &= h w e^{-6\phi} - P\\
+S_i &= e^{-6\phi}\tilde{S}_i\\
+S_{ij} &= \frac{e^{-6\phi}}{wh}\tilde{S}_i \tilde{S}_j + P \gamma_{ij}\\
+S &= \gamma^{ij} S_{ij}\\
+\end{align}$$
+
+There's a small problem: these source terms are singular at the singularity. The issue is that $\gamma_{ij}$ is undefined
+
+Luckily, we can skip to the future, and discover that the form of our $S_{ij}$ source term is actually: $-W^2 8 \pi \alpha S_{ij}$. Given that $$W^2 \gamma_{ij} = \tilde{\gamma}_{ij}$$, we can instead re-format our equation like this:
+
+$$
+\begin{align}
+\tilde{S}_{ij} &= W^2 \frac{e^{-6\phi}}{wh} \tilde{S}_i \tilde{S}_j + P \tilde{\gamma}_{ij}\\
+S &=\tilde{\gamma}^{ij} \tilde{S}_{ij} \\
+\end{align}
+$$
+
+We'll have to modify our BSSN source term to match the absorbed $W^2$ term, but now our source terms become regular at the metric tensor. This is a nice improvement over the standard arrangement
 
 # Initial conditions, abridged
 
