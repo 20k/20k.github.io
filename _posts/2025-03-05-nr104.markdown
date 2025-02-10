@@ -792,7 +792,7 @@ w = \sqrt{p_*^2 + W^2 \tilde{\gamma}^{ij} \tilde{S}_i \tilde{S}_j D^2}\\
 \end{align}
 $$
 
-Todo: If Gamma = 2, this equation set is kinda inappropriate due to the 1/Ws. we also get:
+Todo: If Gamma = 2, this equation set is kinda inappropriate due to the 1/Ws. we also get. I'm super dumb. Gamma = 2 is fine, past me was smrt. Todo: Delete the below
 
 Correct: https://www.wolframalpha.com/input?i=%281+%2B+T%2F%28P%28w+K+%2F+P%29%5E%28G-1%29%29%29%5E-2
 
