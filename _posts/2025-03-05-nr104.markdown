@@ -702,7 +702,7 @@ We're going to be looking at two papers today, primarily the latter:
 
 [Hydrodynamic Simulations in 3+1 General Relativity](https://arxiv.org/pdf/gr-qc/0209102)
 
-If you're thinking *this sure seems like a lot to cram in one article*, in general relativity: the initial conditions are often significantly more complicated than the evolution equations. Today that's especially true, because its not going to be terribly complicated
+If you're thinking *this sure seems like a lot to cram in one article*, in general relativity: the initial conditions are often significantly more complicated than the evolution equations. Today that's especially true, because its not going to be too bad to get from here to the end of the article
 
 We are going to modify this paper quite a bit though:
 
@@ -713,6 +713,8 @@ We are going to modify this paper quite a bit though:
 We'll also need to modify the BSSN equations a bit to add matter terms in
 
 Todo: Brief recap of ADM
+
+Todo: Up front, specify variables, what they mean, their ranges and bounds
 
 ## Initial conditions
 
@@ -788,16 +790,16 @@ This quantity is much less fun. It has the following form (29):
 
 $$w^2 = p_*^2+ W^2 \tilde{\gamma}^{ij}\tilde{S}_i \tilde{S}_j \left[1 + \frac{\Gamma e_*^{\Gamma}}{p_*(w \frac{e^{6\phi}}{p_*})^{\Gamma-1}} \right]^{-2}$$
 
-There are two problems
+There are two problems:
 
 1. There is no analytic solution
 2. It divides by zero a fair bit
 
-We can solve #1 by using fixed point iteration with the initial guess $w=1$ (or perhaps, $w=p_*$) as this is a lorentz factor multiplied by density terms. #2 is more of a pain
+We can solve #1 very easily using fixed point iteration with the initial guess $w=1$ (or perhaps, $w=p_*$) as this is a lorentz factor multiplied by density terms. Simply plug in your guess into the right hand side, calculate the new value of $w$, and rinse and repeat. #2 is more of a pain
 
 The way this equation is structured is a little messy. Lets rearrange it a bit:
 
-Todo: Make sure when implementing, that i perform the optimisation a^0 = 1
+Todo: Make sure when implementing, that i perform the optimisation a^0 = 1. I also need to unroll pow's because Ayymd
 
 $$\begin{align}
 A = (W^3)^{\Gamma-1}\\
