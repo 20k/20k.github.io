@@ -15,7 +15,6 @@ namespace neutron_star
     {
         std::vector<double> mu_cfl;
         std::vector<double> pressure_cfl;
-        //std::vector<tensor<double, 3, 3>> AIJ_cfl;
 
         std::vector<double> N;
         std::vector<double> Q;
@@ -28,9 +27,9 @@ namespace neutron_star
     {
         cl::buffer mu_cfl;
         cl::buffer pressure_cfl;
-        std::array<cl::buffer, 6> Aij_cfl;
+        std::array<cl::buffer, 6> AIJ_cfl;
 
-        discretised_solution(cl::context& ctx) : mu_cfl(ctx), pressure_cfl(ctx), Aij_cfl{ctx, ctx, ctx, ctx, ctx, ctx}{}
+        discretised_solution(cl::context& ctx) : mu_cfl(ctx), pressure_cfl(ctx), AIJ_cfl{ctx, ctx, ctx, ctx, ctx, ctx}{}
     };
 
     void add_to_solution(cl::context& ctx, cl::command_queue& cqueue, discretised_solution& dsol, const solution& nsol, const tov::integration_solution& tsol);
