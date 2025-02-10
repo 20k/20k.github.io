@@ -866,9 +866,13 @@ $$\begin{align}
 \partial_t K &\mathrel{+}= 4 \pi \alpha (S + \rho_s)\\
 \partial_t \tilde{A}_{ij} &\mathrel{+}= -8 \pi \alpha \tilde{S}_{ij}^{TF}\\
 \partial \tilde{\Gamma}^i &\mathrel{+}= -16 \pi \alpha \tilde{\gamma}^{ij} S_j\\
+\mathcal{H} &\mathrel{+}= -16 \pi \rho_s\\
+\mathcal{M}_i &\mathrel{+}= -8 \pi S_i\\
 \end{align}$$
 
-Things conspire very conveniently to avoid having to calculate infinite quantities at the singularity, as these terms are all finite at the singularity. I have no idea why, but its certainly a nice property for us
+Todo: check a second source for $M$ to make sure its the correct sign
+
+The source terms conspire very conveniently to avoid having to calculate infinite quantities at the singularity which is great. The only infinities we have to worry about are in the actual hydrodynamic evolution equations themselves
 
 # Initial conditions, abridged
 
