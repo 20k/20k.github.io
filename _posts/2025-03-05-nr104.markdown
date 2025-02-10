@@ -48,8 +48,8 @@ The equation that governs a relativistic, spherically symmetric body in hydrosta
 Wikipedia lists an unnecessarily complicated form of the equations, so [here's (17)](https://www.as.utexas.edu/astronomy/education/spring13/bromm/secure/TOC_Supplement.pdf) a nicer form (in units of $c=G=1$, schwarzschild coordinates):
 
 $$\begin{align}
-\frac{dm}{dr} &= 4 \pi r^2 \epsilon\\
-\frac{dP}{dr} &= -(\epsilon + P)\frac{m + 4 \pi r^3 P}{r(r-2m)}
+\frac{dm}{dr} &= 4 \pi r^2 \mu\\
+\frac{dP}{dr} &= -(\mu + P)\frac{m + 4 \pi r^3 P}{r(r-2m)}
 \end{align}$$
 
 |Symbol|Meaning|
@@ -57,14 +57,15 @@ $$\begin{align}
 |$r$|The radius, which parameterises the integration|
 |$m$|The mass at a radius of less than $r$. Corresponds to the ADM mass|
 |$P$|Pressure at $r$|
-|$\epsilon$| Total internal energy density at $r$. This isn't the energy density integrated, 'total' refers to a combination of different energies - but at a specific point|
+|$\mu$| Total specific energy density at $r$. This isn't the energy density integrated, 'total' refers to a combination of different energies - but at a specific point|
+|$\epsilon$| Specific internal energy density|
 
 This is one of the areas of the literature where the notation is, frankly, really bad. I have no idea why, but people re-use the same symbols for everything, and they are sometimes even redefined on the fly. Here's how to actually calculate everything, and how it all relates:
 
 |Symbol|Name|Si Units|Geometric Units|Derivation from $P$|Derivation from $\rho_0$|
 |-|-|-|-|-|-|
 |$\rho_0$|Rest Mass Density|$\mathrm{kg}\; \mathrm{m}^{-3}$|$\mathrm{m}^{-2}$|$(\frac{P}{K})^{1/\Gamma}$|$\rho_0$|
-|$\epsilon$|Total Energy Density|$\mathrm{kg}\; \mathrm{m}^{-1}\; \mathrm{s}^{-2}$|$\mathrm{m}^{-2}$|$(\frac{P}{K})^{1/\Gamma} + \frac{P}{\Gamma-1}$|$\rho_0 + K \frac{\rho_0^\Gamma}{\Gamma-1}$|
+|$\mu$|Total Energy Density|$\mathrm{kg}\; \mathrm{m}^{-1}\; \mathrm{s}^{-2}$|$\mathrm{m}^{-2}$|$(\frac{P}{K})^{1/\Gamma} + \frac{P}{\Gamma-1}$|$\rho_0 + K \frac{\rho_0^\Gamma}{\Gamma-1}$|
 |$P$|Pressure|$\mathrm{kg}\;\mathrm{m}^{-1} \; \mathrm{s}^{-2}$|$\mathrm{m}^{-2}$|$P$|$K \rho_0^\Gamma$|
 |$K$|Polytropic Constant (informal)|$\mathrm{kg}^{1-\Gamma} \; \mathrm{m}^{3\Gamma-1}\;\mathrm{s}^{-2}$|$\mathrm{m}^{2\Gamma-2}$|||
 
@@ -72,10 +73,10 @@ Here's some useful equations:
 
 |Equation|
 |-|
-|$\epsilon = \rho_0(1 + E^z)$|
+|$\mu = \rho_0(1 + E^z)$|
 |$P = (\Gamma-1) \rho_0 E^z$|
 |$h = 1 + E^z + \frac{P}{p_0}$|
-|$p_0h = \epsilon + P$|
+|$p_0h = \mu + P$|
 
 
 It is common to solve these equations in units of $c=G=M_\odot$, where $M_\odot$ is the mass of the sun. This is why I've provided all the units up above, and we're going go through [converting](https://www.seas.upenn.edu/~amyers/NaturalUnits.pdf) from SI units, to geometric units ($c=G=1$), to that new unit system ($c=G=M_\odot$). In general, you need to redefine mass to avoid your numbers blowing up too much
@@ -98,7 +99,7 @@ Then, we need initial values for our other variables, at $r=r_{min}$:
 
 |Variable|Value|
 |-|-|
-|$M$| $\frac{4}{3} \pi r_{min}^3 \epsilon\;$ (the integral of $\frac{dm}{dr}$, with $\epsilon$ held constant) |
+|$M$| $\frac{4}{3} \pi r_{min}^3 \mu\;$ (the integral of $\frac{dm}{dr}$, with $\mu$ held constant) |
 |$P$| $K \rho_c^\Gamma$ |
 
 Once we've done this, lets integrate. This is done by spotting that these are simple first order in 'time' (where $dt=dr$) systems, and can be solved with euler integration
@@ -343,11 +344,11 @@ You might notice, the ADM mass is not our free parameter - despite generally bei
 
 I think we both know deep down in our hearts that this section wasn't going to read "here's how to calculate the central density from the ADM mass", and that instead we'd be forced to bruteforce it. Firstly, we can pick an initial guess for the central energy as follows:
 
-$$M = \frac{4}{3} \pi r^3 \epsilon$$
+$$M = \frac{4}{3} \pi r^3 \mu$$
 
-Ie, we assume a constant $\epsilon$ through the star, then calculate this as a density. We'll have to guess our neutron star mass as well: the ratio of mass to radius is called the compactness factor $C$, and we can do $R=\frac{M}{C=0.06}$ as a guess. We're just looking for a vague ballpark range here
+Ie, we assume a constant $\mu$ through the star, then calculate this as a density. We'll have to guess our neutron star mass as well: the ratio of mass to radius is called the compactness factor $C$, and we can do $R=\frac{M}{C=0.06}$ as a guess. We're just looking for a vague ballpark range here
 
-From there, you can simply bruteforce over a range of central density values, eg $\frac{\epsilon}{100}$ -> $5 \epsilon$, converted to rest densities
+From there, you can simply bruteforce over a range of central density values, eg $\frac{\mu}{100}$ -> $5 \mu$, converted to rest densities
 
 There's a teeny problem here. Neutron star ADM masses are not unique. You see, the graph of radius vs mass looks like this:
 
@@ -416,7 +417,7 @@ This performs a pretty basic bruteforce through the parameter space, and looks f
 
 ## Key takeaways from solving TOV
 
-At the end of this process, we've gained the ability to describe the following variables of our neutron star: rest mass density $\rho_0$, energy density $\epsilon$, ADM mass $M$, and pressure $P$. Keep this in mind as we carry on forwards. We've now solved the first step in our initial conditions procedure: constructing a static neutron star
+At the end of this process, we've gained the ability to describe the following variables of our neutron star: rest mass density $\rho_0$, energy density $\mu$, ADM mass $M$, and pressure $P$. Keep this in mind as we carry on forwards. We've now solved the first step in our initial conditions procedure: constructing a static neutron star
 
 Next up, we need to give it momentum and spin. This is where things get a bit complicated
 
@@ -426,7 +427,7 @@ The actual paper we're going to be implementing today is [this](https://arxiv.or
 
 |Symbol|This article|Paper
 |-|-|-|
-|Total energy density|$\epsilon$|$\rho$|
+|Total energy density|$\mu$|$\rho$|
 |Pressure|$P$ or $p$|$p$|
 
 I'm trying to stem the incredibly random notational divergence in the literature a bit to make things less crazy to follow, which is why I'm converting. We'll also be swapping from $P$ to $p$, because $P^i$ will be used for the ADM momentum
@@ -447,7 +448,7 @@ Where $$\bar{\gamma}_{ij}$$ is the conformally flat (ie the identity matrix) met
 
 The conformally flatness assumption, as well as the maximal slice assumption, gives us a familiar looking constraint to solve:
 
-$$\partial^i \partial_i \Phi = -\frac{1}{8} \Phi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \Phi^5 \epsilon_H$$
+$$\partial^i \partial_i \Phi = -\frac{1}{8} \Phi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \Phi^5 \mu_H$$
 
 One thing to note is that any time you see a $\pi$, its a sure fire bet that it means there are matter terms involved
 
@@ -455,7 +456,7 @@ One thing to note is that any time you see a $\pi$, its a sure fire bet that it 
 |-|-|
 |$\Phi$|Conformal factor, unknown|
 |$\bar{A}_{ij}$| Conformal extrinsic curvature|
-|$\epsilon_H$| Scalar matter source for the ADM equations|
+|$\mu_H$| Scalar matter source for the ADM equations|
 
 This paper in theory lets us solve the TOV equations in a conformally flat spacetime, via (77-79), but we've deliberately skipping this step, as solving the TOV equations directly is much simpler. In general I wouldn't recommend implementing section VI (other than (83-84)), and I think eq (82) is incorrect unfortunately
 
@@ -472,15 +473,15 @@ The procedure in this paper is as follows:
 
 First off, we need to start over in section VI. Given that we a-priori have our matter distribution, we don't need to solve for $\alpha$, or $\Theta$ luckily, and the only variable we need is $\Phi_{tov}$. The standard approach to solving for $\Phi_{tov}$ is either (86):
 
-$$\Delta \Phi_{tov} = -2 \pi \Phi_{tov}^5 \epsilon_{tov}$$
+$$\Delta \Phi_{tov} = -2 \pi \Phi_{tov}^5 \mu_{tov}$$
 
 Or we could also solve the 1d equation (77):
 
-$$\frac{1}{\bar{r}^2}\frac{d(\bar{r}^2 \frac{d\Phi_{tov}}{d\bar{r}})}{d\bar{r}} = -2 \pi \Phi_{tov}^5 \epsilon_{tov}$$
+$$\frac{1}{\bar{r}^2}\frac{d(\bar{r}^2 \frac{d\Phi_{tov}}{d\bar{r}})}{d\bar{r}} = -2 \pi \Phi_{tov}^5 \mu_{tov}$$
 
 Which is more usefully expressed as:
 
-$$\bar{r}\frac{d^2\Phi_{tov}}{d\bar{r}^2} + 2 \frac{d\Phi_{tov}}{d\bar{r}} + 2 \pi \bar{r} \Phi_{tov}^5 \epsilon_{tov} = 0$$
+$$\bar{r}\frac{d^2\Phi_{tov}}{d\bar{r}^2} + 2 \frac{d\Phi_{tov}}{d\bar{r}} + 2 \pi \bar{r} \Phi_{tov}^5 \mu_{tov} = 0$$
 
 There's a nicer way of solving for $\Phi_{tov}$, but first we should talk about $\bar{r}$. One thing that absolutely must be noted is that the paper we're working on is in *isotropic* coordinates with the radial coordinate $\bar{r}$. Up until now, we've been working in *schwarzschild* coordinates with the radial coordinate $r$. We're going to have to perform a conversion between the two. It isn't too complicated: the conversion function is defined [as follows (15)](https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html#x1-2004r4):
 
@@ -507,7 +508,7 @@ Todo: Matching parameters to star exterior
 Next up: The extrinsic curvature. First off, we calculate (83-84), remembering that we're using slightly different notation from this paper:
 
 $$\begin{align}
-\bar{\epsilon} &= \Phi_{tov}^8 \epsilon_{tov}\\
+\bar{\mu} &= \Phi_{tov}^8 \mu_{tov}\\
 \bar{p} &= \Phi_{tov}^8 p_{tov}
 \end{align}$$
 
@@ -541,7 +542,7 @@ From now on, **our $r$ coordinate is always isotropic**. You should either re-la
 
 The first thing we need is to calculate $\mathcal{M}$. This is straightforward via (59)
 
-$$\mathcal{M} = 4\pi \int^{r_0}_0 (\bar{\epsilon} + \bar{p}) r^2 dr$$
+$$\mathcal{M} = 4\pi \int^{r_0}_0 (\bar{\mu} + \bar{p}) r^2 dr$$
 
 Integrating this is a straightforward piecewise numerical integration. $r_0$ is the isotropic radius of our neutron star, and $r$ is the integration variable. Note that this quantity is not the same as $M$
 
@@ -549,7 +550,7 @@ Integrating this is a straightforward piecewise numerical integration. $r_0$ is 
 
 Next up, we'll calculate sigma. This is done via (57):
 
-$$\sigma = \frac{\bar{\epsilon} + \bar{p}}{\mathcal{M}}$$
+$$\sigma = \frac{\bar{\mu} + \bar{p}}{\mathcal{M}}$$
 
 #### $Q$ and $C$
 
@@ -579,6 +580,7 @@ Here's what everything means
 |$r$|Coordinate distance (in isotropic coordinates) from the neutron stars origin|
 |$l^i$| $l^i=\frac{x^i}{r}$, a unit radial vector (lower with $\eta_{ij}$)|
 |$N$| We'll get to this|
+|$\epsilon^{ijk}$| The levi civita symbol|
 
 As previously, we'll dig into the procedure for calculating $N$, and linearise the procedure because the functions are a bit scattered
 
@@ -588,7 +590,7 @@ You might be wondering if having two functions named $\mathcal{N}$ and $N$ might
 
 Anyway. Implementing this is under (64):
 
-$$\mathcal{N} = \frac{8 \pi}{3} = \int^{r_0}_0 (\bar{\epsilon} + \bar{p}) r^4\; dr$$
+$$\mathcal{N} = \frac{8 \pi}{3} = \int^{r_0}_0 (\bar{\mu} + \bar{p}) r^4\; dr$$
 
 Where $r_0$ is the isotropic radius of our neutron star, and $r$ is the integration variable. Perhaps this goes without saying for people with better reading skills than me, but this function is **not** $N$ >:|
 
@@ -596,7 +598,7 @@ Where $r_0$ is the isotropic radius of our neutron star, and $r$ is the integrat
 
 (62)
 
-$$\kappa =\frac{\bar{\epsilon} + \bar{p}}{\mathcal{N}}$$
+$$\kappa =\frac{\bar{\mu} + \bar{p}}{\mathcal{N}}$$
 
 #### $N$
 
@@ -610,19 +612,19 @@ When $r>r_0$, $N(r) = 1$, and you should enforce this
 
 ## Calculating $\Phi$, the conformal factor
 
-We now have $\bar{\epsilon}$, $\bar{p}$, and $\bar{A}^{ij} = \bar{A}^{ij}_P + \bar{A}^{ij}_J$. We're going to put this all together, and solve the final piece of our puzzle (22):
+We now have $\bar{\mu}$, $\bar{p}$, and $\bar{A}^{ij} = \bar{A}^{ij}_P + \bar{A}^{ij}_J$. We're going to put this all together, and solve the final piece of our puzzle (22):
 
-$$\Delta \Phi = -\frac{1}{8} \Phi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \Phi^{-3} \bar{\epsilon}_H$$
+$$\Delta \Phi = -\frac{1}{8} \Phi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \Phi^{-3} \bar{\mu}_H$$
 
-This is a standard laplacian. We're going to go over the details of how to perform our full construction after we finish up our next step, which is solving for $\epsilon_H$. Whatever it is, it can't be that bad, right?
+This is a standard laplacian. We're going to go over the details of how to perform our full construction after we finish up our next step, which is solving for $\mu_H$. Whatever it is, it can't be that bad, right?
 
 Todo: Londo (wesley?)
 
-### Solving for $\epsilon_H$ is indeed that bad
+### Solving for $\mu_H$ is indeed that bad
 
-The definition can be found by applying $\Phi_{tov}^8$ to $\epsilon_H$ (6 + 20):
+The definition can be found by applying $\Phi_{tov}^8$ to $\mu_H$ (6 + 20):
 
-$$\bar{\epsilon}_H = (\bar{\epsilon} + \bar{p})W^2 - \bar{p}$$
+$$\bar{\mu}_H = (\bar{\mu} + \bar{p})W^2 - \bar{p}$$
 
 Which should be set to $0$ when $r>r_0$. What's $W$?
 
@@ -659,7 +661,7 @@ Here, I'm going to describe how to mix together neutron stars, and black holes. 
 
 Next up, we need to do a bit of work (oh no!). First off, we need to remember that we can express our conformal factor $\Phi = 1 + u + F$. $u$ is a correction, and what we solve for in the laplacian. We didn't dig into this, but as black holes have no matter distribution, the term $F$ (originally called: $\frac{1}{a}$) is to stop the solution from being trivially conformally flat. This isn't a problem for neutron stars, as you can see in our laplacian we have the term
 
-$$- 2 \pi \Phi^{-3} \bar{\epsilon}_H$$
+$$- 2 \pi \Phi^{-3} \bar{\mu}_H$$
 
 Which is a matter term on the right hand side to prevent it from being flat. To make this all interoperate correctly and give correct solutions, I'll lay out how this works:
 
@@ -670,13 +672,13 @@ Which is a matter term on the right hand side to prevent it from being flat. To 
 
 To calculate $F$, sum over $F_{(i)}$ for every object
 
-The last thing to do is figure out what to do with our individual $\bar{\epsilon}_H$ terms. Luckily, you simply sum these, and make sure that an individual neutron stars contribution is $0$ outside of its radius. To make this super explicit:
+The last thing to do is figure out what to do with our individual $\bar{\mu}_H$ terms. Luckily, you simply sum these, and make sure that an individual neutron stars contribution is $0$ outside of its radius. To make this super explicit:
 
 $$\begin{align}
 \bar{A}_{ij}^{sum} &= \sum^N_{k=1} \bar{A}_{ij}^{(k)}\\
 F^{sum} &= \sum^N_{k=1} F_{(k)} \\
-\bar{\epsilon}^{sum}_H &= \sum^N_{k=1} \bar{\epsilon}_H^{(k)}\\
-\Delta u &= -\frac{1}{8} \Phi^{-7} \bar{A}_{ij}^{sum} \bar{A}^{ij}_{sum} - 2 \pi \Phi^{-3} \bar{\epsilon}^{sum}_H
+\bar{\mu}^{sum}_H &= \sum^N_{k=1} \bar{\mu}_H^{(k)}\\
+\Delta u &= -\frac{1}{8} \Phi^{-7} \bar{A}_{ij}^{sum} \bar{A}^{ij}_{sum} - 2 \pi \Phi^{-3} \bar{\mu}^{sum}_H
 \end{align}$$
 
 That's it, we're good to go. From here on, its just a standard laplacian of exactly the same form we solved in todo: this article, and there's absolutely nothing special whatsoever
@@ -687,10 +689,10 @@ This lets us solve for our ADM quantities:
 |-|-|-|
 |Metric Tensor|$\gamma_{ij}$|$$\Phi^4 \bar{\eta}_{ij}$$|
 |Extrinsic Curvature|$$K_{ij}$$|$$\Phi^{-2} \bar{A}{ij}$$|
-| Initial Adm Matter Source | $$\epsilon_H$$ | $$\Phi^{-8} \bar{\epsilon}_H$$ |
+| Initial Adm Matter Source | $$\mu_H$$ | $$\Phi^{-8} \bar{\mu}_H$$ |
 | Initial Adm Matter Source | $$S^i$$ | $$\Phi^{-10} S^i$$ |
 | Initial Pressure | $P$ | $\Phi^{-8} \bar{P}$ |
-| Initial Energy Density | $\epsilon$ | $\Phi^{-8} \epsilon$ |
+| Initial Energy Density | $\mu$ | $\Phi^{-8} \mu$ |
 
 # Relativistic Eularian Hydrodynamics
 
@@ -717,7 +719,7 @@ Todo: Brief recap of ADM
 First off, we need to translate from our ADM quantities, to this paper's quantities:
 
 Todo: Define $E^z$
-Todo: I definitely need to harmonise notation. $\epsilon -> \mu$, $E^z -> \epsilon$
+Todo: I definitely need to harmonise notation. $E^z -> \epsilon$
 Todo: It would be better to calculate this from $S^i$, though it might be too annoying?
 Todo: Use 22 to calculate $h$
 
@@ -725,7 +727,7 @@ Todo: tablify
 Todo: We have a huge problem: The lorentz factor, and our conformal factor share notation. Consider using $W_l$ for lorentz
 Todo: phi -> W
 
-$$W^2 =\frac{\epsilon_H + P}{\epsilon + P}$$
+$$W^2 =\frac{\mu_H + P}{\mu + P}$$
 $$u^0 = W$$
 $$p_* = \rho \alpha u^0 e^{6\phi}$$
 $$e_* = (p_0 E^z)^\frac{1}{\Gamma}\alpha u^0 e^{6\phi}$$
@@ -864,11 +866,11 @@ Things conspire very conveniently to avoid having to calculate infinite quantiti
 
 ## Step 1
 
-Solve these two equations for the following quantities: mass ($M$), radius ($R$), and energy density ($\epsilon$). Stop integrating when $P <= 0$. This determines $R$. The integration should start at $r=r_{min}$
+Solve these two equations for the following quantities: mass ($M$), radius ($R$), and energy density ($\mu$). Stop integrating when $P <= 0$. This determines $R$. The integration should start at $r=r_{min}$
 
 $$\begin{align}
-\frac{dm}{dr} &= 4 \pi r^2 \epsilon\\
-\frac{dP}{dr} &= -(\epsilon + P)\frac{m + 4 \pi r^3 P}{r(r-2m)}
+\frac{dm}{dr} &= 4 \pi r^2 \mu\\
+\frac{dP}{dr} &= -(\mu + P)\frac{m + 4 \pi r^3 P}{r(r-2m)}
 \end{align}$$
 
 With the equation of state:
@@ -877,10 +879,10 @@ $$P = K \rho_0^\Gamma$$
 
 Boundary conditions are:
 
-1. $M(0) = \frac{4}{3} \pi r_{min}^3 \epsilon_0$,
+1. $M(0) = \frac{4}{3} \pi r_{min}^3 \mu_0$,
 2. $P(0) = K \rho_{c}^\Gamma$, where $\rho_{c}$ is the central rest mass density
 
-Todo: List $\epsilon$
+$\mu_0$ is the energy density at the centre of the star, calculated from the rest central density
 
 ## Step 2
 
