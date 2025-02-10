@@ -257,34 +257,6 @@ std::vector<double> tov::search_for_adm_mass(double adm_mass, const parameters& 
     return out;
 }
 
-
-template<typename T>
-T interpolate_by_radius(const std::vector<double>& radius, const std::vector<T>& quantity, double r)
-{
-    assert(radius.size() >= 2);
-
-    if(r <= radius.front())
-        return quantity.front();
-
-    if(r >= radius.back())
-        return quantity.back();
-
-    for(int i=0; i < (int)radius.size() - 1; i++)
-    {
-        double r1 = radius[i];
-        double r2 = radius[i + 1];
-
-        if(r > r1 && r <= r2)
-        {
-            double frac = (r - r1) / (r2 - r1);
-
-            return mix(quantity[i], quantity[i + 1], frac);
-        }
-    }
-
-    return quantity.back();
-}
-
 std::vector<double> initial::calculate_isotropic_r(const tov::integration_solution& sol)
 {
     std::vector<double> dlog_dr;
