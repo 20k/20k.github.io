@@ -68,6 +68,16 @@ This is one of the areas of the literature where the notation is, frankly, reall
 |$P$|Pressure|$\mathrm{kg}\;\mathrm{m}^{-1} \; \mathrm{s}^{-2}$|$\mathrm{m}^{-2}$|$P$|$K \rho_0^\Gamma$|
 |$K$|Polytropic Constant (informal)|$\mathrm{kg}^{1-\Gamma} \; \mathrm{m}^{3\Gamma-1}\;\mathrm{s}^{-2}$|$\mathrm{m}^{2\Gamma-2}$|||
 
+Here's some useful equations:
+
+|Equation|
+|-|
+|$\epsilon = \rho_0(1 + E^z)$|
+|$P = (\Gamma-1) \rho_0 E^z$|
+|$h = 1 + E^z + \frac{P}{p_0}$|
+|$p_0h = \epsilon + P$|
+
+
 It is common to solve these equations in units of $c=G=M_\odot$, where $M_\odot$ is the mass of the sun. This is why I've provided all the units up above, and we're going go through [converting](https://www.seas.upenn.edu/~amyers/NaturalUnits.pdf) from SI units, to geometric units ($c=G=1$), to that new unit system ($c=G=M_\odot$). In general, you need to redefine mass to avoid your numbers blowing up too much
 
 The procedure is as follows:
@@ -77,6 +87,8 @@ The procedure is as follows:
 3. Divide your quantity in $\mathrm{m}^n$ (eg $\mathrm{m}^2$) by $(Todo:)^n$
 
 I'll be showing you the code for how to do this. One thing to note is that $K$ is frequently given in geometric units instead of physical units, so I'll flag up when the units are wonky
+
+Todo: List all the relations
 
 ## Solving the TOV equations
 
@@ -677,10 +689,55 @@ This lets us solve for our ADM quantities:
 |Extrinsic Curvature|$$K_{ij}$$|$$\Phi^{-2} \bar{A}{ij}$$|
 | Initial Adm Matter Source | $$\epsilon_H$$ | $$\Phi^{-8} \bar{\epsilon}_H$$ |
 | Initial Adm Matter Source | $$S^i$$ | $$\Phi^{-10} S^i$$ |
-| Initial Pressure | $P$ | $\Phi^{-8} P$ |
+| Initial Pressure | $P$ | $\Phi^{-8} \bar{P}$ |
 | Initial Energy Density | $\epsilon$ | $\Phi^{-8} \epsilon$ |
 
 # Relativistic Eularian Hydrodynamics
+
+We're going to be looking at two papers today, primarily the latter:
+
+[Fully general relativistic simulation of coalescing binary neutron stars: Preparatory tests](https://arxiv.org/pdf/gr-qc/9908027)
+
+[Hydrodynamic Simulations in 3+1 General Relativity](https://arxiv.org/pdf/gr-qc/0209102)
+
+If you're thinking *this sure seems like a lot to cram in one article*, in general relativity: the initial conditions are often significantly more complicated than the evolution equations. Today that's especially true, because its not going to be terribly complicated
+
+We are going to modify this paper quite a bit though:
+
+1. We'll be removing divergent quantities from the equations, and translating to a more modern notation
+2. I'll also show you how to make this run super duper fast, so that the overhead of neutron star simulations is minimal
+3. We'll be adding the ability to track exactly what matter originated from which neutron star as they mix
+
+We'll also need to modify the BSSN equations a bit to add matter terms in
+
+Todo: Brief recap of ADM
+
+## Initial conditions
+
+First off, we need to translate from our ADM quantities, to this paper's quantities:
+
+Todo: Define $E^z$
+Todo: I definitely need to harmonise notation. $\epsilon -> \mu$, $E^z -> \epsilon$
+Todo: It would be better to calculate this from $S^i$, though it might be too annoying?
+Todo: Use 22 to calculate $h$
+
+Todo: tablify
+Todo: We have a huge problem: The lorentz factor, and our conformal factor share notation. Consider using $W_l$ for lorentz
+
+$$W^2 =\frac{\epsilon_H + P}{\epsilon + P}$$
+$$u^0 = W$$
+$$p_* = \rho \alpha u^0 e^{6\phi}$$
+$$e_* = (p_0 E^z)^\frac{1}{\Gamma}\alpha u^0 e^{6\phi}$$
+
+Note that $\Gamma=2$ is used in the gamma law equation of state: $(\Gamma-1) p_0 E^z$
+
+$$\tilde{S}_i = e^{6\phi} \gamma_{ij} S^j$$
+
+$$p_0 E^z = \frac{P}{\Gamma-1}$$
+
+Where we've renamed this paper's $\epsilon$ to $E^z$, to avoid notational confusion
+
+
 
 # Initial conditions, abridged
 
