@@ -75,7 +75,9 @@ neutron_star::solution neutron_star::solve(const tov::integration_solution& sol)
 
     double M = 4 * M_PI * integrate_to_index([&](int idx)
     {
-        return mu_cfl[idx] * pressure_cfl[idx] * pow(radius_iso[idx], 2.);
+        double r = radius_iso[idx];
+
+        return (mu_cfl[idx] + pressure_cfl[idx]) * pow(r, 2.);
     }, samples).back();
 
     std::vector<double> sigma;
@@ -99,4 +101,35 @@ neutron_star::solution neutron_star::solve(const tov::integration_solution& sol)
 
         return (2./3.) * M_PI * sigma[idx] * pow(r, 4.);
     }, samples);
+
+    double squiggly_N = (8*M_PI/3.) * integrate_to_index([&](int idx)
+    {
+        double r = radius_iso[idx];
+
+        return (mu_cfl[idx] + pressure_cfl[idx]) * pow(r, 4.);
+    }, samples).back();
+
+    std::vector<double> kappa;
+    kappa.reserve(samples);
+
+    for(int i=0; i < samples; i++)
+    {
+        kappa.push_back((mu_cfl[i] + pressure_cfl[i]) / squiggly_N);
+    }
+
+    std::vector<double> unsquiggly_N = integrate_to_index([&](int idx)
+    {
+        double r = radius_iso[idx];
+
+        return (8*M_PI/3.) * kappa[idx] * pow(r, 4.);
+    }, samples);
+
+    neutron_star::solution ret;
+    ret.N = unsquiggly_N;
+    ret.Q = Q;
+    ret.C = C;
+    ret.mu_cfl = mu_cfl;
+    ret.pressure_cfl = pressure_cfl;
+
+    return ret;
 }

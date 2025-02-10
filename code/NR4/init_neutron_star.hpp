@@ -9,10 +9,16 @@
 ///take in a tov solution
 namespace neutron_star
 {
+    ///so, I'm going to crack all the constants in here, then perform the discretisation on the GPU
     struct solution
     {
-        std::vector<double> ph_cfl;
+        std::vector<double> mu_cfl;
+        std::vector<double> pressure_cfl;
         //std::vector<tensor<double, 3, 3>> AIJ_cfl;
+
+        std::vector<double> N;
+        std::vector<double> Q;
+        std::vector<double> C;
     };
 
     solution solve(const tov::integration_solution& sol);
