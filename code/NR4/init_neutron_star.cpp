@@ -21,7 +21,7 @@ auto integrate_1d(const T& func, int n, const U& upper, const U& lower)
     return ((upper - lower) / n) * (func(lower)/2.f + sum + func(upper)/2.f);
 }
 
-neutron_star::solution neutron_star::solve(const tov::integration_solution& sol)
+neutron_star::solution neutron_star::solve(const params& phys_params, const tov::integration_solution& sol)
 {
     std::vector<double> radius_iso = initial::calculate_isotropic_r(sol);
     ///hang on. can i literally just treat the schwarzschild data like its in isotropic?
@@ -132,4 +132,9 @@ neutron_star::solution neutron_star::solve(const tov::integration_solution& sol)
     ret.pressure_cfl = pressure_cfl;
 
     return ret;
+}
+
+void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue, discretised_solution& dsol, const solution& nsol, const tov::integration_solution& tsol)
+{
+
 }

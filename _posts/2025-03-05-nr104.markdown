@@ -685,16 +685,24 @@ F^{sum} &= \sum^N_{k=1} F_{(k)} \\
 
 That's it, we're good to go. From here on, its just a standard laplacian of exactly the same form we solved in todo: this article, and there's absolutely nothing special whatsoever
 
-This lets us solve for our ADM quantities:
+This lets us solve for our final quantities. Firstly, we'll need some helpers:
 
-|Name|ADM|Value|
+|Name|Symbol|Value|
 |-|-|-|
-|Metric Tensor|$\gamma_{ij}$|$$\Phi^4 \bar{\eta}_{ij}$$|
+| Conformal Angular Adm Matter Source | $$\tilde{S}^J_i$$ | $$\epsilon_{ijk} J^j x^k \kappa(r)$$ ($x$ is the current coordinate world position) |
+| Conformal Linear Adm Matter Source | $$\tilde{S}^i_P$$ | $$P^i \sigma(r)$$ |
+| Conformal Adm Matter Source | $$\tilde{S}^i$$ | $$\tilde{S}^i_P + \tilde{\gamma}^{ik} \tilde{S}_k^J$$ |
+
+Which gives us our final quantities:
+
+|Name|Symbol|Value|
+|-|-|-|
+|Metric Tensor|$$\gamma_{ij}$$|$$\Phi^4 \bar{\eta}_{ij}$$|
 |Extrinsic Curvature|$$K_{ij}$$|$$\Phi^{-2} \bar{A}{ij}$$|
 | Initial Adm Matter Source | $$\mu_H$$ | $$\Phi^{-8} \bar{\mu}_H$$ |
-| Initial Adm Matter Source | $$S^i$$ | $$\Phi^{-10} S^i$$ |
-| Initial Pressure | $P$ | $\Phi^{-8} \bar{P}$ |
-| Initial Energy Density | $\mu$ | $\Phi^{-8} \mu$ |
+| Initial Adm Matter Source | $$S^i$$ | $$\Phi^{-10} \tilde{S}^i$$ |
+| Initial Pressure | $$P$$ | $$\Phi^{-8} \bar{P}$$ |
+| Initial Energy Density | $$\mu$$ | $$\Phi^{-8} \mu$$ |
 
 # Relativistic Eularian Hydrodynamics
 
