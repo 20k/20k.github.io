@@ -177,7 +177,7 @@ void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
                     literal<valuei> lsamples, literal<valuef> lM, literal<valuef> l_sN,
                     literal<v3i> ldim, literal<valuef> lscale,
                     literal<v3f> lbody_pos, literal<v3f> linear_momentum, literal<v3f> angular_momentum,
-                    std::array<buffer_mut<valuef>, 6> AIJ_out, buffer_mut<valuef> mu_cfl_out, buffer_mut<valuef> mu_h_out, buffer_mut<valuef> pressure_cfl_out,
+                    std::array<buffer_mut<valuef>, 6> AIJ_out, buffer_mut<valuef> mu_cfl_out, buffer_mut<valuef> mu_h_cfl_out, buffer_mut<valuef> pressure_cfl_out,
                     std::array<buffer_mut<valuef>, 3> Si_out)
     {
         using namespace single_source;
@@ -210,9 +210,9 @@ void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
         valuef r = from_body.length();
         pin(r);
 
-        v3f li = from_body / r;
+        v3f li = from_body / max(r, valuef(0.001f));
 
-        auto get = [&](single_source::buffer<valuef> quantity)
+        auto get = [&](single_source::buffer<valuef> quantity, valuef upper_boundary)
         {
             mut<valuef> out = declare_mut_e(valuef(0.f));
 
@@ -220,11 +220,11 @@ void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
                 as_ref(out) = quantity[0];
             });
 
-            if_e(r >= radius_b[samples - 1], [&]{
-                as_ref(out) = quantity[samples - 1];
+            if_e(r > radius_b[samples - 1], [&]{
+                as_ref(out) = upper_boundary;
             });
 
-            if_e(r > radius_b[0] && r < radius_b[samples - 1], [&]{
+            if_e(r > radius_b[0] && r <= radius_b[samples - 1], [&]{
                 mut<valuei> index = declare_mut_e(valuei(0));
                 mut<valuef> last_r = declare_mut_e(valuef(0.f));
 
@@ -244,14 +244,15 @@ void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
             return declare_e(out);
         };
 
-        valuef Q = get(Q_b);
-        valuef C = get(C_b);
-        valuef N = get(uN_b);
-        valuef sigma = get(sigma_b);
-        valuef kappa = get(kappa_b);
+        ///todo: need to define upper boundaries
+        valuef Q = get(Q_b, 1.f);
+        valuef C = get(C_b, C_b[samples-1]);
+        valuef N = get(uN_b, 1.f);
+        valuef sigma = get(sigma_b, 1.f);
+        valuef kappa = get(kappa_b, 1.f);
 
-        valuef mu_cfl = get(mu_cfl_b);
-        valuef pressure_cfl = get(pressure_cfl_b);
+        valuef mu_cfl = get(mu_cfl_b, 0.f);
+        valuef pressure_cfl = get(pressure_cfl_b, 0.f);
 
         unit_metric<valuef, 3, 3> flat;
 
@@ -281,8 +282,10 @@ void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
             }
         }
 
+        auto eijk = get_eijk();
+
         //super unnecessary, being pedantic
-        auto eIJK = iflat.raise(iflat.raise(iflat.raise(get_eijk(), 0), 1), 2);
+        auto eIJK = iflat.raise(iflat.raise(iflat.raise(eijk, 0), 1), 2);
 
         tensor<valuef, 3, 3> AIJ_j;
 
@@ -323,6 +326,8 @@ void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
 
         valuef W2_J = 0.5f * (1 + sqrt(1 + (4 * dot(J_lower, J) * r * r * sin2) / (squiggly_N*squiggly_N)));
 
+        valuef W = cosh(acosh(sqrt(W2_P)) + acosh(sqrt(W2_J)));
+
         tensor<int, 2> index_table[6] = {{0, 0}, {0, 1}, {0, 2}, {1, 1}, {1, 2}, {2, 2}};
 
         for(int i=0; i < 6; i++)
@@ -334,14 +339,30 @@ void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
         as_ref(mu_cfl_out[pos, dim]) += mu_cfl;
         as_ref(pressure_cfl_out[pos, dim]) += pressure_cfl;
 
-        ///todo: Si, mu_cfl_h
+        valuef mu_h = (mu_cfl + pressure_cfl) * W*W - pressure_cfl;
 
-        /*mu_cfl_out[pos, dim] += mu_cfl;
-        mu_cfl_out[pos, dim] += mu_cfl;
-        mu_cfl_out[pos, dim] += mu_cfl;
-        mu_cfl_out[pos, dim] += mu_cfl;*/
+        as_ref(mu_h_cfl_out[pos, dim]) += mu_h;
 
-        //need to port interpolate by radius to the gpu
+        v3f Si_P = P * sigma;
+        v3f S_iJ;
+
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                for(int k=0; k < 3; k++)
+                {
+                    S_iJ[i] += eijk[i, j, k] * J[j] * from_body[k] * kappa;
+                }
+            }
+        }
+
+        v3f Si = Si_P + iflat.raise(S_iJ);
+
+        for(int i=0; i < 3; i++)
+        {
+            as_ref(Si_out[i][pos, dim]) = Si[i];
+        }
     };
 
 

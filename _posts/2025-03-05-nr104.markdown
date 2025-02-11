@@ -689,7 +689,7 @@ This lets us solve for our final quantities. Firstly, we'll need some helpers:
 
 |Name|Symbol|Value|
 |-|-|-|
-| Conformal Angular Adm Matter Source | $$\tilde{S}^J_i$$ | $$\epsilon_{ijk} J^j x^k \kappa(r)$$ ($x$ is the current coordinate world position) |
+| Conformal Angular Adm Matter Source | $$\tilde{S}^J_i$$ | $$\epsilon_{ijk} J^j x^k \kappa(r)$$ ($x$ is the current coordinate world position relative to the star) |
 | Conformal Linear Adm Matter Source | $$\tilde{S}^i_P$$ | $$P^i \sigma(r)$$ |
 | Conformal Adm Matter Source | $$\tilde{S}^i$$ | $$\tilde{S}^i_P + \tilde{\gamma}^{ik} \tilde{S}_k^J$$ |
 
