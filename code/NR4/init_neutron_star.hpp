@@ -46,7 +46,9 @@ namespace neutron_star
         discretised_solution(cl::context& ctx) : mu_cfl(ctx), mu_h_cfl(ctx), pressure_cfl(ctx), AIJ_cfl{ctx, ctx, ctx, ctx, ctx, ctx}{}
     };
 
-    void add_to_solution(cl::context& ctx, cl::command_queue& cqueue, discretised_solution& dsol, const params& phys_params, const tov::integration_solution& sol);
+    void add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
+                         discretised_solution& dsol, const params& phys_params, const tov::integration_solution& sol,
+                         tensor<int, 3> dim, float scale);
 }
 
 #endif // INIT_NEUTRON_STAR_HPP_INCLUDED
