@@ -411,14 +411,4 @@ void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
 
         cqueue.exec("matter_accum", args, {dim.x(), dim.y(), dim.z()}, {8,8,1});
     }
-
-
-    /*neutron_star::solution ret;
-    ret.N = unsquiggly_N;
-    ret.Q = Q;
-    ret.C = C;
-    ret.mu_cfl = mu_cfl;
-    ret.pressure_cfl = pressure_cfl;
-
-    return ret;*/
 }
