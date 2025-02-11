@@ -172,9 +172,10 @@ void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
     auto accum = [](execution_context& ctx, buffer<valuef> Q, buffer<valuef> C, buffer<valuef> uN,
                     buffer<valuef> sigma, buffer<valuef> kappa,
                     buffer<valuef> mu_cfl, buffer<valuef> pressure_cfl, buffer<valuef> radius,
-                    std::array<buffer_mut<valuef>, 6> AIJ_out, buffer_mut<valuef> mu_cfl_out, buffer_mut<valuef> mu_h_out, buffer_mut<valuef> pressure_cfl_out)
+                    std::array<buffer_mut<valuef>, 6> AIJ_out, buffer_mut<valuef> mu_cfl_out, buffer_mut<valuef> mu_h_out, buffer_mut<valuef> pressure_cfl_out,
+                    std::array<buffer_mut<valuef>, 3> Si_out)
     {
-
+        using namespace single_source;
     };
 
 

@@ -42,8 +42,9 @@ namespace neutron_star
         cl::buffer mu_h_cfl;
         cl::buffer pressure_cfl;
         std::array<cl::buffer, 6> AIJ_cfl;
+        std::array<cl::buffer, 3> Si;
 
-        discretised_solution(cl::context& ctx) : mu_cfl(ctx), mu_h_cfl(ctx), pressure_cfl(ctx), AIJ_cfl{ctx, ctx, ctx, ctx, ctx, ctx}{}
+        discretised_solution(cl::context& ctx) : mu_cfl(ctx), mu_h_cfl(ctx), pressure_cfl(ctx), AIJ_cfl{ctx, ctx, ctx, ctx, ctx, ctx}, Si{ctx, ctx, ctx}{}
     };
 
     void add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
