@@ -1034,6 +1034,14 @@ namespace value_impl
         {
             assign_e(ctx, v, to_set);
         }
+
+        template<typename V>
+        void operator+= (const V& to_set)
+        {
+            auto decl = declare_e(ctx, v);
+
+            assign_e(ctx, v, decl + to_set);
+        }
     };
 
     template<typename T>

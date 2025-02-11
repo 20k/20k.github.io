@@ -636,16 +636,16 @@ There are two lorentz factors in this paper. One for the linear momentum, and on
 
 Linear (60):
 
-$$W_{P}^2 = \frac{1}{2}(1 + \sqrt{1 + \frac{4 P_i P^i}{\mathcal{M}^2}})$$
+$$W_{P}^2 = \frac{1}{2}\left (1 + \sqrt{1 + \frac{4 P_i P^i}{\mathcal{M}^2}} \right)$$
 
 Angular (65):
 
 $$\begin{align}
-W_{J}^2 &=\frac{1}{2}(1 + \sqrt{1 + \frac{4 J_i J^i r^2 \sin^2 \theta}{\mathcal{N}^2}})\\
+W_{J}^2 &=\frac{1}{2}\left (1 + \sqrt{1 + \frac{4 J_i J^i r^2 \sin^2 \theta}{\mathcal{N}^2}} \right)\\
 \sin^2 \theta &= 1 - (J^i l_i)^2 \\
 \end{align}$$
 
-$l_i$ is the same unit normal as earlier. For $\sin^2 \theta$, you'll want to ensure that $J^i$ and $l_i$ are normalised to a length of $1$, as we're using the formula $\mathrm{dot}(a, b) = \cos \theta ||a||\;||b||$
+$l_i$ is the same unit normal as earlier. For $\sin^2 \theta$, you'll want to ensure that $J^i$ and $l_i$ are normalised to a length of $1$, as we're using the formula $\mathrm{dot}(a, b) = \cos \theta ||a||\;||b||$. $\theta$ more technically is the angle between $J^i$ and $l^i$. Note that the quantity $\theta$ becomes undefined as $J^i J_i$ tends to $0$, but given the prefix term, we can simply set $\sin^2 \theta$ to anything when this happens
 
 Sometimes I wish I'd taken up fishing
 
