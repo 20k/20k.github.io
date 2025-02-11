@@ -372,7 +372,45 @@ void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
     cl::buffer cl_pressure_cfl = d2f(pressure_cfl);
     cl::buffer cl_radius = d2f(radius_iso);
 
+    /*void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b, buffer<valuef> uN_b,
+                buffer<valuef> sigma_b, buffer<valuef> kappa_b,
+                buffer<valuef> mu_cfl_b, buffer<valuef> pressure_cfl_b, buffer<valuef> radius_b,
+                literal<valuei> lsamples, literal<valuef> lM, literal<valuef> l_sN,
+                literal<v3i> ldim, literal<valuef> lscale,
+                literal<v3f> lbody_pos, literal<v3f> linear_momentum, literal<v3f> angular_momentum,
+                std::array<buffer_mut<valuef>, 6> AIJ_out, buffer_mut<valuef> mu_cfl_out, buffer_mut<valuef> mu_h_cfl_out, buffer_mut<valuef> pressure_cfl_out,
+                std::array<buffer_mut<valuef>, 3> Si_out)*/
 
+    {
+        cl_float clM = M;
+        cl_float clsN = squiggly_N;
+
+        cl::args args;
+        args.push_back(cl_Q);
+        args.push_back(cl_C);
+        args.push_back(cl_uN);
+        args.push_back(cl_sigma);
+        args.push_back(cl_kappa);
+        args.push_back(cl_mu_cfl);
+        args.push_back(cl_pressure_cfl);
+        args.push_back(cl_radius);
+
+        args.push_back(samples);
+        args.push_back(clM);
+        args.push_back(clsN);
+        args.push_back(dim);
+        args.push_back(scale);
+        args.push_back((t3f)phys_params.position);
+        args.push_back((t3f)phys_params.linear_momentum);
+        args.push_back((t3f)phys_params.angular_momentum);
+        args.push_back(dsol.AIJ_cfl[0], dsol.AIJ_cfl[1], dsol.AIJ_cfl[2], dsol.AIJ_cfl[3], dsol.AIJ_cfl[4], dsol.AIJ_cfl[5]);
+        args.push_back(dsol.mu_cfl);
+        args.push_back(dsol.mu_h_cfl);
+        args.push_back(dsol.pressure_cfl);
+        args.push_back(dsol.Si[0], dsol.Si[1], dsol.Si[2]);
+
+        cqueue.exec("matter_accum", args, {dim.x(), dim.y(), dim.z()}, {8,8,1});
+    }
 
 
     /*neutron_star::solution ret;
