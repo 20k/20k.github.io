@@ -4,6 +4,7 @@
 #include "../common/value2.hpp"
 #include "../common/single_source.hpp"
 #include <toolkit/opencl.hpp>
+#include "bssn.hpp"
 
 using valuef = value<float>;
 using valuei = value<int>;
@@ -169,10 +170,12 @@ void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
     cl::buffer cl_pressure_cfl = d2f(pressure_cfl);
     cl::buffer cl_radius = d2f(radius_iso);
 
-    auto accum = [](execution_context& ctx, buffer<valuef> Q, buffer<valuef> C, buffer<valuef> uN,
-                    buffer<valuef> sigma, buffer<valuef> kappa,
-                    buffer<valuef> mu_cfl, buffer<valuef> pressure_cfl, buffer<valuef> radius,
-                    literal<v3i> ldim,
+    auto accum = [](execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b, buffer<valuef> uN_b,
+                    buffer<valuef> sigma_b, buffer<valuef> kappa_b,
+                    buffer<valuef> mu_cfl_b, buffer<valuef> pressure_cfl_b, buffer<valuef> radius_b,
+                    literal<valuei> lsamples,
+                    literal<v3i> ldim, literal<valuef> lscale,
+                    literal<v3f> lbody_pos, literal<v3f> linear_momentum, literal<v3f> angular_momentum,
                     std::array<buffer_mut<valuef>, 6> AIJ_out, buffer_mut<valuef> mu_cfl_out, buffer_mut<valuef> mu_h_out, buffer_mut<valuef> pressure_cfl_out,
                     std::array<buffer_mut<valuef>, 3> Si_out)
     {
@@ -183,10 +186,27 @@ void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
         valuei z = get_global_id(2);
 
         v3i dim = ldim.get();
+        valuef scale = lscale.get();
 
         if_e(x >= dim.x() || y >= dim.y() || z >= dim.z(), [&]{
             return_e();
         });
+
+        v3i pos = {x, y, z};
+
+        v3f fpos = (v3f)pos;
+
+        v3f body_pos = lbody_pos.get();
+        v3f world_pos = grid_to_world(fpos, dim, scale);
+
+        v3f from_body = world_pos - body_pos;
+
+        valuef r = from_body.length();
+        pin(r);
+
+        v3f li = from_body / r;
+
+        //need to port interpolate by radius to the gpu
     };
 
 
