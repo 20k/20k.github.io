@@ -41,6 +41,207 @@ auto integrate_1d(const T& func, int n, const U& upper, const U& lower)
     return ((upper - lower) / n) * (func(lower)/2.f + sum + func(upper)/2.f);
 }
 
+void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b, buffer<valuef> uN_b,
+                buffer<valuef> sigma_b, buffer<valuef> kappa_b,
+                buffer<valuef> mu_cfl_b, buffer<valuef> pressure_cfl_b, buffer<valuef> radius_b,
+                literal<valuei> lsamples, literal<valuef> lM, literal<valuef> l_sN,
+                literal<v3i> ldim, literal<valuef> lscale,
+                literal<v3f> lbody_pos, literal<v3f> linear_momentum, literal<v3f> angular_momentum,
+                std::array<buffer_mut<valuef>, 6> AIJ_out, buffer_mut<valuef> mu_cfl_out, buffer_mut<valuef> mu_h_cfl_out, buffer_mut<valuef> pressure_cfl_out,
+                std::array<buffer_mut<valuef>, 3> Si_out)
+{
+    using namespace single_source;
+
+    valuei x = get_global_id(0);
+    valuei y = get_global_id(1);
+    valuei z = get_global_id(2);
+
+    pin(x);
+    pin(y);
+    pin(z);
+
+    v3i dim = ldim.get();
+    valuef scale = lscale.get();
+    valuei samples = lsamples.get();
+
+    if_e(x >= dim.x() || y >= dim.y() || z >= dim.z(), [&]{
+        return_e();
+    });
+
+    v3i pos = {x, y, z};
+
+    v3f fpos = (v3f)pos;
+
+    v3f body_pos = lbody_pos.get();
+    v3f world_pos = grid_to_world(fpos, dim, scale);
+
+    v3f from_body = world_pos - body_pos;
+
+    valuef r = from_body.length();
+    pin(r);
+
+    v3f li = from_body / max(r, valuef(0.001f));
+
+    auto get = [&](single_source::buffer<valuef> quantity, valuef upper_boundary)
+    {
+        mut<valuef> out = declare_mut_e(valuef(0.f));
+
+        if_e(r <= radius_b[0], [&]{
+            as_ref(out) = quantity[0];
+        });
+
+        if_e(r > radius_b[samples - 1], [&]{
+            as_ref(out) = upper_boundary;
+        });
+
+        if_e(r > radius_b[0] && r <= radius_b[samples - 1], [&]{
+            mut<valuei> index = declare_mut_e(valuei(0));
+            mut<valuef> last_r = declare_mut_e(valuef(0.f));
+
+            for_e(index < samples - 1, assign_b(index, index+1), [&]{
+                valuef r1 = radius_b[index];
+                valuef r2 = radius_b[index + 1];
+
+                if_e(r > r1 && r <= r2, [&]{
+                     valuef frac = (r - r1) / (r2 - r1);
+
+                     as_ref(out) = mix(quantity[index], quantity[index + 1], frac);
+                     break_e();
+                });
+            });
+        });
+
+        return declare_e(out);
+    };
+
+    ///todo: need to define upper boundaries
+    valuef Q = get(Q_b, 1.f);
+    valuef C = get(C_b, C_b[samples-1]);
+    valuef N = get(uN_b, 1.f);
+    valuef sigma = get(sigma_b, 1.f);
+    valuef kappa = get(kappa_b, 1.f);
+
+    valuef mu_cfl = get(mu_cfl_b, 0.f);
+    valuef pressure_cfl = get(pressure_cfl_b, 0.f);
+
+    unit_metric<valuef, 3, 3> flat;
+
+    for(int i=0; i < 3; i++)
+        flat[i, i] = valuef(1);
+
+    ///super duper unnecessary here but i'm being 110% pedantic
+    auto iflat = flat.invert();
+    pin(iflat);
+
+    v3f li_lower = flat.lower(li);
+    v3f P = linear_momentum.get();
+    v3f J = angular_momentum.get();
+
+    valuef pk_lk = dot(P, li_lower);
+
+    tensor<valuef, 3, 3> AIJ_p;
+
+    valuef cr = max(r, valuef(0.01f));
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            AIJ_p[i, j] = (3 * Q / (2 * cr*cr)) *   (P[i] * li[j] + P[j] * li[i] - (iflat[i, j] - li[i] * li[j]) * pk_lk)
+                         +(3 * C / (cr*cr*cr*cr)) * (P[i] * li[j] + P[j] * li[i] + (iflat[i, j] - 5 * li[i] * li[j]) * pk_lk);
+        }
+    }
+
+    auto eijk = get_eijk();
+
+    //super unnecessary, being pedantic
+    auto eIJK = iflat.raise(iflat.raise(iflat.raise(eijk, 0), 1), 2);
+
+    tensor<valuef, 3, 3> AIJ_j;
+
+    v3f J_lower = flat.lower(J);
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            valuef sum = 0;
+
+            for(int k=0; k < 3; k++)
+            {
+                for(int l=0; l < 3; l++)
+                {
+                    sum += (3 / (cr*cr*cr)) * (li[i] * eIJK[j, k, l] + li[j] * eIJK[i, k, l]) * J_lower[k] * li_lower[l] * N;
+                }
+            }
+
+            AIJ_j[i, j] += sum;
+        }
+    }
+
+
+    tensor<valuef, 3, 3> AIJ = AIJ_p + AIJ_j;
+
+    v3f P_lower = flat.lower(P);
+
+    valuef M = lM.get();
+    valuef squiggly_N = l_sN.get();
+
+    valuef W2_P = 0.5f * (1 + sqrt(1 + (4 * dot(P_lower, P)) / (M*M)));
+
+    v3f J_norm = J / max(J.length(), valuef(0.0001f));
+    v3f li_lower_norm = li_lower / max(li_lower.length(), valuef(0.0001f));
+
+    value sin2 = 1 - pow(dot(J_norm, li_lower_norm), valuef(2.f));
+
+    valuef W2_J = 0.5f * (1 + sqrt(1 + (4 * dot(J_lower, J) * r * r * sin2) / (squiggly_N*squiggly_N)));
+
+    valuef W = cosh(acosh(sqrt(W2_P)) + acosh(sqrt(W2_J)));
+
+    tensor<int, 2> index_table[6] = {{0, 0}, {0, 1}, {0, 2}, {1, 1}, {1, 2}, {2, 2}};
+
+    for(int i=0; i < 6; i++)
+    {
+        tensor<int, 2> idx = index_table[i];
+        as_ref(AIJ_out[i][pos, dim]) += AIJ[idx.x(), idx.y()];
+    }
+
+    as_ref(mu_cfl_out[pos, dim]) += mu_cfl;
+    as_ref(pressure_cfl_out[pos, dim]) += pressure_cfl;
+
+    valuef mu_h = (mu_cfl + pressure_cfl) * W*W - pressure_cfl;
+
+    as_ref(mu_h_cfl_out[pos, dim]) += mu_h;
+
+    v3f Si_P = P * sigma;
+    v3f S_iJ;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            for(int k=0; k < 3; k++)
+            {
+                S_iJ[i] += eijk[i, j, k] * J[j] * from_body[k] * kappa;
+            }
+        }
+    }
+
+    v3f Si = Si_P + iflat.raise(S_iJ);
+
+    for(int i=0; i < 3; i++)
+    {
+        as_ref(Si_out[i][pos, dim]) = Si[i];
+    }
+}
+
+void boot_solver(cl::context ctx)
+{
+    cl::async_build_and_cache(ctx, [=] {
+        return value_impl::make_function(matter_accum, "matter_accum");
+    }, {"matter_accum"});
+}
+
 void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
                                    discretised_solution& dsol, const params& phys_params, const tov::integration_solution& sol,
                                    tensor<int, 3> dim, float scale)
@@ -171,199 +372,7 @@ void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
     cl::buffer cl_pressure_cfl = d2f(pressure_cfl);
     cl::buffer cl_radius = d2f(radius_iso);
 
-    auto accum = [](execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b, buffer<valuef> uN_b,
-                    buffer<valuef> sigma_b, buffer<valuef> kappa_b,
-                    buffer<valuef> mu_cfl_b, buffer<valuef> pressure_cfl_b, buffer<valuef> radius_b,
-                    literal<valuei> lsamples, literal<valuef> lM, literal<valuef> l_sN,
-                    literal<v3i> ldim, literal<valuef> lscale,
-                    literal<v3f> lbody_pos, literal<v3f> linear_momentum, literal<v3f> angular_momentum,
-                    std::array<buffer_mut<valuef>, 6> AIJ_out, buffer_mut<valuef> mu_cfl_out, buffer_mut<valuef> mu_h_cfl_out, buffer_mut<valuef> pressure_cfl_out,
-                    std::array<buffer_mut<valuef>, 3> Si_out)
-    {
-        using namespace single_source;
 
-        valuei x = get_global_id(0);
-        valuei y = get_global_id(1);
-        valuei z = get_global_id(2);
-
-        pin(x);
-        pin(y);
-        pin(z);
-
-        v3i dim = ldim.get();
-        valuef scale = lscale.get();
-        valuei samples = lsamples.get();
-
-        if_e(x >= dim.x() || y >= dim.y() || z >= dim.z(), [&]{
-            return_e();
-        });
-
-        v3i pos = {x, y, z};
-
-        v3f fpos = (v3f)pos;
-
-        v3f body_pos = lbody_pos.get();
-        v3f world_pos = grid_to_world(fpos, dim, scale);
-
-        v3f from_body = world_pos - body_pos;
-
-        valuef r = from_body.length();
-        pin(r);
-
-        v3f li = from_body / max(r, valuef(0.001f));
-
-        auto get = [&](single_source::buffer<valuef> quantity, valuef upper_boundary)
-        {
-            mut<valuef> out = declare_mut_e(valuef(0.f));
-
-            if_e(r <= radius_b[0], [&]{
-                as_ref(out) = quantity[0];
-            });
-
-            if_e(r > radius_b[samples - 1], [&]{
-                as_ref(out) = upper_boundary;
-            });
-
-            if_e(r > radius_b[0] && r <= radius_b[samples - 1], [&]{
-                mut<valuei> index = declare_mut_e(valuei(0));
-                mut<valuef> last_r = declare_mut_e(valuef(0.f));
-
-                for_e(index < samples - 1, assign_b(index, index+1), [&]{
-                    valuef r1 = radius_b[index];
-                    valuef r2 = radius_b[index + 1];
-
-                    if_e(r > r1 && r <= r2, [&]{
-                         valuef frac = (r - r1) / (r2 - r1);
-
-                         as_ref(out) = mix(quantity[index], quantity[index + 1], frac);
-                         break_e();
-                    });
-                });
-            });
-
-            return declare_e(out);
-        };
-
-        ///todo: need to define upper boundaries
-        valuef Q = get(Q_b, 1.f);
-        valuef C = get(C_b, C_b[samples-1]);
-        valuef N = get(uN_b, 1.f);
-        valuef sigma = get(sigma_b, 1.f);
-        valuef kappa = get(kappa_b, 1.f);
-
-        valuef mu_cfl = get(mu_cfl_b, 0.f);
-        valuef pressure_cfl = get(pressure_cfl_b, 0.f);
-
-        unit_metric<valuef, 3, 3> flat;
-
-        for(int i=0; i < 3; i++)
-            flat[i, i] = valuef(1);
-
-        ///super duper unnecessary here but i'm being 110% pedantic
-        auto iflat = flat.invert();
-        pin(iflat);
-
-        v3f li_lower = flat.lower(li);
-        v3f P = linear_momentum.get();
-        v3f J = angular_momentum.get();
-
-        valuef pk_lk = dot(P, li_lower);
-
-        tensor<valuef, 3, 3> AIJ_p;
-
-        valuef cr = max(r, valuef(0.01f));
-
-        for(int i=0; i < 3; i++)
-        {
-            for(int j=0; j < 3; j++)
-            {
-                AIJ_p[i, j] = (3 * Q / (2 * cr*cr)) *   (P[i] * li[j] + P[j] * li[i] - (iflat[i, j] - li[i] * li[j]) * pk_lk)
-                             +(3 * C / (cr*cr*cr*cr)) * (P[i] * li[j] + P[j] * li[i] + (iflat[i, j] - 5 * li[i] * li[j]) * pk_lk);
-            }
-        }
-
-        auto eijk = get_eijk();
-
-        //super unnecessary, being pedantic
-        auto eIJK = iflat.raise(iflat.raise(iflat.raise(eijk, 0), 1), 2);
-
-        tensor<valuef, 3, 3> AIJ_j;
-
-        v3f J_lower = flat.lower(J);
-
-        for(int i=0; i < 3; i++)
-        {
-            for(int j=0; j < 3; j++)
-            {
-                valuef sum = 0;
-
-                for(int k=0; k < 3; k++)
-                {
-                    for(int l=0; l < 3; l++)
-                    {
-                        sum += (3 / (cr*cr*cr)) * (li[i] * eIJK[j, k, l] + li[j] * eIJK[i, k, l]) * J_lower[k] * li_lower[l] * N;
-                    }
-                }
-
-                AIJ_j[i, j] += sum;
-            }
-        }
-
-
-        tensor<valuef, 3, 3> AIJ = AIJ_p + AIJ_j;
-
-        v3f P_lower = flat.lower(P);
-
-        valuef M = lM.get();
-        valuef squiggly_N = l_sN.get();
-
-        valuef W2_P = 0.5f * (1 + sqrt(1 + (4 * dot(P_lower, P)) / (M*M)));
-
-        v3f J_norm = J / max(J.length(), valuef(0.0001f));
-        v3f li_lower_norm = li_lower / max(li_lower.length(), valuef(0.0001f));
-
-        value sin2 = 1 - pow(dot(J_norm, li_lower_norm), valuef(2.f));
-
-        valuef W2_J = 0.5f * (1 + sqrt(1 + (4 * dot(J_lower, J) * r * r * sin2) / (squiggly_N*squiggly_N)));
-
-        valuef W = cosh(acosh(sqrt(W2_P)) + acosh(sqrt(W2_J)));
-
-        tensor<int, 2> index_table[6] = {{0, 0}, {0, 1}, {0, 2}, {1, 1}, {1, 2}, {2, 2}};
-
-        for(int i=0; i < 6; i++)
-        {
-            tensor<int, 2> idx = index_table[i];
-            as_ref(AIJ_out[i][pos, dim]) += AIJ[idx.x(), idx.y()];
-        }
-
-        as_ref(mu_cfl_out[pos, dim]) += mu_cfl;
-        as_ref(pressure_cfl_out[pos, dim]) += pressure_cfl;
-
-        valuef mu_h = (mu_cfl + pressure_cfl) * W*W - pressure_cfl;
-
-        as_ref(mu_h_cfl_out[pos, dim]) += mu_h;
-
-        v3f Si_P = P * sigma;
-        v3f S_iJ;
-
-        for(int i=0; i < 3; i++)
-        {
-            for(int j=0; j < 3; j++)
-            {
-                for(int k=0; k < 3; k++)
-                {
-                    S_iJ[i] += eijk[i, j, k] * J[j] * from_body[k] * kappa;
-                }
-            }
-        }
-
-        v3f Si = Si_P + iflat.raise(S_iJ);
-
-        for(int i=0; i < 3; i++)
-        {
-            as_ref(Si_out[i][pos, dim]) = Si[i];
-        }
-    };
 
 
     /*neutron_star::solution ret;

@@ -11,6 +11,8 @@
 ///todo: unify all the params structs
 namespace neutron_star
 {
+    void boot_solver(cl::context ctx);
+
     struct params
     {
         tensor<float, 3> position;
