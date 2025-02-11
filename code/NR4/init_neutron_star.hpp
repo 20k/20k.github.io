@@ -20,24 +20,6 @@ namespace neutron_star
         tensor<float, 3> angular_momentum;
     };
 
-    ///so, I'm going to crack all the constants in here, then perform the discretisation on the GPU
-
-    ///ok so. It looks like this is too non viable, because W^2 is a function of coordinates
-    ///as well as S^i
-    /*struct solution
-    {
-        std::vector<double> mu_cfl;
-        //std::vector<double> mu_h_cfl;
-        std::vector<double> pressure_cfl;
-
-        ///todo: ph_cfl? it requires the neutron star params, spin and linear momentum
-
-        std::vector<double> N;
-        std::vector<double> Q;
-        std::vector<double> C;
-    };*/
-
-
     struct discretised_solution
     {
         cl::buffer mu_cfl;
