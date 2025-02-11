@@ -19,10 +19,13 @@ namespace neutron_star
     };
 
     ///so, I'm going to crack all the constants in here, then perform the discretisation on the GPU
-    struct solution
+
+    ///ok so. It looks like this is too non viable, because W^2 is a function of coordinates
+    ///as well as S^i
+    /*struct solution
     {
         std::vector<double> mu_cfl;
-        std::vector<double> mu_h_cfl;
+        //std::vector<double> mu_h_cfl;
         std::vector<double> pressure_cfl;
 
         ///todo: ph_cfl? it requires the neutron star params, spin and linear momentum
@@ -30,9 +33,8 @@ namespace neutron_star
         std::vector<double> N;
         std::vector<double> Q;
         std::vector<double> C;
-    };
+    };*/
 
-    solution solve(const params& phys_params, const tov::integration_solution& sol);
 
     struct discretised_solution
     {
@@ -44,7 +46,7 @@ namespace neutron_star
         discretised_solution(cl::context& ctx) : mu_cfl(ctx), mu_h_cfl(ctx), pressure_cfl(ctx), AIJ_cfl{ctx, ctx, ctx, ctx, ctx, ctx}{}
     };
 
-    void add_to_solution(cl::context& ctx, cl::command_queue& cqueue, discretised_solution& dsol, const solution& nsol, const tov::integration_solution& tsol);
+    void add_to_solution(cl::context& ctx, cl::command_queue& cqueue, discretised_solution& dsol, const params& phys_params, const tov::integration_solution& sol);
 }
 
 #endif // INIT_NEUTRON_STAR_HPP_INCLUDED
