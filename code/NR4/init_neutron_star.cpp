@@ -172,10 +172,21 @@ void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
     auto accum = [](execution_context& ctx, buffer<valuef> Q, buffer<valuef> C, buffer<valuef> uN,
                     buffer<valuef> sigma, buffer<valuef> kappa,
                     buffer<valuef> mu_cfl, buffer<valuef> pressure_cfl, buffer<valuef> radius,
+                    literal<v3i> ldim,
                     std::array<buffer_mut<valuef>, 6> AIJ_out, buffer_mut<valuef> mu_cfl_out, buffer_mut<valuef> mu_h_out, buffer_mut<valuef> pressure_cfl_out,
                     std::array<buffer_mut<valuef>, 3> Si_out)
     {
         using namespace single_source;
+
+        valuei x = get_global_id(0);
+        valuei y = get_global_id(1);
+        valuei z = get_global_id(2);
+
+        v3i dim = ldim.get();
+
+        if_e(x >= dim.x() || y >= dim.y() || z >= dim.z(), [&]{
+            return_e();
+        });
     };
 
 
