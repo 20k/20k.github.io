@@ -21,7 +21,9 @@ auto integrate_1d(const T& func, int n, const U& upper, const U& lower)
     return ((upper - lower) / n) * (func(lower)/2.f + sum + func(upper)/2.f);
 }
 
-void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue, discretised_solution& dsol, const params& phys_params, const tov::integration_solution& sol)
+void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
+                                   discretised_solution& dsol, const params& phys_params, const tov::integration_solution& sol,
+                                   tensor<int, 3> dim, float scale)
 {
     std::vector<double> radius_iso = initial::calculate_isotropic_r(sol);
     ///hang on. can i literally just treat the schwarzschild data like its in isotropic?
@@ -123,6 +125,31 @@ void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue, 
 
         return (8*M_PI/3.) * kappa[idx] * pow(r, 4.);
     }, samples);
+
+    auto d2f = [&](const std::vector<double>& in)
+    {
+        std::vector<float> f;
+        f.reserve(in.size());
+
+        for(auto& i : in)
+            f.push_back(i);
+
+        cl::buffer buf(ctx);
+        buf.alloc(sizeof(cl_float) * in.size());
+        buf.write(cqueue, f);
+        return buf;
+    };
+
+    cl::buffer cl_Q = d2f(Q);
+    cl::buffer cl_C = d2f(C);
+    cl::buffer cl_uN = d2f(unsquiggly_N);
+
+    cl::buffer cl_sigma = d2f(sigma);
+    cl::buffer cl_kappa = d2f(kappa);
+
+    cl::buffer cl_mu_clf = d2f(mu_cfl);
+    cl::buffer cl_pressure_clf = d2f(pressure_cfl);
+
 
     /*neutron_star::solution ret;
     ret.N = unsquiggly_N;
