@@ -1,5 +1,23 @@
 #include "init_neutron_star.hpp"
 #include "tov.hpp"
+#include "../common/vec/tensor.hpp"
+#include "../common/value2.hpp"
+#include "../common/single_source.hpp"
+#include <toolkit/opencl.hpp>
+
+using valuef = value<float>;
+using valuei = value<int>;
+
+using v2f = tensor<valuef, 2>;
+using v3f = tensor<valuef, 3>;
+using v4f = tensor<valuef, 4>;
+using v2i = tensor<valuei, 2>;
+using v3i = tensor<valuei, 3>;
+using v4i = tensor<valuei, 4>;
+using m44f = metric<valuef, 4, 4>;
+
+using mut_v4f = tensor<mut<valuef>, 4>;
+using mut_v3f = tensor<mut<valuef>, 3>;
 
 template<typename T, typename U>
 inline
@@ -147,8 +165,17 @@ void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
     cl::buffer cl_sigma = d2f(sigma);
     cl::buffer cl_kappa = d2f(kappa);
 
-    cl::buffer cl_mu_clf = d2f(mu_cfl);
-    cl::buffer cl_pressure_clf = d2f(pressure_cfl);
+    cl::buffer cl_mu_cfl = d2f(mu_cfl);
+    cl::buffer cl_pressure_cfl = d2f(pressure_cfl);
+    cl::buffer cl_radius = d2f(radius_iso);
+
+    auto accum = [](execution_context& ctx, buffer<valuef> Q, buffer<valuef> C, buffer<valuef> uN,
+                    buffer<valuef> sigma, buffer<valuef> kappa,
+                    buffer<valuef> mu_cfl, buffer<valuef> pressure_cfl, buffer<valuef> radius,
+                    std::array<buffer_mut<valuef>, 6> AIJ_out, buffer_mut<valuef> mu_cfl_out, buffer_mut<valuef> mu_h_out, buffer_mut<valuef> pressure_cfl_out)
+    {
+
+    };
 
 
     /*neutron_star::solution ret;
