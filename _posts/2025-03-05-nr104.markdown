@@ -693,7 +693,7 @@ This lets us solve for our final quantities. Firstly, we'll need some helpers:
 | Conformal Linear Adm Matter Source | $$\tilde{S}^i_P$$ | $$P^i \sigma(r)$$ |
 | Conformal Adm Matter Source | $$\tilde{S}^i$$ | $$\tilde{S}^i_P + \tilde{\gamma}^{ik} \tilde{S}_k^J$$ |
 
-Which gives us our final quantities:
+It is important to note that $\tilde{S}_i^J$ is not simply a function of radius. This gives us our final quantities:
 
 |Name|Symbol|Value|
 |-|-|-|
