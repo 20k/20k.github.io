@@ -471,6 +471,11 @@ namespace value_impl
         return v;
     }
 
+    namespace single_source
+    {
+        using ::value_impl::get_global_id;
+    }
+
     std::string value_to_string(const value_base& v);
 
     #define NATIVE_OPS
