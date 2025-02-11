@@ -64,6 +64,10 @@ namespace value_impl
             COSH,
             TANH,
 
+            ASINH,
+            ACOSH,
+            ATANH,
+
             MIN,
             MAX,
             CLAMP,
@@ -420,6 +424,9 @@ namespace value_impl
     DECL_VALUE_FUNC1(SINH, sinh, stdmath::usinh);
     DECL_VALUE_FUNC1(COSH, cosh, stdmath::ucosh);
     DECL_VALUE_FUNC1(TANH, tanh, stdmath::utanh);
+    DECL_VALUE_FUNC1(ASINH, asinh, stdmath::uasinh);
+    DECL_VALUE_FUNC1(ACOSH, acosh, stdmath::uacosh);
+    DECL_VALUE_FUNC1(ATANH, atanh, stdmath::uatanh);
     DECL_VALUE_FUNC2(ATAN2, atan2, stdmath::uatan2);
     DECL_VALUE_FUNC1(SQRT, sqrt, stdmath::usqrt);
     DECL_VALUE_FUNC1(LOG, log, stdmath::ulog);
@@ -525,6 +532,10 @@ namespace value_impl
             PROPAGATE_BASE1(SINH, usinh);
             PROPAGATE_BASE1(COSH, ucosh);
             PROPAGATE_BASE1(TANH, utanh);
+
+            PROPAGATE_BASE1(ASINH, uasinh);
+            PROPAGATE_BASE1(ACOSH, uacosh);
+            PROPAGATE_BASE1(ATANH, uatanh);
 
             PROPAGATE_BASE1(ASIN, uasin);
             PROPAGATE_BASE1(ACOS, uacos);
@@ -1462,6 +1473,36 @@ namespace value_impl
     {
         value<T> ret;
         ret.type = op::TANH;
+        ret.args = {v1};
+        return from_base<T>(optimise(ret));
+    }
+
+    template<typename T>
+    inline
+    value<T> asinh(const value<T>& v1)
+    {
+        value<T> ret;
+        ret.type = op::ASINH;
+        ret.args = {v1};
+        return from_base<T>(optimise(ret));
+    }
+
+    template<typename T>
+    inline
+    value<T> acosh(const value<T>& v1)
+    {
+        value<T> ret;
+        ret.type = op::ACOSH;
+        ret.args = {v1};
+        return from_base<T>(optimise(ret));
+    }
+
+    template<typename T>
+    inline
+    value<T> atanh(const value<T>& v1)
+    {
+        value<T> ret;
+        ret.type = op::ATANH;
         ret.args = {v1};
         return from_base<T>(optimise(ret));
     }
