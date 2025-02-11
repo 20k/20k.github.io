@@ -274,6 +274,39 @@ namespace stdmath
     };
 
     constexpr
+    auto uasinh = []<typename T>(const T& in)
+    {
+        using std::asinh;
+
+        if constexpr(std::is_integral_v<T>)
+            return asinh((float)in);
+        else
+            return asinh(in);
+    };
+
+    constexpr
+    auto uacosh = []<typename T>(const T& in)
+    {
+        using std::acosh;
+
+        if constexpr(std::is_integral_v<T>)
+            return acosh((float)in);
+        else
+            return acosh(in);
+    };
+
+    constexpr
+    auto uatanh = []<typename T>(const T& in)
+    {
+        using std::atanh;
+
+        if constexpr(std::is_integral_v<T>)
+            return atanh((float)in);
+        else
+            return atanh(in);
+    };
+
+    constexpr
     auto uasin = []<typename T>(const T& in)
     {
         using std::asin;
