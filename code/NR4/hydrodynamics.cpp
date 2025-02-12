@@ -105,6 +105,12 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydro
     metric<valuef, 3, 3> Yij = args.cY / (cW*cW);
 
     v3f Si_lo_cfl = pow(cW, -3) * Yij.lower(Si);
+
+    as_ref(hydro.p_star[pos, dim]) = p_star;
+    as_ref(hydro.e_star[pos, dim]) = e_star;
+    as_ref(hydro.Si[0][pos, dim]) = Si_lo_cfl[0];
+    as_ref(hydro.Si[1][pos, dim]) = Si_lo_cfl[1];
+    as_ref(hydro.Si[2][pos, dim]) = Si_lo_cfl[2];
 }
 
 hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx)
