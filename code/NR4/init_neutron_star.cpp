@@ -236,7 +236,7 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
     }
 }
 
-void boot_solver(cl::context ctx)
+void neutron_star::boot_solver(cl::context ctx)
 {
     cl::async_build_and_cache(ctx, [=] {
         return value_impl::make_function(matter_accum, "matter_accum");

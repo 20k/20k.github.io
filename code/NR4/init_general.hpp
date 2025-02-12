@@ -30,6 +30,7 @@ struct discretised_initial_data
         mu_cfl.set_to_zero(cqueue);
         mu_h_cfl.set_to_zero(cqueue);
         pressure_cfl.set_to_zero(cqueue);
+        cfl.fill(cqueue, cl_float{1});
 
         for(auto& i : AIJ_cfl)
         {
