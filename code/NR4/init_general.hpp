@@ -121,13 +121,15 @@ struct initial_pack
     {
         args.push_back(disc.cfl);
         args.push_back(aij_aIJ_buf);
+        args.push_back(disc.mu_h_cfl);
     }
 };
 
-struct bh_laplace_args : value_impl::single_source::argument_pack
+struct all_laplace_args : value_impl::single_source::argument_pack
 {
     buffer<valuef> cfl;
     buffer<valuef> aij_aIJ;
+    buffer<valuef> mu_h_cfl;
 
     void build(auto& in)
     {
@@ -135,6 +137,7 @@ struct bh_laplace_args : value_impl::single_source::argument_pack
 
         add(cfl, in);
         add(aij_aIJ, in);
+        add(mu_h_cfl, in);
     }
 };
 
@@ -209,14 +212,15 @@ struct initial_conditions
             }, {"aijaij"});
         }
 
-        laplace.boot(ctx, [](laplace_params params, bh_laplace_args args)
+        laplace.boot(ctx, [](laplace_params params, all_laplace_args args)
         {
             v3i pos = params.pos;
             v3i dim = params.dim;
-            auto u = params.u;
+            auto cfl = args.cfl[pos, dim] + params.u[pos, dim];
+            auto mu_h = args.mu_h_cfl[pos, dim];
 
-            return -(1.f/8.f) * pow(args.cfl[pos, dim] + u[pos, dim], -7.f) * args.aij_aIJ[pos, dim];
-        }, bh_laplace_args(), "laplace_rb_mg");
+            return -(1.f/8.f) * pow(cfl, -7.f) * args.aij_aIJ[pos, dim] - 2 * M_PI * pow(cfl, valuef(-3)) * mu_h;
+        }, all_laplace_args(), "laplace_rb_mg");
 
         {
             auto calculate_bssn_variables = [](execution_context& ectx,
