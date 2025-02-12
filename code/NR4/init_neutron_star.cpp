@@ -6,6 +6,7 @@
 #include <toolkit/opencl.hpp>
 #include "bssn.hpp"
 #include "tensor_algebra.hpp"
+#include "init_general.hpp"
 
 using valuef = value<float>;
 using valuei = value<int>;
@@ -243,7 +244,7 @@ void boot_solver(cl::context ctx)
 }
 
 void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
-                                   discretised_solution& dsol, const params& phys_params, const tov::integration_solution& sol,
+                                   discretised_initial_data& dsol, const params& phys_params, const tov::integration_solution& sol,
                                    tensor<int, 3> dim, float scale)
 {
     std::vector<double> radius_iso = initial::calculate_isotropic_r(sol);
