@@ -970,7 +970,6 @@ void make_bssn(cl::context ctx, const tensor<int, 3>& idim)
                                                  bssn_derivatives_mem<buffer<derivative_t>> derivatives,
                                                  std::array<buffer<momentum_t>, 3> momentum_constraint,
                                                  literal<valuef> timestep,
-                                                 literal<v3i> ldim,
                                                  literal<valuef> scale,
                                                  literal<valuef> total_elapsed,
                                                  literal<v3i> idim,

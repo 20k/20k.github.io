@@ -9,11 +9,12 @@
 ///so. We have to sort out the classic problem, which is that
 ///we need to triple buffer the hydrodynamic state, and solve in lockstep with the classic bssn equation
 ///while also using backwards euler correctly. I'm going to copy the plugin architecture from the other project
+template<typename T>
 struct hydrodynamic_args : adm_args_mem
 {
-    buffer<valuef> p_star;
-    buffer<valuef> e_star;
-    std::array<buffer<valuef>, 3> Si;
+    T p_star;
+    T e_star;
+    std::array<T, 3> Si;
 
     virtual void build(value_impl::type_storage& in) override
     {
