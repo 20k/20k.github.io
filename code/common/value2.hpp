@@ -1671,6 +1671,36 @@ namespace value_impl
 
     template<typename T>
     inline
+    value<T> min(const value<T>& v1, std::type_identity_t<T> v2)
+    {
+        return from_base<T>(optimise(make_op<value<T>>(op::MIN, {v1, value<T>(v2)})));
+    }
+
+    template<typename T>
+    inline
+    value<T> max(const value<T>& v1, std::type_identity_t<T> v2)
+    {
+        return from_base<T>(optimise(make_op<value<T>>(op::MAX, {v1, value<T>(v2)})));
+    }
+
+
+    template<typename T>
+    inline
+    value<T> min(std::type_identity<T> v1, const value<T>& v2)
+    {
+        return from_base<T>(optimise(make_op<value<T>>(op::MIN, {value<T>(v1), v2})));
+    }
+
+    template<typename T>
+    inline
+    value<T> max(std::type_identity<T> v1, const value<T>& v2)
+    {
+        return from_base<T>(optimise(make_op<value<T>>(op::MAX, {value<T>(v1), v2})));
+    }
+
+
+    template<typename T>
+    inline
     value<T> clamp(const value<T>& v1, const value<T>& v2, const value<T>& v3)
     {
         return from_base<T>(optimise(make_op<value<T>>(op::CLAMP, {v1, v2, v3})));
@@ -1693,7 +1723,7 @@ namespace value_impl
 
     template<typename T>
     inline
-    value<T> pow(const value<T>& v1, const T& v2)
+    value<T> pow(const value<T>& v1, std::type_identity_t<T> v2)
     {
         return from_base<T>(optimise(make_op<value<T>>(op::POW, {v1, value<T>(v2)})));
     }

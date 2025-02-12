@@ -43,8 +43,13 @@ void hydrodynamic_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t
     }
 }
 
+valuef get_Gamma()
+{
+    return 2;
+}
+
 void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_args<buffer_mut<valuef>> hydro, literal<v3i> ldim, literal<valuef> scale,
-                buffer<valuef> mu_cfl, buffer<valuef> mu_h_cfl, buffer<valuef> pressure_cfl, buffer<valuef> cfl, std::array<buffer<valuef>, 3> Si_cfl)
+                buffer<valuef> mu_cfl_b, buffer<valuef> mu_h_cfl_b, buffer<valuef> pressure_cfl_b, buffer<valuef> cfl_b, std::array<buffer<valuef>, 3> Si_cfl_b)
 {
     using namespace single_source;
 
@@ -64,9 +69,42 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydro
 
     bssn_args args(pos, dim, in);
 
-    /*valuef p_star = hydro.p_star[pos, dim];
-    valuef e_star = hydro.e_star[pos, dim];
-    v3f = hydro.p_star[pos, dim];*/
+    valuef mu_cfl = mu_cfl_b[pos, dim];
+    valuef mu_h_cfl = mu_h_cfl_b[pos, dim];
+    valuef pressure_cfl = pressure_cfl_b[pos, dim];
+    valuef phi = cfl_b[pos, dim];
+    v3f Si_cfl = {Si_cfl_b[0][pos, dim], Si_cfl_b[1][pos, dim], Si_cfl_b[2][pos, dim]};
+
+    valuef mu = mu_cfl * pow(phi, valuef(-8));
+    valuef mu_h = mu_h_cfl * pow(phi, valuef(-8));
+    valuef pressure = pressure_cfl * pow(phi, valuef(-8));
+    v3f Si = Si_cfl * pow(phi, valuef(-8));
+
+    valuef lorentz = sqrt((mu_h + pressure) / (mu + pressure));
+    valuef u0 = lorentz;
+
+    ///h = 1 + e + P/p0
+    ///P = (Gamma - 1) p0 e
+    ///h = 1 + e + (Gamma-1) p0 e / p0
+    ///h = 1 + Gamma e
+
+    valuef Gamma = get_Gamma();
+
+    valuef p0_e = pressure / (Gamma - 1);
+    valuef p0 = mu - p0_e;
+
+    value gA = args.gA;
+
+    //fluid dynamics cannot have a singular initial slice, so setting the clamping pretty high here because its irrelevant
+    //thing is we have 0 quantities at the singularity, so as long as you don't generate a literal NaN here, you're 100% fine
+    valuef cW = max(args.W, 0.1f);
+
+    valuef p_star = p0 * gA * u0 * pow(cW, -3);
+    valuef e_star = pow(p0_e, (1/Gamma)) * gA * u0 * pow(cW, -3);
+
+    metric<valuef, 3, 3> Yij = args.cY / (cW*cW);
+
+    v3f Si_lo_cfl = pow(cW, -3) * Yij.lower(Si);
 }
 
 hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx)
