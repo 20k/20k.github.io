@@ -4,28 +4,61 @@
 #include "init_black_hole.hpp"
 #include "tensor_algebra.hpp"
 #include "laplace.hpp"
+#include "init_neutron_star.hpp"
+
+struct discretised_initial_data
+{
+    cl::buffer mu_cfl;
+    cl::buffer mu_h_cfl;
+    cl::buffer pressure_cfl;
+    cl::buffer cfl; //for black holes
+    std::array<cl::buffer, 6> AIJ_cfl;
+    std::array<cl::buffer, 3> Si;
+
+    discretised_initial_data(cl::context& ctx) : mu_cfl(ctx), mu_h_cfl(ctx), pressure_cfl(ctx), cfl(ctx), AIJ_cfl{ctx, ctx, ctx, ctx, ctx, ctx}, Si{ctx, ctx, ctx}{}
+
+    void init(cl::command_queue& cqueue, t3i dim)
+    {
+        int64_t cells = int64_t{dim.x()} * dim.y() * dim.z();
+
+        mu_cfl.alloc(sizeof(cl_float) * cells);
+        mu_h_cfl.alloc(sizeof(cl_float) * cells);
+        pressure_cfl.alloc(sizeof(cl_float) * cells);
+
+        cfl.alloc(sizeof(cl_float) * cells);
+
+        mu_cfl.set_to_zero(cqueue);
+        mu_h_cfl.set_to_zero(cqueue);
+        pressure_cfl.set_to_zero(cqueue);
+
+        for(auto& i : AIJ_cfl)
+        {
+            i.alloc(sizeof(cl_float) * cells);
+            i.set_to_zero(cqueue);
+        }
+
+        for(auto& i : Si)
+        {
+            i.alloc(sizeof(cl_float) * cells);
+            i.set_to_zero(cqueue);
+        }
+    }
+};
 
 struct initial_pack
 {
-    std::array<cl::buffer, 6> aIJ_summed;
-    cl::buffer cfl_summed;
+    discretised_initial_data disc;
+
     tensor<int, 3> dim;
     float scale = 0.f;
     cl::buffer aij_aIJ_buf;
 
-    initial_pack(cl::context& ctx, cl::command_queue& cqueue, tensor<int, 3> _dim, float _scale) : aIJ_summed{ctx, ctx, ctx, ctx, ctx, ctx}, cfl_summed{ctx}, aij_aIJ_buf{ctx}
+    initial_pack(cl::context& ctx, cl::command_queue& cqueue, tensor<int, 3> _dim, float _scale) : disc(ctx), aij_aIJ_buf(ctx)
     {
         dim = _dim;
         scale = _scale;
 
-        for(int i=0; i < 6; i++)
-        {
-            aIJ_summed[i].alloc(sizeof(cl_float) * dim.x() * dim.y() * dim.z());
-            aIJ_summed[i].set_to_zero(cqueue);
-        }
-
-        cfl_summed.alloc(sizeof(cl_float) * dim.x() * dim.y() * dim.z());
-        cfl_summed.fill(cqueue, 1.f);
+        disc.init(cqueue, dim);
 
         aij_aIJ_buf.alloc(sizeof(cl_float) * dim.x() * dim.y() * dim.z());
         aij_aIJ_buf.set_to_zero(cqueue);
@@ -36,7 +69,7 @@ struct initial_pack
         for(int i=0; i < 6; i++)
         {
             cl::args args;
-            args.push_back(aIJ_summed[i]);
+            args.push_back(disc.AIJ_cfl[i]);
             args.push_back(bh.aij[i]);
             args.push_back(dim);
 
@@ -44,11 +77,16 @@ struct initial_pack
         }
 
         cl::args args;
-        args.push_back(cfl_summed);
+        args.push_back(disc.cfl);
         args.push_back(bh.conformal_guess);
         args.push_back(dim);
 
         cqueue.exec("sum_buffers", args, {dim.x() * dim.y() * dim.z()}, {128});
+    }
+
+    void add(cl::context& ctx, cl::command_queue& cqueue, const neutron_star::params& nh)
+    {
+
     }
 
     void add(cl::context& ctx, cl::command_queue& cqueue, const black_hole_params& bh)
@@ -64,7 +102,7 @@ struct initial_pack
         args.push_back(aij_aIJ_buf);
 
         for(int i=0; i < 6; i++)
-            args.push_back(aIJ_summed[i]);
+            args.push_back(disc.AIJ_cfl[i]);
 
         args.push_back(dim);
 
@@ -73,7 +111,7 @@ struct initial_pack
 
     void push(cl::args& args)
     {
-        args.push_back(cfl_summed);
+        args.push_back(disc.cfl);
         args.push_back(aij_aIJ_buf);
     }
 };
@@ -338,11 +376,11 @@ struct initial_conditions
                 args.push_back(buf);
             });
 
-            args.push_back(pack.cfl_summed);
+            args.push_back(pack.disc.cfl);
             args.push_back(u_found);
 
             for(int i=0; i < 6; i++)
-                args.push_back(pack.aIJ_summed[i]);
+                args.push_back(pack.disc.AIJ_cfl[i]);
 
             args.push_back(dim);
 
