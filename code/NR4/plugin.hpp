@@ -139,9 +139,16 @@ struct hydrodynamic_args : adm_args_mem
     }
 };
 
+struct buffer_provider
+{
+    virtual std::vector<buffer_descriptor> get_description(){assert(false);}
+    virtual std::vector<cl::buffer> get_buffers() {assert(false);}
+    virtual void allocate(t3i size){assert(false);}
+};
+
 struct plugin
 {
-    virtual std::vector<buffer_descriptor> get_buffers(){return std::vector<buffer_descriptor>();}
+    //virtual std::vector<buffer_descriptor> get_buffers(){return std::vector<buffer_descriptor>();}
     //virtual std::vector<buffer_descriptor> get_utility_buffers(){return std::vector<buffer_descriptor>();}
     //virtual void init(mesh& m, cl::context& ctx, cl::command_queue& cqueue, buffer_set& to_init){assert(false);}
     //virtual void pre_step(mesh& m, cl::context& ctx, cl::command_queue& mqueue, thin_intermediates_pool& pool, buffer_set& buffers, float timestep){}
