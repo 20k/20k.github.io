@@ -411,7 +411,6 @@ struct mesh
             }
 
             args.push_back(timestep);
-            args.push_back(dim);
             args.push_back(scale);
             args.push_back(total_elapsed);
             args.push_back(dim);

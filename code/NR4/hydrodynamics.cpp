@@ -43,15 +43,34 @@ void hydrodynamic_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t
     }
 }
 
-void init_hydro(execution_context& ectx)
+void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_args<buffer_mut<valuef>> hydro, literal<v3i> ldim, literal<valuef> scale,
+                buffer<valuef> mu_cfl, buffer<valuef> mu_h_cfl, buffer<valuef> pressure_cfl, buffer<valuef> cfl, std::array<buffer<valuef>, 3> Si_cfl)
 {
+    using namespace single_source;
 
+    valuei lid = value_impl::get_global_id(0);
+
+    pin(lid);
+
+    v3i dim = ldim.get();
+
+    if_e(lid >= dim.x() * dim.y() * dim.z(), []{
+        return_e();
+    });
+
+    ///if i was smart, i'd use the structure of the grid to do this directly
+    v3i pos = get_coordinate(lid, dim);
+    pin(pos);
+
+    bssn_args args(pos, dim, in);
+
+    /*valuef p_star = hydro.p_star[pos, dim];
+    valuef e_star = hydro.e_star[pos, dim];
+    v3f = hydro.p_star[pos, dim];*/
 }
 
 hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx)
 {
-
-
     cl::async_build_and_cache(ctx, []{
         return value_impl::make_function(init_hydro, "init_hydro");
     }, {"init_hydro"});
