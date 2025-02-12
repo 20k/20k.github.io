@@ -22,7 +22,6 @@ namespace neutron_star
         tensor<float, 3> angular_momentum;
 
         double K = 123.741;
-        //double M_sol = 1.4;
         double Gamma = 2;
         double p0_c = 6.235 * pow(10., 17.);
     };
