@@ -5,7 +5,9 @@
 #include <assert.h>
 #include <string>
 #include <toolkit/opencl.hpp>
+#include "value_alias.hpp"
 
+struct bssn_args;
 struct mesh;
 struct thin_intermediates_pool;
 struct buffer_pool;
@@ -112,33 +114,6 @@ struct all_adm_args_mem : adm_args_mem
     }
 };
 
-struct hydrodynamic_args : adm_args_mem
-{
-    /*cl::buffer p_star;
-    cl::buffer e_star;
-    std::array<cl::buffer, 3> Si;
-
-    hydrodynamic_buffers(cl::context ctx) : p_star(ctx), e_star(ctx), Si{ctx, ctx, ctx}{}*/
-
-    buffer<valuef> p_star;
-    buffer<valuef> e_star;
-    std::array<buffer<valuef>, 3> Si;
-
-    virtual void build(value_impl::type_storage& in) override
-    {
-        using namespace value_impl::builder;
-
-        add(p_star, in);
-        add(e_star, in);
-        add(Si, in);
-    }
-
-    virtual void add_adm_S(bssn_args& args, valuef& in) override
-    {
-
-    }
-};
-
 struct buffer_provider
 {
     virtual std::vector<buffer_descriptor> get_description(){assert(false);}
@@ -150,7 +125,7 @@ struct plugin
 {
     //virtual std::vector<buffer_descriptor> get_buffers(){return std::vector<buffer_descriptor>();}
     //virtual std::vector<buffer_descriptor> get_utility_buffers(){return std::vector<buffer_descriptor>();}
-    //virtual void init(mesh& m, cl::context& ctx, cl::command_queue& cqueue, buffer_set& to_init){assert(false);}
+    virtual void init(mesh& m, cl::context& ctx, cl::command_queue& cqueue, bssn_args& to_init){assert(false);}
     //virtual void pre_step(mesh& m, cl::context& ctx, cl::command_queue& mqueue, thin_intermediates_pool& pool, buffer_set& buffers, float timestep){}
     //virtual void step(mesh& m, cl::context& ctx, cl::command_queue& mqueue, buffer_pack& pack, float timestep, int iteration, int max_iteration){assert(false);}
     virtual void finalise(mesh& m, cl::context& ctx, cl::command_queue& mqueue, float timestep) {}
