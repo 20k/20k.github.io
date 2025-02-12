@@ -5,6 +5,7 @@
 #include "tensor_algebra.hpp"
 #include "laplace.hpp"
 #include "init_neutron_star.hpp"
+#include "tov.hpp"
 
 struct discretised_initial_data
 {
@@ -24,7 +25,6 @@ struct discretised_initial_data
         mu_cfl.alloc(sizeof(cl_float) * cells);
         mu_h_cfl.alloc(sizeof(cl_float) * cells);
         pressure_cfl.alloc(sizeof(cl_float) * cells);
-
         cfl.alloc(sizeof(cl_float) * cells);
 
         mu_cfl.set_to_zero(cqueue);
@@ -85,9 +85,16 @@ struct initial_pack
         cqueue.exec("sum_buffers", args, {dim.x() * dim.y() * dim.z()}, {128});
     }
 
-    void add(cl::context& ctx, cl::command_queue& cqueue, const neutron_star::params& nh)
+    void add(cl::context& ctx, cl::command_queue& cqueue, const neutron_star::parameters& ns)
     {
+        tov::parameters params;
+        params.K = ns.K;
+        params.Gamma = ns.Gamma;
 
+        tov::integration_state st = tov::make_integration_state(ns.p0_c, 1e-6, params);
+        tov::integration_solution sol = tov::solve_tov(st, params, 1e-6, 0.);
+
+        neutron_star::add_to_solution(ctx, cqueue, disc, ns, sol, dim, scale);
     }
 
     void add(cl::context& ctx, cl::command_queue& cqueue, const black_hole_params& bh)
