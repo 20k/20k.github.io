@@ -13,7 +13,7 @@ struct discretised_initial_data
     cl::buffer mu_cfl;
     cl::buffer mu_h_cfl;
     cl::buffer pressure_cfl;
-    cl::buffer cfl; //for black holes
+    cl::buffer cfl; //for black holes this is inited to 1/a
     std::array<cl::buffer, 6> AIJ_cfl;
     std::array<cl::buffer, 3> Si;
 

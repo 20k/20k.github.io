@@ -71,6 +71,8 @@ This is one of the areas of the literature where the notation is, frankly, reall
 
 Here's some useful equations:
 
+Todo: I need to split up EoS vs core thermodynamics
+
 |Equation|
 |-|
 |$\mu = \rho_0(1 + \epsilon)$|
@@ -743,13 +745,17 @@ Todo; delta phi
 
 $$\gamma_{lorentz}^2 =\frac{\mu_H + P}{\mu + P}$$
 $$u^0 = \gamma_{lorentz}$$
-$$p_* = \rho_0 \alpha u^0 e^{6\phi}$$
-$$e_* = (\rho_0 \epsilon)^\frac{1}{\Gamma}\alpha u^0 e^{6\phi}$$
+$$p_* = \rho_0 \alpha u^0 W^{-3}$$
+$$e_* = (\rho_0 \epsilon)^\frac{1}{\Gamma}\alpha u^0 W^{-3}$$
 $$P = (\Gamma-1) \rho_0 \epsilon$$
+
+I think $\rho_0 + \rho_0 \epsilon + P = \mu + P$
+
+$\rho_0 + (P/(\Gamma-1)) = \mu$
 
 Note that $\Gamma=2$ is used in the gamma law equation of state: $(\Gamma-1) \rho_0 \epsilon$
 
-$$\tilde{S}_i = e^{6\phi} \gamma_{ij} S^j$$
+$$\tilde{S}_i = W^{-3} \gamma_{ij} S^j$$
 
 $$\rho_0 \epsilon = \frac{P}{\Gamma-1}$$
 
