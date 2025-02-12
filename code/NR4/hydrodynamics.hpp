@@ -49,6 +49,8 @@ struct hydrodynamic_buffers : buffer_provider
 
 struct hydrodynamic_plugin : plugin
 {
+    hydrodynamic_plugin(cl::context ctx);
+
     virtual buffer_provider* get_buffer_factory(cl::context ctx) override;
     virtual void init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, buffer_provider* to_init) override;
 };
