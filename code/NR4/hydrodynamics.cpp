@@ -43,6 +43,20 @@ void hydrodynamic_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t
     }
 }
 
+void init_hydro(execution_context& ectx)
+{
+
+}
+
+hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx)
+{
+
+
+    cl::async_build_and_cache(ctx, []{
+        return value_impl::make_function(init_hydro, "init_hydro");
+    }, {"init_hydro"});
+}
+
 buffer_provider* hydrodynamic_plugin::get_buffer_factory(cl::context ctx)
 {
     return new hydrodynamic_buffers(ctx);
@@ -50,5 +64,7 @@ buffer_provider* hydrodynamic_plugin::get_buffer_factory(cl::context ctx)
 
 void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, buffer_provider* to_init)
 {
+    hydrodynamic_buffers* bufs = dynamic_cast<hydrodynamic_buffers*>(to_init);
 
+    assert(bufs);
 }
