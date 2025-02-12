@@ -26,7 +26,6 @@ namespace neutron_star
         double Gamma = 2;
     };
 
-
     void add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
                          discretised_initial_data& dsol, const params& phys_params, const tov::integration_solution& sol,
                          tensor<int, 3> dim, float scale);
