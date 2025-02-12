@@ -6,6 +6,7 @@
 #include "laplace.hpp"
 #include "init_neutron_star.hpp"
 #include "tov.hpp"
+#include "plugin.hpp"
 
 struct discretised_initial_data
 {
@@ -366,9 +367,8 @@ struct initial_conditions
         return ret;
     }
 
-    //returns u
     ///todo: pass plugins in here
-    cl::buffer build(cl::context& ctx, cl::command_queue& cqueue, float simulation_width, bssn_buffer_pack& to_fill)
+    cl::buffer build(cl::context& ctx, cl::command_queue& cqueue, float simulation_width, bssn_buffer_pack& to_fill, std::vector<plugin*> plugins, std::vector<buffer_provider*> bufs)
     {
         auto [u_found, pack] = laplace.solve(ctx, cqueue, simulation_width, dim,
                                             [&ctx, &cqueue, this](t3i idim, float iscale)
@@ -398,6 +398,15 @@ struct initial_conditions
             args.push_back(dim);
 
             cqueue.exec("calculate_bssn_variables", args, {dim.x() * dim.y() * dim.z()}, {128});
+        }
+
+        {
+            assert(plugins.size() == bufs.size());
+
+            for(int i=0; i < (int)plugins.size(); i++)
+            {
+                plugins[i]->init(ctx, cqueue, to_fill, pack, bufs[i]);
+            }
         }
 
         return u_found;
