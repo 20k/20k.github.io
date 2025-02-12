@@ -18,6 +18,7 @@
 #include "tov.hpp"
 #include "laplace.hpp"
 #include "init_neutron_star.hpp"
+#include "plugin.hpp"
 
 using t3i = tensor<int, 3>;
 
