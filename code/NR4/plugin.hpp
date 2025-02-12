@@ -40,30 +40,6 @@ struct buffer_descriptor
 
 ///I need to pass in the BSSN buffers by *value*, as well as our buffer struct by *value*, or at least by pointer
 ///make build a virtual fucntion, overload, and add an overloaded push
-/*struct buffer_set
-{
-    std::vector<cl::buffer> bufs;
-    std::vector<buffer_descriptor> desc;
-
-    std::pair<cl::buffer, buffer_descriptor> lookup_by_name(const std::string& name)
-    {
-        for(int i=0; i < (int)bufs.size(); i++)
-        {
-            if(desc[i].name == name)
-                return {bufs[i], desc[i]};
-        }
-
-        assert(false);
-    }
-
-    void append_to(cl::args& args)
-    {
-        for(auto& i : bufs)
-            args.push_back(i);
-    }
-};*/
-
-
 struct adm_args_mem : value_impl::single_source::argument_pack
 {
     virtual void build(value_impl::type_storage& store){assert(false);}
@@ -131,31 +107,11 @@ struct plugin
     virtual void init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, buffer_provider* to_init){assert(false);}
     //virtual void pre_step(mesh& m, cl::context& ctx, cl::command_queue& mqueue, thin_intermediates_pool& pool, buffer_set& buffers, float timestep){}
     //virtual void step(mesh& m, cl::context& ctx, cl::command_queue& mqueue, buffer_pack& pack, float timestep, int iteration, int max_iteration){assert(false);}
-    virtual void finalise(mesh& m, cl::context& ctx, cl::command_queue& mqueue, float timestep) {}
+    //virtual void finalise(mesh& m, cl::context& ctx, cl::command_queue& mqueue, float timestep) {}
     //virtual void save(cl::command_queue& cqueue, const std::string& directory){assert(false);}
     //virtual void load(cl::command_queue& cqueue, const std::string& directory){assert(false);}
 
     virtual ~plugin(){}
 };
-
-/*struct matter_provider
-{
-    virtual value               calculate_adm_S(equation_context& ctx, standard_arguments& bssn_args) const{return 0;};
-    virtual value               calculate_adm_p(equation_context& ctx, standard_arguments& bssn_args) const{return 0;};
-    virtual tensor<value, 3, 3> calculate_adm_X_Sij(equation_context& ctx, standard_arguments& bssn_args) const{return {0,0,0,0,0,0,0,0,0};};
-    virtual tensor<value, 3>    calculate_adm_Si(equation_context& ctx, standard_arguments& bssn_args) const{return {0,0,0};};
-
-    virtual ~matter_interop(){}
-};
-
-struct matter_meta_provider : matter_provider
-{
-    std::vector<matter_provider*> all;
-
-    virtual value               calculate_adm_S(equation_context& ctx, standard_arguments& bssn_args) const override;
-    virtual value               calculate_adm_p(equation_context& ctx, standard_arguments& bssn_args) const override;
-    virtual tensor<value, 3, 3> calculate_adm_X_Sij(equation_context& ctx, standard_arguments& bssn_args) const override;
-    virtual tensor<value, 3>    calculate_adm_Si(equation_context& ctx, standard_arguments& bssn_args) const override;
-};*/
 
 #endif // PLUGIN_HPP_INCLUDED
