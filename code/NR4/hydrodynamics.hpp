@@ -48,6 +48,14 @@ struct hydrodynamic_buffers : buffer_provider
     virtual void allocate(cl::context ctx, cl::command_queue cqueue, t3i size) override;
 };
 
+struct hydrodynamic_adm : adm_args_mem
+{
+    virtual void add_adm_S(bssn_args& args, valuef& in) override;
+    virtual void add_adm_p(bssn_args& args, valuef& in) override;
+    virtual void add_adm_Si(bssn_args& args, tensor<valuef, 3>& in) override;
+    virtual void add_adm_W2_Sij(bssn_args& args, tensor<valuef, 3, 3>& in) override;
+};
+
 struct hydrodynamic_plugin : plugin
 {
     hydrodynamic_plugin(cl::context ctx);

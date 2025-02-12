@@ -701,7 +701,7 @@ It is important to note that $\tilde{S}_i^J$ is not simply a function of radius.
 |Name|Symbol|Value|
 |-|-|-|
 |Metric Tensor|$$\gamma_{ij}$$|$$\Phi^4 \bar{\eta}_{ij}$$|
-|Extrinsic Curvature|$$K_{ij}$$|$$\Phi^{-2} \bar{A}{ij}$$|
+|Extrinsic Curvature|$$K_{ij}$$|$$\Phi^{-2} \bar{A}_{ij}$$|
 | Initial Adm Matter Source | $$\mu_H$$ | $$\Phi^{-8} \bar{\mu}_H$$ |
 | Initial Adm Matter Source | $$S^i$$ | $$\Phi^{-10} \tilde{S}^i$$ |
 | Initial Pressure | $$P$$ | $$\Phi^{-8} \bar{P}$$ |
@@ -844,17 +844,17 @@ There's also a special case here when $\Gamma = 2$, in that the factor of $p_*$ 
 
 $\rho_0$ and $\epsilon$ are often called the primitive variables, and recovering them requires $w$. Once you have that, you can calculate:
 
-$$\rho_0 = \frac{e^{-6\phi} p_*^2}{w}$$
+$$\rho_0 = \frac{W^3 p_*^2}{w}$$
 
 And
 
-$$\epsilon = e_*^\Gamma p_*^{\Gamma - 2} (\frac{e^{-6\phi}}{w})^{\Gamma - 1}$$
+$$\epsilon = e_*^\Gamma p_*^{\Gamma - 2} (\frac{W^3}{w})^{\Gamma - 1}$$
 
 Both of these non regular divisions have their limits at $0$
 
 Other usefully optimised quantities are:
 
-$$\rho_0 \epsilon = (e_* e^{-6\phi} \frac{p_*}{w})^\Gamma$$
+$$\rho_0 \epsilon = \left (e_* W^3 \frac{p_*}{w} \right)^\Gamma$$
 
 $$h = 1 + \Gamma \epsilon$$
 
@@ -864,8 +864,8 @@ There are four standard adm source terms. These make up the components of the st
 
 $$\begin{align}
 \rho_s &= h w e^{-6\phi} - P\\
-S_i &= e^{-6\phi}\tilde{S}_i\\
-S_{ij} &= \frac{e^{-6\phi}}{wh}\tilde{S}_i \tilde{S}_j + P \gamma_{ij}\\
+S_i &= W^3\tilde{S}_i\\
+S_{ij} &= \frac{W^3}{wh}\tilde{S}_i \tilde{S}_j + P \gamma_{ij}\\
 S &= \gamma^{ij} S_{ij}\\
 \end{align}$$
 
@@ -875,7 +875,7 @@ Luckily, we can skip to the future, and discover that the form of our $S_{ij}$ s
 
 $$
 \begin{align}
-\tilde{S}_{ij} &= W^2 \frac{e^{-6\phi}}{wh} \tilde{S}_i \tilde{S}_j + P \tilde{\gamma}_{ij}\\
+\tilde{S}_{ij} &= \frac{W^5}{wh} \tilde{S}_i \tilde{S}_j + P \tilde{\gamma}_{ij}\\
 S &=\tilde{\gamma}^{ij} \tilde{S}_{ij} \\
 \end{align}
 $$

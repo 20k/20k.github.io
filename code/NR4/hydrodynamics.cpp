@@ -1,6 +1,34 @@
 #include "hydrodynamics.hpp"
 #include "init_general.hpp"
 
+valuef get_Gamma()
+{
+    return 2;
+}
+
+valuef get_h_with_gamma_eos(valuef e)
+{
+    return 1 + get_Gamma() * e;
+}
+
+void hydrodynamic_adm::add_adm_S(bssn_args& args, valuef& in)
+{
+
+}
+///W is our utility variable SIGH
+void hydrodynamic_adm::add_adm_p(bssn_args& args, valuef& in)
+{
+
+}
+void hydrodynamic_adm::add_adm_Si(bssn_args& args, tensor<valuef, 3>& in)
+{
+
+}
+void hydrodynamic_adm::add_adm_W2_Sij(bssn_args& args, tensor<valuef, 3, 3>& in)
+{
+
+}
+
 std::vector<buffer_descriptor> hydrodynamic_buffers::get_description()
 {
     buffer_descriptor p;
@@ -43,11 +71,6 @@ void hydrodynamic_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t
     }
 }
 
-valuef get_Gamma()
-{
-    return 2;
-}
-
 void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_args<buffer_mut<valuef>> hydro, literal<v3i> ldim, literal<valuef> scale,
                 buffer<valuef> mu_cfl_b, buffer<valuef> mu_h_cfl_b, buffer<valuef> pressure_cfl_b, buffer<valuef> cfl_b, std::array<buffer<valuef>, 3> Si_cfl_b)
 {
@@ -81,11 +104,6 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydro
     v3f Si = Si_cfl * pow(phi, -10);
 
     valuef u0 = sqrt((mu_h + pressure) / (mu + pressure));
-
-    ///h = 1 + e + P/p0
-    ///P = (Gamma - 1) p0 e
-    ///h = 1 + e + (Gamma-1) p0 e / p0
-    ///h = 1 + Gamma e
 
     valuef Gamma = get_Gamma();
 
