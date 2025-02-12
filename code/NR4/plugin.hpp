@@ -118,7 +118,7 @@ struct buffer_provider
 {
     virtual std::vector<buffer_descriptor> get_description(){assert(false);}
     virtual std::vector<cl::buffer> get_buffers() {assert(false);}
-    virtual void allocate(t3i size){assert(false);}
+    virtual void allocate(cl::context ctx, cl::command_queue cqueue, t3i size){assert(false);}
 };
 
 struct plugin
