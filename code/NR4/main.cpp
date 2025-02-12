@@ -873,7 +873,7 @@ void solve()
     std::vector<double> tov_phi = initial::calculate_tov_phi(sol);
 
 
-    assert(false);
+    //assert(false);
 }
 
 int main()
