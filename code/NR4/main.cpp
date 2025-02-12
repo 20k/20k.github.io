@@ -29,7 +29,9 @@ float get_scale(float simulation_width, t3i dim)
 
 struct mesh
 {
+    std::vector<plugin*> plugins;
     std::array<bssn_buffer_pack, 3> buffers;
+    std::array<std::vector<buffer_provider*>, 3> plugin_buffers;
     t3i dim;
 
     std::vector<cl::buffer> derivatives;
@@ -109,6 +111,18 @@ struct mesh
             b.fill(cqueue, nan);
         });
 
+        for(plugin* p : plugins)
+        {
+            plugin_buffers[0].push_back(p->get_buffer_factory(ctx));
+            plugin_buffers[1].push_back(p->get_buffer_factory(ctx));
+            plugin_buffers[2].push_back(p->get_buffer_factory(ctx));
+
+            for(auto& i : plugin_buffers[0])
+            {
+                i->allocate(ctx, cqueue, dim);
+            }
+        }
+
         {
             #define INSPIRAL
             #ifdef INSPIRAL
@@ -137,7 +151,7 @@ struct mesh
             init.add(p1);
             #endif
 
-            cl::buffer found_u = init.build(ctx, cqueue, simulation_width, buffers[0]);
+            cl::buffer found_u = init.build(ctx, cqueue, simulation_width, buffers[0], plugins, plugin_buffers[0]);
 
             std::vector<float> adm_masses = init.extract_adm_masses(ctx, cqueue, found_u, dim, get_scale(simulation_width, dim));
 
@@ -156,6 +170,9 @@ struct mesh
 
                 b.fill(cqueue, nan);
             });
+
+            for(auto& i : plugin_buffers[i])
+                i->allocate(ctx, cqueue, dim);
         }
 
         if(using_momentum_constraint)
