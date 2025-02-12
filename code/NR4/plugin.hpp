@@ -6,9 +6,9 @@
 #include <string>
 #include <toolkit/opencl.hpp>
 
-struct mesh
+struct mesh;
 struct thin_intermediates_pool;
-struct buffer_pool;;
+struct buffer_pool;
 
 struct buffer_descriptor
 {
@@ -60,29 +60,24 @@ struct buffer_descriptor
 };*/
 
 
-struct all_buffers
-{
-    std::array<buffers, 3> all_bufs;
-};
-
 struct adm_args_mem : value_impl::single_source::argument_pack
 {
     virtual void build(value_impl::type_storage& store){assert(false);}
 
-    virtual void add_adm_S(bssn_args& args, valuef& in) override{}
-    virtual void add_adm_p(bssn_args& args, valuef& in) override{}
-    virtual void add_adm_Si(bssn_args& args, tensor<valuef, 3>& in) override{}
-    virtual void add_adm_W2_Sij(bssn_args& args, tensor<valuef, 3, 3>& in) override{}
+    virtual void add_adm_S(bssn_args& args, valuef& in){}
+    virtual void add_adm_p(bssn_args& args, valuef& in){}
+    virtual void add_adm_Si(bssn_args& args, tensor<valuef, 3>& in){}
+    virtual void add_adm_W2_Sij(bssn_args& args, tensor<valuef, 3, 3>& in){}
 };
 
-struct all_adm_args_mem : value_impl::single_source::argument_pack
+struct all_adm_args_mem : adm_args_mem
 {
     std::vector<adm_args_mem*> all_mem;
 
-    virtual void build(value_impl::type_storage& store) override
+    virtual void build(value_impl::type_storage& in) override
     {
         for(auto& i : all_mem)
-            i->build(store);
+            i->build(in);
     }
 
     virtual void add_adm_S(bssn_args& args, valuef& in) override
@@ -108,23 +103,34 @@ struct all_adm_args_mem : value_impl::single_source::argument_pack
         for(auto& i : all_mem)
             i->add_adm_W2_Sij(args, in);
     }
+
+    template<typename T>
+    void add(T&& mem)
+    {
+        adm_args_mem* ptr = new T(std::move(mem));
+        all_mem.push_back(ptr);
+    }
 };
 
-struct hydrodynamic_buffers : adm_args_mem
+struct hydrodynamic_args : adm_args_mem
 {
-    cl::buffer p_star;
+    /*cl::buffer p_star;
     cl::buffer e_star;
     std::array<cl::buffer, 3> Si;
 
-    hydrodynamic_buffers(cl::context ctx) : p_star(ctx), e_star(ctx), Si{ctx, ctx, ctx}{}
+    hydrodynamic_buffers(cl::context ctx) : p_star(ctx), e_star(ctx), Si{ctx, ctx, ctx}{}*/
 
-    virtual void build(value_impl::type_storage& store) override
+    buffer<valuef> p_star;
+    buffer<valuef> e_star;
+    std::array<buffer<valuef>, 3> Si;
+
+    virtual void build(value_impl::type_storage& in) override
     {
-        using value_impl::builder;
+        using namespace value_impl::builder;
 
-        add(p_star);
-        add(e_star);
-        add(Si);
+        add(p_star, in);
+        add(e_star, in);
+        add(Si, in);
     }
 
     virtual void add_adm_S(bssn_args& args, valuef& in) override
@@ -137,9 +143,9 @@ struct plugin
 {
     virtual std::vector<buffer_descriptor> get_buffers(){return std::vector<buffer_descriptor>();}
     //virtual std::vector<buffer_descriptor> get_utility_buffers(){return std::vector<buffer_descriptor>();}
-    virtual void init(mesh& m, cl::context& ctx, cl::command_queue& cqueue, buffer_set& to_init){assert(false);}
+    //virtual void init(mesh& m, cl::context& ctx, cl::command_queue& cqueue, buffer_set& to_init){assert(false);}
     //virtual void pre_step(mesh& m, cl::context& ctx, cl::command_queue& mqueue, thin_intermediates_pool& pool, buffer_set& buffers, float timestep){}
-    virtual void step(mesh& m, cl::context& ctx, cl::command_queue& mqueue, buffer_pack& pack, float timestep, int iteration, int max_iteration){assert(false);}
+    //virtual void step(mesh& m, cl::context& ctx, cl::command_queue& mqueue, buffer_pack& pack, float timestep, int iteration, int max_iteration){assert(false);}
     virtual void finalise(mesh& m, cl::context& ctx, cl::command_queue& mqueue, float timestep) {}
     //virtual void save(cl::command_queue& cqueue, const std::string& directory){assert(false);}
     //virtual void load(cl::command_queue& cqueue, const std::string& directory){assert(false);}
