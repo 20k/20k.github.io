@@ -75,13 +75,12 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydro
     valuef phi = cfl_b[pos, dim];
     v3f Si_cfl = {Si_cfl_b[0][pos, dim], Si_cfl_b[1][pos, dim], Si_cfl_b[2][pos, dim]};
 
-    valuef mu = mu_cfl * pow(phi, valuef(-8));
-    valuef mu_h = mu_h_cfl * pow(phi, valuef(-8));
-    valuef pressure = pressure_cfl * pow(phi, valuef(-8));
-    v3f Si = Si_cfl * pow(phi, valuef(-8));
+    valuef mu = mu_cfl * pow(phi, -8);
+    valuef mu_h = mu_h_cfl * pow(phi, -8);
+    valuef pressure = pressure_cfl * pow(phi, -8);
+    v3f Si = Si_cfl * pow(phi, -10);
 
-    valuef lorentz = sqrt((mu_h + pressure) / (mu + pressure));
-    valuef u0 = lorentz;
+    valuef u0 = sqrt((mu_h + pressure) / (mu + pressure));
 
     ///h = 1 + e + P/p0
     ///P = (Gamma - 1) p0 e
