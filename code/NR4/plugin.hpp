@@ -123,7 +123,7 @@ struct buffer_provider
 
 struct plugin
 {
-    //virtual std::vector<buffer_descriptor> get_buffers(){return std::vector<buffer_descriptor>();}
+    virtual buffer_provider* get_buffer_factory(cl::context ctx){return nullptr;}
     //virtual std::vector<buffer_descriptor> get_utility_buffers(){return std::vector<buffer_descriptor>();}
     virtual void init(mesh& m, cl::context& ctx, cl::command_queue& cqueue, bssn_args& to_init){assert(false);}
     //virtual void pre_step(mesh& m, cl::context& ctx, cl::command_queue& mqueue, thin_intermediates_pool& pool, buffer_set& buffers, float timestep){}
