@@ -7,10 +7,12 @@
 #include <toolkit/opencl.hpp>
 #include "value_alias.hpp"
 
-struct bssn_args;
 struct mesh;
 struct thin_intermediates_pool;
 struct buffer_pool;
+struct bssn_args;
+struct bssn_buffer_pack;
+struct initial_pack;
 
 struct buffer_descriptor
 {
@@ -125,7 +127,8 @@ struct plugin
 {
     virtual buffer_provider* get_buffer_factory(cl::context ctx){return nullptr;}
     //virtual std::vector<buffer_descriptor> get_utility_buffers(){return std::vector<buffer_descriptor>();}
-    virtual void init(mesh& m, cl::context& ctx, cl::command_queue& cqueue, bssn_args& to_init){assert(false);}
+    ///pass the discretised state into here
+    virtual void init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, buffer_provider* to_init){assert(false);}
     //virtual void pre_step(mesh& m, cl::context& ctx, cl::command_queue& mqueue, thin_intermediates_pool& pool, buffer_set& buffers, float timestep){}
     //virtual void step(mesh& m, cl::context& ctx, cl::command_queue& mqueue, buffer_pack& pack, float timestep, int iteration, int max_iteration){assert(false);}
     virtual void finalise(mesh& m, cl::context& ctx, cl::command_queue& mqueue, float timestep) {}

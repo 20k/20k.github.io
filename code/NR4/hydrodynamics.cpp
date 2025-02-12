@@ -1,4 +1,5 @@
 #include "hydrodynamics.hpp"
+#include "init_general.hpp"
 
 std::vector<buffer_descriptor> hydrodynamic_buffers::get_description()
 {
@@ -45,4 +46,9 @@ void hydrodynamic_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t
 buffer_provider* hydrodynamic_plugin::get_buffer_factory(cl::context ctx)
 {
     return new hydrodynamic_buffers(ctx);
+}
+
+void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, buffer_provider* to_init)
+{
+
 }

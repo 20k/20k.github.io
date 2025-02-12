@@ -367,6 +367,7 @@ struct initial_conditions
     }
 
     //returns u
+    ///todo: pass plugins in here
     cl::buffer build(cl::context& ctx, cl::command_queue& cqueue, float simulation_width, bssn_buffer_pack& to_fill)
     {
         auto [u_found, pack] = laplace.solve(ctx, cqueue, simulation_width, dim,
