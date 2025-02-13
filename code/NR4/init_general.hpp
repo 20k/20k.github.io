@@ -368,7 +368,7 @@ struct initial_conditions
     }
 
     ///todo: pass plugins in here
-    cl::buffer build(cl::context& ctx, cl::command_queue& cqueue, float simulation_width, bssn_buffer_pack& to_fill, std::vector<plugin*> plugins, std::vector<buffer_provider*> bufs)
+    std::pair<cl::buffer, initial_pack> build(cl::context& ctx, cl::command_queue& cqueue, float simulation_width, bssn_buffer_pack& to_fill)
     {
         auto [u_found, pack] = laplace.solve(ctx, cqueue, simulation_width, dim,
                                             [&ctx, &cqueue, this](t3i idim, float iscale)
@@ -400,16 +400,7 @@ struct initial_conditions
             cqueue.exec("calculate_bssn_variables", args, {dim.x() * dim.y() * dim.z()}, {128});
         }
 
-        {
-            assert(plugins.size() == bufs.size());
-
-            for(int i=0; i < (int)plugins.size(); i++)
-            {
-                plugins[i]->init(ctx, cqueue, to_fill, pack, bufs[i]);
-            }
-        }
-
-        return u_found;
+        return {u_found, pack};
     }
 };
 

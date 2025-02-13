@@ -117,11 +117,6 @@ struct mesh
             plugin_buffers[0].push_back(p->get_buffer_factory(ctx));
             plugin_buffers[1].push_back(p->get_buffer_factory(ctx));
             plugin_buffers[2].push_back(p->get_buffer_factory(ctx));
-
-            for(auto& i : plugin_buffers[0])
-            {
-                i->allocate(ctx, cqueue, dim);
-            }
         }
 
         {
@@ -152,13 +147,31 @@ struct mesh
             init.add(p1);
             #endif
 
-            cl::buffer found_u = init.build(ctx, cqueue, simulation_width, buffers[0], plugins, plugin_buffers[0]);
+            auto [found_u, pack] = init.build(ctx, cqueue, simulation_width, buffers[0]);
 
             std::vector<float> adm_masses = init.extract_adm_masses(ctx, cqueue, found_u, dim, get_scale(simulation_width, dim));
 
             for(float mass : adm_masses)
             {
                 printf("Found mass %f\n", mass);
+            }
+
+            {
+                assert(plugins.size() == plugin_buffers[0].size());
+
+                for(int i=0; i < (int)plugins.size(); i++)
+                {
+                    buffer_provider* pb = plugin_buffers[0][i];
+                    plugin* p = plugins[i];
+                    buffer_provider* util = p->get_utility_buffer_factory(ctx);
+
+                    if(util)
+                        util->allocate(ctx, cqueue, dim);
+
+                    p->init(ctx, cqueue, buffers[0], pack, pb, util);
+
+                    plugin_utility_buffers.push_back(util);
+                }
             }
         }
 
