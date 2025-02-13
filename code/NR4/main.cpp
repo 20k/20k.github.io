@@ -32,6 +32,7 @@ struct mesh
     std::vector<plugin*> plugins;
     std::array<bssn_buffer_pack, 3> buffers;
     std::array<std::vector<buffer_provider*>, 3> plugin_buffers;
+    std::vector<buffer_provider*> plugin_utility_buffers;
     t3i dim;
 
     std::vector<cl::buffer> derivatives;
@@ -159,6 +160,15 @@ struct mesh
             {
                 printf("Found mass %f\n", mass);
             }
+        }
+
+        for(auto& p : plugins)
+        {
+            buffer_provider* b = p->get_utility_buffer_factory(ctx);
+
+            b->allocate(ctx, cqueue, dim);
+
+            plugin_utility_buffers.push_back(b);
         }
 
         for(int i=1; i < 3; i++)
