@@ -103,11 +103,11 @@ struct buffer_provider
 struct plugin
 {
     virtual buffer_provider* get_buffer_factory(cl::context ctx){return nullptr;}
-    ///long term: take a buffer pool, recycle after a tick
+    ///long term: take a buffer pool. we're going to have to ref count manually
     virtual buffer_provider* get_utility_buffer_factory(cl::context ctx){return nullptr;}
     //virtual std::vector<buffer_descriptor> get_utility_buffers(){return std::vector<buffer_descriptor>();}
     ///pass the discretised state into here
-    virtual void init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, buffer_provider* to_init){assert(false);}
+    virtual void init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, buffer_provider* to_init, buffer_provider* to_init_utility){assert(false);}
     //virtual void pre_step(mesh& m, cl::context& ctx, cl::command_queue& mqueue, thin_intermediates_pool& pool, buffer_set& buffers, float timestep){}
     //virtual void step(mesh& m, cl::context& ctx, cl::command_queue& mqueue, buffer_pack& pack, float timestep, int iteration, int max_iteration){assert(false);}
     //virtual void finalise(mesh& m, cl::context& ctx, cl::command_queue& mqueue, float timestep) {}
