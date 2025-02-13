@@ -93,6 +93,17 @@ struct all_adm_args_mem : adm_args_mem
     }
 };
 
+template<all_adm_args_mem& arg>
+struct arg_data : value_impl::single_source::argument_pack
+{
+    all_adm_args_mem mem = arg;
+
+    void build(value_impl::type_storage& in)
+    {
+        return mem.build(in);
+    }
+};
+
 struct buffer_provider
 {
     virtual std::vector<buffer_descriptor> get_description(){assert(false);}
@@ -113,6 +124,8 @@ struct plugin
     //virtual void finalise(mesh& m, cl::context& ctx, cl::command_queue& mqueue, float timestep) {}
     //virtual void save(cl::command_queue& cqueue, const std::string& directory){assert(false);}
     //virtual void load(cl::command_queue& cqueue, const std::string& directory){assert(false);}
+
+    virtual void add_args_provider(all_adm_args_mem& mem){};
 
     virtual ~plugin(){}
 };

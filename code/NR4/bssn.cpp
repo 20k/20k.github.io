@@ -5,6 +5,7 @@
 #include "derivatives.hpp"
 #include <iostream>
 #include "../common/vec/dual.hpp"
+#include "plugin.hpp"
 
 template<typename T>
 using dual = dual_types::dual_v<T>;
@@ -905,9 +906,12 @@ valuef apply_evolution(const valuef& base, const valuef& dt, valuef timestep)
     return base + dt * timestep;
 }
 
-void make_momentum_constraint(cl::context ctx)
+void make_momentum_constraint(cl::context ctx, const all_adm_args_mem& args_mem)
 {
+    static all_adm_args_mem static_tramp = args_mem;
+
     auto func = [](execution_context&, bssn_args_mem<buffer<valuef>> in,
+                                       arg_data<static_tramp> plugin_data,
                                        std::array<buffer_mut<momentum_t>, 3> momentum_constraint,
                                        literal<v3i> ldim,
                                        literal<valuef> scale
