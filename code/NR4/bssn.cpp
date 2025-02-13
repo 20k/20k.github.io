@@ -568,7 +568,7 @@ tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs
     return W2DiDja;
 }
 
-valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
+valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, valuef S, valuef rho_s)
 {
     using namespace single_source;
 
@@ -590,10 +590,11 @@ valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const derivative_data&
 
     return v1 - sum_multiply(icY.to_tensor(), W2DiDja)
               + args.gA * (sum_multiply(AMN, args.cA)
-              + (1/3.f) * args.K * args.K);
+              + (1/3.f) * args.K * args.K
+              + 4 * M_PI * (S + rho_s));
 }
 
-tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3h momentum_constraint, const derivative_data& d)
+tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3h momentum_constraint, const derivative_data& d, tensor<valuef, 3, 3> W2_Sij)
 {
     using namespace single_source;
 
@@ -627,7 +628,8 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3h mom
     tensor<valuef, 3, 3> dtcA = lie_derivative_weight(args.gB, args.cA, d)
                                 + args.gA * (args.K * args.cA
                                 - 2 * aij_amj)
-                                + trace_free(with_trace, args.cY, icY);
+                                + trace_free(with_trace, args.cY, icY)
+                                - 8 * M_PI * args.gA * trace_free(W2_Sij, args.cY, icY);
 
     #ifdef MOMENTUM_CONSTRAINT_DAMPING
     auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
@@ -662,7 +664,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3h mom
     return dtcA;
 }
 
-tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
+tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, v3f Si)
 {
     using namespace single_source;
 
@@ -900,6 +902,8 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
         #endif
     }
 
+    dtcG += -16 * M_PI * args.gA * icY.raise(Si);
+
     return dtcG;
 }
 
@@ -1016,7 +1020,12 @@ void make_bssn(cl::context ctx, const all_adm_args_mem& args_mem)
             Mi[i] = momentum_constraint[i][pos, dim];
         }
 
-        tensor<valuef, 3, 3> dtcA = get_dtcA(args, derivs, Mi, d);
+        valuef S = plugin_data.mem.adm_S(args);
+        valuef rho_s = plugin_data.mem.adm_p(args);
+        v3f Si = plugin_data.mem.adm_Si(args);
+        tensor<valuef, 3, 3> W2_Sij = plugin_data.mem.adm_W2_Sij(args);
+
+        tensor<valuef, 3, 3> dtcA = get_dtcA(args, derivs, Mi, d, W2_Sij);
 
         tensor<int, 2> index_table[6] = {{0, 0}, {0, 1}, {0, 2}, {1, 1}, {1, 2}, {2, 2}};
 
@@ -1030,7 +1039,7 @@ void make_bssn(cl::context ctx, const all_adm_args_mem& args_mem)
         valuef dtW = get_dtW(args, derivs, d);
         as_ref(out.W[pos, dim]) = apply_evolution(base.W[pos, dim], dtW, timestep.get());
 
-        valuef dtK = get_dtK(args, derivs, d);
+        valuef dtK = get_dtK(args, derivs, d, S, rho_s);
         as_ref(out.K[pos, dim]) = apply_evolution(base.K[pos, dim], dtK, timestep.get());
 
         valuef dtgA = get_dtgA(args, derivs, d, total_elapsed.get());
@@ -1052,7 +1061,7 @@ void make_bssn(cl::context ctx, const all_adm_args_mem& args_mem)
             as_ref(out.cY[i][pos, dim]) = apply_evolution(base.cY[i][pos, dim], dtcY[idx.x(), idx.y()], timestep.get());
         }
 
-        auto dtcG = get_dtcG(args, derivs, d);
+        auto dtcG = get_dtcG(args, derivs, d, Si);
 
         for(int i=0; i < 3; i++)
         {
