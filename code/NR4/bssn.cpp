@@ -301,7 +301,7 @@ tensor<valuef, 3, 3> calculate_W2Rij(bssn_args& args, bssn_derivatives& derivs, 
     return w2Rphiij + calculate_cRij(args, derivs, d) * args.W * args.W;
 }
 
-valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
+valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, valuef rho_s)
 {
     using namespace single_source;
 
@@ -324,7 +324,7 @@ valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& deriv
         }
     }
 
-    return R + (2.f/3.f) * args.K * args.K - AMN_Amn;
+    return R + (2.f/3.f) * args.K * args.K - AMN_Amn - 16 * M_PI * rho_s;
 }
 
 #define BLACK_HOLE_GAUGE
@@ -968,12 +968,15 @@ void make_momentum_constraint(cl::context ctx, const all_adm_args_mem& args_mem)
 }
 
 ///https://arxiv.org/pdf/0709.3559 tested, appendix a.2
-void make_bssn(cl::context ctx, const tensor<int, 3>& idim)
+void make_bssn(cl::context ctx, const all_adm_args_mem& args_mem)
 {
+    static all_adm_args_mem static_tramp = args_mem;
+
     auto bssn_function = [](execution_context&, bssn_args_mem<buffer<valuef>> base,
                                                  bssn_args_mem<buffer<valuef>> in,
                                                  bssn_args_mem<buffer_mut<valuef>> out,
                                                  bssn_derivatives_mem<buffer<derivative_t>> derivatives,
+                                                 arg_data<static_tramp> plugin_data,
                                                  std::array<buffer<momentum_t>, 3> momentum_constraint,
                                                  literal<valuef> timestep,
                                                  literal<valuef> scale,

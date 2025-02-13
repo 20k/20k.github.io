@@ -5,6 +5,7 @@
 #include "derivatives.hpp"
 #include "tensor_algebra.hpp"
 
+#if 0
 void make_hamiltonian_error(cl::context ctx)
 {
     auto func = [](execution_context&,
@@ -51,6 +52,7 @@ void make_hamiltonian_error(cl::context ctx)
         return value_impl::make_function(func, "calculate_hamiltonian");
     }, {"calculate_hamiltonian"});
 }
+#endif
 
 void make_cG_error(cl::context ctx, int idx)
 {
