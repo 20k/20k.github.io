@@ -177,7 +177,7 @@ buffer_provider* hydrodynamic_plugin::get_utility_buffer_factory(cl::context ctx
     return new hydrodynamic_utility_buffers(ctx);
 }
 
-void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, buffer_provider* to_init)
+void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, buffer_provider* to_init, buffer_provider* to_init_utility)
 {
     hydrodynamic_buffers* bufs = dynamic_cast<hydrodynamic_buffers*>(to_init);
 
