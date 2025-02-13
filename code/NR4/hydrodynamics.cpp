@@ -158,6 +158,9 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydro
     as_ref(hydro.Si[0][pos, dim]) = Si_lo_cfl[0];
     as_ref(hydro.Si[1][pos, dim]) = Si_lo_cfl[1];
     as_ref(hydro.Si[2][pos, dim]) = Si_lo_cfl[2];
+
+    as_ref(hydro.w[pos, dim]) = p_star * gA * u0;
+    as_ref(hydro.P[pos, dim]) = (Gamma - 1) * p0_e;
 }
 
 hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx)
@@ -179,7 +182,27 @@ buffer_provider* hydrodynamic_plugin::get_utility_buffer_factory(cl::context ctx
 
 void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, buffer_provider* to_init, buffer_provider* to_init_utility)
 {
-    hydrodynamic_buffers* bufs = dynamic_cast<hydrodynamic_buffers*>(to_init);
+    hydrodynamic_buffers& bufs = *dynamic_cast<hydrodynamic_buffers*>(to_init);
+    hydrodynamic_utility_buffers& ubufs = *dynamic_cast<hydrodynamic_utility_buffers*>(to_init_utility);
 
-    assert(bufs);
+    {
+        cl::args args;
+        in.append_to(args);
+        args.push_back(bufs.p_star);
+        args.push_back(bufs.e_star);
+        args.push_back(bufs.Si[0]);
+        args.push_back(bufs.Si[1]);
+        args.push_back(bufs.Si[2]);
+        args.push_back(ubufs.w);
+        args.push_back(ubufs.P);
+        args.push_back(pack.dim);
+        args.push_back(pack.scale);
+        args.push_back(pack.disc.mu_cfl);
+        args.push_back(pack.disc.mu_h_cfl);
+        args.push_back(pack.disc.pressure_cfl);
+        args.push_back(pack.disc.cfl);
+        args.push_back(pack.disc.Si_cfl[0]);
+        args.push_back(pack.disc.Si_cfl[1]);
+        args.push_back(pack.disc.Si_cfl[2]);
+    }
 }
