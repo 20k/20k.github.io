@@ -51,38 +51,54 @@ struct adm_args_mem : value_impl::single_source::argument_pack
     virtual void add_adm_W2_Sij(bssn_args& args, tensor<valuef, 3, 3>& in){}
 };
 
-struct all_adm_args_mem : adm_args_mem
+struct all_adm_args_mem : value_impl::single_source::argument_pack
 {
     std::vector<adm_args_mem*> all_mem;
 
-    virtual void build(value_impl::type_storage& in) override
+    void build(value_impl::type_storage& in)
     {
         for(auto& i : all_mem)
             i->build(in);
     }
 
-    virtual void add_adm_S(bssn_args& args, valuef& in) override
+    valuef adm_S(bssn_args& args)
     {
+        valuef S = 0;
+
         for(auto& i : all_mem)
-            i->add_adm_S(args, in);
+            i->add_adm_S(args, S);
+
+        return S;
     }
 
-    virtual void add_adm_p(bssn_args& args, valuef& in) override
+    valuef add_adm_p(bssn_args& args)
     {
+        valuef p = 0;
+
         for(auto& i : all_mem)
-            i->add_adm_p(args, in);
+            i->add_adm_p(args, p);
+
+        return p;
     }
 
-    virtual void add_adm_Si(bssn_args& args, tensor<valuef, 3>& in) override
+    tensor<valuef, 3> add_adm_Si(bssn_args& args)
     {
+        tensor<valuef, 3> Si;
+
         for(auto& i : all_mem)
-            i->add_adm_Si(args, in);
+            i->add_adm_Si(args, Si);
+
+        return Si;
     }
 
-    virtual void add_adm_W2_Sij(bssn_args& args,tensor<valuef, 3, 3>& in) override
+    tensor<valuef, 3, 3> add_adm_W2_Sij(bssn_args& args)
     {
+        tensor<valuef, 3, 3> W2_Sij;
+
         for(auto& i : all_mem)
-            i->add_adm_W2_Sij(args, in);
+            i->add_adm_W2_Sij(args, W2_Sij);
+
+        return W2_Sij;
     }
 
     template<typename T>
