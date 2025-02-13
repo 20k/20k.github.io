@@ -186,6 +186,8 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
     hydrodynamic_utility_buffers& ubufs = *dynamic_cast<hydrodynamic_utility_buffers*>(to_init_utility);
 
     {
+        t3i dim = pack.dim;
+
         cl::args args;
         in.append_to(args);
         args.push_back(bufs.p_star);
@@ -204,5 +206,7 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
         args.push_back(pack.disc.Si_cfl[0]);
         args.push_back(pack.disc.Si_cfl[1]);
         args.push_back(pack.disc.Si_cfl[2]);
+
+        cqueue.exec("init_hydro", args, {dim.x(), dim.y(), dim.z()}, {8,8,1});
     }
 }
