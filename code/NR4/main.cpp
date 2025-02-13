@@ -19,6 +19,7 @@
 #include "laplace.hpp"
 #include "init_neutron_star.hpp"
 #include "plugin.hpp"
+#include "hydrodynamics.hpp"
 
 using t3i = tensor<int, 3>;
 
@@ -397,10 +398,40 @@ struct mesh
         };
         #endif
 
+        auto append_plugin_args = [&](cl::args& args, int pack_idx)
+        {
+            for(int i=0; i < (int)plugins.size(); i++)
+            {
+                auto bufs = plugin_buffers[pack_idx][i];
+                auto bufs2 = plugin_utility_buffers[i];
+
+                std::vector<cl::buffer> extra;
+
+                if(bufs)
+                {
+                    auto to_add = bufs->get_buffers();
+
+                    extra.insert(extra.end(), to_add.begin(), to_add.end());
+                }
+
+                if(bufs2)
+                {
+                    auto to_add = bufs2->get_buffers();
+
+                    extra.insert(extra.end(), to_add.begin(), to_add.end());
+                }
+
+                for(auto& i : extra)
+                    args.push_back(i);
+            }
+        };
+
         auto calculate_momentum_constraint_for = [&](int pack_idx)
         {
             cl::args args;
             buffers[pack_idx].append_to(args);
+
+            append_plugin_args(args, pack_idx);
 
             for(auto& i : momentum_constraint)
                 args.push_back(i);
@@ -938,10 +969,15 @@ int main()
 
     t3i dim = {213, 213, 213};
 
+    all_adm_args_mem all_args;
+
+    plugin* hydro = new hydrodynamic_plugin(ctx);
+    hydro->add_args_provider(all_args);
+
     make_derivatives(ctx);
     make_bssn(ctx, dim);
     init_debugging(ctx);
-    make_momentum_constraint(ctx);
+    make_momentum_constraint(ctx, all_args);
     enforce_algebraic_constraints(ctx);
     make_sommerfeld(ctx);
     make_initial_conditions(ctx);
@@ -975,6 +1011,7 @@ int main()
     float simulation_width = 30;
 
     mesh m(ctx, dim, simulation_width);
+    m.plugins.push_back(hydro);
     m.init(ctx, cqueue);
 
     printf("Post init\n");
