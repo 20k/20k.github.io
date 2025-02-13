@@ -20,6 +20,7 @@ struct buffer_descriptor
     float dissipation_coeff = 0.f;
     float asymptotic_value = 0;
     float wave_speed = 1;
+    bool has_boundary_condition = true;
 };
 
 ///hmm. What if we stick a bssn buffer pack in here? or even inherit?
@@ -102,6 +103,8 @@ struct buffer_provider
 struct plugin
 {
     virtual buffer_provider* get_buffer_factory(cl::context ctx){return nullptr;}
+    ///long term: take a buffer pool, recycle after a tick
+    virtual buffer_provider* get_utility_buffer_factory(cl::context ctx){return nullptr;}
     //virtual std::vector<buffer_descriptor> get_utility_buffers(){return std::vector<buffer_descriptor>();}
     ///pass the discretised state into here
     virtual void init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, buffer_provider* to_init){assert(false);}

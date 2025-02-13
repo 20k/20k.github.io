@@ -11,23 +11,26 @@ valuef get_h_with_gamma_eos(valuef e)
     return 1 + get_Gamma() * e;
 }
 
-void hydrodynamic_adm::add_adm_S(bssn_args& args, valuef& in)
+///hang on. This is wrong! we need to be in hydrodynamic_args
+/*void hydrodynamic_adm::add_adm_S(bssn_args& args, valuef& in)
 {
 
 }
-///W is our utility variable SIGH
+
 void hydrodynamic_adm::add_adm_p(bssn_args& args, valuef& in)
 {
 
 }
+
 void hydrodynamic_adm::add_adm_Si(bssn_args& args, tensor<valuef, 3>& in)
 {
 
 }
+
 void hydrodynamic_adm::add_adm_W2_Sij(bssn_args& args, tensor<valuef, 3, 3>& in)
 {
 
-}
+}*/
 
 std::vector<buffer_descriptor> hydrodynamic_buffers::get_description()
 {
@@ -69,6 +72,33 @@ void hydrodynamic_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t
         i.alloc(sizeof(cl_float) * cells);
         i.set_to_zero(cqueue);
     }
+}
+
+std::vector<buffer_descriptor> hydrodynamic_utility_buffers::get_description()
+{
+    buffer_descriptor P;
+    P.name = "P";
+
+    buffer_descriptor w;
+    w.name = "w";
+
+    return {w, P};
+}
+
+std::vector<cl::buffer> hydrodynamic_utility_buffers::get_buffers()
+{
+    return {w, P};
+}
+
+void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t3i size)
+{
+    int64_t cells = int64_t{size.x()} * size.y() * size.z();
+
+    P.alloc(sizeof(cl_float) * cells);
+    w.alloc(sizeof(cl_float) * cells);
+
+    P.set_to_zero(cqueue);
+    w.set_to_zero(cqueue);
 }
 
 void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_args<buffer_mut<valuef>> hydro, literal<v3i> ldim, literal<valuef> scale,
@@ -140,6 +170,11 @@ hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx)
 buffer_provider* hydrodynamic_plugin::get_buffer_factory(cl::context ctx)
 {
     return new hydrodynamic_buffers(ctx);
+}
+
+buffer_provider* hydrodynamic_plugin::get_utility_buffer_factory(cl::context ctx)
+{
+    return new hydrodynamic_utility_buffers(ctx);
 }
 
 void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, buffer_provider* to_init)
