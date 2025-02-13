@@ -72,7 +72,7 @@ v3i get_coordinate(valuei id, v3i dim)
 
 ///so: a much better variant of this would be to only calculate aij_raised's derivative and store s1
 ///because that's the only component we actually *need* to calculate the momentum constraint in the evolution kernel
-tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const derivative_data& d)
+tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const derivative_data& d, v3f Si_lower)
 {
     tensor<valuef, 3> dW;
 
@@ -112,10 +112,12 @@ tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const derivativ
             s3 += 6 * dPhi[j] * aij_raised[i, j];
         }
 
-        valuef p4 = -(2.f/3.f) * diff1(args.K, i, d);
+        valuef s4 = -(2.f/3.f) * diff1(args.K, i, d);
 
-        Mi[i] = s1 + s2 + s3 + p4;
+        Mi[i] = s1 + s2 + s3 + s4;
     }
+
+    Mi += -8 * M_PI * Si_lower;
 
     return Mi;
 }
@@ -951,7 +953,7 @@ void make_momentum_constraint(cl::context ctx, const all_adm_args_mem& args_mem)
             return_e();
         });
 
-        auto Mi = calculate_momentum_constraint(args, d);
+        auto Mi = calculate_momentum_constraint(args, d, plugin_data.mem.adm_Si(args));
 
         for(int i=0; i < 3; i++)
         {
