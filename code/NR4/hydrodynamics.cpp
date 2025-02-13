@@ -210,3 +210,8 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
         cqueue.exec("init_hydro", args, {dim.x(), dim.y(), dim.z()}, {8,8,1});
     }
 }
+
+void hydrodynamic_plugin::add_args_provider(all_adm_args_mem& mem)
+{
+    mem.add(hydrodynamic_args<buffer<valuef>>());
+}

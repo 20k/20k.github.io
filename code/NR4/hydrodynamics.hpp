@@ -87,6 +87,8 @@ struct hydrodynamic_plugin : plugin
     ///you only get one copy of this
     virtual buffer_provider* get_utility_buffer_factory(cl::context ctx) override;
     virtual void init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, buffer_provider* to_init, buffer_provider* to_init_utility) override;
+
+    virtual void add_args_provider(all_adm_args_mem& mem) override;
 };
 
 #endif // HYDRODYNAMICS_HPP_INCLUDED
