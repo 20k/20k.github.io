@@ -71,7 +71,7 @@ struct all_adm_args_mem : value_impl::single_source::argument_pack
         return S;
     }
 
-    valuef add_adm_p(bssn_args& args)
+    valuef adm_p(bssn_args& args)
     {
         valuef p = 0;
 
@@ -81,7 +81,8 @@ struct all_adm_args_mem : value_impl::single_source::argument_pack
         return p;
     }
 
-    tensor<valuef, 3> add_adm_Si(bssn_args& args)
+    ///Si *lower*
+    tensor<valuef, 3> adm_Si(bssn_args& args)
     {
         tensor<valuef, 3> Si;
 
@@ -91,7 +92,7 @@ struct all_adm_args_mem : value_impl::single_source::argument_pack
         return Si;
     }
 
-    tensor<valuef, 3, 3> add_adm_W2_Sij(bssn_args& args)
+    tensor<valuef, 3, 3> adm_W2_Sij(bssn_args& args)
     {
         tensor<valuef, 3, 3> W2_Sij;
 

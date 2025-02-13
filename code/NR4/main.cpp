@@ -985,9 +985,9 @@ int main()
     make_kreiss_oliger(ctx);
     make_hamiltonian_error(ctx);
     make_global_sum(ctx);
-    make_momentum_error(ctx, 0);
+    /*make_momentum_error(ctx, 0);
     make_momentum_error(ctx, 1);
-    make_momentum_error(ctx, 2);
+    make_momentum_error(ctx, 2);*/
     make_cG_error(ctx, 0);
     make_cG_error(ctx, 1);
     make_cG_error(ctx, 2);

@@ -222,7 +222,7 @@ struct bssn_buffer_pack
 struct derivative_data;
 
 valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d);
-tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const derivative_data& d);
+tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const derivative_data& d, v3f Si_lower);
 
 struct all_adm_args_mem;
 

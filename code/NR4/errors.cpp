@@ -119,6 +119,7 @@ void make_cG_error(cl::context ctx, int idx)
     }, {name});
 }
 
+#if 0
 void make_momentum_error(cl::context ctx, int idx)
 {
     auto func = [idx](execution_context&,
@@ -166,6 +167,7 @@ void make_momentum_error(cl::context ctx, int idx)
         return value_impl::make_function(func, name);
     }, {name});
 }
+#endif
 
 void make_global_sum(cl::context ctx)
 {
