@@ -15,9 +15,9 @@ struct discretised_initial_data
     cl::buffer pressure_cfl;
     cl::buffer cfl; //for black holes this is inited to 1/a
     std::array<cl::buffer, 6> AIJ_cfl;
-    std::array<cl::buffer, 3> Si;
+    std::array<cl::buffer, 3> Si_cfl;
 
-    discretised_initial_data(cl::context& ctx) : mu_cfl(ctx), mu_h_cfl(ctx), pressure_cfl(ctx), cfl(ctx), AIJ_cfl{ctx, ctx, ctx, ctx, ctx, ctx}, Si{ctx, ctx, ctx}{}
+    discretised_initial_data(cl::context& ctx) : mu_cfl(ctx), mu_h_cfl(ctx), pressure_cfl(ctx), cfl(ctx), AIJ_cfl{ctx, ctx, ctx, ctx, ctx, ctx}, Si_cfl{ctx, ctx, ctx}{}
 
     void init(cl::command_queue& cqueue, t3i dim)
     {
@@ -39,7 +39,7 @@ struct discretised_initial_data
             i.set_to_zero(cqueue);
         }
 
-        for(auto& i : Si)
+        for(auto& i : Si_cfl)
         {
             i.alloc(sizeof(cl_float) * cells);
             i.set_to_zero(cqueue);
