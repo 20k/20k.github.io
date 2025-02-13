@@ -398,7 +398,7 @@ struct mesh
         };
         #endif
 
-        auto append_plugin_args = [&](cl::args& args, int pack_idx)
+        auto add_plugin_args = [&](cl::args& args, int pack_idx)
         {
             for(int i=0; i < (int)plugins.size(); i++)
             {
@@ -431,7 +431,7 @@ struct mesh
             cl::args args;
             buffers[pack_idx].append_to(args);
 
-            append_plugin_args(args, pack_idx);
+            add_plugin_args(args, pack_idx);
 
             for(auto& i : momentum_constraint)
                 args.push_back(i);
@@ -453,6 +453,8 @@ struct mesh
 
             for(auto& i : derivatives)
                 args.push_back(i);
+
+            add_plugin_args(args, in_idx);
 
             if(using_momentum_constraint)
             {
@@ -975,7 +977,7 @@ int main()
     hydro->add_args_provider(all_args);
 
     make_derivatives(ctx);
-    make_bssn(ctx, dim);
+    make_bssn(ctx, all_args);
     init_debugging(ctx);
     make_momentum_constraint(ctx, all_args);
     enforce_algebraic_constraints(ctx);
@@ -983,7 +985,7 @@ int main()
     make_initial_conditions(ctx);
     init_christoffel(ctx);
     make_kreiss_oliger(ctx);
-    make_hamiltonian_error(ctx);
+    //make_hamiltonian_error(ctx);
     make_global_sum(ctx);
     /*make_momentum_error(ctx, 0);
     make_momentum_error(ctx, 1);
