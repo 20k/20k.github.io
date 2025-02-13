@@ -221,13 +221,13 @@ struct bssn_buffer_pack
 
 struct derivative_data;
 
-valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d);
+valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, valuef rho_s);
 tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const derivative_data& d, v3f Si_lower);
 
 struct all_adm_args_mem;
 
 void make_derivatives(cl::context ctx);
-void make_bssn(cl::context ctx, const tensor<int, 3>& dim);
+void make_bssn(cl::context ctx, const all_adm_args_mem& args_mem);
 void enforce_algebraic_constraints(cl::context ctx);
 void init_debugging(cl::context ctx);
 void make_momentum_constraint(cl::context ctx, const all_adm_args_mem& args_mem);
