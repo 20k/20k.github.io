@@ -408,7 +408,7 @@ void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
         args.push_back(dsol.mu_cfl);
         args.push_back(dsol.mu_h_cfl);
         args.push_back(dsol.pressure_cfl);
-        args.push_back(dsol.Si[0], dsol.Si[1], dsol.Si[2]);
+        args.push_back(dsol.Si_cfl[0], dsol.Si_cfl[1], dsol.Si_cfl[2]);
 
         cqueue.exec("matter_accum", args, {dim.x(), dim.y(), dim.z()}, {8,8,1});
     }
