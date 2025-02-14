@@ -472,6 +472,50 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
     }
 }
 
+void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const plugin_step_data& sdata)
+{
+    {
+        cl::args args;
+
+        for(auto& i : sdata.bssn_buffers)
+            args.push_back(i);
+
+        for(auto& i : sdata.buffers[sdata.in_idx])
+            args.push_back(i);
+
+        args.push_back(sdata.dim);
+        args.push_back(sdata.scale);
+        args.push_back(sdata.evolve_points);
+        args.push_back(sdata.evolve_length);
+
+        cqueue.exec("calculate_hydro_intermediates", args, {sdata.evolve_length}, {128});
+    }
+
+    {
+        cl::args args;
+
+        for(auto& i : sdata.bssn_buffers)
+            args.push_back(i);
+
+        for(auto& i : sdata.buffers[sdata.base_idx])
+            args.push_back(i);
+
+        for(auto& i : sdata.buffers[sdata.in_idx])
+            args.push_back(i);
+
+        for(auto& i : sdata.buffers[sdata.out_idx])
+            args.push_back(i);
+
+        args.push_back(sdata.dim);
+        args.push_back(sdata.scale);
+        args.push_back(sdata.timestep);
+        args.push_back(sdata.evolve_points);
+        args.push_back(sdata.evolve_length);
+
+        cqueue.exec("evolve_hydro", args, {sdata.evolve_length}, {128});
+    }
+}
+
 void hydrodynamic_plugin::add_args_provider(all_adm_args_mem& mem)
 {
     mem.add(hydrodynamic_args<buffer<valuef>>());
