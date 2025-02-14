@@ -765,6 +765,10 @@ namespace value_impl
                 return in.args[0];
 
             //amd explicitly encourages you to unroll pow to loops ;_;
+            //just doing this for ^2
+            if(equivalent(in.args[1], in.args[1].make_constant_of_type(2.f)))
+                return in.args[0] * in.args[0];
+
         }
 
         return in;
