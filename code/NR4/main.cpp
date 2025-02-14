@@ -467,6 +467,8 @@ struct mesh
                 for(int i=0; i < 3; i++)
                     step_data.buffers[i] =  plugin_buffers[i].at(kk)->get_buffers();
 
+                step_data.utility_buffers = plugin_utility_buffers.at(kk)->get_buffers();
+
                 buffers[in_idx].for_each([&](cl::buffer in){
                     step_data.bssn_buffers.push_back(in);
                 });
@@ -567,11 +569,11 @@ struct mesh
 
             for(int i=0; i < (int)plugins.size(); i++)
             {
-                std::vector<cl::buffer> p_base = plugin_buffers[i][base_idx]->get_buffers();
-                std::vector<cl::buffer> p_in = plugin_buffers[i][in_idx]->get_buffers();
-                std::vector<cl::buffer> p_out = plugin_buffers[i][out_idx]->get_buffers();
+                std::vector<cl::buffer> p_base = plugin_buffers[base_idx][i]->get_buffers();
+                std::vector<cl::buffer> p_in = plugin_buffers[in_idx][i]->get_buffers();
+                std::vector<cl::buffer> p_out = plugin_buffers[out_idx][i]->get_buffers();
 
-                std::vector<buffer_descriptor> desc = plugin_buffers[i][in_idx]->get_description();
+                std::vector<buffer_descriptor> desc = plugin_buffers[in_idx][i]->get_description();
 
                 assert(p_base.size() == p_in.size());
                 assert(p_out.size() == p_base.size());

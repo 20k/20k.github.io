@@ -11,12 +11,43 @@
 ///while also using backwards euler correctly. I'm going to copy the plugin architecture from the other project
 ///this is templated for buffer_mut vs buffer
 template<typename T>
-struct hydrodynamic_args : adm_args_mem
+struct hydrodynamic_base_args : value_impl::single_source::argument_pack
 {
     T p_star;
     T e_star;
     std::array<T, 3> Si;
 
+    void build(value_impl::type_storage& in)
+    {
+        using namespace value_impl::builder;
+
+        add(p_star, in);
+        add(e_star, in);
+        add(Si, in);
+    }
+};
+
+template<typename T>
+struct hydrodynamic_utility_args : value_impl::single_source::argument_pack
+{
+    T w;
+    T P;
+
+    void build(value_impl::type_storage& in)
+    {
+        using namespace value_impl::builder;
+
+        add(w, in);
+        add(P, in);
+    }
+};
+
+template<typename T>
+struct full_hydrodynamic_args : adm_args_mem
+{
+    T p_star;
+    T e_star;
+    std::array<T, 3> Si;
     T w;
     T P;
 
