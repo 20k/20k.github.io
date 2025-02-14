@@ -460,6 +460,31 @@ struct mesh
 
         auto evolve_step = [&](int base_idx, int in_idx, int out_idx)
         {
+            for(int kk=0; kk < (int)plugins.size(); kk++)
+            {
+                plugin_step_data step_data(ctx);
+
+                for(int i=0; i < 3; i++)
+                    step_data.buffers[i] =  plugin_buffers[i].at(kk)->get_buffers();
+
+                buffers[in_idx].for_each([&](cl::buffer in){
+                    step_data.bssn_buffers.push_back(in);
+                });
+
+                step_data.evolve_points = evolve_points;
+                step_data.evolve_length = evolve_length;
+
+                step_data.dim = dim;
+                step_data.scale = scale;
+                step_data.timestep = timestep;
+
+                step_data.in_idx = in_idx;
+                step_data.out_idx = out_idx;
+                step_data.base_idx = base_idx;
+
+                plugins[kk]->step(ctx, cqueue, step_data);
+            }
+
             cl::args args;
             buffers[base_idx].append_to(args);
             buffers[in_idx].append_to(args);
