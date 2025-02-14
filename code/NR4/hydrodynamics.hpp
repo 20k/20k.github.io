@@ -35,9 +35,9 @@ struct hydrodynamic_args : adm_args_mem
         add(P, in);
     }
 
-    virtual void add_adm_S(bssn_args& args, valuef& in) override
+    virtual valuef adm_S(bssn_args& args) override
     {
-
+        return 0.f;
     }
 };
 
