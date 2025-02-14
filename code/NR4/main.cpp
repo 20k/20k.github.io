@@ -143,7 +143,7 @@ struct mesh
             #ifdef NEUTRON_STAR_TEST
             neutron_star::parameters p1;
             p1.angular_momentum = {0, 0, 0};
-            p1.linear_momentum = {0.01, 0, 0};
+            p1.linear_momentum = {0, 0, 0};
 
             initial_conditions init(ctx, cqueue, dim);
 
@@ -605,7 +605,7 @@ struct mesh
             evolve_step(base_idx, in_idx, out_idx);
         };
 
-        int iterations = 2;
+        int iterations = 3;
 
         for(int i=0; i < iterations; i++)
         {
@@ -1074,7 +1074,7 @@ int main()
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
-    float simulation_width = 120;
+    float simulation_width = 60;
 
     mesh m(ctx, dim, simulation_width);
     m.plugins = plugins;

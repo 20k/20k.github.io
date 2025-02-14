@@ -5,7 +5,7 @@
 #include "interpolation.hpp"
 #include "plugin.hpp"
 
-#define UNIVERSE_SIZE 119
+#define UNIVERSE_SIZE 59
 
 template<typename T, int N>
 struct verlet_context
