@@ -539,6 +539,24 @@ struct mesh
             SOMM(gB[0], 0.f, 1);
             SOMM(gB[1], 0.f, 1);
             SOMM(gB[2], 0.f, 1);
+
+            for(int i=0; i < (int)plugins.size(); i++)
+            {
+                std::vector<cl::buffer> p_base = plugin_buffers[i][base_idx]->get_buffers();
+                std::vector<cl::buffer> p_in = plugin_buffers[i][in_idx]->get_buffers();
+                std::vector<cl::buffer> p_out = plugin_buffers[i][out_idx]->get_buffers();
+
+                std::vector<buffer_descriptor> desc = plugin_buffers[i][in_idx]->get_description();
+
+                assert(p_base.size() == p_in.size());
+                assert(p_out.size() == p_base.size());
+                assert(desc.size() == p_base.size());
+
+                for(int kk=0; kk < (int)p_base.size(); kk++)
+                {
+                    sommerfeld_buffer(p_base[kk], p_in[kk], p_out[kk], desc[kk].asymptotic_value, desc[kk].wave_speed);
+                }
+            }
         };
 
         auto substep = [&](int iteration, int base_idx, int in_idx, int out_idx)
