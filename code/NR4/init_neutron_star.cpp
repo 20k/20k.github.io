@@ -119,8 +119,8 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
     valuef Q = get(Q_b, 1.f);
     valuef C = get(C_b, C_b[samples-1]);
     valuef N = get(uN_b, 1.f);
-    valuef sigma = get(sigma_b, 1.f);
-    valuef kappa = get(kappa_b, 1.f);
+    valuef sigma = get(sigma_b, 0.f);
+    valuef kappa = get(kappa_b, 0.f);
 
     valuef mu_cfl = get(mu_cfl_b, 0.f);
     valuef pressure_cfl = get(pressure_cfl_b, 0.f);
