@@ -289,8 +289,9 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
 }
 
 ///todo: i need to de-mutify hydro
-void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_args<buffer_mut<valuef>> hydro, literal<v3i> idim, literal<valuef> scale,
-                buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
+void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_args<buffer_mut<valuef>> hydro,
+                                   literal<v3i> idim, literal<valuef> scale,
+                                   buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
 {
     using namespace single_source;
 
@@ -304,7 +305,6 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
         return_e();
     });
 
-    ///if i was smart, i'd use the structure of the grid to do this directly
     v3i pos = (v3i)positions[lid];
     pin(pos);
 
@@ -316,6 +316,104 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
 
     as_ref(hydro.w[pos, dim]) = w;
     as_ref(hydro.P[pos, dim]) = P;
+}
+
+void evolve_hydrodynamics(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
+                          hydrodynamic_args<buffer<valuef>> h_base, hydrodynamic_args<buffer<valuef>> h_in, hydrodynamic_args<buffer_mut<valuef>> h_out,
+                          literal<v3i> idim, literal<valuef> scale, literal<valuef> timestep,
+                          buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
+{
+    using namespace single_source;
+
+    valuei lid = value_impl::get_global_id(0);
+
+    pin(lid);
+
+    v3i dim = idim.get();
+
+    if_e(lid >= positions_length.get(), []{
+        return_e();
+    });
+
+    v3i pos = (v3i)positions[lid];
+    pin(pos);
+
+    bssn_args args(pos, dim, in);
+    hydrodynamic_concrete hydro_args(pos, dim, h_in);
+
+    derivative_data d;
+    d.pos = pos;
+    d.dim = idim.get();
+    d.scale = scale.get();
+
+    valuef p_star = hydro_args.p_star;
+    valuef e_star = hydro_args.e_star;
+    v3f Si = hydro_args.Si;
+    valuef w = hydro_args.w;
+
+    valuef epsilon = e_star_to_epsilon(p_star, e_star, args.W, w);
+
+    v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY);
+
+    valuef dp_star = 0;
+    valuef de_star = 0;
+    v3f dSi_p1;
+
+    for(int i=0; i < 3; i++)
+    {
+        dp_star += diff1(p_star * vi[i], i, d);
+        de_star += diff1(e_star * vi[i], i, d);
+
+        for(int k=0; k < 3; k++)
+        {
+            dSi_p1[k] += diff1(Si[k] * vi[i], i, d);
+        }
+    }
+
+    dp_star = -dp_star;
+    de_star = -de_star;
+    dSi_p1 = -dSi_p1;
+
+    valuef h = get_h_with_gamma_eos(epsilon);
+
+    for(int k=0; k < 3; k++)
+    {
+        valuef p1 = (args.gA * max(pow(args.W, 3.f), 0.001f)) * diff1(hydro_args.P, k, d);
+        valuef p2 = -w * h * diff1(args.gA, k, d);
+
+        valuef p3;
+
+        for(int j=0; j < 3; j++)
+        {
+            p3 += Si[j] * diff1(args.gB[j], k, d);
+        }
+
+        valuef p4;
+
+        valuef p4_prefix = args.gA * args.W * args.W / max(2 * w * h, 0.0001f);
+
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                p4 += Si[i] * Si[j] * diff1(args.cY.invert()[i,j], k, d);
+            }
+        }
+
+        p4 = p4_prefix * p4;
+
+        valuef p5 = (args.gA * h * (w*w - p_star * p_star) / max(w, 0.001f)) * (diff1(args.W, k, d) / max(args.W, 0.001f));
+
+        dSi_p1[k] += p1 + p2 + p3 + p4 + p5;
+    }
+
+    as_ref(h_out.p_star[pos, dim]) = h_base.p_star[pos, dim] + timestep.get() * dp_star;
+    as_ref(h_out.e_star[pos, dim]) = h_base.e_star[pos, dim] + timestep.get() * de_star;
+
+    for(int i=0; i < 3; i++)
+    {
+        as_ref(h_out.Si[i][pos, dim]) = h_base.Si[i][pos, dim] + timestep.get() * dSi_p1[i];
+    }
 }
 
 hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx)
