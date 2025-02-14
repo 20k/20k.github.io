@@ -11,43 +11,49 @@ valuef get_h_with_gamma_eos(valuef e)
     return 1 + get_Gamma() * e;
 }
 
-///hang on. This is wrong! we need to be in hydrodynamic_args
-/*void hydrodynamic_adm::add_adm_S(bssn_args& args, valuef& in)
-{
-
-}
-
-void hydrodynamic_adm::add_adm_p(bssn_args& args, valuef& in)
-{
-
-}
-
-void hydrodynamic_adm::add_adm_Si(bssn_args& args, tensor<valuef, 3>& in)
-{
-
-}
-
-void hydrodynamic_adm::add_adm_W2_Sij(bssn_args& args, tensor<valuef, 3, 3>& in)
-{
-
-}*/
 
 template<typename T>
 valuef hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& d)
 {
+    valuef lw = w[d.pos, d.dim];
+    valuef lP = P[d.pos, d.dim];
+    valuef es = e_star[d.pos, d.dim];
 
+    valuef h = get_h_with_gamma_eos(es);
+
+    return h * lw * (args.W * args.W * args.W) - lP;
 }
 
 template<typename T>
 tensor<valuef, 3> hydrodynamic_args<T>::adm_Si(bssn_args& args, const derivative_data& d)
 {
+    v3f cSi = {Si[0][d.pos, d.dim], Si[1][d.pos, d.dim], Si[2][d.pos, d.dim]};
 
+    return pow(args.W, 3.f) * cSi;
 }
 
 template<typename T>
 tensor<valuef, 3, 3> hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, const derivative_data& d)
 {
+    valuef ps = p_star[d.pos, d.dim];
+    valuef es = e_star[d.pos, d.dim];
+    v3f cSi = {Si[0][d.pos, d.dim], Si[1][d.pos, d.dim], Si[2][d.pos, d.dim]};
+    valuef lw = w[d.pos, d.dim];
+    valuef lP = P[d.pos, d.dim];
 
+    valuef h = get_h_with_gamma_eos(es);
+
+    tensor<valuef, 3, 3> W2_Sij;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            W2_Sij[i, j] = (pow(args.W, 5.f) / max(lw * h, 0.001f)) * cSi[i] * cSi[j];
+        }
+    }
+
+    return W2_Sij + lP * args.cY.to_tensor();
 }
 
 template struct hydrodynamic_args<buffer<valuef>>;
