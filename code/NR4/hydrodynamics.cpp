@@ -45,7 +45,7 @@ valuef full_hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& 
 
     valuef h = get_h_with_gamma_eos(epsilon);
 
-    return h * lw * (args.W * args.W * args.W) - lP;
+    return (h * lw * (args.W * args.W * args.W) - lP) * 0.001f;
 }
 
 template<typename T>
@@ -53,7 +53,7 @@ tensor<valuef, 3> full_hydrodynamic_args<T>::adm_Si(bssn_args& args, const deriv
 {
     v3f cSi = {Si[0][d.pos, d.dim], Si[1][d.pos, d.dim], Si[2][d.pos, d.dim]};
 
-    return pow(args.W, 3.f) * cSi;
+    return pow(args.W, 3.f) * cSi * 0.001f;
 }
 
 template<typename T>
@@ -76,7 +76,7 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
         }
     }
 
-    return W2_Sij + lP * args.cY.to_tensor();
+    return (W2_Sij + lP * args.cY.to_tensor()) * 0.001f;
 }
 
 template struct full_hydrodynamic_args<buffer<valuef>>;
@@ -291,6 +291,24 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse
     return w;
 }
 
+/*value h = calculate_h_with_gamma_eos(chi, W);
+
+tensor<value, 3> ret = -gB;
+
+for(int i=0; i < 3; i++)
+{
+    value sum = 0;
+
+    for(int j=0; j < 3; j++)
+    {
+        sum += divide_with_limit(gA * icY.idx(i, j) * cS.idx(j) * chi, W * h, 0.f, DIVISION_TOL);
+    }
+
+    ret.idx(i) += sum;
+}
+
+return ret;*/
+
 v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, const unit_metric<valuef, 3, 3>& cY)
 {
     valuef h = get_h_with_gamma_eos(epsilon);
@@ -323,6 +341,14 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
 
     valuef w = calculate_w(hydro_args.p_star, hydro_args.e_star, args.W, get_Gamma(), args.cY.invert(), hydro_args.Si);
     valuef P = gamma_eos(get_Gamma(), args.W, w, hydro_args.p_star, hydro_args.e_star);
+
+    if_e(pos.x() == dim.x()/2 + 20 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+        value_base se;
+        se.type = value_impl::op::SIDE_EFFECT;
+        se.abstract_value = "printf(\"p %f pstar %f\\n\"," + value_to_string(P) + "," + value_to_string(hydro_args.p_star) + ")";
+
+        value_impl::get_context().add(se);
+    });
 
     as_ref(hydro.w[pos, dim]) = w;
     as_ref(hydro.P[pos, dim]) = P;
@@ -397,7 +423,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     for(int k=0; k < 3; k++)
     {
-        valuef p1 = (args.gA * max(pow(args.W, 3.f), 0.001f)) * diff1(hydro_args.P, k, d);
+        valuef p1 = (args.gA * pow(max(args.W, 0.001f), -3.f)) * diff1(hydro_args.P, k, d);
         valuef p2 = -w * h * diff1(args.gA, k, d);
 
         valuef p3;
@@ -426,8 +452,8 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         dSi_p1[k] += p1 + p2 + p3 + p4 + p5;
     }
 
-    as_ref(h_out.p_star[pos, dim]) = h_base.p_star[pos, dim] + timestep.get() * dp_star;
-    as_ref(h_out.e_star[pos, dim]) = h_base.e_star[pos, dim] + timestep.get() * de_star;
+    as_ref(h_out.p_star[pos, dim]) = max(h_base.p_star[pos, dim] + timestep.get() * dp_star, 0.f);
+    as_ref(h_out.e_star[pos, dim]) = max(h_base.e_star[pos, dim] + timestep.get() * de_star, 0.f);
 
     for(int i=0; i < 3; i++)
     {
@@ -462,7 +488,7 @@ buffer_provider* hydrodynamic_plugin::get_utility_buffer_factory(cl::context ctx
 
 void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, buffer_provider* to_init, buffer_provider* to_init_utility)
 {
-    return;
+    //return;
 
     hydrodynamic_buffers& bufs = *dynamic_cast<hydrodynamic_buffers*>(to_init);
     hydrodynamic_utility_buffers& ubufs = *dynamic_cast<hydrodynamic_utility_buffers*>(to_init_utility);
@@ -510,7 +536,7 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
     for(auto& i : sdata.utility_buffers)
         printf("Len %i\n", i.alloc_size);*/
 
-    return;
+    //return;
 
     {
         cl::args args;
@@ -535,6 +561,8 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
     //assert(false);
 
     {
+        //printf("Base in out %i %i %i\n", sdata.base_idx, sdata.in_idx, sdata.out_idx);
+
         cl::args args;
 
         for(auto& i : sdata.bssn_buffers)

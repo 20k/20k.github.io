@@ -118,7 +118,7 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
     ///todo: need to define upper boundaries
     valuef Q = get(Q_b, 1.f);
     valuef C = get(C_b, C_b[samples-1]);
-    valuef N = get(uN_b, 1.f);
+    valuef N = get(uN_b, uN_b[samples - 1]);
     valuef sigma = get(sigma_b, 0.f);
     valuef kappa = get(kappa_b, 0.f);
 
