@@ -13,6 +13,7 @@ struct buffer_pool;
 struct bssn_args;
 struct bssn_buffer_pack;
 struct initial_pack;
+struct derivative_data;
 
 struct buffer_descriptor
 {
@@ -45,10 +46,9 @@ struct adm_args_mem : value_impl::single_source::argument_pack
 {
     virtual void build(value_impl::type_storage& store){assert(false);}
 
-    virtual valuef adm_S(bssn_args& args){}
-    virtual valuef adm_p(bssn_args& args){}
-    virtual tensor<valuef, 3> adm_Si(bssn_args& args){}
-    virtual tensor<valuef, 3, 3> adm_W2_Sij(bssn_args& args){}
+    virtual valuef adm_p(bssn_args& args, const derivative_data& d){return valuef();};
+    virtual tensor<valuef, 3> adm_Si(bssn_args& args, const derivative_data& d){return tensor<valuef, 3>();}
+    virtual tensor<valuef, 3, 3> adm_W2_Sij(bssn_args& args, const derivative_data& d){return tensor<valuef, 3, 3>();}
 };
 
 struct all_adm_args_mem : value_impl::single_source::argument_pack
@@ -61,43 +61,33 @@ struct all_adm_args_mem : value_impl::single_source::argument_pack
             i->build(in);
     }
 
-    valuef adm_S(bssn_args& args)
-    {
-        valuef S = 0;
-
-        for(auto& i : all_mem)
-            S += i->adm_S(args);
-
-        return S;
-    }
-
-    valuef adm_p(bssn_args& args)
+    valuef adm_p(bssn_args& args, const derivative_data& d)
     {
         valuef p = 0;
 
         for(auto& i : all_mem)
-            p += i->adm_p(args);
+            p += i->adm_p(args, d);
 
         return p;
     }
 
     ///Si *lower*
-    tensor<valuef, 3> adm_Si(bssn_args& args)
+    tensor<valuef, 3> adm_Si(bssn_args& args, const derivative_data& d)
     {
         tensor<valuef, 3> Si;
 
         for(auto& i : all_mem)
-            Si += i->adm_Si(args);
+            Si += i->adm_Si(args, d);
 
         return Si;
     }
 
-    tensor<valuef, 3, 3> adm_W2_Sij(bssn_args& args)
+    tensor<valuef, 3, 3> adm_W2_Sij(bssn_args& args, const derivative_data& d)
     {
         tensor<valuef, 3, 3> W2_Sij;
 
         for(auto& i : all_mem)
-            W2_Sij += i->adm_W2_Sij(args);
+            W2_Sij += i->adm_W2_Sij(args, d);
 
         return W2_Sij;
     }

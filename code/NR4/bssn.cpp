@@ -957,7 +957,7 @@ void make_momentum_constraint(cl::context ctx, const all_adm_args_mem& args_mem)
             return_e();
         });
 
-        auto Mi = calculate_momentum_constraint(args, d, plugin_data.mem.adm_Si(args));
+        auto Mi = calculate_momentum_constraint(args, d, plugin_data.mem.adm_Si(args, d));
 
         for(int i=0; i < 3; i++)
         {
@@ -1020,10 +1020,23 @@ void make_bssn(cl::context ctx, const all_adm_args_mem& args_mem)
             Mi[i] = momentum_constraint[i][pos, dim];
         }
 
-        valuef S = plugin_data.mem.adm_S(args);
-        valuef rho_s = plugin_data.mem.adm_p(args);
-        v3f Si = plugin_data.mem.adm_Si(args);
-        tensor<valuef, 3, 3> W2_Sij = plugin_data.mem.adm_W2_Sij(args);
+        valuef rho_s = plugin_data.mem.adm_p(args, d);
+        v3f Si = plugin_data.mem.adm_Si(args, d);
+        tensor<valuef, 3, 3> W2_Sij = plugin_data.mem.adm_W2_Sij(args, d);
+
+        valuef S = 0;
+
+        {
+            inverse_metric<valuef, 3, 3> icY = args.cY.invert();
+
+            for(int i=0; i < 3; i++)
+            {
+                for(int j=0; j < 3; j++)
+                {
+                    S += icY[i, j] * W2_Sij[i, j];
+                }
+            }
+        }
 
         tensor<valuef, 3, 3> dtcA = get_dtcA(args, derivs, Mi, d, W2_Sij);
 
