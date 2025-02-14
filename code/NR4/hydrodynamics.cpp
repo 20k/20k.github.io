@@ -189,40 +189,6 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydro
     valuef p_star = p0 * gA * u0 * pow(cW, -3);
     valuef e_star = pow(p0_e, (1/Gamma)) * gA * u0 * pow(cW, -3);
 
-    /*{
-        valuef lw = p_star * gA * u0;
-
-        valuef epsilon = e_star_to_epsilon(p_star, e_star, args.W, p_star * gA * u0);
-
-        valuef h = get_h_with_gamma_eos(epsilon);
-
-        valuef rho = h * lw * (args.W * args.W * args.W) - pressure;
-
-        if_e(!isfinite(rho), [&]{
-            value_base se;
-            se.type = value_impl::op::SIDE_EFFECT;
-            se.abstract_value = "printf(\"Not finite\")";
-
-            value_impl::get_context().add(se);
-        });
-
-        if_e(p_star != 0, [&]{
-            value_base se;
-            se.type = value_impl::op::SIDE_EFFECT;
-                se.abstract_value = "printf(\"dbg: %f\\n\"," + value_to_string(p_star) + ")";
-
-            value_impl::get_context().add(se);
-        });
-    }*/
-
-    /*if_e(!isfinite(e_star), [&]{
-        value_base se;
-        se.type = value_impl::op::SIDE_EFFECT;
-        se.abstract_value = "printf(\"Not finite\")";
-
-        value_impl::get_context().add(se);
-    });*/
-
     metric<valuef, 3, 3> Yij = args.cY / (cW*cW);
 
     v3f Si_lo_cfl = pow(cW, -3) * Yij.lower(Si);
