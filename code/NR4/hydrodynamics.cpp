@@ -318,10 +318,10 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
     as_ref(hydro.P[pos, dim]) = P;
 }
 
-void evolve_hydrodynamics(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
-                          hydrodynamic_args<buffer<valuef>> h_base, hydrodynamic_args<buffer<valuef>> h_in, hydrodynamic_args<buffer_mut<valuef>> h_out,
-                          literal<v3i> idim, literal<valuef> scale, literal<valuef> timestep,
-                          buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
+void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
+                  hydrodynamic_args<buffer<valuef>> h_base, hydrodynamic_args<buffer<valuef>> h_in, hydrodynamic_args<buffer_mut<valuef>> h_out,
+                  literal<v3i> idim, literal<valuef> scale, literal<valuef> timestep,
+                  buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
 {
     using namespace single_source;
 
@@ -425,6 +425,10 @@ hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx)
     cl::async_build_and_cache(ctx, []{
         return value_impl::make_function(calculate_hydro_intermediates, "calculate_hydro_intermediates");
     }, {"calculate_hydro_intermediates"});
+
+    cl::async_build_and_cache(ctx, []{
+        return value_impl::make_function(evolve_hydro, "evolve_hydro");
+    }, {"evolve_hydro"});
 }
 
 buffer_provider* hydrodynamic_plugin::get_buffer_factory(cl::context ctx)
