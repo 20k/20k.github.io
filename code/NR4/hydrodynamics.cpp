@@ -34,7 +34,7 @@ valuef gamma_eos(valuef Gamma, valuef W, valuef w, valuef p_star, valuef e_star)
 }
 
 template<typename T>
-valuef hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& d)
+valuef full_hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& d)
 {
     valuef lw = w[d.pos, d.dim];
     valuef lP = P[d.pos, d.dim];
@@ -49,7 +49,7 @@ valuef hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& d)
 }
 
 template<typename T>
-tensor<valuef, 3> hydrodynamic_args<T>::adm_Si(bssn_args& args, const derivative_data& d)
+tensor<valuef, 3> full_hydrodynamic_args<T>::adm_Si(bssn_args& args, const derivative_data& d)
 {
     v3f cSi = {Si[0][d.pos, d.dim], Si[1][d.pos, d.dim], Si[2][d.pos, d.dim]};
 
@@ -57,7 +57,7 @@ tensor<valuef, 3> hydrodynamic_args<T>::adm_Si(bssn_args& args, const derivative
 }
 
 template<typename T>
-tensor<valuef, 3, 3> hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, const derivative_data& d)
+tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, const derivative_data& d)
 {
     valuef es = e_star[d.pos, d.dim];
     v3f cSi = {Si[0][d.pos, d.dim], Si[1][d.pos, d.dim], Si[2][d.pos, d.dim]};
@@ -79,8 +79,8 @@ tensor<valuef, 3, 3> hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, const der
     return W2_Sij + lP * args.cY.to_tensor();
 }
 
-template struct hydrodynamic_args<buffer<valuef>>;
-template struct hydrodynamic_args<buffer_mut<valuef>>;
+template struct full_hydrodynamic_args<buffer<valuef>>;
+template struct full_hydrodynamic_args<buffer_mut<valuef>>;
 
 std::vector<buffer_descriptor> hydrodynamic_buffers::get_description()
 {
@@ -151,7 +151,7 @@ void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue c
     w.set_to_zero(cqueue);
 }
 
-void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_args<buffer_mut<valuef>> hydro, literal<v3i> ldim, literal<valuef> scale,
+void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_hydrodynamic_args<buffer_mut<valuef>> hydro, literal<v3i> ldim, literal<valuef> scale,
                 buffer<valuef> mu_cfl_b, buffer<valuef> mu_h_cfl_b, buffer<valuef> pressure_cfl_b, buffer<valuef> cfl_b, std::array<buffer<valuef>, 3> Si_cfl_b)
 {
     using namespace single_source;
@@ -227,13 +227,23 @@ struct hydrodynamic_concrete
     valuef P;
 
     template<typename T>
-    hydrodynamic_concrete(v3i pos, v3i dim, hydrodynamic_args<T> args)
+    hydrodynamic_concrete(v3i pos, v3i dim, full_hydrodynamic_args<T> args)
     {
         p_star = args.p_star[pos, dim];
         e_star = args.e_star[pos, dim];
         Si = {args.Si[0][pos, dim], args.Si[1][pos, dim], args.Si[2][pos, dim]};
         w = args.w[pos, dim];
         P = args.P[pos, dim];
+    }
+
+    template<typename T>
+    hydrodynamic_concrete(v3i pos, v3i dim, hydrodynamic_base_args<T> bargs, hydrodynamic_utility_args<T> uargs)
+    {
+        p_star = bargs.p_star[pos, dim];
+        e_star = bargs.e_star[pos, dim];
+        Si = {bargs.Si[0][pos, dim], bargs.Si[1][pos, dim], bargs.Si[2][pos, dim]};
+        w = uargs.w[pos, dim];
+        P = uargs.P[pos, dim];
     }
 };
 
@@ -289,7 +299,7 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
 }
 
 ///todo: i need to de-mutify hydro
-void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_args<buffer_mut<valuef>> hydro,
+void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_hydrodynamic_args<buffer_mut<valuef>> hydro,
                                    literal<v3i> idim, literal<valuef> scale,
                                    buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
 {
@@ -319,7 +329,8 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
 }
 
 void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
-                  hydrodynamic_args<buffer<valuef>> h_base, hydrodynamic_args<buffer<valuef>> h_in, hydrodynamic_args<buffer_mut<valuef>> h_out,
+                  hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, hydrodynamic_base_args<buffer_mut<valuef>> h_out,
+                  hydrodynamic_utility_args<buffer<valuef>> util,
                   literal<v3i> idim, literal<valuef> scale, literal<valuef> timestep,
                   buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
 {
@@ -339,7 +350,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     pin(pos);
 
     bssn_args args(pos, dim, in);
-    hydrodynamic_concrete hydro_args(pos, dim, h_in);
+    hydrodynamic_concrete hydro_args(pos, dim, h_in, util);
 
     derivative_data d;
     d.pos = pos;
@@ -483,6 +494,9 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
         for(auto& i : sdata.buffers[sdata.in_idx])
             args.push_back(i);
 
+        for(auto& i : sdata.utility_buffers)
+            args.push_back(i);
+
         args.push_back(sdata.dim);
         args.push_back(sdata.scale);
         args.push_back(sdata.evolve_points);
@@ -506,6 +520,9 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
         for(auto& i : sdata.buffers[sdata.out_idx])
             args.push_back(i);
 
+        for(auto& i : sdata.utility_buffers)
+            args.push_back(i);
+
         args.push_back(sdata.dim);
         args.push_back(sdata.scale);
         args.push_back(sdata.timestep);
@@ -518,5 +535,5 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
 
 void hydrodynamic_plugin::add_args_provider(all_adm_args_mem& mem)
 {
-    mem.add(hydrodynamic_args<buffer<valuef>>());
+    mem.add(full_hydrodynamic_args<buffer<valuef>>());
 }
