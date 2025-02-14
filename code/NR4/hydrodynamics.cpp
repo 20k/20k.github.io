@@ -271,7 +271,7 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse
     {
         valuef D = w_next_interior(p_star, e_star, W, w, Gamma);
 
-        valuef w_next = sqrt(p_sq + cst * D*D);
+        valuef w_next = sqrt(max(p_sq + cst * D*D, 0.f));
 
         pin(w_next);
 
@@ -279,6 +279,13 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse
     }
 
     return w;
+}
+
+v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, const unit_metric<valuef, 3, 3>& cY)
+{
+    valuef h = get_h_with_gamma_eos(epsilon);
+
+    return -gB + ((W*W * gA) / max(w*h, 0.001f)) * cY.invert().raise(Si);
 }
 
 ///todo: i need to de-mutify hydro

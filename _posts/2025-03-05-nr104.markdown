@@ -645,10 +645,10 @@ Angular (65):
 
 $$\begin{align}
 W_{J}^2 &=\frac{1}{2}\left (1 + \sqrt{1 + \frac{4 J_i J^i r^2 \sin^2 \theta}{\mathcal{N}^2}} \right)\\
-\sin^2 \theta &= 1 - (J^i l_i)^2 \\
+\sin^2 \theta &= 1 - (\hat{J}^i \hat{l}_i)^2 \\
 \end{align}$$
 
-$l_i$ is the same unit normal as earlier. For $\sin^2 \theta$, you'll want to ensure that $J^i$ and $l_i$ are normalised to a length of $1$, as we're using the formula $\mathrm{dot}(a, b) = \cos \theta ||a||\;||b||$. $\theta$ more technically is the angle between $J^i$ and $l^i$. Note that the quantity $\theta$ becomes undefined as $J^i J_i$ tends to $0$, but given the prefix term, we can simply set $\sin^2 \theta$ to anything when this happens
+$l_i$ is the same unit normal as earlier. For $\sin^2 \theta$, you'll want to ensure that $J^i$ and $l_i$ are normalised (hence the hats) to a length of $1$, as we're using the formula $\mathrm{dot}(a, b) = \cos \theta ||a||\;||b||$. $\theta$ more technically is the angle between $J^i$ and $l^i$. Note that the quantity $\theta$ becomes undefined as $J^i J_i$ tends to $0$, but given the prefix term, we can simply set $\sin^2 \theta$ to anything when this happens
 
 Sometimes I wish I'd taken up fishing
 
@@ -700,7 +700,7 @@ It is important to note that $\tilde{S}_i^J$ is not simply a function of radius.
 
 |Name|Symbol|Value|
 |-|-|-|
-|Metric Tensor|$$\gamma_{ij}$$|$$\Phi^4 \bar{\eta}_{ij}$$|
+|Metric Tensor|$$\gamma_{ij}$$|$$\Phi^4 \eta_{ij}$$|
 |Extrinsic Curvature|$$K_{ij}$$|$$\Phi^{-2} \bar{A}_{ij}$$|
 | Initial Adm Matter Source | $$\mu_H$$ | $$\Phi^{-8} \bar{\mu}_H$$ |
 | Initial Adm Matter Source | $$S^i$$ | $$\Phi^{-10} \tilde{S}^i$$ |
@@ -771,8 +771,7 @@ First off, we need to convert from the old style conformal factor $\phi$, to our
 |$\frac{1}{W}$|$e^{2\phi}$|
 |$\frac{1}{W^2}$|$e^{4\phi}$|
 |$\frac{1}{W^3}$|$e^{6\phi}$|
-
-Todo: dphi
+|$-\frac{\partial_i W}{2W}$|$\partial_i \phi$|
 
 I know this is basic, but it saves a lot of time looking things up when you check the reference paper
 
@@ -784,11 +783,9 @@ $$\begin{align}
 \partial_t \tilde{S}_k = &-\partial_i(\tilde{S}_k v^i) \\
                        &- \alpha \frac{1}{W^3} \partial_k P - w h \partial_k \alpha \\
                        &-\tilde{S}_j \partial_k \beta^j + \frac{\alpha W^2\tilde{S}_i \tilde{S}_j}{2wh} \partial_k \tilde{\gamma}^{ij}\\
-                       &- \frac{2 \alpha h(w^2 - p_*^2)}{w} \partial_k \phi
+                       &+ \frac{\alpha h(w^2 - p_*^2)}{w} \frac{\partial_i W}{W}
 \end{align}
 $$
-
-$$-\frac{2ah(w^2 - p_*^2)}{w} = -2ahw + \frac{p_*^2}{w}$$
 
 Todo: Ok, you can calculate $w^2 - p_*^2$ directly, to avoid doing a $p_*^2$. That's pretty spicy. Its sort of not because we do a p*2 to calculate w so do i really care
 
@@ -803,10 +800,6 @@ Then, we calculate $v^i = -\beta + \frac{p_* \alpha h \tilde{\gamma}^{ij} u_j}{w
 Conveniently, this quantity is actually:
 
 $v^i = -\beta^i + \frac{W^2 \alpha \tilde{\gamma}^{ij} \tilde{S}_j}{w h}$
-
-Which removes a problematic division by 0, in calculating $u_k$
-
-2.12 from original paper, needs w converting
 
 ### $w$
 
@@ -823,8 +816,6 @@ We can solve #1 very easily using fixed point iteration with the initial guess $
 
 The way this equation is structured is a little messy. Lets rearrange it a bit:
 
-Todo: Make sure when implementing, that i perform the optimisation a^0 = 1. I also need to unroll pow's because Ayymd
-
 $$\begin{align}
 A = (W^3)^{\Gamma-1}\\
 D = \frac{w^{\Gamma-1}}{w^{\Gamma-1} + A \Gamma e_*^{\Gamma} p_*^{\Gamma-2}}\\
@@ -836,9 +827,7 @@ Todo: Only limit the bottom right term of D
 
 No matter how we rearrange this though to make it easier to work with, we do need to work out what the limit of $w$ is as $\frac{1}{w} -> 0$. In our case, you can assume that its either because $\alpha = 0$, in which case we're at a singularity, or $p_* = 0$, in which case there's no matter
 
-Additionally, near the singularity ($W^2 = 0$) the quantity $A$ diverges. We'll also tend this quantity to zero as well
-
-There's also a special case here when $\Gamma = 2$, in that the factor of $p_*$ drops out. Its worth hardcoding this special case in, because it'll be good for your performance
+Its worth noting the special case here when $\Gamma = 2$, in that the factor of $p_*$ drops out
 
 ### Recovering the primitive variables
 
