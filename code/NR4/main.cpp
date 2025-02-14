@@ -177,6 +177,9 @@ struct mesh
                     plugin* p = plugins[i];
                     buffer_provider* util = p->get_utility_buffer_factory(ctx);
 
+                    if(pb)
+                        pb->allocate(ctx, cqueue, dim);
+
                     if(util)
                         util->allocate(ctx, cqueue, dim);
 
@@ -1267,7 +1270,7 @@ int main()
 
         win.display();
 
-        std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
+        //std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
 
         if(step)
             elapsed_t += timestep;
