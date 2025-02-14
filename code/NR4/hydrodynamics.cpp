@@ -192,13 +192,16 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     valuef Gamma = get_Gamma();
 
     valuef p0_e = pressure / (Gamma - 1);
-    valuef p0 = mu - p0_e;
+
+    ///todo: something is going wrong here, and the below definitely isn't right
+    //valuef p0 = mu - p0_e;
+    valuef p0 = pow(pressure / 123.741, 1/Gamma);
 
     value gA = args.gA;
 
     //fluid dynamics cannot have a singular initial slice, so setting the clamping pretty high here because its irrelevant
     //thing is we have 0 quantities at the singularity, so as long as you don't generate a literal NaN here, you're 100% fine
-    valuef cW = max(args.W, 0.1f);
+    valuef cW = max(args.W, 0.01f);
 
     valuef p_star = p0 * gA * u0 * pow(cW, -3);
     valuef e_star = pow(p0_e, (1/Gamma)) * gA * u0 * pow(cW, -3);
