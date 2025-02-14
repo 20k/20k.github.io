@@ -12,12 +12,12 @@ struct discretised_initial_data
 {
     cl::buffer mu_cfl;
     cl::buffer mu_h_cfl;
-    cl::buffer pressure_cfl;
+    cl::buffer pressure_non_conformal;
     cl::buffer cfl; //for black holes this is inited to 1/a
     std::array<cl::buffer, 6> AIJ_cfl;
     std::array<cl::buffer, 3> Si_cfl;
 
-    discretised_initial_data(cl::context& ctx) : mu_cfl(ctx), mu_h_cfl(ctx), pressure_cfl(ctx), cfl(ctx), AIJ_cfl{ctx, ctx, ctx, ctx, ctx, ctx}, Si_cfl{ctx, ctx, ctx}{}
+    discretised_initial_data(cl::context& ctx) : mu_cfl(ctx), mu_h_cfl(ctx), pressure_non_conformal(ctx), cfl(ctx), AIJ_cfl{ctx, ctx, ctx, ctx, ctx, ctx}, Si_cfl{ctx, ctx, ctx}{}
 
     void init(cl::command_queue& cqueue, t3i dim)
     {
@@ -25,12 +25,12 @@ struct discretised_initial_data
 
         mu_cfl.alloc(sizeof(cl_float) * cells);
         mu_h_cfl.alloc(sizeof(cl_float) * cells);
-        pressure_cfl.alloc(sizeof(cl_float) * cells);
+        pressure_non_conformal.alloc(sizeof(cl_float) * cells);
         cfl.alloc(sizeof(cl_float) * cells);
 
         mu_cfl.set_to_zero(cqueue);
         mu_h_cfl.set_to_zero(cqueue);
-        pressure_cfl.set_to_zero(cqueue);
+        pressure_non_conformal.set_to_zero(cqueue);
         cfl.fill(cqueue, cl_float{1});
 
         for(auto& i : AIJ_cfl)
@@ -50,6 +50,8 @@ struct discretised_initial_data
 struct initial_pack
 {
     discretised_initial_data disc;
+
+    std::vector<tov::integration_solution> ns_sols;
 
     tensor<int, 3> dim;
     float scale = 0.f;
@@ -96,6 +98,8 @@ struct initial_pack
         tov::integration_solution sol = tov::solve_tov(st, params, 1e-6, 0.);
 
         neutron_star::add_to_solution(ctx, cqueue, disc, ns, sol, dim, scale);
+
+        ns_sols.push_back(sol);
     }
 
     void add(cl::context& ctx, cl::command_queue& cqueue, const black_hole_params& bh)
@@ -406,6 +410,15 @@ struct initial_conditions
             args.push_back(dim);
 
             cqueue.exec("calculate_bssn_variables", args, {dim.x() * dim.y() * dim.z()}, {128});
+        }
+
+        float scale = simulation_width / (dim.x() - 1);
+
+        assert(params_ns.size() == pack.ns_sols.size());
+
+        for(int i=0; i < params_ns.size(); i++)
+        {
+            neutron_star::finalise_pressure(ctx, cqueue, pack.disc, params_ns[i], pack.ns_sols[i], dim, scale);
         }
 
         return {u_found, pack};
