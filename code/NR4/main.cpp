@@ -1021,7 +1021,7 @@ int main()
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
-    float simulation_width = 30;
+    float simulation_width = 120;
 
     mesh m(ctx, dim, simulation_width);
     m.plugins.push_back(hydro);
