@@ -485,6 +485,22 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
 
 void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const plugin_step_data& sdata)
 {
+    /*for(auto& i : sdata.bssn_buffers)
+        printf("Len %i\n", i.alloc_size);
+
+    for(auto& i : sdata.buffers[sdata.base_idx])
+        printf("Len %i\n", i.alloc_size);
+
+    for(auto& i : sdata.buffers[sdata.in_idx])
+        printf("Len %i\n", i.alloc_size);
+
+    for(auto& i : sdata.buffers[sdata.out_idx])
+        printf("Len %i\n", i.alloc_size);
+
+    for(auto& i : sdata.utility_buffers)
+        printf("Len %i\n", i.alloc_size);*/
+
+
     {
         cl::args args;
 
@@ -504,6 +520,8 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
 
         cqueue.exec("calculate_hydro_intermediates", args, {sdata.evolve_length}, {128});
     }
+
+    //assert(false);
 
     {
         cl::args args;

@@ -209,8 +209,8 @@ struct mesh
                 b.fill(cqueue, nan);
             });
 
-            for(auto& i : plugin_buffers[i])
-                i->allocate(ctx, cqueue, dim);
+            for(auto& kk : plugin_buffers[i])
+                kk->allocate(ctx, cqueue, dim);
         }
 
         if(using_momentum_constraint)
@@ -332,7 +332,7 @@ struct mesh
     {
         float scale = get_scale(simulation_width, dim);
 
-        auto kreiss = [&](int in, int inout)
+        auto kreiss = [&](int in, int out)
         {
             std::vector<cl::buffer> linear_base;
             std::vector<cl::buffer> linear_inout;
@@ -342,7 +342,7 @@ struct mesh
                 linear_base.push_back(b);
             });
 
-            buffers[inout].for_each([&](cl::buffer b)
+            buffers[out].for_each([&](cl::buffer b)
             {
                 linear_inout.push_back(b);
             });
@@ -361,6 +361,8 @@ struct mesh
 
                 cqueue.exec("kreiss_oliger", args, {dim.x() * dim.y() * dim.z()}, {128});
             }
+
+            std::swap(plugin_buffers[in], plugin_buffers[out]);
         };
 
         auto enforce_constraints = [&](int idx)
@@ -569,11 +571,11 @@ struct mesh
 
             for(int i=0; i < (int)plugins.size(); i++)
             {
-                std::vector<cl::buffer> p_base = plugin_buffers[base_idx][i]->get_buffers();
-                std::vector<cl::buffer> p_in = plugin_buffers[in_idx][i]->get_buffers();
-                std::vector<cl::buffer> p_out = plugin_buffers[out_idx][i]->get_buffers();
+                std::vector<cl::buffer> p_base = plugin_buffers[base_idx].at(i)->get_buffers();
+                std::vector<cl::buffer> p_in = plugin_buffers[in_idx].at(i)->get_buffers();
+                std::vector<cl::buffer> p_out = plugin_buffers[out_idx].at(i)->get_buffers();
 
-                std::vector<buffer_descriptor> desc = plugin_buffers[in_idx][i]->get_description();
+                std::vector<buffer_descriptor> desc = plugin_buffers[in_idx].at(i)->get_description();
 
                 assert(p_base.size() == p_in.size());
                 assert(p_out.size() == p_base.size());
@@ -618,6 +620,7 @@ struct mesh
 
             ///always swap buffer 1 to buffer 2, which means that buffer 2 becomes our next input
             std::swap(buffers[1], buffers[2]);
+            std::swap(plugin_buffers[1], plugin_buffers[2]);
         }
 
         ///at the end of our iterations, our output is in buffer[2], and we want our result to end up in buffer[0]
