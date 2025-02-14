@@ -23,7 +23,7 @@ namespace neutron_star
 
         double K = 123.741;
         double Gamma = 2;
-        double p0_c = 6.235 * pow(10., 17.);
+        double p0_c_kg_m3 = 6.235 * pow(10., 17.);
     };
 
     void add_to_solution(cl::context& ctx, cl::command_queue& cqueue,

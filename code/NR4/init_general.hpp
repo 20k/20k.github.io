@@ -92,7 +92,7 @@ struct initial_pack
         params.K = ns.K;
         params.Gamma = ns.Gamma;
 
-        tov::integration_state st = tov::make_integration_state(ns.p0_c, 1e-6, params);
+        tov::integration_state st = tov::make_integration_state_si(ns.p0_c_kg_m3, 1e-6, params);
         tov::integration_solution sol = tov::solve_tov(st, params, 1e-6, 0.);
 
         neutron_star::add_to_solution(ctx, cqueue, disc, ns, sol, dim, scale);
@@ -147,6 +147,7 @@ struct initial_conditions
     tensor<int, 3> dim;
 
     std::vector<black_hole_params> params_bh;
+    std::vector<neutron_star::parameters> params_ns;
 
     laplace_solver laplace;
 
@@ -329,6 +330,11 @@ struct initial_conditions
         params_bh.push_back(bh);
     }
 
+    void add(const neutron_star::parameters& ns)
+    {
+        params_ns.push_back(ns);
+    }
+
     std::vector<float> extract_adm_masses(cl::context& ctx, cl::command_queue& cqueue, cl::buffer u_buf, t3i u_dim, float scale)
     {
         std::vector<float> ret;
@@ -367,7 +373,6 @@ struct initial_conditions
         return ret;
     }
 
-    ///todo: pass plugins in here
     std::pair<cl::buffer, initial_pack> build(cl::context& ctx, cl::command_queue& cqueue, float simulation_width, bssn_buffer_pack& to_fill)
     {
         auto [u_found, pack] = laplace.solve(ctx, cqueue, simulation_width, dim,
@@ -376,6 +381,9 @@ struct initial_conditions
             initial_pack pack(ctx, cqueue, idim, iscale);
 
             for(auto& i : params_bh)
+                pack.add(ctx, cqueue, i);
+
+            for(auto& i : params_ns)
                 pack.add(ctx, cqueue, i);
 
             pack.finalise(cqueue);
