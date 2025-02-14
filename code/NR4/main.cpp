@@ -297,6 +297,34 @@ struct mesh
         valid_derivative_buffer = 0;
     }
 
+    void add_plugin_args(cl::args& args, int pack_idx)
+    {
+        for(int i=0; i < (int)plugins.size(); i++)
+        {
+            auto bufs = plugin_buffers[pack_idx][i];
+            auto bufs2 = plugin_utility_buffers[i];
+
+            std::vector<cl::buffer> extra;
+
+            if(bufs)
+            {
+                auto to_add = bufs->get_buffers();
+
+                extra.insert(extra.end(), to_add.begin(), to_add.end());
+            }
+
+            if(bufs2)
+            {
+                auto to_add = bufs2->get_buffers();
+
+                extra.insert(extra.end(), to_add.begin(), to_add.end());
+            }
+
+            for(auto& i : extra)
+                args.push_back(i);
+        }
+    }
+
     void step(cl::context& ctx, cl::command_queue& cqueue, float timestep)
     {
         float scale = get_scale(simulation_width, dim);
@@ -408,34 +436,6 @@ struct mesh
             }
         };
         #endif
-
-        auto add_plugin_args = [&](cl::args& args, int pack_idx)
-        {
-            for(int i=0; i < (int)plugins.size(); i++)
-            {
-                auto bufs = plugin_buffers[pack_idx][i];
-                auto bufs2 = plugin_utility_buffers[i];
-
-                std::vector<cl::buffer> extra;
-
-                if(bufs)
-                {
-                    auto to_add = bufs->get_buffers();
-
-                    extra.insert(extra.end(), to_add.begin(), to_add.end());
-                }
-
-                if(bufs2)
-                {
-                    auto to_add = bufs2->get_buffers();
-
-                    extra.insert(extra.end(), to_add.begin(), to_add.end());
-                }
-
-                for(auto& i : extra)
-                    args.push_back(i);
-            }
-        };
 
         auto calculate_momentum_constraint_for = [&](int pack_idx)
         {
@@ -610,6 +610,7 @@ struct raytrace_manager
 
     cl::buffer texture_coordinates;
     cl::buffer zshifts;
+    cl::buffer occlusion;
 
     cl::buffer gpu_position;
 
@@ -617,9 +618,9 @@ struct raytrace_manager
 
     std::vector<cl::buffer> Guv_block;
 
-    raytrace_manager(cl::context& ctx) : positions(ctx), velocities(ctx), results(ctx), texture_coordinates(ctx), zshifts(ctx), gpu_position(ctx), tetrads{ctx, ctx, ctx, ctx}
+    raytrace_manager(cl::context& ctx, const all_adm_args_mem& args_mem) : positions(ctx), velocities(ctx), results(ctx), texture_coordinates(ctx), zshifts(ctx), occlusion(ctx), gpu_position(ctx), tetrads{ctx, ctx, ctx, ctx}
     {
-        build_raytrace_kernels(ctx);
+        build_raytrace_kernels(ctx, args_mem);
         build_raytrace_init_kernels(ctx);
         gpu_position.alloc(sizeof(cl_float4));
 
@@ -694,6 +695,7 @@ struct raytrace_manager
         results.alloc(width * height * sizeof(cl_int));
         texture_coordinates.alloc(width * height * sizeof(cl_float2));
         zshifts.alloc(width * height * sizeof(cl_float));
+        occlusion.alloc(width * height * sizeof(cl_float4));
     }
 
     void render3(cl::command_queue& cqueue, tensor<float, 4> camera_pos, quat camera_quat, cl::image& background, cl::gl_rendertexture& screen_tex, float simulation_width, mesh& m,
@@ -705,6 +707,7 @@ struct raytrace_manager
 
         texture_coordinates.set_to_zero(cqueue);
         zshifts.set_to_zero(cqueue);
+        occlusion.set_to_zero(cqueue);
 
         int buf = m.valid_derivative_buffer;
 
@@ -742,7 +745,7 @@ struct raytrace_manager
             cl::args args;
             args.push_back(screen_size);
             args.push_back(camera_quat.q);
-            args.push_back(positions, velocities, results, zshifts);
+            args.push_back(positions, velocities, results, zshifts, occlusion);
             args.push_back(m.dim);
             args.push_back(full_scale);
 
@@ -750,6 +753,8 @@ struct raytrace_manager
 
             for(auto& i : m.derivatives)
                 args.push_back(i);
+
+            m.add_plugin_args(args, buf);
 
             cqueue.exec("trace3", args, {screen_size.x(), screen_size.y()}, {8,8});
         }
@@ -773,6 +778,7 @@ struct raytrace_manager
 
         texture_coordinates.set_to_zero(cqueue);
         zshifts.set_to_zero(cqueue);
+        occlusion.set_to_zero(cqueue);
 
         {
             cl_float3 vel = {0,0,0};
@@ -843,7 +849,7 @@ struct raytrace_manager
 
         cl::args args2;
         args2.push_back(screen_size);
-        args2.push_back(positions, velocities, results, zshifts);
+        args2.push_back(positions, velocities, results, zshifts, occlusion);
         args2.push_back(texture_coordinates);
         args2.push_back(background, screen_tex);
         args2.push_back(background_size);
@@ -1043,7 +1049,7 @@ int main()
 
     cqueue.block();
 
-    raytrace_manager rt_bssn(ctx);
+    raytrace_manager rt_bssn(ctx, all_args);
 
     cl::image background = load_background(ctx, cqueue, "../common/esa.png");
 
