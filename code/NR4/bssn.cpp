@@ -914,11 +914,11 @@ valuef apply_evolution(const valuef& base, const valuef& dt, valuef timestep)
 
 void make_momentum_constraint(cl::context ctx, const all_adm_args_mem& args_mem)
 {
-    static all_adm_args_mem static_tramp;
-    static_tramp = args_mem;
+    static all_adm_args_mem static_tramp2;
+    static_tramp2 = args_mem;
 
     auto func = [](execution_context&, bssn_args_mem<buffer<valuef>> in,
-                                       arg_data<static_tramp> plugin_data,
+                                       arg_data<static_tramp2> plugin_data,
                                        std::array<buffer_mut<momentum_t>, 3> momentum_constraint,
                                        literal<v3i> ldim,
                                        literal<valuef> scale

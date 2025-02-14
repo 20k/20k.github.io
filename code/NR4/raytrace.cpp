@@ -609,12 +609,37 @@ void trace3(execution_context& ectx, literal<v2i> screen_sizel,
             return p;
         };
 
+        auto get_dbg = [&](v3i pos)
+        {
+            derivative_data d;
+            d.pos = pos;
+            d.dim = dim.get();
+            d.scale = scale.get();
+
+            bssn_args args = bssn_at(pos, dim.get(), in);
+
+            valuef p = trace(plugin_data.mem.adm_W2_Sij(args, d), args.cY.invert());
+            pin(p);
+
+            return p;
+        };
+
         v3f grid_position = world_to_grid(cposition, dim.get(), scale.get());
 
         grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
         pin(grid_position);
 
         valuef rho = function_trilinear(get_rho, grid_position);
+
+        /*if_e(screen_position.x() == screen_size.x()/2 && screen_position.y() == screen_size.y()/2, [&]{
+            valuef S = function_trilinear(get_dbg, grid_position);
+
+            value_base se;
+            se.type = value_impl::op::SIDE_EFFECT;
+            se.abstract_value = "printf(\"rho: %f\\n\"," + value_to_string(rho) + ")";
+
+            value_impl::get_context().add(se);
+        });*/
 
         valuef sample_length = diff.length();
 
