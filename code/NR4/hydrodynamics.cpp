@@ -223,6 +223,50 @@ struct hydrodynamic_concrete
     }
 };
 
+valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev, valuef Gamma)
+{
+    valuef A = pow(max(W, 0.0001f), 3.f * Gamma - 3.f);
+    valuef wG = pow(w_prev, Gamma - 1);
+
+    valuef D = wG / max(wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 0.0001f), Gamma - 2), 0.001f);
+
+    return D;
+}
+
+valuef calculate_w(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse_metric<valuef, 3, 3> icY, v3f Si)
+{
+    using namespace single_source;
+
+    valuef w = 1.f;
+
+    valuef p_sq = p_star * p_star;
+    valuef cst = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            cst += icY[i, j] * Si[i] * Si[j];
+        }
+    }
+
+    pin(p_sq);
+    pin(cst);
+
+    for(int i=0; i < 20; i++)
+    {
+        valuef D = w_next_interior(p_star, e_star, W, w, Gamma);
+
+        valuef w_next = sqrt(p_sq + cst * D*D);
+
+        pin(w_next);
+
+        w = w_next;
+    }
+
+    return w;
+}
+
 ///todo: i need to de-mutify hydro
 void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_args<buffer_mut<valuef>> hydro, literal<v3i> idim, literal<valuef> scale,
                 buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
@@ -252,6 +296,10 @@ hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx)
     cl::async_build_and_cache(ctx, []{
         return value_impl::make_function(init_hydro, "init_hydro");
     }, {"init_hydro"});
+
+    cl::async_build_and_cache(ctx, []{
+        return value_impl::make_function(calculate_hydro_intermediates, "calculate_hydro_intermediates");
+    }, {"calculate_hydro_intermediates"});
 }
 
 buffer_provider* hydrodynamic_plugin::get_buffer_factory(cl::context ctx)
