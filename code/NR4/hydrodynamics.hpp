@@ -17,10 +17,6 @@ struct hydrodynamic_args : adm_args_mem
     T e_star;
     std::array<T, 3> Si;
 
-    ///so, ideally we'd have a w and a P in here
-    ///do I just establish a convention?
-    ///hang on. I am in charge of this, i just get a buffer pack to mess with
-
     T w;
     T P;
 
@@ -35,10 +31,10 @@ struct hydrodynamic_args : adm_args_mem
         add(P, in);
     }
 
-    virtual valuef adm_S(bssn_args& args) override
-    {
-        return 0.f;
-    }
+    ///hmm. the issue if we have buffer<valuef> is that we need a position and a dim
+    virtual valuef adm_p(bssn_args& args, const derivative_data& d) override;
+    virtual tensor<valuef, 3> adm_Si(bssn_args& args, const derivative_data& d) override;
+    virtual tensor<valuef, 3, 3> adm_W2_Sij(bssn_args& args, const derivative_data& d) override;
 };
 
 struct hydrodynamic_buffers : buffer_provider
@@ -69,14 +65,6 @@ struct hydrodynamic_utility_buffers : buffer_provider
     virtual std::vector<cl::buffer> get_buffers() override;
     virtual void allocate(cl::context ctx, cl::command_queue cqueue, t3i size) override;
 };
-
-/*struct hydrodynamic_adm : adm_args_mem
-{
-    virtual void add_adm_S(bssn_args& args, valuef& in) override;
-    virtual void add_adm_p(bssn_args& args, valuef& in) override;
-    virtual void add_adm_Si(bssn_args& args, tensor<valuef, 3>& in) override;
-    virtual void add_adm_W2_Sij(bssn_args& args, tensor<valuef, 3, 3>& in) override;
-};*/
 
 struct hydrodynamic_plugin : plugin
 {

@@ -32,6 +32,27 @@ void hydrodynamic_adm::add_adm_W2_Sij(bssn_args& args, tensor<valuef, 3, 3>& in)
 
 }*/
 
+template<typename T>
+valuef hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& d)
+{
+
+}
+
+template<typename T>
+tensor<valuef, 3> hydrodynamic_args<T>::adm_Si(bssn_args& args, const derivative_data& d)
+{
+
+}
+
+template<typename T>
+tensor<valuef, 3, 3> hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, const derivative_data& d)
+{
+
+}
+
+template struct hydrodynamic_args<buffer<valuef>>;
+template struct hydrodynamic_args<buffer_mut<valuef>>;
+
 std::vector<buffer_descriptor> hydrodynamic_buffers::get_description()
 {
     buffer_descriptor p;

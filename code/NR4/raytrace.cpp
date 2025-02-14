@@ -595,9 +595,14 @@ void trace3(execution_context& ectx, literal<v2i> screen_sizel,
 
         auto get_rho = [&](v3i pos)
         {
+            derivative_data d;
+            d.pos = pos;
+            d.dim = dim.get();
+            d.scale = scale.get();
+
             bssn_args args = bssn_at(pos, dim.get(), in);
 
-            return plugin_data.mem.adm_p(args);
+            return plugin_data.mem.adm_p(args, d);
         };
 
         valuef rho = function_trilinear(get_rho, cposition);
