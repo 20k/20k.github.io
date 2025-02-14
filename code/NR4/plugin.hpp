@@ -121,6 +121,7 @@ struct buffer_provider
 struct plugin_step_data
 {
     std::array<std::vector<cl::buffer>, 3> buffers;
+    std::vector<cl::buffer> utility_buffers;
 
     std::vector<cl::buffer> bssn_buffers;
 
