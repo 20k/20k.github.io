@@ -21,8 +21,8 @@ using mut_v3f = tensor<mut<valuef>, 3>;
 
 using block_precision_t = valuef;
 
-struct all_adm_args_mem;
+struct plugin;
 
-void build_raytrace_kernels(cl::context ctx, const all_adm_args_mem& args_mem);
+void build_raytrace_kernels(cl::context ctx, const std::vector<plugin*>& plugins);
 
 #endif // RAYTRACE_HPP_INCLUDED
