@@ -3,6 +3,7 @@
 #include "bssn.hpp"
 #include "formalisms.hpp"
 #include "interpolation.hpp"
+#include "plugin.hpp"
 
 #define UNIVERSE_SIZE 29
 
@@ -390,14 +391,17 @@ struct trace3_state
     v3f grid_position;
 };
 
+static all_adm_args_mem trace3_trampoline;
+
 void trace3(execution_context& ectx, literal<v2i> screen_sizel,
             literal<v4f> camera_quat,
             buffer_mut<v4f> positions, buffer_mut<v4f> velocities,
-            buffer_mut<valuei> results, buffer_mut<valuef> zshift,
+            buffer_mut<valuei> results, buffer_mut<valuef> zshift, buffer_mut<v3f> occlusion,
             literal<v3i> dim,
             literal<valuef> scale,
             bssn_args_mem<buffer<valuef>> in,
-            bssn_derivatives_mem<buffer<derivative_t>> derivatives)
+            bssn_derivatives_mem<buffer<derivative_t>> derivatives,
+            arg_data<trace3_trampoline> plugin_data)
 {
     using namespace single_source;
 
@@ -566,6 +570,7 @@ void trace3(execution_context& ectx, literal<v2i> screen_sizel,
     ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS, get_state);
 
     mut<valuei> idx = declare_mut_e("i", valuei(0));
+    mut_v3f accumulated_occlusion = declare_mut_e((v3f){0,0,0});
 
     for_e(idx < 512, assign_b(idx, idx + 1), [&]
     {
@@ -588,6 +593,17 @@ void trace3(execution_context& ectx, literal<v2i> screen_sizel,
 
         v3f diff = ctx.next(get_dX, get_dV, get_dS, get_state, fix_velocity);
 
+        auto get_rho = [&](v3i pos)
+        {
+            bssn_args args = bssn_at(pos, dim.get(), in);
+
+            return plugin_data.mem.adm_p(args);
+        };
+
+        valuef rho = function_trilinear(get_rho, cposition);
+
+        as_ref(accumulated_occlusion) += rho * diff * 1000;
+
         //terminate if the movement of our ray through coordinate space becomes trapped, its likely hit an event horizon
         if_e(diff.squared_length() < 0.1f * 0.1f, [&]
         {
@@ -602,6 +618,7 @@ void trace3(execution_context& ectx, literal<v2i> screen_sizel,
     as_ref(positions[screen_position, screen_size]) = (v4f){0, final_position.x(), final_position.y(), final_position.z()};
     as_ref(velocities[screen_position, screen_size]) = (v4f){0, final_velocity.x(), final_velocity.y(), final_velocity.z()};
     as_ref(results[screen_position, screen_size]) = as_constant(result);
+    as_ref(occlusion[screen_position, screen_size]) = as_constant(accumulated_occlusion);
 }
 
 void bssn_to_guv(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> lower_dim,
@@ -975,7 +992,7 @@ v3f read_mipmap(read_only_image_array<2> img, v3f coord)
 }
 
 void render(execution_context& ectx, literal<v2i> screen_sizel,
-            buffer<v4f> positions, buffer<v4f> velocities, buffer<valuei> results, buffer<valuef> zshift,
+            buffer<v4f> positions, buffer<v4f> velocities, buffer<valuei> results, buffer<valuef> zshift, buffer<v3f> occlusion,
             buffer<v2f> texture_coordinates,
             read_only_image_array<2> background, write_only_image<2> screen,
             literal<v2i> background_size,
@@ -1210,17 +1227,23 @@ void render(execution_context& ectx, literal<v2i> screen_sizel,
     v3f cvt = declare_e(end_result);
     #endif // ANISOTROPIC
 
+    v3f occluding = occlusion[screen_position, screen_size];
+
+    occluding = clamp(occluding, (v3f){0,0,0}, (v3f){1,1,1});
+
     valuef zp1 = declare_e(zshift[screen_position, screen_size]) + 1;
 
-    cvt = linear_to_srgb_gpu(do_redshift(cvt, zp1));
+    cvt = linear_to_srgb_gpu(do_redshift(cvt, zp1)) * ((v3f){1,1,1} - occluding);
 
     v4f crgba = {cvt[0], cvt[1], cvt[2], 1.f};
 
     screen.write(ectx, {x, y}, crgba);
 }
 
-void build_raytrace_kernels(cl::context ctx)
+void build_raytrace_kernels(cl::context ctx, const all_adm_args_mem& args_mem)
 {
+    trace3_trampoline = args_mem;
+
     cl::async_build_and_cache(ctx, []{
         return value_impl::make_function(trace3, "trace3");
     }, {"trace3"});
