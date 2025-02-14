@@ -122,8 +122,10 @@ struct plugin_step_data
 {
     std::array<std::vector<cl::buffer>, 3> buffers;
 
+    std::vector<cl::buffer> bssn_buffers;
+
     cl::buffer evolve_points;
-    cl_int length;
+    cl_int evolve_length = 0;
 
     t3i dim;
     float scale = 0;
