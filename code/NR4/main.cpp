@@ -190,15 +190,6 @@ struct mesh
             }
         }
 
-        for(auto& p : plugins)
-        {
-            buffer_provider* b = p->get_utility_buffer_factory(ctx);
-
-            b->allocate(ctx, cqueue, dim);
-
-            plugin_utility_buffers.push_back(b);
-        }
-
         for(int i=1; i < 3; i++)
         {
             buffers[i].allocate(dim);
@@ -586,7 +577,7 @@ struct mesh
 
                 for(int kk=0; kk < (int)p_base.size(); kk++)
                 {
-                    sommerfeld_buffer(p_base[kk], p_in[kk], p_out[kk], desc[kk].asymptotic_value, desc[kk].wave_speed);
+                    //sommerfeld_buffer(p_base[kk], p_in[kk], p_out[kk], desc[kk].asymptotic_value, desc[kk].wave_speed);
                 }
             }
         };
@@ -672,9 +663,9 @@ struct raytrace_manager
 
     std::vector<cl::buffer> Guv_block;
 
-    raytrace_manager(cl::context& ctx, const all_adm_args_mem& args_mem) : positions(ctx), velocities(ctx), results(ctx), texture_coordinates(ctx), zshifts(ctx), occlusion(ctx), gpu_position(ctx), tetrads{ctx, ctx, ctx, ctx}
+    raytrace_manager(cl::context& ctx, const std::vector<plugin*>& plugins) : positions(ctx), velocities(ctx), results(ctx), texture_coordinates(ctx), zshifts(ctx), occlusion(ctx), gpu_position(ctx), tetrads{ctx, ctx, ctx, ctx}
     {
-        build_raytrace_kernels(ctx, args_mem);
+        build_raytrace_kernels(ctx, plugins);
         build_raytrace_init_kernels(ctx);
         gpu_position.alloc(sizeof(cl_float4));
 
@@ -1042,15 +1033,15 @@ int main()
 
     t3i dim = {213, 213, 213};
 
-    all_adm_args_mem all_args;
-
     plugin* hydro = new hydrodynamic_plugin(ctx);
-    hydro->add_args_provider(all_args);
+
+    std::vector<plugin*> plugins;
+    plugins.push_back(hydro);
 
     make_derivatives(ctx);
-    make_bssn(ctx, all_args);
+    make_bssn(ctx, plugins);
     init_debugging(ctx);
-    make_momentum_constraint(ctx, all_args);
+    make_momentum_constraint(ctx, plugins);
     enforce_algebraic_constraints(ctx);
     make_sommerfeld(ctx);
     make_initial_conditions(ctx);
@@ -1084,7 +1075,7 @@ int main()
     float simulation_width = 120;
 
     mesh m(ctx, dim, simulation_width);
-    m.plugins.push_back(hydro);
+    m.plugins = plugins;
     m.init(ctx, cqueue);
 
     printf("Post init\n");
@@ -1103,7 +1094,7 @@ int main()
 
     cqueue.block();
 
-    raytrace_manager rt_bssn(ctx, all_args);
+    raytrace_manager rt_bssn(ctx, plugins);
 
     cl::image background = load_background(ctx, cqueue, "../common/esa.png");
 

@@ -362,13 +362,13 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     v3f Si = hydro_args.Si;
     valuef w = hydro_args.w;
 
-    as_ref(h_out.p_star[pos, dim]) = hydro_args.p_star;
+    /*as_ref(h_out.p_star[pos, dim]) = hydro_args.p_star;
     as_ref(h_out.e_star[pos, dim]) = hydro_args.e_star;
 
     for(int i=0; i < 3; i++)
         as_ref(h_out.Si[i][pos, dim]) = Si[i];
 
-    return;
+    return;*/
 
     valuef epsilon = e_star_to_epsilon(p_star, e_star, args.W, w);
 
@@ -462,6 +462,8 @@ buffer_provider* hydrodynamic_plugin::get_utility_buffer_factory(cl::context ctx
 
 void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, buffer_provider* to_init, buffer_provider* to_init_utility)
 {
+    return;
+
     hydrodynamic_buffers& bufs = *dynamic_cast<hydrodynamic_buffers*>(to_init);
     hydrodynamic_utility_buffers& ubufs = *dynamic_cast<hydrodynamic_utility_buffers*>(to_init_utility);
 
@@ -508,9 +510,9 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
     for(auto& i : sdata.utility_buffers)
         printf("Len %i\n", i.alloc_size);*/
 
-    //return;
+    return;
 
-    /*{
+    {
         cl::args args;
 
         for(auto& i : sdata.bssn_buffers)
@@ -528,7 +530,7 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
         args.push_back(sdata.evolve_length);
 
         cqueue.exec("calculate_hydro_intermediates", args, {sdata.evolve_length}, {128});
-    }*/
+    }
 
     //assert(false);
 

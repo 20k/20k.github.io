@@ -1297,9 +1297,9 @@ void render(execution_context& ectx, literal<v2i> screen_sizel,
     screen.write(ectx, {x, y}, crgba);
 }
 
-void build_raytrace_kernels(cl::context ctx, const all_adm_args_mem& args_mem)
+void build_raytrace_kernels(cl::context ctx, const std::vector<plugin*>& plugins)
 {
-    trace3_trampoline = args_mem;
+    trace3_trampoline = make_arg_provider(plugins);
 
     cl::async_build_and_cache(ctx, []{
         return value_impl::make_function(trace3, "trace3");

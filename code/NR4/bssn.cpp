@@ -914,9 +914,9 @@ valuef apply_evolution(const valuef& base, const valuef& dt, valuef timestep)
 
 static all_adm_args_mem static_tramp2;
 
-void make_momentum_constraint(cl::context ctx, const all_adm_args_mem& args_mem)
+void make_momentum_constraint(cl::context ctx, const std::vector<plugin*>& plugins)
 {
-    static_tramp2 = args_mem;
+    static_tramp2 = make_arg_provider(plugins);
 
     auto func = [](execution_context&, bssn_args_mem<buffer<valuef>> in,
                                        arg_data<static_tramp2> plugin_data,
@@ -976,9 +976,9 @@ void make_momentum_constraint(cl::context ctx, const all_adm_args_mem& args_mem)
 static all_adm_args_mem static_tramp;
 
 ///https://arxiv.org/pdf/0709.3559 tested, appendix a.2
-void make_bssn(cl::context ctx, const all_adm_args_mem& args_mem)
+void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins)
 {
-    static_tramp = args_mem;
+    static_tramp = make_arg_provider(plugins);
 
     auto bssn_function = [](execution_context&, bssn_args_mem<buffer<valuef>> base,
                                                  bssn_args_mem<buffer<valuef>> in,
