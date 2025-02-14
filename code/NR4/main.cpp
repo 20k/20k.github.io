@@ -144,6 +144,7 @@ struct mesh
             neutron_star::parameters p1;
             p1.angular_momentum = {0, 0, 0};
             p1.linear_momentum = {0, 0, 0};
+            p1.p0_c_kg_m3 = 6.235 * pow(10., 17.);
 
             initial_conditions init(ctx, cqueue, dim);
 
@@ -493,7 +494,7 @@ struct mesh
             for(auto& i : derivatives)
                 args.push_back(i);
 
-            add_plugin_args(args, in_idx);
+            add_plugin_args(args, out_idx);
 
             if(using_momentum_constraint)
             {

@@ -28,7 +28,7 @@ namespace neutron_star
 
     void add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
                          discretised_initial_data& dsol, const parameters& phys_params, const tov::integration_solution& sol,
-                         tensor<int, 3> dim, float scale);
+                         tensor<int, 3> dim, float scale, int star_index);
 }
 
 #endif // INIT_NEUTRON_STAR_HPP_INCLUDED
