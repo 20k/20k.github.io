@@ -602,12 +602,28 @@ void trace3(execution_context& ectx, literal<v2i> screen_sizel,
 
             bssn_args args = bssn_at(pos, dim.get(), in);
 
-            return plugin_data.mem.adm_p(args, d);
+            valuef p = plugin_data.mem.adm_p(args, d);
+            pin(p);
+
+            return p;
         };
 
-        valuef rho = function_trilinear(get_rho, cposition);
+        v3f grid_position = world_to_grid(cposition, dim.get(), scale.get());
 
-        as_ref(accumulated_occlusion) += rho * diff * 1000;
+        grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
+        pin(grid_position);
+
+        valuef rho = function_trilinear(get_rho, grid_position);
+
+        /*if_e(x == screen_size.x()/2 && y == screen_size.y()/2, [&]{
+            value_base se;
+            se.type = value_impl::op::SIDE_EFFECT;
+            se.abstract_value = "printf(\"rho: %f %f %f %f\\n\"," + value_to_string(rho) + "," + value_to_string(grid_position.x()) + "," + value_to_string(grid_position.y()) + "," + value_to_string(grid_position.z()) + ")";
+
+            value_impl::get_context().add(se);
+        });*/
+
+        as_ref(accumulated_occlusion) += fabs(rho) * diff.length() * 1000;
 
         //terminate if the movement of our ray through coordinate space becomes trapped, its likely hit an event horizon
         if_e(diff.squared_length() < 0.1f * 0.1f, [&]
@@ -1238,7 +1254,9 @@ void render(execution_context& ectx, literal<v2i> screen_sizel,
 
     valuef zp1 = declare_e(zshift[screen_position, screen_size]) + 1;
 
-    cvt = linear_to_srgb_gpu(do_redshift(cvt, zp1)) * ((v3f){1,1,1} - occluding);
+    cvt = linear_to_srgb_gpu(do_redshift(cvt, zp1));
+
+    cvt = cvt * ((v3f){1,1,1} - occluding);
 
     v4f crgba = {cvt[0], cvt[1], cvt[2], 1.f};
 

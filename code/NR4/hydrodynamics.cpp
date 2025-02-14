@@ -11,6 +11,13 @@ valuef get_h_with_gamma_eos(valuef e)
     return 1 + get_Gamma() * e;
 }
 
+valuef e_star_to_epsilon(valuef p_star, valuef e_star, valuef W, valuef w)
+{
+    valuef e_m6phi = W*W*W;
+    valuef Gamma = get_Gamma();
+
+    return pow(e_m6phi / max(w, 0.001f), Gamma-1) * pow(e_star, Gamma) * pow(p_star, Gamma - 2);
+}
 
 template<typename T>
 valuef hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& d)
@@ -18,8 +25,11 @@ valuef hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& d)
     valuef lw = w[d.pos, d.dim];
     valuef lP = P[d.pos, d.dim];
     valuef es = e_star[d.pos, d.dim];
+    valuef ps = p_star[d.pos, d.dim];
 
-    valuef h = get_h_with_gamma_eos(es);
+    valuef epsilon = e_star_to_epsilon(ps, es, args.W, lw);
+
+    valuef h = get_h_with_gamma_eos(epsilon);
 
     return h * lw * (args.W * args.W * args.W) - lP;
 }
@@ -35,7 +45,6 @@ tensor<valuef, 3> hydrodynamic_args<T>::adm_Si(bssn_args& args, const derivative
 template<typename T>
 tensor<valuef, 3, 3> hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, const derivative_data& d)
 {
-    valuef ps = p_star[d.pos, d.dim];
     valuef es = e_star[d.pos, d.dim];
     v3f cSi = {Si[0][d.pos, d.dim], Si[1][d.pos, d.dim], Si[2][d.pos, d.dim]};
     valuef lw = w[d.pos, d.dim];
@@ -133,18 +142,22 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydro
 {
     using namespace single_source;
 
-    valuei lid = value_impl::get_global_id(0);
+    valuei x = value_impl::get_global_id(0);
+    valuei y = value_impl::get_global_id(1);
+    valuei z = value_impl::get_global_id(2);
 
-    pin(lid);
+    pin(x);
+    pin(y);
+    pin(z);
 
     v3i dim = ldim.get();
 
-    if_e(lid >= dim.x() * dim.y() * dim.z(), []{
+    if_e(x >= dim.x() || y >= dim.y() || z >= dim.z(), []{
         return_e();
     });
 
     ///if i was smart, i'd use the structure of the grid to do this directly
-    v3i pos = get_coordinate(lid, dim);
+    v3i pos = {x, y, z};
     pin(pos);
 
     bssn_args args(pos, dim, in);
@@ -160,7 +173,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydro
     valuef pressure = pressure_cfl * pow(phi, -8);
     v3f Si = Si_cfl * pow(phi, -10);
 
-    valuef u0 = sqrt((mu_h + pressure) / (mu + pressure));
+    valuef u0 = sqrt((mu_h + pressure) / max(mu + pressure, 0.001f));;
 
     valuef Gamma = get_Gamma();
 
@@ -175,6 +188,40 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydro
 
     valuef p_star = p0 * gA * u0 * pow(cW, -3);
     valuef e_star = pow(p0_e, (1/Gamma)) * gA * u0 * pow(cW, -3);
+
+    /*{
+        valuef lw = p_star * gA * u0;
+
+        valuef epsilon = e_star_to_epsilon(p_star, e_star, args.W, p_star * gA * u0);
+
+        valuef h = get_h_with_gamma_eos(epsilon);
+
+        valuef rho = h * lw * (args.W * args.W * args.W) - pressure;
+
+        if_e(!isfinite(rho), [&]{
+            value_base se;
+            se.type = value_impl::op::SIDE_EFFECT;
+            se.abstract_value = "printf(\"Not finite\")";
+
+            value_impl::get_context().add(se);
+        });
+
+        if_e(p_star != 0, [&]{
+            value_base se;
+            se.type = value_impl::op::SIDE_EFFECT;
+                se.abstract_value = "printf(\"dbg: %f\\n\"," + value_to_string(p_star) + ")";
+
+            value_impl::get_context().add(se);
+        });
+    }*/
+
+    /*if_e(!isfinite(e_star), [&]{
+        value_base se;
+        se.type = value_impl::op::SIDE_EFFECT;
+        se.abstract_value = "printf(\"Not finite\")";
+
+        value_impl::get_context().add(se);
+    });*/
 
     metric<valuef, 3, 3> Yij = args.cY / (cW*cW);
 
