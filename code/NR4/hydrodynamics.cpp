@@ -19,6 +19,20 @@ valuef e_star_to_epsilon(valuef p_star, valuef e_star, valuef W, valuef w)
     return pow(e_m6phi / max(w, 0.001f), Gamma-1) * pow(e_star, Gamma) * pow(p_star, Gamma - 2);
 }
 
+valuef calculate_p0e(valuef Gamma, valuef W, valuef w, valuef p_star, valuef e_star)
+{
+    valuef iv_au0 = p_star / max(w, 0.001f);
+
+    valuef e_m6phi = W*W*W;
+
+    return pow(max(e_star * e_m6phi * iv_au0, 0.f), Gamma);
+}
+
+valuef gamma_eos(valuef Gamma, valuef W, valuef w, valuef p_star, valuef e_star)
+{
+    return calculate_p0e(Gamma, W, w, p_star, e_star) * (Gamma - 1);
+}
+
 template<typename T>
 valuef hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& d)
 {
@@ -289,6 +303,12 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
 
     bssn_args args(pos, dim, in);
     hydrodynamic_concrete hydro_args(pos, dim, hydro);
+
+    valuef w = calculate_w(hydro_args.p_star, hydro_args.e_star, args.W, get_Gamma(), args.cY.invert(), hydro_args.Si);
+    valuef P = gamma_eos(get_Gamma(), args.W, w, hydro_args.p_star, hydro_args.e_star);
+
+    as_ref(hydro.w[pos, dim]) = w;
+    as_ref(hydro.P[pos, dim]) = P;
 }
 
 hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx)
