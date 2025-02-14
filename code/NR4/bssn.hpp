@@ -229,7 +229,7 @@ struct plugin;
 void make_derivatives(cl::context ctx);
 void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins);
 void enforce_algebraic_constraints(cl::context ctx);
-void init_debugging(cl::context ctx);
+void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins);
 void make_momentum_constraint(cl::context ctx, const std::vector<plugin*>& plugins);
 void make_sommerfeld(cl::context ctx);
 

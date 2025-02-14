@@ -1042,7 +1042,7 @@ int main()
 
     make_derivatives(ctx);
     make_bssn(ctx, plugins);
-    init_debugging(ctx);
+    init_debugging(ctx, plugins);
     make_momentum_constraint(ctx, plugins);
     enforce_algebraic_constraints(ctx);
     make_sommerfeld(ctx);
@@ -1300,6 +1300,9 @@ int main()
 
             cl::args args;
             m.buffers[0].append_to(args);
+
+            m.add_plugin_args(args, 0);
+
             args.push_back(dim);
             args.push_back(scale);
             args.push_back(screen_tex);

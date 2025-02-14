@@ -45,7 +45,7 @@ valuef full_hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& 
 
     valuef h = get_h_with_gamma_eos(epsilon);
 
-    return (h * lw * (args.W * args.W * args.W) - lP) * 0.001f;
+    return (h * lw * (args.W * args.W * args.W) - lP);
 }
 
 template<typename T>
@@ -53,7 +53,7 @@ tensor<valuef, 3> full_hydrodynamic_args<T>::adm_Si(bssn_args& args, const deriv
 {
     v3f cSi = {Si[0][d.pos, d.dim], Si[1][d.pos, d.dim], Si[2][d.pos, d.dim]};
 
-    return pow(args.W, 3.f) * cSi * 0.001f;
+    return pow(args.W, 3.f) * cSi;
 }
 
 template<typename T>
@@ -76,7 +76,7 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
         }
     }
 
-    return (W2_Sij + lP * args.cY.to_tensor()) * 0.001f;
+    return (W2_Sij + lP * args.cY.to_tensor());
 }
 
 template struct full_hydrodynamic_args<buffer<valuef>>;
@@ -316,6 +316,8 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
     return -gB + ((W*W * gA) / max(w*h, 0.001f)) * cY.invert().raise(Si);
 }
 
+constexpr float min_p_star = 1e-6f;
+
 ///todo: i need to de-mutify hydro
 void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_hydrodynamic_args<buffer_mut<valuef>> hydro,
                                    literal<v3i> idim, literal<valuef> scale,
@@ -336,19 +338,27 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
     v3i pos = (v3i)positions[lid];
     pin(pos);
 
-    bssn_args args(pos, dim, in);
     hydrodynamic_concrete hydro_args(pos, dim, hydro);
+
+    if_e(hydro_args.p_star < min_p_star, [&]{
+        as_ref(hydro.P[pos, dim]) = valuef(0);
+        as_ref(hydro.w[pos, dim]) = valuef(0);
+
+        return_e();
+    });
+
+    bssn_args args(pos, dim, in);
 
     valuef w = calculate_w(hydro_args.p_star, hydro_args.e_star, args.W, get_Gamma(), args.cY.invert(), hydro_args.Si);
     valuef P = gamma_eos(get_Gamma(), args.W, w, hydro_args.p_star, hydro_args.e_star);
 
-    if_e(pos.x() == dim.x()/2 + 20 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+    /*if_e(pos.x() == dim.x()/2 + 20 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
         value_base se;
         se.type = value_impl::op::SIDE_EFFECT;
         se.abstract_value = "printf(\"p %f pstar %f\\n\"," + value_to_string(P) + "," + value_to_string(hydro_args.p_star) + ")";
 
         value_impl::get_context().add(se);
-    });
+    });*/
 
     as_ref(hydro.w[pos, dim]) = w;
     as_ref(hydro.P[pos, dim]) = P;
@@ -452,13 +462,41 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         dSi_p1[k] += p1 + p2 + p3 + p4 + p5;
     }
 
-    as_ref(h_out.p_star[pos, dim]) = max(h_base.p_star[pos, dim] + timestep.get() * dp_star, 0.f);
-    as_ref(h_out.e_star[pos, dim]) = max(h_base.e_star[pos, dim] + timestep.get() * de_star, 0.f);
+    valuef fin_p_star = max(h_base.p_star[pos, dim] + timestep.get() * dp_star, 0.f);
+    valuef fin_e_star = max(h_base.e_star[pos, dim] + timestep.get() * de_star, 0.f);
+
+    valuef max_p = 1;
+
+    fin_e_star = ternary(fin_p_star < (1e-5f * max_p), min(fin_e_star, 10 * fin_p_star), fin_e_star);
+
+    v3f fin_Si;
 
     for(int i=0; i < 3; i++)
     {
-        as_ref(h_out.Si[i][pos, dim]) = h_base.Si[i][pos, dim] + timestep.get() * dSi_p1[i];
+        fin_Si[i] = h_base.Si[i][pos, dim] + timestep.get() * dSi_p1[i];
     }
+
+    if_e(fin_p_star <= min_p_star, [&]{
+        as_ref(h_out.p_star[pos, dim]) = valuef(0);
+        as_ref(h_out.e_star[pos, dim]) = valuef(0);
+
+        for(int i=0; i < 3; i++)
+        {
+            as_ref(h_out.Si[i][pos, dim]) = valuef(0);
+        }
+
+        //return_e();
+    });
+
+    if_e(fin_p_star > min_p_star, [&]{
+        as_ref(h_out.p_star[pos, dim]) = fin_p_star;
+        as_ref(h_out.e_star[pos, dim]) = fin_e_star;
+
+        for(int i=0; i < 3; i++)
+        {
+            as_ref(h_out.Si[i][pos, dim]) = fin_Si[i];
+        }
+    });
 }
 
 hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx)

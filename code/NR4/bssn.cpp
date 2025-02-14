@@ -1174,9 +1174,13 @@ void enforce_algebraic_constraints(cl::context ctx)
     }, {"enforce_algebraic_constraints"});
 }
 
-void init_debugging(cl::context ctx)
+static all_adm_args_mem static_tramp_debug;
+
+void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
 {
-    auto func = [](execution_context&, bssn_args_mem<buffer_mut<valuef>> to_fill, literal<v3i> ldim, literal<valuef> scale, write_only_image<2> write) {
+    static_tramp_debug = make_arg_provider(plugins);
+
+    auto func = [](execution_context&, bssn_args_mem<buffer<valuef>> in, arg_data<static_tramp_debug> plugin_data, literal<v3i> ldim, literal<valuef> scale, write_only_image<2> write) {
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);
@@ -1195,10 +1199,21 @@ void init_debugging(cl::context ctx)
             return_e();
         });
 
-        //valuef test_val = to_fill.cY[0][lid];
+        bssn_args args(pos, dim, in);
+
+        derivative_data d;
+        d.pos = pos;
+        d.dim = dim;
+        d.scale = scale.get();
+
+        valuef p = plugin_data.mem.adm_p(args, d);
+
+        //valuef test_val = in.cY[0][lid];
         //valuef display = ((test_val - 1) / 0.1f) * 0.5f + 0.5f;
 
-        valuef display = fabs(to_fill.gA[lid]);
+        //valuef display = fabs(in.gA[lid]);
+
+        valuef display = p * 100;
 
         v4f col = {display, display, display, 1.f};
 
