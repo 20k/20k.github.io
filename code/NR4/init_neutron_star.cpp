@@ -49,7 +49,7 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
                 literal<v3i> ldim, literal<valuef> lscale,
                 literal<v3f> lbody_pos, literal<v3f> linear_momentum, literal<v3f> angular_momentum,
                 std::array<buffer_mut<valuef>, 6> AIJ_out, buffer_mut<valuef> mu_cfl_out, buffer_mut<valuef> mu_h_cfl_out, buffer_mut<valuef> pressure_cfl_out,
-                std::array<buffer_mut<valuef>, 3> Si_out)
+                std::array<buffer_mut<valuef>, 3> Si_out, buffer_mut<valuei> star_indices, literal<valuei> index)
 {
     using namespace single_source;
 
@@ -235,6 +235,10 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
         as_ref(Si_out[i][pos, dim]) += Si[i];
     }
 
+    if_e(r <= radius_b[samples-1], [&]{
+        as_ref(star_indices[pos, dim]) = index.get();
+    });
+
     /*if_e(pos.x() == dim.x()/2 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
         value_base se;
         se.type = value_impl::op::SIDE_EFFECT;
@@ -253,7 +257,7 @@ void neutron_star::boot_solver(cl::context ctx)
 
 void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
                                    discretised_initial_data& dsol, const parameters& phys_params, const tov::integration_solution& sol,
-                                   tensor<int, 3> dim, float scale)
+                                   tensor<int, 3> dim, float scale, int index)
 {
     std::vector<double> radius_iso = initial::calculate_isotropic_r(sol);
     ///hang on. can i literally just treat the schwarzschild data like its in isotropic?
@@ -417,6 +421,8 @@ void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
         args.push_back(dsol.mu_h_cfl);
         args.push_back(dsol.pressure_cfl);
         args.push_back(dsol.Si_cfl[0], dsol.Si_cfl[1], dsol.Si_cfl[2]);
+        args.push_back(dsol.star_indices);
+        args.push_back(index);
 
         cqueue.exec("matter_accum", args, {dim.x(), dim.y(), dim.z()}, {8,8,1});
     }

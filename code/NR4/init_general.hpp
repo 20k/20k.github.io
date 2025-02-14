@@ -16,8 +16,9 @@ struct discretised_initial_data
     cl::buffer cfl; //for black holes this is inited to 1/a
     std::array<cl::buffer, 6> AIJ_cfl;
     std::array<cl::buffer, 3> Si_cfl;
+    cl::buffer star_indices;
 
-    discretised_initial_data(cl::context& ctx) : mu_cfl(ctx), mu_h_cfl(ctx), pressure_cfl(ctx), cfl(ctx), AIJ_cfl{ctx, ctx, ctx, ctx, ctx, ctx}, Si_cfl{ctx, ctx, ctx}{}
+    discretised_initial_data(cl::context& ctx) : mu_cfl(ctx), mu_h_cfl(ctx), pressure_cfl(ctx), cfl(ctx), AIJ_cfl{ctx, ctx, ctx, ctx, ctx, ctx}, Si_cfl{ctx, ctx, ctx}, star_indices(ctx){}
 
     void init(cl::command_queue& cqueue, t3i dim)
     {
@@ -27,11 +28,13 @@ struct discretised_initial_data
         mu_h_cfl.alloc(sizeof(cl_float) * cells);
         pressure_cfl.alloc(sizeof(cl_float) * cells);
         cfl.alloc(sizeof(cl_float) * cells);
+        star_indices.alloc(sizeof(cl_int) * cells);
 
         mu_cfl.set_to_zero(cqueue);
         mu_h_cfl.set_to_zero(cqueue);
         pressure_cfl.set_to_zero(cqueue);
         cfl.fill(cqueue, cl_float{1});
+        star_indices.fill(cqueue, cl_int{-1});
 
         for(auto& i : AIJ_cfl)
         {
@@ -50,6 +53,7 @@ struct discretised_initial_data
 struct initial_pack
 {
     discretised_initial_data disc;
+    int neutron_index = 0;
 
     tensor<int, 3> dim;
     float scale = 0.f;
@@ -95,7 +99,7 @@ struct initial_pack
         tov::integration_state st = tov::make_integration_state_si(ns.p0_c_kg_m3, 1e-6, params);
         tov::integration_solution sol = tov::solve_tov(st, params, 1e-6, 0.);
 
-        neutron_star::add_to_solution(ctx, cqueue, disc, ns, sol, dim, scale);
+        neutron_star::add_to_solution(ctx, cqueue, disc, ns, sol, dim, scale, neutron_index++);
     }
 
     void add(cl::context& ctx, cl::command_queue& cqueue, const black_hole_params& bh)
