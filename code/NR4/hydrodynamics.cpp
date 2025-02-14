@@ -203,6 +203,50 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydro
     as_ref(hydro.P[pos, dim]) = (Gamma - 1) * p0_e;
 }
 
+struct hydrodynamic_concrete
+{
+    valuef p_star;
+    valuef e_star;
+    v3f Si;
+
+    valuef w;
+    valuef P;
+
+    template<typename T>
+    hydrodynamic_concrete(v3i pos, v3i dim, hydrodynamic_args<T> args)
+    {
+        p_star = args.p_star[pos, dim];
+        e_star = args.e_star[pos, dim];
+        Si = {args.Si[0][pos, dim], args.Si[1][pos, dim], args.Si[2][pos, dim]};
+        w = args.w[pos, dim];
+        P = args.P[pos, dim];
+    }
+};
+
+///todo: i need to de-mutify hydro
+void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_args<buffer_mut<valuef>> hydro, literal<v3i> idim, literal<valuef> scale,
+                buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
+{
+    using namespace single_source;
+
+    valuei lid = value_impl::get_global_id(0);
+
+    pin(lid);
+
+    v3i dim = idim.get();
+
+    if_e(lid >= positions_length.get(), []{
+        return_e();
+    });
+
+    ///if i was smart, i'd use the structure of the grid to do this directly
+    v3i pos = (v3i)positions[lid];
+    pin(pos);
+
+    bssn_args args(pos, dim, in);
+    hydrodynamic_concrete hydro_args(pos, dim, hydro);
+}
+
 hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx)
 {
     cl::async_build_and_cache(ctx, []{

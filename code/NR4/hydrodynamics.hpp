@@ -37,6 +37,7 @@ struct hydrodynamic_args : adm_args_mem
     virtual tensor<valuef, 3, 3> adm_W2_Sij(bssn_args& args, const derivative_data& d) override;
 };
 
+
 struct hydrodynamic_buffers : buffer_provider
 {
     cl::buffer p_star;
