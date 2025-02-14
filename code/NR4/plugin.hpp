@@ -118,6 +118,24 @@ struct buffer_provider
     virtual void allocate(cl::context ctx, cl::command_queue cqueue, t3i size){assert(false);}
 };
 
+struct plugin_step_data
+{
+    std::array<std::vector<cl::buffer>, 3> buffers;
+
+    cl::buffer evolve_points;
+    cl_int length;
+
+    t3i dim;
+    float scale = 0;
+    float timestep = 0;
+
+    int in_idx = 0;
+    int out_idx = 0;
+    int base_idx = 0;
+
+    plugin_step_data(cl::context ctx) : evolve_points(ctx){}
+};
+
 struct plugin
 {
     virtual buffer_provider* get_buffer_factory(cl::context ctx){return nullptr;}
@@ -127,7 +145,7 @@ struct plugin
     ///pass the discretised state into here
     virtual void init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, buffer_provider* to_init, buffer_provider* to_init_utility){assert(false);}
     //virtual void pre_step(mesh& m, cl::context& ctx, cl::command_queue& mqueue, thin_intermediates_pool& pool, buffer_set& buffers, float timestep){}
-    //virtual void step(mesh& m, cl::context& ctx, cl::command_queue& mqueue, buffer_pack& pack, float timestep, int iteration, int max_iteration){assert(false);}
+    virtual void step(cl::context ctx, cl::command_queue cqueue, const plugin_step_data& sdata){assert(false);}
     //virtual void finalise(mesh& m, cl::context& ctx, cl::command_queue& mqueue, float timestep) {}
     //virtual void save(cl::command_queue& cqueue, const std::string& directory){assert(false);}
     //virtual void load(cl::command_queue& cqueue, const std::string& directory){assert(false);}
