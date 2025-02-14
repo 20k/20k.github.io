@@ -158,4 +158,15 @@ struct plugin
     virtual ~plugin(){}
 };
 
+inline
+all_adm_args_mem make_arg_provider(const std::vector<plugin*>& plugins)
+{
+    all_adm_args_mem ret;
+
+    for(auto p : plugins)
+        p->add_args_provider(ret);
+
+    return ret;
+}
+
 #endif // PLUGIN_HPP_INCLUDED
