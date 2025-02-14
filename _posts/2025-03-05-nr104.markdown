@@ -783,7 +783,7 @@ $$\begin{align}
 \partial_t \tilde{S}_k = &-\partial_i(\tilde{S}_k v^i) \\
                        &- \alpha \frac{1}{W^3} \partial_k P - w h \partial_k \alpha \\
                        &-\tilde{S}_j \partial_k \beta^j + \frac{\alpha W^2\tilde{S}_i \tilde{S}_j}{2wh} \partial_k \tilde{\gamma}^{ij}\\
-                       &+ \frac{\alpha h(w^2 - p_*^2)}{w} \frac{\partial_i W}{W}
+                       &+ \frac{\alpha h(w^2 - p_*^2)}{w} \frac{\partial_k W}{W}
 \end{align}
 $$
 
