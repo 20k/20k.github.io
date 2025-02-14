@@ -48,7 +48,7 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
                 literal<valuei> lsamples, literal<valuef> lM, literal<valuef> l_sN,
                 literal<v3i> ldim, literal<valuef> lscale,
                 literal<v3f> lbody_pos, literal<v3f> linear_momentum, literal<v3f> angular_momentum,
-                std::array<buffer_mut<valuef>, 6> AIJ_out, buffer_mut<valuef> mu_cfl_out, buffer_mut<valuef> mu_h_cfl_out,// buffer_mut<valuef> pressure_cfl_out,
+                std::array<buffer_mut<valuef>, 6> AIJ_out, buffer_mut<valuef> mu_cfl_out, buffer_mut<valuef> mu_h_cfl_out, buffer_mut<valuef> pressure_cfl_out,
                 std::array<buffer_mut<valuef>, 3> Si_out)
 {
     using namespace single_source;
@@ -115,19 +115,12 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
         return declare_e(out);
     };
 
+    ///todo: need to define upper boundaries
     valuef Q = get(Q_b, 1.f);
     valuef C = get(C_b, C_b[samples-1]);
     valuef N = get(uN_b, 1.f);
     valuef sigma = get(sigma_b, 1.f);
     valuef kappa = get(kappa_b, 1.f);
-
-    /*if_e(pos.x() == dim.x()/2 + 3 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-        value_base se;
-        se.type = value_impl::op::SIDE_EFFECT;
-        se.abstract_value = "printf(\"sigma: %f %f\\n\"," + value_to_string(sigma) + "," + value_to_string(r) + ")";
-
-        value_impl::get_context().add(se);
-    });*/
 
     valuef mu_cfl = get(mu_cfl_b, 0.f);
     valuef pressure_cfl = get(pressure_cfl_b, 0.f);
@@ -215,7 +208,7 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
     }
 
     as_ref(mu_cfl_out[pos, dim]) += mu_cfl;
-    //as_ref(pressure_cfl_out[pos, dim]) += pressure_cfl;
+    as_ref(pressure_cfl_out[pos, dim]) += pressure_cfl;
 
     valuef mu_h = (mu_cfl + pressure_cfl) * W*W - pressure_cfl;
 
@@ -235,21 +228,11 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
         }
     }
 
-    //identified this as a potential problem, specifically sigma and Si_P
     v3f Si = Si_P + iflat.raise(S_iJ);
-
-    //if_e(pos.x() == dim.x()/2 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-    /*if_e(Si.x() != 0, [&]{
-        value_base se;
-        se.type = value_impl::op::SIDE_EFFECT;
-        se.abstract_value = "printf(\"Si %f\\n\"," + value_to_string(Si.x()) + ")";
-
-        value_impl::get_context().add(se);
-    });*/
 
     for(int i=0; i < 3; i++)
     {
-        as_ref(Si_out[i][pos, dim]) += flat.lower(Si)[i];
+        as_ref(Si_out[i][pos, dim]) += Si[i];
     }
 
     /*if_e(pos.x() == dim.x()/2 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
@@ -261,80 +244,11 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
     });*/
 }
 
-#if 0
-void init_hydro_regular(execution_context& ctx,
-                        buffer<valuef> mu_h_cfl_in, std::array<buffer<valuef>, 3> Si_cfl_in,
-                        buffer<valuef> cfl_in,
-                        literal<valuef> K, literal<valuef> Gamma,
-                        buffer<valuef> radius_b,
-                        buffer_mut<valuef> mu_out, buffer_mut<valuef> pressure_out, buffer_mut<valuef> W_out,
-                        literal<v3i> ldim, literal<valuef> lscale, literal<valuei> lsamples)
-{
-    using namespace single_source;
-
-    valuei x = get_global_id(0);
-    valuei y = get_global_id(1);
-    valuei z = get_global_id(2);
-
-    pin(x);
-    pin(y);
-    pin(z);
-
-    v3i dim = ldim.get();
-    valuef scale = lscale.get();
-    valuei samples = lsamples.get();
-
-    if_e(x >= dim.x() || y >= dim.y() || z >= dim.z(), [&]{
-        return_e();
-    });
-
-    v3i pos = {x, y, z};
-
-    v3f fpos = (v3f)pos;
-
-    v3f body_pos = lbody_pos.get();
-    v3f world_pos = grid_to_world(fpos, dim, scale);
-
-    v3f from_body = world_pos - body_pos;
-
-    valuef r = from_body.length();
-    pin(r);
-
-    valuei samples = lsamples.get();
-
-    if_e(r >= radius_b[samples - 1], [&]{
-        return_e();
-    });
-
-    valuef mu_h_cfl = mu_h_cfl_in[pos, dim];
-    v3f Si_cfl = {Si_cfl_in[0][pos, dim],Si_cfl_in[1][pos, dim],Si_cfl_in[2][pos, dim]};
-    valuef cfl = cfl_in[pos, dim];
-
-    v3f Si = pow(cfl, -10.f) * Si_cfl;
-    valuef mu_h = pow(cfl, -8.f) * mu_h_cfl;
-
-    bssn_args args(pos, dim, in);
-
-    metric<valuef, 3, 3> Yij = args.cY / max(args.W * args.W, 0.01f);
-
-    valuef si_cst = dot(Yij.lower(Si), Si);
-
-    valuef rest_mass_density = pow()
-}
-#endif
-
 void neutron_star::boot_solver(cl::context ctx)
 {
     cl::async_build_and_cache(ctx, [=] {
         return value_impl::make_function(matter_accum, "matter_accum");
     }, {"matter_accum"});
-}
-
-void neutron_star::finalise_pressure(cl::context& ctx, cl::command_queue& cqueue,
-                                     discretised_initial_data& dsol, const parameters& phys_params, const tov::integration_solution& sol,
-                                     tensor<int, 3> dim, float scale)
-{
-
 }
 
 void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
@@ -406,24 +320,6 @@ void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
         sigma.push_back((mu_cfl[i] + pressure_cfl[i]) / M);
     }
 
-    /*double sigma_integrated = 4 * M_PI * integrate_to_index([&](int idx)
-    {
-        double r = radius_iso[idx];
-
-        return sigma[idx] * pow(r, 2.);
-    }, samples).back();
-
-    std::cout << " SIGMA INTEGRATED " << sigma_integrated << std::endl;*/
-
-    /*double M_integrated = (4 * M_PI / M) * integrate_to_index([&](int idx)
-    {
-        double r = radius_iso[idx];
-
-        return (mu_cfl[idx] + pressure_cfl[idx]) * pow(r, 2.);
-    }, samples).back();
-
-    std::cout << " M_integrated " << M_integrated << std::endl;*/
-
     std::vector<double> Q = integrate_to_index([&](int idx)
     {
         double r = radius_iso[idx];
@@ -469,15 +365,10 @@ void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
             f.push_back(i);
 
         cl::buffer buf(ctx);
-        buf.alloc(sizeof(cl_float) * f.size());
+        buf.alloc(sizeof(cl_float) * in.size());
         buf.write(cqueue, f);
         return buf;
     };
-
-    /*for(auto i : sigma)
-    {
-        printf("Sigma? %f\n", i);
-    }*/
 
     cl::buffer cl_Q = d2f(Q);
     cl::buffer cl_C = d2f(C);
@@ -524,7 +415,7 @@ void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
         args.push_back(dsol.AIJ_cfl[0], dsol.AIJ_cfl[1], dsol.AIJ_cfl[2], dsol.AIJ_cfl[3], dsol.AIJ_cfl[4], dsol.AIJ_cfl[5]);
         args.push_back(dsol.mu_cfl);
         args.push_back(dsol.mu_h_cfl);
-        //args.push_back(dsol.pressure_cfl);
+        args.push_back(dsol.pressure_cfl);
         args.push_back(dsol.Si_cfl[0], dsol.Si_cfl[1], dsol.Si_cfl[2]);
 
         cqueue.exec("matter_accum", args, {dim.x(), dim.y(), dim.z()}, {8,8,1});

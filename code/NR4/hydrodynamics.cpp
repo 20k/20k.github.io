@@ -152,7 +152,7 @@ void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue c
 }
 
 void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_hydrodynamic_args<buffer_mut<valuef>> hydro, literal<v3i> ldim, literal<valuef> scale,
-                buffer<valuef> mu_cfl_b, buffer<valuef> mu_h_cfl_b, buffer<valuef> pressure_non_conformal_b, buffer<valuef> cfl_b, std::array<buffer<valuef>, 3> Si_cfl_b)
+                buffer<valuef> mu_cfl_b, buffer<valuef> mu_h_cfl_b, buffer<valuef> pressure_cfl_b, buffer<valuef> cfl_b, std::array<buffer<valuef>, 3> Si_cfl_b)
 {
     using namespace single_source;
 
@@ -176,11 +176,6 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     bssn_args args(pos, dim, in);
 
-    valuef mu_h_cfl = mu_h_cfl_b[pos, dim];
-    v3f Si_cfl = {Si_cfl_b[0][pos, dim], Si_cfl_b[1][pos, dim], Si_cfl_b[2][pos, dim]};
-
-
-    #if 0
     valuef mu_cfl = mu_cfl_b[pos, dim];
     valuef mu_h_cfl = mu_h_cfl_b[pos, dim];
     valuef pressure_cfl = pressure_cfl_b[pos, dim];
@@ -191,8 +186,6 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     valuef mu_h = mu_h_cfl * pow(phi, -8);
     valuef pressure = pressure_cfl * pow(phi, -8);
     v3f Si = Si_cfl * pow(phi, -10);
-
-
 
     valuef u0 = sqrt((mu_h + pressure) / max(mu + pressure, 0.001f));;
 
@@ -205,12 +198,12 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     //fluid dynamics cannot have a singular initial slice, so setting the clamping pretty high here because its irrelevant
     //thing is we have 0 quantities at the singularity, so as long as you don't generate a literal NaN here, you're 100% fine
-    valuef cW = max(args.W, 0.01f);
-    metric<valuef, 3, 3> Yij = args.cY / (cW*cW);
+    valuef cW = max(args.W, 0.1f);
 
     valuef p_star = p0 * gA * u0 * pow(cW, -3);
     valuef e_star = pow(p0_e, (1/Gamma)) * gA * u0 * pow(cW, -3);
 
+    metric<valuef, 3, 3> Yij = args.cY / (cW*cW);
 
     v3f Si_lo_cfl = pow(cW, -3) * Yij.lower(Si);
 
@@ -222,7 +215,6 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     as_ref(hydro.w[pos, dim]) = p_star * gA * u0;
     as_ref(hydro.P[pos, dim]) = (Gamma - 1) * p0_e;
-    #endif
 }
 
 struct hydrodynamic_concrete
@@ -470,6 +462,8 @@ buffer_provider* hydrodynamic_plugin::get_utility_buffer_factory(cl::context ctx
 
 void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, buffer_provider* to_init, buffer_provider* to_init_utility)
 {
+    return;
+
     hydrodynamic_buffers& bufs = *dynamic_cast<hydrodynamic_buffers*>(to_init);
     hydrodynamic_utility_buffers& ubufs = *dynamic_cast<hydrodynamic_utility_buffers*>(to_init_utility);
 
@@ -489,7 +483,7 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
         args.push_back(pack.scale);
         args.push_back(pack.disc.mu_cfl);
         args.push_back(pack.disc.mu_h_cfl);
-        args.push_back(pack.disc.pressure_non_conformal);
+        args.push_back(pack.disc.pressure_cfl);
         args.push_back(pack.disc.cfl);
         args.push_back(pack.disc.Si_cfl[0]);
         args.push_back(pack.disc.Si_cfl[1]);
@@ -516,7 +510,7 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
     for(auto& i : sdata.utility_buffers)
         printf("Len %i\n", i.alloc_size);*/
 
-    //return;
+    return;
 
     {
         cl::args args;
