@@ -45,10 +45,10 @@ struct adm_args_mem : value_impl::single_source::argument_pack
 {
     virtual void build(value_impl::type_storage& store){assert(false);}
 
-    virtual void add_adm_S(bssn_args& args, valuef& in){}
-    virtual void add_adm_p(bssn_args& args, valuef& in){}
-    virtual void add_adm_Si(bssn_args& args, tensor<valuef, 3>& in){}
-    virtual void add_adm_W2_Sij(bssn_args& args, tensor<valuef, 3, 3>& in){}
+    virtual valuef adm_S(bssn_args& args){}
+    virtual valuef adm_p(bssn_args& args){}
+    virtual tensor<valuef, 3> adm_Si(bssn_args& args){}
+    virtual tensor<valuef, 3, 3> adm_W2_Sij(bssn_args& args){}
 };
 
 struct all_adm_args_mem : value_impl::single_source::argument_pack
@@ -66,7 +66,7 @@ struct all_adm_args_mem : value_impl::single_source::argument_pack
         valuef S = 0;
 
         for(auto& i : all_mem)
-            i->add_adm_S(args, S);
+            S += i->adm_S(args);
 
         return S;
     }
@@ -76,7 +76,7 @@ struct all_adm_args_mem : value_impl::single_source::argument_pack
         valuef p = 0;
 
         for(auto& i : all_mem)
-            i->add_adm_p(args, p);
+            p += i->adm_p(args);
 
         return p;
     }
@@ -87,7 +87,7 @@ struct all_adm_args_mem : value_impl::single_source::argument_pack
         tensor<valuef, 3> Si;
 
         for(auto& i : all_mem)
-            i->add_adm_Si(args, Si);
+            Si += i->adm_Si(args);
 
         return Si;
     }
@@ -97,7 +97,7 @@ struct all_adm_args_mem : value_impl::single_source::argument_pack
         tensor<valuef, 3, 3> W2_Sij;
 
         for(auto& i : all_mem)
-            i->add_adm_W2_Sij(args, W2_Sij);
+            W2_Sij += i->adm_W2_Sij(args);
 
         return W2_Sij;
     }
