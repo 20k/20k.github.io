@@ -142,6 +142,8 @@ struct mesh
             #define NEUTRON_STAR_TEST
             #ifdef NEUTRON_STAR_TEST
             neutron_star::parameters p1;
+            p1.angular_momentum = {0, 0, 0};
+            p1.linear_momentum = {0.01, 0, 0};
 
             initial_conditions init(ctx, cqueue, dim);
 
