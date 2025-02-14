@@ -433,14 +433,14 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     for(int k=0; k < 3; k++)
     {
-        valuef p1 = (args.gA * pow(max(args.W, 0.001f), -3.f)) * diff1(hydro_args.P, k, d);
+        valuef p1 = (-args.gA * pow(max(args.W, 0.001f), -3.f)) * diff1(hydro_args.P, k, d);
         valuef p2 = -w * h * diff1(args.gA, k, d);
 
         valuef p3;
 
         for(int j=0; j < 3; j++)
         {
-            p3 += Si[j] * diff1(args.gB[j], k, d);
+            p3 += -Si[j] * diff1(args.gB[j], k, d);
         }
 
         valuef p4;
