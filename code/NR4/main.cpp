@@ -210,7 +210,10 @@ struct mesh
             });
 
             for(auto& kk : plugin_buffers[i])
+            {
+                assert(kk);
                 kk->allocate(ctx, cqueue, dim);
+            }
         }
 
         if(using_momentum_constraint)
