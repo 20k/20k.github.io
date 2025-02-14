@@ -616,14 +616,6 @@ void trace3(execution_context& ectx, literal<v2i> screen_sizel,
 
         valuef rho = function_trilinear(get_rho, grid_position);
 
-        /*if_e(x == screen_size.x()/2 && y == screen_size.y()/2, [&]{
-            value_base se;
-            se.type = value_impl::op::SIDE_EFFECT;
-            se.abstract_value = "printf(\"rho: %f %f %f %f\\n\"," + value_to_string(rho) + "," + value_to_string(grid_position.x()) + "," + value_to_string(grid_position.y()) + "," + value_to_string(grid_position.z()) + ")";
-
-            value_impl::get_context().add(se);
-        });*/
-
         valuef sample_length = diff.length();
 
         valuef density = fabs(rho) * 1000;
