@@ -232,8 +232,16 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
 
     for(int i=0; i < 3; i++)
     {
-        as_ref(Si_out[i][pos, dim]) = Si[i];
+        as_ref(Si_out[i][pos, dim]) += Si[i];
     }
+
+    /*if_e(pos.x() == dim.x()/2 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+        value_base se;
+        se.type = value_impl::op::SIDE_EFFECT;
+        se.abstract_value = "printf(\"hello %f\\n\"," + value_to_string(M) + ")";
+
+        value_impl::get_context().add(se);
+    });*/
 }
 
 void neutron_star::boot_solver(cl::context ctx)
@@ -272,7 +280,7 @@ void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
     ///integrates in the half open range [0, index)
     auto integrate_to_index = [&](auto&& func, int index)
     {
-        assert(index >= 0 && index < samples);
+        assert(index >= 0 && index <= samples);
 
         double last_r = 0;
         std::vector<double> out;

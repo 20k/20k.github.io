@@ -121,7 +121,7 @@ struct mesh
         }
 
         {
-            #define INSPIRAL
+            //#define INSPIRAL
             #ifdef INSPIRAL
             black_hole_params p1;
             p1.bare_mass = 0.483f;
@@ -137,7 +137,18 @@ struct mesh
 
             init.add(p1);
             init.add(p2);
-            #else
+            #endif // INSPIRAL
+
+            #define NEUTRON_STAR_TEST
+            #ifdef NEUTRON_STAR_TEST
+            neutron_star::parameters p1;
+
+            initial_conditions init(ctx, cqueue, dim);
+
+            init.add(p1);
+            #endif
+
+            #ifdef SINGLE
             black_hole_params p1;
             p1.bare_mass = 0.483f;
             p1.position = {0, 0, 0};
