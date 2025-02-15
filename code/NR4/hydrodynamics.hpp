@@ -32,6 +32,7 @@ struct hydrodynamic_utility_args : value_impl::single_source::argument_pack
 {
     T w;
     T P;
+    std::array<T, 3> vi;
 
     void build(value_impl::type_storage& in)
     {
@@ -39,6 +40,7 @@ struct hydrodynamic_utility_args : value_impl::single_source::argument_pack
 
         add(w, in);
         add(P, in);
+        add(vi, in);
     }
 };
 
@@ -50,6 +52,7 @@ struct full_hydrodynamic_args : adm_args_mem
     std::array<T, 3> Si;
     T w;
     T P;
+    std::array<T, 3> vi;
 
     virtual void build(value_impl::type_storage& in) override
     {
@@ -60,6 +63,7 @@ struct full_hydrodynamic_args : adm_args_mem
         add(Si, in);
         add(w, in);
         add(P, in);
+        add(vi, in);
     }
 
     ///hmm. the issue if we have buffer<valuef> is that we need a position and a dim
@@ -67,7 +71,6 @@ struct full_hydrodynamic_args : adm_args_mem
     virtual tensor<valuef, 3> adm_Si(bssn_args& args, const derivative_data& d) override;
     virtual tensor<valuef, 3, 3> adm_W2_Sij(bssn_args& args, const derivative_data& d) override;
 };
-
 
 struct hydrodynamic_buffers : buffer_provider
 {
@@ -90,8 +93,9 @@ struct hydrodynamic_utility_buffers : buffer_provider
 {
     cl::buffer w;
     cl::buffer P;
+    std::array<cl::buffer, 3> vi;
 
-    hydrodynamic_utility_buffers(cl::context ctx) : w(ctx), P(ctx){}
+    hydrodynamic_utility_buffers(cl::context ctx) : w(ctx), P(ctx), vi{ctx, ctx, ctx}{}
 
     virtual std::vector<buffer_descriptor> get_description() override;
     virtual std::vector<cl::buffer> get_buffers() override;
