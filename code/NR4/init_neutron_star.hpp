@@ -26,6 +26,52 @@ namespace neutron_star
         double p0_c_kg_m3 = 6.235 * pow(10., 17.);
     };
 
+    struct numerical_eos
+    {
+        ///linear map from rest mass density -> pressure
+        std::vector<float> pressure;
+        float max_density = 0;
+    };
+
+    struct all_numerical_eos_gpu
+    {
+        cl::buffer pressures;
+        cl::buffer max_densities;
+        cl_int stride = 0;
+        cl_int count = 0;
+
+        all_numerical_eos_gpu(cl::context ctx, cl::command_queue cqueue, const std::vector<numerical_eos>& eos) : pressures(ctx), max_densities(ctx)
+        {
+            if(eos.size() == 0)
+                return;
+
+            int root_size = eos[0].pressure.size();
+
+            for(auto& i : eos)
+                assert(i.pressure.size() == root_size);
+
+            stride = root_size;
+            count = eos.size();
+
+            pressures.alloc(sizeof(cl_float) * stride * count);
+            max_densities.alloc(sizeof(cl_float) * count);
+
+            std::vector<float> all_pressures;
+            std::vector<float> all_densities;
+
+            for(int i=0; i < (int)eos.size(); i++)
+            {
+                for(auto& j : eos[i].pressure)
+                    all_pressures.push_back(j);
+
+                all_densities.push_back(eos[i].max_density);
+            }
+
+            pressures.write(cqueue, all_pressures);
+            max_densities.write(cqueue, all_densities);
+        }
+    };
+
     struct data
     {
         parameters params;
