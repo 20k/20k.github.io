@@ -428,15 +428,64 @@ namespace value_impl
         }
 
         template<typename T>
+        inline
         auto pin(T& in)
         {
             return get_context().pin(in);
         }
 
         template<typename T>
+        inline
         auto alias(const T& check, const T& to)
         {
             return get_context().alias(check, to);
+        }
+
+        template<typename T>
+        inline
+        std::string join_with_delim(std::string delim, T&& val)
+        {
+            return delim + value_to_string(val);
+        }
+
+        template<typename U, typename... T>
+        inline
+        std::string join_with_delim(std::string delim, U&& val, T&&... rest)
+        {
+            return join_with_delim(delim, val) + join_with_delim(delim, std::forward<T>(rest)...);
+        }
+
+        template<typename... T>
+        inline
+        void print(std::string fmt, T&&... args)
+        {
+            value_base se;
+            se.type = value_impl::op::SIDE_EFFECT;
+
+            for(int i=0; i < (int)fmt.size(); i++)
+            {
+                if(fmt[i] == '\n')
+                {
+                    fmt[i] = '\\';
+                    fmt.insert(fmt.begin() + i + 1, 'n');
+                    i++;
+                }
+            }
+
+            std::cout << "Printf " << fmt << std::endl;
+
+            std::string str = "printf(\"" + fmt + "\"";
+
+            if constexpr(sizeof...(args) > 0)
+            {
+                str += join_with_delim(",", args...);
+            }
+
+            str += ")";
+
+            se.abstract_value = str;
+
+            value_impl::get_context().add(se);
         }
     }
 
