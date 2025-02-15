@@ -326,16 +326,14 @@ valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev, va
     valuef A = pow(max(W, 0.0001f), 3.f * Gamma - 3.f);
     valuef wG = pow(w_prev, Gamma - 1);
 
-    valuef D = wG / max(wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 0.0001f), Gamma - 2), 0.001f);
-
-    return D;
+    return wG / max(wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 0.0001f), Gamma - 2), 0.001f);
 }
 
 valuef calculate_w(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse_metric<valuef, 3, 3> icY, v3f Si)
 {
     using namespace single_source;
 
-    valuef w = 1.f;
+    valuef w = 0.5f;
 
     valuef p_sq = p_star * p_star;
     valuef cst = 0;
@@ -347,6 +345,8 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse
             cst += icY[i, j] * Si[i] * Si[j];
         }
     }
+
+    cst = W*W * cst;
 
     pin(p_sq);
     pin(cst);
@@ -499,6 +499,8 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     auto leib = [&](valuef v1, valuef v2, int i)
     {
+        //return diff1(v1 * v2, i, d);
+
         return diff1(v1, i, d) * v2 + diff1(v2, i, d) * v1;
     };
 
