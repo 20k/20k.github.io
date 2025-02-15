@@ -151,8 +151,27 @@ void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue c
     w.set_to_zero(cqueue);
 }
 
+struct eos_gpu : value_impl::single_source::argument_pack
+{
+    buffer<valuef> pressures;
+    buffer<valuef> densities;
+    literal<valuei> pressure_stride;
+    literal<valuei> eos_count;
+
+    void build(auto& in)
+    {
+        using value_impl::builder;
+
+        add(pressures, in);
+        add(densities, in);
+        add(pressure_stride, in);
+        add(eos_count, in);
+    }
+};
+
 void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_hydrodynamic_args<buffer_mut<valuef>> hydro, literal<v3i> ldim, literal<valuef> scale,
-                buffer<valuef> mu_cfl_b, buffer<valuef> mu_h_cfl_b, buffer<valuef> pressure_cfl_b, buffer<valuef> cfl_b, std::array<buffer<valuef>, 3> Si_cfl_b)
+                buffer<valuef> mu_cfl_b, buffer<valuef> mu_h_cfl_b, buffer<valuef> pressure_cfl_b, buffer<valuef> cfl_b, std::array<buffer<valuef>, 3> Si_cfl_b,
+                buffer<valuei> indices, eos_gpu eos_data)
 {
     using namespace single_source;
 
@@ -529,7 +548,8 @@ buffer_provider* hydrodynamic_plugin::get_utility_buffer_factory(cl::context ctx
 
 void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, buffer_provider* to_init, buffer_provider* to_init_utility)
 {
-    //return;
+    neutron_star::all_numerical_eos_gpu neos(ctx);
+    neos.init(cqueue, pack.stored_eos);
 
     hydrodynamic_buffers& bufs = *dynamic_cast<hydrodynamic_buffers*>(to_init);
     hydrodynamic_utility_buffers& ubufs = *dynamic_cast<hydrodynamic_utility_buffers*>(to_init_utility);
@@ -555,6 +575,8 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
         args.push_back(pack.disc.Si_cfl[0]);
         args.push_back(pack.disc.Si_cfl[1]);
         args.push_back(pack.disc.Si_cfl[2]);
+        args.push_back(neos.pressures, neos.max_densities, neos.stride, neos.count);
+        args.push_back(pack.disc.star_indices);
 
         cqueue.exec("init_hydro", args, {dim.x(), dim.y(), dim.z()}, {8,8,1});
     }

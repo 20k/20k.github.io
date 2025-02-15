@@ -57,6 +57,7 @@ struct initial_pack
 {
     discretised_initial_data disc;
     int neutron_index = 0;
+    std::vector<neutron_star::numerical_eos> stored_eos;
 
     tensor<int, 3> dim;
     float scale = 0.f;
@@ -95,6 +96,7 @@ struct initial_pack
 
     void add(cl::context& ctx, cl::command_queue& cqueue, neutron_star::data& ns)
     {
+        stored_eos.push_back(ns.get_eos());
         ns.add_to_solution(ctx, cqueue, disc, dim, scale, neutron_index++);
     }
 
