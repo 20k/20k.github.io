@@ -138,9 +138,9 @@ std::vector<buffer_descriptor> hydrodynamic_utility_buffers::get_description()
     buffer_descriptor vi0;
     vi0.name = "vi0";
     buffer_descriptor vi1;
-    vi0.name = "vi1";
+    vi1.name = "vi1";
     buffer_descriptor vi2;
-    vi0.name = "vi2";
+    vi2.name = "vi2";
 
     return {w, P, vi0, vi1, vi2};
 }
@@ -497,6 +497,10 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     v3f vi = {util.vi[0][pos, dim], util.vi[1][pos, dim], util.vi[2][pos, dim]};
 
+    auto leib = [&](valuef v1, valuef v2, int i)
+    {
+        return diff1(v1, i, d) * v2 + diff1(v2, i, d) * v1;
+    };
 
     valuef dp_star = 0;
     valuef de_star = 0;
@@ -504,12 +508,16 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     for(int i=0; i < 3; i++)
     {
-        dp_star += diff1(p_star * vi[i], i, d);
-        de_star += diff1(e_star * vi[i], i, d);
+        //dp_star += diff1(p_star * vi[i], i, d);
+        //de_star += diff1(e_star * vi[i], i, d);
+
+        dp_star += leib(p_star, vi[i], i);
+        de_star += leib(e_star, vi[i], i);
 
         for(int k=0; k < 3; k++)
         {
-            dSi_p1[k] += diff1(Si[k] * vi[i], i, d);
+            dSi_p1[k] += leib(Si[k], vi[i], i);
+            //dSi_p1[k] += diff1(Si[k] * vi[i], i, d);
         }
     }
 
