@@ -427,3 +427,28 @@ void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cq
         cqueue.exec("matter_accum", args, {dim.x(), dim.y(), dim.z()}, {8,8,1});
     }
 }
+
+neutron_star::numerical_eos neutron_star::data::get_eos()
+{
+    numerical_eos ret;
+
+    //kg/m^3 -> m/m^3 -> 1/m^2
+    double p0_geom = si_to_geometric(params.p0_c_kg_m3, 1, 0);
+    //m^-2 -> msol^-2
+    double p0_msol = geometric_to_msol(p0_geom, -2);
+
+    float max_density = p0_msol * 4;
+
+    ret.max_density = max_density;
+
+    for(int i=0; i < 100; i++)
+    {
+        double density = (double)i / max_density;
+
+        double pressure = params.K * pow(density, params.Gamma);
+
+        ret.pressure.push_back(pressure);
+    }
+
+    return ret;
+}

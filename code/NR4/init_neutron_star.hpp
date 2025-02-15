@@ -90,6 +90,8 @@ namespace neutron_star
         void add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
                              discretised_initial_data& dsol,
                              tensor<int, 3> dim, float scale, int star_index);
+
+        numerical_eos get_eos();
     };
 }
 
