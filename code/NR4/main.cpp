@@ -141,7 +141,25 @@ struct mesh
 
             #define NEUTRON_STAR_TEST
             #ifdef NEUTRON_STAR_TEST
+            /*neutron_star::parameters p1;
+            p1.position = {-15, 0, 0};
+            p1.angular_momentum = {0, 0, 0};
+            p1.linear_momentum = {0, -0.05, 0};
+            p1.p0_c_kg_m3 = 6.235 * pow(10., 17.);
+
+            neutron_star::parameters p2;
+            p2.position = {15, 0, 0};
+            p2.angular_momentum = {0, 0, 0};
+            p2.linear_momentum = {0, 0.05, 0};
+            p2.p0_c_kg_m3 = 6.235 * pow(10., 17.);
+
+            initial_conditions init(ctx, cqueue, dim);
+
+            init.add(p1);
+            init.add(p2);*/
+
             neutron_star::parameters p1;
+            p1.position = {0, 0, 0};
             p1.angular_momentum = {0, 0, 0};
             p1.linear_momentum = {0, 0, 0};
             p1.p0_c_kg_m3 = 6.235 * pow(10., 17.);
@@ -1097,7 +1115,7 @@ int main()
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
-    float simulation_width = 60;
+    float simulation_width = 120;
 
     mesh m(ctx, dim, simulation_width);
     m.plugins = plugins;
