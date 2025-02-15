@@ -198,7 +198,7 @@ struct eos_gpu : value_impl::single_source::argument_pack
 };
 
 void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_hydrodynamic_args<buffer_mut<valuef>> hydro, literal<v3i> ldim, literal<valuef> scale,
-                buffer<valuef> mu_cfl_b, buffer<valuef> mu_h_cfl_b, buffer<valuef> pressure_cfl_b, buffer<valuef> cfl_b, std::array<buffer<valuef>, 3> Si_cfl_b,
+                buffer<valuef> mu_cfl_b, buffer<valuef> mu_h_cfl_b, buffer<valuef> pressure_cfl_b, buffer<valuef> cfl_b, buffer<valuef> u_correction_b, std::array<buffer<valuef>, 3> Si_cfl_b,
                 buffer<valuei> indices, eos_gpu eos_data)
 {
     using namespace single_source;
@@ -266,13 +266,13 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     //valuef mu_cfl = mu_cfl_b[pos, dim];
     valuef mu_h_cfl = mu_h_cfl_b[pos, dim];
-    //valuef pressure_cfl = pressure_cfl_b[pos, dim];
-    valuef phi = cfl_b[pos, dim];
+    valuef pressure_cfl = pressure_cfl_b[pos, dim];
+    valuef phi = cfl_b[pos, dim] + u_correction_b[pos, dim];
     v3f Si_cfl = {Si_cfl_b[0][pos, dim], Si_cfl_b[1][pos, dim], Si_cfl_b[2][pos, dim]};
 
     //valuef mu = mu_cfl * pow(phi, -8);
     valuef mu_h = mu_h_cfl * pow(phi, -8);
-    //valuef pressure = pressure_cfl * pow(phi, -8);
+    valuef pressure_from_cfl = pressure_cfl * pow(phi, -8);
     v3f Si = Si_cfl * pow(phi, -10);
 
     //valuef u0 = sqrt((mu_h + pressure) / max(mu + pressure, 0.001f));
@@ -307,7 +307,9 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
             if_e(mu >= mu0 && mu <= mu1, [&]{
                 //print("hello %f\n", mu);
 
-                as_ref(out) = d0;
+                valuef frac = (mu - mu0) / (mu1 - mu0);
+
+                as_ref(out) = mix(d0, d1, frac);
                 break_e();
             });
         });
@@ -319,7 +321,11 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     valuef pressure = p0_to_pressure(p0);
 
+    //valuef pressure = pressure_from_cfl;
+
     valuef p0_e = pressure / (Gamma - 1);
+
+    //print("Test pressure %f cfl pressure %f\n", p0_e, pressure_from_cfl);
 
     ///mu = p0 + P/(Gamma-1)
     ///mu = p0 + f(p0) / (Gamma-1)
@@ -333,14 +339,6 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     //valuef p0 = pow(pressure / 123.741, 2.f);
 
-    /*
-    if_e(pos.x() == dim.x()/2 + 20 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-        value_base se;
-        se.type = value_impl::op::SIDE_EFFECT;
-        se.abstract_value = "printf(\"hi\\n\")";
-
-        value_impl::get_context().add(se);
-    });*/
 
     value gA = args.gA;
 
@@ -387,6 +385,11 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     v3f Si_lo_cfl = pow(cW, -3) * Yij.lower(Si);
 
+    if_e(pos.x() == dim.x()/2 + 2 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+        //print("Muh %f si %f %f %f\n", mu_h, Si_lo_cfl[0], Si_lo_cfl[1], Si_lo_cfl[2]);
+        print("Cfl? %f\n", phi);
+    });
+
     as_ref(hydro.p_star[pos, dim]) = p_star;
     as_ref(hydro.e_star[pos, dim]) = e_star;
     as_ref(hydro.Si[0][pos, dim]) = Si_lo_cfl[0];
@@ -395,6 +398,12 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     as_ref(hydro.w[pos, dim]) = p_star * gA * u0;
     as_ref(hydro.P[pos, dim]) = (Gamma - 1) * p0_e;
+
+
+    if_e(pos.x() == dim.x()/2 + 2 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+        print("First %f", p_star * gA * u0);
+    });
+
 }
 
 struct hydrodynamic_concrete
@@ -471,24 +480,6 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse
     return w;
 }
 
-/*value h = calculate_h_with_gamma_eos(chi, W);
-
-tensor<value, 3> ret = -gB;
-
-for(int i=0; i < 3; i++)
-{
-    value sum = 0;
-
-    for(int j=0; j < 3; j++)
-    {
-        sum += divide_with_limit(gA * icY.idx(i, j) * cS.idx(j) * chi, W * h, 0.f, DIVISION_TOL);
-    }
-
-    ret.idx(i) += sum;
-}
-
-return ret;*/
-
 v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, const unit_metric<valuef, 3, 3>& cY)
 {
     valuef h = get_h_with_gamma_eos(epsilon);
@@ -533,6 +524,7 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
     bssn_args args(pos, dim, in);
 
     valuef w = calculate_w(hydro_args.p_star, hydro_args.e_star, args.W, get_Gamma(), args.cY.invert(), hydro_args.Si);
+
     valuef P = gamma_eos(get_Gamma(), args.W, w, hydro_args.p_star, hydro_args.e_star);
 
     /*if_e(pos.x() == dim.x()/2 + 20 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
@@ -591,6 +583,13 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     valuef epsilon = e_star_to_epsilon(p_star, e_star, args.W, w);
 
+    valuef p0e = calculate_p0e(get_Gamma(), args.W, w, p_star, e_star);
+    valuef p0 = p0e / epsilon;
+
+    if_e((pos.x() == dim.x()/2 + 2) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+        print("epsilon %f e_star %f Pressure %f p0 %f p_star %f w %f\n", epsilon, e_star, hydro_args.P, p0, p_star, w);
+    });
+
     //v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY);
 
     v3f vi = {util.vi[0][pos, dim], util.vi[1][pos, dim], util.vi[2][pos, dim]};
@@ -614,10 +613,41 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         dp_star += leib(p_star, vi[i], i);
         de_star += leib(e_star, vi[i], i);
 
-        for(int k=0; k < 3; k++)
+        /*for(int k=0; k < 3; k++)
         {
             dSi_p1[k] += leib(Si[k], vi[i], i);
             //dSi_p1[k] += diff1(Si[k] * vi[i], i, d);
+        }*/
+    }
+
+    {
+        tensor<valuef, 3, 3> SkVi;
+
+        for(int i=0; i < 3; i++)
+        {
+            for(int k=0; k < 3; k++)
+            {
+                SkVi[k, i] = Si[k] * vi[i];
+            }
+        }
+
+        for(int k=0; k < 3; k++)
+        {
+            valuef sum = 0;
+
+            for(int i=0; i < 3; i++)
+            {
+                sum += diff1(SkVi[k, i], i, d);
+            }
+
+            dSi_p1[k] = sum;
+
+            if(k == 0)
+            {
+                if_e((pos.x() == dim.x()/2 + 2) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+                    print("dSi %f\n", sum);
+                });
+            }
         }
     }
 
@@ -656,6 +686,13 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         valuef p5 = (args.gA * h * (w*w - p_star * p_star) / max(w, 0.001f)) * (diff1(args.W, k, d) / max(args.W, 0.001f));
 
         dSi_p1[k] += p1 + p2 + p3 + p4 + p5;
+
+        if(k != 0)
+            continue;
+
+        if_e((pos.x() == dim.x()/2 + 2) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+            print("hi %f %f %f %f %f\n", p1, p2, p3, p4, p5);
+        });
     }
 
     valuef fin_p_star = max(h_base.p_star[pos, dim] + timestep.get() * dp_star, 0.f);
@@ -671,6 +708,17 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     {
         fin_Si[i] = h_base.Si[i][pos, dim] + timestep.get() * dSi_p1[i];
     }
+
+    if_e((pos.x() == dim.x()/2 + 2) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+         ///so: the higher Si (and vi or ui), the more p_star is smanged away from the core
+         ///why is Si increasing?
+        //print("dVi %f %f %f\n", diff1(vi[0], 0, d), diff1(vi[1], 1, d), diff1(vi[2], 2, d));
+
+        //print("vi %f %f %f dp_star %f p_star %f timestep %f\n", vi[0], vi[1], vi[2], dp_star, p_star, timestep.get());
+         //print("p* %f\n", p_star);
+         //print("w %f\n", w / p_star);
+        //print("si %f %f %f\n", fin_Si[0] / (p_star * h), fin_Si[1] / (p_star * h), fin_Si[2] / (p_star * h));
+    });
 
     if_e(fin_p_star <= min_p_star, [&]{
         as_ref(h_out.p_star[pos, dim]) = valuef(0);
@@ -720,7 +768,7 @@ buffer_provider* hydrodynamic_plugin::get_utility_buffer_factory(cl::context ctx
     return new hydrodynamic_utility_buffers(ctx);
 }
 
-void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, buffer_provider* to_init, buffer_provider* to_init_utility)
+void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, cl::buffer u_buf, buffer_provider* to_init, buffer_provider* to_init_utility)
 {
     neutron_star::all_numerical_eos_gpu neos(ctx);
     neos.init(cqueue, pack.stored_eos);
@@ -750,6 +798,7 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
         args.push_back(pack.disc.mu_h_cfl);
         args.push_back(pack.disc.pressure_cfl);
         args.push_back(pack.disc.cfl);
+        args.push_back(u_buf);
         args.push_back(pack.disc.Si_cfl[0]);
         args.push_back(pack.disc.Si_cfl[1]);
         args.push_back(pack.disc.Si_cfl[2]);
