@@ -59,6 +59,7 @@ tensor<valuef, 3> full_hydrodynamic_args<T>::adm_Si(bssn_args& args, const deriv
 template<typename T>
 tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, const derivative_data& d)
 {
+    valuef ps = p_star[d.pos, d.dim];
     valuef es = e_star[d.pos, d.dim];
     v3f cSi = {Si[0][d.pos, d.dim], Si[1][d.pos, d.dim], Si[2][d.pos, d.dim]};
     valuef lw = w[d.pos, d.dim];
