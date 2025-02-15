@@ -472,8 +472,6 @@ namespace value_impl
                 }
             }
 
-            std::cout << "Printf " << fmt << std::endl;
-
             std::string str = "printf(\"" + fmt + "\"";
 
             if constexpr(sizeof...(args) > 0)
