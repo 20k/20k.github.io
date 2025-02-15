@@ -257,7 +257,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     {
         valuei offset = index * eos_data.pressure_stride.get();
 
-        valuef idx = clamp((p0 / max_density) * (valuef)eos_data.pressure_stride.get(), valuef(0), (valuef)eos_data.pressure_stride.get() - 1);
+        valuef idx = clamp((p0 / max_density) * (valuef)eos_data.pressure_stride.get(), valuef(0), (valuef)eos_data.pressure_stride.get() - 2);
 
         valuei fidx = (valuei)idx;
 
@@ -277,15 +277,10 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     //valuef u0 = sqrt((mu_h + pressure) / max(mu + pressure, 0.001f));
 
-    valuef u0 = 1;
-    valuef mu = mu_h;
-
     valuef Gamma = get_Gamma();
 
     ///ok, lets operate under the assumption that W = 1, and the pressure is wrong
     ///that means that mu = ph, so we can assume that mu is correct
-    //
-
     auto mu_to_p0 = [&](valuef mu)
     {
         ///mu = p0 + f(p0) / (Gamma-1)
@@ -301,8 +296,14 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
             valuef d0 = frac * max_density;
             valuef d1 = frac2 * max_density;
 
+            pin(d0);
+            pin(d1);
+
             valuef mu0 = d0 + p0_to_pressure(d0) / (Gamma - 1);
             valuef mu1 = d1 + p0_to_pressure(d1) / (Gamma - 1);
+
+            pin(mu0);
+            pin(mu1);
 
             if_e(mu >= mu0 && mu <= mu1, [&]{
                 //print("hello %f\n", mu);
@@ -316,6 +317,115 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
         return declare_e(out);
     };
+
+    auto get_mu_for = [&](valuef muh, valuef W)
+    {
+        ///solve the equation muh = (mu + f(mu)) W^2 - mu
+        ///W >= 1
+        ///f(mu) >= 0
+        ///mu >= 0, obviously
+        ///(mu + f(mu)) W^2 > mu. I don't use this, but you might be able to do something sane
+        ///you may be able to solve this with fixed point iteration by solving for mu on the rhs trivially
+        ///we'll also have a good guess for mu, which seems a shame to waste
+        mut<valuei> i = declare_mut_e(valuei(0));
+        mut<valuef> out = declare_mut_e(valuef(0));
+
+        int steps = 200;
+
+        valuef max_mu = muh * 10;
+
+        for_e(i < steps, assign_b(i, i+1), [&]{
+            valuef f1 = (valuef)i / steps;
+            valuef f2 = (valuef)(i + 1) / steps;
+
+            valuef test_mu1 = f1 * max_mu;
+            valuef test_mu2 = f2 * max_mu;
+
+            pin(test_mu1);
+            pin(test_mu2);
+
+            valuef p0_1 = mu_to_p0(test_mu1);
+            valuef p0_2 = mu_to_p0(test_mu2);
+
+            pin(p0_1);
+            pin(p0_2);
+
+            valuef p_1 = p0_to_pressure(p0_1);
+            valuef p_2 = p0_to_pressure(p0_2);
+
+            pin(p_1);
+            pin(p_2);
+
+            valuef test_muh1 = (test_mu1 + p_1) * W*W - p_1;
+            valuef test_muh2 = (test_mu2 + p_2) * W*W - p_2;
+
+            pin(test_muh1);
+            pin(test_muh2);
+
+            if_e(pos.x() == dim.x()/2 + 2 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+                print("hello searching %f lower %f upper %f test1 %f test2 %f\n", muh, test_muh1, test_muh2, test_mu1, test_mu2);
+            });
+
+            if_e(muh >= test_muh1 && muh <= test_muh2, [&]{
+
+                valuef frac = (muh - test_muh1) / (test_muh2 - test_muh1);
+
+                as_ref(out) = mix(test_mu1, test_mu2, frac);
+                break_e();
+            });
+        });
+
+        return declare_e(out);
+    };
+
+    valuef cW = max(args.W, 0.01f);
+    metric<valuef, 3, 3> Yij = args.cY / (cW*cW);
+
+    valuef ysj = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            ysj += Yij[i, j] * Si[i] * Si[j];
+        }
+    }
+
+    pin(ysj);
+
+    valuef u0 = 1;
+    valuef mu = mu_h;
+
+    for(int i=0; i < 100; i++)
+    {
+        //yijsisj = (mu + p)^2 W^2 (W^2 - 1)
+        //(yijsisj) / (mu+p)^2 = W^4 - W^2
+        //C = W^4 - W^2
+        //W = sqrt(1 + sqrt(4C + 1)) / sqrt(2)
+
+        //valuef C = pow(u0, 2.f) * (pow(u0, 2.f) - 1);
+
+        valuef p0 = mu_to_p0(mu);
+        valuef pressure = p0_to_pressure(mu);
+
+        valuef C = ysj / pow(mu + pressure, 2.f);
+        valuef next_W = sqrt((1 + sqrt(4 * C + 1))) / sqrtf(2.f);
+
+        if_e(pos.x() == dim.x()/2 + 2 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+            print("u0 %f\n", u0);
+            print("mu %f\n", mu);
+
+            print("Err %f %f %f", ysj - pow(mu + pressure, 2) * u0 * u0 * (u0 * u0 - 1), mu_h - ((mu + pressure) * u0 * u0 - pressure), next_W);
+        });
+
+        u0 = next_W;
+        mu = get_mu_for(mu_h, u0);
+        pin(u0);
+        pin(mu);
+
+        //we have u0, now lets solve for mu
+        //mu_h = (mu + f(mu)) * W^2 - f(mu)
+    }
 
     valuef p0 = mu_to_p0(mu);
 
@@ -344,12 +454,9 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     //fluid dynamics cannot have a singular initial slice, so setting the clamping pretty high here because its irrelevant
     //thing is we have 0 quantities at the singularity, so as long as you don't generate a literal NaN here, you're 100% fine
-    valuef cW = max(args.W, 0.01f);
 
     valuef p_star = p0 * gA * u0 * pow(cW, -3);
     valuef e_star = pow(p0_e, (1/Gamma)) * gA * u0 * pow(cW, -3);
-
-    metric<valuef, 3, 3> Yij = args.cY / (cW*cW);
 
     /*valuef yijSiSj = 0;
 

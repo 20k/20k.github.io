@@ -534,6 +534,8 @@ struct mesh
             for(auto& i : derivatives)
                 args.push_back(i);
 
+            //todo: i could use out_idx here, but only if we re-calculate the pressure at the end of the step,
+            //or fully recalculate the pressure and w in "evolve"
             add_plugin_args(args, in_idx);
 
             if(using_momentum_constraint)
