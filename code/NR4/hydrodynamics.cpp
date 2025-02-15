@@ -82,6 +82,13 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
     return (W2_Sij + lP * args.cY.to_tensor());
 }
 
+template<typename T>
+valuef full_hydrodynamic_args<T>::dbg(bssn_args& args, const derivative_data& d)
+{
+    //return fabs(Si[0][d.pos, d.dim]) * 100;
+    return e_star[d.pos, d.dim] * 0.1;
+}
+
 template struct full_hydrodynamic_args<buffer<valuef>>;
 template struct full_hydrodynamic_args<buffer_mut<valuef>>;
 
@@ -89,18 +96,23 @@ std::vector<buffer_descriptor> hydrodynamic_buffers::get_description()
 {
     buffer_descriptor p;
     p.name = "p*";
+    p.dissipation_coeff = 0.25f;
 
     buffer_descriptor e;
     e.name = "e*";
+    e.dissipation_coeff = 0.25f;
 
     buffer_descriptor s0;
     s0.name = "cs0";
+    s0.dissipation_coeff = 0.25f;
 
     buffer_descriptor s1;
     s1.name = "cs1";
+    s1.dissipation_coeff = 0.25f;
 
     buffer_descriptor s2;
     s2.name = "cs2";
+    s2.dissipation_coeff = 0.25f;
 
     return {p, e, s0, s1, s2};
 }
@@ -482,14 +494,6 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     valuef e_star = hydro_args.e_star;
     v3f Si = hydro_args.Si;
     valuef w = hydro_args.w;
-
-    /*as_ref(h_out.p_star[pos, dim]) = hydro_args.p_star;
-    as_ref(h_out.e_star[pos, dim]) = hydro_args.e_star;
-
-    for(int i=0; i < 3; i++)
-        as_ref(h_out.Si[i][pos, dim]) = Si[i];
-
-    return;*/
 
     valuef epsilon = e_star_to_epsilon(p_star, e_star, args.W, w);
 

@@ -49,6 +49,7 @@ struct adm_args_mem : value_impl::single_source::argument_pack
     virtual valuef adm_p(bssn_args& args, const derivative_data& d){return valuef();};
     virtual tensor<valuef, 3> adm_Si(bssn_args& args, const derivative_data& d){return tensor<valuef, 3>();}
     virtual tensor<valuef, 3, 3> adm_W2_Sij(bssn_args& args, const derivative_data& d){return tensor<valuef, 3, 3>();}
+    virtual valuef dbg(bssn_args& args, const derivative_data& d) {return {};}
 };
 
 struct all_adm_args_mem : value_impl::single_source::argument_pack
@@ -90,6 +91,16 @@ struct all_adm_args_mem : value_impl::single_source::argument_pack
             W2_Sij += i->adm_W2_Sij(args, d);
 
         return W2_Sij;
+    }
+
+    valuef dbg(bssn_args& args, const derivative_data& d)
+    {
+        valuef dbg;
+
+        for(auto& i : all_mem)
+            dbg += i->dbg(args, d);
+
+        return dbg;
     }
 
     template<typename T>
