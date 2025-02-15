@@ -26,9 +26,25 @@ namespace neutron_star
         double p0_c_kg_m3 = 6.235 * pow(10., 17.);
     };
 
-    void add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
-                         discretised_initial_data& dsol, const parameters& phys_params, const tov::integration_solution& sol,
-                         tensor<int, 3> dim, float scale, int star_index);
+    struct data
+    {
+        parameters params;
+        tov::integration_solution sol;
+
+        data(const parameters& p) : params(p)
+        {
+            tov::parameters tov_params;
+            tov_params.K = params.K;
+            tov_params.Gamma = params.Gamma;
+
+            auto start = tov::make_integration_state_si(params.p0_c_kg_m3, 1e-6, tov_params);
+            sol = tov::solve_tov(start, tov_params, 1e-6, 0);
+        }
+
+        void add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
+                             discretised_initial_data& dsol,
+                             tensor<int, 3> dim, float scale, int star_index);
+    };
 }
 
 #endif // INIT_NEUTRON_STAR_HPP_INCLUDED

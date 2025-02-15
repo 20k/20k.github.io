@@ -8,6 +8,9 @@
 #include "tov.hpp"
 #include "plugin.hpp"
 
+///todo: tabulate the underlying equation of state, stick it in a buffer per star
+///this initial setup is horrendous
+///todo: implement downsampling. its partly why this sucks so much
 struct discretised_initial_data
 {
     cl::buffer mu_cfl;
@@ -90,16 +93,9 @@ struct initial_pack
         cqueue.exec("sum_buffers", args, {dim.x() * dim.y() * dim.z()}, {128});
     }
 
-    void add(cl::context& ctx, cl::command_queue& cqueue, const neutron_star::parameters& ns)
+    void add(cl::context& ctx, cl::command_queue& cqueue, neutron_star::data& ns)
     {
-        tov::parameters params;
-        params.K = ns.K;
-        params.Gamma = ns.Gamma;
-
-        tov::integration_state st = tov::make_integration_state_si(ns.p0_c_kg_m3, 1e-6, params);
-        tov::integration_solution sol = tov::solve_tov(st, params, 1e-6, 0.);
-
-        neutron_star::add_to_solution(ctx, cqueue, disc, ns, sol, dim, scale, neutron_index++);
+        ns.add_to_solution(ctx, cqueue, disc, dim, scale, neutron_index++);
     }
 
     void add(cl::context& ctx, cl::command_queue& cqueue, const black_hole_params& bh)
@@ -151,7 +147,7 @@ struct initial_conditions
     tensor<int, 3> dim;
 
     std::vector<black_hole_params> params_bh;
-    std::vector<neutron_star::parameters> params_ns;
+    std::vector<neutron_star::data> params_ns;
 
     laplace_solver laplace;
 
@@ -336,7 +332,9 @@ struct initial_conditions
 
     void add(const neutron_star::parameters& ns)
     {
-        params_ns.push_back(ns);
+        neutron_star::data dat(ns);
+
+        params_ns.push_back(dat);
     }
 
     std::vector<float> extract_adm_masses(cl::context& ctx, cl::command_queue& cqueue, cl::buffer u_buf, t3i u_dim, float scale)
