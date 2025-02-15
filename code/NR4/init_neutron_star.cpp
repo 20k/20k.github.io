@@ -255,9 +255,9 @@ void neutron_star::boot_solver(cl::context ctx)
     }, {"matter_accum"});
 }
 
-void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
-                                   discretised_initial_data& dsol, const parameters& phys_params, const tov::integration_solution& sol,
-                                   tensor<int, 3> dim, float scale, int index)
+void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
+                                         discretised_initial_data& dsol,
+                                         tensor<int, 3> dim, float scale, int index)
 {
     std::vector<double> radius_iso = initial::calculate_isotropic_r(sol);
     ///hang on. can i literally just treat the schwarzschild data like its in isotropic?
@@ -413,9 +413,9 @@ void neutron_star::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
         args.push_back(clsN);
         args.push_back(dim);
         args.push_back(scale);
-        args.push_back((t3f)phys_params.position);
-        args.push_back((t3f)phys_params.linear_momentum);
-        args.push_back((t3f)phys_params.angular_momentum);
+        args.push_back((t3f)params.position);
+        args.push_back((t3f)params.linear_momentum);
+        args.push_back((t3f)params.angular_momentum);
         args.push_back(dsol.AIJ_cfl[0], dsol.AIJ_cfl[1], dsol.AIJ_cfl[2], dsol.AIJ_cfl[3], dsol.AIJ_cfl[4], dsol.AIJ_cfl[5]);
         args.push_back(dsol.mu_cfl);
         args.push_back(dsol.mu_h_cfl);
