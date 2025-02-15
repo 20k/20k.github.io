@@ -494,7 +494,7 @@ struct mesh
             for(auto& i : derivatives)
                 args.push_back(i);
 
-            add_plugin_args(args, out_idx);
+            add_plugin_args(args, in_idx);
 
             if(using_momentum_constraint)
             {

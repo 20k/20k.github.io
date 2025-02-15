@@ -414,6 +414,9 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
     if_e(hydro_args.p_star < min_p_star, [&]{
         as_ref(hydro.P[pos, dim]) = valuef(0);
         as_ref(hydro.w[pos, dim]) = valuef(0);
+        as_ref(hydro.vi[0][pos, dim]) = valuef(0);
+        as_ref(hydro.vi[1][pos, dim]) = valuef(0);
+        as_ref(hydro.vi[2][pos, dim]) = valuef(0);
 
         return_e();
     });
@@ -431,8 +434,16 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
         value_impl::get_context().add(se);
     });*/
 
+    valuef epsilon = e_star_to_epsilon(hydro_args.p_star, hydro_args.e_star, args.W, w);
+
     as_ref(hydro.w[pos, dim]) = w;
     as_ref(hydro.P[pos, dim]) = P;
+
+    v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, hydro_args.Si, args.cY);
+
+    as_ref(hydro.vi[0][pos, dim]) = vi[0];
+    as_ref(hydro.vi[1][pos, dim]) = vi[1];
+    as_ref(hydro.vi[2][pos, dim]) = vi[2];
 }
 
 void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
@@ -479,7 +490,10 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     valuef epsilon = e_star_to_epsilon(p_star, e_star, args.W, w);
 
-    v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY);
+    //v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY);
+
+    v3f vi = {util.vi[0][pos, dim], util.vi[1][pos, dim], util.vi[2][pos, dim]};
+
 
     valuef dp_star = 0;
     valuef de_star = 0;
