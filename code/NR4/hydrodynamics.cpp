@@ -187,7 +187,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     valuef pressure = pressure_cfl * pow(phi, -8);
     v3f Si = Si_cfl * pow(phi, -10);
 
-    valuef u0 = sqrt((mu_h + pressure) / max(mu + pressure, 0.001f));;
+    valuef u0 = sqrt((mu_h + pressure) / max(mu + pressure, 0.001f));
 
     valuef Gamma = get_Gamma();
 
