@@ -64,7 +64,9 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
     valuef lw = w[d.pos, d.dim];
     valuef lP = P[d.pos, d.dim];
 
-    valuef h = get_h_with_gamma_eos(es);
+    valuef epsilon = e_star_to_epsilon(ps, es, args.W, lw);
+
+    valuef h = get_h_with_gamma_eos(epsilon);
 
     tensor<valuef, 3, 3> W2_Sij;
 
