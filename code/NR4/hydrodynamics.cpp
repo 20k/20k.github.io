@@ -96,23 +96,23 @@ std::vector<buffer_descriptor> hydrodynamic_buffers::get_description()
 {
     buffer_descriptor p;
     p.name = "p*";
-    p.dissipation_coeff = 0.25f;
+    p.dissipation_coeff = 0.1;
 
     buffer_descriptor e;
     e.name = "e*";
-    e.dissipation_coeff = 0.25f;
+    e.dissipation_coeff = 0.1;
 
     buffer_descriptor s0;
     s0.name = "cs0";
-    s0.dissipation_coeff = 0.25f;
+    s0.dissipation_coeff = 0.1;
 
     buffer_descriptor s1;
     s1.name = "cs1";
-    s1.dissipation_coeff = 0.25f;
+    s1.dissipation_coeff = 0.1;
 
     buffer_descriptor s2;
     s2.name = "cs2";
-    s2.dissipation_coeff = 0.25f;
+    s2.dissipation_coeff = 0.1;
 
     return {p, e, s0, s1, s2};
 }
@@ -264,18 +264,21 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
         return mix(eos_data.pressures[offset + fidx], eos_data.pressures[offset + fidx + 1], idx - floor(idx));
     };
 
-    valuef mu_cfl = mu_cfl_b[pos, dim];
+    //valuef mu_cfl = mu_cfl_b[pos, dim];
     valuef mu_h_cfl = mu_h_cfl_b[pos, dim];
-    valuef pressure_cfl = pressure_cfl_b[pos, dim];
+    //valuef pressure_cfl = pressure_cfl_b[pos, dim];
     valuef phi = cfl_b[pos, dim];
     v3f Si_cfl = {Si_cfl_b[0][pos, dim], Si_cfl_b[1][pos, dim], Si_cfl_b[2][pos, dim]};
 
-    valuef mu = mu_cfl * pow(phi, -8);
+    //valuef mu = mu_cfl * pow(phi, -8);
     valuef mu_h = mu_h_cfl * pow(phi, -8);
-    valuef pressure = pressure_cfl * pow(phi, -8);
+    //valuef pressure = pressure_cfl * pow(phi, -8);
     v3f Si = Si_cfl * pow(phi, -10);
 
-    valuef u0 = sqrt((mu_h + pressure) / max(mu + pressure, 0.001f));
+    //valuef u0 = sqrt((mu_h + pressure) / max(mu + pressure, 0.001f));
+
+    valuef u0 = 1;
+    valuef mu = mu_h;
 
     valuef Gamma = get_Gamma();
 
@@ -286,19 +289,6 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     auto mu_to_p0 = [&](valuef mu)
     {
         ///mu = p0 + f(p0) / (Gamma-1)
-
-        /*int steps = 100;
-
-        for(int i=0; i < steps; i++)
-        {
-            float frac = (float)i / steps;
-            float frac2 = (float)(i + 1) / steps;
-
-            valuef d0 = frac * max_density;
-            valuef d1 = frac2 * max_density;
-        }*/
-
-
         mut<valuei> i = declare_mut_e(valuei(0));
         mut<valuef> out = declare_mut_e(valuef(0));
 
@@ -315,7 +305,9 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
             valuef mu1 = d1 + p0_to_pressure(d1) / (Gamma - 1);
 
             if_e(mu >= mu0 && mu <= mu1, [&]{
-                as_ref(out) = mu0;
+                //print("hello %f\n", mu);
+
+                as_ref(out) = d0;
                 break_e();
             });
         });
@@ -325,7 +317,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     valuef p0 = mu_to_p0(mu);
 
-    pressure = p0_to_pressure(p0);
+    valuef pressure = p0_to_pressure(p0);
 
     valuef p0_e = pressure / (Gamma - 1);
 
