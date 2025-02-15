@@ -331,35 +331,57 @@ struct mesh
 
         auto kreiss = [&](int in, int out)
         {
-            std::vector<cl::buffer> linear_base;
-            std::vector<cl::buffer> linear_inout;
-
-            buffers[in].for_each([&](cl::buffer b)
+            auto kreiss_individual = [&](cl::buffer inb, cl::buffer outb, float eps)
             {
-                linear_base.push_back(b);
-            });
-
-            buffers[out].for_each([&](cl::buffer b)
-            {
-                linear_inout.push_back(b);
-            });
-
-            for(int i=0; i < (int)linear_base.size(); i++)
-            {
-                float eps = 0.05f;
-
                 cl::args args;
-                args.push_back(linear_base.at(i));
-                args.push_back(linear_inout.at(i));
+                args.push_back(inb);
+                args.push_back(outb);
                 args.push_back(buffers[in].W);
                 args.push_back(dim);
                 args.push_back(scale);
                 args.push_back(eps);
 
                 cqueue.exec("kreiss_oliger", args, {dim.x() * dim.y() * dim.z()}, {128});
+            };
+
+            std::vector<cl::buffer> linear_in;
+            std::vector<cl::buffer> linear_out;
+
+            buffers[in].for_each([&](cl::buffer b)
+            {
+                linear_in.push_back(b);
+            });
+
+            buffers[out].for_each([&](cl::buffer b)
+            {
+                linear_out.push_back(b);
+            });
+
+            for(int i=0; i < (int)linear_in.size(); i++)
+            {
+                kreiss_individual(linear_in[i], linear_out[i], 0.05f);
             }
 
-            std::swap(plugin_buffers[in], plugin_buffers[out]);
+            for(int i=0; i < (int)plugin_buffers[in].size(); i++)
+            {
+                buffer_provider* buf_in = plugin_buffers[in][i];
+                buffer_provider* buf_out = plugin_buffers[out][i];
+
+                std::vector<buffer_descriptor> desc = buf_in->get_description();
+
+                std::vector<cl::buffer> bufs_in = buf_in->get_buffers();
+                std::vector<cl::buffer> bufs_out = buf_out->get_buffers();
+
+                for(int kk=0; kk < (int)bufs_in.size(); kk++)
+                {
+                    if(desc[kk].dissipation_coeff == 0)
+                        cl::copy(cqueue, bufs_in[kk], bufs_out[kk], {});
+                    else
+                        kreiss_individual(bufs_in[kk], bufs_out[kk], desc[kk].dissipation_coeff);
+                }
+            }
+
+            //std::swap(plugin_buffers[in], plugin_buffers[out]);
         };
 
         auto enforce_constraints = [&](int idx)
