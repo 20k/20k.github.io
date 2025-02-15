@@ -132,12 +132,19 @@ std::vector<buffer_descriptor> hydrodynamic_utility_buffers::get_description()
     buffer_descriptor w;
     w.name = "w";
 
-    return {w, P};
+    buffer_descriptor vi0;
+    vi0.name = "vi0";
+    buffer_descriptor vi1;
+    vi0.name = "vi1";
+    buffer_descriptor vi2;
+    vi0.name = "vi2";
+
+    return {w, P, vi0, vi1, vi2};
 }
 
 std::vector<cl::buffer> hydrodynamic_utility_buffers::get_buffers()
 {
-    return {w, P};
+    return {w, P, vi[0], vi[1], vi[2]};
 }
 
 void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t3i size)
@@ -149,6 +156,12 @@ void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue c
 
     P.set_to_zero(cqueue);
     w.set_to_zero(cqueue);
+
+    for(auto& i : vi)
+    {
+        i.alloc(sizeof(cl_float) * cells);
+        i.set_to_zero(cqueue);
+    }
 }
 
 struct eos_gpu : value_impl::single_source::argument_pack
@@ -240,11 +253,17 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     valuef p0_e = pressure / (Gamma - 1);
 
-    ///todo: something is going wrong here, and the below definitely isn't right
-    //valuef p0 = mu - p0_e;
-    //valuef p0 = pow(pressure / 123.741, 1/Gamma);
-
     valuef p0 = pressure_to_p0(pressure);
+
+
+    /*
+    if_e(pos.x() == dim.x()/2 + 20 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+        value_base se;
+        se.type = value_impl::op::SIDE_EFFECT;
+        se.abstract_value = "printf(\"hi\\n\")";
+
+        value_impl::get_context().add(se);
+    });*/
 
     value gA = args.gA;
 
@@ -597,6 +616,9 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
         args.push_back(bufs.Si[2]);
         args.push_back(ubufs.w);
         args.push_back(ubufs.P);
+        args.push_back(ubufs.vi[0]);
+        args.push_back(ubufs.vi[1]);
+        args.push_back(ubufs.vi[2]);
         args.push_back(pack.dim);
         args.push_back(pack.scale);
         args.push_back(pack.disc.mu_cfl);
