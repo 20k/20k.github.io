@@ -204,7 +204,7 @@ struct mesh
                     if(util)
                         util->allocate(ctx, cqueue, dim);
 
-                    p->init(ctx, cqueue, buffers[0], pack, pb, util);
+                    p->init(ctx, cqueue, buffers[0], pack, found_u, pb, util);
 
                     plugin_utility_buffers.push_back(util);
                 }

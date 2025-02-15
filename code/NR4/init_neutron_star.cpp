@@ -142,8 +142,9 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
 
     tensor<valuef, 3, 3> AIJ_p;
 
-    valuef cr = max(r, valuef(0.01f));
+    valuef cr = max(r, valuef(0.1f));
 
+    ///hmm. I think the extrinsic curvature may be wrong
     for(int i=0; i < 3; i++)
     {
         for(int j=0; j < 3; j++)
