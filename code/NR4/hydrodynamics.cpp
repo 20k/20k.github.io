@@ -189,11 +189,39 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
         return_e();
     });
 
-    ///if i was smart, i'd use the structure of the grid to do this directly
     v3i pos = {x, y, z};
     pin(pos);
 
+    valuei index = indices[pos, dim];
+
+    if_e(index == -1, [&]{
+        return_e();
+    });
+
     bssn_args args(pos, dim, in);
+
+    auto pressure_to_p0 = [&](valuef P)
+    {
+        valuei offset = index * eos_data.pressure_stride.get();
+
+        mut<valuei> i = declare_mut_e(valuei(0));
+        mut<valuef> out = declare_mut_e(valuef(0));
+
+        for_e(i < eos_data.pressure_stride.get() - 1, assign_b(i, i+1), [&]{
+            valuef p1 = eos_data.pressures[offset + i];
+            valuef p2 = eos_data.pressures[offset + i + 1];
+
+            if_e(P >= p1 && P <= p2, [&]{
+                valuef val = (P - p1) / (p2 - p1);
+
+                as_ref(out) = (((valuef)i + val) / (valuef)eos_data.pressure_stride.get()) * (valuef)eos_data.densities[index];
+
+                break_e();
+            });
+        });
+
+        return declare_e(out);
+    };
 
     valuef mu_cfl = mu_cfl_b[pos, dim];
     valuef mu_h_cfl = mu_h_cfl_b[pos, dim];
@@ -214,7 +242,9 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     ///todo: something is going wrong here, and the below definitely isn't right
     //valuef p0 = mu - p0_e;
-    valuef p0 = pow(pressure / 123.741, 1/Gamma);
+    //valuef p0 = pow(pressure / 123.741, 1/Gamma);
+
+    valuef p0 = pressure_to_p0(pressure);
 
     value gA = args.gA;
 
@@ -557,6 +587,7 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
     {
         t3i dim = pack.dim;
 
+        ///39
         cl::args args;
         in.append_to(args);
         args.push_back(bufs.p_star);
@@ -575,8 +606,8 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
         args.push_back(pack.disc.Si_cfl[0]);
         args.push_back(pack.disc.Si_cfl[1]);
         args.push_back(pack.disc.Si_cfl[2]);
-        args.push_back(neos.pressures, neos.max_densities, neos.stride, neos.count);
         args.push_back(pack.disc.star_indices);
+        args.push_back(neos.pressures, neos.max_densities, neos.stride, neos.count);
 
         cqueue.exec("init_hydro", args, {dim.x(), dim.y(), dim.z()}, {8,8,1});
     }

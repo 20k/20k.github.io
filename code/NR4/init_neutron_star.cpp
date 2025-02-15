@@ -441,9 +441,11 @@ neutron_star::numerical_eos neutron_star::data::get_eos()
 
     ret.max_density = max_density;
 
-    for(int i=0; i < 100; i++)
+    int max_samples = 100;
+
+    for(int i=0; i < max_samples; i++)
     {
-        double density = (double)i / max_density;
+        double density = ((double)i / max_samples) * max_density;
 
         double pressure = params.K * pow(density, params.Gamma);
 
