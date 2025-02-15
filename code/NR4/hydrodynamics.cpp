@@ -226,6 +226,8 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
         return_e();
     });
 
+    valuef max_density = eos_data.densities[index];
+
     bssn_args args(pos, dim, in);
 
     auto pressure_to_p0 = [&](valuef P)
@@ -242,13 +244,24 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
             if_e(P >= p1 && P <= p2, [&]{
                 valuef val = (P - p1) / (p2 - p1);
 
-                as_ref(out) = (((valuef)i + val) / (valuef)eos_data.pressure_stride.get()) * (valuef)eos_data.densities[index];
+                as_ref(out) = (((valuef)i + val) / (valuef)eos_data.pressure_stride.get()) * max_density;
 
                 break_e();
             });
         });
 
         return declare_e(out);
+    };
+
+    auto p0_to_pressure = [&](valuef p0)
+    {
+        valuei offset = index * eos_data.pressure_stride.get();
+
+        valuef idx = clamp((p0 / max_density) * (valuef)eos_data.pressure_stride.get(), valuef(0), (valuef)eos_data.pressure_stride.get() - 1);
+
+        valuei fidx = (valuei)idx;
+
+        return mix(eos_data.pressures[offset + fidx], eos_data.pressures[offset + fidx + 1], idx - floor(idx));
     };
 
     valuef mu_cfl = mu_cfl_b[pos, dim];
@@ -266,10 +279,67 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     valuef Gamma = get_Gamma();
 
+    ///ok, lets operate under the assumption that W = 1, and the pressure is wrong
+    ///that means that mu = ph, so we can assume that mu is correct
+    //
+
+    auto mu_to_p0 = [&](valuef mu)
+    {
+        ///mu = p0 + f(p0) / (Gamma-1)
+
+        /*int steps = 100;
+
+        for(int i=0; i < steps; i++)
+        {
+            float frac = (float)i / steps;
+            float frac2 = (float)(i + 1) / steps;
+
+            valuef d0 = frac * max_density;
+            valuef d1 = frac2 * max_density;
+        }*/
+
+
+        mut<valuei> i = declare_mut_e(valuei(0));
+        mut<valuef> out = declare_mut_e(valuef(0));
+
+        int steps = 100;
+
+        for_e(i < steps, assign_b(i, i+1), [&]{
+            valuef frac = (valuef)i / steps;
+            valuef frac2 = (valuef)(i + 1) / steps;
+
+            valuef d0 = frac * max_density;
+            valuef d1 = frac2 * max_density;
+
+            valuef mu0 = d0 + p0_to_pressure(d0) / (Gamma - 1);
+            valuef mu1 = d1 + p0_to_pressure(d1) / (Gamma - 1);
+
+            if_e(mu >= mu0 && mu <= mu1, [&]{
+                as_ref(out) = mu0;
+                break_e();
+            });
+        });
+
+        return declare_e(out);
+    };
+
+    valuef p0 = mu_to_p0(mu);
+
+    pressure = p0_to_pressure(p0);
+
     valuef p0_e = pressure / (Gamma - 1);
 
-    valuef p0 = pressure_to_p0(pressure);
+    ///mu = p0 + P/(Gamma-1)
+    ///mu = p0 + f(p0) / (Gamma-1)
+    //valuef p0 = pressure_to_p0(pressure);
+    ///P = p0(1 + eps)
 
+    ///(mu + P) W^2 - P
+    ///W = 1
+    ///mu = ph
+
+
+    //valuef p0 = pow(pressure / 123.741, 2.f);
 
     /*
     if_e(pos.x() == dim.x()/2 + 20 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
@@ -290,6 +360,38 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     valuef e_star = pow(p0_e, (1/Gamma)) * gA * u0 * pow(cW, -3);
 
     metric<valuef, 3, 3> Yij = args.cY / (cW*cW);
+
+    /*valuef yijSiSj = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            yijSiSj += Yij[i, j] * Si[i] * Si[j];
+        }
+    }
+
+    valuef w = u0;
+    valuef calc = pow(mu + pressure, 2.f) * w*w * (w*w - 1);
+
+    if_e(pos.x() == dim.x()/2 + 15 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+        value_base se;
+        se.type = value_impl::op::SIDE_EFFECT;
+        se.abstract_value = "printf(\"left %f, right %f\\n\"," + value_to_string(yijSiSj) + "," + value_to_string(calc) + ")";
+
+        value_impl::get_context().add(se);
+    });*/
+
+    //valuef w = u0;
+    //valuef calc_ph = (mu + pressure) * w*w - pressure;
+
+    /*if_e(pos.x() == dim.x()/2 + 1 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+        value_base se;
+        se.type = value_impl::op::SIDE_EFFECT;
+        se.abstract_value = "printf(\"left %f, right %f\\n\"," + value_to_string(mu) + "," + value_to_string(mu_h) + ")";
+
+        value_impl::get_context().add(se);
+    });*/
 
     v3f Si_lo_cfl = pow(cW, -3) * Yij.lower(Si);
 
