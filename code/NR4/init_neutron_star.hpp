@@ -40,7 +40,9 @@ namespace neutron_star
         cl_int stride = 0;
         cl_int count = 0;
 
-        all_numerical_eos_gpu(cl::context ctx, cl::command_queue cqueue, const std::vector<numerical_eos>& eos) : pressures(ctx), max_densities(ctx)
+        all_numerical_eos_gpu(cl::context ctx) : pressures(ctx), max_densities(ctx){}
+
+        void init(cl::command_queue cqueue, const std::vector<numerical_eos>& eos)
         {
             if(eos.size() == 0)
                 return;
