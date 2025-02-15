@@ -160,7 +160,7 @@ struct eos_gpu : value_impl::single_source::argument_pack
 
     void build(auto& in)
     {
-        using value_impl::builder;
+        using namespace value_impl::builder;
 
         add(pressures, in);
         add(densities, in);
