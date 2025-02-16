@@ -1,6 +1,15 @@
 #include "hydrodynamics.hpp"
 #include "init_general.hpp"
 
+#define DIVISION_TOL 0.00001f
+
+template<typename T, typename U>
+inline
+T divide_with_limit(const T& top, const T& bottom, const U& limit, float tol = DIVISION_TOL)
+{
+    return ternary(bottom >= tol, top / bottom, T{limit});
+}
+
 valuef get_Gamma()
 {
     return 2;
@@ -596,7 +605,6 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse
 v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, const unit_metric<valuef, 3, 3>& cY)
 {
     valuef h = get_h_with_gamma_eos(epsilon);
-
     return -gB + ((W*W * gA) / max(w*h, 0.001f)) * cY.invert().raise(Si);
 }
 
@@ -624,7 +632,7 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
 
     hydrodynamic_concrete hydro_args(pos, dim, hydro);
 
-    if_e(hydro_args.p_star < min_p_star, [&]{
+    if_e(hydro_args.p_star <= min_p_star, [&]{
         as_ref(hydro.P[pos, dim]) = valuef(0);
         as_ref(hydro.w[pos, dim]) = valuef(0);
         as_ref(hydro.vi[0][pos, dim]) = valuef(0);
@@ -637,6 +645,7 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
     bssn_args args(pos, dim, in);
 
     valuef w = calculate_w(hydro_args.p_star, hydro_args.e_star, args.W, get_Gamma(), args.cY.invert(), hydro_args.Si);
+    w = max(w, hydro_args.p_star * args.gA * 1);
 
     valuef P = gamma_eos(get_Gamma(), args.W, w, hydro_args.p_star, hydro_args.e_star);
 
@@ -799,13 +808,6 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         valuef p5 = (args.gA * h * (w*w - p_star * p_star) / max(w, 0.001f)) * (diff1(args.W, k, d) / max(args.W, 0.001f));
 
         dSi_p1[k] += p1 + p2 + p3 + p4 + p5;
-
-        if(k != 0)
-            continue;
-
-        if_e((pos.x() == dim.x()/2 + 2) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-            print("hi %f %f %f %f %f\n", p1, p2, p3, p4, p5);
-        });
     }
 
     valuef fin_p_star = max(h_base.p_star[pos, dim] + timestep.get() * dp_star, 0.f);
