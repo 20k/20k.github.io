@@ -96,23 +96,23 @@ std::vector<buffer_descriptor> hydrodynamic_buffers::get_description()
 {
     buffer_descriptor p;
     p.name = "p*";
-    p.dissipation_coeff = 0.1;
+    p.dissipation_coeff = 0.05;
 
     buffer_descriptor e;
     e.name = "e*";
-    e.dissipation_coeff = 0.1;
+    e.dissipation_coeff = 0.05;
 
     buffer_descriptor s0;
     s0.name = "cs0";
-    s0.dissipation_coeff = 0.1;
+    s0.dissipation_coeff = 0.05;
 
     buffer_descriptor s1;
     s1.name = "cs1";
-    s1.dissipation_coeff = 0.1;
+    s1.dissipation_coeff = 0.05;
 
     buffer_descriptor s2;
     s2.name = "cs2";
-    s2.dissipation_coeff = 0.1;
+    s2.dissipation_coeff = 0.05;
 
     return {p, e, s0, s1, s2};
 }
@@ -287,7 +287,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
         mut<valuei> i = declare_mut_e(valuei(0));
         mut<valuef> out = declare_mut_e(valuef(0));
 
-        int steps = 100;
+        int steps = 400;
 
         for_e(i < steps, assign_b(i, i+1), [&]{
             valuef frac = (valuef)i / steps;
@@ -330,7 +330,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
         mut<valuei> i = declare_mut_e(valuei(0));
         mut<valuef> out = declare_mut_e(valuef(0));
 
-        int steps = 200;
+        int steps = 400;
 
         valuef max_mu = muh * 10;
 
@@ -362,9 +362,9 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
             pin(test_muh1);
             pin(test_muh2);
 
-            if_e(pos.x() == dim.x()/2 + 2 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+            /*if_e(pos.x() == dim.x()/2 + 2 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
                 print("hello searching %f lower %f upper %f test1 %f test2 %f\n", muh, test_muh1, test_muh2, test_mu1, test_mu2);
-            });
+            });*/
 
             if_e(muh >= test_muh1 && muh <= test_muh2, [&]{
 
@@ -403,20 +403,21 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
         //C = W^4 - W^2
         //W = sqrt(1 + sqrt(4C + 1)) / sqrt(2)
 
-        //valuef C = pow(u0, 2.f) * (pow(u0, 2.f) - 1);
-
         valuef p0 = mu_to_p0(mu);
         valuef pressure = p0_to_pressure(mu);
 
-        valuef C = ysj / pow(mu + pressure, 2.f);
-        valuef next_W = sqrt((1 + sqrt(4 * C + 1))) / sqrtf(2.f);
+        pin(p0);
+        pin(pressure);
 
-        if_e(pos.x() == dim.x()/2 + 2 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+        valuef C = ysj / pow(mu + pressure, 2.f);
+        valuef next_W = sqrt(1 + sqrt(4 * C + 1)) / sqrtf(2.f);
+
+        /*if_e(pos.x() == dim.x()/2 + 2 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
             print("u0 %f\n", u0);
             print("mu %f\n", mu);
 
             print("Err %f %f %f", ysj - pow(mu + pressure, 2) * u0 * u0 * (u0 * u0 - 1), mu_h - ((mu + pressure) * u0 * u0 - pressure), next_W);
-        });
+        });*/
 
         u0 = next_W;
         mu = get_mu_for(mu_h, u0);
@@ -430,6 +431,10 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     valuef p0 = mu_to_p0(mu);
 
     valuef pressure = p0_to_pressure(p0);
+
+    if_e(pos.x() == dim.x()/2 + 2 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+        print("Pressure 1 %f %f\n", pressure, pressure_from_cfl);
+    });
 
     //valuef pressure = pressure_from_cfl;
 
@@ -507,8 +512,9 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     as_ref(hydro.P[pos, dim]) = (Gamma - 1) * p0_e;
 
 
-    if_e(pos.x() == dim.x()/2 + 2 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-        print("First %f", p_star * gA * u0);
+    if_e(pos.x() == dim.x()/2 + 10 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+        //print("First %f", p_star * gA * u0);
+        print("Si %f %f %f\n", Si_lo_cfl[0], Si_lo_cfl[1], Si_lo_cfl[2]);
     });
 
 }

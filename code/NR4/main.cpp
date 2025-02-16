@@ -160,7 +160,7 @@ struct mesh
 
             neutron_star::parameters p1;
             p1.position = {0, 0, 0};
-            p1.angular_momentum = {0, 0, 0};
+            p1.angular_momentum = {0, 0, 1.};
             p1.linear_momentum = {0, 0, 0};
             p1.p0_c_kg_m3 = 6.235 * pow(10., 17.);
 

@@ -442,7 +442,7 @@ neutron_star::numerical_eos neutron_star::data::get_eos()
 
     ret.max_density = max_density;
 
-    int max_samples = 100;
+    int max_samples = 400;
 
     for(int i=0; i < max_samples; i++)
     {
