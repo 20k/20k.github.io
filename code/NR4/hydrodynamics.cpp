@@ -47,8 +47,8 @@ valuef full_hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& 
 {
     valuef lw = w[d.pos, d.dim];
     valuef lP = P[d.pos, d.dim];
-    valuef es = e_star[d.pos, d.dim];
-    valuef ps = p_star[d.pos, d.dim];
+    valuef es = max(e_star[d.pos, d.dim], 0.f);
+    valuef ps = max(p_star[d.pos, d.dim], 0.f);
 
     valuef epsilon = e_star_to_epsilon(ps, es, args.W, lw);
 
@@ -68,8 +68,8 @@ tensor<valuef, 3> full_hydrodynamic_args<T>::adm_Si(bssn_args& args, const deriv
 template<typename T>
 tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, const derivative_data& d)
 {
-    valuef ps = p_star[d.pos, d.dim];
-    valuef es = e_star[d.pos, d.dim];
+    valuef ps =  max(p_star[d.pos, d.dim], 0.f);
+    valuef es =  max(e_star[d.pos, d.dim], 0.f);
     v3f cSi = {Si[0][d.pos, d.dim], Si[1][d.pos, d.dim], Si[2][d.pos, d.dim]};
     valuef lw = w[d.pos, d.dim];
     valuef lP = P[d.pos, d.dim];
@@ -94,6 +94,7 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
 template<typename T>
 valuef full_hydrodynamic_args<T>::dbg(bssn_args& args, const derivative_data& d)
 {
+    //return fabs(p_star[d.pos, d.dim]) * 10;
     //return fabs(Si[0][d.pos, d.dim]) * 100;
     return e_star[d.pos, d.dim] * 0.1;
 }
@@ -540,8 +541,8 @@ struct hydrodynamic_concrete
     template<typename T>
     hydrodynamic_concrete(v3i pos, v3i dim, full_hydrodynamic_args<T> args)
     {
-        p_star = args.p_star[pos, dim];
-        e_star = args.e_star[pos, dim];
+        p_star = max(args.p_star[pos, dim], 0.f);
+        e_star = max(args.e_star[pos, dim], 0.f);
         Si = {args.Si[0][pos, dim], args.Si[1][pos, dim], args.Si[2][pos, dim]};
         w = args.w[pos, dim];
         P = args.P[pos, dim];
@@ -550,8 +551,8 @@ struct hydrodynamic_concrete
     template<typename T>
     hydrodynamic_concrete(v3i pos, v3i dim, hydrodynamic_base_args<T> bargs, hydrodynamic_utility_args<T> uargs)
     {
-        p_star = bargs.p_star[pos, dim];
-        e_star = bargs.e_star[pos, dim];
+        p_star = max(bargs.p_star[pos, dim], 0.f);
+        e_star = max(bargs.e_star[pos, dim], 0.f);
         Si = {bargs.Si[0][pos, dim], bargs.Si[1][pos, dim], bargs.Si[2][pos, dim]};
         w = uargs.w[pos, dim];
         P = uargs.P[pos, dim];
@@ -560,10 +561,10 @@ struct hydrodynamic_concrete
 
 valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev, valuef Gamma)
 {
-    valuef A = pow(max(W, 0.0001f), 3.f * Gamma - 3.f);
+    valuef A = pow(max(W, 0.00001f), 3.f * Gamma - 3.f);
     valuef wG = pow(w_prev, Gamma - 1);
 
-    return wG / max(wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 0.0001f), Gamma - 2), 0.001f);
+    return wG / max(wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 0.00001f), Gamma - 2), 0.0001f);
 }
 
 valuef calculate_w(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse_metric<valuef, 3, 3> icY, v3f Si)
@@ -588,7 +589,7 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse
     pin(p_sq);
     pin(cst);
 
-    for(int i=0; i < 20; i++)
+    for(int i=0; i < 80; i++)
     {
         valuef D = w_next_interior(p_star, e_star, W, w, Gamma);
 
@@ -605,7 +606,7 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse
 v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, const unit_metric<valuef, 3, 3>& cY)
 {
     valuef h = get_h_with_gamma_eos(epsilon);
-    return -gB + ((W*W * gA) / max(w*h, 0.001f)) * cY.invert().raise(Si);
+    return -gB + ((W*W * gA * cY.invert().raise(Si)) / max(w*h, 0.001f));
 }
 
 constexpr float min_p_star = 1e-6f;
@@ -708,9 +709,9 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     valuef p0e = calculate_p0e(get_Gamma(), args.W, w, p_star, e_star);
     valuef p0 = p0e / epsilon;
 
-    if_e((pos.x() == dim.x()/2 + 2) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+    /*if_e((pos.x() == dim.x()/2 + 2) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
         print("epsilon %f e_star %f Pressure %f p0 %f p_star %f w %f\n", epsilon, e_star, hydro_args.P, p0, p_star, w);
-    });
+    });*/
 
     //v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY);
 
@@ -764,14 +765,18 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
             dSi_p1[k] = sum;
 
-            if(k == 0)
+            /*if(k == 0)
             {
                 if_e((pos.x() == dim.x()/2 + 2) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
                     print("dSi %f\n", sum);
                 });
-            }
+            }*/
         }
     }
+
+    if_e((pos.x() == dim.x()/2 + 20) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+        print("Si %f %f %f p* %f e* %f\n", Si[0], Si[1], Si[2], p_star, e_star);
+    });
 
     dp_star = -dp_star;
     de_star = -de_star;
@@ -793,7 +798,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
         valuef p4;
 
-        valuef p4_prefix = args.gA * args.W * args.W / max(2 * w * h, 0.0001f);
+        valuef p4_prefix = args.gA * args.W * args.W / max(2 * w * h, 0.00001f);
 
         for(int i=0; i < 3; i++)
         {
@@ -805,7 +810,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
         p4 = p4_prefix * p4;
 
-        valuef p5 = (args.gA * h * (w*w - p_star * p_star) / max(w, 0.001f)) * (diff1(args.W, k, d) / max(args.W, 0.001f));
+        valuef p5 = (args.gA * h * (w*w - p_star * p_star) / max(w, 0.00001f)) * (diff1(args.W, k, d) / max(args.W, 0.001f));
 
         dSi_p1[k] += p1 + p2 + p3 + p4 + p5;
     }

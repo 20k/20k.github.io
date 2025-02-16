@@ -393,7 +393,7 @@ struct mesh
                 for(int kk=0; kk < (int)bufs_in.size(); kk++)
                 {
                     if(desc[kk].dissipation_coeff == 0)
-                        cl::copy(cqueue, bufs_in[kk], bufs_out[kk], {});
+                        cl::copy(cqueue, bufs_in[kk], bufs_out[kk]);
                     else
                         kreiss_individual(bufs_in[kk], bufs_out[kk], desc[kk].dissipation_coeff);
                 }
@@ -1076,7 +1076,7 @@ int main()
     cl::context& ctx = win.clctx->ctx;
     std::cout << cl::get_extensions(ctx) << std::endl;
 
-    t3i dim = {155, 155, 155};
+    t3i dim = {99, 99, 99};
 
     plugin* hydro = new hydrodynamic_plugin(ctx);
 
@@ -1161,9 +1161,19 @@ int main()
     bool lock_camera_to_slider = false;
     bool progress_camera_time = false;
 
-    vec3f camera_pos = {0, 0, -25};;
+    vec3f camera_pos = {0, 25, 0};;
+    //vec3f camera_pos = {0, 0, -25};;
     quat camera_quat;
     steady_timer frame_time;
+
+    {
+        vec3f right = rot_quat({1, 0, 0}, camera_quat);
+
+        quat q;
+        q.load_from_axis_angle({right.x(), right.y(), right.z(), M_PI/2});
+
+        camera_quat = q * camera_quat;
+    }
 
     float cam_time = 0;
     uint32_t render_frame_idx = 0;
