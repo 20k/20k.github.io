@@ -160,7 +160,7 @@ struct mesh
 
             neutron_star::parameters p1;
             p1.position = {0, 0, 0};
-            p1.angular_momentum = {0, 0, 1.};
+            p1.angular_momentum = {0, 0, 1.25};
             p1.linear_momentum = {0, 0, 0};
             p1.p0_c_kg_m3 = 6.235 * pow(10., 17.);
 
@@ -1076,7 +1076,7 @@ int main()
     cl::context& ctx = win.clctx->ctx;
     std::cout << cl::get_extensions(ctx) << std::endl;
 
-    t3i dim = {213, 213, 213};
+    t3i dim = {155, 155, 155};
 
     plugin* hydro = new hydrodynamic_plugin(ctx);
 
