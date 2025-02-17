@@ -1664,7 +1664,7 @@ namespace value_impl
         tensor<value<T>, N> ret;
 
         for(int i=0; i < N; i++)
-            ret[i] = from_base<T>(optimise(make_op<value<T>>(op::TERNARY, {condition, if_true[i], if_false[i]})));
+            ret[i] = ternary(condition, if_true[i], if_false[i]);
 
         return ret;
     }
