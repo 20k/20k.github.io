@@ -1214,9 +1214,11 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
 
         //valuef display = fabs(in.gA[lid]);
 
-        valuef display = p * 100;
+        valuef display = p;
 
         v4f col = {display, display, display, 1.f};
+
+        col.x() = ternary(pos.x() == dim.x()/2 + 19, valuef(1.f), col.x());
 
         col = clamp(col, valuef(0.f), valuef(1.f));
 
