@@ -622,7 +622,7 @@ struct mesh
 
                 for(int kk=0; kk < (int)p_base.size(); kk++)
                 {
-                    //sommerfeld_buffer(p_base[kk], p_in[kk], p_out[kk], desc[kk].asymptotic_value, desc[kk].wave_speed);
+                    sommerfeld_buffer(p_base[kk], p_in[kk], p_out[kk], desc[kk].asymptotic_value, desc[kk].wave_speed);
                 }
             }
         };
@@ -1117,7 +1117,7 @@ int main()
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
-    float simulation_width = 60;
+    float simulation_width = 80;
 
     mesh m(ctx, dim, simulation_width);
     m.plugins = plugins;
