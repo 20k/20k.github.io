@@ -604,7 +604,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3h mom
     auto W2DiDja = calculate_W2DiDja(args, derivs, d);
     pin(W2DiDja);
 
-    tensor<valuef, 3, 3> with_trace = args.gA * calculate_W2Rij(args, derivs, d) - W2DiDja;
+    tensor<valuef, 3, 3> with_trace = args.gA * calculate_W2Rij(args, derivs, d) - W2DiDja - 8 * M_PI * args.gA * W2_Sij;
 
     tensor<valuef, 3, 3> aij_amj;
 
@@ -628,8 +628,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3h mom
     tensor<valuef, 3, 3> dtcA = lie_derivative_weight(args.gB, args.cA, d)
                                 + args.gA * (args.K * args.cA
                                 - 2 * aij_amj)
-                                + trace_free(with_trace, args.cY, icY)
-                                - 8 * M_PI * args.gA * trace_free(W2_Sij, args.cY, icY);
+                                + trace_free(with_trace, args.cY, icY);
 
     #ifdef MOMENTUM_CONSTRAINT_DAMPING
     auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
