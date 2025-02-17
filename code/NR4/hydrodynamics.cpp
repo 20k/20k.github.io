@@ -104,6 +104,8 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
 v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, const unit_metric<valuef, 3, 3>& cY)
 {
     valuef h = get_h_with_gamma_eos(epsilon);
+
+    //note to self, actually hand derived this and am sure its correct
     return -gB + (divide_with_limit(W*W * gA, w*h, 0.f)) * cY.invert().raise(Si);
     //return -gB + ((W*W * gA * cY.invert().raise(Si)) / max(w*h, 0.001f));
 }
@@ -837,7 +839,12 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
         valuef u1 = Si[0] / (h * p_star);
 
-        print("Si %.10f %f %f p* %f e* %f u1 %f u0 %f h %f epsilon %.16f Display value %f\n", Si[0], Si[1], Si[2], p_star, e_star, u1, u0, h, epsilon, Si[0] * 100 * 100);
+        valuef dvi0 = diff1(vi[0], 0, d);
+        valuef dvi1 = diff1(vi[1], 1, d);
+        valuef dvi2 = diff1(vi[2], 2, d);
+
+        print("Si %.10f p* %f e* %f u1 %f u0 %f h %f vi %.12f %.12f %.12f Display value %f\n", Si[0], p_star, e_star, u1, u0, h, dvi0, dvi1, dvi2, Si[0] * 100 * 100);
+        //print("Si %.10f %f %f p* %f e* %f u1 %f u0 %f h %f epsilon %.16f Display value %f\n", Si[0], Si[1], Si[2], p_star, e_star, u1, u0, h, epsilon, Si[0] * 100 * 100);
     });
 
     ///SO
