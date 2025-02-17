@@ -858,9 +858,11 @@ S_{ij} &= \frac{W^3}{wh}\tilde{S}_i \tilde{S}_j + P \gamma_{ij}\\
 S &= \gamma^{ij} S_{ij}\\
 \end{align}$$
 
-There's a small problem: these source terms are singular at the singularity. The issue is that $\gamma_{ij}$ is undefined
+There's a (genuinely) small problem: these source terms are singular at the singularity. The issue is that $\gamma_{ij}$ is undefined
 
-Luckily, we can skip to the future, and discover that the form of our $S_{ij}$ source term is actually: $-W^2 8 \pi \alpha S_{ij}$. Given that $$W^2 \gamma_{ij} = \tilde{\gamma}_{ij}$$, we can instead re-format our equation like this:
+Luckily, we can skip to the future, and discover that the form of our $S_{ij}$ source term is actually: $-W^2 8 \pi \alpha S_{ij}$[^alttechnique]. Given that $$W^2 \gamma_{ij} = \tilde{\gamma}_{ij}$$, we can instead re-format our equation like this:
+
+[^alttechnique]: Calculating the pressure involves calculating the quantity $\rho_0 \epsilon$: we could scavenge one of the $W^2$ terms from that calculation to instead remove the $\gamma_{ij}$ term. However, the construction presented is a slightly more general approach that we can use in other methods, rather than relying on the *specific* form of the source terms, so we'll stick with it
 
 $$
 \begin{align}
@@ -869,7 +871,7 @@ S &=\tilde{\gamma}^{ij} \tilde{S}_{ij} \\
 \end{align}
 $$
 
-We'll have to modify our BSSN source term to match the absorbed $W^2$ term, but now our source terms become regular at the metric tensor. This is a nice improvement over the standard arrangement
+We'll have to modify our BSSN source term to match the absorbed $W^2$ term, but now our source terms become regular at the metric tensor. This is a minor improvement over the standard arrangement
 
 ## The BSSN equations
 
