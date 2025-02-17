@@ -651,7 +651,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3h mom
     {
         for(int j=0; j < 3; j++)
         {
-            float Ka = 0.04f;
+            float Ka = 0.08f;
 
             dtcA[i, j] += Ka * args.gA * 0.5f *
                               (cd_low[i, j]
@@ -1194,7 +1194,7 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
 
         v3i pos = get_coordinate(lid, dim);
 
-        if_e(pos.z() != valuei(dim.z()/2), [&] {
+        if_e(pos.y() != valuei(dim.y()/2), [&] {
             return_e();
         });
 
@@ -1222,7 +1222,7 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
 
         if_e(pos.x() >= 0 && pos.x() < dim.x() && pos.y() >= 0 && pos.y() < dim.y(), [&]()
         {
-            write.write({pos.x(), pos.y()}, col);
+            write.write({pos.x(), pos.z()}, col);
         });
     };
 

@@ -78,7 +78,9 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
     valuef es =  max(e_star[d.pos, d.dim], 0.f);
     v3f cSi = {Si[0][d.pos, d.dim], Si[1][d.pos, d.dim], Si[2][d.pos, d.dim]};
     valuef lw = w[d.pos, d.dim];
-    valuef lP = P[d.pos, d.dim];
+    //valuef lP = P[d.pos, d.dim];
+
+    valuef lP = calculate_p0e(get_Gamma(), args.W, lw, ps, es) * (get_Gamma() - 1);
 
     valuef epsilon = e_star_to_epsilon(ps, es, args.W, lw);
 
@@ -109,8 +111,9 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
 template<typename T>
 valuef full_hydrodynamic_args<T>::dbg(bssn_args& args, const derivative_data& d)
 {
-    //return fabs(p_star[d.pos, d.dim]) * 10;
-    return sqrt(pow(Si[0][d.pos, d.dim], 2.f) + pow(Si[1][d.pos, d.dim], 2.f)) * 10;
+    return fabs(p_star[d.pos, d.dim]) * 10;
+    //return sqrt(pow(Si[0][d.pos, d.dim], 2.f) + pow(Si[1][d.pos, d.dim], 2.f)) * 10;
+    //return sqrt(pow(Si[0][d.pos, d.dim], 2.f) + pow(Si[2][d.pos, d.dim], 2.f)) * 100;
     //return e_star[d.pos, d.dim] * 0.5;
 }
 
@@ -549,11 +552,11 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     ///ok: What've I've discovered
     ///Si isn't well defined when gA != 1 in our init conditions
-    if_e(pos.x() == dim.x()/2 + 10 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+    /*if_e(pos.x() == dim.x()/2 + 10 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
         //print("First %f", p_star * gA * u0);
         print("P %.23f p_star %f e_star %f calc w %f numerical w %f W %f\n", hydro.P[pos, dim], p_star, e_star, real_w, w, args.W);
         //print("Si %f %f %f\n", Si_lo_cfl[0], Si_lo_cfl[1], Si_lo_cfl[2]);
-    });
+    });*/
 
 }
 
@@ -660,7 +663,7 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
 
     hydrodynamic_concrete hydro_args(pos, dim, hydro);
 
-    /*if_e(hydro_args.p_star <= min_p_star, [&]{
+    if_e(hydro_args.p_star <= min_p_star, [&]{
         as_ref(hydro.P[pos, dim]) = valuef(0);
         as_ref(hydro.w[pos, dim]) = valuef(0);
         as_ref(hydro.vi[0][pos, dim]) = valuef(0);
@@ -668,7 +671,7 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
         as_ref(hydro.vi[2][pos, dim]) = valuef(0);
 
         return_e();
-    });*/
+    });
 
     bssn_args args(pos, dim, in);
 
@@ -678,13 +681,13 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
     valuef P = gamma_eos(get_Gamma(), args.W, w, hydro_args.p_star, hydro_args.e_star);
 
     ///hmmmm.. si?
-    if_e(pos.x() == dim.x()/2 + 10 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+    /*if_e(pos.x() == dim.x()/2 + 10 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
 
         print("P %.23f p_star %f e_star %f w %f W %f Si %f %f %f\n", hydro.P[pos, dim], hydro_args.p_star, hydro_args.e_star, w, args.W, hydro_args.Si[0], hydro_args.Si[1], hydro_args.Si[2]);
         //print("First %f", p_star * gA * u0);
         //print("P %.23f\n", hydro.P[pos, dim]);
         //print("Si %f %f %f\n", Si_lo_cfl[0], Si_lo_cfl[1], Si_lo_cfl[2]);
-    });
+    });*/
 
     /*if_e(pos.x() == dim.x()/2 + 20 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
         value_base se;
@@ -700,6 +703,10 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
     as_ref(hydro.P[pos, dim]) = P;
 
     v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, hydro_args.Si, args.cY);
+
+    /*if_e(pos.x() == dim.x()/2 + 20 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+        print("Vi %f %f %f p* %.23f e* %.23f\n", vi[0], vi[1], vi[2], hydro_args.p_star, hydro_args.e_star);
+    });*/
 
     as_ref(hydro.vi[0][pos, dim]) = vi[0];
     as_ref(hydro.vi[1][pos, dim]) = vi[1];
@@ -755,9 +762,9 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     auto leib = [&](valuef v1, valuef v2, int i)
     {
-        //return diff1(v1 * v2, i, d);
+        return diff1(v1 * v2, i, d);
 
-        return diff1(v1, i, d) * v2 + diff1(v2, i, d) * v1;
+        //return diff1(v1, i, d) * v2 + diff1(v2, i, d) * v1;
     };
 
     valuef dp_star = 0;

@@ -1076,7 +1076,7 @@ int main()
     cl::context& ctx = win.clctx->ctx;
     std::cout << cl::get_extensions(ctx) << std::endl;
 
-    t3i dim = {99, 99, 99};
+    t3i dim = {135, 135, 135};
 
     plugin* hydro = new hydrodynamic_plugin(ctx);
 
