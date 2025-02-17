@@ -27,7 +27,7 @@ valuef e_star_to_epsilon(valuef p_star, valuef e_star, valuef W, valuef w)
     valuef e_m6phi = W*W*W;
     valuef Gamma = get_Gamma();
 
-    return pow(divide_with_limit(e_m6phi, w, 0.f), Gamma-1) * pow(e_star, Gamma) * pow(p_star, Gamma - 2);
+    return pow(divide_with_limit(e_m6phi * pow(e_star, Gamma) * pow(p_star, Gamma - 2), w, 0.f, 0.000001f), Gamma-1);
 
     //return pow(e_m6phi / max(w, 0.001f), Gamma-1) * pow(e_star, Gamma) * pow(p_star, Gamma - 2);
 }
@@ -111,10 +111,11 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
 template<typename T>
 valuef full_hydrodynamic_args<T>::dbg(bssn_args& args, const derivative_data& d)
 {
-    return fabs(p_star[d.pos, d.dim]) * 10;
+    //return fabs(p_star[d.pos, d.dim]) * 10;
     //return sqrt(pow(Si[0][d.pos, d.dim], 2.f) + pow(Si[1][d.pos, d.dim], 2.f)) * 10;
     //return sqrt(pow(Si[0][d.pos, d.dim], 2.f) + pow(Si[2][d.pos, d.dim], 2.f)) * 100;
     //return e_star[d.pos, d.dim] * 0.5;
+    return fabs(Si[0][d.pos, d.dim]) * 100 * 100;
 }
 
 template struct full_hydrodynamic_args<buffer<valuef>>;
@@ -814,12 +815,16 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                     print("dSi %f\n", sum);
                 });
             }*/
+
+
+            /*if(k == 0)
+            {
+                if_e((pos.x() == dim.x()/2 + 19) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+                    print("dSi %.10f\n", dSi_p1[k]);
+                });
+            }*/
         }
     }
-
-    if_e((pos.x() == dim.x()/2 + 14) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-        print("Si %f %f %f p* %f e* %f\n", Si[0], Si[1], Si[2], p_star, e_star);
-    });
 
     dp_star = -dp_star;
     de_star = -de_star;
@@ -827,6 +832,16 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     valuef h = get_h_with_gamma_eos(epsilon);
 
+    if_e((pos.x() == dim.x()/2 + 19) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+        valuef u0 = w / (p_star * args.gA);
+
+        valuef u1 = Si[0] / (h * p_star);
+
+        print("Si %.10f %f %f p* %f e* %f u1 %f u0 %f h %f epsilon %.16f Display value %f\n", Si[0], Si[1], Si[2], p_star, e_star, u1, u0, h, epsilon, Si[0] * 100 * 100);
+    });
+
+    ///SO
+    ///Si[0] is becoming degenerate at the boundary of the neutron star for.... some ungodly reason
     for(int k=0; k < 3; k++)
     {
         valuef p1 = (-args.gA * pow(max(args.W, 0.001f), -3.f)) * diff1(hydro_args.P, k, d);
@@ -856,6 +871,13 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         valuef p5 = divide_with_limit(args.gA * h * (w*w - p_star * p_star), w, 0.f) * (diff1(args.W, k, d) / max(args.W, 0.001f));
 
         dSi_p1[k] += p1 + p2 + p3 + p4 + p5;
+
+        /*if(k == 0)
+        {
+            if_e((pos.x() == dim.x()/2 + 19) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+                print("Components %.10f %.10f %.10f %.10f %.10f\n", p1, p2, p3, p4, p5);
+            });
+        }*/
     }
 
     valuef fin_p_star = max(h_base.p_star[pos, dim] + timestep.get() * dp_star, 0.f);
