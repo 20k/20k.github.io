@@ -529,6 +529,47 @@ namespace value_impl
     #define NATIVE_DIVIDE
     //#define NATIVE_RECIP
 
+    inline
+    bool valid_for_native_op(const value_base& in)
+    {
+        #ifndef NATIVE_OPS
+        return false;
+        #endif // NATIVE_OPS
+
+        if(in.args.size() > 2)
+            return false;
+
+        if(in.args.size() == 2 && in.args[0].concrete.index() == in.args[1].concrete.index())
+            return std::holds_alternative<float>(in.args[0].concrete);
+
+        if(in.args.size() == 1)
+            return std::holds_alternative<float>(in.args[0].concrete);
+
+        return false;
+    };
+
+    inline
+    std::optional<std::string> native_op(op::type type)
+    {
+        using namespace op;
+
+        std::map<op::type, std::string> table {
+            {SIN, "native_sin"},
+            {COS, "native_cos"},
+            {TAN, "native_tan"},
+            {LOG, "native_log"},
+            {LOG2, "native_log2"},
+            {SQRT, "native_sqrt"},
+            {INVERSE_SQRT, "native_rsqrt"},
+            {EXP, "native_exp"},
+        };
+
+        if(auto it = table.find(type); it != table.end())
+            return it->second;
+
+        return std::nullopt;
+    }
+
     ///handles function calls, and infix operators
     inline
     std::string function_call_or_infix(const value_base& v)
@@ -554,16 +595,6 @@ namespace value_impl
             {LAND, "&&"},
 
             {FMA, "fma"},
-            #ifdef NATIVE_OPS
-            {SIN, "native_sin"},
-            {COS, "native_cos"},
-            {TAN, "native_tan"},
-            {LOG, "native_log"},
-            {LOG2, "native_log2"},
-            {SQRT, "native_sqrt"},
-            {INVERSE_SQRT, "native_rsqrt"},
-            {EXP, "native_exp"},
-            #else
             {SIN, "sin"},
             {COS, "cos"},
             {TAN, "tan"},
@@ -572,7 +603,6 @@ namespace value_impl
             {SQRT, "sqrt"},
             {INVERSE_SQRT, "rsqrt"},
             {EXP, "exp"},
-            #endif // NATIVE_OPS
             {FMOD, "fmod"},
             {ISFINITE, "isfinite"},
             {FABS, "fabs"},
@@ -599,9 +629,17 @@ namespace value_impl
 
         std::set<op::type> infix{PLUS, MINUS, MULTIPLY, DIVIDE, MOD, LT, LTE, EQ, GT, GTE, NEQ, LOR, LAND};
 
+        auto get_table_op = [&](const value_base& in)
+        {
+            if(valid_for_native_op(in))
+                return native_op(in.type).value_or(table.at(in.type));
+
+            return table.at(in.type);
+        };
+
         //generate (arg[0] op arg[1]) as a string
         if(infix.count(v.type)) {
-            return "(" + value_to_string(v.args.at(0)) + table.at(v.type) + value_to_string(v.args.at(1)) + ")";
+            return "(" + value_to_string(v.args.at(0)) + get_table_op(v) + value_to_string(v.args.at(1)) + ")";
         }
 
         //otherwise, this is a function call
@@ -616,7 +654,7 @@ namespace value_impl
         if(args.size() > 0)
             args.pop_back();
 
-        return "(" + table.at(v.type) + "(" + args + "))";
+        return "(" + get_table_op(v) + "(" + args + "))";
     }
 
     inline
@@ -955,7 +993,7 @@ namespace value_impl
         #endif
 
         #ifdef NATIVE_DIVIDE
-        if(v.type == op::DIVIDE && v.is_floating_point_type())
+        if(v.type == op::DIVIDE && v.is_floating_point_type() && std::holds_alternative<float>(v.concrete))
         {
             return "native_divide(" + value_to_string(v.args.at(0)) + "," + value_to_string(v.args.at(1)) + ")";
         }
@@ -963,9 +1001,51 @@ namespace value_impl
 
         if(v.type == op::TERNARY)
         {
+            ///ok so. igentype has to have the same size as gentype
+            ///eg we do select(float, float, int)
+            ///or select(half, half, short)
+            ///or select(char, char, char)
+            ///or select(long, long, long)
+            ///or select(double, double, long)
+            ///we're modelling ternary *not* select, so i know it can fit into these. Just need to find the right type
+
+            assert(v.args.at(2).concrete.index() == v.args.at(1).concrete.index());
+
+            auto type_callback = []<typename T>(const T& in) -> std::string
+            {
+                if constexpr(std::is_same_v<T, char>)
+                    return "char";
+                if constexpr(std::is_same_v<T, signed char>)
+                    return "char";
+                if constexpr(std::is_same_v<T, unsigned char>)
+                    return "char";
+                if constexpr(std::is_same_v<T, short>)
+                    return "short";
+                if constexpr(std::is_same_v<T, unsigned short>)
+                    return "short";
+                if constexpr(std::is_same_v<T, int>)
+                    return "int";
+                if constexpr(std::is_same_v<T, unsigned int>)
+                    return "int";
+                if constexpr(std::is_same_v<T, long>)
+                    return "long";
+                if constexpr(std::is_same_v<T, unsigned long>)
+                    return "long";
+                if constexpr(std::is_same_v<T, float16>)
+                    return "short";
+                if constexpr(std::is_same_v<T, float>)
+                    return "int";
+                if constexpr(std::is_same_v<T, double>)
+                    return "long";
+
+                assert(false);
+            };
+
+            std::string type_of_selection_arg = std::visit(type_callback, v.args.at(2).concrete);
+
             ///our select is a ? b : c
             ///opencl's select is c ? b : a
-            return "select(" + value_to_string(v.args.at(2)) + "," + value_to_string(v.args.at(1)) + "," + value_to_string(v.args.at(0)) + ")";
+            return "select(" + value_to_string(v.args.at(2)) + "," + value_to_string(v.args.at(1)) + ",(" + type_of_selection_arg + ")(" + value_to_string(v.args.at(0)) + "))";
         }
 
         ///todo: 32bits use atomic_, 64bits use atom_
