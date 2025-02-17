@@ -1,7 +1,9 @@
 #include "hydrodynamics.hpp"
 #include "init_general.hpp"
 
-#define DIVISION_TOL 0.00001f
+#define DIVISION_TOL 0.0001f
+
+///so like. What if I did the projective real strategy?
 
 template<typename T, typename U>
 inline
@@ -25,12 +27,16 @@ valuef e_star_to_epsilon(valuef p_star, valuef e_star, valuef W, valuef w)
     valuef e_m6phi = W*W*W;
     valuef Gamma = get_Gamma();
 
-    return pow(e_m6phi / max(w, 0.000001f), Gamma-1) * pow(e_star, Gamma) * pow(p_star, Gamma - 2);
+    return pow(divide_with_limit(e_m6phi, w, 0.f), Gamma-1) * pow(e_star, Gamma) * pow(p_star, Gamma - 2);
+
+    //return pow(e_m6phi / max(w, 0.001f), Gamma-1) * pow(e_star, Gamma) * pow(p_star, Gamma - 2);
 }
 
 valuef calculate_p0e(valuef Gamma, valuef W, valuef w, valuef p_star, valuef e_star)
 {
-    valuef iv_au0 = p_star / max(w, 0.0000001f);
+    //valuef iv_au0 = p_star / max(w, 0.001f);
+
+    valuef iv_au0 = divide_with_limit(p_star, w, 0.f);
 
     valuef e_m6phi = W*W*W;
 
@@ -84,11 +90,20 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
     {
         for(int j=0; j < 3; j++)
         {
-            W2_Sij[i, j] = (pow(args.W, 5.f) / max(lw * h, 0.000001f)) * cSi[i] * cSi[j];
+            W2_Sij[i, j] = divide_with_limit(pow(args.W, 5.f) * cSi[i] * cSi[j], lw * h, 0.f);
+            //W2_Sij[i, j] = (pow(args.W, 5.f) / max(lw * h, 0.001f)) * cSi[i] * cSi[j];
         }
     }
 
     return (W2_Sij + lP * args.cY.to_tensor());
+}
+
+//there's *some* interaction between the division constants here, that I need to pin down
+v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, const unit_metric<valuef, 3, 3>& cY)
+{
+    valuef h = get_h_with_gamma_eos(epsilon);
+    return -gB + (divide_with_limit(W*W * gA, w*h, 0.f)) * cY.invert().raise(Si);
+    //return -gB + ((W*W * gA * cY.invert().raise(Si)) / max(w*h, 0.001f));
 }
 
 template<typename T>
@@ -577,7 +592,9 @@ valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev, va
     valuef A = pow(max(W, 0.00001f), 3.f * Gamma - 3.f);
     valuef wG = pow(w_prev, Gamma - 1);
 
-    return wG / max(wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 0.00001f), Gamma - 2), 0.0001f);
+    return divide_with_limit(wG, wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 0.00001f), Gamma - 2), 0.f);
+
+    //return wG / max(wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 0.00001f), Gamma - 2), 0.0001f);
 }
 
 ///i'm getting slightyl different results between this method, and the analytic methd for the initial conditions
@@ -617,12 +634,6 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse
     }
 
     return w;
-}
-
-v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, const unit_metric<valuef, 3, 3>& cY)
-{
-    valuef h = get_h_with_gamma_eos(epsilon);
-    return -gB + ((W*W * gA * cY.invert().raise(Si)) / max(w*h, 0.001f));
 }
 
 constexpr float min_p_star = 1e-6f;
@@ -823,7 +834,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
         valuef p4;
 
-        valuef p4_prefix = args.gA * args.W * args.W / max(2 * w * h, 0.00001f);
+        valuef p4_prefix = divide_with_limit(0.5f * args.gA * args.W * args.W, w * h, 0.f);
 
         for(int i=0; i < 3; i++)
         {
@@ -835,7 +846,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
         p4 = p4_prefix * p4;
 
-        valuef p5 = (args.gA * h * (w*w - p_star * p_star) / max(w, 0.00001f)) * (diff1(args.W, k, d) / max(args.W, 0.001f));
+        valuef p5 = divide_with_limit(args.gA * h * (w*w - p_star * p_star), w, 0.f) * (diff1(args.W, k, d) / max(args.W, 0.001f));
 
         dSi_p1[k] += p1 + p2 + p3 + p4 + p5;
     }
@@ -845,7 +856,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     valuef max_p = 1;
 
-    fin_e_star = ternary(fin_p_star < (1e-5f * max_p), min(fin_e_star, 10 * fin_p_star), fin_e_star);
+    fin_e_star = ternary(fin_p_star < (1e-6f * max_p), min(fin_e_star, 10 * fin_p_star), fin_e_star);
 
     v3f fin_Si;
 
@@ -869,7 +880,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     ///but it shouldn't be used (?)
     ///for some reason, having this enabled makes things brighter
     ///tomorow: todo, check denegerate initial conditions
-    /*if_e(fin_p_star <= min_p_star * 0.001, [&]{
+    if_e(fin_p_star <= min_p_star, [&]{
         as_ref(h_out.p_star[pos, dim]) = valuef(0);
         as_ref(h_out.e_star[pos, dim]) = valuef(0);
 
@@ -878,11 +889,8 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             as_ref(h_out.Si[i][pos, dim]) = valuef(0);
         }
 
-        //as_ref(util.w[pos, dim]) = valuef(0);
-        //as_ref(util.P[pos, dim]) = valuef(0);
-
         return_e();
-    });*/
+    });
 
     //if_e(fin_p_star > min_p_star, [&]{
         /*as_ref(h_out.p_star[pos, dim]) = h_base.p_star[pos, dim];
