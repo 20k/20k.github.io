@@ -448,13 +448,6 @@ namespace value_impl
             return delim + value_to_string(val);
         }
 
-        template<typename U, typename... T>
-        inline
-        std::string join_with_delim(std::string delim, U&& val, T&&... rest)
-        {
-            return join_with_delim(delim, val) + join_with_delim(delim, std::forward<T>(rest)...);
-        }
-
         template<typename... T>
         inline
         void print(std::string fmt, T&&... args)
@@ -476,7 +469,7 @@ namespace value_impl
 
             if constexpr(sizeof...(args) > 0)
             {
-                str += join_with_delim(",", args...);
+                str += (... + join_with_delim(",", args));
             }
 
             str += ")";
