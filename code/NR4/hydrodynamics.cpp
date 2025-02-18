@@ -7,10 +7,8 @@
 
 template<typename T>
 inline
-T safe_divide(const T& top, const T& bottom)
+T safe_divide(const T& top, const T& bottom, float tol = 1e-7)
 {
-    float tol = 1e-6;
-
     return top / max(bottom, T{tol});
 
     //return ternary(bottom >= tol, top / bottom, T{limit});
@@ -121,7 +119,7 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
     valuef h = get_h_with_gamma_eos(epsilon);
 
     //note to self, actually hand derived this and am sure its correct
-    return -gB + safe_divide(W*W * gA, w*h) * cY.invert().raise(Si);
+    return -gB + safe_divide(W*W * gA, w*h, 1e-6) * cY.invert().raise(Si);
     //return -gB + ((W*W * gA * cY.invert().raise(Si)) / max(w*h, 0.001f));
 }
 

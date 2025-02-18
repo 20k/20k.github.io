@@ -168,7 +168,7 @@ struct mesh
 
             neutron_star::parameters p1;
             p1.position = {0, 0, 0};
-            p1.angular_momentum = {0, 0, 1.25};
+            //p1.angular_momentum = {0, 0, 1.25};
             //p1.linear_momentum = {0.25, 0, 0};
             p1.K = 123.6;
             p1.p0_c_kg_m3 = 5.91 * pow(10., 17.);
@@ -1361,7 +1361,7 @@ int main()
                 rt_bssn.render4(cqueue, camera4, camera_quat, background, screen_tex, simulation_width, m, lock_camera_to_slider, progress_camera_time);
         }
 
-        if(!render && !render2 && debug_render)
+        if(debug_render)
         {
             float scale = get_scale(simulation_width, dim);
 
