@@ -642,7 +642,7 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse
     return w;
 }
 
-constexpr float min_p_star = 1e-7f;
+constexpr float min_p_star = 1e-8f;
 
 ///todo: i need to de-mutify hydro
 void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_hydrodynamic_args<buffer_mut<valuef>> hydro,
@@ -879,7 +879,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     valuef h = get_h_with_gamma_eos(epsilon);
 
-    de_star += e_star_rhs();
+    de_star += e_star_rhs() * 0;
 
     //so: best guess
     ///u_i is becoming extremely high for some reason
@@ -982,13 +982,13 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         as_ref(fin_Si[i]) = h_base.Si[i][pos, dim] + timestep.get() * dSi_p1[i];
     }
 
-    if_e(p_star >= min_p_star, [&]{
+    /*if_e(p_star >= min_p_star, [&]{
         v3f u_k = declare_e(fin_Si) / (h * p_star);
 
         u_k = clamp(u_k, -0.2f, 0.2f);
 
         as_ref(fin_Si) = u_k * h * p_star;
-    });
+    });*/
 
     //fin_Si = clamp(fin_Si, -0.005f, 0.005f);
 
