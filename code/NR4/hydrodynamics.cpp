@@ -642,7 +642,7 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse
     return w;
 }
 
-constexpr float min_p_star = 1e-6f;
+constexpr float min_p_star = 1e-7f;
 
 ///todo: i need to de-mutify hydro
 void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_hydrodynamic_args<buffer_mut<valuef>> hydro,
