@@ -5,11 +5,13 @@
 
 ///so like. What if I did the projective real strategy?
 
-template<typename T, typename U>
+template<typename T>
 inline
-T divide_with_limit(const T& top, const T& bottom, const U& limit, float tol = DIVISION_TOL)
+T safe_divide(const T& top, const T& bottom)
 {
-    return top / max(bottom, T{tol/100});
+    float tol = 1e-6;
+
+    return top / max(bottom, T{tol});
 
     //return ternary(bottom >= tol, top / bottom, T{limit});
 }
@@ -29,7 +31,7 @@ valuef e_star_to_epsilon(valuef p_star, valuef e_star, valuef W, valuef w)
     valuef e_m6phi = W*W*W;
     valuef Gamma = get_Gamma();
 
-    return pow(divide_with_limit(e_m6phi, w, 0.f, 0.00001f), Gamma - 1) * pow(e_star, Gamma) * pow(p_star, Gamma - 2);
+    return pow(safe_divide(e_m6phi, w), Gamma - 1) * pow(e_star, Gamma) * pow(p_star, Gamma - 2);
 
     //return pow(divide_with_limit(e_m6phi * pow(e_star, Gamma) * pow(p_star, Gamma - 2), w, 0.f, 0.000001f), Gamma-1);
     //return pow(divide_with_limit(e_m6phi * pow(e_star, Gamma) * pow(p_star, Gamma - 2), w, 0.f, 0.000001f), Gamma-1);
@@ -41,7 +43,7 @@ valuef calculate_p0e(valuef Gamma, valuef W, valuef w, valuef p_star, valuef e_s
 {
     //valuef iv_au0 = p_star / max(w, 0.001f);
 
-    valuef iv_au0 = divide_with_limit(p_star, w, 0.f, 0.00001f);
+    valuef iv_au0 = safe_divide(p_star, w);
 
     valuef e_m6phi = W*W*W;
 
@@ -105,7 +107,7 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
     {
         for(int j=0; j < 3; j++)
         {
-            W2_Sij[i, j] = divide_with_limit(pow(args.W, 5.f) * cSi[i] * cSi[j], lw * h, 0.f, 0.00001f);
+            W2_Sij[i, j] = safe_divide(pow(args.W, 5.f) * cSi[i] * cSi[j], lw * h);
             //W2_Sij[i, j] = (pow(args.W, 5.f) / max(lw * h, 0.001f)) * cSi[i] * cSi[j];
         }
     }
@@ -119,7 +121,7 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
     valuef h = get_h_with_gamma_eos(epsilon);
 
     //note to self, actually hand derived this and am sure its correct
-    return -gB + (divide_with_limit(W*W * gA, w*h, 0.f)) * cY.invert().raise(Si);
+    return -gB + safe_divide(W*W * gA, w*h) * cY.invert().raise(Si);
     //return -gB + ((W*W * gA * cY.invert().raise(Si)) / max(w*h, 0.001f));
 }
 
@@ -557,7 +559,7 @@ valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev, va
     //valuef A = pow(max(W, 0.00001f), 3.f * Gamma - 3.f);
     valuef wG = pow(w_prev, Gamma - 1);
 
-    return divide_with_limit(wG, wG + em_6_phi_G * geg * pow(p_star, Gamma - 2), 0.f, 0.000001f);
+    return safe_divide(wG, wG + em_6_phi_G * geg * pow(p_star, Gamma - 2));
 
     //return wG / max(wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 0.00001f), Gamma - 2), 0.0001f);
 }
@@ -896,13 +898,13 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         //print("Si %.10f %f %f p* %f e* %f u1 %f u0 %f h %f epsilon %.16f Display value %f\n", Si[0], Si[1], Si[2], p_star, e_star, u1, u0, h, epsilon, Si[0] * 100 * 100);
     });*/
 
-    if_e(pos.x() == dim.x()/2 + 7 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+    /*if_e(pos.x() == dim.x()/2 + 7 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
         //print("gA %f Display value %f\n",args.gA, Si[0] * 100 * 100);
         valuef u0 = w / (p_star * args.gA);
         valuef u1 = Si[0] / (h * p_star);
 
         print("Si %.10f %f %f p* %f e* %f u1 %f u0 %f h %f epsilon %.16f Display value %f\n", Si[0], Si[1], Si[2], p_star, e_star, u1, u0, h, epsilon, Si[0] * 100 * 100);
-    });
+    });*/
 
     ///todo: think I've figured it out. epsilon is huge, p0 is zero effectively
     ///i think I'm clamping e*, but i also need to recalculate and clamp sk
@@ -961,7 +963,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                 }*/
 
                 valuef l1 = Si[i] / h;
-                valuef l2 = divide_with_limit(Si[j], w, 0.f, 0.00001f);
+                valuef l2 = safe_divide(Si[j], w);
 
                 p4 += 0.5f * args.gA * args.W * args.W * l1 * l2 * deriv;
 
@@ -971,7 +973,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
         valuef w2_m_p2_calc = w2_m_p2(p_star, e_star, args.W, get_Gamma(), args.cY.invert(), Si, w);
 
-        valuef p5 = divide_with_limit(args.gA * h * w2_m_p2_calc, w, 0.f, 0.00001f) * (diff1(args.W, k, d) / max(args.W, 0.001f));
+        valuef p5 = safe_divide(args.gA * h * w2_m_p2_calc, w) * (diff1(args.W, k, d) / max(args.W, 0.001f));
 
         dSi_p1[k] += (p1 + p2 + p3 + p4 + p5);
 
