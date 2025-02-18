@@ -36,7 +36,7 @@ valuef calculate_p0e(valuef Gamma, valuef W, valuef w, valuef p_star, valuef e_s
 {
     //valuef iv_au0 = p_star / max(w, 0.001f);
 
-    valuef iv_au0 = divide_with_limit(p_star, w, 0.f, 0.000001f);
+    valuef iv_au0 = divide_with_limit(p_star, w, 0.f, 0.00001f);
 
     valuef e_m6phi = W*W*W;
 
@@ -52,7 +52,7 @@ template<typename T>
 valuef full_hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& d)
 {
     valuef lw = w[d.pos, d.dim];
-    valuef lP = P[d.pos, d.dim];
+    //valuef lP = P[d.pos, d.dim];
     valuef es = max(e_star[d.pos, d.dim], 0.f);
     valuef ps = max(p_star[d.pos, d.dim], 0.f);
 
@@ -60,7 +60,7 @@ valuef full_hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& 
 
     valuef h = get_h_with_gamma_eos(epsilon);
 
-    return (h * lw * (args.W * args.W * args.W) - lP);
+    return h * lw * (args.W * args.W * args.W) - gamma_eos(get_Gamma(), args.W, lw, ps, es);
 }
 
 template<typename T>
@@ -80,7 +80,9 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
     valuef lw = w[d.pos, d.dim];
     //valuef lP = P[d.pos, d.dim];
 
-    valuef lP = calculate_p0e(get_Gamma(), args.W, lw, ps, es) * (get_Gamma() - 1);
+    //valuef lP = calculate_p0e(get_Gamma(), args.W, lw, ps, es) * (get_Gamma() - 1);
+
+    valuef lP = gamma_eos(get_Gamma(), args.W, lw, ps, es);
 
     valuef epsilon = e_star_to_epsilon(ps, es, args.W, lw);
 
@@ -92,7 +94,7 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
     {
         for(int j=0; j < 3; j++)
         {
-            W2_Sij[i, j] = divide_with_limit(pow(args.W, 5.f) * cSi[i] * cSi[j], lw * h, 0.f);
+            W2_Sij[i, j] = divide_with_limit(pow(args.W, 5.f) * cSi[i] * cSi[j], lw * h, 0.f, 0.000001f);
             //W2_Sij[i, j] = (pow(args.W, 5.f) / max(lw * h, 0.001f)) * cSi[i] * cSi[j];
         }
     }
@@ -595,10 +597,15 @@ struct hydrodynamic_concrete
 
 valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev, valuef Gamma)
 {
-    valuef A = pow(max(W, 0.00001f), 3.f * Gamma - 3.f);
+    valuef chi = W*W;
+    valuef em_6_phi_G = pow(chi, Gamma - 1);
+
+    valuef geg = Gamma * pow(e_star, Gamma);
+
+    //valuef A = pow(max(W, 0.00001f), 3.f * Gamma - 3.f);
     valuef wG = pow(w_prev, Gamma - 1);
 
-    return divide_with_limit(wG, wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 0.00001f), Gamma - 2), 0.f);
+    return divide_with_limit(wG, wG + em_6_phi_G * geg * pow(p_star, Gamma - 2), 0.f, 0.000001f);
 
     //return wG / max(wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 0.00001f), Gamma - 2), 0.0001f);
 }
@@ -659,7 +666,7 @@ valuef w2_m_p2(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse_met
 
     valuef D = w_next_interior(p_star, e_star, W, w, Gamma);
 
-    return cst * D*D;
+    return max(cst * D*D, 0.f);
 
 }
 
