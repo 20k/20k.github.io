@@ -826,7 +826,60 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     de_star = -de_star;
     dSi_p1 = -dSi_p1;
 
+    auto calculate_PQvis = [&](const valuef& gA, const v3f& gB, const inverse_metric<valuef, 3, 3>& icY, const valuef& W, const valuef& w)
+    {
+        valuef e_m6phi = pow(W, 3.f);
+        valuef e_6phi = pow(max(W, 0.001f), -3.f);
+
+        valuef dkvk = 0;
+
+        for(int k=0; k < 3; k++)
+        {
+            dkvk += 2 * diff1(vi[k], k, d);
+        }
+
+        valuef littledv = dkvk * scale.get();
+        valuef Gamma = get_Gamma();
+
+        valuef A = divide_with_limit(pow(e_star, Gamma) * pow(p_star, Gamma - 1) * pow(e_m6phi, Gamma - 1), pow(w, Gamma - 1), 0.f, 0.000001f);
+
+        //ctx.add("DBG_A", A);
+
+        ///[0.1, 1.0}
+        valuef CQvis = 1.f;
+
+        valuef PQvis = ternary(littledv < 0, CQvis * A * pow(littledv, 2), valuef{0.f});
+
+        return PQvis;
+    };
+
+    auto e_star_rhs = [&]() -> valuef
+    {
+        valuef e_m6phi = pow(args.W, 3.f);
+
+        valuef PQvis = calculate_PQvis(args.gA, args.gB, args.cY.invert(), args.W, w);
+
+        valuef sum_interior_rhs = 0;
+
+        for(int k=0; k < 3; k++)
+        {
+            value to_diff = divide_with_limit(w * vi[k], p_star * e_m6phi, 0.f, 0.000001f);
+
+            sum_interior_rhs += diff1(to_diff, k, d);
+        }
+
+        valuef Gamma = get_Gamma();
+
+        valuef p0e = calculate_p0e(Gamma, args.W, w, p_star, e_star);
+
+        valuef degenerate = divide_with_limit(valuef{1}, pow(p0e, 1 - 1/Gamma), 0.f, 0.000001f);
+
+        return -degenerate * (PQvis / Gamma) * sum_interior_rhs;
+    };
+
     valuef h = get_h_with_gamma_eos(epsilon);
+
+    de_star += e_star_rhs();
 
     //so: best guess
     ///u_i is becoming extremely high for some reason
