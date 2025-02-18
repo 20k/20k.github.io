@@ -1168,10 +1168,10 @@ int main()
     bool running = false;
     bool pause = false;
     float pause_time = 100;
-    bool render = true;
+    bool render = false;
     int render_skipping = 4;
     bool render2 = false;
-    bool debug_render = false;
+    bool debug_render = true;
     bool lock_camera_to_slider = false;
     bool progress_camera_time = false;
 
