@@ -27,7 +27,10 @@ valuef e_star_to_epsilon(valuef p_star, valuef e_star, valuef W, valuef w)
     valuef e_m6phi = W*W*W;
     valuef Gamma = get_Gamma();
 
-    return pow(divide_with_limit(e_m6phi * pow(e_star, Gamma) * pow(p_star, Gamma - 2), w, 0.f, 0.000001f), Gamma-1);
+    return pow(divide_with_limit(e_m6phi, w, 0.f, 0.00001f), Gamma - 1) * pow(e_star, Gamma) * pow(p_star, Gamma - 2);
+
+    //return pow(divide_with_limit(e_m6phi * pow(e_star, Gamma) * pow(p_star, Gamma - 2), w, 0.f, 0.000001f), Gamma-1);
+    //return pow(divide_with_limit(e_m6phi * pow(e_star, Gamma) * pow(p_star, Gamma - 2), w, 0.f, 0.000001f), Gamma-1);
 
     //return pow(e_m6phi / max(w, 0.001f), Gamma-1) * pow(e_star, Gamma) * pow(p_star, Gamma - 2);
 }
