@@ -83,12 +83,42 @@ double tov::parameters::pressure_to_energy_density(double p) const
     return pressure_to_rest_mass_density(p) + p / (Gamma - 1);
 }
 
-double tov::parameters::energy_density_to_pressure(double e) const
+double tov::parameters::energy_density_to_pressure(double mu) const
 {
-    ///e = p0 + P/(Gamma-1)
-    ///e = (P/K)^(1/Gamma) + P/(Gamma-1)
-    ///P = (1-1/g)th root of ((1-G)K^(-1/G)
-    return std::pow((1-Gamma) * std::pow(K, -1/Gamma), 1/(1-(1/Gamma)));
+    auto func = [&](double arg)
+    {
+        return rest_mass_density_to_energy_density(arg);
+    };
+
+    ///lets solve this numerically
+    ///mu = p0 + P/(Gamma-1)
+    double lower = 0;
+    double upper = 1;
+
+    while(func(upper) < mu)
+        upper *= 2;
+
+    for(int i=0; i < 1024; i++)
+    {
+        double lower_mu = func(lower);
+        double upper_mu = func(upper);
+
+        double next = (lower + upper)/2.;
+
+        double next_mu = func(next);
+
+        if(next_mu >= mu)
+        {
+            upper = next;
+        }
+        ///next_mu < mu
+        else
+        {
+            lower = next;
+        }
+    }
+
+    return (lower + upper)/2;
 }
 
 tov::integration_state tov::make_integration_state(double p0, double rmin, const parameters& param)
