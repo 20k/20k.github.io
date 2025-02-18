@@ -772,6 +772,11 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         return diff1(v1, i, d) * v2 + diff1(v2, i, d) * v1;
     };
 
+    ///things that are odd
+    ///u_k is very high, but vi is very low. Indicates an extreme metric tensor that feels unjustified
+    ///if u_k is so high, why doesn't the stuff drift away?
+    ///dgA is the primary driver of the Sk increase
+
     valuef dp_star = 0;
     valuef de_star = 0;
     v3f dSi_p1;
@@ -828,6 +833,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     de_star = -de_star;
     dSi_p1 = -dSi_p1;
 
+    #if 0
     auto calculate_PQvis = [&](const valuef& gA, const v3f& gB, const inverse_metric<valuef, 3, 3>& icY, const valuef& W, const valuef& w)
     {
         valuef e_m6phi = pow(W, 3.f);
@@ -879,9 +885,11 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         return -degenerate * (PQvis / Gamma) * sum_interior_rhs;
     };
 
-    valuef h = get_h_with_gamma_eos(epsilon);
 
     de_star += e_star_rhs() * 0;
+    #endif
+
+    valuef h = get_h_with_gamma_eos(epsilon);
 
     //so: best guess
     ///u_i is becoming extremely high for some reason
@@ -910,6 +918,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     ///hmm. there's a bit of a discontinuity. Maybe it is enough?
     ///hmmmm. Clamping e* isn't the problem. An interesting observation is that
     ///clamping e* would cause u_k to be proportionally higher, as we don't clamp Sk
+    #if 0
     if_e((pos.x() == dim.x()/2 + 18) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
         valuef u0 = w / (p_star * args.gA);
 
@@ -928,6 +937,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
         //print("Si %.10f %f %f p* %f e* %f u1 %f u0 %f h %f epsilon %.16f Display value %f\n", Si[0], Si[1], Si[2], p_star, e_star, u1, u0, h, epsilon, Si[0] * 100 * 100);
     });
+    #endif
 
     ///SO
     ///Si[0] is becoming degenerate at the boundary of the neutron star for.... some ungodly reason
@@ -946,21 +956,35 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
         valuef p4;
 
-        valuef p4_prefix = divide_with_limit(0.5f * args.gA * args.W * args.W, w * h, 0.f);
-
         for(int i=0; i < 3; i++)
         {
             for(int j=0; j < 3; j++)
             {
-                p4 += Si[i] * Si[j] * diff1(args.cY.invert()[i,j], k, d);
+                valuef deriv = diff1(args.cY.invert()[i,j], k, d);
+
+                if(i == 0 && j == 0 && k == 0)
+                {
+                    if_e((pos.x() == dim.x()/2 + 2) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+                        print("Metd %f %.16f %.16f\n", deriv, Si[0], Si[0] * Si[0]);
+                    });
+                }
+
+                valuef l1 = Si[i] / h;
+                valuef l2 = divide_with_limit(Si[j], w, 0.f, 0.000001f);
+
+                p4 += 0.5f * args.gA * args.W * args.W * l1 * l2 * deriv;
+
+                //p4 += divide_with_limit(0.5f * args.gA * args.W * args.W * Si[i] * Si[j] * deriv, w * h, 0.f, 0.000001f);
             }
         }
 
-        p4 = p4_prefix * p4;
-
-        valuef p5 = divide_with_limit(args.gA * h * (w*w - p_star * p_star), w, 0.f) * (diff1(args.W, k, d) / max(args.W, 0.001f));
+        valuef p5 = divide_with_limit(args.gA * h * (w*w - p_star * p_star), w, 0.f, 0.000001f) * (diff1(args.W, k, d) / max(args.W, 0.001f));
 
         dSi_p1[k] += p1 + p2 + p3 + p4 + p5;
+
+        if_e((pos.x() == dim.x()/2 + 2) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+            print("p4 %.16f\n", p4);
+        });
 
         /*if(k == 0)
         {
@@ -1124,6 +1148,10 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
         printf("Len %i\n", i.alloc_size);*/
 
     //return;
+
+    //printf("Indices %i %i %i\n", sdata.base_idx, sdata.in_idx, sdata.out_idx);
+
+    //printf("Mem ptr %p %p %p\n", sdata.buffers[sdata.base_idx][0].native_mem_object.data, sdata.buffers[sdata.in_idx][0].native_mem_object.data, sdata.buffers[sdata.out_idx][0].native_mem_object.data);
 
     {
         cl::args args;
