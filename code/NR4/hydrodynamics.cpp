@@ -9,7 +9,7 @@ template<typename T, typename U>
 inline
 T divide_with_limit(const T& top, const T& bottom, const U& limit, float tol = DIVISION_TOL)
 {
-    return top / max(bottom, T{tol});
+    return top / max(bottom, T{tol/100});
 
     //return ternary(bottom >= tol, top / bottom, T{limit});
 }
