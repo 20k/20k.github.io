@@ -488,25 +488,7 @@ struct mesh
         };
         #endif
 
-        auto calculate_momentum_constraint_for = [&](int pack_idx)
-        {
-            cl::args args;
-            buffers[pack_idx].append_to(args);
-
-            add_plugin_args(args, pack_idx);
-
-            for(auto& i : momentum_constraint)
-                args.push_back(i);
-
-            args.push_back(dim);
-            args.push_back(scale);
-            //args.push_back(evolve_points);
-            //args.push_back(evolve_length);
-
-            cqueue.exec("momentum_constraint", args, {dim.x() * dim.y() * dim.z()}, {128});
-        };
-
-        auto evolve_step = [&](int base_idx, int in_idx, int out_idx)
+        auto plugin_step = [&](int base_idx, int in_idx, int out_idx)
         {
             for(int kk=0; kk < (int)plugins.size(); kk++)
             {
@@ -534,7 +516,28 @@ struct mesh
 
                 plugins[kk]->step(ctx, cqueue, step_data);
             }
+        };
 
+        auto calculate_momentum_constraint_for = [&](int pack_idx)
+        {
+            cl::args args;
+            buffers[pack_idx].append_to(args);
+
+            add_plugin_args(args, pack_idx);
+
+            for(auto& i : momentum_constraint)
+                args.push_back(i);
+
+            args.push_back(dim);
+            args.push_back(scale);
+            //args.push_back(evolve_points);
+            //args.push_back(evolve_length);
+
+            cqueue.exec("momentum_constraint", args, {dim.x() * dim.y() * dim.z()}, {128});
+        };
+
+        auto evolve_step = [&](int base_idx, int in_idx, int out_idx)
+        {
             cl::args args;
             buffers[base_idx].append_to(args);
             buffers[in_idx].append_to(args);
@@ -650,6 +653,8 @@ struct mesh
             if(iteration == 0)
                 calculate_constraint_errors(in_idx);
             #endif
+
+            plugin_step(base_idx, in_idx, out_idx);
 
             if(using_momentum_constraint)
                 calculate_momentum_constraint_for(in_idx);
