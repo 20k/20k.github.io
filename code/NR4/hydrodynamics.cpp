@@ -9,7 +9,9 @@ template<typename T, typename U>
 inline
 T divide_with_limit(const T& top, const T& bottom, const U& limit, float tol = DIVISION_TOL)
 {
-    return ternary(bottom >= tol, top / bottom, T{limit});
+    return top / max(bottom, T{tol});
+
+    //return ternary(bottom >= tol, top / bottom, T{limit});
 }
 
 valuef get_Gamma()
@@ -54,6 +56,8 @@ valuef gamma_eos(valuef Gamma, valuef W, valuef w, valuef p_star, valuef e_star)
 template<typename T>
 valuef full_hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& d)
 {
+    //return {};
+
     valuef lw = w[d.pos, d.dim];
     //valuef lP = P[d.pos, d.dim];
     valuef es = max(e_star[d.pos, d.dim], 0.f);
@@ -69,6 +73,8 @@ valuef full_hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& 
 template<typename T>
 tensor<valuef, 3> full_hydrodynamic_args<T>::adm_Si(bssn_args& args, const derivative_data& d)
 {
+    //return {};
+
     v3f cSi = {Si[0][d.pos, d.dim], Si[1][d.pos, d.dim], Si[2][d.pos, d.dim]};
 
     return pow(args.W, 3.f) * cSi;
@@ -77,6 +83,8 @@ tensor<valuef, 3> full_hydrodynamic_args<T>::adm_Si(bssn_args& args, const deriv
 template<typename T>
 tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, const derivative_data& d)
 {
+    //return {};
+
     valuef ps =  max(p_star[d.pos, d.dim], 0.f);
     valuef es =  max(e_star[d.pos, d.dim], 0.f);
     v3f cSi = {Si[0][d.pos, d.dim], Si[1][d.pos, d.dim], Si[2][d.pos, d.dim]};
@@ -97,7 +105,7 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
     {
         for(int j=0; j < 3; j++)
         {
-            W2_Sij[i, j] = divide_with_limit(pow(args.W, 5.f) * cSi[i] * cSi[j], lw * h, 0.f, 0.000001f);
+            W2_Sij[i, j] = divide_with_limit(pow(args.W, 5.f) * cSi[i] * cSi[j], lw * h, 0.f, 0.00001f);
             //W2_Sij[i, j] = (pow(args.W, 5.f) / max(lw * h, 0.001f)) * cSi[i] * cSi[j];
         }
     }
@@ -304,13 +312,13 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     //valuef mu_cfl = mu_cfl_b[pos, dim];
     valuef mu_h_cfl = mu_h_cfl_b[pos, dim];
-    valuef pressure_cfl = pressure_cfl_b[pos, dim];
+    //valuef pressure_cfl = pressure_cfl_b[pos, dim];
     valuef phi = cfl_b[pos, dim] + u_correction_b[pos, dim];
     v3f Si_cfl = {Si_cfl_b[0][pos, dim], Si_cfl_b[1][pos, dim], Si_cfl_b[2][pos, dim]};
 
     //valuef mu = mu_cfl * pow(phi, -8);
     valuef mu_h = mu_h_cfl * pow(phi, -8);
-    valuef pressure_from_cfl = pressure_cfl * pow(phi, -8);
+    //valuef pressure_from_cfl = pressure_cfl * pow(phi, -8);
     v3f Si = Si_cfl * pow(phi, -10);
 
     //valuef u0 = sqrt((mu_h + pressure) / max(mu + pressure, 0.001f));
@@ -450,13 +458,6 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
         valuef C = ysj / pow(mu + pressure, 2.f);
         valuef next_W = sqrt(1 + sqrt(4 * C + 1)) / sqrtf(2.f);
 
-        /*if_e(pos.x() == dim.x()/2 + 2 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-            print("u0 %f\n", u0);
-            print("mu %f\n", mu);
-
-            print("Err %f %f %f", ysj - pow(mu + pressure, 2) * u0 * u0 * (u0 * u0 - 1), mu_h - ((mu + pressure) * u0 * u0 - pressure), next_W);
-        });*/
-
         u0 = next_W;
         mu = get_mu_for(mu_h, u0);
         pin(u0);
@@ -470,28 +471,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     valuef pressure = p0_to_pressure(p0);
 
-    /*if_e(pos.x() == dim.x()/2 + 2 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-        print("Pressure 1 %f %f\n", pressure, pressure_from_cfl);
-    });*/
-
-    //valuef pressure = pressure_from_cfl;
-
     valuef p0_e = pressure / (Gamma - 1);
-
-    //print("Test pressure %f cfl pressure %f\n", p0_e, pressure_from_cfl);
-
-    ///mu = p0 + P/(Gamma-1)
-    ///mu = p0 + f(p0) / (Gamma-1)
-    //valuef p0 = pressure_to_p0(pressure);
-    ///P = p0(1 + eps)
-
-    ///(mu + P) W^2 - P
-    ///W = 1
-    ///mu = ph
-
-
-    //valuef p0 = pow(pressure / 123.741, 2.f);
-
 
     value gA = args.gA;
 
@@ -501,37 +481,6 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     valuef p_star = p0 * gA * u0 * pow(cW, -3);
     valuef e_star = pow(p0_e, (1/Gamma)) * gA * u0 * pow(cW, -3);
 
-    /*valuef yijSiSj = 0;
-
-    for(int i=0; i < 3; i++)
-    {
-        for(int j=0; j < 3; j++)
-        {
-            yijSiSj += Yij[i, j] * Si[i] * Si[j];
-        }
-    }
-
-    valuef w = u0;
-    valuef calc = pow(mu + pressure, 2.f) * w*w * (w*w - 1);
-
-    if_e(pos.x() == dim.x()/2 + 15 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-        value_base se;
-        se.type = value_impl::op::SIDE_EFFECT;
-        se.abstract_value = "printf(\"left %f, right %f\\n\"," + value_to_string(yijSiSj) + "," + value_to_string(calc) + ")";
-
-        value_impl::get_context().add(se);
-    });*/
-
-    //valuef w = u0;
-    //valuef calc_ph = (mu + pressure) * w*w - pressure;
-
-    /*if_e(pos.x() == dim.x()/2 + 1 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-        value_base se;
-        se.type = value_impl::op::SIDE_EFFECT;
-        se.abstract_value = "printf(\"left %f, right %f\\n\"," + value_to_string(mu) + "," + value_to_string(mu_h) + ")";
-
-        value_impl::get_context().add(se);
-    });*/
 
     v3f Si_lo_cfl = pow(cW, -3) * Yij.lower(Si);
 
@@ -820,6 +769,14 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         dp_star += leib(p_star, vi[i], i);
         de_star += leib(e_star, vi[i], i);
 
+        /*if_e((pos.x() == dim.x()/2 - 5) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+
+            valuef s1 = diff1(p_star, i, d) * vi[i];
+            valuef s2 = diff1(vi[i], i, d) * p_star;
+
+            print("dpe* %.10f p* %.10f p1 %.10f p2 %.10f\n", -leib(p_star, vi[i], i), p_star, -s1, -s2);
+        });*/
+
         for(int k=0; k < 3; k++)
         {
             dSi_p1[k] += leib(Si[k], vi[i], i);
@@ -982,7 +939,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
         for(int j=0; j < 3; j++)
         {
-            p3 += -Si[j] * diff1(args.gB[j], k, d);
+            p3 += -Si[j] * diff1(args.gB[j], k, d) ;
         }
 
         valuef p4;
@@ -1001,7 +958,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                 }*/
 
                 valuef l1 = Si[i] / h;
-                valuef l2 = divide_with_limit(Si[j], w, 0.f, 0.000001f);
+                valuef l2 = divide_with_limit(Si[j], w, 0.f, 0.00001f);
 
                 p4 += 0.5f * args.gA * args.W * args.W * l1 * l2 * deriv;
 
@@ -1011,9 +968,9 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
         valuef w2_m_p2_calc = w2_m_p2(p_star, e_star, args.W, get_Gamma(), args.cY.invert(), Si, w);
 
-        valuef p5 = divide_with_limit(args.gA * h * w2_m_p2_calc, w, 0.f, 0.000001f) * (diff1(args.W, k, d) / max(args.W, 0.001f));
+        valuef p5 = divide_with_limit(args.gA * h * w2_m_p2_calc, w, 0.f, 0.00001f) * (diff1(args.W, k, d) / max(args.W, 0.001f));
 
-        dSi_p1[k] += p1 + p2 + p3 + p4 + p5;
+        dSi_p1[k] += (p1 + p2 + p3 + p4 + p5);
 
         /*if_e((pos.x() == dim.x()/2 + 2) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
             print("p4 %.16f\n", p4);
@@ -1023,6 +980,13 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         {
             if_e((pos.x() == dim.x()/2 + 19) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
                 print("Components %.10f %.10f %.10f %.10f %.10f\n", p1, p2, p3, p4, p5);
+            });
+        }*/
+
+        /*if(k == 0)
+        {
+            if_e((pos.x() == dim.x()/2 - 5) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+                print("Components %.10f %.10f %.10f %.10f %.10f Diff %.10f Si %f p* %f e* %f Display value %f\n", p1, p2, p3, p4, p5, dSi_p1[0], Si[0], p_star, e_star, 100 * 100 * Si[0]);
             });
         }*/
     }
@@ -1044,7 +1008,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     /*if_e(p_star >= min_p_star, [&]{
         v3f u_k = declare_e(fin_Si) / (h * p_star);
 
-        u_k = clamp(u_k, -0.2f, 0.2f);
+        u_k = clamp(u_k, -0.1f, 0.1f);
 
         as_ref(fin_Si) = u_k * h * p_star;
     });*/
