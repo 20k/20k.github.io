@@ -1220,7 +1220,7 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
 
         v4f col = {display, display, display, 1.f};
 
-        col.x() = ternary(pos.x() == dim.x()/2 - 5, valuef(1.f), col.x());
+        col.x() = ternary(pos.x() == dim.x()/2 + 7, valuef(1.f), col.x());
 
         col = clamp(col, valuef(0.f), valuef(1.f));
 
