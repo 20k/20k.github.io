@@ -642,6 +642,27 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse
     return w;
 }
 
+valuef w2_m_p2(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse_metric<valuef, 3, 3> icY, v3f Si, valuef w)
+{
+    valuef p_sq = p_star * p_star;
+    valuef cst = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            cst += icY[i, j] * Si[i] * Si[j];
+        }
+    }
+
+    cst = W*W * cst;
+
+    valuef D = w_next_interior(p_star, e_star, W, w, Gamma);
+
+    return cst * D*D;
+
+}
+
 constexpr float min_p_star = 1e-8f;
 
 ///todo: i need to de-mutify hydro
@@ -962,12 +983,12 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             {
                 valuef deriv = diff1(args.cY.invert()[i,j], k, d);
 
-                if(i == 0 && j == 0 && k == 0)
+                /*if(i == 0 && j == 0 && k == 0)
                 {
                     if_e((pos.x() == dim.x()/2 + 2) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
                         print("Metd %f %.16f %.16f\n", deriv, Si[0], Si[0] * Si[0]);
                     });
-                }
+                }*/
 
                 valuef l1 = Si[i] / h;
                 valuef l2 = divide_with_limit(Si[j], w, 0.f, 0.000001f);
@@ -978,13 +999,15 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             }
         }
 
-        valuef p5 = divide_with_limit(args.gA * h * (w*w - p_star * p_star), w, 0.f, 0.000001f) * (diff1(args.W, k, d) / max(args.W, 0.001f));
+        valuef w2_m_p2_calc = w2_m_p2(p_star, e_star, args.W, get_Gamma(), args.cY.invert(), Si, w);
+
+        valuef p5 = divide_with_limit(args.gA * h * w2_m_p2_calc, w, 0.f, 0.000001f) * (diff1(args.W, k, d) / max(args.W, 0.001f));
 
         dSi_p1[k] += p1 + p2 + p3 + p4 + p5;
 
-        if_e((pos.x() == dim.x()/2 + 2) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+        /*if_e((pos.x() == dim.x()/2 + 2) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
             print("p4 %.16f\n", p4);
-        });
+        });*/
 
         /*if(k == 0)
         {
