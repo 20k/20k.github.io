@@ -158,11 +158,20 @@ struct mesh
             init.add(p1);
             init.add(p2);*/
 
+            #if 0
             neutron_star::parameters p1;
             p1.position = {0, 0, 0};
             p1.angular_momentum = {0, 0, 1.25};
             p1.linear_momentum = {0, 0, 0};
             p1.p0_c_kg_m3 = 6.235 * pow(10., 17.);
+            #endif
+
+            neutron_star::parameters p1;
+            p1.position = {0, 0, 0};
+            p1.angular_momentum = {0, 0, 0};
+            p1.linear_momentum = {0.25, 0, 0};
+            p1.K = 123.6;
+            p1.p0_c_kg_m3 = 5.91 * pow(10., 17.);
 
             initial_conditions init(ctx, cqueue, dim);
 
