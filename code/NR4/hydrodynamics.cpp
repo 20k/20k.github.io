@@ -767,9 +767,9 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     auto leib = [&](valuef v1, valuef v2, int i)
     {
-        return diff1(v1 * v2, i, d);
+        //return diff1(v1 * v2, i, d);
 
-        //return diff1(v1, i, d) * v2 + diff1(v2, i, d) * v1;
+        return diff1(v1, i, d) * v2 + diff1(v2, i, d) * v1;
     };
 
     valuef dp_star = 0;
@@ -784,13 +784,14 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         dp_star += leib(p_star, vi[i], i);
         de_star += leib(e_star, vi[i], i);
 
-        /*for(int k=0; k < 3; k++)
+        for(int k=0; k < 3; k++)
         {
             dSi_p1[k] += leib(Si[k], vi[i], i);
             //dSi_p1[k] += diff1(Si[k] * vi[i], i, d);
-        }*/
+        }
     }
 
+    #if 0
     {
         tensor<valuef, 3, 3> SkVi;
 
@@ -821,6 +822,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             }*/
         }
     }
+    #endif
 
     dp_star = -dp_star;
     de_star = -de_star;
