@@ -896,10 +896,13 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         //print("Si %.10f %f %f p* %f e* %f u1 %f u0 %f h %f epsilon %.16f Display value %f\n", Si[0], Si[1], Si[2], p_star, e_star, u1, u0, h, epsilon, Si[0] * 100 * 100);
     });*/
 
-    /*if_e((pos.x() == dim.x()/2 + 19 || pos.x() == dim.x()/2 + 18 || pos.x() == dim.x()/2 + 20) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-        print("gA %f Display value %f\n",args.gA, Si[0] * 100 * 100);
-        //print("Si %.10f %f %f p* %f e* %f u1 %f u0 %f h %f epsilon %.16f Display value %f\n", Si[0], Si[1], Si[2], p_star, e_star, u1, u0, h, epsilon, Si[0] * 100 * 100);
-    });*/
+    if_e(pos.x() == dim.x()/2 + 7 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+        //print("gA %f Display value %f\n",args.gA, Si[0] * 100 * 100);
+        valuef u0 = w / (p_star * args.gA);
+        valuef u1 = Si[0] / (h * p_star);
+
+        print("Si %.10f %f %f p* %f e* %f u1 %f u0 %f h %f epsilon %.16f Display value %f\n", Si[0], Si[1], Si[2], p_star, e_star, u1, u0, h, epsilon, Si[0] * 100 * 100);
+    });
 
     ///todo: think I've figured it out. epsilon is huge, p0 is zero effectively
     ///i think I'm clamping e*, but i also need to recalculate and clamp sk
@@ -1005,13 +1008,16 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         as_ref(fin_Si[i]) = h_base.Si[i][pos, dim] + timestep.get() * dSi_p1[i];
     }
 
-    /*if_e(p_star >= min_p_star, [&]{
+    #define CLAMP_HIGH_VELOCITY
+    #ifdef CLAMP_HIGH_VELOCITY
+    if_e(p_star >= min_p_star, [&]{
         v3f u_k = declare_e(fin_Si) / (h * p_star);
 
         u_k = clamp(u_k, -0.1f, 0.1f);
 
         as_ref(fin_Si) = u_k * h * p_star;
-    });*/
+    });
+    #endif
 
     //fin_Si = clamp(fin_Si, -0.005f, 0.005f);
 
