@@ -36,7 +36,7 @@ valuef calculate_p0e(valuef Gamma, valuef W, valuef w, valuef p_star, valuef e_s
 {
     //valuef iv_au0 = p_star / max(w, 0.001f);
 
-    valuef iv_au0 = divide_with_limit(p_star, w, 0.f);
+    valuef iv_au0 = divide_with_limit(p_star, w, 0.f, 0.000001f);
 
     valuef e_m6phi = W*W*W;
 
@@ -707,6 +707,8 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
 
     v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, hydro_args.Si, args.cY);
 
+    //vi = clamp(vi, -0.05f, 0.05f);
+
     /*if_e(pos.x() == dim.x()/2 + 20 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
         print("Vi %f %f %f p* %.23f e* %.23f\n", vi[0], vi[1], vi[2], hydro_args.p_star, hydro_args.e_star);
     });*/
@@ -813,14 +815,6 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
             /*if(k == 0)
             {
-                if_e((pos.x() == dim.x()/2 + 2) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-                    print("dSi %f\n", sum);
-                });
-            }*/
-
-
-            /*if(k == 0)
-            {
                 if_e((pos.x() == dim.x()/2 + 19) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
                     print("dSi %.10f\n", dSi_p1[k]);
                 });
@@ -834,7 +828,11 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     valuef h = get_h_with_gamma_eos(epsilon);
 
-    if_e((pos.x() == dim.x()/2 + 19) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+    //so: best guess
+    ///u_i is becoming extremely high for some reason
+    ///then again, does it have any meaningful value vs v^i? I guess yes in the sense that it
+    ///contributes to the stress energy tensor
+    /*if_e((pos.x() == dim.x()/2 + 19) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
         valuef u0 = w / (p_star * args.gA);
 
         valuef u1 = Si[0] / (h * p_star);
@@ -843,12 +841,42 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         valuef dvi1 = diff1(vi[1], 1, d);
         valuef dvi2 = diff1(vi[2], 2, d);
 
-        print("Si %.10f p* %f e* %f u1 %f u0 %f h %f vi %.12f %.12f %.12f Display value %f\n", Si[0], p_star, e_star, u1, u0, h, dvi0, dvi1, dvi2, Si[0] * 100 * 100);
+        print("Si %.10f p* %f e* %f u1 %f u0 %f h %f vi %.12f %.12f %.12f W %f gA %f Display value %f\n", Si[0], p_star, e_star, u1, u0, h, dvi0, dvi1, dvi2, args.W, args.gA, Si[0] * 100 * 100);
+        //print("Si %.10f %f %f p* %f e* %f u1 %f u0 %f h %f epsilon %.16f Display value %f\n", Si[0], Si[1], Si[2], p_star, e_star, u1, u0, h, epsilon, Si[0] * 100 * 100);
+    });*/
+
+    /*if_e((pos.x() == dim.x()/2 + 19 || pos.x() == dim.x()/2 + 18 || pos.x() == dim.x()/2 + 20) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+        print("gA %f Display value %f\n",args.gA, Si[0] * 100 * 100);
+        //print("Si %.10f %f %f p* %f e* %f u1 %f u0 %f h %f epsilon %.16f Display value %f\n", Si[0], Si[1], Si[2], p_star, e_star, u1, u0, h, epsilon, Si[0] * 100 * 100);
+    });*/
+
+    ///todo: think I've figured it out. epsilon is huge, p0 is zero effectively
+    ///i think I'm clamping e*, but i also need to recalculate and clamp sk
+    ///hmm. there's a bit of a discontinuity. Maybe it is enough?
+    ///hmmmm. Clamping e* isn't the problem. An interesting observation is that
+    ///clamping e* would cause u_k to be proportionally higher, as we don't clamp Sk
+    if_e((pos.x() == dim.x()/2 + 18) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+        valuef u0 = w / (p_star * args.gA);
+
+        valuef u1 = Si[0] / (h * p_star);
+
+        valuef dvi0 = diff1(vi[0], 0, d);
+        valuef dvi1 = diff1(vi[1], 1, d);
+        valuef dvi2 = diff1(vi[2], 2, d);
+
+        valuef p0e = calculate_p0e(get_Gamma(), args.W, w, p_star, e_star);
+        valuef p0 = p0e / epsilon;
+
+        print("vi %f %f %f Si %f %f %f u1 %f display %f\n", vi[0], vi[1], vi[2], Si[0], Si[1], Si[2], u1, Si[0] * 100 * 100);
+
+        //print("P0 %f epsilon %f p* %.12f e* %.12f e*/p* %.12f h %f display value %f\n", p0, epsilon, p_star, e_star, e_star/p_star, h, Si[0] * 100 * 100);
+
         //print("Si %.10f %f %f p* %f e* %f u1 %f u0 %f h %f epsilon %.16f Display value %f\n", Si[0], Si[1], Si[2], p_star, e_star, u1, u0, h, epsilon, Si[0] * 100 * 100);
     });
 
     ///SO
     ///Si[0] is becoming degenerate at the boundary of the neutron star for.... some ungodly reason
+    ///i wonder if systematic errors with the calculation of w, ala p*^2 could do it
     for(int k=0; k < 3; k++)
     {
         valuef p1 = (-args.gA * pow(max(args.W, 0.001f), -3.f)) * diff1(hydro_args.P, k, d);
@@ -894,12 +922,22 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     fin_e_star = ternary(fin_p_star < (1e-6f * max_p), min(fin_e_star, 10 * fin_p_star), fin_e_star);
 
-    v3f fin_Si;
+    mut_v3f fin_Si = declare_mut_e((v3f){});
 
     for(int i=0; i < 3; i++)
     {
-        fin_Si[i] = h_base.Si[i][pos, dim] + timestep.get() * dSi_p1[i];
+        as_ref(fin_Si[i]) = h_base.Si[i][pos, dim] + timestep.get() * dSi_p1[i];
     }
+
+    if_e(p_star >= min_p_star, [&]{
+        v3f u_k = declare_e(fin_Si) / (h * p_star);
+
+        u_k = clamp(u_k, -0.2f, 0.2f);
+
+        as_ref(fin_Si) = u_k * h * p_star;
+    });
+
+    //fin_Si = clamp(fin_Si, -0.005f, 0.005f);
 
     if_e((pos.x() == dim.x()/2 + 2) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
          ///so: the higher Si (and vi or ui), the more p_star is smanged away from the core
@@ -942,7 +980,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
         for(int i=0; i < 3; i++)
         {
-            as_ref(h_out.Si[i][pos, dim]) = fin_Si[i];
+            as_ref(h_out.Si[i][pos, dim]) = as_constant(fin_Si[i]);
         }
     //});
 }
