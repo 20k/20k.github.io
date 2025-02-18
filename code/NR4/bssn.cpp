@@ -958,7 +958,9 @@ void make_momentum_constraint(cl::context ctx, const std::vector<plugin*>& plugi
             return_e();
         });
 
-        auto Mi = calculate_momentum_constraint(args, d, plugin_data.mem.adm_Si(args, d));
+        v3f Si_lower = plugin_data.mem.adm_Si(args, d);
+
+        auto Mi = calculate_momentum_constraint(args, d, Si_lower);
 
         for(int i=0; i < 3; i++)
         {
