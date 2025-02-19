@@ -111,17 +111,6 @@ struct all_adm_args_mem : value_impl::single_source::argument_pack
     }
 };
 
-template<all_adm_args_mem& arg>
-struct arg_data : value_impl::single_source::argument_pack
-{
-    all_adm_args_mem mem = arg;
-
-    void build(value_impl::type_storage& in)
-    {
-        return mem.build(in);
-    }
-};
-
 struct buffer_provider
 {
     virtual std::vector<buffer_descriptor> get_description(){assert(false);}

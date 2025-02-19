@@ -911,21 +911,18 @@ valuef apply_evolution(const valuef& base, const valuef& dt, valuef timestep)
     return base + dt * timestep;
 }
 
-static all_adm_args_mem static_tramp2;
-
 void make_momentum_constraint(cl::context ctx, const std::vector<plugin*>& plugins)
 {
-    static_tramp2 = make_arg_provider(plugins);
-
-    auto func = [](execution_context&, bssn_args_mem<buffer<valuef>> in,
-                                       arg_data<static_tramp2> plugin_data,
-                                       std::array<buffer_mut<momentum_t>, 3> momentum_constraint,
-                                       literal<v3i> ldim,
-                                       literal<valuef> scale
-                                       //buffer<tensor<value<short>, 3>> positions,
-                                       //literal<valuei> positions_length
-                                       ) {
+    auto func = [plugins](execution_context&,
+                          bssn_args_mem<buffer<valuef>> in,
+                          value_impl::builder::placeholder plugin_ph,
+                          std::array<buffer_mut<momentum_t>, 3> momentum_constraint,
+                          literal<v3i> ldim,
+                          literal<valuef> scale) {
         using namespace single_source;
+
+        all_adm_args_mem plugin_data = make_arg_provider(plugins);
+        plugin_ph.add(plugin_data);
 
         valuei lid = value_impl::get_global_id(0);
 
@@ -958,7 +955,7 @@ void make_momentum_constraint(cl::context ctx, const std::vector<plugin*>& plugi
             return_e();
         });
 
-        v3f Si_lower = plugin_data.mem.adm_Si(args, d);
+        v3f Si_lower = plugin_data.adm_Si(args, d);
 
         auto Mi = calculate_momentum_constraint(args, d, Si_lower);
 
@@ -974,18 +971,14 @@ void make_momentum_constraint(cl::context ctx, const std::vector<plugin*>& plugi
     }, {"momentum_constraint"});
 }
 
-static all_adm_args_mem static_tramp;
-
 ///https://arxiv.org/pdf/0709.3559 tested, appendix a.2
 void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins)
 {
-    static_tramp = make_arg_provider(plugins);
-
-    auto bssn_function = [](execution_context&, bssn_args_mem<buffer<valuef>> base,
+    auto bssn_function = [plugins](execution_context&, bssn_args_mem<buffer<valuef>> base,
                                                  bssn_args_mem<buffer<valuef>> in,
                                                  bssn_args_mem<buffer_mut<valuef>> out,
                                                  bssn_derivatives_mem<buffer<derivative_t>> derivatives,
-                                                 arg_data<static_tramp> plugin_data,
+                                                 value_impl::builder::placeholder plugin_ph,
                                                  std::array<buffer<momentum_t>, 3> momentum_constraint,
                                                  literal<valuef> timestep,
                                                  literal<valuef> scale,
@@ -994,6 +987,9 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins)
                                                  buffer<tensor<value<short>, 3>> positions,
                                                  literal<valuei> positions_length) {
         using namespace single_source;
+
+        all_adm_args_mem plugin_data = make_arg_provider(plugins);
+        plugin_ph.add(plugin_data);
 
         valuei lid = value_impl::get_global_id(0);
 
@@ -1025,9 +1021,9 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins)
             Mi[i] = momentum_constraint[i][pos, dim];
         }
 
-        valuef rho_s = plugin_data.mem.adm_p(args, d);
-        v3f Si = plugin_data.mem.adm_Si(args, d);
-        tensor<valuef, 3, 3> W2_Sij = plugin_data.mem.adm_W2_Sij(args, d);
+        valuef rho_s = plugin_data.adm_p(args, d);
+        v3f Si = plugin_data.adm_Si(args, d);
+        tensor<valuef, 3, 3> W2_Sij = plugin_data.adm_W2_Sij(args, d);
 
         valuef S = 0;
 
@@ -1179,10 +1175,11 @@ static all_adm_args_mem static_tramp_debug;
 
 void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
 {
-    static_tramp_debug = make_arg_provider(plugins);
-
-    auto func = [](execution_context&, bssn_args_mem<buffer<valuef>> in, arg_data<static_tramp_debug> plugin_data, literal<v3i> ldim, literal<valuef> scale, write_only_image<2> write) {
+    auto func = [plugins](execution_context&, bssn_args_mem<buffer<valuef>> in, value_impl::builder::placeholder plugin_ph, literal<v3i> ldim, literal<valuef> scale, write_only_image<2> write) {
         using namespace single_source;
+
+        all_adm_args_mem plugin_data = make_arg_provider(plugins);
+        plugin_ph.add(plugin_data);
 
         valuei lid = value_impl::get_global_id(0);
 
@@ -1209,7 +1206,7 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
 
         //valuef p = plugin_data.mem.adm_p(args, d);
 
-        valuef p = plugin_data.mem.dbg(args, d);
+        valuef p = plugin_data.dbg(args, d);
 
         //valuef test_val = in.cY[0][lid];
         //valuef display = ((test_val - 1) / 0.1f) * 0.5f + 0.5f;
