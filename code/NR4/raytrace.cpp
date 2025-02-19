@@ -646,8 +646,16 @@ void trace3(execution_context& ectx, literal<v2i> screen_sizel,
         v3f colour = {1,1,1};
 
         as_ref(accumulated_occlusion) += density * sample_length;
+
+        valuef transparency = exp(-as_constant(accumulated_occlusion));
+
         ///assuming that the intrinsic brightness is a function of density
-        as_ref(accumulated_colour) += density * colour * sample_length * exp(-as_constant(accumulated_occlusion));
+        as_ref(accumulated_colour) += density * colour * sample_length * transparency;
+
+        if_e(transparency <= 0.001f, [&]{
+            as_ref(result) = valuei(1);
+            break_e();
+        });
 
         //terminate if the movement of our ray through coordinate space becomes trapped, its likely hit an event horizon
         if_e(diff.squared_length() < 0.1f * 0.1f, [&]
