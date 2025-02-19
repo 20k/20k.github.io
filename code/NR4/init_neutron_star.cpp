@@ -423,6 +423,20 @@ void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cq
                 std::array<buffer_mut<valuef>, 6> AIJ_out, buffer_mut<valuef> mu_cfl_out, buffer_mut<valuef> mu_h_cfl_out, buffer_mut<valuef> pressure_cfl_out,
                 std::array<buffer_mut<valuef>, 3> Si_out)*/
 
+    t3f angular_momentum;
+
+    if(params.angular_momentum.momentum)
+        angular_momentum = params.angular_momentum.momentum.value();
+
+    if(params.angular_momentum.dimensionless)
+    {
+        dimensionless_angular_momentum dam = params.angular_momentum.dimensionless.value();
+
+        ///x = J/M^2
+        ///J = x M^2
+        angular_momentum = dam.axis * dam.x * p0_msols * p0_msols;
+    }
+
     {
         cl_float clM = M;
         cl_float clsN = squiggly_N;
@@ -444,7 +458,7 @@ void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cq
         args.push_back(scale);
         args.push_back((t3f)params.position);
         args.push_back((t3f)params.linear_momentum);
-        args.push_back((t3f)params.angular_momentum);
+        args.push_back((t3f)angular_momentum);
         args.push_back(dsol.AIJ_cfl[0], dsol.AIJ_cfl[1], dsol.AIJ_cfl[2], dsol.AIJ_cfl[3], dsol.AIJ_cfl[4], dsol.AIJ_cfl[5]);
         args.push_back(dsol.mu_h_cfl);
         args.push_back(dsol.Si_cfl[0], dsol.Si_cfl[1], dsol.Si_cfl[2]);
@@ -498,6 +512,8 @@ neutron_star::data::data(const parameters& p) : params(p)
 
     start = tov::make_integration_state(p0_msols, 1e-6, tov_params);
     sol = tov::solve_tov(start, tov_params, 1e-6, 0);
+
+    total_mass = sol.M_msol;
 }
 
 neutron_star::numerical_eos neutron_star::data::get_eos()

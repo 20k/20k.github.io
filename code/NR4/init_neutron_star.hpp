@@ -35,11 +35,24 @@ namespace neutron_star
         std::optional<param_rest_mass> rest_mass;
     };
 
+    struct dimensionless_angular_momentum
+    {
+        t3f axis = {0, 0, 1};
+        ///J / M^2 = x
+        double x = 0;
+    };
+
+    struct param_angular_momentum
+    {
+        std::optional<t3f> momentum;
+        std::optional<dimensionless_angular_momentum> dimensionless;
+    };
+
     struct parameters
     {
         tensor<float, 3> position;
         tensor<float, 3> linear_momentum;
-        tensor<float, 3> angular_momentum;
+        param_angular_momentum angular_momentum;
 
         double Gamma = 2;
 
@@ -73,6 +86,7 @@ namespace neutron_star
         parameters params;
         tov::integration_solution sol;
         double p0_msols = 0;
+        double total_mass = 0;
 
         data(const parameters& p);
 
