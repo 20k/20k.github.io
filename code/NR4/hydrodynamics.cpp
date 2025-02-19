@@ -30,17 +30,10 @@ valuef e_star_to_epsilon(valuef p_star, valuef e_star, valuef W, valuef w)
     valuef Gamma = get_Gamma();
 
     return pow(safe_divide(e_m6phi, w), Gamma - 1) * pow(e_star, Gamma) * pow(p_star, Gamma - 2);
-
-    //return pow(divide_with_limit(e_m6phi * pow(e_star, Gamma) * pow(p_star, Gamma - 2), w, 0.f, 0.000001f), Gamma-1);
-    //return pow(divide_with_limit(e_m6phi * pow(e_star, Gamma) * pow(p_star, Gamma - 2), w, 0.f, 0.000001f), Gamma-1);
-
-    //return pow(e_m6phi / max(w, 0.001f), Gamma-1) * pow(e_star, Gamma) * pow(p_star, Gamma - 2);
 }
 
 valuef calculate_p0e(valuef Gamma, valuef W, valuef w, valuef p_star, valuef e_star)
 {
-    //valuef iv_au0 = p_star / max(w, 0.001f);
-
     valuef iv_au0 = safe_divide(p_star, w);
 
     valuef e_m6phi = W*W*W;
@@ -56,8 +49,6 @@ valuef gamma_eos(valuef Gamma, valuef W, valuef w, valuef p_star, valuef e_star)
 template<typename T>
 valuef full_hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& d)
 {
-    //return {};
-
     valuef lw = w[d.pos, d.dim];
     //valuef lP = P[d.pos, d.dim];
     valuef es = max(e_star[d.pos, d.dim], 0.f);
@@ -73,8 +64,6 @@ valuef full_hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& 
 template<typename T>
 tensor<valuef, 3> full_hydrodynamic_args<T>::adm_Si(bssn_args& args, const derivative_data& d)
 {
-    //return {};
-
     v3f cSi = {Si[0][d.pos, d.dim], Si[1][d.pos, d.dim], Si[2][d.pos, d.dim]};
 
     return pow(args.W, 3.f) * cSi;
@@ -83,15 +72,10 @@ tensor<valuef, 3> full_hydrodynamic_args<T>::adm_Si(bssn_args& args, const deriv
 template<typename T>
 tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, const derivative_data& d)
 {
-    //return {};
-
     valuef ps =  max(p_star[d.pos, d.dim], 0.f);
     valuef es =  max(e_star[d.pos, d.dim], 0.f);
     v3f cSi = {Si[0][d.pos, d.dim], Si[1][d.pos, d.dim], Si[2][d.pos, d.dim]};
     valuef lw = w[d.pos, d.dim];
-    //valuef lP = P[d.pos, d.dim];
-
-    //valuef lP = calculate_p0e(get_Gamma(), args.W, lw, ps, es) * (get_Gamma() - 1);
 
     valuef lP = gamma_eos(get_Gamma(), args.W, lw, ps, es);
 
@@ -106,7 +90,6 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
         for(int j=0; j < 3; j++)
         {
             W2_Sij[i, j] = safe_divide(pow(args.W, 5.f) * cSi[i] * cSi[j], lw * h);
-            //W2_Sij[i, j] = (pow(args.W, 5.f) / max(lw * h, 0.001f)) * cSi[i] * cSi[j];
         }
     }
 
@@ -119,8 +102,8 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
     valuef h = get_h_with_gamma_eos(epsilon);
 
     //note to self, actually hand derived this and am sure its correct
+    //tol is very intentionally set to 1e-6, breaks if lower than this
     return -gB + safe_divide(W*W * gA, w*h, 1e-6) * cY.invert().raise(Si);
-    //return -gB + ((W*W * gA * cY.invert().raise(Si)) / max(w*h, 0.001f));
 }
 
 template<typename T>
@@ -310,9 +293,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
         return mix(eos_data.pressures[offset + fidx], eos_data.pressures[offset + fidx + 1], idx - floor(idx));
     };
 
-    //valuef mu_cfl = mu_cfl_b[pos, dim];
     valuef mu_h_cfl = mu_h_cfl_b[pos, dim];
-    //valuef pressure_cfl = pressure_cfl_b[pos, dim];
     valuef phi = cfl_b[pos, dim] + u_correction_b[pos, dim];
     v3f Si_cfl = {Si_cfl_b[0][pos, dim], Si_cfl_b[1][pos, dim], Si_cfl_b[2][pos, dim]};
 
@@ -321,8 +302,6 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     valuef Gamma = get_Gamma();
 
-    ///ok, lets operate under the assumption that W = 1, and the pressure is wrong
-    ///that means that mu = ph, so we can assume that mu is correct
     auto mu_to_p0 = [&](valuef mu)
     {
         ///mu = p0 + f(p0) / (Gamma-1)
@@ -348,8 +327,6 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
             pin(mu1);
 
             if_e(mu >= mu0 && mu <= mu1, [&]{
-                //print("hello %f\n", mu);
-
                 valuef frac = (mu - mu0) / (mu1 - mu0);
 
                 as_ref(out) = mix(d0, d1, frac);
@@ -404,10 +381,6 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
             pin(test_muh1);
             pin(test_muh2);
 
-            /*if_e(pos.x() == dim.x()/2 + 2 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-                print("hello searching %f lower %f upper %f test1 %f test2 %f\n", muh, test_muh1, test_muh2, test_mu1, test_mu2);
-            });*/
-
             if_e(muh >= test_muh1 && muh <= test_muh2, [&]{
 
                 valuef frac = (muh - test_muh1) / (test_muh2 - test_muh1);
@@ -444,7 +417,6 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
         //(yijsisj) / (mu+p)^2 = W^4 - W^2
         //C = W^4 - W^2
         //W = sqrt(1 + sqrt(4C + 1)) / sqrt(2)
-
         valuef p0 = mu_to_p0(mu);
         valuef pressure = p0_to_pressure(mu);
 
@@ -455,12 +427,12 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
         valuef next_W = sqrt(1 + sqrt(4 * C + 1)) / sqrtf(2.f);
 
         u0 = next_W;
-        mu = get_mu_for(mu_h, u0);
-        pin(u0);
-        pin(mu);
-
         //we have u0, now lets solve for mu
         //mu_h = (mu + f(mu)) * W^2 - f(mu)
+        mu = get_mu_for(mu_h, u0);
+
+        pin(u0);
+        pin(mu);
     }
 
     valuef p0 = mu_to_p0(mu);
@@ -477,13 +449,8 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     valuef p_star = p0 * gA * u0 * pow(cW, -3);
     valuef e_star = pow(p0_e, (1/Gamma)) * gA * u0 * pow(cW, -3);
 
-
+    ///Si isn't well defined when gA != 1 in our init conditions
     v3f Si_lo_cfl = pow(cW, -3) * Yij.lower(Si);
-
-    if_e(pos.x() == dim.x()/2 + 2 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-        //print("Muh %f si %f %f %f\n", mu_h, Si_lo_cfl[0], Si_lo_cfl[1], Si_lo_cfl[2]);
-        //print("Cfl? %f\n", phi);
-    });
 
     as_ref(hydro.p_star[pos, dim]) = p_star;
     as_ref(hydro.e_star[pos, dim]) = e_star;
@@ -491,26 +458,15 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     as_ref(hydro.Si[1][pos, dim]) = Si_lo_cfl[1];
     as_ref(hydro.Si[2][pos, dim]) = Si_lo_cfl[2];
 
-    valuef real_w = p_star * gA * u0;
+    //w also isn't well defined when gA != 1
+    //valuef real_w = p_star * gA * u0;
 
     ///ok so. I'm trying to answer the quesiton of why w = p* gA u0
     ///is not the same answer as calculate_w
     valuef w = calculate_w(p_star, e_star, args.W, Gamma, args.cY.invert(), Si_lo_cfl);
 
     as_ref(hydro.w[pos, dim]) = w;
-
     as_ref(hydro.P[pos, dim]) = gamma_eos(Gamma, args.W, w, p_star, e_star);
-    //as_ref(hydro.P[pos, dim]) = (Gamma - 1) * p0_e;
-
-
-    ///ok: What've I've discovered
-    ///Si isn't well defined when gA != 1 in our init conditions
-    /*if_e(pos.x() == dim.x()/2 + 10 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-        //print("First %f", p_star * gA * u0);
-        print("P %.23f p_star %f e_star %f calc w %f numerical w %f W %f\n", hydro.P[pos, dim], p_star, e_star, real_w, w, args.W);
-        //print("Si %f %f %f\n", Si_lo_cfl[0], Si_lo_cfl[1], Si_lo_cfl[2]);
-    });*/
-
 }
 
 struct hydrodynamic_concrete
@@ -545,22 +501,14 @@ struct hydrodynamic_concrete
 
 valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev, valuef Gamma)
 {
-    valuef chi = W*W;
-    valuef em_6_phi_G = pow(chi, Gamma - 1);
-
-    valuef geg = Gamma * pow(e_star, Gamma);
-
-    //valuef A = pow(max(W, 0.00001f), 3.f * Gamma - 3.f);
+    valuef A = pow(max(W, 0.001f), 3.f * Gamma - 3.f);
     valuef wG = pow(w_prev, Gamma - 1);
 
-    return safe_divide(wG, wG + em_6_phi_G * geg * pow(p_star, Gamma - 2));
+    return safe_divide(wG, wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 1e-7f), Gamma - 2));
 
     //return wG / max(wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 0.00001f), Gamma - 2), 0.0001f);
 }
 
-///i'm getting slightyl different results between this method, and the analytic methd for the initial conditions
-///checkme thoroughly
-///have a feeling it might be pure numerical problems
 valuef calculate_w(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse_metric<valuef, 3, 3> icY, v3f Si)
 {
     using namespace single_source;
@@ -658,36 +606,12 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
     w = max(w, hydro_args.p_star * args.gA * 1);
 
     valuef P = gamma_eos(get_Gamma(), args.W, w, hydro_args.p_star, hydro_args.e_star);
-
-    ///hmmmm.. si?
-    /*if_e(pos.x() == dim.x()/2 + 10 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-
-        print("P %.23f p_star %f e_star %f w %f W %f Si %f %f %f\n", hydro.P[pos, dim], hydro_args.p_star, hydro_args.e_star, w, args.W, hydro_args.Si[0], hydro_args.Si[1], hydro_args.Si[2]);
-        //print("First %f", p_star * gA * u0);
-        //print("P %.23f\n", hydro.P[pos, dim]);
-        //print("Si %f %f %f\n", Si_lo_cfl[0], Si_lo_cfl[1], Si_lo_cfl[2]);
-    });*/
-
-    /*if_e(pos.x() == dim.x()/2 + 20 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-        value_base se;
-        se.type = value_impl::op::SIDE_EFFECT;
-        se.abstract_value = "printf(\"p %f pstar %f\\n\"," + value_to_string(P) + "," + value_to_string(hydro_args.p_star) + ")";
-
-        value_impl::get_context().add(se);
-    });*/
-
     valuef epsilon = e_star_to_epsilon(hydro_args.p_star, hydro_args.e_star, args.W, w);
 
     as_ref(hydro.w[pos, dim]) = w;
     as_ref(hydro.P[pos, dim]) = P;
 
     v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, hydro_args.Si, args.cY);
-
-    //vi = clamp(vi, -0.05f, 0.05f);
-
-    /*if_e(pos.x() == dim.x()/2 + 20 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-        print("Vi %f %f %f p* %.23f e* %.23f\n", vi[0], vi[1], vi[2], hydro_args.p_star, hydro_args.e_star);
-    });*/
 
     as_ref(hydro.vi[0][pos, dim]) = vi[0];
     as_ref(hydro.vi[1][pos, dim]) = vi[1];
@@ -730,21 +654,11 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     valuef epsilon = e_star_to_epsilon(p_star, e_star, args.W, w);
 
-    //valuef p0e = calculate_p0e(get_Gamma(), args.W, w, p_star, e_star);
-    //valuef p0 = p0e / epsilon;
-
-    /*if_e((pos.x() == dim.x()/2 + 2) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-        print("epsilon %f e_star %f Pressure %f p0 %f p_star %f w %f\n", epsilon, e_star, hydro_args.P, p0, p_star, w);
-    });*/
-
-    //v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY);
-
     v3f vi = {util.vi[0][pos, dim], util.vi[1][pos, dim], util.vi[2][pos, dim]};
 
     auto leib = [&](valuef v1, valuef v2, int i)
     {
         //return diff1(v1 * v2, i, d);
-
         return diff1(v1, i, d) * v2 + diff1(v2, i, d) * v1;
     };
 
@@ -759,59 +673,12 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     for(int i=0; i < 3; i++)
     {
-        //dp_star += diff1(p_star * vi[i], i, d);
-        //de_star += diff1(e_star * vi[i], i, d);
-
         dp_star += leib(p_star, vi[i], i);
         de_star += leib(e_star, vi[i], i);
 
-        /*if_e((pos.x() == dim.x()/2 - 5) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-
-            valuef s1 = diff1(p_star, i, d) * vi[i];
-            valuef s2 = diff1(vi[i], i, d) * p_star;
-
-            print("dpe* %.10f p* %.10f p1 %.10f p2 %.10f\n", -leib(p_star, vi[i], i), p_star, -s1, -s2);
-        });*/
-
         for(int k=0; k < 3; k++)
-        {
             dSi_p1[k] += leib(Si[k], vi[i], i);
-            //dSi_p1[k] += diff1(Si[k] * vi[i], i, d);
-        }
     }
-
-    #if 0
-    {
-        tensor<valuef, 3, 3> SkVi;
-
-        for(int i=0; i < 3; i++)
-        {
-            for(int k=0; k < 3; k++)
-            {
-                SkVi[k, i] = Si[k] * vi[i];
-            }
-        }
-
-        for(int k=0; k < 3; k++)
-        {
-            valuef sum = 0;
-
-            for(int i=0; i < 3; i++)
-            {
-                sum += diff1(SkVi[k, i], i, d);
-            }
-
-            dSi_p1[k] = sum;
-
-            /*if(k == 0)
-            {
-                if_e((pos.x() == dim.x()/2 + 19) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-                    print("dSi %.10f\n", dSi_p1[k]);
-                });
-            }*/
-        }
-    }
-    #endif
 
     dp_star = -dp_star;
     de_star = -de_star;
@@ -875,60 +742,6 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     valuef h = get_h_with_gamma_eos(epsilon);
 
-    //so: best guess
-    ///u_i is becoming extremely high for some reason
-    ///then again, does it have any meaningful value vs v^i? I guess yes in the sense that it
-    ///contributes to the stress energy tensor
-    /*if_e((pos.x() == dim.x()/2 + 19) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-        valuef u0 = w / (p_star * args.gA);
-
-        valuef u1 = Si[0] / (h * p_star);
-
-        valuef dvi0 = diff1(vi[0], 0, d);
-        valuef dvi1 = diff1(vi[1], 1, d);
-        valuef dvi2 = diff1(vi[2], 2, d);
-
-        print("Si %.10f p* %f e* %f u1 %f u0 %f h %f vi %.12f %.12f %.12f W %f gA %f Display value %f\n", Si[0], p_star, e_star, u1, u0, h, dvi0, dvi1, dvi2, args.W, args.gA, Si[0] * 100 * 100);
-        //print("Si %.10f %f %f p* %f e* %f u1 %f u0 %f h %f epsilon %.16f Display value %f\n", Si[0], Si[1], Si[2], p_star, e_star, u1, u0, h, epsilon, Si[0] * 100 * 100);
-    });*/
-
-    /*if_e(pos.x() == dim.x()/2 + 7 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-        //print("gA %f Display value %f\n",args.gA, Si[0] * 100 * 100);
-        valuef u0 = w / (p_star * args.gA);
-        valuef u1 = Si[0] / (h * p_star);
-
-        print("Si %.10f %f %f p* %f e* %f u1 %f u0 %f h %f epsilon %.16f Display value %f\n", Si[0], Si[1], Si[2], p_star, e_star, u1, u0, h, epsilon, Si[0] * 100 * 100);
-    });*/
-
-    ///todo: think I've figured it out. epsilon is huge, p0 is zero effectively
-    ///i think I'm clamping e*, but i also need to recalculate and clamp sk
-    ///hmm. there's a bit of a discontinuity. Maybe it is enough?
-    ///hmmmm. Clamping e* isn't the problem. An interesting observation is that
-    ///clamping e* would cause u_k to be proportionally higher, as we don't clamp Sk
-    #if 0
-    if_e((pos.x() == dim.x()/2 + 18) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-        valuef u0 = w / (p_star * args.gA);
-
-        valuef u1 = Si[0] / (h * p_star);
-
-        valuef dvi0 = diff1(vi[0], 0, d);
-        valuef dvi1 = diff1(vi[1], 1, d);
-        valuef dvi2 = diff1(vi[2], 2, d);
-
-        valuef p0e = calculate_p0e(get_Gamma(), args.W, w, p_star, e_star);
-        valuef p0 = p0e / epsilon;
-
-        print("vi %f %f %f Si %f %f %f u1 %f display %f\n", vi[0], vi[1], vi[2], Si[0], Si[1], Si[2], u1, Si[0] * 100 * 100);
-
-        //print("P0 %f epsilon %f p* %.12f e* %.12f e*/p* %.12f h %f display value %f\n", p0, epsilon, p_star, e_star, e_star/p_star, h, Si[0] * 100 * 100);
-
-        //print("Si %.10f %f %f p* %f e* %f u1 %f u0 %f h %f epsilon %.16f Display value %f\n", Si[0], Si[1], Si[2], p_star, e_star, u1, u0, h, epsilon, Si[0] * 100 * 100);
-    });
-    #endif
-
-    ///SO
-    ///Si[0] is becoming degenerate at the boundary of the neutron star for.... some ungodly reason
-    ///i wonder if systematic errors with the calculation of w, ala p*^2 could do it
     for(int k=0; k < 3; k++)
     {
         valuef p1 = (-args.gA * pow(max(args.W, 0.001f), -3.f)) * diff1(hydro_args.P, k, d);
@@ -949,19 +762,10 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             {
                 valuef deriv = diff1(args.cY.invert()[i,j], k, d);
 
-                /*if(i == 0 && j == 0 && k == 0)
-                {
-                    if_e((pos.x() == dim.x()/2 + 2) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-                        print("Metd %f %.16f %.16f\n", deriv, Si[0], Si[0] * Si[0]);
-                    });
-                }*/
-
                 valuef l1 = Si[i] / h;
                 valuef l2 = safe_divide(Si[j], w);
 
                 p4 += 0.5f * args.gA * args.W * args.W * l1 * l2 * deriv;
-
-                //p4 += divide_with_limit(0.5f * args.gA * args.W * args.W * Si[i] * Si[j] * deriv, w * h, 0.f, 0.000001f);
             }
         }
 
@@ -970,24 +774,6 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         valuef p5 = safe_divide(args.gA * h * w2_m_p2_calc, w) * (diff1(args.W, k, d) / max(args.W, 0.001f));
 
         dSi_p1[k] += (p1 + p2 + p3 + p4 + p5);
-
-        /*if_e((pos.x() == dim.x()/2 + 2) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-            print("p4 %.16f\n", p4);
-        });*/
-
-        /*if(k == 0)
-        {
-            if_e((pos.x() == dim.x()/2 + 19) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-                print("Components %.10f %.10f %.10f %.10f %.10f\n", p1, p2, p3, p4, p5);
-            });
-        }*/
-
-        /*if(k == 0)
-        {
-            if_e((pos.x() == dim.x()/2 - 5) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-                print("Components %.10f %.10f %.10f %.10f %.10f Diff %.10f Si %f p* %f e* %f Display value %f\n", p1, p2, p3, p4, p5, dSi_p1[0], Si[0], p_star, e_star, 100 * 100 * Si[0]);
-            });
-        }*/
     }
 
     valuef fin_p_star = max(h_base.p_star[pos, dim] + timestep.get() * dp_star, 0.f);
@@ -1015,23 +801,6 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     });
     #endif
 
-    //fin_Si = clamp(fin_Si, -0.005f, 0.005f);
-
-    if_e((pos.x() == dim.x()/2 + 2) && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-         ///so: the higher Si (and vi or ui), the more p_star is smanged away from the core
-         ///why is Si increasing?
-        //print("dVi %f %f %f\n", diff1(vi[0], 0, d), diff1(vi[1], 1, d), diff1(vi[2], 2, d));
-
-        //print("vi %f %f %f dp_star %f p_star %f timestep %f\n", vi[0], vi[1], vi[2], dp_star, p_star, timestep.get());
-         //print("p* %f\n", p_star);
-         //print("w %f\n", w / p_star);
-        //print("si %f %f %f\n", fin_Si[0] / (p_star * h), fin_Si[1] / (p_star * h), fin_Si[2] / (p_star * h));
-    });
-
-    ///something wonky is going on, this makes everything go brighter, weirdly. The utility buffer still has stuff in it
-    ///but it shouldn't be used (?)
-    ///for some reason, having this enabled makes things brighter
-    ///tomorow: todo, check denegerate initial conditions
     if_e(fin_p_star <= min_p_star, [&]{
         as_ref(h_out.p_star[pos, dim]) = valuef(0);
         as_ref(h_out.e_star[pos, dim]) = valuef(0);
@@ -1044,23 +813,13 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         return_e();
     });
 
-    //if_e(fin_p_star > min_p_star, [&]{
-        /*as_ref(h_out.p_star[pos, dim]) = h_base.p_star[pos, dim];
-        as_ref(h_out.e_star[pos, dim]) = h_base.e_star[pos, dim];
+    as_ref(h_out.p_star[pos, dim]) = fin_p_star;
+    as_ref(h_out.e_star[pos, dim]) = fin_e_star;
 
-        for(int i=0; i < 3; i++)
-        {
-            as_ref(h_out.Si[i][pos, dim]) = h_base.Si[i][pos, dim];
-        }*/
-
-        as_ref(h_out.p_star[pos, dim]) = fin_p_star;
-        as_ref(h_out.e_star[pos, dim]) = fin_e_star;
-
-        for(int i=0; i < 3; i++)
-        {
-            as_ref(h_out.Si[i][pos, dim]) = as_constant(fin_Si[i]);
-        }
-    //});
+    for(int i=0; i < 3; i++)
+    {
+        as_ref(h_out.Si[i][pos, dim]) = as_constant(fin_Si[i]);
+    }
 }
 
 hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx)
@@ -1129,27 +888,6 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
 
 void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const plugin_step_data& sdata)
 {
-    /*for(auto& i : sdata.bssn_buffers)
-        printf("Len %i\n", i.alloc_size);
-
-    for(auto& i : sdata.buffers[sdata.base_idx])
-        printf("Len %i\n", i.alloc_size);
-
-    for(auto& i : sdata.buffers[sdata.in_idx])
-        printf("Len %i\n", i.alloc_size);
-
-    for(auto& i : sdata.buffers[sdata.out_idx])
-        printf("Len %i\n", i.alloc_size);
-
-    for(auto& i : sdata.utility_buffers)
-        printf("Len %i\n", i.alloc_size);*/
-
-    //return;
-
-    //printf("Indices %i %i %i\n", sdata.base_idx, sdata.in_idx, sdata.out_idx);
-
-    //printf("Mem ptr %p %p %p\n", sdata.buffers[sdata.base_idx][0].native_mem_object.data, sdata.buffers[sdata.in_idx][0].native_mem_object.data, sdata.buffers[sdata.out_idx][0].native_mem_object.data);
-
     {
         cl::args args;
 
@@ -1170,11 +908,7 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
         cqueue.exec("calculate_hydro_intermediates", args, {sdata.evolve_length}, {128});
     }
 
-    //assert(false);
-
     {
-        //printf("Base in out %i %i %i\n", sdata.base_idx, sdata.in_idx, sdata.out_idx);
-
         cl::args args;
 
         for(auto& i : sdata.bssn_buffers)
@@ -1200,26 +934,6 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
 
         cqueue.exec("evolve_hydro", args, {sdata.evolve_length}, {128});
     }
-
-    /*{
-        cl::args args;
-
-        for(auto& i : sdata.bssn_buffers)
-            args.push_back(i);
-
-        for(auto& i : sdata.buffers[sdata.out_idx])
-            args.push_back(i);
-
-        for(auto& i : sdata.utility_buffers)
-            args.push_back(i);
-
-        args.push_back(sdata.dim);
-        args.push_back(sdata.scale);
-        args.push_back(sdata.evolve_points);
-        args.push_back(sdata.evolve_length);
-
-        cqueue.exec("calculate_hydro_intermediates", args, {sdata.evolve_length}, {128});
-    }*/
 }
 
 void hydrodynamic_plugin::add_args_provider(all_adm_args_mem& mem)
