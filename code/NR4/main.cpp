@@ -1065,7 +1065,7 @@ void solve()
 
     tov::integration_solution sol = tov::solve_tov(st, param, rmin, 0);
 
-    std::cout << "Solved for " << sol.R / 1000. << "km " << sol.M << " msols " << std::endl;
+    std::cout << "Solved for " << sol.R_geom() / 1000. << "km " << sol.M_msol << " msols " << std::endl;
 
     std::vector<double> tov_phi = initial::calculate_tov_phi(sol);
 

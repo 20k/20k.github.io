@@ -79,17 +79,8 @@ namespace tov
 
     struct integration_solution
     {
-        //in msols
-        double M = 0;
-        //in meters
-        double R = 0;
-
-        ///keeping these as stable api endpoints
-        ///todo: fixme, this code is crap
         double M_msol = 0;
         double R_msol = 0;
-        double M_geometric = 0;
-        double R_geometric = 0;
 
         std::vector<double> energy_density;
         std::vector<double> pressure;
@@ -97,6 +88,9 @@ namespace tov
         std::vector<double> radius; //in schwarzschild coordinates, in units of c=G=mSol = 1
 
         int radius_to_index(double r) const;
+
+        double M_geom();
+        double R_geom();
     };
 
     integration_solution solve_tov(const integration_state& start, const parameters& param, double min_radius, double min_pressure);

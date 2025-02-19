@@ -145,6 +145,16 @@ tov::integration_state tov::make_integration_state_si(double p0, double rmin, co
     return make_integration_state(p0_msol, rmin, param);
 }
 
+double tov::integration_solution::M_geom()
+{
+    return msol_to_geometric(M_msol, 1);
+}
+
+double tov::integration_solution::R_geom()
+{
+    return msol_to_geometric(R_msol, 1);
+}
+
 int tov::integration_solution::radius_to_index(double r) const
 {
     assert(radius.size() > 0);
@@ -220,14 +230,8 @@ tov::integration_solution tov::solve_tov(const integration_state& start, const p
             break;
     }
 
-    sol.R = msol_to_geometric(last_r, 1);
-    sol.M = last_m;
-
     sol.R_msol = last_r;
     sol.M_msol = last_m;
-
-    sol.R_geometric = msol_to_geometric(last_r, 1);
-    sol.M_geometric = msol_to_geometric(last_m, 1);
 
     return sol;
 }
@@ -263,7 +267,7 @@ std::vector<double> tov::search_for_adm_mass(double adm_mass, const parameters& 
         integration_solution next_sol = solve_tov(next_st, param, rmin, 0.);
 
         densities[i] = test_density;
-        masses[i] = next_sol.M;
+        masses[i] = next_sol.M_msol;
     }
 
     std::vector<double> out;
