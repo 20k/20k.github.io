@@ -595,6 +595,25 @@ valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev)
     return safe_divide(wG, wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 1e-7f), Gamma - 2));
 }
 
+valuef calculate_w_constant(valuef W, const inverse_metric<valuef, 3, 3>& icY, v3f Si)
+{
+    valuef cst = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        valuef sum = 0;
+
+        for(int j=0; j < 3; j++)
+        {
+            sum += icY[i, j] * Si[j];
+        }
+
+        cst += Si[i] * sum;
+    }
+
+    return W*W * cst;
+}
+
 valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef, 3, 3> icY, v3f Si)
 {
     using namespace single_source;
@@ -602,17 +621,8 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef
     valuef w = 0.5f;
 
     valuef p_sq = p_star * p_star;
-    valuef cst = 0;
 
-    for(int i=0; i < 3; i++)
-    {
-        for(int j=0; j < 3; j++)
-        {
-            cst += icY[i, j] * Si[i] * Si[j];
-        }
-    }
-
-    cst = W*W * cst;
+    valuef cst = calculate_w_constant(W, icY, Si);
 
     //pin(p_sq);
     pin(cst);
@@ -634,17 +644,8 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef
 valuef w2_m_p2(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef, 3, 3> icY, v3f Si, valuef w)
 {
     valuef p_sq = p_star * p_star;
-    valuef cst = 0;
 
-    for(int i=0; i < 3; i++)
-    {
-        for(int j=0; j < 3; j++)
-        {
-            cst += icY[i, j] * Si[i] * Si[j];
-        }
-    }
-
-    cst = W*W * cst;
+    valuef cst = calculate_w_constant(W, icY, Si);
 
     valuef D = w_next_interior(p_star, e_star, W, w);
 
