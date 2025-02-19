@@ -554,8 +554,7 @@ valuef w2_m_p2(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse_met
 
 constexpr float min_p_star = 1e-8f;
 
-///todo: i need to de-mutify hydro
-void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_hydrodynamic_args<buffer_mut<valuef>> hydro,
+void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_base_args<buffer<valuef>> hydro, hydrodynamic_utility_args<buffer_mut<valuef>> out,
                                    literal<v3i> idim, literal<valuef> scale,
                                    buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
 {
@@ -574,25 +573,27 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
     v3i pos = (v3i)positions[lid];
     pin(pos);
 
-    hydrodynamic_concrete hydro_args(pos, dim, hydro);
+    valuef p_star = hydro.p_star[pos, dim];
+    valuef e_star = hydro.e_star[pos, dim];
+    v3f Si = {hydro.Si[0][pos, dim], hydro.Si[1][pos, dim], hydro.Si[2][pos, dim]};
 
-    if_e(hydro_args.p_star <= min_p_star, [&]{
-        as_ref(hydro.P[pos, dim]) = valuef(0);
-        as_ref(hydro.w[pos, dim]) = valuef(0);
+    if_e(p_star <= min_p_star, [&]{
+        as_ref(out.P[pos, dim]) = valuef(0);
+        as_ref(out.w[pos, dim]) = valuef(0);
 
         return_e();
     });
 
     bssn_args args(pos, dim, in);
 
-    valuef w = calculate_w(hydro_args.p_star, hydro_args.e_star, args.W, get_Gamma(), args.cY.invert(), hydro_args.Si);
-    w = max(w, hydro_args.p_star * args.gA * 1);
+    valuef w = calculate_w(p_star, e_star, args.W, get_Gamma(), args.cY.invert(), Si);
+    w = max(w, p_star * args.gA * 1);
 
-    valuef P = gamma_eos(get_Gamma(), args.W, w, hydro_args.p_star, hydro_args.e_star);
-    valuef epsilon = e_star_to_epsilon(hydro_args.p_star, hydro_args.e_star, args.W, w);
+    valuef P = gamma_eos(get_Gamma(), args.W, w, p_star, e_star);
+    valuef epsilon = e_star_to_epsilon(p_star, e_star, args.W, w);
 
-    as_ref(hydro.w[pos, dim]) = w;
-    as_ref(hydro.P[pos, dim]) = P;
+    as_ref(out.w[pos, dim]) = w;
+    as_ref(out.P[pos, dim]) = P;
 }
 
 void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
@@ -769,6 +770,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     #define CLAMP_HIGH_VELOCITY
     #ifdef CLAMP_HIGH_VELOCITY
+    ///&& p_star <= min_p_star * 10?
     if_e(p_star >= min_p_star, [&]{
         v3f u_k = declare_e(fin_Si) / (h * p_star);
 
