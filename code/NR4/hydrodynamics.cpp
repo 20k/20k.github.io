@@ -10,8 +10,6 @@ inline
 T safe_divide(const T& top, const T& bottom, float tol = 1e-7)
 {
     return top / max(bottom, T{tol});
-
-    //return ternary(bottom >= tol, top / bottom, T{limit});
 }
 
 valuef get_Gamma()
@@ -19,12 +17,12 @@ valuef get_Gamma()
     return 2;
 }
 
-valuef get_h_with_gamma_eos(valuef e)
+valuef calculate_h_from_epsilon(valuef epsilon)
 {
-    return 1 + get_Gamma() * e;
+    return 1 + get_Gamma() * epsilon;
 }
 
-valuef e_star_to_epsilon(valuef p_star, valuef e_star, valuef W, valuef w)
+valuef calculate_epsilon(valuef p_star, valuef e_star, valuef W, valuef w)
 {
     valuef e_m6phi = W*W*W;
     valuef Gamma = get_Gamma();
@@ -32,33 +30,100 @@ valuef e_star_to_epsilon(valuef p_star, valuef e_star, valuef W, valuef w)
     return pow(safe_divide(e_m6phi, w), Gamma - 1) * pow(e_star, Gamma) * pow(p_star, Gamma - 2);
 }
 
-valuef calculate_p0e(valuef Gamma, valuef W, valuef w, valuef p_star, valuef e_star)
+valuef calculate_p0e(valuef W, valuef w, valuef p_star, valuef e_star)
 {
-    valuef iv_au0 = safe_divide(p_star, w);
-
     valuef e_m6phi = W*W*W;
+    valuef Gamma = get_Gamma();
+    valuef iv_au0 = safe_divide(p_star, w);
 
     return pow(max(e_star * e_m6phi * iv_au0, 0.f), Gamma);
 }
 
-valuef gamma_eos(valuef Gamma, valuef W, valuef w, valuef p_star, valuef e_star)
+valuef eos(valuef W, valuef w, valuef p_star, valuef e_star)
 {
-    return calculate_p0e(Gamma, W, w, p_star, e_star) * (Gamma - 1);
+    valuef Gamma = get_Gamma();
+    return calculate_p0e(W, w, p_star, e_star) * (Gamma - 1);
 }
+
+//todo: I may need to set vi to 0 here manually
+//or, I may need to remove the leibnitz that I'm doing
+v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, const unit_metric<valuef, 3, 3>& cY)
+{
+    valuef h = calculate_h_from_epsilon(epsilon);
+
+    //note to self, actually hand derived this and am sure its correct
+    //tol is very intentionally set to 1e-6, breaks if lower than this
+    return -gB + safe_divide(W*W * gA, w*h, 1e-6) * cY.invert().raise(Si);
+}
+
+struct hydrodynamic_concrete
+{
+    valuef p_star;
+    valuef e_star;
+    v3f Si;
+
+    valuef w;
+    valuef P;
+
+    template<typename T>
+    hydrodynamic_concrete(v3i pos, v3i dim, full_hydrodynamic_args<T> args)
+    {
+        p_star = max(args.p_star[pos, dim], 0.f);
+        e_star = max(args.e_star[pos, dim], 0.f);
+        Si = {args.Si[0][pos, dim], args.Si[1][pos, dim], args.Si[2][pos, dim]};
+        w = args.w[pos, dim];
+        P = args.P[pos, dim];
+    }
+
+    hydrodynamic_concrete(v3i pos, v3i dim, hydrodynamic_base_args<buffer<valuef>> bargs, hydrodynamic_utility_args<buffer<valuef>> uargs)
+    {
+        p_star = max(bargs.p_star[pos, dim], 0.f);
+        e_star = max(bargs.e_star[pos, dim], 0.f);
+        Si = {bargs.Si[0][pos, dim], bargs.Si[1][pos, dim], bargs.Si[2][pos, dim]};
+        w = uargs.w[pos, dim];
+        P = uargs.P[pos, dim];
+    }
+
+    valuef calculate_h_with_eos(valuef W)
+    {
+        valuef epsilon = calculate_epsilon(W);
+
+        return ::calculate_h_from_epsilon(epsilon);
+    }
+
+    valuef calculate_epsilon(valuef W)
+    {
+        return ::calculate_epsilon(p_star, e_star, W, w);
+    }
+
+    valuef calculate_p0e(valuef W)
+    {
+        return ::calculate_p0e(W, w, p_star, e_star);
+    }
+
+    valuef eos(valuef W)
+    {
+        return ::eos(W, w, p_star, e_star);
+    }
+
+    v3f calculate_vi(valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
+    {
+        valuef epsilon = calculate_epsilon(W);
+
+        return ::calculate_vi(gA, gB, W, w, epsilon, Si, cY);
+    }
+};
 
 template<typename T>
 valuef full_hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& d)
 {
-    valuef lw = this->w[d.pos, d.dim];
-    //valuef lP = P[d.pos, d.dim];
-    valuef es = max(this->e_star[d.pos, d.dim], 0.f);
-    valuef ps = max(this->p_star[d.pos, d.dim], 0.f);
+    hydrodynamic_concrete hydro_args(d.pos, d.dim, *this);
 
-    valuef epsilon = e_star_to_epsilon(ps, es, args.W, lw);
+    valuef epsilon = hydro_args.calculate_epsilon(args.W);
 
-    valuef h = get_h_with_gamma_eos(epsilon);
+    valuef h = hydro_args.calculate_h_with_eos(args.W);
 
-    return h * lw * (args.W * args.W * args.W) - gamma_eos(get_Gamma(), args.W, lw, ps, es);
+    return h * hydro_args.w * (args.W * args.W * args.W) - hydro_args.eos(args.W);
 }
 
 template<typename T>
@@ -72,16 +137,9 @@ tensor<valuef, 3> full_hydrodynamic_args<T>::adm_Si(bssn_args& args, const deriv
 template<typename T>
 tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, const derivative_data& d)
 {
-    valuef ps =  max(this->p_star[d.pos, d.dim], 0.f);
-    valuef es =  max(this->e_star[d.pos, d.dim], 0.f);
-    v3f cSi = {this->Si[0][d.pos, d.dim], this->Si[1][d.pos, d.dim], this->Si[2][d.pos, d.dim]};
-    valuef lw = this->w[d.pos, d.dim];
+    hydrodynamic_concrete hydro_args(d.pos, d.dim, *this);
 
-    valuef lP = gamma_eos(get_Gamma(), args.W, lw, ps, es);
-
-    valuef epsilon = e_star_to_epsilon(ps, es, args.W, lw);
-
-    valuef h = get_h_with_gamma_eos(epsilon);
+    valuef h = hydro_args.calculate_h_with_eos(args.W);
 
     tensor<valuef, 3, 3> W2_Sij;
 
@@ -89,22 +147,11 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
     {
         for(int j=0; j < 3; j++)
         {
-            W2_Sij[i, j] = safe_divide(pow(args.W, 5.f) * cSi[i] * cSi[j], lw * h);
+            W2_Sij[i, j] = safe_divide(pow(args.W, 5.f) * hydro_args.Si[i] * hydro_args.Si[j], hydro_args.w * h);
         }
     }
 
-    return W2_Sij + lP * args.cY.to_tensor();
-}
-
-//todo: I may need to set vi to 0 here manually
-//or, I may need to remove the leibnitz that I'm doing
-v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, const unit_metric<valuef, 3, 3>& cY)
-{
-    valuef h = get_h_with_gamma_eos(epsilon);
-
-    //note to self, actually hand derived this and am sure its correct
-    //tol is very intentionally set to 1e-6, breaks if lower than this
-    return -gB + safe_divide(W*W * gA, w*h, 1e-6) * cY.invert().raise(Si);
+    return W2_Sij + hydro_args.eos(args.W) * args.cY.to_tensor();
 }
 
 template<typename T>
@@ -454,36 +501,8 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     valuef w = calculate_w(p_star, e_star, args.W, Gamma, args.cY.invert(), Si_lo_cfl);
 
     as_ref(hydro.w[pos, dim]) = w;
-    as_ref(hydro.P[pos, dim]) = gamma_eos(Gamma, args.W, w, p_star, e_star);
+    as_ref(hydro.P[pos, dim]) = eos(args.W, w, p_star, e_star);
 }
-
-struct hydrodynamic_concrete
-{
-    valuef p_star;
-    valuef e_star;
-    v3f Si;
-
-    valuef w;
-    valuef P;
-
-    hydrodynamic_concrete(v3i pos, v3i dim, full_hydrodynamic_args<buffer<valuef>> args)
-    {
-        p_star = max(args.p_star[pos, dim], 0.f);
-        e_star = max(args.e_star[pos, dim], 0.f);
-        Si = {args.Si[0][pos, dim], args.Si[1][pos, dim], args.Si[2][pos, dim]};
-        w = args.w[pos, dim];
-        P = args.P[pos, dim];
-    }
-
-    hydrodynamic_concrete(v3i pos, v3i dim, hydrodynamic_base_args<buffer<valuef>> bargs, hydrodynamic_utility_args<buffer<valuef>> uargs)
-    {
-        p_star = max(bargs.p_star[pos, dim], 0.f);
-        e_star = max(bargs.e_star[pos, dim], 0.f);
-        Si = {bargs.Si[0][pos, dim], bargs.Si[1][pos, dim], bargs.Si[2][pos, dim]};
-        w = uargs.w[pos, dim];
-        P = uargs.P[pos, dim];
-    }
-};
 
 valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev, valuef Gamma)
 {
@@ -587,8 +606,7 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
     valuef w = calculate_w(p_star, e_star, args.W, get_Gamma(), args.cY.invert(), Si);
     w = max(w, p_star * args.gA * 1);
 
-    valuef P = gamma_eos(get_Gamma(), args.W, w, p_star, e_star);
-    valuef epsilon = e_star_to_epsilon(p_star, e_star, args.W, w);
+    valuef P = eos(args.W, w, p_star, e_star);
 
     as_ref(out.w[pos, dim]) = w;
     as_ref(out.P[pos, dim]) = P;
@@ -628,9 +646,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     v3f Si = hydro_args.Si;
     valuef w = hydro_args.w;
 
-    valuef epsilon = e_star_to_epsilon(p_star, e_star, args.W, w);
-
-    v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, hydro_args.Si, args.cY);
+    v3f vi = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY);
 
     auto leib = [&](valuef v1, valuef v2, int i)
     {
@@ -716,7 +732,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     de_star += e_star_rhs() * 0;
     #endif
 
-    valuef h = get_h_with_gamma_eos(epsilon);
+    valuef h = hydro_args.calculate_h_with_eos(args.W);
 
     for(int k=0; k < 3; k++)
     {
