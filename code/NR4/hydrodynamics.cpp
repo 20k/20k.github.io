@@ -786,10 +786,15 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         as_ref(fin_Si[i]) = h_base.Si[i][pos, dim] + timestep.get() * dSi_p1[i];
     }
 
-    //#define CLAMP_HIGH_VELOCITY
+    #define CLAMP_HIGH_VELOCITY
     #ifdef CLAMP_HIGH_VELOCITY
     if_e(p_star >= min_p_star && p_star < min_p_star * 100, [&]{
-        v3f u_k = safe_divide(declare_e(fin_Si), h * p_star);
+        v3f dfsi = declare_e(fin_Si);
+
+        v3f u_k;
+
+        for(int i=0; i < 3; i++)
+            u_k[i] = safe_divide(dfsi[i], h * p_star);
 
         u_k = clamp(u_k, -0.1f, 0.1f);
 
