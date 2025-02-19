@@ -49,10 +49,10 @@ valuef gamma_eos(valuef Gamma, valuef W, valuef w, valuef p_star, valuef e_star)
 template<typename T>
 valuef full_hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& d)
 {
-    valuef lw = w[d.pos, d.dim];
+    valuef lw = this->w[d.pos, d.dim];
     //valuef lP = P[d.pos, d.dim];
-    valuef es = max(e_star[d.pos, d.dim], 0.f);
-    valuef ps = max(p_star[d.pos, d.dim], 0.f);
+    valuef es = max(this->e_star[d.pos, d.dim], 0.f);
+    valuef ps = max(this->p_star[d.pos, d.dim], 0.f);
 
     valuef epsilon = e_star_to_epsilon(ps, es, args.W, lw);
 
@@ -64,7 +64,7 @@ valuef full_hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& 
 template<typename T>
 tensor<valuef, 3> full_hydrodynamic_args<T>::adm_Si(bssn_args& args, const derivative_data& d)
 {
-    v3f cSi = {Si[0][d.pos, d.dim], Si[1][d.pos, d.dim], Si[2][d.pos, d.dim]};
+    v3f cSi = {this->Si[0][d.pos, d.dim], this->Si[1][d.pos, d.dim], this->Si[2][d.pos, d.dim]};
 
     return pow(args.W, 3.f) * cSi;
 }
@@ -72,10 +72,10 @@ tensor<valuef, 3> full_hydrodynamic_args<T>::adm_Si(bssn_args& args, const deriv
 template<typename T>
 tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, const derivative_data& d)
 {
-    valuef ps =  max(p_star[d.pos, d.dim], 0.f);
-    valuef es =  max(e_star[d.pos, d.dim], 0.f);
-    v3f cSi = {Si[0][d.pos, d.dim], Si[1][d.pos, d.dim], Si[2][d.pos, d.dim]};
-    valuef lw = w[d.pos, d.dim];
+    valuef ps =  max(this->p_star[d.pos, d.dim], 0.f);
+    valuef es =  max(this->e_star[d.pos, d.dim], 0.f);
+    v3f cSi = {this->Si[0][d.pos, d.dim], this->Si[1][d.pos, d.dim], this->Si[2][d.pos, d.dim]};
+    valuef lw = this->w[d.pos, d.dim];
 
     valuef lP = gamma_eos(get_Gamma(), args.W, lw, ps, es);
 
@@ -114,7 +114,7 @@ valuef full_hydrodynamic_args<T>::dbg(bssn_args& args, const derivative_data& d)
     //return sqrt(pow(Si[0][d.pos, d.dim], 2.f) + pow(Si[1][d.pos, d.dim], 2.f)) * 10;
     //return sqrt(pow(Si[0][d.pos, d.dim], 2.f) + pow(Si[2][d.pos, d.dim], 2.f)) * 100;
     //return e_star[d.pos, d.dim] * 0.5;
-    return fabs(Si[0][d.pos, d.dim]) * 100 * 100;
+    return fabs(this->Si[0][d.pos, d.dim]) * 100 * 100;
 }
 
 template struct full_hydrodynamic_args<buffer<valuef>>;

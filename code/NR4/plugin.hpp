@@ -42,7 +42,7 @@ struct buffer_descriptor
 
 ///I need to pass in the BSSN buffers by *value*, as well as our buffer struct by *value*, or at least by pointer
 ///make build a virtual fucntion, overload, and add an overloaded push
-struct adm_args_mem : value_impl::single_source::argument_pack
+struct adm_args_mem : virtual value_impl::single_source::argument_pack
 {
     virtual void build(value_impl::type_storage& store){assert(false);}
 
