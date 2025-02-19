@@ -466,8 +466,7 @@ struct hydrodynamic_concrete
     valuef w;
     valuef P;
 
-    template<typename T>
-    hydrodynamic_concrete(v3i pos, v3i dim, full_hydrodynamic_args<T> args)
+    hydrodynamic_concrete(v3i pos, v3i dim, full_hydrodynamic_args<buffer<valuef>> args)
     {
         p_star = max(args.p_star[pos, dim], 0.f);
         e_star = max(args.e_star[pos, dim], 0.f);
@@ -476,8 +475,7 @@ struct hydrodynamic_concrete
         P = args.P[pos, dim];
     }
 
-    template<typename T, typename U>
-    hydrodynamic_concrete(v3i pos, v3i dim, hydrodynamic_base_args<T> bargs, hydrodynamic_utility_args<U> uargs)
+    hydrodynamic_concrete(v3i pos, v3i dim, hydrodynamic_base_args<buffer<valuef>> bargs, hydrodynamic_utility_args<buffer<valuef>> uargs)
     {
         p_star = max(bargs.p_star[pos, dim], 0.f);
         e_star = max(bargs.e_star[pos, dim], 0.f);
