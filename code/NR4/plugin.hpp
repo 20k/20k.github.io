@@ -109,6 +109,20 @@ struct all_adm_args_mem : value_impl::single_source::argument_pack
         adm_args_mem* ptr = new T(std::move(mem));
         all_mem.push_back(ptr);
     }
+
+    template<typename T>
+    T* get()
+    {
+        for(adm_args_mem* ptr : all_mem)
+        {
+            auto cst = dynamic_cast<T*>(ptr);
+
+            if(cst)
+                return cst;
+        }
+
+        return nullptr;
+    }
 };
 
 struct buffer_provider
