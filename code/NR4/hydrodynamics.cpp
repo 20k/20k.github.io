@@ -112,6 +112,35 @@ struct hydrodynamic_concrete
 
         return ::calculate_vi(gA, gB, W, w, epsilon, Si, cY);
     }
+
+    ///rhs here to specifically indicate that we're returning -(di Vec v^i), ie the negative
+    valuef advect_rhs(valuef in, v3f vi, const derivative_data& d)
+    {
+        auto leib = [&](valuef v1, valuef v2, int i)
+        {
+            //return diff1(v1 * v2, i, d);
+            return diff1(v1, i, d) * v2 + diff1(v2, i, d) * v1;
+        };
+
+        valuef sum = 0;
+
+        for(int i=0; i < 3; i++)
+        {
+            sum += leib(in, vi[i], i);
+        }
+
+        return -sum;
+    }
+
+    v3f advect_rhs(v3f in, v3f vi, const derivative_data& d)
+    {
+        v3f ret;
+
+        for(int i=0; i < 3;  i++)
+            ret[i] = advect_rhs(in[i], vi, d);
+
+        return ret;
+    }
 };
 
 template<typename T>
@@ -648,33 +677,9 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     v3f vi = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY);
 
-    auto leib = [&](valuef v1, valuef v2, int i)
-    {
-        //return diff1(v1 * v2, i, d);
-        return diff1(v1, i, d) * v2 + diff1(v2, i, d) * v1;
-    };
-
-    ///things that are odd
-    ///u_k is very high, but vi is very low. Indicates an extreme metric tensor that feels unjustified
-    ///if u_k is so high, why doesn't the stuff drift away?
-    ///dgA is the primary driver of the Sk increase
-
-    valuef dp_star = 0;
-    valuef de_star = 0;
-    v3f dSi_p1;
-
-    for(int i=0; i < 3; i++)
-    {
-        dp_star += leib(p_star, vi[i], i);
-        de_star += leib(e_star, vi[i], i);
-
-        for(int k=0; k < 3; k++)
-            dSi_p1[k] += leib(Si[k], vi[i], i);
-    }
-
-    dp_star = -dp_star;
-    de_star = -de_star;
-    dSi_p1 = -dSi_p1;
+    valuef dp_star = hydro_args.advect_rhs(p_star, vi, d);
+    valuef de_star = hydro_args.advect_rhs(e_star, vi, d);
+    v3f dSi_p1 = hydro_args.advect_rhs(Si, vi, d);
 
     #if 0
     auto calculate_PQvis = [&](const valuef& gA, const v3f& gB, const inverse_metric<valuef, 3, 3>& icY, const valuef& W, const valuef& w)
