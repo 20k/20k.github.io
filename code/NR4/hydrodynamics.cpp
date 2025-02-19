@@ -96,7 +96,8 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
     return (W2_Sij + lP * args.cY.to_tensor());
 }
 
-//there's *some* interaction between the division constants here, that I need to pin down
+//todo: I may need to set vi to 0 here manually
+//or, I may need to remove the leibnitz that I'm doing
 v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, const unit_metric<valuef, 3, 3>& cY)
 {
     valuef h = get_h_with_gamma_eos(epsilon);
@@ -174,19 +175,12 @@ std::vector<buffer_descriptor> hydrodynamic_utility_buffers::get_description()
     buffer_descriptor w;
     w.name = "w";
 
-    buffer_descriptor vi0;
-    vi0.name = "vi0";
-    buffer_descriptor vi1;
-    vi1.name = "vi1";
-    buffer_descriptor vi2;
-    vi2.name = "vi2";
-
-    return {w, P, vi0, vi1, vi2};
+    return {w, P};
 }
 
 std::vector<cl::buffer> hydrodynamic_utility_buffers::get_buffers()
 {
-    return {w, P, vi[0], vi[1], vi[2]};
+    return {w, P};
 }
 
 void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t3i size)
@@ -198,12 +192,6 @@ void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue c
 
     P.set_to_zero(cqueue);
     w.set_to_zero(cqueue);
-
-    for(auto& i : vi)
-    {
-        i.alloc(sizeof(cl_float) * cells);
-        i.set_to_zero(cqueue);
-    }
 }
 
 struct eos_gpu : value_impl::single_source::argument_pack
@@ -593,9 +581,6 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
     if_e(hydro_args.p_star <= min_p_star, [&]{
         as_ref(hydro.P[pos, dim]) = valuef(0);
         as_ref(hydro.w[pos, dim]) = valuef(0);
-        as_ref(hydro.vi[0][pos, dim]) = valuef(0);
-        as_ref(hydro.vi[1][pos, dim]) = valuef(0);
-        as_ref(hydro.vi[2][pos, dim]) = valuef(0);
 
         return_e();
     });
@@ -610,12 +595,6 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
 
     as_ref(hydro.w[pos, dim]) = w;
     as_ref(hydro.P[pos, dim]) = P;
-
-    v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, hydro_args.Si, args.cY);
-
-    as_ref(hydro.vi[0][pos, dim]) = vi[0];
-    as_ref(hydro.vi[1][pos, dim]) = vi[1];
-    as_ref(hydro.vi[2][pos, dim]) = vi[2];
 }
 
 void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
@@ -654,7 +633,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     valuef epsilon = e_star_to_epsilon(p_star, e_star, args.W, w);
 
-    v3f vi = {util.vi[0][pos, dim], util.vi[1][pos, dim], util.vi[2][pos, dim]};
+    v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, hydro_args.Si, args.cY);
 
     auto leib = [&](valuef v1, valuef v2, int i)
     {
@@ -868,9 +847,6 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
         args.push_back(bufs.Si[2]);
         args.push_back(ubufs.w);
         args.push_back(ubufs.P);
-        args.push_back(ubufs.vi[0]);
-        args.push_back(ubufs.vi[1]);
-        args.push_back(ubufs.vi[2]);
         args.push_back(pack.dim);
         args.push_back(pack.scale);
         args.push_back(pack.disc.mu_h_cfl);
