@@ -51,7 +51,7 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
 
     //note to self, actually hand derived this and am sure its correct
     //tol is very intentionally set to 1e-6, breaks if lower than this
-    return -gB + safe_divide(W*W * gA, w*h, 1e-6) * cY.invert().raise(Si);
+    return clamp(-gB + safe_divide(W*W * gA, w*h, 1e-6) * cY.invert().raise(Si), -1.f, 1.f);
 }
 
 struct hydrodynamic_concrete
@@ -158,7 +158,7 @@ struct hydrodynamic_concrete
             valuef littledv = dkvk * d.scale;
             valuef Gamma = get_Gamma();
 
-            valuef A = safe_divide(pow(e_star, Gamma) * pow(p_star, Gamma - 1) * pow(e_m6phi, Gamma - 1), pow(w, Gamma - 1));
+            valuef A = safe_divide(pow(e_star, Gamma) * pow(p_star, Gamma - 1) * pow(e_m6phi, Gamma - 1), pow(w, Gamma - 1), 1e-5f);
 
             //ctx.add("DBG_A", A);
 
@@ -187,7 +187,7 @@ struct hydrodynamic_concrete
 
         valuef p0e = calculate_p0e(W);
 
-        valuef degenerate = safe_divide(valuef{1}, pow(p0e, 1 - 1/Gamma));
+        valuef degenerate = safe_divide(valuef{1}, pow(p0e, 1 - 1/Gamma), 1e-5);
 
         return -degenerate * (PQvis / Gamma) * sum_interior_rhs;
     }
@@ -651,7 +651,7 @@ valuef w2_m_p2(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef, 3,
 
 }
 
-constexpr float min_p_star = 1e-6f;
+constexpr float min_p_star = 1e-7f;
 
 void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_base_args<buffer<valuef>> hydro, hydrodynamic_utility_args<buffer_mut<valuef>> out,
                                    literal<v3i> idim, literal<valuef> scale,
@@ -688,7 +688,7 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
     valuef w = calculate_w(p_star, e_star, args.W, args.cY.invert(), Si);
     w = max(w, p_star * args.gA * 1);
 
-    valuef P = eos(args.W, w, p_star, e_star);
+    valuef P = max(eos(args.W, w, p_star, e_star), 0.f);
 
     as_ref(out.w[pos, dim]) = w;
     as_ref(out.P[pos, dim]) = P;
@@ -734,6 +734,8 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     valuef de_star = hydro_args.advect_rhs(e_star, vi, d);
     v3f dSi_p1 = hydro_args.advect_rhs(Si, vi, d);
 
+    valuef de_star_advect = de_star;
+
     de_star += hydro_args.e_star_rhs(args.gA, args.gB, args.cY, args.W, vi, d);
 
     valuef h = hydro_args.calculate_h_with_eos(args.W);
@@ -769,6 +771,10 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
         valuef p5 = safe_divide(args.gA * h * w2_m_p2_calc, w) * (diff1(args.W, k, d) / max(args.W, 0.001f));
 
+        /*if_e(pos.x() == 80 && pos.y() == 76 && pos.z() == 66, [&]{
+            print("hi %f %f %f %f %f\n", p1, p2, p3, p4, p5);
+        });*/
+
         dSi_p1[k] += (p1 + p2 + p3 + p4 + p5);
     }
 
@@ -777,6 +783,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     valuef max_p = 1;
 
+    ///looks like the basic problem is the superheating issue
     fin_e_star = ternary(fin_p_star < (1e-6f * max_p), min(fin_e_star, 10 * fin_p_star), fin_e_star);
 
     mut_v3f fin_Si = declare_mut_e((v3f){});
@@ -788,7 +795,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     #define CLAMP_HIGH_VELOCITY
     #ifdef CLAMP_HIGH_VELOCITY
-    if_e(p_star >= min_p_star && p_star < min_p_star * 100, [&]{
+    if_e(p_star >= min_p_star && p_star < 1e-5, [&]{
         v3f dfsi = declare_e(fin_Si);
 
         v3f u_k;
@@ -801,6 +808,60 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         as_ref(fin_Si) = u_k * h * p_star;
     });
     #endif
+
+
+    /*    p* 0.000222 e* 0.002546 si -0.000010 -0.000143 0.000003 w 0.000256 P 0.000002 vi -0.064003 -0.347698 0.014055 epsilon 0.017120 top_1 -0.000097
+    p* 0.000107 e* 0.000000 si 0.000171 -0.005759 -0.000041 w 0.005367 P 0.000000 vi -0.044568 -0.736823 0.007491 epsilon 0.000000 top_1 -0.004060
+out p* 0.000240 e* 0.030715 si -0.000013 -0.018418 0.000004
+out p* 0.000136 e* 0.000000 si -0.000079 0.013146 0.000016
+Pos 80 71 65
+Pos 80 73 65*/
+    ///Pos p1 80 75 57
+
+    /*if_e(!isfinite(fin_p_star) || !isfinite(fin_e_star) || !isfinite(fin_Si[0]) || !isfinite(fin_Si[1]) || !isfinite(fin_Si[2]), [&]{
+        print("Pos p1 %i %i %i\n", pos.x(), pos.y(), pos.z());
+    });*/
+
+    ///Pos 83 78 63
+
+    /*if_e(pos.x() == 83 && pos.y() == 78 && pos.z() == 63, [&]{
+        if_e(!isfinite())
+
+        print("p* %f e* %f si %f %f %f w %f P %f\n", p_star, e_star, Si[0], Si[1], Si[2], w, hydro_args.P);
+    });*/
+
+    /*if_e(!isfinite(p_star) || !isfinite(e_star) || !isfinite(Si[0]) || !isfinite(Si[1]) || !isfinite(Si[2]), [&]{
+        print("Pos p2 %i %i %i\n", pos.x(), pos.y(), pos.z());
+    });*/
+
+    /*de* advect -0.308110 full -0.308110
+    de* advect 0.002658 full 0.002658
+        p* 0.0000860349 e* 0.0064756656 si -0.000017 0.000672 0.000012 w 0.000582 P 0.000001 vi -0.109995 0.792189 0.008223 epsilon 0.0538912192 raised 0.000732 top_1 0.000508
+        p* 0.0000013049 e* 0.0050032577 si -0.000000 0.000000 0.000000 w 0.000001 P 0.000015 vi -0.013618 0.004324 0.001394 epsilon 15.0190372467 raised 0.000000 top_1 0.000000
+    out p* 0.0000007338 e* 0.0000073375 si -0.000000 0.000004 0.000004
+    out p* 0.0000890945 e* 0.0000000000 si -0.000021 -0.035679 -0.000218
+    Pos 73 85 65
+    Pos 73 83 65*/
+
+    if_e(pos.x() == 73 && pos.y() == 85 && pos.z() == 65, [&]{
+    //if_e(pos.x() == 80 && pos.y() == 75 && pos.z() == 57, [&]{
+    //if_e(fabs(dSi_p1[1]) > 0.1f, [&]{
+
+        //if_e(!isfinite())
+
+        valuef epsilon = hydro_args.calculate_epsilon(args.W);
+
+        //-gB + safe_divide(W*W * gA, w*h, 1e-6) * cY.invert().raise(Si)
+
+        valuef raised = args.cY.invert().raise(Si)[1];
+
+        valuef t1 = args.W * args.W * args.gA * raised;
+
+        print("de* advect %f full %f\n", de_star_advect, de_star);
+        print("%i %i %i     p* %.10f e* %.10f si %f %f %f w %f P %f vi %f %f %f epsilon %.10f raised %f top_1 %f\n", pos.x(), pos.y(), pos.z(), p_star, e_star, Si[0], Si[1], Si[2], w, hydro_args.P, vi[0], vi[1], vi[2], epsilon, raised, t1);
+        print("%i %i %i out p* %.10f e* %.10f si %f %f %f\n", pos.x(), pos.y(), pos.z(), fin_p_star, fin_e_star, as_constant(fin_Si[0]), as_constant(fin_Si[1]), as_constant(fin_Si[2]));
+        //print("Pos %i %i %i\n", pos.x(), pos.y(), pos.z());
+    });
 
     if_e(fin_p_star <= min_p_star, [&]{
         as_ref(h_out.p_star[pos, dim]) = valuef(0);
