@@ -93,7 +93,7 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
         }
     }
 
-    return (W2_Sij + lP * args.cY.to_tensor());
+    return W2_Sij + lP * args.cY.to_tensor();
 }
 
 //todo: I may need to set vi to 0 here manually
