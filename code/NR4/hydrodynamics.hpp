@@ -11,7 +11,7 @@
 ///while also using backwards euler correctly. I'm going to copy the plugin architecture from the other project
 ///this is templated for buffer_mut vs buffer
 template<typename T>
-struct hydrodynamic_base_args : value_impl::single_source::argument_pack
+struct hydrodynamic_base_args : virtual value_impl::single_source::argument_pack
 {
     T p_star;
     T e_star;
@@ -28,7 +28,7 @@ struct hydrodynamic_base_args : value_impl::single_source::argument_pack
 };
 
 template<typename T>
-struct hydrodynamic_utility_args : value_impl::single_source::argument_pack
+struct hydrodynamic_utility_args : virtual value_impl::single_source::argument_pack
 {
     T w;
     T P;
@@ -43,22 +43,14 @@ struct hydrodynamic_utility_args : value_impl::single_source::argument_pack
 };
 
 template<typename T>
-struct full_hydrodynamic_args : adm_args_mem
+struct full_hydrodynamic_args : adm_args_mem, hydrodynamic_base_args<T>, hydrodynamic_utility_args<T>
 {
-    T p_star;
-    T e_star;
-    std::array<T, 3> Si;
-    T w;
-    T P;
     virtual void build(value_impl::type_storage& in) override
     {
         using namespace value_impl::builder;
 
-        add(p_star, in);
-        add(e_star, in);
-        add(Si, in);
-        add(w, in);
-        add(P, in);
+        hydrodynamic_base_args<T>::build(in);
+        hydrodynamic_utility_args<T>::build(in);
     }
 
     ///hmm. the issue if we have buffer<valuef> is that we need a position and a dim
