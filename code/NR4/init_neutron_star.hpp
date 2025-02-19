@@ -35,9 +35,24 @@ namespace neutron_star
         std::optional<param_rest_mass> rest_mass;
     };
 
+    struct dimensionless_linear_momentum
+    {
+        t3f axis = {0, 0, 1};
+        ///M is baryonic mass
+        ///P / M = x
+        double x = 0;
+    };
+
+    struct param_linear_momentum
+    {
+        std::optional<t3f> momentum;
+        std::optional<dimensionless_linear_momentum> dimensionless;
+    };
+
     struct dimensionless_angular_momentum
     {
         t3f axis = {0, 0, 1};
+        ///M is baryonic mass
         ///J / M^2 = x
         double x = 0;
     };
@@ -51,7 +66,7 @@ namespace neutron_star
     struct parameters
     {
         tensor<float, 3> position;
-        tensor<float, 3> linear_momentum;
+        param_linear_momentum linear_momentum;
         param_angular_momentum angular_momentum;
 
         double Gamma = 2;

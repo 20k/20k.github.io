@@ -423,6 +423,18 @@ void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cq
                 std::array<buffer_mut<valuef>, 6> AIJ_out, buffer_mut<valuef> mu_cfl_out, buffer_mut<valuef> mu_h_cfl_out, buffer_mut<valuef> pressure_cfl_out,
                 std::array<buffer_mut<valuef>, 3> Si_out)*/
 
+    t3f linear_momentum;
+
+    if(params.linear_momentum.momentum)
+        linear_momentum = params.linear_momentum.momentum.value();
+
+    if(params.linear_momentum.dimensionless)
+    {
+        dimensionless_linear_momentum dam = params.linear_momentum.dimensionless.value();
+
+        linear_momentum = dam.axis * dam.x * total_mass;
+    }
+
     t3f angular_momentum;
 
     if(params.angular_momentum.momentum)
@@ -457,7 +469,7 @@ void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cq
         args.push_back(dim);
         args.push_back(scale);
         args.push_back((t3f)params.position);
-        args.push_back((t3f)params.linear_momentum);
+        args.push_back((t3f)linear_momentum);
         args.push_back((t3f)angular_momentum);
         args.push_back(dsol.AIJ_cfl[0], dsol.AIJ_cfl[1], dsol.AIJ_cfl[2], dsol.AIJ_cfl[3], dsol.AIJ_cfl[4], dsol.AIJ_cfl[5]);
         args.push_back(dsol.mu_h_cfl);
