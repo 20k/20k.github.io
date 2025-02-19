@@ -455,16 +455,56 @@ void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cq
     }
 }
 
+neutron_star::data::data(const parameters& p) : params(p)
+{
+    tov::parameters tov_params;
+    tov_params.K = params.K.msols.value();
+    tov_params.Gamma = params.Gamma;
+
+    /*//kg/m^3 -> m/m^3 -> 1/m^2
+    double p0_geom = si_to_geometric(p0, 1, 0);
+    //m^-2 -> msol^-2
+    double p0_msol = geometric_to_msol(p0_geom, -2);*/
+
+    tov::integration_state start;
+
+    if(params.mass.p0_kg_m3)
+    {
+        //kg/m^3 -> m/m^3 -> 1/m^2
+        double p0_geom = si_to_geometric(params.mass.p0_kg_m3.value(), 1, 0);
+        //m^-2 -> msol^-2
+        p0_msols = geometric_to_msol(p0_geom, -2);
+    }
+    else if(params.mass.p0_geometric)
+    {
+        p0_msols = geometric_to_msol(params.mass.p0_geometric.value(), -2);
+    }
+    else if(params.mass.p0_msols)
+    {
+        p0_msols = params.mass.p0_msols.value();
+    }
+    else if(params.mass.rest_mass)
+    {
+        param_rest_mass mass = params.mass.rest_mass.value();
+
+        std::vector<double> masses = tov::search_for_adm_mass(mass.mass, tov_params);
+
+        assert(masses.size() > 0 && mass.result_index >= 0 && mass.result_index < (int)masses.size());
+
+        p0_msols = masses.at(mass.result_index);
+    }
+    else
+        assert(false);
+
+    start = tov::make_integration_state(p0_msols, 1e-6, tov_params);
+    sol = tov::solve_tov(start, tov_params, 1e-6, 0);
+}
+
 neutron_star::numerical_eos neutron_star::data::get_eos()
 {
     numerical_eos ret;
 
-    //kg/m^3 -> m/m^3 -> 1/m^2
-    double p0_geom = si_to_geometric(params.p0_c_kg_m3, 1, 0);
-    //m^-2 -> msol^-2
-    double p0_msol = geometric_to_msol(p0_geom, -2);
-
-    float max_density = p0_msol * 4;
+    float max_density = p0_msols * 4;
 
     ret.max_density = max_density;
 
@@ -474,7 +514,7 @@ neutron_star::numerical_eos neutron_star::data::get_eos()
     {
         double density = ((double)i / max_samples) * max_density;
 
-        double pressure = params.K * pow(density, params.Gamma);
+        double pressure = params.K.msols.value() * pow(density, params.Gamma);
 
         ret.pressure.push_back(pressure);
     }

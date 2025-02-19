@@ -141,6 +141,10 @@ struct mesh
 
             #define NEUTRON_STAR_TEST
             #ifdef NEUTRON_STAR_TEST
+
+            /*//double K = 123.741;
+            //double p0_c_kg_m3 = 6.235 * pow(10., 17.);*/
+
             /*neutron_star::parameters p1;
             p1.position = {-15, 0, 0};
             p1.angular_momentum = {0, 0, 0};
@@ -170,8 +174,8 @@ struct mesh
             p1.position = {0, 0, 0};
             p1.angular_momentum = {0, 0, 1.25};
             //p1.linear_momentum = {0.25, 0, 0};
-            p1.K = 123.6;
-            p1.p0_c_kg_m3 = 5.91 * pow(10., 17.);
+            p1.K.msols = 123.6;
+            p1.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
 
             initial_conditions init(ctx, cqueue, dim);
 
