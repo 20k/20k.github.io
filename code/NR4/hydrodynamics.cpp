@@ -493,8 +493,6 @@ valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev, va
     valuef wG = pow(w_prev, Gamma - 1);
 
     return safe_divide(wG, wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 1e-7f), Gamma - 2));
-
-    //return wG / max(wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 0.00001f), Gamma - 2), 0.0001f);
 }
 
 valuef calculate_w(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse_metric<valuef, 3, 3> icY, v3f Si)
