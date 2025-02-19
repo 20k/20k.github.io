@@ -340,7 +340,7 @@ struct eos_gpu : value_impl::single_source::argument_pack
     }
 };
 
-valuef calculate_w(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse_metric<valuef, 3, 3> icY, v3f Si);
+valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef, 3, 3> icY, v3f Si);
 
 void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_hydrodynamic_args<buffer_mut<valuef>> hydro, literal<v3i> ldim, literal<valuef> scale,
                 buffer<valuef> mu_h_cfl_b, buffer<valuef> cfl_b, buffer<valuef> u_correction_b, std::array<buffer<valuef>, 3> Si_cfl_b,
@@ -579,21 +579,23 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     ///ok so. I'm trying to answer the quesiton of why w = p* gA u0
     ///is not the same answer as calculate_w
-    valuef w = calculate_w(p_star, e_star, args.W, Gamma, args.cY.invert(), Si_lo_cfl);
+    valuef w = calculate_w(p_star, e_star, args.W, args.cY.invert(), Si_lo_cfl);
 
     as_ref(hydro.w[pos, dim]) = w;
     as_ref(hydro.P[pos, dim]) = eos(args.W, w, p_star, e_star);
 }
 
-valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev, valuef Gamma)
+valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev)
 {
+    valuef Gamma = get_Gamma();
+
     valuef A = pow(max(W, 0.001f), 3.f * Gamma - 3.f);
     valuef wG = pow(w_prev, Gamma - 1);
 
     return safe_divide(wG, wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 1e-7f), Gamma - 2));
 }
 
-valuef calculate_w(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse_metric<valuef, 3, 3> icY, v3f Si)
+valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef, 3, 3> icY, v3f Si)
 {
     using namespace single_source;
 
@@ -617,7 +619,7 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse
 
     for(int i=0; i < 140; i++)
     {
-        valuef D = w_next_interior(p_star, e_star, W, w, Gamma);
+        valuef D = w_next_interior(p_star, e_star, W, w);
 
         valuef w_next = sqrt(max(p_sq + cst * D*D, 0.f));
 
@@ -629,7 +631,7 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse
     return w;
 }
 
-valuef w2_m_p2(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse_metric<valuef, 3, 3> icY, v3f Si, valuef w)
+valuef w2_m_p2(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef, 3, 3> icY, v3f Si, valuef w)
 {
     valuef p_sq = p_star * p_star;
     valuef cst = 0;
@@ -644,7 +646,7 @@ valuef w2_m_p2(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse_met
 
     cst = W*W * cst;
 
-    valuef D = w_next_interior(p_star, e_star, W, w, Gamma);
+    valuef D = w_next_interior(p_star, e_star, W, w);
 
     return max(cst * D*D, 0.f);
 
@@ -684,7 +686,7 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
 
     bssn_args args(pos, dim, in);
 
-    valuef w = calculate_w(p_star, e_star, args.W, get_Gamma(), args.cY.invert(), Si);
+    valuef w = calculate_w(p_star, e_star, args.W, args.cY.invert(), Si);
     w = max(w, p_star * args.gA * 1);
 
     valuef P = eos(args.W, w, p_star, e_star);
@@ -764,7 +766,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             }
         }
 
-        valuef w2_m_p2_calc = w2_m_p2(p_star, e_star, args.W, get_Gamma(), args.cY.invert(), Si, w);
+        valuef w2_m_p2_calc = w2_m_p2(p_star, e_star, args.W, args.cY.invert(), Si, w);
 
         valuef p5 = safe_divide(args.gA * h * w2_m_p2_calc, w) * (diff1(args.W, k, d) / max(args.W, 0.001f));
 
