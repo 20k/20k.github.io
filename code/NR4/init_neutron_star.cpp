@@ -434,7 +434,7 @@ void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cq
 
         ///x = J/M^2
         ///J = x M^2
-        angular_momentum = dam.axis * dam.x * p0_msols * p0_msols;
+        angular_momentum = dam.axis * dam.x * total_mass * total_mass;
     }
 
     {
