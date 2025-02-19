@@ -378,305 +378,6 @@ v3f fix_ray_position_cart(v3f cartesian_pos, v3f cartesian_velocity, valuef sphe
     return ternary(discrim >= 0, result_good, cartesian_pos);
 }
 
-struct trace3_state
-{
-    valuef W;
-    unit_metric<valuef, 3, 3> cY;
-    tensor<valuef, 3, 3> Kij;
-    valuef gA;
-    tensor<valuef, 3> gB;
-
-    v3f grid_position;
-};
-
-static all_adm_args_mem trace3_trampoline;
-
-void trace3(execution_context& ectx, literal<v2i> screen_sizel,
-            literal<v4f> camera_quat,
-            buffer_mut<v4f> positions, buffer_mut<v4f> velocities,
-            buffer_mut<valuei> results, buffer_mut<valuef> zshift, buffer_mut<v4f> matter_colour,
-            literal<v3i> dim,
-            literal<valuef> scale,
-            literal<valuef> universe_size,
-            bssn_args_mem<buffer<valuef>> in,
-            bssn_derivatives_mem<buffer<derivative_t>> derivatives,
-            arg_data<trace3_trampoline> plugin_data)
-{
-    using namespace single_source;
-
-    valuei x = value_impl::get_global_id(0);
-    valuei y = value_impl::get_global_id(1);
-
-    //get_global_id() is not a const function, so assign it to an unnamed variable to avoid compilers repeatedly evaluating it
-    pin(x);
-    pin(y);
-
-    v2i screen_size = screen_sizel.get();
-
-    if_e(y >= screen_size.y(), [&] {
-        return_e();
-    });
-
-    if_e(x >= screen_size.x(), [&] {
-        return_e();
-    });
-
-    v2i screen_position = {x, y};
-
-    v3f pos_in = declare_e(positions[screen_position, screen_size]).yzw();
-    v3f vel_in = declare_e(velocities[screen_position, screen_size]).yzw();
-
-    mut<valuei> result = declare_mut_e(valuei(2));
-
-    auto fix_velocity = [](v3f velocity, const trace3_state& args)
-    {
-        auto cY = args.cY;
-        auto W = args.W;
-
-        auto Yij = cY / (W*W);
-        //pin(Yij);
-
-        valuef length_sq = dot(velocity, Yij.lower(velocity));
-        valuef length = sqrt(fabs(length_sq));
-
-        velocity = velocity / length;
-
-        pin(velocity);
-
-        return velocity;
-    };
-
-    auto get_dX = [](v3f position, v3f velocity, const trace3_state& args)
-    {
-        v3f d_X = args.gA * velocity - args.gB;
-        pin(d_X);
-
-        return d_X;
-    };
-
-    auto get_dV = [&](v3f position, v3f velocity, const trace3_state& args)
-    {
-        v3f grid_position = args.grid_position;
-
-        auto dgA_at = [&](v3i pos) {
-            bssn_derivatives derivs(pos, dim.get(), derivatives);
-            return derivs.dgA;
-        };
-
-        auto dgB_at = [&](v3i pos) {
-            bssn_derivatives derivs(pos, dim.get(), derivatives);
-            return derivs.dgB;
-        };
-
-        auto dcY_at = [&](v3i pos) {
-            bssn_derivatives derivs(pos, dim.get(), derivatives);
-            return derivs.dcY;
-        };
-
-        auto dW_at = [&](v3i pos) {
-            bssn_derivatives derivs(pos, dim.get(), derivatives);
-            return derivs.dW;
-        };
-
-        tensor<valuef, 3> dgA = function_trilinear(dgA_at, grid_position);
-        tensor<valuef, 3, 3> dgB = function_trilinear(dgB_at, grid_position);
-        tensor<valuef, 3, 3, 3> dcY = function_trilinear(dcY_at, grid_position);
-        tensor<valuef, 3> dW = function_trilinear(dW_at, grid_position);
-
-        pin(dgA);
-        pin(dgB);
-        pin(dcY);
-        pin(dW);
-
-        auto cY = args.cY;
-        auto W = args.W;
-
-        auto icY = cY.invert();
-        pin(icY);
-
-        auto iYij = icY * (W*W);
-
-        auto christoff2_cfl = christoffel_symbols_2(icY, dcY);
-        pin(christoff2_cfl);
-
-        auto christoff2 = get_full_christoffel2(W, dW, cY, icY, christoff2_cfl);
-        pin(christoff2);
-
-        tensor<valuef, 3> d_V;
-
-        for(int i=0; i < 3; i++)
-        {
-            for(int j=0; j < 3; j++)
-            {
-                valuef kjvk = 0;
-
-                for(int k=0; k < 3; k++)
-                {
-                    kjvk += args.Kij[j, k] * velocity[k];
-                }
-
-                valuef christoffel_sum = 0;
-
-                for(int k=0; k < 3; k++)
-                {
-                    christoffel_sum += christoff2[i, j, k] * velocity[k];
-                }
-
-                valuef dlog_gA = dgA[j] / args.gA;
-
-                d_V[i] += args.gA * velocity[j] * (velocity[i] * (dlog_gA - kjvk) + 2 * raise_index(args.Kij, iYij, 0)[i, j] - christoffel_sum)
-                        - iYij[i, j] * dgA[j] - velocity[j] * dgB[j, i];
-
-            }
-        }
-
-        return d_V;
-    };
-
-    auto get_dS = [&](v3f position, v3f velocity, v3f acceleration, const trace3_state& args)
-    {
-        return -3.5f * get_ct_timestep(args.W);
-    };
-
-    auto get_state = [&](v3f position) -> trace3_state
-    {
-        trace3_state out;
-
-        v3f grid_position = world_to_grid(position, dim.get(), scale.get());
-
-        grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
-        pin(grid_position);
-
-        auto W = W_f_at(grid_position, dim.get(), in);
-        auto cY = cY_f_at(grid_position, dim.get(), in);
-
-        pin(W);
-        pin(cY);
-
-        adm_variables args = admf_at(grid_position, dim.get(), in);
-
-        out.W = W;
-        out.cY = cY;
-        out.Kij = args.Kij;
-        out.gA = args.gA;
-        out.gB = args.gB;
-        out.grid_position = grid_position;
-
-        return out;
-    };
-
-    verlet_context<valuef, 3> ctx;
-    ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS, get_state);
-
-    mut<valuei> idx = declare_mut_e("i", valuei(0));
-    mut_v3f accumulated_colour = declare_mut_e((v3f){0,0,0});
-    mut<valuef> accumulated_occlusion = declare_mut_e(valuef());
-
-    for_e(idx < 512, assign_b(idx, idx + 1), [&]
-    {
-        v3f cposition = declare_e(ctx.position);
-        v3f cvelocity = declare_e(ctx.velocity);
-
-        valuef radius_sq = dot(cposition, cposition);
-
-        //terminate if we're out of the sim
-        if_e(radius_sq > universe_size.get()*universe_size.get(), [&] {
-            as_ref(result) = valuei(1);
-            break_e();
-        });
-
-        //terminate if our rays become non finite
-        if_e(!isfinite(cvelocity.x()) || !isfinite(cvelocity.y()) || !isfinite(cvelocity.z()), [&]{
-            as_ref(result) = valuei(0);
-            break_e();
-        });
-
-        v3f diff = ctx.next(get_dX, get_dV, get_dS, get_state, fix_velocity);
-
-        auto get_rho = [&](v3i pos)
-        {
-            derivative_data d;
-            d.pos = pos;
-            d.dim = dim.get();
-            d.scale = scale.get();
-
-            bssn_args args = bssn_at(pos, dim.get(), in);
-
-            valuef p = plugin_data.mem.adm_p(args, d);
-            pin(p);
-
-            return p;
-        };
-
-        auto get_dbg = [&](v3i pos)
-        {
-            derivative_data d;
-            d.pos = pos;
-            d.dim = dim.get();
-            d.scale = scale.get();
-
-            bssn_args args = bssn_at(pos, dim.get(), in);
-
-            valuef p = trace(plugin_data.mem.adm_W2_Sij(args, d), args.cY.invert());
-            pin(p);
-
-            return p;
-        };
-
-        v3f grid_position = world_to_grid(cposition, dim.get(), scale.get());
-
-        grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
-        pin(grid_position);
-
-        valuef rho = function_trilinear(get_rho, grid_position);
-
-        /*if_e(screen_position.x() == screen_size.x()/2 && screen_position.y() == screen_size.y()/2, [&]{
-            valuef S = function_trilinear(get_dbg, grid_position);
-
-            value_base se;
-            se.type = value_impl::op::SIDE_EFFECT;
-            se.abstract_value = "printf(\"rho: %f\\n\"," + value_to_string(rho) + ")";
-
-            value_impl::get_context().add(se);
-        });*/
-
-        valuef sample_length = diff.length();
-
-        valuef density = fabs(rho) * 1000;
-        v3f colour = {1,1,1};
-
-        as_ref(accumulated_occlusion) += density * sample_length;
-
-        valuef transparency = exp(-as_constant(accumulated_occlusion));
-
-        ///assuming that the intrinsic brightness is a function of density
-        as_ref(accumulated_colour) += density * colour * sample_length * transparency;
-
-        if_e(transparency <= 0.001f, [&]{
-            as_ref(result) = valuei(1);
-            break_e();
-        });
-
-        //terminate if the movement of our ray through coordinate space becomes trapped, its likely hit an event horizon
-        if_e(diff.squared_length() < 0.1f * 0.1f, [&]
-        {
-            as_ref(result) = valuei(0);
-            break_e();
-        });
-    });
-
-    valuef final_occlusion = declare_e(accumulated_occlusion);
-    v3f final_colour = declare_e(accumulated_colour);
-
-    v3f final_position = declare_e(ctx.position);
-    v3f final_velocity = declare_e(ctx.velocity);
-
-    as_ref(positions[screen_position, screen_size]) = (v4f){0, final_position.x(), final_position.y(), final_position.z()};
-    as_ref(velocities[screen_position, screen_size]) = (v4f){0, final_velocity.x(), final_velocity.y(), final_velocity.z()};
-    as_ref(results[screen_position, screen_size]) = as_constant(result);
-    as_ref(matter_colour[screen_position, screen_size]) = (v4f){final_colour.x(), final_colour.y(), final_colour.z(), final_occlusion};
-}
-
 void bssn_to_guv(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> lower_dim,
                  bssn_args_mem<buffer<valuef>> in,
                  std::array<buffer_mut<block_precision_t>, 10> Guv, literal<value<uint64_t>> slice)
@@ -1305,11 +1006,310 @@ void render(execution_context& ectx, literal<v2i> screen_sizel,
     screen.write(ectx, {x, y}, crgba);
 }
 
+struct trace3_state
+{
+    valuef W;
+    unit_metric<valuef, 3, 3> cY;
+    tensor<valuef, 3, 3> Kij;
+    valuef gA;
+    tensor<valuef, 3> gB;
+
+    v3f grid_position;
+};
+
 void build_raytrace_kernels(cl::context ctx, const std::vector<plugin*>& plugins)
 {
-    trace3_trampoline = make_arg_provider(plugins);
+    auto trace3 = [plugins]
+                  (execution_context& ectx, literal<v2i> screen_sizel,
+                   literal<v4f> camera_quat,
+                   buffer_mut<v4f> positions, buffer_mut<v4f> velocities,
+                   buffer_mut<valuei> results, buffer_mut<valuef> zshift, buffer_mut<v4f> matter_colour,
+                   literal<v3i> dim,
+                   literal<valuef> scale,
+                   literal<valuef> universe_size,
+                   bssn_args_mem<buffer<valuef>> in,
+                   bssn_derivatives_mem<buffer<derivative_t>> derivatives,
+                   value_impl::builder::placeholder plugin_ph)
+    {
+        all_adm_args_mem plugin_data = make_arg_provider(plugins);
+        plugin_ph.add(plugin_data);
 
-    cl::async_build_and_cache(ctx, []{
+        using namespace single_source;
+
+        valuei x = value_impl::get_global_id(0);
+        valuei y = value_impl::get_global_id(1);
+
+        //get_global_id() is not a const function, so assign it to an unnamed variable to avoid compilers repeatedly evaluating it
+        pin(x);
+        pin(y);
+
+        v2i screen_size = screen_sizel.get();
+
+        if_e(y >= screen_size.y(), [&] {
+            return_e();
+        });
+
+        if_e(x >= screen_size.x(), [&] {
+            return_e();
+        });
+
+        v2i screen_position = {x, y};
+
+        v3f pos_in = declare_e(positions[screen_position, screen_size]).yzw();
+        v3f vel_in = declare_e(velocities[screen_position, screen_size]).yzw();
+
+        mut<valuei> result = declare_mut_e(valuei(2));
+
+        auto fix_velocity = [](v3f velocity, const trace3_state& args)
+        {
+            auto cY = args.cY;
+            auto W = args.W;
+
+            auto Yij = cY / (W*W);
+            //pin(Yij);
+
+            valuef length_sq = dot(velocity, Yij.lower(velocity));
+            valuef length = sqrt(fabs(length_sq));
+
+            velocity = velocity / length;
+
+            pin(velocity);
+
+            return velocity;
+        };
+
+        auto get_dX = [](v3f position, v3f velocity, const trace3_state& args)
+        {
+            v3f d_X = args.gA * velocity - args.gB;
+            pin(d_X);
+
+            return d_X;
+        };
+
+        auto get_dV = [&](v3f position, v3f velocity, const trace3_state& args)
+        {
+            v3f grid_position = args.grid_position;
+
+            auto dgA_at = [&](v3i pos) {
+                bssn_derivatives derivs(pos, dim.get(), derivatives);
+                return derivs.dgA;
+            };
+
+            auto dgB_at = [&](v3i pos) {
+                bssn_derivatives derivs(pos, dim.get(), derivatives);
+                return derivs.dgB;
+            };
+
+            auto dcY_at = [&](v3i pos) {
+                bssn_derivatives derivs(pos, dim.get(), derivatives);
+                return derivs.dcY;
+            };
+
+            auto dW_at = [&](v3i pos) {
+                bssn_derivatives derivs(pos, dim.get(), derivatives);
+                return derivs.dW;
+            };
+
+            tensor<valuef, 3> dgA = function_trilinear(dgA_at, grid_position);
+            tensor<valuef, 3, 3> dgB = function_trilinear(dgB_at, grid_position);
+            tensor<valuef, 3, 3, 3> dcY = function_trilinear(dcY_at, grid_position);
+            tensor<valuef, 3> dW = function_trilinear(dW_at, grid_position);
+
+            pin(dgA);
+            pin(dgB);
+            pin(dcY);
+            pin(dW);
+
+            auto cY = args.cY;
+            auto W = args.W;
+
+            auto icY = cY.invert();
+            pin(icY);
+
+            auto iYij = icY * (W*W);
+
+            auto christoff2_cfl = christoffel_symbols_2(icY, dcY);
+            pin(christoff2_cfl);
+
+            auto christoff2 = get_full_christoffel2(W, dW, cY, icY, christoff2_cfl);
+            pin(christoff2);
+
+            tensor<valuef, 3> d_V;
+
+            for(int i=0; i < 3; i++)
+            {
+                for(int j=0; j < 3; j++)
+                {
+                    valuef kjvk = 0;
+
+                    for(int k=0; k < 3; k++)
+                    {
+                        kjvk += args.Kij[j, k] * velocity[k];
+                    }
+
+                    valuef christoffel_sum = 0;
+
+                    for(int k=0; k < 3; k++)
+                    {
+                        christoffel_sum += christoff2[i, j, k] * velocity[k];
+                    }
+
+                    valuef dlog_gA = dgA[j] / args.gA;
+
+                    d_V[i] += args.gA * velocity[j] * (velocity[i] * (dlog_gA - kjvk) + 2 * raise_index(args.Kij, iYij, 0)[i, j] - christoffel_sum)
+                            - iYij[i, j] * dgA[j] - velocity[j] * dgB[j, i];
+
+                }
+            }
+
+            return d_V;
+        };
+
+        auto get_dS = [&](v3f position, v3f velocity, v3f acceleration, const trace3_state& args)
+        {
+            return -3.5f * get_ct_timestep(args.W);
+        };
+
+        auto get_state = [&](v3f position) -> trace3_state
+        {
+            trace3_state out;
+
+            v3f grid_position = world_to_grid(position, dim.get(), scale.get());
+
+            grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
+            pin(grid_position);
+
+            auto W = W_f_at(grid_position, dim.get(), in);
+            auto cY = cY_f_at(grid_position, dim.get(), in);
+
+            pin(W);
+            pin(cY);
+
+            adm_variables args = admf_at(grid_position, dim.get(), in);
+
+            out.W = W;
+            out.cY = cY;
+            out.Kij = args.Kij;
+            out.gA = args.gA;
+            out.gB = args.gB;
+            out.grid_position = grid_position;
+
+            return out;
+        };
+
+        verlet_context<valuef, 3> ctx;
+        ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS, get_state);
+
+        mut<valuei> idx = declare_mut_e("i", valuei(0));
+        mut_v3f accumulated_colour = declare_mut_e((v3f){0,0,0});
+        mut<valuef> accumulated_occlusion = declare_mut_e(valuef());
+
+        for_e(idx < 512, assign_b(idx, idx + 1), [&]
+        {
+            v3f cposition = declare_e(ctx.position);
+            v3f cvelocity = declare_e(ctx.velocity);
+
+            valuef radius_sq = dot(cposition, cposition);
+
+            //terminate if we're out of the sim
+            if_e(radius_sq > universe_size.get()*universe_size.get(), [&] {
+                as_ref(result) = valuei(1);
+                break_e();
+            });
+
+            //terminate if our rays become non finite
+            if_e(!isfinite(cvelocity.x()) || !isfinite(cvelocity.y()) || !isfinite(cvelocity.z()), [&]{
+                as_ref(result) = valuei(0);
+                break_e();
+            });
+
+            v3f diff = ctx.next(get_dX, get_dV, get_dS, get_state, fix_velocity);
+
+            auto get_rho = [&](v3i pos)
+            {
+                derivative_data d;
+                d.pos = pos;
+                d.dim = dim.get();
+                d.scale = scale.get();
+
+                bssn_args args = bssn_at(pos, dim.get(), in);
+
+                valuef p = plugin_data.adm_p(args, d);
+                pin(p);
+
+                return p;
+            };
+
+            auto get_dbg = [&](v3i pos)
+            {
+                derivative_data d;
+                d.pos = pos;
+                d.dim = dim.get();
+                d.scale = scale.get();
+
+                bssn_args args = bssn_at(pos, dim.get(), in);
+
+                valuef p = trace(plugin_data.adm_W2_Sij(args, d), args.cY.invert());
+                pin(p);
+
+                return p;
+            };
+
+            v3f grid_position = world_to_grid(cposition, dim.get(), scale.get());
+
+            grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
+            pin(grid_position);
+
+            valuef rho = function_trilinear(get_rho, grid_position);
+
+            /*if_e(screen_position.x() == screen_size.x()/2 && screen_position.y() == screen_size.y()/2, [&]{
+                valuef S = function_trilinear(get_dbg, grid_position);
+
+                value_base se;
+                se.type = value_impl::op::SIDE_EFFECT;
+                se.abstract_value = "printf(\"rho: %f\\n\"," + value_to_string(rho) + ")";
+
+                value_impl::get_context().add(se);
+            });*/
+
+            valuef sample_length = diff.length();
+
+            valuef density = fabs(rho) * 1000;
+            v3f colour = {1,1,1};
+
+            as_ref(accumulated_occlusion) += density * sample_length;
+
+            valuef transparency = exp(-as_constant(accumulated_occlusion));
+
+            ///assuming that the intrinsic brightness is a function of density
+            as_ref(accumulated_colour) += density * colour * sample_length * transparency;
+
+            if_e(transparency <= 0.001f, [&]{
+                as_ref(result) = valuei(1);
+                break_e();
+            });
+
+            //terminate if the movement of our ray through coordinate space becomes trapped, its likely hit an event horizon
+            if_e(diff.squared_length() < 0.1f * 0.1f, [&]
+            {
+                as_ref(result) = valuei(0);
+                break_e();
+            });
+        });
+
+        valuef final_occlusion = declare_e(accumulated_occlusion);
+        v3f final_colour = declare_e(accumulated_colour);
+
+        v3f final_position = declare_e(ctx.position);
+        v3f final_velocity = declare_e(ctx.velocity);
+
+        as_ref(positions[screen_position, screen_size]) = (v4f){0, final_position.x(), final_position.y(), final_position.z()};
+        as_ref(velocities[screen_position, screen_size]) = (v4f){0, final_velocity.x(), final_velocity.y(), final_velocity.z()};
+        as_ref(results[screen_position, screen_size]) = as_constant(result);
+        as_ref(matter_colour[screen_position, screen_size]) = (v4f){final_colour.x(), final_colour.y(), final_colour.z(), final_occlusion};
+    };
+
+    cl::async_build_and_cache(ctx, [trace3]{
         return value_impl::make_function(trace3, "trace3");
     }, {"trace3"});
 

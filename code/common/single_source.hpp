@@ -1529,7 +1529,9 @@ namespace value_impl
 
     struct type_storage
     {
+        std::string suffix;
         std::vector<input> args;
+        int placeholders = 0;
     };
 
     struct function_context
@@ -1594,7 +1596,7 @@ namespace value_impl
             in.pointer = true;
             in.is_constant =  true;
 
-            std::string name = "buf" + std::to_string(result.args.size());
+            std::string name = "buf" + std::to_string(result.args.size()) + result.suffix;
 
             in.name = name;
             buf.name = name;
@@ -1611,7 +1613,7 @@ namespace value_impl
             in.pointer = true;
             in.is_constant =  false;
 
-            std::string name = "buf" + std::to_string(result.args.size());
+            std::string name = "buf" + std::to_string(result.args.size()) + result.suffix;
 
             in.name = name;
             buf.name = name;
@@ -1627,7 +1629,7 @@ namespace value_impl
             in.type = name_type(T());
             in.pointer = false;
 
-            std::string name = "lit" + std::to_string(result.args.size());
+            std::string name = "lit" + std::to_string(result.args.size()) + result.suffix;
 
             in.name = name;
             lit.name = name;
@@ -1646,7 +1648,7 @@ namespace value_impl
             in.is_constant = img.is_read_only();
             in.is_image_array = img.is_image_array();
 
-            std::string name = "img" + std::to_string(result.args.size());
+            std::string name = "img" + std::to_string(result.args.size()) + result.suffix;
 
             in.name = name;
             img.name = name;
@@ -1670,6 +1672,29 @@ namespace value_impl
             {
                 add(arr[i], result);
             }
+        }
+
+        struct placeholder
+        {
+            //ideally this would be a shared_ptr, but I don't really want to bring in
+            //the whole header
+            type_storage* storage = nullptr;
+            int placeholder_index = 0;
+
+            template<typename T>
+            void add(T&& in)
+            {
+                assert(storage);
+                value_impl::builder::add(std::forward<T>(in), *storage);
+            }
+        };
+
+        inline
+        void add(placeholder& ph, type_storage& result)
+        {
+            ph.storage = new type_storage;
+            ph.placeholder_index = result.args.size();
+            ph.storage->suffix = "_" + std::to_string(result.placeholders++);
         }
     }
 
@@ -1725,6 +1750,29 @@ namespace value_impl
         std::tuple<T&> a1 = {ectx};
 
         std::apply(func, std::tuple_cat(a1, args));
+
+        int running_placeholder_offsets = 0;
+
+        auto resolve_placeholder = [&]<typename T>(T&& in)
+        {
+            if constexpr(std::is_same_v<std::decay_t<T>, builder::placeholder>)
+            {
+                builder::placeholder& ph = in;
+                assert(ph.storage);
+
+                printf("Adding %i\n", ph.storage->args.size());
+
+                ctx.inputs.args.insert(ctx.inputs.args.begin() + ph.placeholder_index + running_placeholder_offsets, ph.storage->args.begin(), ph.storage->args.end());
+                running_placeholder_offsets += ph.storage->args.size();
+
+                delete ph.storage;
+                ph.storage = nullptr;
+            }
+        };
+
+        std::apply([&](auto&&... expanded_args){
+            (resolve_placeholder(expanded_args), ...);
+        }, args);
     }
 
     inline
