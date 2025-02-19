@@ -22,6 +22,37 @@ using m44f = metric<valuef, 4, 4>;
 using mut_v4f = tensor<mut<valuef>, 4>;
 using mut_v3f = tensor<mut<valuef>, 3>;
 
+void neutron_star::all_numerical_eos_gpu::init(cl::command_queue cqueue, const std::vector<neutron_star::numerical_eos>& eos)
+{
+    if(eos.size() == 0)
+        return;
+
+    int root_size = eos[0].pressure.size();
+
+    for(auto& i : eos)
+        assert(i.pressure.size() == root_size);
+
+    stride = root_size;
+    count = eos.size();
+
+    pressures.alloc(sizeof(cl_float) * stride * count);
+    max_densities.alloc(sizeof(cl_float) * count);
+
+    std::vector<float> all_pressures;
+    std::vector<float> all_densities;
+
+    for(int i=0; i < (int)eos.size(); i++)
+    {
+        for(auto& j : eos[i].pressure)
+            all_pressures.push_back(j);
+
+        all_densities.push_back(eos[i].max_density);
+    }
+
+    pressures.write(cqueue, all_pressures);
+    max_densities.write(cqueue, all_densities);
+}
+
 template<typename T, typename U>
 inline
 auto integrate_1d(const T& func, int n, const U& upper, const U& lower)
