@@ -1,8 +1,6 @@
 #include "hydrodynamics.hpp"
 #include "init_general.hpp"
 
-#define DIVISION_TOL 0.0001f
-
 ///so like. What if I did the projective real strategy?
 
 template<typename T>
@@ -653,7 +651,7 @@ valuef w2_m_p2(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef, 3,
 
 }
 
-constexpr float min_p_star = 1e-8f;
+constexpr float min_p_star = 1e-6f;
 
 void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_base_args<buffer<valuef>> hydro, hydrodynamic_utility_args<buffer_mut<valuef>> out,
                                    literal<v3i> idim, literal<valuef> scale,
@@ -788,11 +786,10 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         as_ref(fin_Si[i]) = h_base.Si[i][pos, dim] + timestep.get() * dSi_p1[i];
     }
 
-    #define CLAMP_HIGH_VELOCITY
+    //#define CLAMP_HIGH_VELOCITY
     #ifdef CLAMP_HIGH_VELOCITY
-    ///&& p_star <= min_p_star * 10?
-    if_e(p_star >= min_p_star, [&]{
-        v3f u_k = declare_e(fin_Si) / (h * p_star);
+    if_e(p_star >= min_p_star && p_star < min_p_star * 100, [&]{
+        v3f u_k = safe_divide(declare_e(fin_Si), h * p_star);
 
         u_k = clamp(u_k, -0.1f, 0.1f);
 
