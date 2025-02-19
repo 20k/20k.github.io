@@ -15,15 +15,38 @@ namespace neutron_star
 {
     void boot_solver(cl::context ctx);
 
+    struct param_K
+    {
+        std::optional<double> msols;
+    };
+
+    struct param_rest_mass
+    {
+        double mass = 0;
+        int result_index = 0;
+    };
+
+    struct param_mass
+    {
+        std::optional<double> p0_kg_m3;
+        std::optional<double> p0_geometric;
+        std::optional<double> p0_msols;
+
+        std::optional<param_rest_mass> rest_mass;
+    };
+
     struct parameters
     {
         tensor<float, 3> position;
         tensor<float, 3> linear_momentum;
         tensor<float, 3> angular_momentum;
 
-        double K = 123.741;
         double Gamma = 2;
-        double p0_c_kg_m3 = 6.235 * pow(10., 17.);
+
+        //123.741 is a good number
+        param_K K;
+        //6.235 * pow(10., 17.) kg/m3 is a good number
+        param_mass mass;
     };
 
     struct numerical_eos
@@ -49,16 +72,9 @@ namespace neutron_star
     {
         parameters params;
         tov::integration_solution sol;
+        double p0_msols = 0;
 
-        data(const parameters& p) : params(p)
-        {
-            tov::parameters tov_params;
-            tov_params.K = params.K;
-            tov_params.Gamma = params.Gamma;
-
-            auto start = tov::make_integration_state_si(params.p0_c_kg_m3, 1e-6, tov_params);
-            sol = tov::solve_tov(start, tov_params, 1e-6, 0);
-        }
+        data(const parameters& p);
 
         void add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
                              discretised_initial_data& dsol,
