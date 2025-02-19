@@ -13,29 +13,23 @@
 ///todo: implement downsampling. its partly why this sucks so much
 struct discretised_initial_data
 {
-    cl::buffer mu_cfl;
     cl::buffer mu_h_cfl;
-    cl::buffer pressure_cfl;
     cl::buffer cfl; //for black holes this is inited to 1/a
     std::array<cl::buffer, 6> AIJ_cfl;
     std::array<cl::buffer, 3> Si_cfl;
     cl::buffer star_indices;
 
-    discretised_initial_data(cl::context& ctx) : mu_cfl(ctx), mu_h_cfl(ctx), pressure_cfl(ctx), cfl(ctx), AIJ_cfl{ctx, ctx, ctx, ctx, ctx, ctx}, Si_cfl{ctx, ctx, ctx}, star_indices(ctx){}
+    discretised_initial_data(cl::context& ctx) : mu_h_cfl(ctx), cfl(ctx), AIJ_cfl{ctx, ctx, ctx, ctx, ctx, ctx}, Si_cfl{ctx, ctx, ctx}, star_indices(ctx){}
 
     void init(cl::command_queue& cqueue, t3i dim)
     {
         int64_t cells = int64_t{dim.x()} * dim.y() * dim.z();
 
-        mu_cfl.alloc(sizeof(cl_float) * cells);
         mu_h_cfl.alloc(sizeof(cl_float) * cells);
-        pressure_cfl.alloc(sizeof(cl_float) * cells);
         cfl.alloc(sizeof(cl_float) * cells);
         star_indices.alloc(sizeof(cl_int) * cells);
 
-        mu_cfl.set_to_zero(cqueue);
         mu_h_cfl.set_to_zero(cqueue);
-        pressure_cfl.set_to_zero(cqueue);
         cfl.fill(cqueue, cl_float{1});
         star_indices.fill(cqueue, cl_int{-1});
 
