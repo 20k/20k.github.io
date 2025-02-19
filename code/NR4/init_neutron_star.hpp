@@ -42,36 +42,7 @@ namespace neutron_star
 
         all_numerical_eos_gpu(cl::context ctx) : pressures(ctx), max_densities(ctx){}
 
-        void init(cl::command_queue cqueue, const std::vector<numerical_eos>& eos)
-        {
-            if(eos.size() == 0)
-                return;
-
-            int root_size = eos[0].pressure.size();
-
-            for(auto& i : eos)
-                assert(i.pressure.size() == root_size);
-
-            stride = root_size;
-            count = eos.size();
-
-            pressures.alloc(sizeof(cl_float) * stride * count);
-            max_densities.alloc(sizeof(cl_float) * count);
-
-            std::vector<float> all_pressures;
-            std::vector<float> all_densities;
-
-            for(int i=0; i < (int)eos.size(); i++)
-            {
-                for(auto& j : eos[i].pressure)
-                    all_pressures.push_back(j);
-
-                all_densities.push_back(eos[i].max_density);
-            }
-
-            pressures.write(cqueue, all_pressures);
-            max_densities.write(cqueue, all_densities);
-        }
+        void init(cl::command_queue cqueue, const std::vector<numerical_eos>& eos);
     };
 
     struct data
