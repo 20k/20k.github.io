@@ -244,7 +244,7 @@ struct eos_gpu : value_impl::single_source::argument_pack
 valuef calculate_w(valuef p_star, valuef e_star, valuef W, valuef Gamma, inverse_metric<valuef, 3, 3> icY, v3f Si);
 
 void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_hydrodynamic_args<buffer_mut<valuef>> hydro, literal<v3i> ldim, literal<valuef> scale,
-                buffer<valuef> mu_cfl_b, buffer<valuef> mu_h_cfl_b, buffer<valuef> pressure_cfl_b, buffer<valuef> cfl_b, buffer<valuef> u_correction_b, std::array<buffer<valuef>, 3> Si_cfl_b,
+                buffer<valuef> mu_h_cfl_b, buffer<valuef> cfl_b, buffer<valuef> u_correction_b, std::array<buffer<valuef>, 3> Si_cfl_b,
                 buffer<valuei> indices, eos_gpu eos_data)
 {
     using namespace single_source;
@@ -316,12 +316,8 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     valuef phi = cfl_b[pos, dim] + u_correction_b[pos, dim];
     v3f Si_cfl = {Si_cfl_b[0][pos, dim], Si_cfl_b[1][pos, dim], Si_cfl_b[2][pos, dim]};
 
-    //valuef mu = mu_cfl * pow(phi, -8);
     valuef mu_h = mu_h_cfl * pow(phi, -8);
-    //valuef pressure_from_cfl = pressure_cfl * pow(phi, -8);
     v3f Si = Si_cfl * pow(phi, -10);
-
-    //valuef u0 = sqrt((mu_h + pressure) / max(mu + pressure, 0.001f));
 
     valuef Gamma = get_Gamma();
 
@@ -1118,9 +1114,7 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
         args.push_back(ubufs.vi[2]);
         args.push_back(pack.dim);
         args.push_back(pack.scale);
-        args.push_back(pack.disc.mu_cfl);
         args.push_back(pack.disc.mu_h_cfl);
-        args.push_back(pack.disc.pressure_cfl);
         args.push_back(pack.disc.cfl);
         args.push_back(u_buf);
         args.push_back(pack.disc.Si_cfl[0]);
