@@ -852,6 +852,7 @@ struct raytrace_manager
             args.push_back(positions, velocities, results, zshifts, occlusion);
             args.push_back(m.dim);
             args.push_back(full_scale);
+            args.push_back(simulation_width);
 
             m.buffers[buf].append_to(args);
 
@@ -863,7 +864,7 @@ struct raytrace_manager
             cqueue.exec("trace3", args, {screen_size.x(), screen_size.y()}, {8,8});
         }
 
-        blit(cqueue, background, screen_tex);
+        blit(cqueue, background, screen_tex, simulation_width);
     }
 
     void render4(cl::command_queue& cqueue, tensor<float, 4> camera_pos, quat camera_quat, cl::image& background, cl::gl_rendertexture& screen_tex, float simulation_width, mesh& m,
@@ -923,6 +924,7 @@ struct raytrace_manager
         args.push_back(positions, velocities, results, zshifts);
         args.push_back(reduced_dim);
         args.push_back(reduced_scale);
+        args.push_back(simulation_width);
         args.push_back(tetrads[0], tetrads[1], tetrads[2], tetrads[3]);
 
         for(auto& i : Guv_block)
@@ -934,10 +936,10 @@ struct raytrace_manager
 
         cqueue.exec("trace4x4", args, {screen_size.x(), screen_size.y()}, {8, 8});
 
-        blit(cqueue, background, screen_tex);
+        blit(cqueue, background, screen_tex, simulation_width);
     }
 
-    void blit(cl::command_queue& cqueue, cl::image background, cl::gl_rendertexture& screen_tex)
+    void blit(cl::command_queue& cqueue, cl::image background, cl::gl_rendertexture& screen_tex, float simulation_width)
     {
         tensor<int, 2> screen_size = {screen_tex.size<2>().x(), screen_tex.size<2>().y()};
         tensor<int, 2> background_size = {background.size<2>().x(), background.size<2>().y()};
@@ -946,6 +948,7 @@ struct raytrace_manager
         args.push_back(screen_size);
         args.push_back(positions, velocities);
         args.push_back(texture_coordinates);
+        args.push_back(simulation_width);
 
         cqueue.exec("calculate_texture_coordinates", args, {screen_size.x(), screen_size.y()}, {8, 8});
 

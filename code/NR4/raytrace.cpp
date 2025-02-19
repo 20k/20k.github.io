@@ -5,8 +5,6 @@
 #include "interpolation.hpp"
 #include "plugin.hpp"
 
-#define UNIVERSE_SIZE 59
-
 template<typename T, int N>
 struct verlet_context
 {
@@ -356,7 +354,7 @@ valuef get_ct_timestep(valuef W)
     return mix(valuef(0.1f), valuef(1.f), my_fraction);
 }
 
-v3f fix_ray_position_cart(v3f cartesian_pos, v3f cartesian_velocity, float sphere_radius)
+v3f fix_ray_position_cart(v3f cartesian_pos, v3f cartesian_velocity, valuef sphere_radius)
 {
     using namespace single_source;
 
@@ -399,6 +397,7 @@ void trace3(execution_context& ectx, literal<v2i> screen_sizel,
             buffer_mut<valuei> results, buffer_mut<valuef> zshift, buffer_mut<v4f> matter_colour,
             literal<v3i> dim,
             literal<valuef> scale,
+            literal<valuef> universe_size,
             bssn_args_mem<buffer<valuef>> in,
             bssn_derivatives_mem<buffer<derivative_t>> derivatives,
             arg_data<trace3_trampoline> plugin_data)
@@ -581,7 +580,7 @@ void trace3(execution_context& ectx, literal<v2i> screen_sizel,
         valuef radius_sq = dot(cposition, cposition);
 
         //terminate if we're out of the sim
-        if_e(radius_sq > UNIVERSE_SIZE*UNIVERSE_SIZE, [&] {
+        if_e(radius_sq > universe_size.get()*universe_size.get(), [&] {
             as_ref(result) = valuei(1);
             break_e();
         });
@@ -752,6 +751,7 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
             buffer_mut<valuei> results, buffer_mut<valuef> zshift,
             literal<v3i> dim,
             literal<valuef> scale,
+            literal<valuef> universe_size,
             buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
             std::array<buffer<block_precision_t>, 10> Guv_buf,
             literal<valuef> last_time,
@@ -920,7 +920,7 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
 
         valuef radius_sq = dot(cposition.yzw(), cposition.yzw());
 
-        if_e(radius_sq > UNIVERSE_SIZE*UNIVERSE_SIZE, [&] {
+        if_e(radius_sq > universe_size.get()*universe_size.get(), [&] {
             //ray escaped
             as_ref(result) = valuei(1);
             break_e();
@@ -962,7 +962,7 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
 
 void calculate_texture_coordinates(execution_context& ectx, literal<v2i> screen_sizel,
                                    buffer<v4f> positions, buffer<v4f> velocities,
-                                   buffer_mut<v2f> out)
+                                   buffer_mut<v2f> out, literal<valuef> universe_size)
 {
     using namespace single_source;
 
@@ -987,7 +987,7 @@ void calculate_texture_coordinates(execution_context& ectx, literal<v2i> screen_
     v3f position3 = positions[screen_position, screen_size].yzw();
     v3f velocity3 = velocities[screen_position, screen_size].yzw();
 
-    position3 = fix_ray_position_cart(position3, velocity3, UNIVERSE_SIZE);
+    position3 = fix_ray_position_cart(position3, velocity3, universe_size.get());
 
     v2f angle = cartesian_to_spherical(position3).yz();
 
