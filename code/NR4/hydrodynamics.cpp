@@ -163,7 +163,7 @@ struct hydrodynamic_concrete
             //ctx.add("DBG_A", A);
 
             ///[0.1, 1.0}
-            valuef CQvis = 1.f;
+            valuef CQvis = 0.1f;
 
             valuef PQvis = ternary(littledv < 0, CQvis * A * pow(littledv, 2), valuef{0.f});
 
@@ -258,15 +258,15 @@ std::vector<buffer_descriptor> hydrodynamic_buffers::get_description()
 
     buffer_descriptor s0;
     s0.name = "cs0";
-    s0.dissipation_coeff = 0.05;
+    s0.dissipation_coeff = 0.5;
 
     buffer_descriptor s1;
     s1.name = "cs1";
-    s1.dissipation_coeff = 0.05;
+    s1.dissipation_coeff = 0.5;
 
     buffer_descriptor s2;
     s2.name = "cs2";
-    s2.dissipation_coeff = 0.05;
+    s2.dissipation_coeff = 0.5;
 
     return {p, e, s0, s1, s2};
 }
@@ -796,6 +796,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     #define CLAMP_HIGH_VELOCITY
     #ifdef CLAMP_HIGH_VELOCITY
     if_e(p_star >= min_p_star && p_star < 1e-5, [&]{
+    //if_e(p_star >= min_p_star && p_star < 1e-5, [&]{
         v3f dfsi = declare_e(fin_Si);
 
         v3f u_k;
@@ -808,7 +809,6 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         as_ref(fin_Si) = u_k * h * p_star;
     });
     #endif
-
 
     /*    p* 0.000222 e* 0.002546 si -0.000010 -0.000143 0.000003 w 0.000256 P 0.000002 vi -0.064003 -0.347698 0.014055 epsilon 0.017120 top_1 -0.000097
     p* 0.000107 e* 0.000000 si 0.000171 -0.005759 -0.000041 w 0.005367 P 0.000000 vi -0.044568 -0.736823 0.007491 epsilon 0.000000 top_1 -0.004060

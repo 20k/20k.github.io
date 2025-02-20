@@ -74,7 +74,7 @@ void make_kreiss_oliger(cl::context ctx)
         };
         #endif
 
-        int max_kreiss = 4;
+        int max_kreiss = 2;
 
         for(int i=1; i < max_kreiss; i++)
         {
