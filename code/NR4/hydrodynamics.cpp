@@ -258,15 +258,18 @@ std::vector<buffer_descriptor> hydrodynamic_buffers::get_description()
 
     buffer_descriptor s0;
     s0.name = "cs0";
-    s0.dissipation_coeff = 0.5;
+    s0.dissipation_coeff = 0.05;
+    s0.dissipation_order = 4;
 
     buffer_descriptor s1;
     s1.name = "cs1";
-    s1.dissipation_coeff = 0.5;
+    s1.dissipation_coeff = 0.05;
+    s1.dissipation_order = 4;
 
     buffer_descriptor s2;
     s2.name = "cs2";
-    s2.dissipation_coeff = 0.5;
+    s2.dissipation_coeff = 0.05;
+    s2.dissipation_order = 4;
 
     return {p, e, s0, s1, s2};
 }
@@ -843,27 +846,29 @@ Pos 80 73 65*/
     Pos 73 85 65
     Pos 73 83 65*/
 
-    if_e(pos.x() == 73 && pos.y() == 85 && pos.z() == 65, [&]{
+    //if_e(pos.x() == 73 && pos.y() == 85 && pos.z() == 65, [&]{
     //if_e(pos.x() == 80 && pos.y() == 75 && pos.z() == 57, [&]{
     //if_e(fabs(dSi_p1[1]) > 0.1f, [&]{
-
-        //if_e(!isfinite())
-
+    if_e(pos.x() == 75 && pos.y() == 82 && pos.z() == 69, [&]{
         valuef epsilon = hydro_args.calculate_epsilon(args.W);
-
-        //-gB + safe_divide(W*W * gA, w*h, 1e-6) * cY.invert().raise(Si)
 
         valuef raised = args.cY.invert().raise(Si)[1];
 
         valuef t1 = args.W * args.W * args.gA * raised;
 
-        print("de* advect %f full %f\n", de_star_advect, de_star);
+        print("de* advect %f full %f mult %f\n", de_star_advect, de_star, de_star * timestep.get());
         print("%i %i %i     p* %.10f e* %.10f si %f %f %f w %f P %f vi %f %f %f epsilon %.10f raised %f top_1 %f\n", pos.x(), pos.y(), pos.z(), p_star, e_star, Si[0], Si[1], Si[2], w, hydro_args.P, vi[0], vi[1], vi[2], epsilon, raised, t1);
         print("%i %i %i out p* %.10f e* %.10f si %f %f %f\n", pos.x(), pos.y(), pos.z(), fin_p_star, fin_e_star, as_constant(fin_Si[0]), as_constant(fin_Si[1]), as_constant(fin_Si[2]));
+        print("Base e* %.10f\n", h_base.e_star[pos, dim]);
         //print("Pos %i %i %i\n", pos.x(), pos.y(), pos.z());
     });
 
-    if_e(fin_p_star <= min_p_star, [&]{
+    ///i think this is causing problems
+    ///so, backwards euler: we do one step, and flush to 0. That becomes out new output buffer, but base still has stuff in it
+    ///because in == 0, we flood shit in, increasing the temperature
+    ///backwards euler doesn't work well with discontinuities. Todo: Enforce this constraint somewhere else
+    ///if p* in < min_p_star, quietly do nothing
+    /*if_e(fin_p_star <= min_p_star, [&]{
         as_ref(h_out.p_star[pos, dim]) = valuef(0);
         as_ref(h_out.e_star[pos, dim]) = valuef(0);
 
@@ -873,7 +878,7 @@ Pos 80 73 65*/
         }
 
         return_e();
-    });
+    });*/
 
     as_ref(h_out.p_star[pos, dim]) = fin_p_star;
     as_ref(h_out.e_star[pos, dim]) = fin_e_star;
@@ -882,6 +887,36 @@ Pos 80 73 65*/
     {
         as_ref(h_out.Si[i][pos, dim]) = as_constant(fin_Si[i]);
     }
+}
+
+void finalise_hydro(execution_context& ectx,
+                    hydrodynamic_base_args<buffer_mut<valuef>> hydro,
+                    literal<v3i> idim,
+                    buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
+{
+    using namespace single_source;
+
+    valuei lid = value_impl::get_global_id(0);
+
+    pin(lid);
+
+    v3i dim = idim.get();
+
+    if_e(lid >= positions_length.get(), []{
+        return_e();
+    });
+
+    v3i pos = (v3i)positions[lid];
+    pin(pos);
+
+    if_e(hydro.p_star[pos, dim] < min_p_star, [&]{
+        as_ref(hydro.p_star[pos, dim]) = valuef(0);
+        as_ref(hydro.e_star[pos, dim]) = valuef(0);
+
+        as_ref(hydro.Si[0][pos, dim]) = valuef(0);
+        as_ref(hydro.Si[1][pos, dim]) = valuef(0);
+        as_ref(hydro.Si[2][pos, dim]) = valuef(0);
+    });
 }
 
 hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx)
@@ -897,6 +932,10 @@ hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx)
     cl::async_build_and_cache(ctx, []{
         return value_impl::make_function(evolve_hydro, "evolve_hydro");
     }, {"evolve_hydro"});
+
+    cl::async_build_and_cache(ctx, []{
+        return value_impl::make_function(finalise_hydro, "finalise_hydro");
+    }, {"finalise_hydro"});
 }
 
 buffer_provider* hydrodynamic_plugin::get_buffer_factory(cl::context ctx)
@@ -994,6 +1033,24 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
         cqueue.exec("evolve_hydro", args, {sdata.evolve_length}, {128});
     }
 }
+
+void hydrodynamic_plugin::finalise(cl::context ctx, cl::command_queue cqueue, buffer_provider* out, t3i dim, cl::buffer evolve_points, cl_int evolve_length)
+{
+    hydrodynamic_buffers& bufs = *dynamic_cast<hydrodynamic_buffers*>(out);
+    auto all = bufs.get_buffers();
+
+    cl::args args;
+
+    for(auto& i : all)
+        args.push_back(i);
+
+    args.push_back(dim);
+    args.push_back(evolve_points);
+    args.push_back(evolve_length);
+
+    cqueue.exec("finalise_hydro", args, {evolve_length}, {128});
+}
+
 
 void hydrodynamic_plugin::add_args_provider(all_adm_args_mem& mem)
 {

@@ -368,7 +368,7 @@ struct mesh
 
         auto kreiss = [&](int in, int out)
         {
-            auto kreiss_individual = [&](cl::buffer inb, cl::buffer outb, float eps)
+            auto kreiss_individual = [&](cl::buffer inb, cl::buffer outb, float eps, int order)
             {
                 cl::args args;
                 args.push_back(inb);
@@ -378,7 +378,7 @@ struct mesh
                 args.push_back(scale);
                 args.push_back(eps);
 
-                cqueue.exec("kreiss_oliger", args, {dim.x() * dim.y() * dim.z()}, {128});
+                cqueue.exec("kreiss_oliger" + std::to_string(order), args, {dim.x() * dim.y() * dim.z()}, {128});
             };
 
             std::vector<cl::buffer> linear_in;
@@ -396,7 +396,7 @@ struct mesh
 
             for(int i=0; i < (int)linear_in.size(); i++)
             {
-                kreiss_individual(linear_in[i], linear_out[i], 0.05f);
+                kreiss_individual(linear_in[i], linear_out[i], 0.05f, 4);
             }
 
             for(int i=0; i < (int)plugin_buffers[in].size(); i++)
@@ -414,7 +414,7 @@ struct mesh
                     if(desc[kk].dissipation_coeff == 0)
                         cl::copy(cqueue, bufs_in[kk], bufs_out[kk]);
                     else
-                        kreiss_individual(bufs_in[kk], bufs_out[kk], desc[kk].dissipation_coeff);
+                        kreiss_individual(bufs_in[kk], bufs_out[kk], desc[kk].dissipation_coeff, desc[kk].dissipation_order);
                 }
             }
 
@@ -689,6 +689,13 @@ struct mesh
         ///at the end of our iterations, our output is in buffer[2], and we want our result to end up in buffer[0]
         ///for this to work, kreiss must execute over every pixel unconditionally
         kreiss(2, 0);
+
+        for(int kk=0; kk < (int)plugins.size(); kk++)
+        {
+            plugin* p = plugins[kk];
+
+            p->finalise(ctx, cqueue, plugin_buffers[0][kk], dim, evolve_points, evolve_length);
+        }
 
         total_elapsed += timestep;
         valid_derivative_buffer = 2;
