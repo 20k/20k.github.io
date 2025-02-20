@@ -1668,6 +1668,18 @@ namespace value_impl
 
         return ret;
     }
+    template<typename T, int N, int M>
+    inline
+    tensor<value<T>, N, M> ternary(const value<bool>& condition, const tensor<value<T>, N, M>& if_true, const tensor<value<T>, N, M>& if_false)
+    {
+        tensor<value<T>, N, M> ret;
+
+        for(int i=0; i < N; i++)
+            for(int j=0; j < M; j++)
+                ret[i, j] = ternary(condition, if_true[i, j], if_false[i, j]);
+
+        return ret;
+    }
 
     template<typename T>
     inline
