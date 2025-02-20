@@ -22,6 +22,7 @@ struct buffer_descriptor
     float asymptotic_value = 0;
     float wave_speed = 1;
     bool has_boundary_condition = true;
+    int dissipation_order = 4;
 };
 
 ///hmm. What if we stick a bssn buffer pack in here? or even inherit?
@@ -158,12 +159,11 @@ struct plugin
     virtual buffer_provider* get_buffer_factory(cl::context ctx){return nullptr;}
     ///long term: take a buffer pool. we're going to have to ref count manually
     virtual buffer_provider* get_utility_buffer_factory(cl::context ctx){return nullptr;}
-    //virtual std::vector<buffer_descriptor> get_utility_buffers(){return std::vector<buffer_descriptor>();}
     ///pass the discretised state into here
     virtual void init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, cl::buffer u, buffer_provider* to_init, buffer_provider* to_init_utility){assert(false);}
     //virtual void pre_step(mesh& m, cl::context& ctx, cl::command_queue& mqueue, thin_intermediates_pool& pool, buffer_set& buffers, float timestep){}
     virtual void step(cl::context ctx, cl::command_queue cqueue, const plugin_step_data& sdata){assert(false);}
-    //virtual void finalise(mesh& m, cl::context& ctx, cl::command_queue& mqueue, float timestep) {}
+    virtual void finalise(cl::context ctx, cl::command_queue cqueue, buffer_provider* out, t3i dim, cl::buffer evolve_points, cl_int evolve_length) {}
     //virtual void save(cl::command_queue& cqueue, const std::string& directory){assert(false);}
     //virtual void load(cl::command_queue& cqueue, const std::string& directory){assert(false);}
 

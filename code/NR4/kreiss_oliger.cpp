@@ -38,65 +38,68 @@ valuef kreiss_oliger_interior(valuef in, int order)
 
 void make_kreiss_oliger(cl::context ctx)
 {
-    auto func = [](execution_context&, buffer<valuef> in, buffer_mut<valuef> out, buffer<valuef> W, literal<v3i> ldim, literal<valuef> scale, literal<valuef> eps) {
-        using namespace single_source;
+    for(int Order = 2; Order <= 4; Order++)
+    {
+        auto func = [Order](execution_context&, buffer<valuef> in, buffer_mut<valuef> out, buffer<valuef> W, literal<v3i> ldim, literal<valuef> scale, literal<valuef> eps) {
+            using namespace single_source;
 
-        valuei lid = value_impl::get_global_id(0);
+            valuei lid = value_impl::get_global_id(0);
 
-        pin(lid);
+            pin(lid);
 
-        v3i dim = ldim.get();
+            v3i dim = ldim.get();
 
-        if_e(lid >= dim.x() * dim.y() * dim.z(), [&] {
-            return_e();
-        });
-
-        v3i pos = get_coordinate(lid, dim);
-
-        valuei boundary_distance = distance_to_boundary(pos, dim);
-
-        if_e(boundary_distance == 0, [&] {
-            as_ref(out[lid]) = in[lid];
-
-            return_e();
-        });
-
-        #define CAKO
-        #ifdef CAKO
-        auto do_kreiss = [&](int order)
-        {
-            as_ref(out[lid]) = in[lid] + eps.get() * kreiss_oliger_interior(in[pos, dim], order) * max(W[lid], valuef(0.5));
-        };
-        #else
-        auto do_kreiss = [&](int order)
-        {
-            as_ref(out[lid]) = in[lid] + eps.get() * kreiss_oliger_interior(in[pos, dim], order);
-        };
-        #endif
-
-        int max_kreiss = 2;
-
-        for(int i=1; i < max_kreiss; i++)
-        {
-            if_e(boundary_distance == i, [&] {
-                do_kreiss(i * 2);
+            if_e(lid >= dim.x() * dim.y() * dim.z(), [&] {
+                return_e();
             });
-        }
 
-        if_e(boundary_distance >= max_kreiss, [&] {
-            do_kreiss(max_kreiss * 2);
-        });
+            v3i pos = get_coordinate(lid, dim);
 
-        /*if_e(pos.x() == 2 && pos.y() == 128 && pos.z() == 128, [&]{
-            value_base se;
-            se.type = value_impl::op::SIDE_EFFECT;
-            se.abstract_value = "printf(\"hello %f %i\\n\"," + value_to_string(in[pos, dim]) + ", " + value_to_string(boundary_distance) + ")";
+            valuei boundary_distance = distance_to_boundary(pos, dim);
 
-            value_impl::get_context().add(se);
-        });*/
-    };
+            if_e(boundary_distance == 0, [&] {
+                as_ref(out[lid]) = in[lid];
 
-    cl::async_build_and_cache(ctx, [=] {
-        return value_impl::make_function(func, "kreiss_oliger");
-    }, {"kreiss_oliger"});
+                return_e();
+            });
+
+            #define CAKO
+            #ifdef CAKO
+            auto do_kreiss = [&](int order)
+            {
+                as_ref(out[lid]) = in[lid] + eps.get() * kreiss_oliger_interior(in[pos, dim], order) * max(W[lid], valuef(0.5));
+            };
+            #else
+            auto do_kreiss = [&](int order)
+            {
+                as_ref(out[lid]) = in[lid] + eps.get() * kreiss_oliger_interior(in[pos, dim], order);
+            };
+            #endif
+
+            int max_kreiss = Order;
+
+            for(int i=1; i < max_kreiss; i++)
+            {
+                if_e(boundary_distance == i, [&] {
+                    do_kreiss(i * 2);
+                });
+            }
+
+            if_e(boundary_distance >= max_kreiss, [&] {
+                do_kreiss(max_kreiss * 2);
+            });
+
+            /*if_e(pos.x() == 2 && pos.y() == 128 && pos.z() == 128, [&]{
+                value_base se;
+                se.type = value_impl::op::SIDE_EFFECT;
+                se.abstract_value = "printf(\"hello %f %i\\n\"," + value_to_string(in[pos, dim]) + ", " + value_to_string(boundary_distance) + ")";
+
+                value_impl::get_context().add(se);
+            });*/
+        };
+
+        cl::async_build_and_cache(ctx, [=] {
+            return value_impl::make_function(func, "kreiss_oliger" + std::to_string(Order));
+        }, {"kreiss_oliger" + std::to_string(Order)});
+    }
 }
