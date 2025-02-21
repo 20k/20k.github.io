@@ -688,12 +688,12 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
     valuef e_star = hydro.e_star[pos, dim];
     v3f Si = {hydro.Si[0][pos, dim], hydro.Si[1][pos, dim], hydro.Si[2][pos, dim]};
 
-    /*if_e(p_star <= min_p_star, [&]{
+    if_e(p_star <= min_p_star, [&]{
         as_ref(out.P[pos, dim]) = valuef(0);
         as_ref(out.w[pos, dim]) = valuef(0);
 
         return_e();
-    });*/
+    });
 
     bssn_args args(pos, dim, in);
 
@@ -927,11 +927,11 @@ void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         as_ref(fin_Si[i]) = h_base.Si[i][pos, dim] + timestep.get() * dSi_p1[i];
     }
 
-    #define CLAMP_HIGH_VELOCITY
+    //#define CLAMP_HIGH_VELOCITY
     #ifdef CLAMP_HIGH_VELOCITY
     //if_e(p_star >= min_p_star && p_star < 1e-4, [&]{
-    //if_e(p_star >= min_p_star && p_star < 1e-5, [&]{
-        /*v3f dfsi = declare_e(fin_Si);
+    if_e(p_star >= min_p_star && p_star < 1e-5, [&]{
+        v3f dfsi = declare_e(fin_Si);
 
         v3f u_k;
 
@@ -940,8 +940,8 @@ void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
         u_k = clamp(u_k, -0.2f, 0.2f);
 
-        as_ref(fin_Si) = u_k * h * p_star;*/
-    //});
+        as_ref(fin_Si) = u_k * h * p_star;
+    });
     #endif
 
     for(int i=0; i < 3; i++)
