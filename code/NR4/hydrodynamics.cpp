@@ -736,7 +736,7 @@ void evolve_p_star(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     hydrodynamic_concrete hydro_args(pos, dim, h_in, util);
 
     if_e(hydro_args.p_star <= min_p_star, [&]{
-        as_ref(p_star_out[pos, dim]) = hydro_args.p_star;
+        as_ref(p_star_out[pos, dim]) = valuef(0.f);
         return_e();
     });
 
@@ -777,7 +777,7 @@ void evolve_e_star(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     hydrodynamic_concrete hydro_args(pos, dim, h_in, util);
 
     if_e(hydro_args.p_star <= min_p_star, [&]{
-        as_ref(e_star_out[pos, dim]) = hydro_args.e_star;
+        as_ref(e_star_out[pos, dim]) = valuef(0.f);
         return_e();
     });
 
@@ -822,6 +822,10 @@ void evolve_si_p1(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     hydrodynamic_concrete hydro_args(pos, dim, h_in, util);
 
     if_e(hydro_args.p_star <= min_p_star, [&]{
+        as_ref(Si_out[0][pos, dim]) = valuef(0.f);
+        as_ref(Si_out[1][pos, dim]) = valuef(0.f);
+        as_ref(Si_out[2][pos, dim]) = valuef(0.f);
+
         return_e();
     });
 
@@ -864,9 +868,9 @@ void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     hydrodynamic_concrete hydro_args(pos, dim, h_in, util);
 
     if_e(hydro_args.p_star <= min_p_star, [&]{
-        as_ref(Si_out[0][pos, dim]) = hydro_args.Si[0];
-        as_ref(Si_out[1][pos, dim]) = hydro_args.Si[1];
-        as_ref(Si_out[2][pos, dim]) = hydro_args.Si[2];
+        as_ref(Si_out[0][pos, dim]) = valuef(0.f);
+        as_ref(Si_out[1][pos, dim]) = valuef(0.f);
+        as_ref(Si_out[2][pos, dim]) = valuef(0.f);
         return_e();
     });
 
