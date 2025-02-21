@@ -700,6 +700,7 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
     valuef w = calculate_w(p_star, e_star, args.W, args.cY.invert(), Si);
     w = max(w, p_star * args.gA * 1);
 
+    //this might be a source of instability when p* is low, because of derivatives
     valuef P = max(eos(args.W, w, p_star, e_star), 0.f);
 
     as_ref(out.w[pos, dim]) = w;
@@ -1446,9 +1447,32 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
 
     auto utility_buffers = ubufs.get_buffers();
 
+    auto calc_intermediates = [&](hydrodynamic_buffers& in)
+    {
+        cl::args args;
+
+        for(auto& i : sdata.bssn_buffers)
+            args.push_back(i);
+
+        for(auto i : in.get_buffers())
+            args.push_back(i);
+
+        for(auto& i : utility_buffers)
+            args.push_back(i);
+
+        args.push_back(sdata.dim);
+        args.push_back(sdata.scale);
+        args.push_back(sdata.evolve_points);
+        args.push_back(sdata.evolve_length);
+
+        cqueue.exec("calculate_hydro_intermediates", args, {sdata.evolve_length}, {128});
+    };
+
     std::vector<cl::buffer> cl_base = bufs_base.get_buffers();
 
     {
+        calc_intermediates(bufs_in);
+
         std::vector<cl::buffer> cl_in = bufs_in.get_buffers();
 
         cl::args args;
@@ -1479,6 +1503,8 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
     std::swap(bufs_in.p_star, bufs_out.p_star);
 
     {
+        calc_intermediates(bufs_in);
+
         std::vector<cl::buffer> cl_in = bufs_in.get_buffers();
 
         cl::args args;
@@ -1509,6 +1535,8 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
     std::swap(bufs_out.e_star, bufs_in.e_star);
 
     {
+        calc_intermediates(bufs_in);
+
         std::vector<cl::buffer> cl_in = bufs_in.get_buffers();
 
         cl::args args;
@@ -1544,6 +1572,7 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
 
 
     {
+        calc_intermediates(bufs_in);
         std::vector<cl::buffer> cl_in = bufs_in.get_buffers();
 
         cl::args args;
