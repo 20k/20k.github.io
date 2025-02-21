@@ -711,6 +711,247 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
     as_ref(out.P[pos, dim]) = P;
 }
 
+void evolve_p_star(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
+                  hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, hydrodynamic_base_args<buffer_mut<valuef>> h_out,
+                  hydrodynamic_utility_args<buffer<valuef>> util,
+                  literal<v3i> idim, literal<valuef> scale, literal<valuef> timestep,
+                  buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
+{
+    using namespace single_source;
+
+    valuei lid = value_impl::get_global_id(0);
+
+    pin(lid);
+
+    v3i dim = idim.get();
+
+    if_e(lid >= positions_length.get(), []{
+        return_e();
+    });
+
+    v3i pos = (v3i)positions[lid];
+    pin(pos);
+
+    derivative_data d;
+    d.pos = pos;
+    d.dim = idim.get();
+    d.scale = scale.get();
+
+    bssn_args args(pos, dim, in);
+    hydrodynamic_concrete hydro_args(pos, dim, h_in, util);
+
+    if_e(hydro_args.p_star <= min_p_star, [&]{
+        as_ref(h_out.p_star[pos, dim]) = hydro_args.p_star;
+        return_e();
+    });
+
+    v3f vi = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY);
+
+    valuef dp_star = hydro_args.advect_rhs(hydro_args.p_star, vi, d);
+
+    as_ref(h_out.p_star[pos, dim]) = h_base.p_star[pos, dim] + dp_star * timestep.get();
+}
+
+void evolve_e_star(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
+                  hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, hydrodynamic_base_args<buffer_mut<valuef>> h_out,
+                  hydrodynamic_utility_args<buffer<valuef>> util,
+                  literal<v3i> idim, literal<valuef> scale, literal<valuef> timestep,
+                  buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
+{
+    using namespace single_source;
+
+    valuei lid = value_impl::get_global_id(0);
+
+    pin(lid);
+
+    v3i dim = idim.get();
+
+    if_e(lid >= positions_length.get(), []{
+        return_e();
+    });
+
+    v3i pos = (v3i)positions[lid];
+    pin(pos);
+
+    derivative_data d;
+    d.pos = pos;
+    d.dim = idim.get();
+    d.scale = scale.get();
+
+    bssn_args args(pos, dim, in);
+    hydrodynamic_concrete hydro_args(pos, dim, h_in, util);
+
+    if_e(hydro_args.p_star <= min_p_star, [&]{
+        as_ref(h_out.e_star[pos, dim]) = hydro_args.e_star;
+        return_e();
+    });
+
+    v3f vi = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY);
+
+    valuef de_star = hydro_args.advect_rhs(hydro_args.e_star, vi, d);
+
+    valuef fin_e_star = h_base.e_star[pos, dim] + de_star * timestep.get();
+
+    fin_e_star = ternary(h_in.p_star[pos, dim] < valuef(1e-6f), min(fin_e_star, 10 * h_in.p_star[pos, dim]), fin_e_star);
+
+    as_ref(h_out.e_star[pos, dim]) = fin_e_star;
+}
+
+void evolve_si_p1(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
+                  hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, hydrodynamic_base_args<buffer_mut<valuef>> h_out,
+                  hydrodynamic_utility_args<buffer<valuef>> util,
+                  literal<v3i> idim, literal<valuef> scale, literal<valuef> timestep,
+                  buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
+{
+    using namespace single_source;
+
+    valuei lid = value_impl::get_global_id(0);
+
+    pin(lid);
+
+    v3i dim = idim.get();
+
+    if_e(lid >= positions_length.get(), []{
+        return_e();
+    });
+
+    v3i pos = (v3i)positions[lid];
+    pin(pos);
+
+    derivative_data d;
+    d.pos = pos;
+    d.dim = idim.get();
+    d.scale = scale.get();
+
+    bssn_args args(pos, dim, in);
+    hydrodynamic_concrete hydro_args(pos, dim, h_in, util);
+
+    if_e(hydro_args.p_star <= min_p_star, [&]{
+        return_e();
+    });
+
+    v3f vi = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY);
+
+    v3f ds = hydro_args.advect_rhs(hydro_args.Si, vi, d);
+
+    as_ref(h_out.Si[0][pos, dim]) = h_base.Si[0][pos, dim] + ds[0] * timestep.get();
+    as_ref(h_out.Si[1][pos, dim]) = h_base.Si[1][pos, dim] + ds[1] * timestep.get();
+    as_ref(h_out.Si[2][pos, dim]) = h_base.Si[2][pos, dim] + ds[2] * timestep.get();
+}
+
+
+void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
+                  hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, hydrodynamic_base_args<buffer_mut<valuef>> h_out,
+                  hydrodynamic_utility_args<buffer<valuef>> util,
+                  literal<v3i> idim, literal<valuef> scale, literal<valuef> timestep,
+                  buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
+{
+    using namespace single_source;
+
+    valuei lid = value_impl::get_global_id(0);
+
+    pin(lid);
+
+    v3i dim = idim.get();
+
+    if_e(lid >= positions_length.get(), []{
+        return_e();
+    });
+
+    v3i pos = (v3i)positions[lid];
+    pin(pos);
+
+    derivative_data d;
+    d.pos = pos;
+    d.dim = idim.get();
+    d.scale = scale.get();
+
+    bssn_args args(pos, dim, in);
+    hydrodynamic_concrete hydro_args(pos, dim, h_in, util);
+
+    if_e(hydro_args.p_star <= min_p_star, [&]{
+        as_ref(h_out.Si[0][pos, dim]) = hydro_args.Si[0];
+        as_ref(h_out.Si[1][pos, dim]) = hydro_args.Si[1];
+        as_ref(h_out.Si[2][pos, dim]) = hydro_args.Si[2];
+        return_e();
+    });
+
+    valuef p_star = hydro_args.p_star;
+    valuef e_star = hydro_args.e_star;
+    v3f Si = hydro_args.Si;
+
+    valuef h = hydro_args.calculate_h_with_eos(args.W);
+    valuef w = hydro_args.w;
+
+    v3f dSi_p1;
+
+    for(int k=0; k < 3; k++)
+    {
+        ///so, it seems like this term is a little unstable
+        ///Si advect is bad
+        valuef p1 = (-args.gA * pow(max(args.W, 0.001f), -3.f)) * diff1(hydro_args.P, k, d);
+        valuef p2 = -w * h * diff1(args.gA, k, d);
+
+        valuef p3;
+
+        for(int j=0; j < 3; j++)
+        {
+            p3 += -Si[j] * diff1(args.gB[j], k, d) ;
+        }
+
+        valuef p4;
+
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                valuef deriv = diff1(args.cY.invert()[i,j], k, d);
+
+                valuef l1 = Si[i] / h;
+                valuef l2 = safe_divide(Si[j], w);
+
+                p4 += 0.5f * args.gA * args.W * args.W * l1 * l2 * deriv;
+            }
+        }
+
+        valuef w2_m_p2_calc = w2_m_p2(p_star, e_star, args.W, args.cY.invert(), Si, w);
+
+        valuef p5 = safe_divide(args.gA * h * (w*w - p_star*p_star), w) * (diff1(args.W, k, d) / max(args.W, 0.001f));
+
+        dSi_p1[k] += (p1 + p2 + p3 + p4 + p5);
+    }
+
+    mut_v3f fin_Si = declare_mut_e((v3f){});
+
+    for(int i=0; i < 3; i++)
+    {
+        as_ref(fin_Si[i]) = h_base.Si[i][pos, dim] + timestep.get() * dSi_p1[i];
+    }
+
+    #define CLAMP_HIGH_VELOCITY
+    #ifdef CLAMP_HIGH_VELOCITY
+    //if_e(p_star >= min_p_star && p_star < 1e-4, [&]{
+    //if_e(p_star >= min_p_star && p_star < 1e-5, [&]{
+        /*v3f dfsi = declare_e(fin_Si);
+
+        v3f u_k;
+
+        for(int i=0; i < 3; i++)
+            u_k[i] = safe_divide(dfsi[i], h * p_star, 1e-6);
+
+        u_k = clamp(u_k, -0.2f, 0.2f);
+
+        as_ref(fin_Si) = u_k * h * p_star;*/
+    //});
+    #endif
+
+    for(int i=0; i < 3; i++)
+    {
+        as_ref(h_out.Si[i][pos, dim]) = as_constant(fin_Si[i]);
+    }
+}
+
+#if 0
 void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                   hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, hydrodynamic_base_args<buffer_mut<valuef>> h_out,
                   hydrodynamic_utility_args<buffer<valuef>> util,
@@ -1040,6 +1281,7 @@ Pos 80 73 65*/
         as_ref(h_out.Si[i][pos, dim]) = as_constant(fin_Si[i]);
     }
 }
+#endif
 
 void finalise_hydro(execution_context& ectx,
                     hydrodynamic_base_args<buffer_mut<valuef>> hydro,
@@ -1082,8 +1324,20 @@ hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx)
     }, {"calculate_hydro_intermediates"});
 
     cl::async_build_and_cache(ctx, []{
-        return value_impl::make_function(evolve_hydro, "evolve_hydro");
-    }, {"evolve_hydro"});
+        return value_impl::make_function(evolve_p_star, "evolve_p_star");
+    }, {"evolve_p_star"});
+
+    cl::async_build_and_cache(ctx, []{
+        return value_impl::make_function(evolve_e_star, "evolve_e_star");
+    }, {"evolve_e_star"});
+
+    cl::async_build_and_cache(ctx, []{
+        return value_impl::make_function(evolve_si_p1, "evolve_si_p1");
+    }, {"evolve_si_p1"});
+
+    cl::async_build_and_cache(ctx, []{
+        return value_impl::make_function(evolve_si_p2, "evolve_si_p2");
+    }, {"evolve_si_p2"});
 
     cl::async_build_and_cache(ctx, []{
         return value_impl::make_function(finalise_hydro, "finalise_hydro");
