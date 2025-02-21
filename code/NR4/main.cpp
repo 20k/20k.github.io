@@ -505,9 +505,9 @@ struct mesh
                 plugin_step_data step_data(ctx);
 
                 for(int i=0; i < 3; i++)
-                    step_data.buffers[i] =  plugin_buffers[i].at(kk)->get_buffers();
+                    step_data.buffers[i] =  plugin_buffers[i].at(kk);
 
-                step_data.utility_buffers = plugin_utility_buffers.at(kk)->get_buffers();
+                step_data.utility_buffers = plugin_utility_buffers.at(kk);
 
                 buffers[in_idx].for_each([&](cl::buffer in){
                     step_data.bssn_buffers.push_back(in);
