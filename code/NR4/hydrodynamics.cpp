@@ -118,8 +118,8 @@ struct hydrodynamic_concrete
     {
         auto leib = [&](valuef v1, valuef v2, int i)
         {
-            //return diff1(v1 * v2, i, d);
-            return diff1(v1, i, d) * v2 + diff1(v2, i, d) * v1;
+            return diff1(v1 * v2, i, d);
+            //return diff1(v1, i, d) * v2 + diff1(v2, i, d) * v1;
         };
 
         valuef sum = 0;
@@ -165,7 +165,7 @@ struct hydrodynamic_concrete
             //ctx.add("DBG_A", A);
 
             ///[0.1, 1.0}
-            valuef CQvis = 0.1f;
+            valuef CQvis = 0.5f;
 
             valuef PQvis = ternary(littledv < 0, CQvis * A * pow(littledv, 2), valuef{0.f});
 
@@ -688,12 +688,12 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
     valuef e_star = hydro.e_star[pos, dim];
     v3f Si = {hydro.Si[0][pos, dim], hydro.Si[1][pos, dim], hydro.Si[2][pos, dim]};
 
-    if_e(p_star <= min_p_star, [&]{
+    /*if_e(p_star <= min_p_star, [&]{
         as_ref(out.P[pos, dim]) = valuef(0);
         as_ref(out.w[pos, dim]) = valuef(0);
 
         return_e();
-    });
+    });*/
 
     bssn_args args(pos, dim, in);
 
@@ -763,6 +763,8 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     for(int k=0; k < 3; k++)
     {
+        ///so, it seems like this term is a little unstable
+        ///Si advect is bad
         valuef p1 = (-args.gA * pow(max(args.W, 0.001f), -3.f)) * diff1(hydro_args.P, k, d);
         valuef p2 = -w * h * diff1(args.gA, k, d);
 
@@ -838,6 +840,13 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             print("hi %f %f %f %f %f\n", p1, p2, p3, p4, p5);
         });*/
 
+        //if(k == 2)
+        /*{
+            if_e(pos.x() == dim.x()/2 + 15 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+                print("Test %i %f %f %f %f %f advect: %f\n", valuei(k), p1, p2, p3, p4, p5, dSi_p1[k]);
+            });
+        }*/
+
         dSi_p1[k] += (p1 + p2 + p3 + p4 + p5);
 
         /*if(k == 2)
@@ -846,6 +855,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                 print("Test %f %f %f %f %f\n", p1, p2, p3, p4, p5);
             });
         }*/
+
     }
 
     valuef fin_p_star = max(h_base.p_star[pos, dim] + timestep.get() * dp_star, 0.f);
@@ -948,7 +958,7 @@ Pos 80 73 65*/
     //71 63 53
     #if 0
     //if_e(pos.x() == 59 && pos.y() == 81 && pos.z() == 55, [&]{
-    if_e(pos.x() == dim.x()/2 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+    if_e(pos.x() == dim.x()/2 + 15 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
     //if_e(pos.x() == 71 && pos.y() == 63 && pos.z() == 53, [&]{
     //if_e(pos.x() == 59 && pos.y() == 81 && pos.z() == 57, [&]{
         valuef epsilon = hydro_args.calculate_epsilon(args.W);
