@@ -315,12 +315,15 @@ std::vector<buffer_descriptor> hydrodynamic_utility_buffers::get_description()
     buffer_descriptor w;
     w.name = "w";
 
-    return {w, P};
+    buffer_descriptor in;
+    in.name = "in";
+
+    return {w, P, in};
 }
 
 std::vector<cl::buffer> hydrodynamic_utility_buffers::get_buffers()
 {
-    return {w, P};
+    return {w, P, intermediate};
 }
 
 void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t3i size)
@@ -332,6 +335,8 @@ void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue c
 
     P.set_to_zero(cqueue);
     w.set_to_zero(cqueue);
+
+    intermediate.alloc(sizeof(cl_float) * cells);
 }
 
 struct eos_gpu : value_impl::single_source::argument_pack
