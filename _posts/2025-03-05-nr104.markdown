@@ -889,6 +889,24 @@ Todo: check a second source for $M$ to make sure its the correct sign
 
 The source terms conspire very conveniently to avoid having to calculate infinite quantities at the singularity which is great. The only infinities we have to worry about are in the actual hydrodynamic evolution equations themselves
 
+## Implementation
+
+Divisions by zero s u c c
+
+Subnote: Projective reals (1/inf = 0)
+
+Subnote 2: The actual projective reals \[a:b\]
+
+## Testing
+
+Do: Spin test
+
+## Its hard to see the spinning
+
+Advecting arbitrary scalar fields
+
+## Merger
+
 # Initial conditions, abridged
 
 ## Step 1
