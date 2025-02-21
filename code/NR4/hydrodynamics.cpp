@@ -3,6 +3,8 @@
 
 ///so like. What if I did the projective real strategy?
 
+constexpr float min_p_star = 1e-7f;
+
 template<typename T>
 inline
 T safe_divide(const T& top, const T& bottom, float tol = 1e-7)
@@ -178,7 +180,7 @@ struct hydrodynamic_concrete
 
         for(int k=0; k < 3; k++)
         {
-            value to_diff = safe_divide(w * vi[k], p_star * e_m6phi);
+            value to_diff = safe_divide(w * vi[k], p_star * e_m6phi, 1e-5);
 
             sum_interior_rhs += diff1(to_diff, k, d);
         }
@@ -193,6 +195,7 @@ struct hydrodynamic_concrete
     }
 };
 
+///it might be because i'm using hydro_args.eos instead of P
 template<typename T>
 valuef full_hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& d)
 {
@@ -202,7 +205,9 @@ valuef full_hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& 
 
     valuef h = hydro_args.calculate_h_with_eos(args.W);
 
-    return h * hydro_args.w * (args.W * args.W * args.W) - hydro_args.eos(args.W);
+    return ternary(hydro_args.p_star <= min_p_star * 1,
+                   valuef(),
+                   h * hydro_args.w * (args.W * args.W * args.W) - hydro_args.eos(args.W));
 }
 
 template<typename T>
@@ -210,7 +215,11 @@ tensor<valuef, 3> full_hydrodynamic_args<T>::adm_Si(bssn_args& args, const deriv
 {
     v3f cSi = {this->Si[0][d.pos, d.dim], this->Si[1][d.pos, d.dim], this->Si[2][d.pos, d.dim]};
 
-    return pow(args.W, 3.f) * cSi;
+    valuef p_star = this->p_star[d.pos, d.dim];
+
+    return ternary(p_star <= min_p_star * 1,
+                   v3f(),
+                   pow(args.W, 3.f) * cSi);
 }
 
 template<typename T>
@@ -230,7 +239,9 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
         }
     }
 
-    return W2_Sij + hydro_args.eos(args.W) * args.cY.to_tensor();
+    return ternary(hydro_args.p_star <= min_p_star * 1,
+                   tensor<valuef, 3, 3>(),
+                   W2_Sij + hydro_args.eos(args.W) * args.cY.to_tensor());
 }
 
 template<typename T>
@@ -258,18 +269,18 @@ std::vector<buffer_descriptor> hydrodynamic_buffers::get_description()
 
     buffer_descriptor s0;
     s0.name = "cs0";
-    s0.dissipation_coeff = 0.05;
-    s0.dissipation_order = 4;
+    s0.dissipation_coeff = 0.01;
+    s0.dissipation_order = 2;
 
     buffer_descriptor s1;
     s1.name = "cs1";
-    s1.dissipation_coeff = 0.05;
-    s1.dissipation_order = 4;
+    s1.dissipation_coeff = 0.01;
+    s1.dissipation_order = 2;
 
     buffer_descriptor s2;
     s2.name = "cs2";
-    s2.dissipation_coeff = 0.05;
-    s2.dissipation_order = 4;
+    s2.dissipation_coeff = 0.01;
+    s2.dissipation_order = 2;
 
     return {p, e, s0, s1, s2};
 }
@@ -654,8 +665,6 @@ valuef w2_m_p2(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef, 3,
 
 }
 
-constexpr float min_p_star = 1e-7f;
-
 void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_base_args<buffer<valuef>> hydro, hydrodynamic_utility_args<buffer_mut<valuef>> out,
                                    literal<v3i> idim, literal<valuef> scale,
                                    buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
@@ -721,6 +730,15 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     bssn_args args(pos, dim, in);
     hydrodynamic_concrete hydro_args(pos, dim, h_in, util);
 
+    if_e(hydro_args.p_star <= min_p_star, [&]{
+        as_ref(h_out.p_star[pos, dim]) = valuef(min_p_star - 1e-9f);
+        as_ref(h_out.e_star[pos, dim]) = hydro_args.e_star;
+        as_ref(h_out.Si[0][pos, dim]) = hydro_args.Si[0];
+        as_ref(h_out.Si[1][pos, dim]) = hydro_args.Si[1];
+        as_ref(h_out.Si[2][pos, dim]) = hydro_args.Si[2];
+        return_e();
+    });
+
     derivative_data d;
     d.pos = pos;
     d.dim = idim.get();
@@ -766,19 +784,68 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                 valuef l1 = Si[i] / h;
                 valuef l2 = safe_divide(Si[j], w);
 
+                #if 0
+                if(k == 2)
+                {
+                    auto dump = [&](v3i offset){
+                        unit_metric<valuef, 3, 3> met;
+                        met[0, 0] = in.cY[0][pos + offset, dim];
+                        met[1, 0] = in.cY[1][pos + offset, dim];
+                        met[2, 0] = in.cY[2][pos + offset, dim];
+                        met[0, 1] = in.cY[1][pos + offset, dim];
+                        met[0, 2] = in.cY[2][pos + offset, dim];
+
+                        met[1, 1] = in.cY[3][pos + offset, dim];
+                        met[1, 2] = in.cY[4][pos + offset, dim];
+                        met[2, 1] = in.cY[4][pos + offset, dim];
+                        met[2, 2] = in.cY[5][pos + offset, dim];
+
+                        //if_e(pos.x() == 59 && pos.y() == 81 && pos.z() == 55, [&]{
+                            print("Dump %i %f %f %f %f %f %f\n", offset.z(), in.cY[0][pos + offset, dim],
+                                in.cY[1][pos + offset, dim],
+                                in.cY[2][pos + offset, dim],
+                                in.cY[3][pos + offset, dim],
+                                in.cY[4][pos + offset, dim],
+                                in.cY[5][pos + offset, dim]);
+                        //});
+                    };
+
+                    //auto cY_up_0 = in.cY[0][pos - (v3i){0, 0, 1}, dim];
+                    //auto cY2 = in.cY[0][pos + (v3i){0, 0, 1}, dim];
+
+
+
+                    if_e(pos.x() == 81 && pos.y() == 75 && pos.z() == 59, [&]{
+                        dump({0, 0, -1});
+                        dump({0, 0, -2});
+                        dump({0, 0, 1});
+                        dump({0, 0, 2});
+
+                        print("Deriv %f %i %i l1 %f l2 %f\n", deriv, valuei(i), valuei(j), l1, l2);
+                    });
+                }
+                #endif
+
                 p4 += 0.5f * args.gA * args.W * args.W * l1 * l2 * deriv;
             }
         }
 
         valuef w2_m_p2_calc = w2_m_p2(p_star, e_star, args.W, args.cY.invert(), Si, w);
 
-        valuef p5 = safe_divide(args.gA * h * w2_m_p2_calc, w) * (diff1(args.W, k, d) / max(args.W, 0.001f));
+        valuef p5 = safe_divide(args.gA * h * (w*w - p_star*p_star), w) * (diff1(args.W, k, d) / max(args.W, 0.001f));
 
         /*if_e(pos.x() == 80 && pos.y() == 76 && pos.z() == 66, [&]{
             print("hi %f %f %f %f %f\n", p1, p2, p3, p4, p5);
         });*/
 
         dSi_p1[k] += (p1 + p2 + p3 + p4 + p5);
+
+        /*if(k == 2)
+        {
+            if_e(pos.x() == 81 && pos.y() == 75 && pos.z() == 57, [&]{
+                print("Test %f %f %f %f %f\n", p1, p2, p3, p4, p5);
+            });
+        }*/
     }
 
     valuef fin_p_star = max(h_base.p_star[pos, dim] + timestep.get() * dp_star, 0.f);
@@ -789,6 +856,9 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     ///looks like the basic problem is the superheating issue
     fin_e_star = ternary(fin_p_star < (1e-6f * max_p), min(fin_e_star, 10 * fin_p_star), fin_e_star);
 
+    ///temporary
+    fin_e_star = min(fin_e_star, 10 * fin_p_star);
+
     mut_v3f fin_Si = declare_mut_e((v3f){});
 
     for(int i=0; i < 3; i++)
@@ -796,21 +866,24 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         as_ref(fin_Si[i]) = h_base.Si[i][pos, dim] + timestep.get() * dSi_p1[i];
     }
 
+    ///p* 0.0025857189 e* 0.0258571822
+    ///1e-3 is the current density
+
     #define CLAMP_HIGH_VELOCITY
     #ifdef CLAMP_HIGH_VELOCITY
-    if_e(p_star >= min_p_star && p_star < 1e-5, [&]{
+    //if_e(p_star >= min_p_star && p_star < 1e-4, [&]{
     //if_e(p_star >= min_p_star && p_star < 1e-5, [&]{
-        v3f dfsi = declare_e(fin_Si);
+        /*v3f dfsi = declare_e(fin_Si);
 
         v3f u_k;
 
         for(int i=0; i < 3; i++)
-            u_k[i] = safe_divide(dfsi[i], h * p_star);
+            u_k[i] = safe_divide(dfsi[i], h * p_star, 1e-6);
 
-        u_k = clamp(u_k, -0.1f, 0.1f);
+        u_k = clamp(u_k, -0.2f, 0.2f);
 
-        as_ref(fin_Si) = u_k * h * p_star;
-    });
+        as_ref(fin_Si) = u_k * h * p_star;*/
+    //});
     #endif
 
     /*    p* 0.000222 e* 0.002546 si -0.000010 -0.000143 0.000003 w 0.000256 P 0.000002 vi -0.064003 -0.347698 0.014055 epsilon 0.017120 top_1 -0.000097
@@ -849,19 +922,83 @@ Pos 80 73 65*/
     //if_e(pos.x() == 73 && pos.y() == 85 && pos.z() == 65, [&]{
     //if_e(pos.x() == 80 && pos.y() == 75 && pos.z() == 57, [&]{
     //if_e(fabs(dSi_p1[1]) > 0.1f, [&]{
-    if_e(pos.x() == 75 && pos.y() == 82 && pos.z() == 69, [&]{
+    //if_e(pos.x() == 75 && pos.y() == 82 && pos.z() == 69, [&]{
+    ///58 83 65     p* 0.0000108149 e* 0.0001215594 si -0.000001 -0.000003 nan w 0.000009 P 0.000000 vi -1.000000 -1.000000 -1.000000 epsilon 0.0012506038 raised -nan top_1 -nan
+    //if_e(!isfinite(p_star) || !isfinite(e_star) || !isfinite(Si[0]) || !isfinite(Si[1]) || !isfinite(Si[2]), [&]{
+
+    pin(fin_p_star);
+    pin(fin_e_star);
+
+    ///Pos p1 59 81 55
+
+    /*Pos p1 81 75 57
+      Pos p1 59 81 57
+      Pos p1 53 59 58
+      Pos p1 81 75 58
+      Pos p1 59 81 58*/
+
+    //Pos p1 54 79 63
+
+    /*if_e(!isfinite(fin_p_star) || !isfinite(fin_e_star) || !isfinite(fin_Si[0]) || !isfinite(fin_Si[1]) || !isfinite(fin_Si[2]) || !isfinite(p_star) || !isfinite(e_star) || !isfinite(Si[0]) || !isfinite(Si[1]) || !isfinite(Si[2])
+         || !isfinite(args.cY[0, 0]) || !isfinite(args.cY[1, 0]) || !isfinite(args.cY[2, 0]) || !isfinite(args.cY[1, 1]) || !isfinite(args.cY[2, 1]) || !isfinite(args.cY[2, 2]), [&]{
+        print("Pos p1 %i %i %i\n", pos.x(), pos.y(), pos.z());
+    });*/
+
+    //54 79 63
+    //71 63 53
+    #if 0
+    //if_e(pos.x() == 59 && pos.y() == 81 && pos.z() == 55, [&]{
+    if_e(pos.x() == dim.x()/2 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+    //if_e(pos.x() == 71 && pos.y() == 63 && pos.z() == 53, [&]{
+    //if_e(pos.x() == 59 && pos.y() == 81 && pos.z() == 57, [&]{
         valuef epsilon = hydro_args.calculate_epsilon(args.W);
+
+        unit_metric<valuef, 3, 3> cY = args.cY;
+        pin(cY);
+
+        auto inverted = cY.invert();
+
+        /*valuef l1 = cY[1, 1] * cY[2, 2] - cY[2, 1] * cY[1, 2];
+        valuef l2 = cY[0, 2] * cY[2, 1] - cY[0, 1] * cY[2, 2];
+        valuef l3 = cY[0, 1] * cY[1, 2] - cY[0, 2] * cY[1, 1];
+        valuef l4 = cY[1, 2] * cY[2, 0] - cY[1, 0] * cY[2, 2];
+        valuef l5 = cY[0, 0] * cY[2, 2] - cY[0, 2] * cY[2, 0];
+        valuef l6 = cY[1, 0] * cY[0, 2] - cY[0, 0] * cY[1, 2];
+        valuef l7 = cY[1, 0] * cY[2, 1] - cY[2, 0] * cY[1, 1];
+        valuef l8 = cY[2, 0] * cY[0, 1] - cY[0, 0] * cY[2, 1];
+        valuef l9 = cY[0, 0] * cY[1, 1] - cY[1, 0] * cY[0, 1];*/
 
         valuef raised = args.cY.invert().raise(Si)[1];
 
+        v3f dfsi = declare_e(fin_Si);
+
+        v3f u_k;
+
+        for(int i=0; i < 3; i++)
+            u_k[i] = safe_divide(dfsi[i], h * p_star);
+
+        //print("what is my purpose dfsi2 %f h %f p* %f h*p* %f dfsi / (h*p) %f\n", dfsi[2], h, p_star, h*p_star, dfsi[2] / (h * p_star));
+
         valuef t1 = args.W * args.W * args.gA * raised;
 
-        print("de* advect %f full %f mult %f\n", de_star_advect, de_star, de_star * timestep.get());
-        print("%i %i %i     p* %.10f e* %.10f si %f %f %f w %f P %f vi %f %f %f epsilon %.10f raised %f top_1 %f\n", pos.x(), pos.y(), pos.z(), p_star, e_star, Si[0], Si[1], Si[2], w, hydro_args.P, vi[0], vi[1], vi[2], epsilon, raised, t1);
+        //print("Components %f %f %f %f %f %f %f %f %f\n", l1, l2, l3, l4, l5, l6, l7, l8, l9);
+
+        /*Test -0.000000 0.000000 -0.000000 -0.000000 -0.000000
+          met? 1.105540 -0.030693 -0.042335 0.910168 0.035884 0.997689
+          imet? 0.906776 0.029102 0.037431 1.101193 -0.038371 1.005285
+81 75 59     p* 0.0000000010 e* 0.0000000104 si -0.000000 0.000000 0.000000 w 0.000000 P 0.000000 vi -0.008797 0.007538 0.001144 epsilon 0.0000000008 raised 0.000000 top_1 0.000000 uk -nan -nan -nan
+81 75 59 out p* 0.0000000010 e* 0.0000000102 si -nan -nan -nan*/
+
+        //print("de* advect %f full %f mult %f\n", de_star_advect, de_star, de_star * timestep.get());
+        print("met? %f %f %f %f %f %f\n", args.cY[0, 0], args.cY[1, 0], args.cY[2, 0], args.cY[1, 1], args.cY[2, 1], args.cY[2, 2]);
+        print("imet? %f %f %f %f %f %f\n", inverted[0, 0], inverted[1, 0], inverted[2, 0], inverted[1, 1], inverted[2, 1], inverted[2, 2]);
+        print("%i %i %i     p* %.10f e* %.10f si %f %f %f w %f P %f vi %f %f %f epsilon %.10f raised %f top_1 %f uk %f %f %f h %f\n", pos.x(), pos.y(), pos.z(), p_star, e_star, Si[0], Si[1], Si[2], w, hydro_args.P, vi[0], vi[1], vi[2], epsilon, raised, t1, u_k[0], u_k[1], u_k[2], h);
         print("%i %i %i out p* %.10f e* %.10f si %f %f %f\n", pos.x(), pos.y(), pos.z(), fin_p_star, fin_e_star, as_constant(fin_Si[0]), as_constant(fin_Si[1]), as_constant(fin_Si[2]));
-        print("Base e* %.10f\n", h_base.e_star[pos, dim]);
+
+        //print("Base e* %.10f\n", h_base.e_star[pos, dim]);
         //print("Pos %i %i %i\n", pos.x(), pos.y(), pos.z());
     });
+    #endif
 
     ///i think this is causing problems
     ///so, backwards euler: we do one step, and flush to 0. That becomes out new output buffer, but base still has stuff in it
@@ -909,7 +1046,7 @@ void finalise_hydro(execution_context& ectx,
     v3i pos = (v3i)positions[lid];
     pin(pos);
 
-    if_e(hydro.p_star[pos, dim] < min_p_star, [&]{
+    if_e(hydro.p_star[pos, dim] <= min_p_star, [&]{
         as_ref(hydro.p_star[pos, dim]) = valuef(0);
         as_ref(hydro.e_star[pos, dim]) = valuef(0);
 
