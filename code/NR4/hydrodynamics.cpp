@@ -269,18 +269,18 @@ std::vector<buffer_descriptor> hydrodynamic_buffers::get_description()
 
     buffer_descriptor s0;
     s0.name = "cs0";
-    s0.dissipation_coeff = 0.01;
-    s0.dissipation_order = 2;
+    s0.dissipation_coeff = 0.05;
+    s0.dissipation_order = 4;
 
     buffer_descriptor s1;
     s1.name = "cs1";
-    s1.dissipation_coeff = 0.01;
-    s1.dissipation_order = 2;
+    s1.dissipation_coeff = 0.05;
+    s1.dissipation_order = 4;
 
     buffer_descriptor s2;
     s2.name = "cs2";
-    s2.dissipation_coeff = 0.01;
-    s2.dissipation_order = 2;
+    s2.dissipation_coeff = 0.05;
+    s2.dissipation_order = 4;
 
     return {p, e, s0, s1, s2};
 }
@@ -315,15 +315,12 @@ std::vector<buffer_descriptor> hydrodynamic_utility_buffers::get_description()
     buffer_descriptor w;
     w.name = "w";
 
-    buffer_descriptor in;
-    in.name = "in";
-
-    return {w, P, in};
+    return {w, P};
 }
 
 std::vector<cl::buffer> hydrodynamic_utility_buffers::get_buffers()
 {
-    return {w, P, intermediate};
+    return {w, P};
 }
 
 void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t3i size)
@@ -335,8 +332,6 @@ void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue c
 
     P.set_to_zero(cqueue);
     w.set_to_zero(cqueue);
-
-    intermediate.alloc(sizeof(cl_float) * cells);
 }
 
 struct eos_gpu : value_impl::single_source::argument_pack
@@ -712,7 +707,7 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
 }
 
 void evolve_p_star(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
-                  hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, hydrodynamic_base_args<buffer_mut<valuef>> h_out,
+                  hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, buffer_mut<valuef> p_star_out,
                   hydrodynamic_utility_args<buffer<valuef>> util,
                   literal<v3i> idim, literal<valuef> scale, literal<valuef> timestep,
                   buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
@@ -741,7 +736,7 @@ void evolve_p_star(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     hydrodynamic_concrete hydro_args(pos, dim, h_in, util);
 
     if_e(hydro_args.p_star <= min_p_star, [&]{
-        as_ref(h_out.p_star[pos, dim]) = hydro_args.p_star;
+        as_ref(p_star_out[pos, dim]) = hydro_args.p_star;
         return_e();
     });
 
@@ -749,11 +744,11 @@ void evolve_p_star(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     valuef dp_star = hydro_args.advect_rhs(hydro_args.p_star, vi, d);
 
-    as_ref(h_out.p_star[pos, dim]) = h_base.p_star[pos, dim] + dp_star * timestep.get();
+    as_ref(p_star_out[pos, dim]) = h_base.p_star[pos, dim] + dp_star * timestep.get();
 }
 
 void evolve_e_star(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
-                  hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, hydrodynamic_base_args<buffer_mut<valuef>> h_out,
+                  hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, buffer_mut<valuef> e_star_out,
                   hydrodynamic_utility_args<buffer<valuef>> util,
                   literal<v3i> idim, literal<valuef> scale, literal<valuef> timestep,
                   buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
@@ -782,7 +777,7 @@ void evolve_e_star(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     hydrodynamic_concrete hydro_args(pos, dim, h_in, util);
 
     if_e(hydro_args.p_star <= min_p_star, [&]{
-        as_ref(h_out.e_star[pos, dim]) = hydro_args.e_star;
+        as_ref(e_star_out[pos, dim]) = hydro_args.e_star;
         return_e();
     });
 
@@ -794,11 +789,11 @@ void evolve_e_star(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     fin_e_star = ternary(h_in.p_star[pos, dim] < valuef(1e-6f), min(fin_e_star, 10 * h_in.p_star[pos, dim]), fin_e_star);
 
-    as_ref(h_out.e_star[pos, dim]) = fin_e_star;
+    as_ref(e_star_out[pos, dim]) = fin_e_star;
 }
 
 void evolve_si_p1(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
-                  hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, hydrodynamic_base_args<buffer_mut<valuef>> h_out,
+                  hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, std::array<buffer_mut<valuef>, 3> Si_out,
                   hydrodynamic_utility_args<buffer<valuef>> util,
                   literal<v3i> idim, literal<valuef> scale, literal<valuef> timestep,
                   buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
@@ -834,14 +829,13 @@ void evolve_si_p1(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     v3f ds = hydro_args.advect_rhs(hydro_args.Si, vi, d);
 
-    as_ref(h_out.Si[0][pos, dim]) = h_base.Si[0][pos, dim] + ds[0] * timestep.get();
-    as_ref(h_out.Si[1][pos, dim]) = h_base.Si[1][pos, dim] + ds[1] * timestep.get();
-    as_ref(h_out.Si[2][pos, dim]) = h_base.Si[2][pos, dim] + ds[2] * timestep.get();
+    as_ref(Si_out[0][pos, dim]) = h_base.Si[0][pos, dim] + ds[0] * timestep.get();
+    as_ref(Si_out[1][pos, dim]) = h_base.Si[1][pos, dim] + ds[1] * timestep.get();
+    as_ref(Si_out[2][pos, dim]) = h_base.Si[2][pos, dim] + ds[2] * timestep.get();
 }
 
-
 void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
-                  hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, hydrodynamic_base_args<buffer_mut<valuef>> h_out,
+                  hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, std::array<buffer_mut<valuef>, 3> Si_out,
                   hydrodynamic_utility_args<buffer<valuef>> util,
                   literal<v3i> idim, literal<valuef> scale, literal<valuef> timestep,
                   buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
@@ -870,9 +864,9 @@ void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     hydrodynamic_concrete hydro_args(pos, dim, h_in, util);
 
     if_e(hydro_args.p_star <= min_p_star, [&]{
-        as_ref(h_out.Si[0][pos, dim]) = hydro_args.Si[0];
-        as_ref(h_out.Si[1][pos, dim]) = hydro_args.Si[1];
-        as_ref(h_out.Si[2][pos, dim]) = hydro_args.Si[2];
+        as_ref(Si_out[0][pos, dim]) = hydro_args.Si[0];
+        as_ref(Si_out[1][pos, dim]) = hydro_args.Si[1];
+        as_ref(Si_out[2][pos, dim]) = hydro_args.Si[2];
         return_e();
     });
 
@@ -947,7 +941,7 @@ void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     for(int i=0; i < 3; i++)
     {
-        as_ref(h_out.Si[i][pos, dim]) = as_constant(fin_Si[i]);
+        as_ref(Si_out[i][pos, dim]) = as_constant(fin_Si[i]);
     }
 }
 
@@ -1392,6 +1386,7 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
 
 void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const plugin_step_data& sdata)
 {
+    #if 0
     {
         cl::args args;
 
@@ -1438,6 +1433,144 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
 
         cqueue.exec("evolve_hydro", args, {sdata.evolve_length}, {128});
     }
+    #endif // 0
+
+    hydrodynamic_buffers& bufs_base = *dynamic_cast<hydrodynamic_buffers*>(sdata.buffers[sdata.base_idx]);
+    hydrodynamic_buffers& bufs_in = *dynamic_cast<hydrodynamic_buffers*>(sdata.buffers[sdata.in_idx]);
+    hydrodynamic_buffers& bufs_out = *dynamic_cast<hydrodynamic_buffers*>(sdata.buffers[sdata.out_idx]);
+    hydrodynamic_utility_buffers& ubufs = *dynamic_cast<hydrodynamic_utility_buffers*>(sdata.utility_buffers);
+
+    auto utility_buffers = ubufs.get_buffers();
+
+    std::vector<cl::buffer> cl_base = bufs_base.get_buffers();
+
+    {
+        std::vector<cl::buffer> cl_in = bufs_in.get_buffers();
+
+        cl::args args;
+
+        for(auto& i : sdata.bssn_buffers)
+            args.push_back(i);
+
+        for(auto& i : cl_base)
+            args.push_back(i);
+
+        for(auto& i : cl_in)
+            args.push_back(i);
+
+        args.push_back(bufs_out.p_star);
+
+        for(auto& i : utility_buffers)
+            args.push_back(i);
+
+        args.push_back(sdata.dim);
+        args.push_back(sdata.scale);
+        args.push_back(sdata.timestep);
+        args.push_back(sdata.evolve_points);
+        args.push_back(sdata.evolve_length);
+
+        cqueue.exec("evolve_p_star", args, {sdata.evolve_length}, {128});
+    }
+
+    std::swap(bufs_in.p_star, bufs_out.p_star);
+
+    {
+        std::vector<cl::buffer> cl_in = bufs_in.get_buffers();
+
+        cl::args args;
+
+        for(auto& i : sdata.bssn_buffers)
+            args.push_back(i);
+
+        for(auto& i : cl_base)
+            args.push_back(i);
+
+        for(auto& i : cl_in)
+            args.push_back(i);
+
+        args.push_back(bufs_out.e_star);
+
+        for(auto& i : utility_buffers)
+            args.push_back(i);
+
+        args.push_back(sdata.dim);
+        args.push_back(sdata.scale);
+        args.push_back(sdata.timestep);
+        args.push_back(sdata.evolve_points);
+        args.push_back(sdata.evolve_length);
+
+        cqueue.exec("evolve_e_star", args, {sdata.evolve_length}, {128});
+    }
+
+    std::swap(bufs_out.e_star, bufs_in.e_star);
+
+    {
+        std::vector<cl::buffer> cl_in = bufs_in.get_buffers();
+
+        cl::args args;
+
+        for(auto& i : sdata.bssn_buffers)
+            args.push_back(i);
+
+        for(auto& i : cl_base)
+            args.push_back(i);
+
+        for(auto& i : cl_in)
+            args.push_back(i);
+
+        args.push_back(bufs_out.Si[0]);
+        args.push_back(bufs_out.Si[1]);
+        args.push_back(bufs_out.Si[2]);
+
+        for(auto& i : utility_buffers)
+            args.push_back(i);
+
+        args.push_back(sdata.dim);
+        args.push_back(sdata.scale);
+        args.push_back(sdata.timestep);
+        args.push_back(sdata.evolve_points);
+        args.push_back(sdata.evolve_length);
+
+        cqueue.exec("evolve_si_p1", args, {sdata.evolve_length}, {128});
+    }
+
+    std::swap(bufs_out.Si[0], bufs_in.Si[0]);
+    std::swap(bufs_out.Si[1], bufs_in.Si[1]);
+    std::swap(bufs_out.Si[2], bufs_in.Si[2]);
+
+
+    {
+        std::vector<cl::buffer> cl_in = bufs_in.get_buffers();
+
+        cl::args args;
+
+        for(auto& i : sdata.bssn_buffers)
+            args.push_back(i);
+
+        for(auto& i : cl_base)
+            args.push_back(i);
+
+        for(auto& i : cl_in)
+            args.push_back(i);
+
+        args.push_back(bufs_out.Si[0]);
+        args.push_back(bufs_out.Si[1]);
+        args.push_back(bufs_out.Si[2]);
+
+        for(auto& i : utility_buffers)
+            args.push_back(i);
+
+        args.push_back(sdata.dim);
+        args.push_back(sdata.scale);
+        args.push_back(sdata.timestep);
+        args.push_back(sdata.evolve_points);
+        args.push_back(sdata.evolve_length);
+
+        cqueue.exec("evolve_si_p2", args, {sdata.evolve_length}, {128});
+    }
+
+    std::swap(bufs_in.p_star, bufs_out.p_star);
+    std::swap(bufs_in.e_star, bufs_out.e_star);
 }
 
 void hydrodynamic_plugin::finalise(cl::context ctx, cl::command_queue cqueue, buffer_provider* out, t3i dim, cl::buffer evolve_points, cl_int evolve_length)
