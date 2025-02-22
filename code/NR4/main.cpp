@@ -869,7 +869,7 @@ struct raytrace_manager
             args.push_back(positions, velocities, results, zshifts, occlusion);
             args.push_back(m.dim);
             args.push_back(full_scale);
-            args.push_back(simulation_width);
+            args.push_back(simulation_width/2.f);
 
             m.buffers[buf].append_to(args);
 
@@ -941,7 +941,7 @@ struct raytrace_manager
         args.push_back(positions, velocities, results, zshifts);
         args.push_back(reduced_dim);
         args.push_back(reduced_scale);
-        args.push_back(simulation_width);
+        args.push_back(simulation_width/2.f);
         args.push_back(tetrads[0], tetrads[1], tetrads[2], tetrads[3]);
 
         for(auto& i : Guv_block)
@@ -965,7 +965,7 @@ struct raytrace_manager
         args.push_back(screen_size);
         args.push_back(positions, velocities);
         args.push_back(texture_coordinates);
-        args.push_back(simulation_width);
+        args.push_back(simulation_width/2.f);
 
         cqueue.exec("calculate_texture_coordinates", args, {screen_size.x(), screen_size.y()}, {8, 8});
 
@@ -1108,7 +1108,7 @@ int main()
     cl::context& ctx = win.clctx->ctx;
     std::cout << cl::get_extensions(ctx) << std::endl;
 
-    t3i dim = {135, 135, 135};
+    t3i dim = {155, 155, 155};
 
     plugin* hydro = new hydrodynamic_plugin(ctx);
 
@@ -1149,7 +1149,7 @@ int main()
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
-    float simulation_width = 80;
+    float simulation_width = 60;
 
     mesh m(ctx, dim, simulation_width);
     m.plugins = plugins;
@@ -1185,7 +1185,7 @@ int main()
     bool step = false;
     bool running = false;
     bool pause = false;
-    float pause_time = 100;
+    float pause_time = 220;
     bool render = false;
     int render_skipping = 4;
     bool render2 = false;
@@ -1355,7 +1355,7 @@ int main()
 
         screen_tex.acquire(cqueue);
 
-        if(pause && elapsed_t > 100)
+        if(pause && elapsed_t > pause_time)
             step = false;
 
         if(step)
