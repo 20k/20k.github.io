@@ -1085,8 +1085,6 @@ void solve()
     std::cout << "Solved for " << sol.R_geom() / 1000. << "km " << sol.M_msol << " msols " << std::endl;
 
     std::vector<double> tov_phi = initial::calculate_tov_phi(sol);
-
-
     //assert(false);
 }
 
