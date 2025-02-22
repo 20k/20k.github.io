@@ -866,8 +866,11 @@ void advect_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     valuef de_star = hydro_args.advect_rhs(hydro_args.e_star, vi, d);
     v3f dSi = hydro_args.advect_rhs(hydro_args.Si, vi, d);
 
+    valuef fin_e_star = h_base.e_star[pos, dim] + de_star * timestep.get();
+    //fin_e_star = ternary(hydro_args.p_star < valuef(1e-6f), min(fin_e_star, 10 * hydro_args.p_star), fin_e_star);
+
     as_ref(h_out.p_star[pos, dim]) = h_base.p_star[pos, dim] + dp_star * timestep.get();
-    as_ref(h_out.e_star[pos, dim]) = h_base.e_star[pos, dim] + de_star * timestep.get();
+    as_ref(h_out.e_star[pos, dim]) = fin_e_star;
 
     as_ref(h_out.Si[0][pos, dim]) = h_base.Si[0][pos, dim] + dSi[0] * timestep.get();
     as_ref(h_out.Si[1][pos, dim]) = h_base.Si[1][pos, dim] + dSi[1] * timestep.get();
@@ -1126,7 +1129,11 @@ void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     //as_ref(e_star_out[pos, dim]) = h_in.e_star[pos, dim];
 
-    as_ref(e_star_out[pos, dim]) = h_in.e_star[pos, dim] + timestep.get() * de_star;
+
+    valuef fin_e_star = h_in.e_star[pos, dim] + de_star * timestep.get();
+    //fin_e_star = ternary(hydro_args.p_star < valuef(1e-6f), min(fin_e_star, 10 * hydro_args.p_star), fin_e_star);
+
+    as_ref(e_star_out[pos, dim]) = fin_e_star;
 }
 
 #if 0
@@ -1489,6 +1496,10 @@ void finalise_hydro(execution_context& ectx,
         as_ref(hydro.Si[1][pos, dim]) = valuef(0);
         as_ref(hydro.Si[2][pos, dim]) = valuef(0);
     });
+
+    valuef e_star = declare_e(hydro.e_star[pos, dim]);
+
+    as_ref(hydro.e_star[pos, dim]) = ternary(hydro.p_star[pos, dim] < valuef(1e-6f), min(e_star, 10 * hydro.p_star[pos, dim]), e_star);
 }
 
 hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx)
