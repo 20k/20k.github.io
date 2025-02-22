@@ -425,6 +425,10 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
             });
         });
 
+        if_e(i == eos_data.pressure_stride.get(), [&]{
+            print("Error, overflowed pressure data\n");
+        });
+
         return declare_e(out);
     };
 
@@ -596,7 +600,33 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     valuef e_star = pow(p0_e, (1/Gamma)) * gA * u0 * pow(cW, -3);
 
     ///Si isn't well defined when gA != 1 in our init conditions
-    v3f Si_lo_cfl = pow(cW, -3) * Yij.lower(Si);
+    ///oh! Si isn't a hydrodynamic field!
+
+    valuef w = p_star * gA * u0;
+
+    v3f ui = Si / ((mu + pressure) * w);
+
+    v3f u_i;
+
+    for(int s=0; s < 3; s++)
+    {
+        valuef sum = 0;
+
+        for(int k=0; k < 3; k++)
+        {
+            sum += Yij[s, k] * ui[k];
+        }
+
+        u_i[s] = args.gB[s] * u0;
+    }
+
+    valuef h = calculate_h_from_epsilon(p0_e / p0);
+
+    v3f Si_lo_cfl = p_star * h * u_i;
+
+    ///next, I need to lower ui with the 4-metric, only spatially though!
+
+    //v3f Si_lo_cfl = pow(cW, -3) * Yij.lower(Si);
 
     as_ref(hydro.p_star[pos, dim]) = p_star;
     as_ref(hydro.e_star[pos, dim]) = e_star;
@@ -609,7 +639,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     ///ok so. I'm trying to answer the quesiton of why w = p* gA u0
     ///is not the same answer as calculate_w
-    valuef w = calculate_w(p_star, e_star, args.W, args.cY.invert(), Si_lo_cfl);
+    valuef calc_w = calculate_w(p_star, e_star, args.W, args.cY.invert(), Si_lo_cfl);
 
     as_ref(hydro.w[pos, dim]) = w;
     as_ref(hydro.P[pos, dim]) = eos(args.W, w, p_star, e_star);
