@@ -4,11 +4,11 @@
 ///so like. What if I did the projective real strategy?
 
 //stable with 1e-6, but the neutron star dissipates
-constexpr float min_p_star = 1e-8f;
+constexpr float min_p_star = 1e-7f;
 
 template<typename T>
 inline
-T safe_divide(const T& top, const T& bottom, float tol = 1e-8)
+T safe_divide(const T& top, const T& bottom, float tol = 1e-7)
 {
     return top / max(bottom, T{tol});
 }
@@ -54,7 +54,33 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
 
     //note to self, actually hand derived this and am sure its correct
     //tol is very intentionally set to 1e-6, breaks if lower than this
-    return clamp(-gB + safe_divide(W*W * gA, w*h, 1e-8) * cY.invert().raise(Si), -1.f, 1.f);
+    return clamp(-gB + safe_divide(W*W * gA, w*h, 1e-6) * cY.invert().raise(Si), -1.f, 1.f);
+}
+
+valuef calculate_PQvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, const derivative_data& d)
+{
+    valuef e_m6phi = pow(W, 3.f);
+
+    valuef dkvk = 0;
+
+    for(int k=0; k < 3; k++)
+    {
+        dkvk += 2 * diff1(vi[k], k, d);
+    }
+
+    valuef littledv = dkvk * d.scale;
+    valuef Gamma = get_Gamma();
+
+    valuef A = safe_divide(pow(e_star, Gamma) * pow(p_star, Gamma - 1) * pow(e_m6phi, Gamma - 1), pow(w, Gamma - 1), 1e-6f);
+
+    //ctx.add("DBG_A", A);
+
+    ///[0.1, 1.0}
+    valuef CQvis = 1.f;
+
+    valuef PQvis = ternary(littledv < 0, CQvis * A * pow(littledv, 2), valuef{0.f});
+
+    return PQvis;
 }
 
 struct hydrodynamic_concrete
@@ -143,39 +169,18 @@ struct hydrodynamic_concrete
         return ret;
     }
 
+    valuef calculate_PQvis(valuef W, v3f vi, const derivative_data& d)
+    {
+        return ::calculate_PQvis(W, vi, p_star, e_star, w, d);
+    }
+
     valuef e_star_rhs(valuef gA, v3f gB, unit_metric<valuef, 3, 3> cY, valuef W, v3f vi, const derivative_data& d)
     {
         auto icY = cY.invert();
 
-        auto calculate_PQvis = [&]()
-        {
-            valuef e_m6phi = pow(W, 3.f);
-
-            valuef dkvk = 0;
-
-            for(int k=0; k < 3; k++)
-            {
-                dkvk += 2 * diff1(vi[k], k, d);
-            }
-
-            valuef littledv = dkvk * d.scale;
-            valuef Gamma = get_Gamma();
-
-            valuef A = safe_divide(pow(e_star, Gamma) * pow(p_star, Gamma - 1) * pow(e_m6phi, Gamma - 1), pow(w, Gamma - 1), 1e-6f);
-
-            //ctx.add("DBG_A", A);
-
-            ///[0.1, 1.0}
-            valuef CQvis = 1.f;
-
-            valuef PQvis = ternary(littledv < 0, CQvis * A * pow(littledv, 2), valuef{0.f});
-
-            return PQvis;
-        };
-
         valuef e_m6phi = pow(W, 3.f);
 
-        valuef PQvis = calculate_PQvis();
+        valuef PQvis = calculate_PQvis(W, vi, d);
 
         valuef sum_interior_rhs = 0;
 
@@ -673,6 +678,7 @@ valuef w2_m_p2(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef, 3,
 
 }
 
+#if 0
 void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_base_args<buffer<valuef>> hydro, hydrodynamic_utility_args<buffer_mut<valuef>> out,
                                    literal<v3i> idim, literal<valuef> scale,
                                    buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
@@ -711,8 +717,98 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
     //this might be a source of instability when p* is low, because of derivatives
     valuef P = max(eos(args.W, w, p_star, e_star), 0.f);
 
+    P += calculate_PQvis(args.W, vi, p_star, )
+
     as_ref(out.w[pos, dim]) = w;
     as_ref(out.P[pos, dim]) = P;
+}
+#endif
+
+void calculate_w_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_base_args<buffer<valuef>> hydro, buffer_mut<valuef> w_out,
+                      literal<v3i> idim, literal<valuef> scale,
+                      buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
+{
+    using namespace single_source;
+
+    valuei lid = value_impl::get_global_id(0);
+
+    pin(lid);
+
+    v3i dim = idim.get();
+
+    if_e(lid >= positions_length.get(), []{
+        return_e();
+    });
+
+    v3i pos = (v3i)positions[lid];
+    pin(pos);
+
+    valuef p_star = hydro.p_star[pos, dim];
+    valuef e_star = hydro.e_star[pos, dim];
+    v3f Si = {hydro.Si[0][pos, dim], hydro.Si[1][pos, dim], hydro.Si[2][pos, dim]};
+
+    if_e(p_star <= min_p_star, [&]{
+        as_ref(w_out[pos, dim]) = valuef(0);
+
+        return_e();
+    });
+
+    bssn_args args(pos, dim, in);
+
+    valuef w = calculate_w(p_star, e_star, args.W, args.cY.invert(), Si);
+    w = max(w, p_star * args.gA * 1);
+
+    as_ref(w_out[pos, dim]) = w;
+}
+
+void calculate_p_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_base_args<buffer<valuef>> hydro, buffer<valuef> w_in, buffer_mut<valuef> P_out,
+                      literal<v3i> idim, literal<valuef> scale,
+                      buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
+{
+    using namespace single_source;
+
+    valuei lid = value_impl::get_global_id(0);
+
+    pin(lid);
+
+    v3i dim = idim.get();
+
+    if_e(lid >= positions_length.get(), []{
+        return_e();
+    });
+
+    v3i pos = (v3i)positions[lid];
+    pin(pos);
+
+    valuef p_star = hydro.p_star[pos, dim];
+    valuef e_star = hydro.e_star[pos, dim];
+    v3f Si = {hydro.Si[0][pos, dim], hydro.Si[1][pos, dim], hydro.Si[2][pos, dim]};
+
+    if_e(p_star <= min_p_star, [&]{
+        as_ref(P_out[pos, dim]) = valuef(0);
+
+        return_e();
+    });
+
+    derivative_data d;
+    d.pos = pos;
+    d.dim = dim;
+    d.scale = scale.get();
+
+    bssn_args args(pos, dim, in);
+
+    valuef w = w_in[pos, dim];
+
+    //this might be a source of instability when p* is low, because of derivatives
+    valuef P = max(eos(args.W, w, p_star, e_star), 0.f);
+
+    valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
+
+    v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY);
+
+    P += calculate_PQvis(args.W, vi, p_star, e_star, w, d);
+
+    as_ref(P_out[pos, dim]) = P;
 }
 
 void advect_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
@@ -1391,8 +1487,12 @@ hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx)
     }, {"init_hydro"});
 
     cl::async_build_and_cache(ctx, []{
-        return value_impl::make_function(calculate_hydro_intermediates, "calculate_hydro_intermediates");
-    }, {"calculate_hydro_intermediates"});
+        return value_impl::make_function(calculate_p_kern, "calculate_p");
+    }, {"calculate_p"});
+
+    cl::async_build_and_cache(ctx, []{
+        return value_impl::make_function(calculate_w_kern, "calculate_w");
+    }, {"calculate_w"});
 
     #if 0
     cl::async_build_and_cache(ctx, []{
@@ -1527,23 +1627,44 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
 
     auto calc_intermediates = [&](hydrodynamic_buffers& in)
     {
-        cl::args args;
+        {
+            cl::args args;
 
-        for(auto& i : sdata.bssn_buffers)
-            args.push_back(i);
+            for(auto& i : sdata.bssn_buffers)
+                args.push_back(i);
 
-        for(auto i : in.get_buffers())
-            args.push_back(i);
+            for(auto i : in.get_buffers())
+                args.push_back(i);
 
-        for(auto& i : utility_buffers)
-            args.push_back(i);
+            args.push_back(ubufs.w);
 
-        args.push_back(sdata.dim);
-        args.push_back(sdata.scale);
-        args.push_back(sdata.evolve_points);
-        args.push_back(sdata.evolve_length);
+            args.push_back(sdata.dim);
+            args.push_back(sdata.scale);
+            args.push_back(sdata.evolve_points);
+            args.push_back(sdata.evolve_length);
 
-        cqueue.exec("calculate_hydro_intermediates", args, {sdata.evolve_length}, {128});
+            cqueue.exec("calculate_w", args, {sdata.evolve_length}, {128});
+        }
+
+        {
+            cl::args args;
+
+            for(auto& i : sdata.bssn_buffers)
+                args.push_back(i);
+
+            for(auto i : in.get_buffers())
+                args.push_back(i);
+
+            args.push_back(ubufs.w);
+            args.push_back(ubufs.P);
+
+            args.push_back(sdata.dim);
+            args.push_back(sdata.scale);
+            args.push_back(sdata.evolve_points);
+            args.push_back(sdata.evolve_length);
+
+            cqueue.exec("calculate_p", args, {sdata.evolve_length}, {128});
+        }
     };
 
     std::vector<cl::buffer> cl_base = bufs_base.get_buffers();
