@@ -49,13 +49,15 @@ valuef eos(valuef W, valuef w, valuef p_star, valuef e_star)
 //todo: I may need to set vi to 0 here manually
 //or, I may need to remove the leibnitz that I'm doing
 ///todo: try setting this to zero where appropriate
-v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, const unit_metric<valuef, 3, 3>& cY)
+v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, const unit_metric<valuef, 3, 3>& cY, valuef p_star)
 {
     valuef h = calculate_h_from_epsilon(epsilon);
 
     //note to self, actually hand derived this and am sure its correct
     //tol is very intentionally set to 1e-6, breaks if lower than this
-    return -gB + safe_divide(W*W * gA, w*h, 1e-6) * cY.invert().raise(Si);
+    v3f real_value = -gB + safe_divide(W*W * gA, w*h, 1e-6) * cY.invert().raise(Si);
+
+    return ternary(p_star <= min_p_star, (v3f){}, real_value);
 }
 
 valuef calculate_PQvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, const derivative_data& d)
@@ -143,7 +145,7 @@ struct hydrodynamic_concrete
     {
         valuef epsilon = calculate_epsilon(W);
 
-        return ::calculate_vi(gA, gB, W, w, epsilon, Si, cY);
+        return ::calculate_vi(gA, gB, W, w, epsilon, Si, cY, p_star);
     }
 
     ///rhs here to specifically indicate that we're returning -(di Vec v^i), ie the negative
@@ -840,7 +842,7 @@ void calculate_p_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
 
-    v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY);
+    v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY, p_star);
 
     valuef extra_pressure = calculate_PQvis(args.W, vi, p_star, e_star, w, d);
 
@@ -1088,7 +1090,7 @@ void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     valuef w = hydro_args.w;
 
     valuef epsilon = hydro_args.calculate_epsilon(args.W);
-    v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, hydro_args.Si, args.cY);
+    v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, hydro_args.Si, args.cY, p_star);
     valuef de_star = hydro_args.e_star_rhs(args.gA, args.gB, args.cY, args.W, vi, d);
 
     v3f dSi_p1;
@@ -1211,7 +1213,7 @@ void evolve_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     v3f Si = hydro_args.Si;
     valuef w = hydro_args.w;
 
-    v3f vi = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY);
+    v3f vi = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY, p_star);
 
     valuef dp_star = hydro_args.advect_rhs(p_star, vi, d);
     valuef de_star = hydro_args.advect_rhs(e_star, vi, d);
