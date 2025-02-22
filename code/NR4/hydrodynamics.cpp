@@ -3,11 +3,12 @@
 
 ///so like. What if I did the projective real strategy?
 
-constexpr float min_p_star = 1e-7f;
+//stable with 1e-6, but the neutron star dissipates
+constexpr float min_p_star = 1e-8f;
 
 template<typename T>
 inline
-T safe_divide(const T& top, const T& bottom, float tol = 1e-7)
+T safe_divide(const T& top, const T& bottom, float tol = 1e-8)
 {
     return top / max(bottom, T{tol});
 }
@@ -53,7 +54,7 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
 
     //note to self, actually hand derived this and am sure its correct
     //tol is very intentionally set to 1e-6, breaks if lower than this
-    return clamp(-gB + safe_divide(W*W * gA, w*h, 1e-6) * cY.invert().raise(Si), -1.f, 1.f);
+    return clamp(-gB + safe_divide(W*W * gA, w*h, 1e-8) * cY.invert().raise(Si), -1.f, 1.f);
 }
 
 struct hydrodynamic_concrete
@@ -333,7 +334,7 @@ void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue c
     P.set_to_zero(cqueue);
     w.set_to_zero(cqueue);
 
-    for(int i=0; i < 3; i++)
+    for(int i=0; i < 4; i++)
     {
         intermediate.emplace_back(ctx);
         intermediate.back().alloc(sizeof(cl_float) * cells);
@@ -744,11 +745,11 @@ void advect_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     hydrodynamic_concrete hydro_args(pos, dim, h_in, util);
 
     if_e(hydro_args.p_star <= min_p_star, [&]{
-        as_ref(h_out.p_star[pos, dim]) = valuef(0.f);
-        as_ref(h_out.e_star[pos, dim]) = valuef(0.f);
-        as_ref(h_out.Si[0][pos, dim]) = valuef(0.f);
-        as_ref(h_out.Si[1][pos, dim]) = valuef(0.f);
-        as_ref(h_out.Si[2][pos, dim]) = valuef(0.f);
+        as_ref(h_out.p_star[pos, dim]) = h_in.p_star[pos, dim];
+        as_ref(h_out.e_star[pos, dim]) = h_in.e_star[pos, dim];
+        as_ref(h_out.Si[0][pos, dim]) = h_in.Si[0][pos, dim];
+        as_ref(h_out.Si[1][pos, dim]) = h_in.Si[1][pos, dim];
+        as_ref(h_out.Si[2][pos, dim]) = h_in.Si[2][pos, dim];
         return_e();
     });
 
@@ -902,7 +903,7 @@ void evolve_si_p1(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 #endif
 
 void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
-                  hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, std::array<buffer_mut<valuef>, 3> Si_out,
+                  hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, std::array<buffer_mut<valuef>, 3> Si_out, buffer_mut<valuef> e_star_out,
                   hydrodynamic_utility_args<buffer<valuef>> util,
                   literal<v3i> idim, literal<valuef> scale, literal<valuef> timestep,
                   buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
@@ -931,10 +932,10 @@ void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     hydrodynamic_concrete hydro_args(pos, dim, h_in, util);
 
     if_e(hydro_args.p_star <= min_p_star, [&]{
-        //as_ref(e_star_out[pos, dim]) = h_in.e_star[pos, dim];
-        as_ref(Si_out[0][pos, dim]) = valuef(0.f);
-        as_ref(Si_out[1][pos, dim]) = valuef(0.f);
-        as_ref(Si_out[2][pos, dim]) = valuef(0.f);
+        as_ref(e_star_out[pos, dim]) = h_in.e_star[pos, dim];
+        as_ref(Si_out[0][pos, dim]) = h_in.Si[0][pos, dim];
+        as_ref(Si_out[1][pos, dim]) = h_in.Si[1][pos, dim];
+        as_ref(Si_out[2][pos, dim]) = h_in.Si[2][pos, dim];
         return_e();
     });
 
@@ -991,7 +992,6 @@ void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     for(int i=0; i < 3; i++)
     {
-        //todo: wrong
         as_ref(fin_Si[i]) = h_in.Si[i][pos, dim] + timestep.get() * dSi_p1[i];
     }
 
@@ -1019,7 +1019,7 @@ void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     //as_ref(e_star_out[pos, dim]) = h_in.e_star[pos, dim];
 
-    //as_ref(e_star_out[pos, dim]) = h_base.e_star[pos, dim] + timestep.get() * de_star;
+    as_ref(e_star_out[pos, dim]) = h_in.e_star[pos, dim] + timestep.get() * de_star;
 }
 
 #if 0
@@ -1548,11 +1548,12 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
 
     std::vector<cl::buffer> cl_base = bufs_base.get_buffers();
 
-    calc_intermediates(bufs_in);
 
     {
         std::vector<cl::buffer> cl_in = bufs_in.get_buffers();
         std::vector<cl::buffer> cl_out = bufs_out.get_buffers();
+
+        calc_intermediates(bufs_in);
 
         cl::args args;
 
@@ -1709,6 +1710,8 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
         args.push_back(ubufs.intermediate.at(1));
         args.push_back(ubufs.intermediate.at(2));
 
+        args.push_back(ubufs.intermediate.at(3));
+
         for(auto& i : utility_buffers)
             args.push_back(i);
 
@@ -1731,7 +1734,7 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
     std::swap(bufs_out.Si[0], ubufs.intermediate.at(0));
     std::swap(bufs_out.Si[1], ubufs.intermediate.at(1));
     std::swap(bufs_out.Si[2], ubufs.intermediate.at(2));
-
+    std::swap(bufs_out.e_star, ubufs.intermediate.at(3));
 }
 
 void hydrodynamic_plugin::finalise(cl::context ctx, cl::command_queue cqueue, buffer_provider* out, t3i dim, cl::buffer evolve_points, cl_int evolve_length)
