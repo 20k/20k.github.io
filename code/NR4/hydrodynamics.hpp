@@ -81,6 +81,9 @@ struct hydrodynamic_utility_buffers : buffer_provider
 {
     cl::buffer w;
     cl::buffer P;
+
+    std::vector<cl::buffer> intermediate;
+
     //cl::buffer intermediate;
     //cl::buffer intermediate2;
 

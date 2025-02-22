@@ -165,7 +165,7 @@ struct hydrodynamic_concrete
             //ctx.add("DBG_A", A);
 
             ///[0.1, 1.0}
-            valuef CQvis = 0.5f;
+            valuef CQvis = 1.f;
 
             valuef PQvis = ternary(littledv < 0, CQvis * A * pow(littledv, 2), valuef{0.f});
 
@@ -332,6 +332,13 @@ void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue c
 
     P.set_to_zero(cqueue);
     w.set_to_zero(cqueue);
+
+    for(int i=0; i < 3; i++)
+    {
+        intermediate.emplace_back(ctx);
+        intermediate.back().alloc(sizeof(cl_float) * cells);
+        intermediate.back().set_to_zero(cqueue);
+    }
 }
 
 struct eos_gpu : value_impl::single_source::argument_pack
@@ -869,6 +876,7 @@ void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     hydrodynamic_concrete hydro_args(pos, dim, h_in, util);
 
     if_e(hydro_args.p_star <= min_p_star, [&]{
+        //as_ref(e_star_out[pos, dim]) = h_in.e_star[pos, dim];
         as_ref(Si_out[0][pos, dim]) = valuef(0.f);
         as_ref(Si_out[1][pos, dim]) = valuef(0.f);
         as_ref(Si_out[2][pos, dim]) = valuef(0.f);
@@ -881,6 +889,10 @@ void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     valuef h = hydro_args.calculate_h_with_eos(args.W);
     valuef w = hydro_args.w;
+
+    valuef epsilon = hydro_args.calculate_epsilon(args.W);
+    v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, hydro_args.Si, args.cY);
+    valuef de_star = hydro_args.e_star_rhs(args.gA, args.gB, args.cY, args.W, vi, d);
 
     v3f dSi_p1;
 
@@ -924,6 +936,7 @@ void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     for(int i=0; i < 3; i++)
     {
+        //todo: wrong
         as_ref(fin_Si[i]) = h_base.Si[i][pos, dim] + timestep.get() * dSi_p1[i];
     }
 
@@ -948,6 +961,10 @@ void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     {
         as_ref(Si_out[i][pos, dim]) = as_constant(fin_Si[i]);
     }
+
+    //as_ref(e_star_out[pos, dim]) = h_in.e_star[pos, dim];
+
+    //as_ref(e_star_out[pos, dim]) = h_base.e_star[pos, dim] + timestep.get() * de_star;
 }
 
 #if 0
@@ -1532,7 +1549,11 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
         cqueue.exec("evolve_e_star", args, {sdata.evolve_length}, {128});
     }
 
+    //printf("Pre swap %p %p\n", bufs_in.e_star.native_mem_object.data, bufs_out.e_star.native_mem_object.data);
+
     std::swap(bufs_out.e_star, bufs_in.e_star);
+
+    //printf("Post swap %p %p\n", bufs_in.e_star.native_mem_object.data, bufs_out.e_star.native_mem_object.data);
 
     {
         calc_intermediates(bufs_in);
@@ -1570,7 +1591,6 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
     std::swap(bufs_out.Si[1], bufs_in.Si[1]);
     std::swap(bufs_out.Si[2], bufs_in.Si[2]);
 
-
     {
         calc_intermediates(bufs_in);
         std::vector<cl::buffer> cl_in = bufs_in.get_buffers();
@@ -1586,9 +1606,11 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
         for(auto& i : cl_in)
             args.push_back(i);
 
-        args.push_back(bufs_out.Si[0]);
-        args.push_back(bufs_out.Si[1]);
-        args.push_back(bufs_out.Si[2]);
+        //printf("Buf in e* %p %p %p\n", bufs_base.e_star.native_mem_object.data, bufs_in.e_star.native_mem_object.data, bufs_out.e_star.native_mem_object.data);
+
+        args.push_back(ubufs.intermediate.at(0));
+        args.push_back(ubufs.intermediate.at(1));
+        args.push_back(ubufs.intermediate.at(2));
 
         for(auto& i : utility_buffers)
             args.push_back(i);
@@ -1604,6 +1626,15 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
 
     std::swap(bufs_in.p_star, bufs_out.p_star);
     std::swap(bufs_in.e_star, bufs_out.e_star);
+
+    std::swap(bufs_out.Si[0], bufs_in.Si[0]);
+    std::swap(bufs_out.Si[1], bufs_in.Si[1]);
+    std::swap(bufs_out.Si[2], bufs_in.Si[2]);
+
+    std::swap(bufs_out.Si[0], ubufs.intermediate.at(0));
+    std::swap(bufs_out.Si[1], ubufs.intermediate.at(1));
+    std::swap(bufs_out.Si[2], ubufs.intermediate.at(2));
+
 }
 
 void hydrodynamic_plugin::finalise(cl::context ctx, cl::command_queue cqueue, buffer_provider* out, t3i dim, cl::buffer evolve_points, cl_int evolve_length)
