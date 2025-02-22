@@ -219,7 +219,7 @@ valuef full_hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& 
 
     valuef h = hydro_args.calculate_h_with_eos(args.W);
 
-    return ternary(hydro_args.p_star <= min_p_star * 1,
+    return ternary(hydro_args.p_star <= 0,
                    valuef(),
                    h * hydro_args.w * (args.W * args.W * args.W) - hydro_args.eos(args.W));
 }
@@ -231,7 +231,7 @@ tensor<valuef, 3> full_hydrodynamic_args<T>::adm_Si(bssn_args& args, const deriv
 
     valuef p_star = this->p_star[d.pos, d.dim];
 
-    return ternary(p_star <= min_p_star * 1,
+    return ternary(p_star <= 0,
                    v3f(),
                    pow(args.W, 3.f) * cSi);
 }
@@ -253,7 +253,7 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
         }
     }
 
-    return ternary(hydro_args.p_star <= min_p_star * 1,
+    return ternary(hydro_args.p_star <= 0,
                    tensor<valuef, 3, 3>(),
                    W2_Sij + hydro_args.eos(args.W) * args.cY.to_tensor());
 }
