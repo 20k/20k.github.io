@@ -714,6 +714,60 @@ void calculate_hydro_intermediates(execution_context& ectx, bssn_args_mem<buffer
     as_ref(out.P[pos, dim]) = P;
 }
 
+void advect_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
+                  hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, hydrodynamic_base_args<buffer_mut<valuef>> h_out,
+                  hydrodynamic_utility_args<buffer<valuef>> util,
+                  literal<v3i> idim, literal<valuef> scale, literal<valuef> timestep,
+                  buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
+{
+    using namespace single_source;
+
+    valuei lid = value_impl::get_global_id(0);
+
+    pin(lid);
+
+    v3i dim = idim.get();
+
+    if_e(lid >= positions_length.get(), []{
+        return_e();
+    });
+
+    v3i pos = (v3i)positions[lid];
+    pin(pos);
+
+    derivative_data d;
+    d.pos = pos;
+    d.dim = idim.get();
+    d.scale = scale.get();
+
+    bssn_args args(pos, dim, in);
+    hydrodynamic_concrete hydro_args(pos, dim, h_in, util);
+
+    if_e(hydro_args.p_star <= min_p_star, [&]{
+        as_ref(h_out.p_star[pos, dim]) = valuef(0.f);
+        as_ref(h_out.e_star[pos, dim]) = valuef(0.f);
+        as_ref(h_out.Si[0][pos, dim]) = valuef(0.f);
+        as_ref(h_out.Si[1][pos, dim]) = valuef(0.f);
+        as_ref(h_out.Si[2][pos, dim]) = valuef(0.f);
+        return_e();
+    });
+
+    v3f vi = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY);
+
+    valuef dp_star = hydro_args.advect_rhs(hydro_args.p_star, vi, d);
+    valuef de_star = hydro_args.advect_rhs(hydro_args.e_star, vi, d);
+    v3f dSi = hydro_args.advect_rhs(hydro_args.Si, vi, d);
+
+    as_ref(h_out.p_star[pos, dim]) = h_base.p_star[pos, dim] + dp_star * timestep.get();
+    as_ref(h_out.e_star[pos, dim]) = h_base.e_star[pos, dim] + de_star * timestep.get();
+
+    as_ref(h_out.Si[0][pos, dim]) = h_base.Si[0][pos, dim] + dSi[0] * timestep.get();
+    as_ref(h_out.Si[1][pos, dim]) = h_base.Si[1][pos, dim] + dSi[1] * timestep.get();
+    as_ref(h_out.Si[2][pos, dim]) = h_base.Si[2][pos, dim] + dSi[2] * timestep.get();
+}
+
+
+#if 0
 void evolve_p_star(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                   hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, buffer_mut<valuef> p_star_out,
                   hydrodynamic_utility_args<buffer<valuef>> util,
@@ -845,6 +899,7 @@ void evolve_si_p1(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     as_ref(Si_out[1][pos, dim]) = h_base.Si[1][pos, dim] + ds[1] * timestep.get();
     as_ref(Si_out[2][pos, dim]) = h_base.Si[2][pos, dim] + ds[2] * timestep.get();
 }
+#endif
 
 void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                   hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, std::array<buffer_mut<valuef>, 3> Si_out,
@@ -937,7 +992,7 @@ void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     for(int i=0; i < 3; i++)
     {
         //todo: wrong
-        as_ref(fin_Si[i]) = h_base.Si[i][pos, dim] + timestep.get() * dSi_p1[i];
+        as_ref(fin_Si[i]) = h_in.Si[i][pos, dim] + timestep.get() * dSi_p1[i];
     }
 
     //#define CLAMP_HIGH_VELOCITY
@@ -1339,6 +1394,7 @@ hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx)
         return value_impl::make_function(calculate_hydro_intermediates, "calculate_hydro_intermediates");
     }, {"calculate_hydro_intermediates"});
 
+    #if 0
     cl::async_build_and_cache(ctx, []{
         return value_impl::make_function(evolve_p_star, "evolve_p_star");
     }, {"evolve_p_star"});
@@ -1350,6 +1406,11 @@ hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx)
     cl::async_build_and_cache(ctx, []{
         return value_impl::make_function(evolve_si_p1, "evolve_si_p1");
     }, {"evolve_si_p1"});
+    #endif
+
+    cl::async_build_and_cache(ctx, []{
+        return value_impl::make_function(advect_all, "advect_all");
+    }, {"advect_all"});
 
     cl::async_build_and_cache(ctx, []{
         return value_impl::make_function(evolve_si_p2, "evolve_si_p2");
@@ -1487,8 +1548,41 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
 
     std::vector<cl::buffer> cl_base = bufs_base.get_buffers();
 
+    calc_intermediates(bufs_in);
+
     {
-        calc_intermediates(bufs_in);
+        std::vector<cl::buffer> cl_in = bufs_in.get_buffers();
+        std::vector<cl::buffer> cl_out = bufs_out.get_buffers();
+
+        cl::args args;
+
+        for(auto& i : sdata.bssn_buffers)
+            args.push_back(i);
+
+        for(auto& i : cl_base)
+            args.push_back(i);
+
+        for(auto& i : cl_in)
+            args.push_back(i);
+
+        for(auto& i : cl_out)
+            args.push_back(i);
+
+        for(auto& i : utility_buffers)
+            args.push_back(i);
+
+        args.push_back(sdata.dim);
+        args.push_back(sdata.scale);
+        args.push_back(sdata.timestep);
+        args.push_back(sdata.evolve_points);
+        args.push_back(sdata.evolve_length);
+
+        cqueue.exec("advect_all", args, {sdata.evolve_length}, {128});
+    }
+
+
+    #if 0
+    {
 
         std::vector<cl::buffer> cl_in = bufs_in.get_buffers();
 
@@ -1586,7 +1680,10 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
 
         cqueue.exec("evolve_si_p1", args, {sdata.evolve_length}, {128});
     }
+    #endif
 
+    std::swap(bufs_out.p_star, bufs_in.p_star);
+    std::swap(bufs_out.e_star, bufs_in.e_star);
     std::swap(bufs_out.Si[0], bufs_in.Si[0]);
     std::swap(bufs_out.Si[1], bufs_in.Si[1]);
     std::swap(bufs_out.Si[2], bufs_in.Si[2]);
