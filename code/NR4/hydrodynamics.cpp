@@ -272,11 +272,11 @@ std::vector<buffer_descriptor> hydrodynamic_buffers::get_description()
 {
     buffer_descriptor p;
     p.name = "p*";
-    p.dissipation_coeff = 0.05;
+    p.dissipation_coeff = 0.01;
 
     buffer_descriptor e;
     e.name = "e*";
-    e.dissipation_coeff = 0.05;
+    e.dissipation_coeff = 0.01;
 
     buffer_descriptor s0;
     s0.name = "cs0";
