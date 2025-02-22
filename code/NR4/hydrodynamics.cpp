@@ -48,13 +48,14 @@ valuef eos(valuef W, valuef w, valuef p_star, valuef e_star)
 
 //todo: I may need to set vi to 0 here manually
 //or, I may need to remove the leibnitz that I'm doing
+///todo: try setting this to zero where appropriate
 v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, const unit_metric<valuef, 3, 3>& cY)
 {
     valuef h = calculate_h_from_epsilon(epsilon);
 
     //note to self, actually hand derived this and am sure its correct
     //tol is very intentionally set to 1e-6, breaks if lower than this
-    return clamp(-gB + safe_divide(W*W * gA, w*h, 1e-6) * cY.invert().raise(Si), -1.f, 1.f);
+    return -gB + safe_divide(W*W * gA, w*h, 1e-6) * cY.invert().raise(Si);
 }
 
 valuef calculate_PQvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, const derivative_data& d)
@@ -272,26 +273,26 @@ std::vector<buffer_descriptor> hydrodynamic_buffers::get_description()
 {
     buffer_descriptor p;
     p.name = "p*";
-    p.dissipation_coeff = 0.2;
+    p.dissipation_coeff = 0.1;
 
     buffer_descriptor e;
     e.name = "e*";
-    e.dissipation_coeff = 0.2;
+    e.dissipation_coeff = 0.1;
 
     buffer_descriptor s0;
     s0.name = "cs0";
-    s0.dissipation_coeff = 0.4;
-    s0.dissipation_order = 2;
+    s0.dissipation_coeff = 0.2;
+    s0.dissipation_order = 4;
 
     buffer_descriptor s1;
     s1.name = "cs1";
-    s1.dissipation_coeff = 0.4;
-    s1.dissipation_order = 2;
+    s1.dissipation_coeff = 0.2;
+    s1.dissipation_order = 4;
 
     buffer_descriptor s2;
     s2.name = "cs2";
-    s2.dissipation_coeff = 0.4;
-    s2.dissipation_order = 2;
+    s2.dissipation_coeff = 0.2;
+    s2.dissipation_order = 4;
 
     return {p, e, s0, s1, s2};
 }
