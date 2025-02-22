@@ -161,7 +161,7 @@ struct hydrodynamic_concrete
             valuef littledv = dkvk * d.scale;
             valuef Gamma = get_Gamma();
 
-            valuef A = safe_divide(pow(e_star, Gamma) * pow(p_star, Gamma - 1) * pow(e_m6phi, Gamma - 1), pow(w, Gamma - 1), 1e-5f);
+            valuef A = safe_divide(pow(e_star, Gamma) * pow(p_star, Gamma - 1) * pow(e_m6phi, Gamma - 1), pow(w, Gamma - 1), 1e-6f);
 
             //ctx.add("DBG_A", A);
 
@@ -181,7 +181,7 @@ struct hydrodynamic_concrete
 
         for(int k=0; k < 3; k++)
         {
-            value to_diff = safe_divide(w * vi[k], p_star * e_m6phi, 1e-5);
+            value to_diff = safe_divide(w * vi[k], p_star * e_m6phi, 1e-6);
 
             sum_interior_rhs += diff1(to_diff, k, d);
         }
@@ -190,7 +190,7 @@ struct hydrodynamic_concrete
 
         valuef p0e = calculate_p0e(W);
 
-        valuef degenerate = safe_divide(valuef{1}, pow(p0e, 1 - 1/Gamma), 1e-5);
+        valuef degenerate = safe_divide(valuef{1}, pow(p0e, 1 - 1/Gamma), 1e-6);
 
         return -degenerate * (PQvis / Gamma) * sum_interior_rhs;
     }
