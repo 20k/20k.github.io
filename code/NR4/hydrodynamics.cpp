@@ -617,7 +617,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
             sum += Yij[s, k] * ui[k];
         }
 
-        u_i[s] = args.gB[s] * u0;
+        u_i[s] = args.gB[s] * u0 + sum;
     }
 
     valuef h = calculate_h_from_epsilon(p0_e / p0);
