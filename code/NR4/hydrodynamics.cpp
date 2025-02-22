@@ -80,7 +80,12 @@ valuef calculate_PQvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w,
 
     valuef PQvis = ternary(littledv < 0, CQvis * A * pow(littledv, 2), valuef{0.f});
 
-    return PQvis;
+    valuef CLvis = 1;
+    valuef n = 1;
+
+    valuef PLvis = ternary(littledv < 0, -CLvis * sqrt((get_Gamma()/n) * p_star * A) * littledv, valuef(0.f));
+
+    return PQvis + PLvis;
 }
 
 struct hydrodynamic_concrete
@@ -806,7 +811,13 @@ void calculate_p_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY);
 
-    P += calculate_PQvis(args.W, vi, p_star, e_star, w, d);
+    valuef extra_pressure = calculate_PQvis(args.W, vi, p_star, e_star, w, d);
+
+    /*if_e(pos.x() == dim.x()/2 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+        print("hi %.10f\n", extra_pressure);
+    });*/
+
+    P += extra_pressure;
 
     as_ref(P_out[pos, dim]) = P;
 }
