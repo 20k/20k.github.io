@@ -604,7 +604,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     valuef w = p_star * gA * u0;
 
-    v3f ui = Si / ((mu + pressure) * w);
+    v3f ui = Si / ((mu + pressure) * u0);
 
     v3f u_i;
 
