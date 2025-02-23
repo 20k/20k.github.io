@@ -1529,11 +1529,15 @@ void finalise_hydro(execution_context& ectx,
         as_ref(hydro.Si[0][pos, dim]) = valuef(0);
         as_ref(hydro.Si[1][pos, dim]) = valuef(0);
         as_ref(hydro.Si[2][pos, dim]) = valuef(0);
+        return_e();
     });
 
-    valuef e_star = declare_e(hydro.e_star[pos, dim]);
+    if_e(hydro.p_star[pos, dim] < valuef(1e-6f), [&]{
+        valuef e_star = declare_e(hydro.e_star[pos, dim]);
 
-    as_ref(hydro.e_star[pos, dim]) = ternary(hydro.p_star[pos, dim] < valuef(1e-6f), min(e_star, 10 * hydro.p_star[pos, dim]), e_star);
+        as_ref(hydro.e_star[pos, dim]) = min(e_star, 10 * hydro.p_star[pos, dim]);
+        return_e();
+    });
 }
 
 hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx)
