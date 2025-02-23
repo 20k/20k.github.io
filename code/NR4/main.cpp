@@ -1314,6 +1314,7 @@ int main()
         ImGui::Checkbox("Render", &render);
         ImGui::Checkbox("Render2", &render2);
         ImGui::Checkbox("Debug Render", &debug_render);
+        ImGui::DragFloat("Pause At", &pause_time, 1, 0, 99999999);
 
         ImGui::Checkbox("Override Camera Time", &lock_camera_to_slider);
         ImGui::Checkbox("Advance Override Camera Time", &progress_camera_time);

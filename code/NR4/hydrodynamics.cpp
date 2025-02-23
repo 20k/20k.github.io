@@ -79,7 +79,7 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
     //ctx.add("DBG_A", A);
 
     ///[0.1, 1.0}
-    valuef CQvis = 0.9f;
+    valuef CQvis = 1.f;
 
     ///it looks like the littledv is to only turn on viscosity when the flow is compressive
     valuef PQvis = ternary(littledv < 0, CQvis * A * pow(littledv, 2), valuef{0.f});
@@ -88,7 +88,7 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
 
     ///paper i'm looking at only turns on viscosity inside a star, ie p > pcrit. We could calculate a crit value
     ///or, we could simply make this time variable, though that's kind of annoying
-    valuef CLvis = 0.9f * linear_damping;
+    valuef CLvis = 1.f * linear_damping;
     valuef n = 1;
 
     valuef PLvis = ternary(littledv < 0, -CLvis * sqrt((get_Gamma()/n) * p_star * A) * littledv, valuef(0.f));
@@ -1674,7 +1674,7 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
     }
     #endif // 0
 
-    float damping_timescale = 200;
+    float damping_timescale = 500;
 
     hydrodynamic_buffers& bufs_base = *dynamic_cast<hydrodynamic_buffers*>(sdata.buffers[sdata.base_idx]);
     hydrodynamic_buffers& bufs_in = *dynamic_cast<hydrodynamic_buffers*>(sdata.buffers[sdata.in_idx]);
