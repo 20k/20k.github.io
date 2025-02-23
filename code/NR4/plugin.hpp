@@ -146,6 +146,7 @@ struct plugin_step_data
     t3i dim;
     float scale = 0;
     float timestep = 0;
+    float total_elapsed = 0;
 
     int in_idx = 0;
     int out_idx = 0;
