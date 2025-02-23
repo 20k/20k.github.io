@@ -170,6 +170,7 @@ struct mesh
             p1.p0_c_kg_m3 = 6.235 * pow(10., 17.);
             #endif
 
+            #if 0
             neutron_star::parameters p1;
 
             /*neutron_star::dimensionless_linear_momentum lin;
@@ -186,6 +187,30 @@ struct mesh
             initial_conditions init(ctx, cqueue, dim);
 
             init.add(p1);
+            #endif // 0
+
+            neutron_star::parameters p1;
+
+            p1.position = {-15, 0, 0};
+            p1.linear_momentum.momentum = {0, 0, 0};
+            //p1.linear_momentum.momentum = {0.25, 0, 0};
+            //p1.linear_momentum.dimensionless = lin;
+            p1.K.msols = 123.6;
+            p1.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
+
+            neutron_star::parameters p2;
+
+            p2.position = {15, 0, 0};
+            p2.linear_momentum.momentum = {0, 0, 0};
+            //p2.linear_momentum.momentum = {0.25, 0, 0};
+            //p2.linear_momentum.dimensionless = lin;
+            p2.K.msols = 123.6;
+            p2.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
+
+            initial_conditions init(ctx, cqueue, dim);
+
+            init.add(p1);
+            init.add(p2);
             #endif
 
             #ifdef SINGLE
@@ -1150,7 +1175,7 @@ int main()
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
-    float simulation_width = 200;
+    float simulation_width = 80;
 
     mesh m(ctx, dim, simulation_width);
     m.plugins = plugins;
@@ -1194,19 +1219,19 @@ int main()
     bool lock_camera_to_slider = false;
     bool progress_camera_time = false;
 
-    vec3f camera_pos = {0, 25, 0};;
-    //vec3f camera_pos = {0, 0, -25};;
+    //vec3f camera_pos = {0, 25, 0};;
+    vec3f camera_pos = {0, 0, -25};;
     quat camera_quat;
     steady_timer frame_time;
 
-    {
+    /*{
         vec3f right = rot_quat({1, 0, 0}, camera_quat);
 
         quat q;
         q.load_from_axis_angle({right.x(), right.y(), right.z(), M_PI/2});
 
         camera_quat = q * camera_quat;
-    }
+    }*/
 
     float cam_time = 0;
     uint32_t render_frame_idx = 0;

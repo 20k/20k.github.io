@@ -356,7 +356,7 @@ valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, const derivative_data
 
     #define LAPSE_DAMPING
     #ifdef LAPSE_DAMPING
-    valuef sigma = 50.f;
+    valuef sigma = 20.f;
     value h = (4.f/5.f);
 
     valuef damp = args.W * (h * exp(-(total_elapsed*total_elapsed) / (2 * sigma * sigma))) * (args.gA - args.W);
@@ -1192,7 +1192,11 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
 
         v3i pos = get_coordinate(lid, dim);
 
-        if_e(pos.y() != valuei(dim.y()/2), [&] {
+        /*if_e(pos.y() != valuei(dim.y()/2), [&] {
+            return_e();
+        });*/
+
+        if_e(pos.z() != valuei(dim.z()/2), [&] {
             return_e();
         });
 
@@ -1216,13 +1220,13 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
 
         v4f col = {display, display, display, 1.f};
 
-        col.x() = ternary(pos.x() == dim.x()/2 + 15, valuef(1.f), col.x());
+        //col.x() = ternary(pos.x() == dim.x()/2 + 15, valuef(1.f), col.x());
 
         col = clamp(col, valuef(0.f), valuef(1.f));
 
         if_e(pos.x() >= 0 && pos.x() < dim.x() && pos.y() >= 0 && pos.y() < dim.y(), [&]()
         {
-            write.write({pos.x(), pos.z()}, col);
+            write.write({pos.x(), pos.y()}, col);
         });
     };
 
