@@ -266,11 +266,11 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
 template<typename T>
 valuef full_hydrodynamic_args<T>::dbg(bssn_args& args, const derivative_data& d)
 {
-    //return fabs(p_star[d.pos, d.dim]) * 10;
+    return fabs(this->p_star[d.pos, d.dim]) * 500;
     //return sqrt(pow(Si[0][d.pos, d.dim], 2.f) + pow(Si[1][d.pos, d.dim], 2.f)) * 10;
     //return sqrt(pow(Si[0][d.pos, d.dim], 2.f) + pow(Si[2][d.pos, d.dim], 2.f)) * 100;
     //return e_star[d.pos, d.dim] * 0.5;
-    return fabs(this->Si[0][d.pos, d.dim]) * 100 * 100;
+    //return fabs(this->Si[0][d.pos, d.dim]) * 100 * 100;
 }
 
 template struct full_hydrodynamic_args<buffer<valuef>>;
