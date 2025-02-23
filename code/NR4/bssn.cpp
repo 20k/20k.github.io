@@ -403,7 +403,6 @@ tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, const deri
 
     ///gauge damping parameter, commonly set to 2
     float N = 2.f;
-    //float N = 2;
 
     return (3/4.f) * args.cG_undiff(derivs) + djbjbi * 1 - N * args.gB;
     #endif // GAMMA_DRIVER
