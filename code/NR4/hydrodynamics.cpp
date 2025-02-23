@@ -60,7 +60,7 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
     return ternary(p_star <= min_p_star, (v3f){}, real_value);
 }
 
-valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, const derivative_data& d)
+valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, const derivative_data& d, valuef total_elapsed, valuef linear_damping_timescale)
 {
     valuef e_m6phi = pow(W, 3.f);
 
@@ -84,9 +84,11 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
     ///it looks like the littledv is to only turn on viscosity when the flow is compressive
     valuef PQvis = ternary(littledv < 0, CQvis * A * pow(littledv, 2), valuef{0.f});
 
+    valuef linear_damping = exp(-(total_elapsed * total_elapsed) / (2 * linear_damping_timescale * linear_damping_timescale));
+
     ///paper i'm looking at only turns on viscosity inside a star, ie p > pcrit. We could calculate a crit value
     ///or, we could simply make this time variable, though that's kind of annoying
-    valuef CLvis = 0.9f;
+    valuef CLvis = 0.9f * linear_damping;
     valuef n = 1;
 
     valuef PLvis = ternary(littledv < 0, -CLvis * sqrt((get_Gamma()/n) * p_star * A) * littledv, valuef(0.f));
@@ -180,18 +182,18 @@ struct hydrodynamic_concrete
         return ret;
     }
 
-    valuef calculate_Pvis(valuef W, v3f vi, const derivative_data& d)
+    valuef calculate_Pvis(valuef W, v3f vi, const derivative_data& d, valuef total_elapsed, valuef damping_timescale)
     {
-        return ::calculate_Pvis(W, vi, p_star, e_star, w, d);
+        return ::calculate_Pvis(W, vi, p_star, e_star, w, d, total_elapsed, damping_timescale);
     }
 
-    valuef e_star_rhs(valuef gA, v3f gB, unit_metric<valuef, 3, 3> cY, valuef W, v3f vi, const derivative_data& d)
+    valuef e_star_rhs(valuef gA, v3f gB, unit_metric<valuef, 3, 3> cY, valuef W, v3f vi, const derivative_data& d, valuef total_elapsed, valuef damping_timescale)
     {
         auto icY = cY.invert();
 
         valuef e_m6phi = pow(W, 3.f);
 
-        valuef Pvis = calculate_Pvis(W, vi, d);
+        valuef Pvis = calculate_Pvis(W, vi, d, total_elapsed, damping_timescale);
 
         valuef sum_interior_rhs = 0;
 
@@ -803,7 +805,7 @@ void calculate_w_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 }
 
 void calculate_p_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_base_args<buffer<valuef>> hydro, buffer<valuef> w_in, buffer_mut<valuef> P_out,
-                      literal<v3i> idim, literal<valuef> scale,
+                      literal<v3i> idim, literal<valuef> scale, literal<valuef> total_elapsed, literal<valuef> damping_timescale,
                       buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
 {
     using namespace single_source;
@@ -847,7 +849,7 @@ void calculate_p_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY, p_star);
 
-    valuef extra_pressure = calculate_Pvis(args.W, vi, p_star, e_star, w, d);
+    valuef extra_pressure = calculate_Pvis(args.W, vi, p_star, e_star, w, d, total_elapsed.get(), damping_timescale.get());
 
     P += extra_pressure;
 
@@ -1047,7 +1049,7 @@ void evolve_si_p1(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                   hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, std::array<buffer_mut<valuef>, 3> Si_out, buffer_mut<valuef> e_star_out,
                   hydrodynamic_utility_args<buffer<valuef>> util,
-                  literal<v3i> idim, literal<valuef> scale, literal<valuef> timestep,
+                  literal<v3i> idim, literal<valuef> scale, literal<valuef> timestep, literal<valuef> total_elapsed, literal<valuef> damping_timescale,
                   buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
 {
     using namespace single_source;
@@ -1090,7 +1092,7 @@ void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     valuef epsilon = hydro_args.calculate_epsilon(args.W);
     v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, hydro_args.Si, args.cY, p_star);
-    valuef de_star = hydro_args.e_star_rhs(args.gA, args.gB, args.cY, args.W, vi, d);
+    valuef de_star = hydro_args.e_star_rhs(args.gA, args.gB, args.cY, args.W, vi, d, total_elapsed.get(), damping_timescale.get());
 
     v3f dSi_p1;
 
@@ -1672,6 +1674,8 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
     }
     #endif // 0
 
+    float damping_timescale = 200;
+
     hydrodynamic_buffers& bufs_base = *dynamic_cast<hydrodynamic_buffers*>(sdata.buffers[sdata.base_idx]);
     hydrodynamic_buffers& bufs_in = *dynamic_cast<hydrodynamic_buffers*>(sdata.buffers[sdata.in_idx]);
     hydrodynamic_buffers& bufs_out = *dynamic_cast<hydrodynamic_buffers*>(sdata.buffers[sdata.out_idx]);
@@ -1714,6 +1718,8 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
 
             args.push_back(sdata.dim);
             args.push_back(sdata.scale);
+            args.push_back(sdata.total_elapsed);
+            args.push_back(damping_timescale);
             args.push_back(sdata.evolve_points);
             args.push_back(sdata.evolve_length);
 
@@ -1893,6 +1899,8 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
         args.push_back(sdata.dim);
         args.push_back(sdata.scale);
         args.push_back(sdata.timestep);
+        args.push_back(sdata.total_elapsed);
+        args.push_back(damping_timescale);
         args.push_back(sdata.evolve_points);
         args.push_back(sdata.evolve_length);
 

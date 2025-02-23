@@ -519,6 +519,7 @@ struct mesh
                 step_data.dim = dim;
                 step_data.scale = scale;
                 step_data.timestep = timestep;
+                step_data.total_elapsed = total_elapsed;
 
                 step_data.in_idx = in_idx;
                 step_data.out_idx = out_idx;
