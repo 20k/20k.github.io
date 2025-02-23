@@ -896,7 +896,7 @@ void advect_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         return_e();
     });
 
-    if_e(args.gA < valuef(0.4f), [&]{
+    if_e(args.gA < MIN_LAPSE, [&]{
         valuef damp = 0.1f;
 
         valuef dt_p_star = damp * (0 - h_in.p_star[pos, dim]);
