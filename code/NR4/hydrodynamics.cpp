@@ -60,7 +60,7 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
     return ternary(p_star <= min_p_star, (v3f){}, real_value);
 }
 
-valuef calculate_PQvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, const derivative_data& d)
+valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, const derivative_data& d)
 {
     valuef e_m6phi = pow(W, 3.f);
 
@@ -79,11 +79,14 @@ valuef calculate_PQvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w,
     //ctx.add("DBG_A", A);
 
     ///[0.1, 1.0}
-    valuef CQvis = 1.f;
+    valuef CQvis = 0.9f;
 
+    ///it looks like the littledv is to only turn on viscosity when the flow is compressive
     valuef PQvis = ternary(littledv < 0, CQvis * A * pow(littledv, 2), valuef{0.f});
 
-    valuef CLvis = 1;
+    ///paper i'm looking at only turns on viscosity inside a star, ie p > pcrit. We could calculate a crit value
+    ///or, we could simply make this time variable, though that's kind of annoying
+    valuef CLvis = 0.9f;
     valuef n = 1;
 
     valuef PLvis = ternary(littledv < 0, -CLvis * sqrt((get_Gamma()/n) * p_star * A) * littledv, valuef(0.f));
@@ -177,9 +180,9 @@ struct hydrodynamic_concrete
         return ret;
     }
 
-    valuef calculate_PQvis(valuef W, v3f vi, const derivative_data& d)
+    valuef calculate_Pvis(valuef W, v3f vi, const derivative_data& d)
     {
-        return ::calculate_PQvis(W, vi, p_star, e_star, w, d);
+        return ::calculate_Pvis(W, vi, p_star, e_star, w, d);
     }
 
     valuef e_star_rhs(valuef gA, v3f gB, unit_metric<valuef, 3, 3> cY, valuef W, v3f vi, const derivative_data& d)
@@ -188,7 +191,7 @@ struct hydrodynamic_concrete
 
         valuef e_m6phi = pow(W, 3.f);
 
-        valuef PQvis = calculate_PQvis(W, vi, d);
+        valuef Pvis = calculate_Pvis(W, vi, d);
 
         valuef sum_interior_rhs = 0;
 
@@ -205,7 +208,7 @@ struct hydrodynamic_concrete
 
         valuef degenerate = safe_divide(valuef{1}, pow(p0e, 1 - 1/Gamma), 1e-6);
 
-        return -degenerate * (PQvis / Gamma) * sum_interior_rhs;
+        return -degenerate * (Pvis / Gamma) * sum_interior_rhs;
     }
 };
 
@@ -275,11 +278,11 @@ std::vector<buffer_descriptor> hydrodynamic_buffers::get_description()
 {
     buffer_descriptor p;
     p.name = "p*";
-    p.dissipation_coeff = 0.1;
+    p.dissipation_coeff = 0.05;
 
     buffer_descriptor e;
     e.name = "e*";
-    e.dissipation_coeff = 0.1;
+    e.dissipation_coeff = 0.05;
 
     buffer_descriptor s0;
     s0.name = "cs0";
@@ -844,11 +847,7 @@ void calculate_p_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY, p_star);
 
-    valuef extra_pressure = calculate_PQvis(args.W, vi, p_star, e_star, w, d);
-
-    /*if_e(pos.x() == dim.x()/2 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-        print("hi %.10f\n", extra_pressure);
-    });*/
+    valuef extra_pressure = calculate_Pvis(args.W, vi, p_star, e_star, w, d);
 
     P += extra_pressure;
 
@@ -1126,7 +1125,7 @@ void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
         valuef w2_m_p2_calc = w2_m_p2(p_star, e_star, args.W, args.cY.invert(), Si, w);
 
-        valuef p5 = safe_divide(args.gA * h * (w*w - p_star*p_star), w) * (diff1(args.W, k, d) / max(args.W, 0.001f));
+        valuef p5 = safe_divide(args.gA * h * w2_m_p2_calc, w) * (diff1(args.W, k, d) / max(args.W, 0.001f));
 
         dSi_p1[k] += (p1 + p2 + p3 + p4 + p5);
     }
@@ -1140,8 +1139,8 @@ void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     //#define CLAMP_HIGH_VELOCITY
     #ifdef CLAMP_HIGH_VELOCITY
-    //if_e(p_star >= min_p_star && p_star < 1e-4, [&]{
-    if_e(p_star >= min_p_star && p_star < 1e-5, [&]{
+    //if_e(p_star >= min_p_star && p_star < 1e-5, [&]{
+    if_e(p_star >= min_p_star && p_star < min_p_star * 10, [&]{
         v3f dfsi = declare_e(fin_Si);
 
         v3f u_k;
