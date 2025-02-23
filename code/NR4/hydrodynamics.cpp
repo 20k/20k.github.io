@@ -804,6 +804,9 @@ void calculate_w_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     as_ref(w_out[pos, dim]) = w;
 }
 
+#define MIN_LAPSE 0.4f
+#define MIN_VISCOSITY_LAPSE 0.4f
+
 void calculate_p_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_base_args<buffer<valuef>> hydro, buffer<valuef> w_in, buffer_mut<valuef> P_out,
                       literal<v3i> idim, literal<valuef> scale, literal<valuef> total_elapsed, literal<valuef> damping_timescale,
                       buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
@@ -843,17 +846,16 @@ void calculate_p_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     valuef w = w_in[pos, dim];
 
     //this might be a source of instability when p* is low, because of derivatives
-    valuef P = max(eos(args.W, w, p_star, e_star), 0.f);
+    mut<valuef> P = declare_mut_e(max(eos(args.W, w, p_star, e_star), 0.f));
 
-    valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
+    if_e(args.gA >= MIN_VISCOSITY_LAPSE, [&]{
+        valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
+        v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY, p_star);
 
-    v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY, p_star);
+        as_ref(P) += calculate_Pvis(args.W, vi, p_star, e_star, w, d, total_elapsed.get(), damping_timescale.get());
+    });
 
-    valuef extra_pressure = calculate_Pvis(args.W, vi, p_star, e_star, w, d, total_elapsed.get(), damping_timescale.get());
-
-    P += extra_pressure;
-
-    as_ref(P_out[pos, dim]) = P;
+    as_ref(P_out[pos, dim]) = as_constant(P);
 }
 
 void advect_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
@@ -894,6 +896,31 @@ void advect_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         return_e();
     });
 
+    if_e(args.gA < valuef(0.4f), [&]{
+        valuef damp = 0.1f;
+
+        valuef dt_p_star = damp * (0 - h_in.p_star[pos, dim]);
+        valuef dt_e_star = damp * (0 - h_in.e_star[pos, dim]);
+
+        valuef dt_s0 = damp * (0 - h_in.Si[0][pos, dim]);
+        valuef dt_s1 = damp * (0 - h_in.Si[1][pos, dim]);
+        valuef dt_s2 = damp * (0 - h_in.Si[2][pos, dim]);
+
+        valuef fin_p_star = h_base.p_star[pos, dim] + dt_p_star * timestep.get();
+        valuef fin_e_star = h_base.e_star[pos, dim] + dt_e_star * timestep.get();
+
+        valuef fin_s0 = h_base.Si[0][pos, dim] + dt_s0 * timestep.get();
+        valuef fin_s1 = h_base.Si[1][pos, dim] + dt_s1 * timestep.get();
+        valuef fin_s2 = h_base.Si[2][pos, dim] + dt_s2 * timestep.get();
+
+        as_ref(h_out.p_star[pos, dim]) = max(fin_p_star, 0.f);
+        as_ref(h_out.e_star[pos, dim]) = max(fin_e_star, 0.f);
+        as_ref(h_out.Si[0][pos, dim]) = fin_s0;
+        as_ref(h_out.Si[1][pos, dim]) = fin_s1;
+        as_ref(h_out.Si[2][pos, dim]) = fin_s2;
+        return_e();
+    });
+
     v3f vi = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY);
 
     valuef dp_star = hydro_args.advect_rhs(hydro_args.p_star, vi, d);
@@ -903,8 +930,8 @@ void advect_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     valuef fin_e_star = h_base.e_star[pos, dim] + de_star * timestep.get();
     //fin_e_star = ternary(hydro_args.p_star < valuef(1e-6f), min(fin_e_star, 10 * hydro_args.p_star), fin_e_star);
 
-    as_ref(h_out.p_star[pos, dim]) = h_base.p_star[pos, dim] + dp_star * timestep.get();
-    as_ref(h_out.e_star[pos, dim]) = fin_e_star;
+    as_ref(h_out.p_star[pos, dim]) = max(h_base.p_star[pos, dim] + dp_star * timestep.get(), 0.f);
+    as_ref(h_out.e_star[pos, dim]) = max(fin_e_star, 0.f);
 
     as_ref(h_out.Si[0][pos, dim]) = h_base.Si[0][pos, dim] + dSi[0] * timestep.get();
     as_ref(h_out.Si[1][pos, dim]) = h_base.Si[1][pos, dim] + dSi[1] * timestep.get();
@@ -1090,9 +1117,13 @@ void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     valuef h = hydro_args.calculate_h_with_eos(args.W);
     valuef w = hydro_args.w;
 
-    valuef epsilon = hydro_args.calculate_epsilon(args.W);
-    v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, hydro_args.Si, args.cY, p_star);
-    valuef de_star = hydro_args.e_star_rhs(args.gA, args.gB, args.cY, args.W, vi, d, total_elapsed.get(), damping_timescale.get());
+    mut<valuef> de_star = declare_mut_e(valuef(0.f));
+
+    if_e(args.gA >= MIN_VISCOSITY_LAPSE, [&]{
+        valuef epsilon = hydro_args.calculate_epsilon(args.W);
+        v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, hydro_args.Si, args.cY, p_star);
+        as_ref(de_star) += hydro_args.e_star_rhs(args.gA, args.gB, args.cY, args.W, vi, d, total_elapsed.get(), damping_timescale.get());
+    });
 
     v3f dSi_p1;
 
@@ -1164,10 +1195,10 @@ void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     //as_ref(e_star_out[pos, dim]) = h_in.e_star[pos, dim];
 
 
-    valuef fin_e_star = h_in.e_star[pos, dim] + de_star * timestep.get();
+    valuef fin_e_star = h_in.e_star[pos, dim] + as_constant(de_star) * timestep.get();
     //fin_e_star = ternary(hydro_args.p_star < valuef(1e-6f), min(fin_e_star, 10 * hydro_args.p_star), fin_e_star);
 
-    as_ref(e_star_out[pos, dim]) = fin_e_star;
+    as_ref(e_star_out[pos, dim]) = max(fin_e_star, 0.f);
 }
 
 #if 0
