@@ -1296,7 +1296,7 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     });
 
     #if 1
-    //if_e(hydro.p_star[pos, dim] < min_p_star * 10, [&]{
+    //if_e((hydro.e_star[pos, dim] <= hydro.p_star[pos, dim]) || (hydro.p_star[pos, dim] <= min_p_star * 10), [&]{
         bssn_args args(pos, dim, in);
 
         valuef p_star = hydro.p_star[pos, dim];
@@ -1317,7 +1317,7 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         for(int i=0; i < 3; i++)
             u_k[i] = safe_divide(dfsi[i], h * hydro.p_star[pos, dim], 1e-6);
 
-        u_k = clamp(u_k, -0.2f, 0.2f);
+        u_k = clamp(u_k, -1.f, 1.f);
 
         v3f fin = u_k * h * hydro.p_star[pos, dim];
 
