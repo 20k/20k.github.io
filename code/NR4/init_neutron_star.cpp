@@ -414,15 +414,6 @@ void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cq
     cl::buffer cl_pressure_cfl = d2f(pressure_cfl);
     cl::buffer cl_radius = d2f(radius_iso);
 
-    /*void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b, buffer<valuef> uN_b,
-                buffer<valuef> sigma_b, buffer<valuef> kappa_b,
-                buffer<valuef> mu_cfl_b, buffer<valuef> pressure_cfl_b, buffer<valuef> radius_b,
-                literal<valuei> lsamples, literal<valuef> lM, literal<valuef> l_sN,
-                literal<v3i> ldim, literal<valuef> lscale,
-                literal<v3f> lbody_pos, literal<v3f> linear_momentum, literal<v3f> angular_momentum,
-                std::array<buffer_mut<valuef>, 6> AIJ_out, buffer_mut<valuef> mu_cfl_out, buffer_mut<valuef> mu_h_cfl_out, buffer_mut<valuef> pressure_cfl_out,
-                std::array<buffer_mut<valuef>, 3> Si_out)*/
-
     t3f linear_momentum;
 
     if(params.linear_momentum.momentum)
