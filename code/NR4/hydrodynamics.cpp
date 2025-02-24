@@ -764,7 +764,7 @@ void calculate_w_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     as_ref(w_out[pos, dim]) = w;
 }
 
-#define MIN_LAPSE 0.25f
+#define MIN_LAPSE 0.15f
 #define MIN_VISCOSITY_LAPSE 0.4f
 
 void calculate_p_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_base_args<buffer<valuef>> hydro, buffer<valuef> w_in, buffer_mut<valuef> P_out,
