@@ -189,7 +189,7 @@ struct mesh
             init.add(p1);
             #endif // 0
 
-            #if 1
+            #if 0
             neutron_star::parameters p1;
 
             p1.position = {-15, 0, 0};
@@ -213,6 +213,26 @@ struct mesh
             init.add(p1);
             init.add(p2);
             #endif
+
+            neutron_star::parameters p1;
+
+            p1.position = {-15, 0, 0};
+            p1.linear_momentum.momentum = {0, -0.25f, 0};
+            p1.K.msols = 123.6;
+            p1.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
+
+            neutron_star::parameters p2;
+
+            p2.position = {15, 0, 0};
+            p2.linear_momentum.momentum = {0, 0.25f, 0};
+            p2.K.msols = 123.6;
+            p2.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
+
+            initial_conditions init(ctx, cqueue, dim);
+
+            init.add(p1);
+            init.add(p2);
+
             #endif
 
             #ifdef SINGLE
@@ -722,7 +742,13 @@ struct mesh
         {
             plugin* p = plugins[kk];
 
-            p->finalise(ctx, cqueue, plugin_buffers[0][kk], dim, evolve_points, evolve_length);
+            std::vector<cl::buffer> bssn_buffers;
+
+            buffers[0].for_each([&](cl::buffer in){
+                bssn_buffers.push_back(in);
+            });
+
+            p->finalise(ctx, cqueue, bssn_buffers, plugin_buffers[0][kk], dim, evolve_points, evolve_length);
         }
 
         total_elapsed += timestep;
@@ -1136,7 +1162,7 @@ int main()
     cl::context& ctx = win.clctx->ctx;
     std::cout << cl::get_extensions(ctx) << std::endl;
 
-    t3i dim = {213, 213, 213};
+    t3i dim = {155, 155, 155};
 
     plugin* hydro = new hydrodynamic_plugin(ctx);
 
@@ -1177,7 +1203,7 @@ int main()
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
-    float simulation_width = 70;
+    float simulation_width = 90;
 
     mesh m(ctx, dim, simulation_width);
     m.plugins = plugins;
@@ -1221,11 +1247,11 @@ int main()
     bool lock_camera_to_slider = false;
     bool progress_camera_time = false;
 
-    vec3f camera_pos = {0, 25, 0};;
-    //vec3f camera_pos = {0, 0, -25};;
+    vec3f camera_pos = {0, 0, -25};;
     quat camera_quat;
     steady_timer frame_time;
 
+    /*vec3f camera_pos = {0, 25, 0};;
     {
         vec3f right = rot_quat({1, 0, 0}, camera_quat);
 
@@ -1233,7 +1259,7 @@ int main()
         q.load_from_axis_angle({right.x(), right.y(), right.z(), M_PI/2});
 
         camera_quat = q * camera_quat;
-    }
+    }*/
 
     float cam_time = 0;
     uint32_t render_frame_idx = 0;

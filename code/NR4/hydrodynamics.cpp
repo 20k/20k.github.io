@@ -84,6 +84,8 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
     ///it looks like the littledv is to only turn on viscosity when the flow is compressive
     valuef PQvis = ternary(littledv < 0, CQvis * A * pow(littledv, 2), valuef{0.f});
 
+    return PQvis;
+
     valuef linear_damping = exp(-(total_elapsed * total_elapsed) / (2 * linear_damping_timescale * linear_damping_timescale));
 
     ///paper i'm looking at only turns on viscosity inside a star, ie p > pcrit. We could calculate a crit value
@@ -1138,15 +1140,76 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     dSi += dSi_p1;
 
+    v3f base_Si = {h_base.Si[0][pos, dim], h_base.Si[1][pos, dim], h_base.Si[2][pos, dim]};
+
+    mut_v3f fin_Si = declare_mut_e(base_Si + timestep.get() * dSi);
+
+    //#define CLAMP_HIGH_VELOCITY
+    #ifdef CLAMP_HIGH_VELOCITY
+    if_e(hydro_args.p_star >= min_p_star && hydro_args.p_star < min_p_star * 10, [&]{
+        v3f dfsi = declare_e(fin_Si);
+
+        v3f u_k;
+
+        for(int i=0; i < 3; i++)
+            u_k[i] = safe_divide(dfsi[i], h * hydro_args.p_star, 1e-6);
+
+        u_k = clamp(u_k, -0.2f, 0.2f);
+
+        as_ref(fin_Si) = u_k * h * hydro_args.p_star;
+    });
+    #endif
+
+    /*if_e(!isfinite(dp_star) || !isfinite(de_star) || !isfinite(dSi[0]) || !isfinite(dSi[1]) || !isfinite(dSi[2]) || !isfinite(hydro_args.p_star) || !isfinite(hydro_args.e_star) || !isfinite(hydro_args.Si[0]) || !isfinite(hydro_args.Si[1]) || !isfinite(hydro_args.Si[2])
+         || !isfinite(args.cY[0, 0]) || !isfinite(args.cY[1, 0]) || !isfinite(args.cY[2, 0]) || !isfinite(args.cY[1, 1]) || !isfinite(args.cY[2, 1]) || !isfinite(args.cY[2, 2]), [&]{
+        print("Pos p1 %i %i %i\n", pos.x(), pos.y(), pos.z());
+    });*/
+
+    ///Pos p1 58 73 72
+    ///Pos p1 87 80 69
+
+    #if 0
+    if_e(pos.x() == 87 && pos.y() == 80 && pos.z() == 69, [&]{
+    //if_e(pos.x() == 71 && pos.y() == 63 && pos.z() == 53, [&]{
+    //if_e(pos.x() == 59 && pos.y() == 81 && pos.z() == 57, [&]{
+        valuef epsilon = hydro_args.calculate_epsilon(args.W);
+
+        unit_metric<valuef, 3, 3> cY = args.cY;
+        pin(cY);
+
+        auto inverted = cY.invert();
+
+        valuef raised = args.cY.invert().raise(hydro_args.Si)[1];
+
+        v3f dfsi = declare_e(hydro_args.Si);
+
+        v3f u_k;
+
+        for(int i=0; i < 3; i++)
+            u_k[i] = safe_divide(dfsi[i], h * hydro_args.p_star);
+
+        valuef t1 = args.W * args.W * args.gA * raised;
+
+        print("met? %f %f %f %f %f %f\n", args.cY[0, 0], args.cY[1, 0], args.cY[2, 0], args.cY[1, 1], args.cY[2, 1], args.cY[2, 2]);
+        print("imet? %f %f %f %f %f %f\n", inverted[0, 0], inverted[1, 0], inverted[2, 0], inverted[1, 1], inverted[2, 1], inverted[2, 2]);
+        print("%i %i %i     p* %.10f e* %.10f si %f %f %f w %f P %f vi %f %f %f epsilon %.10f raised %f top_1 %f uk %f %f %f h %f\n", pos.x(), pos.y(), pos.z(), hydro_args.p_star, hydro_args.e_star, hydro_args.Si[0], hydro_args.Si[1], hydro_args.Si[2], hydro_args.w, hydro_args.P, vi[0], vi[1], vi[2], epsilon, raised, t1, u_k[0], u_k[1], u_k[2], h);
+
+        valuef fin_p_star = max(h_base.p_star[pos, dim] + dp_star * timestep.get(), 0.f);
+        valuef fin_e_star = max(h_base.e_star[pos, dim] + de_star * timestep.get(), 0.f);
+
+        print("%i %i %i out p* %.10f e* %.10f si %f %f %f\n", pos.x(), pos.y(), pos.z(), fin_p_star, fin_e_star, as_constant(fin_Si[0]), as_constant(fin_Si[1]), as_constant(fin_Si[2]));
+    });
+    #endif
+
     as_ref(h_out.p_star[pos, dim]) = max(h_base.p_star[pos, dim] + dp_star * timestep.get(), 0.f);
     as_ref(h_out.e_star[pos, dim]) = max(h_base.e_star[pos, dim] + de_star * timestep.get(), 0.f);
 
-    as_ref(h_out.Si[0][pos, dim]) = h_base.Si[0][pos, dim] + dSi[0] * timestep.get();
-    as_ref(h_out.Si[1][pos, dim]) = h_base.Si[1][pos, dim] + dSi[1] * timestep.get();
-    as_ref(h_out.Si[2][pos, dim]) = h_base.Si[2][pos, dim] + dSi[2] * timestep.get();
+    as_ref(h_out.Si[0][pos, dim]) = as_constant(fin_Si[0]);
+    as_ref(h_out.Si[1][pos, dim]) = as_constant(fin_Si[1]);
+    as_ref(h_out.Si[2][pos, dim]) = as_constant(fin_Si[2]);
 }
 
-void finalise_hydro(execution_context& ectx,
+void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                     hydrodynamic_base_args<buffer_mut<valuef>> hydro,
                     literal<v3i> idim,
                     buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
@@ -1180,8 +1243,39 @@ void finalise_hydro(execution_context& ectx,
         valuef e_star = declare_e(hydro.e_star[pos, dim]);
 
         as_ref(hydro.e_star[pos, dim]) = min(e_star, 10 * hydro.p_star[pos, dim]);
-        return_e();
     });
+
+    #if 0
+    if_e(hydro.p_star[pos, dim] < min_p_star * 10, [&]{
+        bssn_args args(pos, dim, in);
+
+        valuef p_star = hydro.p_star[pos, dim];
+        valuef e_star = hydro.e_star[pos, dim];
+
+        v3f Si = {hydro.Si[0][pos, dim], hydro.Si[1][pos, dim], hydro.Si[2][pos, dim]};
+
+        valuef w = calculate_w(p_star, e_star, args.W, args.cY.invert(), Si);
+
+        valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
+
+        valuef h = calculate_h_from_epsilon(epsilon);
+
+        v3f dfsi = {hydro.Si[0][pos, dim], hydro.Si[1][pos, dim], hydro.Si[2][pos, dim]};
+
+        v3f u_k;
+
+        for(int i=0; i < 3; i++)
+            u_k[i] = safe_divide(dfsi[i], h * hydro.p_star[pos, dim], 1e-6);
+
+        u_k = clamp(u_k, -0.2f, 0.2f);
+
+        v3f fin = u_k * h * hydro.p_star[pos, dim];
+
+        as_ref(hydro.Si[0][pos, dim]) = fin[0];
+        as_ref(hydro.Si[1][pos, dim]) = fin[1];
+        as_ref(hydro.Si[2][pos, dim]) = fin[2];
+    });
+    #endif
 }
 
 hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx)
@@ -1447,12 +1541,15 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
     #endif
 }
 
-void hydrodynamic_plugin::finalise(cl::context ctx, cl::command_queue cqueue, buffer_provider* out, t3i dim, cl::buffer evolve_points, cl_int evolve_length)
+void hydrodynamic_plugin::finalise(cl::context ctx, cl::command_queue cqueue, std::vector<cl::buffer> bssn_buffers, buffer_provider* out, t3i dim, cl::buffer evolve_points, cl_int evolve_length)
 {
     hydrodynamic_buffers& bufs = *dynamic_cast<hydrodynamic_buffers*>(out);
     auto all = bufs.get_buffers();
 
     cl::args args;
+
+    for(auto& i : bssn_buffers)
+        args.push_back(i);
 
     for(auto& i : all)
         args.push_back(i);
