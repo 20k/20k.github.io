@@ -1134,7 +1134,7 @@ int main()
     cl::context& ctx = win.clctx->ctx;
     std::cout << cl::get_extensions(ctx) << std::endl;
 
-    t3i dim = {155, 155, 155};
+    t3i dim = {213, 213, 213};
 
     plugin* hydro = new hydrodynamic_plugin(ctx);
 
@@ -1175,7 +1175,7 @@ int main()
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
-    float simulation_width = 80;
+    float simulation_width = 70;
 
     mesh m(ctx, dim, simulation_width);
     m.plugins = plugins;
