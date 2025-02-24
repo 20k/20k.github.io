@@ -170,7 +170,7 @@ struct mesh
             p1.p0_c_kg_m3 = 6.235 * pow(10., 17.);
             #endif
 
-            #if 1
+            #if 0
             neutron_star::parameters p1;
 
             /*neutron_star::dimensionless_linear_momentum lin;
@@ -189,7 +189,7 @@ struct mesh
             init.add(p1);
             #endif // 0
 
-            #if 0
+            #if 1
             neutron_star::parameters p1;
 
             p1.position = {-15, 0, 0};
@@ -1136,7 +1136,7 @@ int main()
     cl::context& ctx = win.clctx->ctx;
     std::cout << cl::get_extensions(ctx) << std::endl;
 
-    t3i dim = {155, 155, 155};
+    t3i dim = {213, 213, 213};
 
     plugin* hydro = new hydrodynamic_plugin(ctx);
 
@@ -1177,7 +1177,7 @@ int main()
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
-    float simulation_width = 200;
+    float simulation_width = 70;
 
     mesh m(ctx, dim, simulation_width);
     m.plugins = plugins;
