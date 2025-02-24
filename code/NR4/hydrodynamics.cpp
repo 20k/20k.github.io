@@ -1049,6 +1049,8 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     d.dim = idim.get();
     d.scale = scale.get();
 
+    valuei boundary_dist = distance_to_boundary(pos, dim);
+
     bssn_args args(pos, dim, in);
     hydrodynamic_concrete hydro_args(pos, dim, h_in, util);
 
@@ -1143,14 +1145,23 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     v3f base_Si = {h_base.Si[0][pos, dim], h_base.Si[1][pos, dim], h_base.Si[2][pos, dim]};
 
-    mut_v3f fin_Si = declare_mut_e(base_Si + timestep.get() * dSi);
+    v3f fin_Si = base_Si + timestep.get() * dSi;
 
-    as_ref(h_out.p_star[pos, dim]) = max(h_base.p_star[pos, dim] + dp_star * timestep.get(), 0.f);
-    as_ref(h_out.e_star[pos, dim]) = max(h_base.e_star[pos, dim] + de_star * timestep.get(), 0.f);
+    valuef fin_p_star = h_base.p_star[pos, dim] + dp_star * timestep.get();
+    valuef fin_e_star = h_base.e_star[pos, dim] + de_star * timestep.get();
 
-    as_ref(h_out.Si[0][pos, dim]) = as_constant(fin_Si[0]);
-    as_ref(h_out.Si[1][pos, dim]) = as_constant(fin_Si[1]);
-    as_ref(h_out.Si[2][pos, dim]) = as_constant(fin_Si[2]);
+    valuef boundary_damp = 0.25f * timestep.get();
+
+    fin_p_star += ternary(boundary_dist <= 15, -hydro_args.p_star * boundary_damp, {});
+    fin_e_star += ternary(boundary_dist <= 15, -hydro_args.e_star * boundary_damp, {});
+    fin_Si += ternary(boundary_dist <= 15, -hydro_args.Si * boundary_damp, {});
+
+    as_ref(h_out.p_star[pos, dim]) = max(fin_p_star, 0.f);
+    as_ref(h_out.e_star[pos, dim]) = max(fin_e_star, 0.f);
+
+    as_ref(h_out.Si[0][pos, dim]) = fin_Si[0];
+    as_ref(h_out.Si[1][pos, dim]) = fin_Si[1];
+    as_ref(h_out.Si[2][pos, dim]) = fin_Si[2];
 }
 
 void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
