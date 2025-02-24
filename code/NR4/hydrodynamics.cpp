@@ -1896,6 +1896,7 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
 
     std::vector<cl::buffer> cl_base = bufs_base.get_buffers();
 
+    #if 1
     {
         std::vector<cl::buffer> cl_in = bufs_in.get_buffers();
         std::vector<cl::buffer> cl_out = bufs_out.get_buffers();
@@ -1929,6 +1930,7 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
 
         cqueue.exec("evolve_hydro_all", args, {sdata.evolve_length}, {128});
     }
+    #endif
 
 
     #if 0
@@ -1964,6 +1966,62 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
         cqueue.exec("advect_all", args, {sdata.evolve_length}, {128});
     }
 
+
+    std::swap(bufs_out.p_star, bufs_in.p_star);
+    std::swap(bufs_out.e_star, bufs_in.e_star);
+    std::swap(bufs_out.Si[0], bufs_in.Si[0]);
+    std::swap(bufs_out.Si[1], bufs_in.Si[1]);
+    std::swap(bufs_out.Si[2], bufs_in.Si[2]);
+
+    {
+        calc_intermediates(bufs_in);
+        std::vector<cl::buffer> cl_in = bufs_in.get_buffers();
+
+        cl::args args;
+
+        for(auto& i : sdata.bssn_buffers)
+            args.push_back(i);
+
+        for(auto& i : cl_base)
+            args.push_back(i);
+
+        for(auto& i : cl_in)
+            args.push_back(i);
+
+        //printf("Buf in e* %p %p %p\n", bufs_base.e_star.native_mem_object.data, bufs_in.e_star.native_mem_object.data, bufs_out.e_star.native_mem_object.data);
+
+        args.push_back(ubufs.intermediate.at(0));
+        args.push_back(ubufs.intermediate.at(1));
+        args.push_back(ubufs.intermediate.at(2));
+
+        args.push_back(ubufs.intermediate.at(3));
+
+        for(auto& i : utility_buffers)
+            args.push_back(i);
+
+        args.push_back(sdata.dim);
+        args.push_back(sdata.scale);
+        args.push_back(sdata.timestep);
+        args.push_back(sdata.total_elapsed);
+        args.push_back(damping_timescale);
+        args.push_back(sdata.evolve_points);
+        args.push_back(sdata.evolve_length);
+
+        cqueue.exec("evolve_si_p2", args, {sdata.evolve_length}, {128});
+    }
+
+    std::swap(bufs_in.p_star, bufs_out.p_star);
+    std::swap(bufs_in.e_star, bufs_out.e_star);
+
+    std::swap(bufs_out.Si[0], bufs_in.Si[0]);
+    std::swap(bufs_out.Si[1], bufs_in.Si[1]);
+    std::swap(bufs_out.Si[2], bufs_in.Si[2]);
+
+    std::swap(bufs_out.Si[0], ubufs.intermediate.at(0));
+    std::swap(bufs_out.Si[1], ubufs.intermediate.at(1));
+    std::swap(bufs_out.Si[2], ubufs.intermediate.at(2));
+    std::swap(bufs_out.e_star, ubufs.intermediate.at(3));
+    #endif
 
     #if 0
     {
@@ -2064,62 +2122,6 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
 
         cqueue.exec("evolve_si_p1", args, {sdata.evolve_length}, {128});
     }
-    #endif
-
-    std::swap(bufs_out.p_star, bufs_in.p_star);
-    std::swap(bufs_out.e_star, bufs_in.e_star);
-    std::swap(bufs_out.Si[0], bufs_in.Si[0]);
-    std::swap(bufs_out.Si[1], bufs_in.Si[1]);
-    std::swap(bufs_out.Si[2], bufs_in.Si[2]);
-
-    {
-        calc_intermediates(bufs_in);
-        std::vector<cl::buffer> cl_in = bufs_in.get_buffers();
-
-        cl::args args;
-
-        for(auto& i : sdata.bssn_buffers)
-            args.push_back(i);
-
-        for(auto& i : cl_base)
-            args.push_back(i);
-
-        for(auto& i : cl_in)
-            args.push_back(i);
-
-        //printf("Buf in e* %p %p %p\n", bufs_base.e_star.native_mem_object.data, bufs_in.e_star.native_mem_object.data, bufs_out.e_star.native_mem_object.data);
-
-        args.push_back(ubufs.intermediate.at(0));
-        args.push_back(ubufs.intermediate.at(1));
-        args.push_back(ubufs.intermediate.at(2));
-
-        args.push_back(ubufs.intermediate.at(3));
-
-        for(auto& i : utility_buffers)
-            args.push_back(i);
-
-        args.push_back(sdata.dim);
-        args.push_back(sdata.scale);
-        args.push_back(sdata.timestep);
-        args.push_back(sdata.total_elapsed);
-        args.push_back(damping_timescale);
-        args.push_back(sdata.evolve_points);
-        args.push_back(sdata.evolve_length);
-
-        cqueue.exec("evolve_si_p2", args, {sdata.evolve_length}, {128});
-    }
-
-    std::swap(bufs_in.p_star, bufs_out.p_star);
-    std::swap(bufs_in.e_star, bufs_out.e_star);
-
-    std::swap(bufs_out.Si[0], bufs_in.Si[0]);
-    std::swap(bufs_out.Si[1], bufs_in.Si[1]);
-    std::swap(bufs_out.Si[2], bufs_in.Si[2]);
-
-    std::swap(bufs_out.Si[0], ubufs.intermediate.at(0));
-    std::swap(bufs_out.Si[1], ubufs.intermediate.at(1));
-    std::swap(bufs_out.Si[2], ubufs.intermediate.at(2));
-    std::swap(bufs_out.e_star, ubufs.intermediate.at(3));
     #endif
 }
 
