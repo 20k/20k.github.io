@@ -78,15 +78,20 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
 
     //ctx.add("DBG_A", A);
 
-    ///[0.1, 1.0}
+    ///[0.1, 1.0]
     valuef CQvis = 1.f;
 
     ///it looks like the littledv is to only turn on viscosity when the flow is compressive
-    //valuef PQvis = ternary(littledv < 0, CQvis * A * pow(littledv, 2), valuef{0.f});
-
+    #define COMPRESSIVE_VISCOSITY
+    #ifdef COMPRESSIVE_VISCOSITY
+    valuef PQvis = ternary(littledv < 0, CQvis * A * pow(littledv, 2), valuef{0.f});
+    #else
     valuef PQvis = CQvis * A * pow(littledv, 2);
+    #endif
 
+    #ifndef LINEAR_VISCOSITY
     return PQvis;
+    #endif
 
     valuef linear_damping = exp(-(total_elapsed * total_elapsed) / (2 * linear_damping_timescale * linear_damping_timescale));
 
