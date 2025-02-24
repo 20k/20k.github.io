@@ -764,7 +764,7 @@ void calculate_w_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     as_ref(w_out[pos, dim]) = w;
 }
 
-#define MIN_LAPSE 0.45f
+#define MIN_LAPSE 0.25f
 #define MIN_VISCOSITY_LAPSE 0.4f
 
 void calculate_p_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_base_args<buffer<valuef>> hydro, buffer<valuef> w_in, buffer_mut<valuef> P_out,
@@ -811,7 +811,6 @@ void calculate_p_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
         v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY, p_star);
         as_ref(P) += calculate_Pvis(args.W, vi, p_star, e_star, w, d, total_elapsed.get(), damping_timescale.get());
-
     });
 
     as_ref(P_out[pos, dim]) = as_constant(P);
@@ -1218,6 +1217,12 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         u_k[i] = safe_divide(dfsi[i], h * hydro.p_star[pos, dim], 1e-6);
 
     valuef cst = declare_e(bound);
+
+    if_e(u_k[0] >= -cst && u_k[0] <= cst &&
+         u_k[1] >= -cst && u_k[1] <= cst &&
+         u_k[2] >= -cst && u_k[2] <= cst, [&]{
+        return_e();
+    });
 
     u_k = clamp(u_k, -cst, cst);
 
