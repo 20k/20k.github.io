@@ -19,6 +19,9 @@ struct derivative_data
 valuei distance_to_boundary(valuei pos, valuei dim);
 valuei distance_to_boundary(v3i pos, v3i dim);
 
+template<std::size_t elements, typename T>
+std::array<T, elements> get_differentiation_variables(const T& in, int direction);
+
 //1st derivative
 valuef diff1(const valuef& in, int direction, const derivative_data& d);
 valueh diff1(const valueh& in, int direction, const derivative_data& d);

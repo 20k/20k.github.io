@@ -22,7 +22,7 @@ valuei distance_to_boundary(v3i pos, v3i dim)
 }
 
 template<std::size_t elements, typename T>
-auto get_differentiation_variables(const T& in, int direction)
+std::array<T, elements> get_differentiation_variables(const T& in, int direction)
 {
     std::array<T, elements> vars;
 
@@ -72,6 +72,8 @@ auto get_differentiation_variables(const T& in, int direction)
 
     return vars;
 }
+
+template std::array<valuef, 5> get_differentiation_variables<5, valuef>(const valuef&, int);
 
 template<typename T>
 value<T> diff1_generic(const value<T>& in, int direction, const derivative_data& d)
