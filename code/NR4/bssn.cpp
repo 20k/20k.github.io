@@ -329,7 +329,8 @@ valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& deriv
 
 #define BLACK_HOLE_GAUGE
 #ifdef BLACK_HOLE_GAUGE
-#define ONE_PLUS_LOG
+#define SHOCK_AVOID
+//#define ONE_PLUS_LOG
 #define GAMMA_DRIVER
 #endif // BLACK_HOLE_GAUGE
 
