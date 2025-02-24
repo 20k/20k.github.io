@@ -1296,35 +1296,41 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     });
 
     #if 1
-    //if_e((hydro.e_star[pos, dim] <= hydro.p_star[pos, dim]) || (hydro.p_star[pos, dim] <= min_p_star * 10), [&]{
-        bssn_args args(pos, dim, in);
+    mut<valuef> bound = declare_mut_e(valuef(1.f));
 
-        valuef p_star = hydro.p_star[pos, dim];
-        valuef e_star = hydro.e_star[pos, dim];
+    if_e((hydro.e_star[pos, dim] <= hydro.p_star[pos, dim]) || (hydro.p_star[pos, dim] <= min_p_star * 10), [&]{
+        as_ref(bound) = valuef(0.2f);
+    });
 
-        v3f Si = {hydro.Si[0][pos, dim], hydro.Si[1][pos, dim], hydro.Si[2][pos, dim]};
+    bssn_args args(pos, dim, in);
 
-        valuef w = calculate_w(p_star, e_star, args.W, args.cY.invert(), Si);
+    valuef p_star = hydro.p_star[pos, dim];
+    valuef e_star = hydro.e_star[pos, dim];
 
-        valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
+    v3f Si = {hydro.Si[0][pos, dim], hydro.Si[1][pos, dim], hydro.Si[2][pos, dim]};
 
-        valuef h = calculate_h_from_epsilon(epsilon);
+    valuef w = calculate_w(p_star, e_star, args.W, args.cY.invert(), Si);
 
-        v3f dfsi = {hydro.Si[0][pos, dim], hydro.Si[1][pos, dim], hydro.Si[2][pos, dim]};
+    valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
 
-        v3f u_k;
+    valuef h = calculate_h_from_epsilon(epsilon);
 
-        for(int i=0; i < 3; i++)
-            u_k[i] = safe_divide(dfsi[i], h * hydro.p_star[pos, dim], 1e-6);
+    v3f dfsi = {hydro.Si[0][pos, dim], hydro.Si[1][pos, dim], hydro.Si[2][pos, dim]};
 
-        u_k = clamp(u_k, -1.f, 1.f);
+    v3f u_k;
 
-        v3f fin = u_k * h * hydro.p_star[pos, dim];
+    for(int i=0; i < 3; i++)
+        u_k[i] = safe_divide(dfsi[i], h * hydro.p_star[pos, dim], 1e-6);
 
-        as_ref(hydro.Si[0][pos, dim]) = fin[0];
-        as_ref(hydro.Si[1][pos, dim]) = fin[1];
-        as_ref(hydro.Si[2][pos, dim]) = fin[2];
-    //});
+    valuef cst = declare_e(bound);
+
+    u_k = clamp(u_k, -cst, cst);
+
+    v3f fin = u_k * h * hydro.p_star[pos, dim];
+
+    as_ref(hydro.Si[0][pos, dim]) = fin[0];
+    as_ref(hydro.Si[1][pos, dim]) = fin[1];
+    as_ref(hydro.Si[2][pos, dim]) = fin[2];
     #endif
 }
 
