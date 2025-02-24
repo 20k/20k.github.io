@@ -955,6 +955,7 @@ void make_momentum_constraint(cl::context ctx, const std::vector<plugin*>& plugi
         });
 
         v3f Si_lower = plugin_data.adm_Si(args, d);
+        pin(Si_lower);
 
         auto Mi = calculate_momentum_constraint(args, d, Si_lower);
 
@@ -1024,10 +1025,16 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins)
         v3f Si = plugin_data.adm_Si(args, d);
         tensor<valuef, 3, 3> W2_Sij = plugin_data.adm_W2_Sij(args, d);
 
+        pin(rho_s);
+        pin(Si);
+        pin(W2_Sij);
+
         valuef S = 0;
 
         {
             inverse_metric<valuef, 3, 3> icY = args.cY.invert();
+
+            pin(icY);
 
             for(int i=0; i < 3; i++)
             {
@@ -1037,6 +1044,8 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins)
                 }
             }
         }
+
+        pin(S);
 
         tensor<valuef, 3, 3> dtcA = get_dtcA(args, derivs, Mi, d, W2_Sij);
 
@@ -1170,7 +1179,6 @@ void enforce_algebraic_constraints(cl::context ctx)
     }, {"enforce_algebraic_constraints"});
 }
 
-static all_adm_args_mem static_tramp_debug;
 
 void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
 {

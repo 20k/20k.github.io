@@ -220,9 +220,8 @@ valuef full_hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& 
 {
     hydrodynamic_concrete hydro_args(d.pos, d.dim, *this);
 
-    valuef epsilon = hydro_args.calculate_epsilon(args.W);
-
     valuef h = hydro_args.calculate_h_with_eos(args.W);
+    single_source::pin(h);
 
     return ternary(hydro_args.p_star <= 0,
                    valuef(),
@@ -247,6 +246,7 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
     hydrodynamic_concrete hydro_args(d.pos, d.dim, *this);
 
     valuef h = hydro_args.calculate_h_with_eos(args.W);
+    single_source::pin(h);
 
     tensor<valuef, 3, 3> W2_Sij;
 
@@ -804,7 +804,7 @@ void calculate_w_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     as_ref(w_out[pos, dim]) = w;
 }
 
-#define MIN_LAPSE 0.4f
+#define MIN_LAPSE 0.45f
 #define MIN_VISCOSITY_LAPSE 0.4f
 
 void calculate_p_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_base_args<buffer<valuef>> hydro, buffer<valuef> w_in, buffer_mut<valuef> P_out,
