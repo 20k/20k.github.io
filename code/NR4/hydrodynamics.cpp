@@ -221,11 +221,10 @@ valuef full_hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& 
     hydrodynamic_concrete hydro_args(d.pos, d.dim, *this);
 
     valuef h = hydro_args.calculate_h_with_eos(args.W);
-    single_source::pin(h);
 
     return ternary(hydro_args.p_star <= 0,
                    valuef(),
-                   h * hydro_args.w * (args.W * args.W * args.W) - hydro_args.eos(args.W));
+                   hydro_args.w * h * pow(args.W, 3.f) - hydro_args.eos(args.W));
 }
 
 template<typename T>
@@ -246,7 +245,6 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
     hydrodynamic_concrete hydro_args(d.pos, d.dim, *this);
 
     valuef h = hydro_args.calculate_h_with_eos(args.W);
-    single_source::pin(h);
 
     tensor<valuef, 3, 3> W2_Sij;
 

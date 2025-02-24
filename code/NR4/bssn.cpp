@@ -1025,10 +1025,6 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins)
         v3f Si = plugin_data.adm_Si(args, d);
         tensor<valuef, 3, 3> W2_Sij = plugin_data.adm_W2_Sij(args, d);
 
-        pin(rho_s);
-        pin(Si);
-        pin(W2_Sij);
-
         valuef S = 0;
 
         {
@@ -1045,7 +1041,6 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins)
             }
         }
 
-        pin(S);
 
         tensor<valuef, 3, 3> dtcA = get_dtcA(args, derivs, Mi, d, W2_Sij);
 
