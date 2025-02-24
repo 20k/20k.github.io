@@ -766,6 +766,7 @@ namespace value_impl
 
             //amd explicitly encourages you to unroll pow to loops ;_;
             //todo: do this generically instead of the delightful copypaste here, it goes up to 5 because i only use up to 5
+            //its about a 15% performance gain unrolling like this
             if(equivalent(in.args[1], in.args[1].make_constant_of_type(2.f)))
                 return in.args[0] * in.args[0];
 
