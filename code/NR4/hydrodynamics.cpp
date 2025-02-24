@@ -193,7 +193,7 @@ struct hydrodynamic_concrete
     {
         auto icY = cY.invert();
 
-        valuef e_m6phi = pow(W, 3.f);
+        valuef e_6phi = pow(max(W, 0.1f), -3.f);
 
         valuef Pvis = calculate_Pvis(W, vi, d, total_elapsed, damping_timescale);
 
@@ -201,7 +201,7 @@ struct hydrodynamic_concrete
 
         for(int k=0; k < 3; k++)
         {
-            value to_diff = safe_divide(w * vi[k], p_star * e_m6phi, 1e-6);
+            value to_diff = safe_divide(w * vi[k] * e_6phi, p_star, 1e-6);
 
             sum_interior_rhs += diff1(to_diff, k, d);
         }
@@ -949,7 +949,7 @@ void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     {
         ///so, it seems like this term is a little unstable
         ///Si advect is bad
-        valuef p1 = (-args.gA * pow(max(args.W, 0.001f), -3.f)) * diff1(hydro_args.P, k, d);
+        valuef p1 = (-args.gA * pow(max(args.W, 0.1f), -3.f)) * diff1(hydro_args.P, k, d);
         valuef p2 = -w * h * diff1(args.gA, k, d);
 
         valuef p3;
@@ -976,7 +976,7 @@ void evolve_si_p2(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
         valuef w2_m_p2_calc = w2_m_p2(p_star, e_star, args.W, args.cY.invert(), Si, w);
 
-        valuef p5 = safe_divide(args.gA * h * w2_m_p2_calc, w) * (diff1(args.W, k, d) / max(args.W, 0.001f));
+        valuef p5 = safe_divide(args.gA * h * w2_m_p2_calc, w) * (diff1(args.W, k, d) / max(args.W, 0.1f));
 
         dSi_p1[k] += (p1 + p2 + p3 + p4 + p5);
     }
@@ -1091,8 +1091,6 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     v3f dSi = hydro_args.advect_rhs(hydro_args.Si, vi, d);
 
     if_e(args.gA >= MIN_VISCOSITY_LAPSE, [&]{
-        //valuef epsilon = hydro_args.calculate_epsilon(args.W);
-        //v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, hydro_args.Si, args.cY, p_star);
         as_ref(de_star) += hydro_args.e_star_rhs(args.gA, args.gB, args.cY, args.W, vi, d, total_elapsed.get(), damping_timescale.get());
     });
 
@@ -1104,9 +1102,13 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     ///we could use the advanced Si here
     for(int k=0; k < 3; k++)
     {
+        if_e(pos.x() == 76 && pos.y() == 74 && pos.z() == 83 && k == 2, [&]{
+            print("Diff %f\n", diff1(hydro_args.P, k, d));
+        });
+
         ///so, it seems like this term is a little unstable
         ///Si advect is bad
-        valuef p1 = (-args.gA * pow(max(args.W, 0.001f), -3.f)) * diff1(hydro_args.P, k, d);
+        valuef p1 = (-args.gA * pow(max(args.W, 0.1f), -3.f)) * diff1(hydro_args.P, k, d);
         valuef p2 = -w * h * diff1(args.gA, k, d);
 
         valuef p3;
@@ -1133,9 +1135,13 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
         valuef w2_m_p2_calc = w2_m_p2(hydro_args.p_star, hydro_args.e_star, args.W, args.cY.invert(), hydro_args.Si, w);
 
-        valuef p5 = safe_divide(args.gA * h * w2_m_p2_calc, w) * (diff1(args.W, k, d) / max(args.W, 0.001f));
+        valuef p5 = safe_divide(args.gA * h * w2_m_p2_calc, w) * (diff1(args.W, k, d) / max(args.W, 0.1f));
 
         dSi_p1[k] += (p1 + p2 + p3 + p4 + p5);
+
+        if_e(pos.x() == 76 && pos.y() == 74 && pos.z() == 83 && k == 2, [&]{
+            print("Components %f %f %f %f %f\n", p1, p2, p3, p4, p5);
+        });
     }
 
     dSi += dSi_p1;
@@ -1167,9 +1173,10 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     ///Pos p1 58 73 72
     ///Pos p1 87 80 69
+    ///Pos p1 76 74 83
 
-    #if 0
-    if_e(pos.x() == 87 && pos.y() == 80 && pos.z() == 69, [&]{
+    #if 1
+    if_e(pos.x() == 76 && pos.y() == 74 && pos.z() == 83, [&]{
     //if_e(pos.x() == 71 && pos.y() == 63 && pos.z() == 53, [&]{
     //if_e(pos.x() == 59 && pos.y() == 81 && pos.z() == 57, [&]{
         valuef epsilon = hydro_args.calculate_epsilon(args.W);
