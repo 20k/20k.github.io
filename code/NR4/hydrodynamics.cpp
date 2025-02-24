@@ -82,7 +82,9 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
     valuef CQvis = 1.f;
 
     ///it looks like the littledv is to only turn on viscosity when the flow is compressive
-    valuef PQvis = ternary(littledv < 0, CQvis * A * pow(littledv, 2), valuef{0.f});
+    //valuef PQvis = ternary(littledv < 0, CQvis * A * pow(littledv, 2), valuef{0.f});
+
+    valuef PQvis = CQvis * A * pow(littledv, 2);
 
     return PQvis;
 
