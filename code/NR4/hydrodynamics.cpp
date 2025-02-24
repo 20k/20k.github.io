@@ -805,37 +805,13 @@ void calculate_p_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     valuef w = w_in[pos, dim];
 
-    //this might be a source of instability when p* is low, because of derivatives
     mut<valuef> P = declare_mut_e(max(eos(args.W, w, p_star, e_star), 0.f));
-
-    t3i dbg = {77, 76, 86};
-
-    /*if_e(pos.x() == dbg.x() && pos.y() == dbg.y() && pos.z() == dbg.z(), [&]{
-        print("Pressure p1 %f\n", as_constant(P));
-    });*/
 
     if_e(args.gA >= MIN_VISCOSITY_LAPSE, [&]{
         valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
         v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY, p_star);
-
-        ///derivative in the x direction is broken, time to chase down
-        /*if_e(pos.x() == dbg.x() && pos.y() == dbg.y() && pos.z() == dbg.z(), [&]{
-            auto vars = get_differentiation_variables<5>(vi.x(), 1);
-
-            print("Cpt %f %f %f %f\n", vars[0], vars[1], vars[3], vars[4]);
-
-            //valuef deriv = (-vars[4] + vars[0]) + 8 * (vars[3] - vars[1]);
-
-            //print("Summmed %f full deriv %f\n", deriv, deriv / (12 * scale.get()));
-
-            print("Dbgvi %f %f %f diff %f %f %f\n", vi.x(), vi.y(), vi.z(), diff1(vi.x(), 0, d), diff1(vi.y(), 1, d), diff1(vi.z(), 2, d));
-        });*/
-
         as_ref(P) += calculate_Pvis(args.W, vi, p_star, e_star, w, d, total_elapsed.get(), damping_timescale.get());
-    });
 
-    if_e(pos.x() == dbg.x() && pos.y() == dbg.y() && pos.z() == dbg.z(), [&]{
-        print("Pressure p2 %f\n", as_constant(P));
     });
 
     as_ref(P_out[pos, dim]) = as_constant(P);
@@ -910,11 +886,8 @@ void advect_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     valuef de_star = hydro_args.advect_rhs(hydro_args.e_star, vi, d);
     v3f dSi = hydro_args.advect_rhs(hydro_args.Si, vi, d);
 
-    valuef fin_e_star = h_base.e_star[pos, dim] + de_star * timestep.get();
-    //fin_e_star = ternary(hydro_args.p_star < valuef(1e-6f), min(fin_e_star, 10 * hydro_args.p_star), fin_e_star);
-
     as_ref(h_out.p_star[pos, dim]) = max(h_base.p_star[pos, dim] + dp_star * timestep.get(), 0.f);
-    as_ref(h_out.e_star[pos, dim]) = max(fin_e_star, 0.f);
+    as_ref(h_out.e_star[pos, dim]) = max(h_base.e_star[pos, dim] + de_star * timestep.get(), 0.f);
 
     as_ref(h_out.Si[0][pos, dim]) = h_base.Si[0][pos, dim] + dSi[0] * timestep.get();
     as_ref(h_out.Si[1][pos, dim]) = h_base.Si[1][pos, dim] + dSi[1] * timestep.get();
@@ -1132,24 +1105,9 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     v3f dSi_p1;
 
-    /*Diff infinity P 0.000016 m2 0.000035 m1 0.000045 p1 infinity p2 0.000000
-    Components -infinity -0.000051 -0.000004 -0.000005 0.000013
-    met? 0.998912 -0.413515 -0.111903 0.863452 -0.048539 1.471631
-    imet? 1.268327 0.613974 0.116695 1.457507 0.094760 0.691517
-    76 74 83     p* 0.0010295503 e* 0.0107779577 si 0.000432 0.000503 -0.000731 w 0.001272 P 0.000016 vi 0.204688 0.219966 -0.112130 epsilon 0.0422649533 raised 0.000928 top_1 0.000257 uk 0.386495 0.450185 -0.654695 h 1.084530
-    76 74 83 out p* 0.0009650248 e* 0.0100246817 si 0.000640 0.000489 -infinity*/
-
-    t3i dbg = {77, 76, 86};
-
     ///we could use the advanced Si here
     for(int k=0; k < 3; k++)
     {
-        if_e(pos.x() == dbg.x() && pos.y() == dbg.y() && pos.z() == dbg.z() && k == 0, [&]{
-            print("Diff %f P %f m2 %f m1 %f p1 %f p2 %f\n", diff1(hydro_args.P, k, d), hydro_args.P, util.P[pos + (v3i){0, 0, -2}, dim], util.P[pos + (v3i){0, 0, -1}, dim], util.P[pos + (v3i){0, 0, 1}, dim], util.P[pos + (v3i){0, 0, 2}, dim]);
-        });
-
-        ///so, it seems like this term is a little unstable
-        ///Si advect is bad
         valuef p1 = (-args.gA * pow(max(args.W, 0.1f), -3.f)) * diff1(hydro_args.P, k, d);
         valuef p2 = -w * h * diff1(args.gA, k, d);
 
@@ -1180,10 +1138,6 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         valuef p5 = safe_divide(args.gA * h * w2_m_p2_calc, w) * (diff1(args.W, k, d) / max(args.W, 0.1f));
 
         dSi_p1[k] += (p1 + p2 + p3 + p4 + p5);
-
-        if_e(pos.x() == dbg.x() && pos.y() == dbg.y() && pos.z() == dbg.z() && k == 0, [&]{
-            print("Components %f %f %f %f %f\n", p1, p2, p3, p4, p5);
-        });
     }
 
     dSi += dSi_p1;
@@ -1191,72 +1145,6 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     v3f base_Si = {h_base.Si[0][pos, dim], h_base.Si[1][pos, dim], h_base.Si[2][pos, dim]};
 
     mut_v3f fin_Si = declare_mut_e(base_Si + timestep.get() * dSi);
-
-    //#define CLAMP_HIGH_VELOCITY
-    #ifdef CLAMP_HIGH_VELOCITY
-    if_e(hydro_args.p_star >= min_p_star && hydro_args.p_star < min_p_star * 10, [&]{
-        v3f dfsi = declare_e(fin_Si);
-
-        v3f u_k;
-
-        for(int i=0; i < 3; i++)
-            u_k[i] = safe_divide(dfsi[i], h * hydro_args.p_star, 1e-6);
-
-        u_k = clamp(u_k, -0.2f, 0.2f);
-
-        as_ref(fin_Si) = u_k * h * hydro_args.p_star;
-    });
-    #endif
-
-    /*if_e(!isfinite(dp_star) || !isfinite(de_star) || !isfinite(dSi[0]) || !isfinite(dSi[1]) || !isfinite(dSi[2]) || !isfinite(hydro_args.p_star) || !isfinite(hydro_args.e_star) || !isfinite(hydro_args.Si[0]) || !isfinite(hydro_args.Si[1]) || !isfinite(hydro_args.Si[2])
-         || !isfinite(args.cY[0, 0]) || !isfinite(args.cY[1, 0]) || !isfinite(args.cY[2, 0]) || !isfinite(args.cY[1, 1]) || !isfinite(args.cY[2, 1]) || !isfinite(args.cY[2, 2]), [&]{
-        print("Pos p1 %i %i %i\n", pos.x(), pos.y(), pos.z());
-    });*/
-
-    ///Pos p1 58 73 72
-    ///Pos p1 87 80 69
-    ///Pos p1 76 74 83
-
-    #if 1
-    if_e(pos.x() == dbg.x() && pos.y() == dbg.y() && pos.z() == dbg.z(), [&]{
-    //if_e(pos.x() == 71 && pos.y() == 63 && pos.z() == 53, [&]{
-    //if_e(pos.x() == 59 && pos.y() == 81 && pos.z() == 57, [&]{
-        valuef epsilon = hydro_args.calculate_epsilon(args.W);
-
-        unit_metric<valuef, 3, 3> cY = args.cY;
-        pin(cY);
-
-        auto inverted = cY.invert();
-
-        valuef raised = args.cY.invert().raise(hydro_args.Si)[1];
-
-        v3f dfsi = declare_e(hydro_args.Si);
-
-        v3f u_k;
-
-        for(int i=0; i < 3; i++)
-            u_k[i] = safe_divide(dfsi[i], h * hydro_args.p_star);
-
-        valuef t1 = args.W * args.W * args.gA * raised;
-
-        print("met? %f %f %f %f %f %f\n", args.cY[0, 0], args.cY[1, 0], args.cY[2, 0], args.cY[1, 1], args.cY[2, 1], args.cY[2, 2]);
-        print("imet? %f %f %f %f %f %f\n", inverted[0, 0], inverted[1, 0], inverted[2, 0], inverted[1, 1], inverted[2, 1], inverted[2, 2]);
-        print("%i %i %i     p* %.10f e* %.10f si %f %f %f w %f P %f vi %f %f %f epsilon %.10f raised %f top_1 %f uk %f %f %f h %f\n", pos.x(), pos.y(), pos.z(), hydro_args.p_star, hydro_args.e_star, hydro_args.Si[0], hydro_args.Si[1], hydro_args.Si[2], hydro_args.w, hydro_args.P, vi[0], vi[1], vi[2], epsilon, raised, t1, u_k[0], u_k[1], u_k[2], h);
-
-        auto vars = get_differentiation_variables<5>(vi.z(), 2);
-
-        print("DVars m2 %f m1 %f p1 %f p2 %f\n", vars[0], vars[1], vars[3], vars[4]);
-
-        print("Dbgvi %f %f %f diff %f %f %f\n", vi.x(), vi.y(), vi.z(), diff1(vi.x(), 0, d), diff1(vi.y(), 1, d), diff1(vi.z(), 2, d));
-
-        valuef fin_p_star = max(h_base.p_star[pos, dim] + dp_star * timestep.get(), 0.f);
-        valuef fin_e_star = max(h_base.e_star[pos, dim] + de_star * timestep.get(), 0.f);
-
-        print("Si Adjacent m2 %f m1 %f p1 %f p2 %f\n", h_in.Si[0][pos - (v3i){0, 0, 2}, dim], h_in.Si[0][pos - (v3i){0, 0, 1}, dim], h_in.Si[0][pos + (v3i){0, 0, 1}, dim], h_in.Si[0][pos + (v3i){0, 0, 2}, dim]);
-
-        print("%i %i %i out p* %.10f e* %.10f si %f %f %f e*_advect %f Si_advect %f\n", pos.x(), pos.y(), pos.z(), fin_p_star, fin_e_star, as_constant(fin_Si[0]), as_constant(fin_Si[1]), as_constant(fin_Si[2]), e_advect_only, si_advect);
-    });
-    #endif
 
     as_ref(h_out.p_star[pos, dim]) = max(h_base.p_star[pos, dim] + dp_star * timestep.get(), 0.f);
     as_ref(h_out.e_star[pos, dim]) = max(h_base.e_star[pos, dim] + de_star * timestep.get(), 0.f);
