@@ -1221,6 +1221,7 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     u_k = clamp(u_k, -cst, cst);
 
+    //maybe i should just do clamp(Si, pstar * bound) and hodge podge it
     v3f fin = u_k * h * hydro.p_star[pos, dim];
 
     as_ref(hydro.Si[0][pos, dim]) = fin[0];
