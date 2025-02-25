@@ -1168,8 +1168,8 @@ initial_params get_initial_params()
 
     initial_params init;
 
-    init.dim = {155, 155, 155};
-    init.simulation_width = 90;
+    init.dim = {213, 213, 213};
+    init.simulation_width = 240;
 
     init.add(p1);
     init.add(p2);
@@ -1221,7 +1221,7 @@ int main()
     plugins.push_back(hydro);
 
     make_derivatives(ctx);
-    make_bssn(ctx, plugins);
+    make_bssn(ctx, plugins, params.lapse_damp_timescale);
     init_debugging(ctx, plugins);
     make_momentum_constraint(ctx, plugins);
     enforce_algebraic_constraints(ctx);

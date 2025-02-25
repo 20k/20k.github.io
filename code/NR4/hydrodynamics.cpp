@@ -89,10 +89,6 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
     valuef PQvis = CQvis * A * pow(littledv, 2);
     #endif
 
-    /*#ifndef LINEAR_VISCOSITY
-    return PQvis;
-    #endif*/
-
     valuef linear_damping = exp(-(total_elapsed * total_elapsed) / (2 * linear_damping_timescale * linear_damping_timescale));
 
     ///paper i'm looking at only turns on viscosity inside a star, ie p > pcrit. We could calculate a crit value
@@ -102,7 +98,7 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
 
     valuef PLvis = ternary(littledv < 0, -CLvis * sqrt((get_Gamma()/n) * p_star * A) * littledv, valuef(0.f));
 
-    return ternary(linear_damping_timescale == 0.f, PQvis, PQvis + PLvis);
+    return ternary(linear_damping_timescale <= 0.f, PQvis, PQvis + PLvis);
 }
 
 struct hydrodynamic_concrete
@@ -358,13 +354,6 @@ void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue c
 
     P.set_to_zero(cqueue);
     w.set_to_zero(cqueue);
-
-    for(int i=0; i < 4; i++)
-    {
-        intermediate.emplace_back(ctx);
-        intermediate.back().alloc(sizeof(cl_float) * cells);
-        intermediate.back().set_to_zero(cqueue);
-    }
 }
 
 struct eos_gpu : value_impl::single_source::argument_pack

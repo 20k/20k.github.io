@@ -346,7 +346,7 @@ valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& deriv
 #define ZERO_SHIFT
 #endif
 
-valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, valuef total_elapsed)
+valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, valuef total_elapsed, float lapse_damp_timescale)
 {
     valuef bmdma = 0;
 
@@ -357,11 +357,16 @@ valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, const derivative_data
 
     #define LAPSE_DAMPING
     #ifdef LAPSE_DAMPING
-    //45 for stationary matter sim tests
-    valuef sigma = 20.f;
-    value h = (4.f/5.f);
+    valuef damp = 0.f;
 
-    valuef damp = args.W * (h * exp(-(total_elapsed*total_elapsed) / (2 * sigma * sigma))) * (args.gA - args.W);
+    //45 for stationary matter sim tests
+    if(lapse_damp_timescale > 0)
+    {
+        valuef sigma = lapse_damp_timescale;
+        value h = (4.f/5.f);
+
+        damp = args.W * (h * exp(-(total_elapsed*total_elapsed) / (2 * sigma * sigma))) * (args.gA - args.W);
+    }
     #else
     valuef damp = 0;
     #endif
@@ -974,20 +979,21 @@ void make_momentum_constraint(cl::context ctx, const std::vector<plugin*>& plugi
 }
 
 ///https://arxiv.org/pdf/0709.3559 tested, appendix a.2
-void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins)
+void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, float lapse_damp_timescale)
 {
-    auto bssn_function = [plugins](execution_context&, bssn_args_mem<buffer<valuef>> base,
-                                                 bssn_args_mem<buffer<valuef>> in,
-                                                 bssn_args_mem<buffer_mut<valuef>> out,
-                                                 bssn_derivatives_mem<buffer<derivative_t>> derivatives,
-                                                 value_impl::builder::placeholder plugin_ph,
-                                                 std::array<buffer<momentum_t>, 3> momentum_constraint,
-                                                 literal<valuef> timestep,
-                                                 literal<valuef> scale,
-                                                 literal<valuef> total_elapsed,
-                                                 literal<v3i> idim,
-                                                 buffer<tensor<value<short>, 3>> positions,
-                                                 literal<valuei> positions_length) {
+    auto bssn_function = [plugins, lapse_damp_timescale]
+            (execution_context&, bssn_args_mem<buffer<valuef>> base,
+            bssn_args_mem<buffer<valuef>> in,
+            bssn_args_mem<buffer_mut<valuef>> out,
+            bssn_derivatives_mem<buffer<derivative_t>> derivatives,
+            value_impl::builder::placeholder plugin_ph,
+            std::array<buffer<momentum_t>, 3> momentum_constraint,
+            literal<valuef> timestep,
+            literal<valuef> scale,
+            literal<valuef> total_elapsed,
+            literal<v3i> idim,
+            buffer<tensor<value<short>, 3>> positions,
+            literal<valuei> positions_length) {
         using namespace single_source;
 
         all_adm_args_mem plugin_data = make_arg_provider(plugins);
@@ -1061,7 +1067,7 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins)
         valuef dtK = get_dtK(args, derivs, d, S, rho_s);
         as_ref(out.K[pos, dim]) = apply_evolution(base.K[pos, dim], dtK, timestep.get());
 
-        valuef dtgA = get_dtgA(args, derivs, d, total_elapsed.get());
+        valuef dtgA = get_dtgA(args, derivs, d, total_elapsed.get(), lapse_damp_timescale);
         as_ref(out.gA[pos, dim]) = clamp(apply_evolution(base.gA[pos, dim], dtgA, timestep.get()), valuef(0.f), valuef(1.f));
 
         auto dtgB = get_dtgB(args, derivs, d);
