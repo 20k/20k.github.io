@@ -517,6 +517,7 @@ neutron_star::data::data(const parameters& p) : params(p)
     sol = tov::solve_tov(start, tov_params, 1e-6, 0);
 
     total_mass = sol.M_msol;
+    stored = get_eos();
 }
 
 neutron_star::numerical_eos neutron_star::data::get_eos()
