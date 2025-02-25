@@ -255,7 +255,7 @@ std::vector<double> tov::search_for_adm_mass(double adm_mass, const parameters& 
     masses.resize(to_check);
 
     double min_density = start_density / 100;
-    double max_density = start_density * 5;
+    double max_density = start_density * 20;
 
     for(int i=0; i < to_check; i++)
     {

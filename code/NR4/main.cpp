@@ -1123,6 +1123,7 @@ void solve()
     assert(false);*/
 
     //kg/m^3
+
     double paper_p0 = 6.235 * pow(10., 17.);
 
     //this is in c=g=msol, so you'd need to use make_integration_state()
@@ -1142,9 +1143,49 @@ void solve()
     //assert(false);
 }
 
+void mass_radius_curve()
+{
+    tov::parameters param;
+    param.K = 123.641;
+    param.Gamma = 2;
+
+    double adm_mass = 1.5;
+
+    double r_approx = adm_mass / 0.06;
+
+    double start_E = adm_mass / ((4./3.) * M_PI * r_approx*r_approx*r_approx);
+    double start_P = param.energy_density_to_pressure(start_E);
+    double start_density = param.pressure_to_rest_mass_density(start_P);
+
+    double rmin = 1e-6;
+
+    double min_density = start_density / 100;
+    double max_density = start_density * 2000;
+    int to_check = 20000;
+
+    std::string str = "Mass, Radius\n";
+
+    for(int i=0; i < to_check; i++)
+    {
+        double frac = (double)i / to_check;
+
+        double test_density = mix(min_density, max_density, frac);
+
+        tov::integration_state next_st = tov::make_integration_state(test_density, rmin, param);
+        tov::integration_solution next_sol = tov::solve_tov(next_st, param, rmin, 0.);
+
+        str += std::to_string(next_sol.M_msol) + ", " + std::to_string(next_sol.R_geom()/1000.) + "\n";
+
+        //std::cout << next_sol.M_msol << ", " << next_sol.R_geom() / 1000. << std::endl;
+    }
+
+    file::write("data.csv", str, file::mode::TEXT);
+}
+
 int main()
 {
     solve();
+    mass_radius_curve();
 
     render_settings sett;
     sett.width = 1280;
