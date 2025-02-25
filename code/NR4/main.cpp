@@ -1185,7 +1185,7 @@ void mass_radius_curve()
 int main()
 {
     solve();
-    mass_radius_curve();
+    //mass_radius_curve();
 
     render_settings sett;
     sett.width = 1280;
