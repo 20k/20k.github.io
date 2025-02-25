@@ -761,6 +761,9 @@ namespace value_impl
             if(equivalent(in.args[1], in.args[1].make_constant_of_type(0.f)))
                 return in.args[0].make_constant_of_type(1.f);
 
+            if(equivalent(in.args[1], in.args[1].make_constant_of_type(0.5f)))
+                return sqrt(in.args[0]);
+
             if(equivalent(in.args[1], in.args[1].make_constant_of_type(1.f)))
                 return in.args[0];
 
