@@ -227,7 +227,7 @@ tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const derivativ
 struct plugin;
 
 void make_derivatives(cl::context ctx);
-void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins);
+void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, float lapse_damp_timescale);
 void enforce_algebraic_constraints(cl::context ctx);
 void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins);
 void make_momentum_constraint(cl::context ctx, const std::vector<plugin*>& plugins);
