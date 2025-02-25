@@ -1184,7 +1184,11 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     v3i pos = (v3i)positions[lid];
     pin(pos);
 
-    if_e(hydro.p_star[pos, dim] <= min_p_star, [&]{
+    valuei boundary_dist = distance_to_boundary(pos, dim);
+
+    //it should be impossible to hit the secondary boundary dist condition in a way that has
+    //any physical impact
+    if_e(hydro.p_star[pos, dim] <= min_p_star || boundary_dist <= 3, [&]{
         as_ref(hydro.p_star[pos, dim]) = valuef(0);
         as_ref(hydro.e_star[pos, dim]) = valuef(0);
 
