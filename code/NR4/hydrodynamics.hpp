@@ -96,7 +96,9 @@ struct hydrodynamic_utility_buffers : buffer_provider
 
 struct hydrodynamic_plugin : plugin
 {
-    hydrodynamic_plugin(cl::context ctx);
+    float linear_viscosity_timescale = 200.f;
+
+    hydrodynamic_plugin(cl::context ctx, float _linear_viscosity_timescale);
 
     ///we get three copies of these
     virtual buffer_provider* get_buffer_factory(cl::context ctx) override;

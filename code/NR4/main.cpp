@@ -1215,7 +1215,7 @@ int main()
 
     t3i dim = params.dim;
 
-    plugin* hydro = new hydrodynamic_plugin(ctx);
+    plugin* hydro = new hydrodynamic_plugin(ctx, params.linear_viscosity_timescale);
 
     std::vector<plugin*> plugins;
     plugins.push_back(hydro);

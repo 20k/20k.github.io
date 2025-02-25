@@ -117,8 +117,7 @@ struct all_laplace_args : value_impl::single_source::argument_pack
 struct initial_params
 {
     float lapse_damp_timescale = 20.f;
-    bool use_linear_viscosity = false;
-    float linear_viscosity_timescale = 200;
+    float linear_viscosity_timescale = 0;
 
     t3i dim = {155, 155, 155};
     float simulation_width = 40;
