@@ -103,7 +103,7 @@ struct mesh
         }
     }
 
-    void init(cl::context& ctx, cl::command_queue& cqueue)
+    void init(cl::context& ctx, cl::command_queue& cqueue, initial_params& params)
     {
         buffers[0].allocate(dim);
 
@@ -121,134 +121,9 @@ struct mesh
         }
 
         {
-            //#define INSPIRAL
-            #ifdef INSPIRAL
-            black_hole_params p1;
-            p1.bare_mass = 0.483f;
-            p1.position = {3.257, 0, 0};
-            p1.linear_momentum = {0, 0.133, 0};
+            auto [found_u, pack] = params.build(ctx, cqueue, simulation_width, buffers[0]);
 
-            black_hole_params p2;
-            p2.bare_mass = 0.483f;
-            p2.position = {-3.257, 0, 0};
-            p2.linear_momentum = {0, -0.133, 0};
-
-            initial_conditions init(ctx, cqueue, dim);
-
-            init.add(p1);
-            init.add(p2);
-            #endif // INSPIRAL
-
-            #define NEUTRON_STAR_TEST
-            #ifdef NEUTRON_STAR_TEST
-
-            /*//double K = 123.741;
-            //double p0_c_kg_m3 = 6.235 * pow(10., 17.);*/
-
-            /*neutron_star::parameters p1;
-            p1.position = {-15, 0, 0};
-            p1.angular_momentum = {0, 0, 0};
-            p1.linear_momentum = {0, -0.05, 0};
-            p1.p0_c_kg_m3 = 6.235 * pow(10., 17.);
-
-            neutron_star::parameters p2;
-            p2.position = {15, 0, 0};
-            p2.angular_momentum = {0, 0, 0};
-            p2.linear_momentum = {0, 0.05, 0};
-            p2.p0_c_kg_m3 = 6.235 * pow(10., 17.);
-
-            initial_conditions init(ctx, cqueue, dim);
-
-            init.add(p1);
-            init.add(p2);*/
-
-            #if 0
-            neutron_star::parameters p1;
-            p1.position = {0, 0, 0};
-            p1.angular_momentum = {0, 0, 1.25};
-            p1.linear_momentum = {0, 0, 0};
-            p1.p0_c_kg_m3 = 6.235 * pow(10., 17.);
-            #endif
-
-            #if 0
-            neutron_star::parameters p1;
-
-            /*neutron_star::dimensionless_linear_momentum lin;
-            lin.x = 0.1;
-            lin.axis = {1, 0, 0};*/
-
-            p1.position = {0, 0, 0};
-            p1.angular_momentum.momentum = {0, 0, 1.25};
-            //p1.linear_momentum.momentum = {0.25, 0, 0};
-            //p1.linear_momentum.dimensionless = lin;
-            p1.K.msols = 123.6;
-            p1.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
-
-            initial_conditions init(ctx, cqueue, dim);
-
-            init.add(p1);
-            #endif // 0
-
-            #if 0
-            neutron_star::parameters p1;
-
-            p1.position = {-15, 0, 0};
-            p1.linear_momentum.momentum = {0, 0, 0};
-            //p1.linear_momentum.momentum = {0.25, 0, 0};
-            //p1.linear_momentum.dimensionless = lin;
-            p1.K.msols = 123.6;
-            p1.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
-
-            neutron_star::parameters p2;
-
-            p2.position = {15, 0, 0};
-            p2.linear_momentum.momentum = {0, 0, 0};
-            //p2.linear_momentum.momentum = {0.25, 0, 0};
-            //p2.linear_momentum.dimensionless = lin;
-            p2.K.msols = 123.6;
-            p2.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
-
-            initial_conditions init(ctx, cqueue, dim);
-
-            init.add(p1);
-            init.add(p2);
-            #endif
-
-            neutron_star::parameters p1;
-
-            p1.position = {-15, 0, 0};
-            p1.linear_momentum.momentum = {0, -0.25f, 0};
-            p1.K.msols = 123.6;
-            p1.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
-
-            neutron_star::parameters p2;
-
-            p2.position = {15, 0, 0};
-            p2.linear_momentum.momentum = {0, 0.25f, 0};
-            p2.K.msols = 123.6;
-            p2.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
-
-            initial_conditions init(ctx, cqueue, dim);
-
-            init.add(p1);
-            init.add(p2);
-
-            #endif
-
-            #ifdef SINGLE
-            black_hole_params p1;
-            p1.bare_mass = 0.483f;
-            p1.position = {0, 0, 0};
-            p1.linear_momentum = {0, 0, 0};
-
-            initial_conditions init(ctx, cqueue, dim);
-
-            init.add(p1);
-            #endif
-
-            auto [found_u, pack] = init.build(ctx, cqueue, simulation_width, buffers[0]);
-
-            std::vector<float> adm_masses = init.extract_adm_masses(ctx, cqueue, found_u, dim, get_scale(simulation_width, dim));
+            std::vector<float> adm_masses = extract_adm_masses(ctx, cqueue, found_u, dim, get_scale(simulation_width, dim), params.params_bh);
 
             for(float mass : adm_masses)
             {
@@ -1182,6 +1057,138 @@ void mass_radius_curve()
     file::write("data.csv", str, file::mode::TEXT);
 }
 
+initial_params get_initial_params()
+{
+    //#define INSPIRAL
+    #ifdef INSPIRAL
+    black_hole_params p1;
+    p1.bare_mass = 0.483f;
+    p1.position = {3.257, 0, 0};
+    p1.linear_momentum = {0, 0.133, 0};
+
+    black_hole_params p2;
+    p2.bare_mass = 0.483f;
+    p2.position = {-3.257, 0, 0};
+    p2.linear_momentum = {0, -0.133, 0};
+
+    initial_conditions init(ctx, cqueue, dim);
+
+    init.add(p1);
+    init.add(p2);
+    #endif // INSPIRAL
+
+    #define NEUTRON_STAR_TEST
+    #ifdef NEUTRON_STAR_TEST
+
+    /*//double K = 123.741;
+    //double p0_c_kg_m3 = 6.235 * pow(10., 17.);*/
+
+    /*neutron_star::parameters p1;
+    p1.position = {-15, 0, 0};
+    p1.angular_momentum = {0, 0, 0};
+    p1.linear_momentum = {0, -0.05, 0};
+    p1.p0_c_kg_m3 = 6.235 * pow(10., 17.);
+
+    neutron_star::parameters p2;
+    p2.position = {15, 0, 0};
+    p2.angular_momentum = {0, 0, 0};
+    p2.linear_momentum = {0, 0.05, 0};
+    p2.p0_c_kg_m3 = 6.235 * pow(10., 17.);
+
+    initial_conditions init(ctx, cqueue, dim);
+
+    init.add(p1);
+    init.add(p2);*/
+
+    #if 0
+    neutron_star::parameters p1;
+    p1.position = {0, 0, 0};
+    p1.angular_momentum = {0, 0, 1.25};
+    p1.linear_momentum = {0, 0, 0};
+    p1.p0_c_kg_m3 = 6.235 * pow(10., 17.);
+    #endif
+
+    #if 0
+    neutron_star::parameters p1;
+
+    /*neutron_star::dimensionless_linear_momentum lin;
+    lin.x = 0.1;
+    lin.axis = {1, 0, 0};*/
+
+    p1.position = {0, 0, 0};
+    p1.angular_momentum.momentum = {0, 0, 1.25};
+    //p1.linear_momentum.momentum = {0.25, 0, 0};
+    //p1.linear_momentum.dimensionless = lin;
+    p1.K.msols = 123.6;
+    p1.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
+
+    initial_conditions init(ctx, cqueue, dim);
+
+    init.add(p1);
+    #endif // 0
+
+    #if 0
+    neutron_star::parameters p1;
+
+    p1.position = {-15, 0, 0};
+    p1.linear_momentum.momentum = {0, 0, 0};
+    //p1.linear_momentum.momentum = {0.25, 0, 0};
+    //p1.linear_momentum.dimensionless = lin;
+    p1.K.msols = 123.6;
+    p1.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
+
+    neutron_star::parameters p2;
+
+    p2.position = {15, 0, 0};
+    p2.linear_momentum.momentum = {0, 0, 0};
+    //p2.linear_momentum.momentum = {0.25, 0, 0};
+    //p2.linear_momentum.dimensionless = lin;
+    p2.K.msols = 123.6;
+    p2.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
+
+    initial_conditions init(ctx, cqueue, dim);
+
+    init.add(p1);
+    init.add(p2);
+    #endif
+
+    neutron_star::parameters p1;
+
+    p1.position = {-15, 0, 0};
+    p1.linear_momentum.momentum = {0, -0.25f, 0};
+    p1.K.msols = 123.6;
+    p1.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
+
+    neutron_star::parameters p2;
+
+    p2.position = {15, 0, 0};
+    p2.linear_momentum.momentum = {0, 0.25f, 0};
+    p2.K.msols = 123.6;
+    p2.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
+
+    initial_params init;
+
+    init.dim = {155, 155, 155};
+    init.simulation_width = 90;
+
+    init.add(p1);
+    init.add(p2);
+    #endif
+
+    #ifdef SINGLE
+    black_hole_params p1;
+    p1.bare_mass = 0.483f;
+    p1.position = {0, 0, 0};
+    p1.linear_momentum = {0, 0, 0};
+
+    initial_conditions init(ctx, cqueue, dim);
+
+    init.add(p1);
+    #endif
+
+    return init;
+}
+
 int main()
 {
     solve();
@@ -1203,7 +1210,10 @@ int main()
     cl::context& ctx = win.clctx->ctx;
     std::cout << cl::get_extensions(ctx) << std::endl;
 
-    t3i dim = {213, 213, 213};
+    initial_params params = get_initial_params();
+    boot_initial_kernels(ctx);
+
+    t3i dim = params.dim;
 
     plugin* hydro = new hydrodynamic_plugin(ctx);
 
@@ -1244,11 +1254,11 @@ int main()
     io.Fonts->Clear();
     io.Fonts->AddFontFromFileTTF("VeraMono.ttf", 14, &font_cfg);
 
-    float simulation_width = 90;
+    float simulation_width = params.simulation_width;
 
     mesh m(ctx, dim, simulation_width);
     m.plugins = plugins;
-    m.init(ctx, cqueue);
+    m.init(ctx, cqueue, params);
 
     printf("Post init\n");
 

@@ -102,6 +102,7 @@ namespace neutron_star
         tov::integration_solution sol;
         double p0_msols = 0;
         double total_mass = 0;
+        numerical_eos stored;
 
         data(const parameters& p);
 
