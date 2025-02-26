@@ -668,9 +668,9 @@ struct raytrace_manager
 
     std::vector<cl::buffer> Guv_block;
 
-    raytrace_manager(cl::context& ctx, const std::vector<plugin*>& plugins) : positions(ctx), velocities(ctx), results(ctx), texture_coordinates(ctx), zshifts(ctx), occlusion(ctx), gpu_position(ctx), tetrads{ctx, ctx, ctx, ctx}
+    raytrace_manager(cl::context& ctx, const std::vector<plugin*>& plugins, bool use_colour) : positions(ctx), velocities(ctx), results(ctx), texture_coordinates(ctx), zshifts(ctx), occlusion(ctx), gpu_position(ctx), tetrads{ctx, ctx, ctx, ctx}
     {
-        build_raytrace_kernels(ctx, plugins);
+        build_raytrace_kernels(ctx, plugins, use_colour);
         build_raytrace_init_kernels(ctx);
         gpu_position.alloc(sizeof(cl_float4));
 
@@ -1280,7 +1280,7 @@ int main()
 
     cqueue.block();
 
-    raytrace_manager rt_bssn(ctx, plugins);
+    raytrace_manager rt_bssn(ctx, plugins, params.hydrodynamics_wants_colour());
 
     cl::image background = load_background(ctx, cqueue, "../common/esa.png");
 

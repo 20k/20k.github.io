@@ -23,6 +23,6 @@ using block_precision_t = valuef;
 
 struct plugin;
 
-void build_raytrace_kernels(cl::context ctx, const std::vector<plugin*>& plugins);
+void build_raytrace_kernels(cl::context ctx, const std::vector<plugin*>& plugins, bool use_colour);
 
 #endif // RAYTRACE_HPP_INCLUDED
