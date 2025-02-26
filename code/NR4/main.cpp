@@ -292,6 +292,9 @@ struct mesh
         {
             auto kreiss_individual = [&](cl::buffer inb, cl::buffer outb, float eps, int order)
             {
+                if(inb.alloc_size == 0)
+                    return;
+
                 cl::args args;
                 args.push_back(inb);
                 args.push_back(outb);
@@ -505,6 +508,9 @@ struct mesh
 
         auto sommerfeld_buffer = [&](cl::buffer base, cl::buffer in, cl::buffer out, float asym, float wave_speed)
         {
+            if(base.alloc_size == 0)
+                return;
+
             cl::args args;
             args.push_back(base);
             args.push_back(in);
@@ -1152,6 +1158,60 @@ initial_params get_initial_params()
     init.add(p2);
     #endif
 
+    #define INSPIRAL
+    #ifdef INSPIRAL
+    neutron_star::parameters p1;
+
+    //p1.colour = {1, 0, 0};
+    p1.position = {-20, 0, 0};
+    p1.linear_momentum.momentum = {0, -0.25f, 0};
+    p1.K.msols = 123.6;
+    p1.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
+
+    neutron_star::parameters p2;
+
+    //p2.colour = {0, 0, 1};
+    p2.position = {20, 0, 0};
+    p2.linear_momentum.momentum = {0, 0.25f, 0};
+    p2.K.msols = 123.6;
+    p2.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
+
+    initial_params init;
+
+    init.dim = {155, 155, 155};
+    init.simulation_width = 100;
+
+    init.add(p1);
+    init.add(p2);
+    #endif
+
+    #ifdef TURBO_DETONATE
+    neutron_star::parameters p1;
+
+    p1.colour = {1, 0, 0};
+    p1.position = {-15, 0, 0};
+    p1.linear_momentum.momentum = {0, -0.25f, 0};
+    p1.K.msols = 123.6;
+    p1.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
+
+    neutron_star::parameters p2;
+
+    p2.colour = {0, 0, 1};
+    p2.position = {15, 0, 0};
+    p2.linear_momentum.momentum = {0, 0.25f, 0};
+    p2.K.msols = 123.6;
+    p2.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
+
+    initial_params init;
+
+    init.dim = {213, 213, 213};
+    init.simulation_width = 100;
+
+    init.add(p1);
+    init.add(p2);
+    #endif
+
+    #if 0
     neutron_star::parameters p1;
 
     p1.colour = {1, 0, 0};
@@ -1177,6 +1237,7 @@ initial_params get_initial_params()
 
     init.add(p1);
     init.add(p2);
+    #endif
     #endif
 
     #ifdef SINGLE
