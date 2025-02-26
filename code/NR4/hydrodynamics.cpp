@@ -674,7 +674,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     if(use_colour)
     {
         for(int i=0; i < (int)hydro.colour.size(); i++)
-            as_ref(hydro.colour[i][index]) = colour_in[index][i] * p_star;
+            as_ref(hydro.colour[i][pos, dim]) = colour_in[index][i] * p_star;
     }
 }
 
