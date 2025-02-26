@@ -1237,21 +1237,6 @@ void build_raytrace_kernels(cl::context ctx, const std::vector<plugin*>& plugins
 
             v3f diff = ctx.next(get_dX, get_dV, get_dS, get_state, fix_velocity);
 
-            auto get_rho = [&](v3i pos)
-            {
-                derivative_data d;
-                d.pos = pos;
-                d.dim = dim.get();
-                d.scale = scale.get();
-
-                bssn_args args = bssn_at(pos, dim.get(), in);
-
-                valuef p = plugin_data.adm_p(args, d);
-                pin(p);
-
-                return p;
-            };
-
             auto get_dbg = [&](v3i pos)
             {
                 derivative_data d;
@@ -1299,6 +1284,21 @@ void build_raytrace_kernels(cl::context ctx, const std::vector<plugin*>& plugins
             }
             else
             {
+                auto get_rho = [&](v3i pos)
+                {
+                    derivative_data d;
+                    d.pos = pos;
+                    d.dim = dim.get();
+                    d.scale = scale.get();
+
+                    bssn_args args = bssn_at(pos, dim.get(), in);
+
+                    valuef p = plugin_data.adm_p(args, d);
+                    pin(p);
+
+                    return p;
+                };
+
                 valuef rho = function_trilinear(get_rho, grid_position);
 
                 colour = {rho, rho, rho};
