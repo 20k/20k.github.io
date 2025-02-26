@@ -60,6 +60,7 @@ struct full_hydrodynamic_args : adm_args_mem, hydrodynamic_base_args<T>, hydrody
     }
 
     ///hmm. the issue if we have buffer<valuef> is that we need a position and a dim
+    virtual v3f get_colour(bssn_args& args, const derivative_data& d) override;
     virtual valuef adm_p(bssn_args& args, const derivative_data& d) override;
     virtual tensor<valuef, 3> adm_Si(bssn_args& args, const derivative_data& d) override;
     virtual tensor<valuef, 3, 3> adm_W2_Sij(bssn_args& args, const derivative_data& d) override;

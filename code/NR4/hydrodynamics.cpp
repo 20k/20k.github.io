@@ -221,6 +221,16 @@ struct hydrodynamic_concrete
 
 ///it might be because i'm using hydro_args.eos instead of P
 template<typename T>
+v3f full_hydrodynamic_args<T>::get_colour(bssn_args& args, const derivative_data& d)
+{
+    v3i pos = d.pos;
+    v3i dim = d.dim;
+
+    return {this->colour[0][pos, dim], this->colour[1][pos, dim], this->colour[2][pos, dim]};
+}
+
+///it might be because i'm using hydro_args.eos instead of P
+template<typename T>
 valuef full_hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& d)
 {
     hydrodynamic_concrete hydro_args(d.pos, d.dim, *this);
@@ -1092,8 +1102,6 @@ hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx, float _linear_viscosit
 {
     linear_viscosity_timescale = _linear_viscosity_timescale;
     use_colour = _use_colour;
-
-    std::cout << "COLOUR? " << use_colour << std::endl;
 
     cl::async_build_and_cache(ctx, [&]{
         return value_impl::make_function(init_hydro, "init_hydro", use_colour);
