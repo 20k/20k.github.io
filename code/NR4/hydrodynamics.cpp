@@ -301,17 +301,17 @@ std::vector<buffer_descriptor> hydrodynamic_buffers::get_description()
 
     buffer_descriptor s0;
     s0.name = "cs0";
-    s0.dissipation_coeff = 0.2;
+    s0.dissipation_coeff = 0.05;
     s0.dissipation_order = 4;
 
     buffer_descriptor s1;
     s1.name = "cs1";
-    s1.dissipation_coeff = 0.2;
+    s1.dissipation_coeff = 0.05;
     s1.dissipation_order = 4;
 
     buffer_descriptor s2;
     s2.name = "cs2";
-    s2.dissipation_coeff = 0.2;
+    s2.dissipation_coeff = 0.05;
     s2.dissipation_order = 4;
 
     buffer_descriptor c0;

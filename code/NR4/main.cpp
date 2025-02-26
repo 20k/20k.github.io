@@ -1156,24 +1156,24 @@ initial_params get_initial_params()
 
     p1.colour = {1, 0, 0};
     p1.position = {-15, 0, 0};
-    p1.linear_momentum.momentum = {0, -0.25f, 0};
+    p1.linear_momentum.momentum = {0, -0.125f*0.5f, 0};
     p1.K.msols = 123.6;
-    p1.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
+    p1.mass.p0_kg_m3 = 1.91 * pow(10., 17.);
 
     neutron_star::parameters p2;
 
     p2.colour = {0, 0, 1};
     p2.position = {15, 0, 0};
-    p2.linear_momentum.momentum = {0, 0.25f, 0};
+    p2.linear_momentum.momentum = {0, 0.125f*0.5f, 0};
     p2.K.msols = 123.6;
-    p2.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
+    p2.mass.p0_kg_m3 = 1.91 * pow(10., 17.);
 
     initial_params init;
 
     ///minimum resolution is currently 210 width / 255 grid res
 
-    init.dim = {213, 213, 213};
-    init.simulation_width = 100;
+    init.dim = {155, 155, 155};
+    init.simulation_width = 90;
 
     init.add(p1);
     init.add(p2);
