@@ -863,6 +863,13 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         as_ref(h_out.Si[0][pos, dim]) = h_in.Si[0][pos, dim];
         as_ref(h_out.Si[1][pos, dim]) = h_in.Si[1][pos, dim];
         as_ref(h_out.Si[2][pos, dim]) = h_in.Si[2][pos, dim];
+
+        if(use_colour)
+        {
+            for(int i=0; i < h_out.colour.size(); i++)
+                as_ref(h_out.colour[i][pos, dim]) = h_in.colour[i][pos, dim];
+        }
+
         return_e();
     });
 
@@ -888,6 +895,13 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         as_ref(h_out.Si[0][pos, dim]) = fin_s0;
         as_ref(h_out.Si[1][pos, dim]) = fin_s1;
         as_ref(h_out.Si[2][pos, dim]) = fin_s2;
+
+        if(use_colour)
+        {
+            for(int i=0; i < h_out.colour.size(); i++)
+                as_ref(h_out.colour[i][pos, dim]) = h_base.colour[i][pos, dim] + damp * -h_in.colour[i][pos, dim] * timestep.get();
+        }
+
         return_e();
     });
 
@@ -965,6 +979,20 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     as_ref(h_out.Si[0][pos, dim]) = fin_Si[0];
     as_ref(h_out.Si[1][pos, dim]) = fin_Si[1];
     as_ref(h_out.Si[2][pos, dim]) = fin_Si[2];
+
+    if(use_colour)
+    {
+        for(int i=0; i < (int)h_in.colour.size(); i++)
+        {
+            valuef dt_col = hydro_args.advect_rhs(h_in.colour[i][pos, dim], vi, d);
+
+            valuef fin_col = h_base.colour[i][pos, dim] + dt_col * timestep.get();
+
+            fin_col += ternary(boundary_dist <= 15, -h_in.colour[i][pos, dim] * boundary_damp, {});
+
+            as_ref(h_out.colour[i][pos, dim]) = fin_col;
+        }
+    }
 }
 
 void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
@@ -998,6 +1026,13 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         as_ref(hydro.Si[0][pos, dim]) = valuef(0);
         as_ref(hydro.Si[1][pos, dim]) = valuef(0);
         as_ref(hydro.Si[2][pos, dim]) = valuef(0);
+
+        if(use_colour)
+        {
+            for(int i=0; i < hydro.colour.size(); i++)
+                as_ref(hydro.colour[i][pos, dim]) = valuef(0);
+        }
+
         return_e();
     });
 
@@ -1058,6 +1093,8 @@ hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx, float _linear_viscosit
     linear_viscosity_timescale = _linear_viscosity_timescale;
     use_colour = _use_colour;
 
+    std::cout << "COLOUR? " << use_colour << std::endl;
+
     cl::async_build_and_cache(ctx, [&]{
         return value_impl::make_function(init_hydro, "init_hydro", use_colour);
     }, {"init_hydro"});
@@ -1103,11 +1140,12 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
         ///39
         cl::args args;
         in.append_to(args);
-        args.push_back(bufs.p_star);
-        args.push_back(bufs.e_star);
-        args.push_back(bufs.Si[0]);
-        args.push_back(bufs.Si[1]);
-        args.push_back(bufs.Si[2]);
+
+        auto cl_in = bufs.get_buffers();
+
+        for(auto& i : cl_in)
+            args.push_back(i);
+
         args.push_back(ubufs.w);
         args.push_back(ubufs.P);
         args.push_back(pack.dim);
