@@ -131,6 +131,8 @@ struct initial_params
     {
         neutron_star::data dat(ns);
         params_ns.push_back(dat);
+
+        std::cout << "Msols " << dat.sol.M_msol << std::endl;
     }
 
     void add(const black_hole_params& bh)
