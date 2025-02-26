@@ -1029,9 +1029,9 @@ struct trace3_state
     v3f grid_position;
 };
 
-void build_raytrace_kernels(cl::context ctx, const std::vector<plugin*>& plugins)
+void build_raytrace_kernels(cl::context ctx, const std::vector<plugin*>& plugins, bool use_colour)
 {
-    auto trace3 = [plugins]
+    auto trace3 = [plugins, use_colour]
                   (execution_context& ectx, literal<v2i> screen_sizel,
                    literal<v4f> camera_quat,
                    buffer_mut<v4f> positions, buffer_mut<v4f> velocities,
@@ -1272,7 +1272,41 @@ void build_raytrace_kernels(cl::context ctx, const std::vector<plugin*>& plugins
             grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
             pin(grid_position);
 
-            valuef rho = function_trilinear(get_rho, grid_position);
+            //valuef rho = function_trilinear(get_rho, grid_position);
+
+            v3f colour = {0,0,0};
+            valuef density = 0.f;
+
+            if(use_colour)
+            {
+                auto get_col = [&](v3i pos)
+                {
+                    derivative_data d;
+                    d.pos = pos;
+                    d.dim = dim.get();
+                    d.scale = scale.get();
+
+                    bssn_args args = bssn_at(pos, dim.get(), in);
+
+                    v3f c = plugin_data.get_colour(args, d);
+                    pin(c);
+
+                    return c;
+                };
+
+                colour = function_trilinear(get_col, grid_position) * 1000;
+                density = colour.length();
+            }
+            else
+            {
+                valuef rho = function_trilinear(get_rho, grid_position);
+
+                colour = {rho, rho, rho};
+                colour = fabs(colour);
+                colour = colour * 1000;
+
+                density = rho * 1000;;
+            }
 
             /*if_e(screen_position.x() == screen_size.x()/2 && screen_position.y() == screen_size.y()/2, [&]{
                 valuef S = function_trilinear(get_dbg, grid_position);
@@ -1285,9 +1319,6 @@ void build_raytrace_kernels(cl::context ctx, const std::vector<plugin*>& plugins
             });*/
 
             valuef sample_length = diff.length();
-
-            valuef density = fabs(rho) * 1000;
-            v3f colour = {1,1,1};
 
             as_ref(accumulated_occlusion) += density * sample_length;
 
