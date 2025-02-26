@@ -1790,7 +1790,7 @@ namespace value_impl
 
         std::apply([&](auto&&... expanded_args){
             (resolve_placeholder(expanded_args), ...);
-        }, args);
+        }, args2);
     }
 
     inline
