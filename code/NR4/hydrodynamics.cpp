@@ -1048,50 +1048,31 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         as_ref(hydro.e_star[pos, dim]) = min(e_star, 10 * hydro.p_star[pos, dim]);
     });
 
-    #if 1
     mut<valuef> bound = declare_mut_e(valuef(1.f));
 
     if_e((hydro.e_star[pos, dim] <= hydro.p_star[pos, dim]) || (hydro.p_star[pos, dim] <= min_p_star * 10), [&]{
         as_ref(bound) = valuef(0.2f);
     });
 
-    bssn_args args(pos, dim, in);
+    v3f Si = {hydro.Si[0][pos, dim], hydro.Si[1][pos, dim], hydro.Si[2][pos, dim]};
+    pin(Si);
 
     valuef p_star = hydro.p_star[pos, dim];
     valuef e_star = hydro.e_star[pos, dim];
 
-    v3f Si = {hydro.Si[0][pos, dim], hydro.Si[1][pos, dim], hydro.Si[2][pos, dim]};
+    bssn_args args(pos, dim, in);
 
     valuef w = calculate_w(p_star, e_star, args.W, args.cY.invert(), Si);
-
     valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
-
     valuef h = calculate_h_from_epsilon(epsilon);
 
-    v3f dfsi = {hydro.Si[0][pos, dim], hydro.Si[1][pos, dim], hydro.Si[2][pos, dim]};
+    valuef max_Si = p_star * h * declare_e(bound);
 
-    v3f u_k;
+    Si = clamp(Si, -max_Si, max_Si);
 
-    for(int i=0; i < 3; i++)
-        u_k[i] = safe_divide(dfsi[i], h * hydro.p_star[pos, dim], 1e-6);
-
-    valuef cst = declare_e(bound);
-
-    if_e(u_k[0] >= -cst && u_k[0] <= cst &&
-         u_k[1] >= -cst && u_k[1] <= cst &&
-         u_k[2] >= -cst && u_k[2] <= cst, [&]{
-        return_e();
-    });
-
-    u_k = clamp(u_k, -cst, cst);
-
-    //maybe i should just do clamp(Si, pstar * bound) and hodge podge it
-    v3f fin = u_k * h * hydro.p_star[pos, dim];
-
-    as_ref(hydro.Si[0][pos, dim]) = fin[0];
-    as_ref(hydro.Si[1][pos, dim]) = fin[1];
-    as_ref(hydro.Si[2][pos, dim]) = fin[2];
-    #endif
+    as_ref(hydro.Si[0][pos, dim]) = Si[0];
+    as_ref(hydro.Si[1][pos, dim]) = Si[1];
+    as_ref(hydro.Si[2][pos, dim]) = Si[2];
 }
 
 hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx, float _linear_viscosity_timescale, bool _use_colour)
