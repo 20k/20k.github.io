@@ -409,7 +409,7 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef
 
 void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_hydrodynamic_args<buffer_mut<valuef>> hydro, literal<v3i> ldim, literal<valuef> scale,
                 buffer<valuef> mu_h_cfl_b, buffer<valuef> cfl_b, buffer<valuef> u_correction_b, std::array<buffer<valuef>, 3> Si_cfl_b,
-                buffer<valuei> indices, eos_gpu eos_data, bool use_colour)
+                buffer<valuei> indices, eos_gpu eos_data, buffer<v3f> colour_in, bool use_colour)
 {
     using namespace single_source;
 
@@ -659,25 +659,23 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     v3f Si_lo_cfl = p_star * h * u_i;
 
-    ///next, I need to lower ui with the 4-metric, only spatially though!
-
-    //v3f Si_lo_cfl = pow(cW, -3) * Yij.lower(Si);
-
     as_ref(hydro.p_star[pos, dim]) = p_star;
     as_ref(hydro.e_star[pos, dim]) = e_star;
     as_ref(hydro.Si[0][pos, dim]) = Si_lo_cfl[0];
     as_ref(hydro.Si[1][pos, dim]) = Si_lo_cfl[1];
     as_ref(hydro.Si[2][pos, dim]) = Si_lo_cfl[2];
 
-    //w also isn't well defined when gA != 1
-    //valuef real_w = p_star * gA * u0;
-
-    ///ok so. I'm trying to answer the quesiton of why w = p* gA u0
-    ///is not the same answer as calculate_w
-    valuef calc_w = calculate_w(p_star, e_star, args.W, args.cY.invert(), Si_lo_cfl);
-
+    //strictly speaking i don't need to set these
+    //in the most technical sense you might consider that we're initialising the boundary condition here
+    //but w = P = 0 at the boundary
     as_ref(hydro.w[pos, dim]) = w;
     as_ref(hydro.P[pos, dim]) = eos(args.W, w, p_star, e_star);
+
+    if(use_colour)
+    {
+        for(int i=0; i < (int)hydro.colour.size(); i++)
+            as_ref(hydro.colour[i][index]) = colour_in[index][i] * p_star;
+    }
 }
 
 valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev)
@@ -883,6 +881,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         return_e();
     });
 
+    ///todo, make all this a bit more generic
     if_e(args.gA < MIN_LAPSE, [&]{
         valuef damp = 0.1f;
 
@@ -920,9 +919,6 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     valuef dp_star = hydro_args.advect_rhs(hydro_args.p_star, vi, d);
     mut<valuef> de_star = declare_mut_e(hydro_args.advect_rhs(hydro_args.e_star, vi, d));
     v3f dSi = hydro_args.advect_rhs(hydro_args.Si, vi, d);
-
-    valuef e_advect_only = declare_e(de_star);
-    valuef si_advect = dSi[0];
 
     if_e(args.gA >= MIN_VISCOSITY_LAPSE, [&]{
         as_ref(de_star) += hydro_args.e_star_rhs(args.gA, args.gB, args.cY, args.W, vi, d, total_elapsed.get(), damping_timescale.get());
@@ -1139,13 +1135,23 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
     neutron_star::all_numerical_eos_gpu neos(ctx);
     neos.init(cqueue, pack.stored_eos);
 
+    std::vector<t3f> lin_cols;
+
+    for(auto& i : pack.ns_colours)
+        lin_cols.push_back(i.value_or((t3f){1,1,1}));
+
+    cl::buffer lin_buf(ctx);
+    lin_buf.alloc(sizeof(cl_float3) * lin_cols.size());
+    lin_buf.write(cqueue, lin_cols);
+
+    assert(lin_cols.size() == pack.stored_eos.size());
+
     hydrodynamic_buffers& bufs = *dynamic_cast<hydrodynamic_buffers*>(to_init);
     hydrodynamic_utility_buffers& ubufs = *dynamic_cast<hydrodynamic_utility_buffers*>(to_init_utility);
 
     {
         t3i dim = pack.dim;
 
-        ///39
         cl::args args;
         in.append_to(args);
 
@@ -1166,6 +1172,7 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
         args.push_back(pack.disc.Si_cfl[2]);
         args.push_back(pack.disc.star_indices);
         args.push_back(neos.pressures, neos.max_densities, neos.stride, neos.count);
+        args.push_back(lin_buf);
 
         cqueue.exec("init_hydro", args, {dim.x(), dim.y(), dim.z()}, {8,8,1});
     }
