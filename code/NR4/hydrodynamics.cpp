@@ -830,7 +830,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                   hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, hydrodynamic_base_args<buffer_mut<valuef>> h_out,
                   hydrodynamic_utility_args<buffer<valuef>> util,
                   literal<v3i> idim, literal<valuef> scale, literal<valuef> timestep, literal<valuef> total_elapsed, literal<valuef> damping_timescale,
-                  buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
+                  buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length, bool use_colour)
 {
     using namespace single_source;
 
@@ -970,7 +970,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                     hydrodynamic_base_args<buffer_mut<valuef>> hydro,
                     literal<v3i> idim,
-                    buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
+                    buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length, bool use_colour)
 {
     using namespace single_source;
 
@@ -1070,12 +1070,12 @@ hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx, float _linear_viscosit
         return value_impl::make_function(calculate_w_kern, "calculate_w");
     }, {"calculate_w"});
 
-    cl::async_build_and_cache(ctx, []{
-        return value_impl::make_function(evolve_hydro_all, "evolve_hydro_all");
+    cl::async_build_and_cache(ctx, [&]{
+        return value_impl::make_function(evolve_hydro_all, "evolve_hydro_all", use_colour);
     }, {"evolve_hydro_all"});
 
-    cl::async_build_and_cache(ctx, []{
-        return value_impl::make_function(finalise_hydro, "finalise_hydro");
+    cl::async_build_and_cache(ctx, [&]{
+        return value_impl::make_function(finalise_hydro, "finalise_hydro", use_colour);
     }, {"finalise_hydro"});
 }
 
