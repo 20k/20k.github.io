@@ -47,6 +47,7 @@ struct adm_args_mem : virtual value_impl::single_source::argument_pack
 {
     virtual void build(value_impl::type_storage& store){assert(false);}
 
+    virtual v3f get_colour(bssn_args& args, const derivative_data& d){return {};}
     virtual valuef adm_p(bssn_args& args, const derivative_data& d) {return valuef();};
     virtual tensor<valuef, 3> adm_Si(bssn_args& args, const derivative_data& d) {return tensor<valuef, 3>();}
     virtual tensor<valuef, 3, 3> adm_W2_Sij(bssn_args& args, const derivative_data& d) {return tensor<valuef, 3, 3>();}
@@ -61,6 +62,16 @@ struct all_adm_args_mem : value_impl::single_source::argument_pack
     {
         for(auto& i : all_mem)
             i->build(in);
+    }
+
+    v3f get_colour(bssn_args& args, const derivative_data& d)
+    {
+        v3f col;
+
+        for(auto& i : all_mem)
+            col += i->get_colour(args, d);
+
+        return col;
     }
 
     valuef adm_p(bssn_args& args, const derivative_data& d) const
