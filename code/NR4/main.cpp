@@ -1172,7 +1172,7 @@ initial_params get_initial_params()
 
     ///minimum resolution is currently 210 width / 255 grid res
 
-    init.dim = {155, 155, 155};
+    init.dim = {213, 213, 213};
     init.simulation_width = 100;
 
     init.add(p1);
