@@ -65,6 +65,8 @@ namespace neutron_star
 
     struct parameters
     {
+        //linear colour
+        std::optional<t3f> colour;
         tensor<float, 3> position;
         param_linear_momentum linear_momentum;
         param_angular_momentum angular_momentum;

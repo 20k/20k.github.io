@@ -16,6 +16,7 @@ struct hydrodynamic_base_args : virtual value_impl::single_source::argument_pack
     T p_star;
     T e_star;
     std::array<T, 3> Si;
+    std::array<T, 3> colour;
 
     void build(value_impl::type_storage& in)
     {
@@ -24,8 +25,13 @@ struct hydrodynamic_base_args : virtual value_impl::single_source::argument_pack
         add(p_star, in);
         add(e_star, in);
         add(Si, in);
+        add(colour, in);
     }
 };
+
+///the only way to do a strongly typed colour system
+///would be more inheritance
+///could also just.. do it badly rite?
 
 template<typename T>
 struct hydrodynamic_utility_args : virtual value_impl::single_source::argument_pack
@@ -62,14 +68,17 @@ struct full_hydrodynamic_args : adm_args_mem, hydrodynamic_base_args<T>, hydrody
 
 struct hydrodynamic_buffers : buffer_provider
 {
+    bool use_colour = false;
+
     cl::buffer p_star;
     cl::buffer e_star;
 
     std::array<cl::buffer, 3> Si;
+    std::array<cl::buffer, 3> colour;
 
-    hydrodynamic_buffers(cl::context ctx) : p_star(ctx), e_star(ctx), Si{ctx, ctx, ctx}
+    hydrodynamic_buffers(cl::context ctx, bool _use_colour) : p_star(ctx), e_star(ctx), Si{ctx, ctx, ctx}, colour{ctx, ctx, ctx}
     {
-
+        use_colour = _use_colour;
     }
 
     virtual std::vector<buffer_descriptor> get_description() override;
@@ -92,8 +101,9 @@ struct hydrodynamic_utility_buffers : buffer_provider
 struct hydrodynamic_plugin : plugin
 {
     float linear_viscosity_timescale = 200.f;
+    bool use_colour = false;
 
-    hydrodynamic_plugin(cl::context ctx, float _linear_viscosity_timescale);
+    hydrodynamic_plugin(cl::context ctx, float _linear_viscosity_timescale, bool _use_colour);
 
     ///we get three copies of these
     virtual buffer_provider* get_buffer_factory(cl::context ctx) override;

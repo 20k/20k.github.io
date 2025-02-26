@@ -28,6 +28,7 @@ struct initial_pack
 {
     discretised_initial_data disc;
     int neutron_index = 0;
+    std::vector<std::optional<t3f>> ns_colours;
     std::vector<neutron_star::numerical_eos> stored_eos;
 
     tensor<int, 3> dim;
@@ -67,6 +68,7 @@ struct initial_pack
 
     void add(cl::context& ctx, cl::command_queue& cqueue, neutron_star::data& ns)
     {
+        ns_colours.push_back(ns.params.colour);
         stored_eos.push_back(ns.stored);
         ns.add_to_solution(ctx, cqueue, disc, dim, scale, neutron_index++);
     }
@@ -137,6 +139,7 @@ struct initial_params
     }
 
     std::pair<cl::buffer, initial_pack> build(cl::context& ctx, cl::command_queue& cqueue, float simulation_width, bssn_buffer_pack& to_fill);
+    bool hydrodynamics_wants_colour();
 };
 
 void boot_initial_kernels(cl::context ctx);

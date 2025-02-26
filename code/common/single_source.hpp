@@ -1698,6 +1698,16 @@ namespace value_impl
         }
     }
 
+    template<std::size_t N, typename... Ts>
+    inline
+    auto grab_N_from_tuple(std::tuple<Ts...> all_elements)
+    {
+        return [&]<std::size_t... I>(std::index_sequence<I...>)
+        {
+            return std::make_tuple(std::get<I>(all_elements)...);
+        }(std::make_index_sequence<N>{});
+    }
+
     template<typename R, typename T, typename... Args>
     inline
     auto split_args(R(*func)(T&, Args...))
@@ -1733,11 +1743,18 @@ namespace value_impl
         return split_args_lambda(&l.operator());
     }
 
-    template<typename Callable>
+    template<typename Callable, typename... U>
     inline
-    void setup_kernel(Callable&& func, function_context& ctx)
+    void setup_kernel(Callable&& func, function_context& ctx, U&&... concrete_args)
     {
+        //todo: need to only split a certain amount... keep splitting until
+        //there are concrete_args remaining
         auto [ctx_type, args] = split_args(func);
+
+        constexpr std::size_t num = std::tuple_size_v<decltype(args)>;
+        constexpr std::size_t concrete_argc = sizeof...(concrete_args);
+
+        auto args2 = grab_N_from_tuple<num - concrete_argc>(args);
 
         using T = std::remove_reference_t<decltype(ctx_type)>;
 
@@ -1745,11 +1762,12 @@ namespace value_impl
 
         std::apply([&](auto&&... expanded_args){
             (builder::add(expanded_args, ctx.inputs), ...);
-        }, args);
+        }, args2);
 
         std::tuple<T&> a1 = {ectx};
+        std::tuple<U...> a2 = {concrete_args...};
 
-        std::apply(func, std::tuple_cat(a1, args));
+        std::apply(func, std::tuple_cat(a1, args2, a2));
 
         int running_placeholder_offsets = 0;
 
@@ -2059,12 +2077,12 @@ namespace value_impl
     }
 
 
-    template<typename T>
+    template<typename T, typename... U>
     inline
-    std::string make_function(T&& in, const std::string& kernel_name)
+    std::string make_function(T&& in, const std::string& kernel_name, U&&... args)
     {
         function_context kctx;
-        setup_kernel(in, kctx);
+        setup_kernel(in, kctx, std::forward<U>(args)...);
 
         std::string str = generate_kernel_string(kctx, kernel_name);
 
