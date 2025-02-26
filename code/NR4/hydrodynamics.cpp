@@ -304,12 +304,24 @@ std::vector<buffer_descriptor> hydrodynamic_buffers::get_description()
     s2.dissipation_coeff = 0.2;
     s2.dissipation_order = 4;
 
-    return {p, e, s0, s1, s2};
+    buffer_descriptor c0;
+    c0.name = "c0";
+    c0.dissipation_coeff = p.dissipation_coeff;
+
+    buffer_descriptor c1;
+    c1.name = "c1";
+    c1.dissipation_coeff = p.dissipation_coeff;
+
+    buffer_descriptor c2;
+    c2.name = "c2";
+    c2.dissipation_coeff = p.dissipation_coeff;
+
+    return {p, e, s0, s1, s2, c0, c1, c2};
 }
 
 std::vector<cl::buffer> hydrodynamic_buffers::get_buffers()
 {
-    return {p_star, e_star, Si[0], Si[1], Si[2]};
+    return {p_star, e_star, Si[0], Si[1], Si[2], colour[0], colour[1], colour[2]};
 }
 
 void hydrodynamic_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t3i size)
@@ -326,6 +338,15 @@ void hydrodynamic_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t
     {
         i.alloc(sizeof(cl_float) * cells);
         i.set_to_zero(cqueue);
+    }
+
+    if(use_colour)
+    {
+        for(auto& i : colour)
+        {
+            i.alloc(sizeof(cl_float) * cells);
+            i.set_to_zero(cqueue);
+        }
     }
 }
 
@@ -378,7 +399,7 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef
 
 void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_hydrodynamic_args<buffer_mut<valuef>> hydro, literal<v3i> ldim, literal<valuef> scale,
                 buffer<valuef> mu_h_cfl_b, buffer<valuef> cfl_b, buffer<valuef> u_correction_b, std::array<buffer<valuef>, 3> Si_cfl_b,
-                buffer<valuei> indices, eos_gpu eos_data)
+                buffer<valuei> indices, eos_gpu eos_data, bool use_colour)
 {
     using namespace single_source;
 
@@ -1032,12 +1053,13 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     #endif
 }
 
-hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx, float _linear_viscosity_timescale)
+hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx, float _linear_viscosity_timescale, bool _use_colour)
 {
     linear_viscosity_timescale = _linear_viscosity_timescale;
+    use_colour = _use_colour;
 
-    cl::async_build_and_cache(ctx, []{
-        return value_impl::make_function(init_hydro, "init_hydro");
+    cl::async_build_and_cache(ctx, [&]{
+        return value_impl::make_function(init_hydro, "init_hydro", use_colour);
     }, {"init_hydro"});
 
     cl::async_build_and_cache(ctx, []{
@@ -1059,7 +1081,7 @@ hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx, float _linear_viscosit
 
 buffer_provider* hydrodynamic_plugin::get_buffer_factory(cl::context ctx)
 {
-    return new hydrodynamic_buffers(ctx);
+    return new hydrodynamic_buffers(ctx, use_colour);
 }
 
 buffer_provider* hydrodynamic_plugin::get_utility_buffer_factory(cl::context ctx)

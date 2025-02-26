@@ -1154,6 +1154,7 @@ initial_params get_initial_params()
 
     neutron_star::parameters p1;
 
+    p1.colour = {1, 0, 0};
     p1.position = {-15, 0, 0};
     p1.linear_momentum.momentum = {0, -0.25f, 0};
     p1.K.msols = 123.6;
@@ -1161,6 +1162,7 @@ initial_params get_initial_params()
 
     neutron_star::parameters p2;
 
+    p2.colour = {0, 0, 1};
     p2.position = {15, 0, 0};
     p2.linear_momentum.momentum = {0, 0.25f, 0};
     p2.K.msols = 123.6;
@@ -1168,8 +1170,10 @@ initial_params get_initial_params()
 
     initial_params init;
 
-    init.dim = {255, 255, 255};
-    init.simulation_width = 210;
+    ///minimum resolution is currently 210 width / 255 grid res
+
+    init.dim = {155, 155, 155};
+    init.simulation_width = 100;
 
     init.add(p1);
     init.add(p2);
@@ -1215,7 +1219,7 @@ int main()
 
     t3i dim = params.dim;
 
-    plugin* hydro = new hydrodynamic_plugin(ctx, params.linear_viscosity_timescale);
+    plugin* hydro = new hydrodynamic_plugin(ctx, params.linear_viscosity_timescale, params.hydrodynamics_wants_colour());
 
     std::vector<plugin*> plugins;
     plugins.push_back(hydro);

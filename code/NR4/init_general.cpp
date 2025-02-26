@@ -279,3 +279,13 @@ std::pair<cl::buffer, initial_pack> initial_params::build(cl::context& ctx, cl::
     return {u_found, pack};
 }
 
+bool initial_params::hydrodynamics_wants_colour()
+{
+    for(const neutron_star::data& i : params_ns)
+    {
+        if(i.params.colour.has_value())
+            return true;
+    }
+
+    return false;
+}
