@@ -1048,7 +1048,7 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         as_ref(hydro.e_star[pos, dim]) = min(e_star, 10 * hydro.p_star[pos, dim]);
     });
 
-    mut<valuef> bound = declare_mut_e(valuef(1.f));
+    mut<valuef> bound = declare_mut_e(valuef(0.99f));
 
     if_e((hydro.e_star[pos, dim] <= hydro.p_star[pos, dim]) || (hydro.p_star[pos, dim] <= min_p_star * 10), [&]{
         as_ref(bound) = valuef(0.2f);
