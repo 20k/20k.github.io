@@ -692,7 +692,7 @@ struct raytrace_manager
         use_matter = _use_matter;
         time_between_snapshots = _time_between_snapshots;
 
-        build_raytrace_kernels(ctx, plugins, use_colour);
+        build_raytrace_kernels(ctx, plugins, use_matter, use_colour);
         build_raytrace_init_kernels(ctx);
         gpu_position.alloc(sizeof(cl_float4));
 
@@ -965,6 +965,15 @@ struct raytrace_manager
         args.push_back(tetrads[0], tetrads[1], tetrads[2], tetrads[3]);
 
         for(auto& i : Guv_block)
+            args.push_back(i);
+
+        for(auto& i : velocity_block)
+            args.push_back(i);
+
+        args.push_back(density_block);
+        args.push_back(energy_block);
+
+        for(auto& i : colour_block)
             args.push_back(i);
 
         args.push_back(last_dt);
