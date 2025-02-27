@@ -682,7 +682,7 @@ struct raytrace_manager
     std::vector<cl::buffer> colour_block;
     cl::buffer density_block; ///absorption
     cl::buffer energy_block; ///emission
-    std::vector<cl::buffer> u_block; //only spatial components
+    std::vector<cl::buffer> velocity_block; //only spatial components
 
     raytrace_manager(cl::context& ctx, const std::vector<plugin*>& _plugins,
                      bool _use_colour, bool _use_matter, float _time_between_snapshots) : positions(ctx), velocities(ctx), results(ctx), texture_coordinates(ctx), zshifts(ctx), occlusion(ctx), gpu_position(ctx), tetrads{ctx, ctx, ctx, ctx}, energy_block(ctx), density_block(ctx)
@@ -721,20 +721,29 @@ struct raytrace_manager
         density_block.alloc(mem_size);
         energy_block.alloc(mem_size);
 
+        density_block.set_to_zero(cqueue);
+        energy_block.set_to_zero(cqueue);
+
         if(use_colour)
         {
             for(int i=0; i < 3; i++)
                 colour_block.emplace_back(ctx);
 
             for(auto& i : colour_block)
+            {
                 i.alloc(mem_size);
+                i.set_to_zero(cqueue);
+            }
         }
 
-        for(int i=0; i < 3; i++)
-            u_block.emplace_back(ctx);
+        for(int i=0; i < 4; i++)
+            velocity_block.emplace_back(ctx);
 
-        for(auto& i : u_block)
+        for(auto& i : velocity_block)
+        {
             i.alloc(mem_size);
+            i.set_to_zero(cqueue);
+        }
     }
 
     void deallocate()
@@ -744,7 +753,7 @@ struct raytrace_manager
         colour_block.clear();
         density_block.alloc(0);
         energy_block.alloc(0);
-        u_block.clear();
+        velocity_block.clear();
     }
 
     ///shower thought: could use a circular buffer here
@@ -771,17 +780,45 @@ struct raytrace_manager
         if(captured_slices >= slices)
             return;
 
-        cl::args args;
-        args.push_back(m.dim, reduced_dim);
+        {
+            cl::args args;
+            args.push_back(m.dim, reduced_dim);
 
-        m.buffers[0].append_to(args);
+            m.buffers[0].append_to(args);
 
-        for(auto& i : Guv_block)
-            args.push_back(i);
+            for(auto& i : Guv_block)
+                args.push_back(i);
 
-        args.push_back(uint64_t{captured_slices});
+            args.push_back(uint64_t{captured_slices});
 
-        cqueue.exec("bssn_to_guv", args, {reduced_dim.x(), reduced_dim.y(), reduced_dim.z()}, {8,8,1});
+            cqueue.exec("bssn_to_guv", args, {reduced_dim.x(), reduced_dim.y(), reduced_dim.z()}, {8,8,1});
+        }
+
+        if(use_matter)
+        {
+            float scale = get_scale(m.simulation_width, m.dim);
+
+            cl::args args;
+            args.push_back(m.dim, reduced_dim, scale);
+
+            m.buffers[0].append_to(args);
+
+            args.push_back(uint64_t{captured_slices});
+
+            for(auto& i : velocity_block)
+                args.push_back(i);
+
+            args.push_back(density_block);
+            args.push_back(energy_block);
+
+            //might be null
+            for(auto& i : colour_block)
+                args.push_back(i);
+
+            m.add_plugin_args(args, 0);
+
+            cqueue.exec("capture_matter_fields", args, {reduced_dim.x(), reduced_dim.y(), reduced_dim.z()}, {8, 8, 1});
+        }
 
         printf("Captured %i\n", captured_slices);
 

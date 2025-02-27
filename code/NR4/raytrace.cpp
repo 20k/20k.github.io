@@ -443,8 +443,7 @@ void bssn_to_guv(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> l
     }
 }
 
-void capture_matter_fields(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> lower_dim,
-                           literal<valuef> scale,
+void capture_matter_fields(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> lower_dim, literal<valuef> scale,
                            bssn_args_mem<buffer<valuef>> in,
                            literal<value<uint64_t>> slice,
                            std::array<buffer_mut<valuef>, 4> velocity4,
