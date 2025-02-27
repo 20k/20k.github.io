@@ -1,13 +1,13 @@
 #include "plugin.hpp"
 #include "bssn.hpp"
 
-v4f all_adm_args_mem::get_u(bssn_args& args, const derivative_data& d)
+v4f all_adm_args_mem::get_4_velocity(bssn_args& args, const derivative_data& d)
 {
     if(all_mem.size() == 0)
         return {};
 
     if(all_mem.size() == 1)
-        return all_mem[0]->get_u(args, d);
+        return all_mem[0]->get_4_velocity(args, d);
 
     v4f momentum = get_4_momentum(args, d);
 
