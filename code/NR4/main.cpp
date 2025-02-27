@@ -702,8 +702,12 @@ struct raytrace_manager
         for(int i=0; i < 10; i++)
         {
             Guv_block.emplace_back(ctx);
-            Guv_block[i].alloc(mem_size);
-            Guv_block[i].set_to_zero(cqueue);
+        }
+
+        for(auto& i : Guv_block)
+        {
+            i.alloc(mem_size);
+            i.set_to_zero(cqueue);
         }
 
         if(!use_matter)
