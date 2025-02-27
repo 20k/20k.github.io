@@ -142,6 +142,7 @@ struct initial_params
 
     std::pair<cl::buffer, initial_pack> build(cl::context& ctx, cl::command_queue& cqueue, float simulation_width, bssn_buffer_pack& to_fill);
     bool hydrodynamics_wants_colour();
+    bool hydrodynamics_enabled();
 };
 
 void boot_initial_kernels(cl::context ctx);
