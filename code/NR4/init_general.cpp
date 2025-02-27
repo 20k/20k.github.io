@@ -289,3 +289,8 @@ bool initial_params::hydrodynamics_wants_colour()
 
     return false;
 }
+
+bool initial_params::hydrodynamics_enabled()
+{
+    return params_ns.size() > 0;
+}

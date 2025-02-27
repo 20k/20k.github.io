@@ -660,6 +660,7 @@ struct raytrace_manager
 
     float last_dt = 0.f;
     int captured_slices = 0;
+    int slices = 120;
     float time_between_snapshots = 2;
     t3i reduced_dim = {101, 101, 101};
     bool capture_4slices = true;
@@ -672,10 +673,20 @@ struct raytrace_manager
 
     std::array<cl::buffer, 4> tetrads;
 
-    std::vector<cl::buffer> Guv_block;
+    bool use_colour = false;
+    bool use_matter = false;
 
-    raytrace_manager(cl::context& ctx, const std::vector<plugin*>& plugins, bool use_colour) : positions(ctx), velocities(ctx), results(ctx), texture_coordinates(ctx), zshifts(ctx), occlusion(ctx), gpu_position(ctx), tetrads{ctx, ctx, ctx, ctx}
+    std::vector<cl::buffer> Guv_block;
+    std::vector<cl::buffer> colour_block;
+    cl::buffer density_block; ///absorption
+    cl::buffer energy_block; ///emission
+    std::vector<cl::buffer> u_block; //only spatial components
+
+    raytrace_manager(cl::context& ctx, const std::vector<plugin*>& plugins, bool _use_colour, bool _use_matter) : positions(ctx), velocities(ctx), results(ctx), texture_coordinates(ctx), zshifts(ctx), occlusion(ctx), gpu_position(ctx), tetrads{ctx, ctx, ctx, ctx}, energy_block(ctx), density_block(ctx)
     {
+        use_colour = _use_colour;
+        use_matter = _use_matter;
+
         build_raytrace_kernels(ctx, plugins, use_colour);
         build_raytrace_init_kernels(ctx);
         gpu_position.alloc(sizeof(cl_float4));
@@ -684,32 +695,60 @@ struct raytrace_manager
             tetrads[i].alloc(sizeof(cl_float4));
     }
 
+    void allocate(cl::context ctx, cl::command_queue cqueue)
+    {
+        uint64_t mem_size = sizeof(block_precision_t::interior_type) * int64_t{reduced_dim.x()} * reduced_dim.y() * reduced_dim.z() * slices;
+
+        for(int i=0; i < 10; i++)
+        {
+            Guv_block.emplace_back(ctx);
+            Guv_block[i].alloc(mem_size);
+            Guv_block[i].set_to_zero(cqueue);
+        }
+
+        if(!use_matter)
+            return;
+
+        density_block.alloc(mem_size);
+        energy_block.alloc(mem_size);
+
+        if(use_colour)
+        {
+            for(int i=0; i < 3; i++)
+                colour_block.emplace_back(ctx);
+
+            for(auto& i : colour_block)
+                i.alloc(mem_size);
+        }
+
+        for(int i=0; i < 3; i++)
+            u_block.emplace_back(ctx);
+
+        for(auto& i : u_block)
+            i.alloc(mem_size);
+    }
+
+    void deallocate()
+    {
+        Guv_block.clear();
+
+        colour_block.clear();
+        density_block.alloc(0);
+        energy_block.alloc(0);
+        u_block.clear();
+    }
+
     ///shower thought: could use a circular buffer here
     void capture_snapshots(cl::context ctx, cl::command_queue cqueue, float dt, mesh& m)
     {
         if(!capture_4slices)
         {
-            for(int i=0; i < 10; i++)
-                Guv_block[i] = cl::buffer(ctx);
-
+            deallocate();
             return;
         }
 
-        int slices = 120;
-
         if(captured_slices == 0)
-        {
-            for(int i=0; i < 10; i++)
-                Guv_block.emplace_back(ctx);
-
-            for(auto& i : Guv_block)
-            {
-                uint64_t array_size = sizeof(block_precision_t::interior_type) * int64_t{reduced_dim.x()} * reduced_dim.y() * reduced_dim.z();
-
-                i.alloc(array_size * slices);
-                i.set_to_zero(cqueue);
-            }
-        }
+            allocate(ctx, cqueue);
 
         elapsed_dt += dt;
 
@@ -1341,7 +1380,7 @@ int main()
 
     cqueue.block();
 
-    raytrace_manager rt_bssn(ctx, plugins, params.hydrodynamics_wants_colour());
+    raytrace_manager rt_bssn(ctx, plugins, params.hydrodynamics_wants_colour(), params.hydrodynamics_enabled());
 
     cl::image background = load_background(ctx, cqueue, "../common/esa.png");
 
