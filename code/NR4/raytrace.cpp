@@ -555,9 +555,13 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
             literal<valuef> universe_size,
             buffer<v4f> e0, buffer<v4f> e1, buffer<v4f> e2, buffer<v4f> e3,
             std::array<buffer<block_precision_t>, 10> Guv_buf,
+            std::array<buffer<valuef>, 4> velocity4_in,
+            buffer<valuef> density_in, buffer<valuef> energy_in,
+            std::array<buffer<valuef>, 3> colour_in,
             literal<valuef> last_time,
             literal<valuei> last_slice,
-            literal<valuef> slice_width)
+            literal<valuef> slice_width,
+            bool use_matter, bool use_colour)
 {
     using namespace single_source;
 
@@ -1121,7 +1125,7 @@ struct trace3_state
     v3f grid_position;
 };
 
-void build_raytrace_kernels(cl::context ctx, const std::vector<plugin*>& plugins, bool use_colour)
+void build_raytrace_kernels(cl::context ctx, const std::vector<plugin*>& plugins, bool use_matter, bool use_colour)
 {
     auto trace3 = [plugins, use_colour]
                   (execution_context& ectx, literal<v2i> screen_sizel,
@@ -1456,8 +1460,8 @@ void build_raytrace_kernels(cl::context ctx, const std::vector<plugin*>& plugins
         return value_impl::make_function(capture_matter_fields, "capture_matter_fields", plugins, use_colour);
     }, {"capture_matter_fields"});
 
-    cl::async_build_and_cache(ctx, []{
-        return value_impl::make_function(trace4x4, "trace4x4");
+    cl::async_build_and_cache(ctx, [=]{
+        return value_impl::make_function(trace4x4, "trace4x4", use_matter, use_colour);
     }, {"trace4x4"}, "-cl-fast-relaxed-math");
 
     cl::async_build_and_cache(ctx, []{
