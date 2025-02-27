@@ -60,7 +60,7 @@ struct adm_args_mem : virtual value_impl::single_source::argument_pack
     }
 
     ///velocity: upper indices, affine parameterised, spatial components
-    virtual v3f get_u(bssn_args& args, const derivative_data& d){return {};}
+    virtual v4f get_u(bssn_args& args, const derivative_data& d){return {};}
 
     virtual v3f get_colour(bssn_args& args, const derivative_data& d){return {};}
     virtual valuef adm_p(bssn_args& args, const derivative_data& d) {return valuef();};
@@ -128,9 +128,9 @@ struct all_adm_args_mem : value_impl::single_source::argument_pack
         return ret;
     }
 
-    std::vector<v3f> get_us(bssn_args& args, const derivative_data& d)
+    std::vector<v4f> get_us(bssn_args& args, const derivative_data& d)
     {
-        std::vector<v3f> ret;
+        std::vector<v4f> ret;
 
         for(auto& i : all_mem)
            ret.push_back(i->get_u(args, d));
