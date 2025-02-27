@@ -47,6 +47,21 @@ struct adm_args_mem : virtual value_impl::single_source::argument_pack
 {
     virtual void build(value_impl::type_storage& store){assert(false);}
 
+    ///rest mass
+    virtual valuef get_density(bssn_args& args, const derivative_data& d)
+    {
+        return adm_p(args, d);
+    }
+
+    ///rest energy
+    virtual valuef get_energy(bssn_args& args, const derivative_data& d)
+    {
+        return adm_p(args, d);
+    }
+
+    ///velocity: upper indices, affine parameterised, spatial components
+    virtual v3f get_u(bssn_args& args, const derivative_data& d){return {};}
+
     virtual v3f get_colour(bssn_args& args, const derivative_data& d){return {};}
     virtual valuef adm_p(bssn_args& args, const derivative_data& d) {return valuef();};
     virtual tensor<valuef, 3> adm_Si(bssn_args& args, const derivative_data& d) {return tensor<valuef, 3>();}
@@ -64,7 +79,66 @@ struct all_adm_args_mem : value_impl::single_source::argument_pack
             i->build(in);
     }
 
-    v3f get_colour(bssn_args& args, const derivative_data& d)
+    ///ok. So actually if we have multiple streams of
+    ///interacting fluid, its kind of non trivial
+    ///to construct these quantities. Density is easy, but
+    ///energy? Velocity? Am I sure that's valid?
+    ///I don't really want to construct a final effective fluid
+    ///because that involves more GR than I think is neccessarily good hmm
+    ///I do need summed density for raytracing occlusion, that's fine
+    ///want individual: colour, velocity, and energy for raytracing, so I can calculate
+    ///redshifted colours per-plugin, then sum them
+    valuef get_total_density(bssn_args& args, const derivative_data& d)
+    {
+        valuef ret;
+
+        for(auto& i : all_mem)
+            ret += i->get_density(args, d);
+
+        return ret;
+    }
+
+    std::vector<valuef> get_densities(bssn_args& args, const derivative_data& d)
+    {
+        std::vector<valuef> ret;
+
+        for(auto& i : all_mem)
+           ret.push_back(i->get_density(args, d));
+
+        return ret;
+    }
+
+    std::vector<valuef> get_energies(bssn_args& args, const derivative_data& d)
+    {
+        std::vector<valuef> ret;
+
+        for(auto& i : all_mem)
+           ret.push_back(i->get_energy(args, d));
+
+        return ret;
+    }
+
+    std::vector<v3f> get_colours(bssn_args& args, const derivative_data& d)
+    {
+        std::vector<v3f> ret;
+
+        for(auto& i : all_mem)
+           ret.push_back(i->get_colour(args, d));
+
+        return ret;
+    }
+
+    std::vector<v3f> get_us(bssn_args& args, const derivative_data& d)
+    {
+        std::vector<v3f> ret;
+
+        for(auto& i : all_mem)
+           ret.push_back(i->get_u(args, d));
+
+        return ret;
+    }
+
+    v3f get_total_colour(bssn_args& args, const derivative_data& d)
     {
         v3f col;
 
