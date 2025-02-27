@@ -6,6 +6,7 @@
 #include <string>
 #include <toolkit/opencl.hpp>
 #include "value_alias.hpp"
+#include "../common/single_source.hpp"
 
 struct mesh;
 struct thin_intermediates_pool;
@@ -53,10 +54,15 @@ struct adm_args_mem : virtual value_impl::single_source::argument_pack
         return adm_p(args, d);
     }
 
-    ///rest energy
+    ///rest energy density
     virtual valuef get_energy(bssn_args& args, const derivative_data& d)
     {
         return adm_p(args, d);
+    }
+
+    v4f get_4_momentum(bssn_args& args, const derivative_data& d)
+    {
+        return get_u(args, d) * get_density(args, d);
     }
 
     ///velocity: upper indices, affine parameterised, spatial components
@@ -88,55 +94,17 @@ struct all_adm_args_mem : value_impl::single_source::argument_pack
     ///I do need summed density for raytracing occlusion, that's fine
     ///want individual: colour, velocity, and energy for raytracing, so I can calculate
     ///redshifted colours per-plugin, then sum them
-    valuef get_total_density(bssn_args& args, const derivative_data& d)
-    {
-        valuef ret;
 
-        for(auto& i : all_mem)
-            ret += i->get_density(args, d);
+    ///haha! Turns out I'm screwed, because surprise it'd be too
+    ///memory intensive to store all plugin data. So gotta figure it out
+    ///maybe its just correct to density weight everything eh
 
-        return ret;
-    }
+    ///remember: energy is *specific* energy
 
-    std::vector<valuef> get_densities(bssn_args& args, const derivative_data& d)
-    {
-        std::vector<valuef> ret;
-
-        for(auto& i : all_mem)
-           ret.push_back(i->get_density(args, d));
-
-        return ret;
-    }
-
-    std::vector<valuef> get_energies(bssn_args& args, const derivative_data& d)
-    {
-        std::vector<valuef> ret;
-
-        for(auto& i : all_mem)
-           ret.push_back(i->get_energy(args, d));
-
-        return ret;
-    }
-
-    std::vector<v3f> get_colours(bssn_args& args, const derivative_data& d)
-    {
-        std::vector<v3f> ret;
-
-        for(auto& i : all_mem)
-           ret.push_back(i->get_colour(args, d));
-
-        return ret;
-    }
-
-    std::vector<v4f> get_us(bssn_args& args, const derivative_data& d)
-    {
-        std::vector<v4f> ret;
-
-        for(auto& i : all_mem)
-           ret.push_back(i->get_u(args, d));
-
-        return ret;
-    }
+    v4f get_u(bssn_args& args, const derivative_data& d);
+    v4f get_4_momentum(bssn_args& args, const derivative_data& d);
+    valuef get_density(bssn_args& args, const derivative_data& d);
+    valuef get_energy(bssn_args& args, const derivative_data& d);
 
     v3f get_total_colour(bssn_args& args, const derivative_data& d)
     {
