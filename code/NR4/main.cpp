@@ -682,10 +682,12 @@ struct raytrace_manager
     cl::buffer energy_block; ///emission
     std::vector<cl::buffer> u_block; //only spatial components
 
-    raytrace_manager(cl::context& ctx, const std::vector<plugin*>& plugins, bool _use_colour, bool _use_matter) : positions(ctx), velocities(ctx), results(ctx), texture_coordinates(ctx), zshifts(ctx), occlusion(ctx), gpu_position(ctx), tetrads{ctx, ctx, ctx, ctx}, energy_block(ctx), density_block(ctx)
+    raytrace_manager(cl::context& ctx, const std::vector<plugin*>& plugins,
+                     bool _use_colour, bool _use_matter, float _time_between_snapshots) : positions(ctx), velocities(ctx), results(ctx), texture_coordinates(ctx), zshifts(ctx), occlusion(ctx), gpu_position(ctx), tetrads{ctx, ctx, ctx, ctx}, energy_block(ctx), density_block(ctx)
     {
         use_colour = _use_colour;
         use_matter = _use_matter;
+        time_between_snapshots = _time_between_snapshots;
 
         build_raytrace_kernels(ctx, plugins, use_colour);
         build_raytrace_init_kernels(ctx);
@@ -1249,6 +1251,7 @@ initial_params get_initial_params()
 
     init.dim = {155, 155, 155};
     init.simulation_width = 80;
+    init.time_between_snapshots = 20;
 
     init.add(p1);
     init.add(p2);
@@ -1384,7 +1387,7 @@ int main()
 
     cqueue.block();
 
-    raytrace_manager rt_bssn(ctx, plugins, params.hydrodynamics_wants_colour(), params.hydrodynamics_enabled());
+    raytrace_manager rt_bssn(ctx, plugins, params.hydrodynamics_wants_colour(), params.hydrodynamics_enabled(), params.time_between_snapshots);
 
     cl::image background = load_background(ctx, cqueue, "../common/esa.png");
 
