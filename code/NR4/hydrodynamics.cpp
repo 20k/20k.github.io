@@ -278,12 +278,15 @@ valuef full_hydrodynamic_args<T>::get_energy(bssn_args& args, const derivative_d
 }
 
 template<typename T>
-v3f full_hydrodynamic_args<T>::get_u(bssn_args& args, const derivative_data& d)
+v4f full_hydrodynamic_args<T>::get_u(bssn_args& args, const derivative_data& d)
 {
     hydrodynamic_concrete hydro_args(d.pos, d.dim, *this);
 
-    ///nope, need to raise this!
-    return hydro_args.calculate_ui(args.gA, args.gB, args.W, args.cY);
+    v3f ui = hydro_args.calculate_ui(args.gA, args.gB, args.W, args.cY);
+
+    valuef u0 = safe_divide(hydro_args.w, hydro_args.p_star * args.gA);
+
+    return {u0, ui.x(), ui.y(), ui.z()};
 }
 
 template<typename T>
