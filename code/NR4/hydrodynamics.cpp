@@ -31,7 +31,7 @@ valuef calculate_epsilon(valuef p_star, valuef e_star, valuef W, valuef w)
     return pow(safe_divide(e_m6phi, w), Gamma - 1) * pow(e_star, Gamma) * pow(p_star, Gamma - 2);
 }
 
-valuef calculate_p0e(valuef W, valuef w, valuef p_star, valuef e_star)
+valuef calculate_p0e(valuef p_star, valuef e_star, valuef W, valuef w)
 {
     valuef e_m6phi = W*W*W;
     valuef Gamma = get_Gamma();
@@ -40,10 +40,26 @@ valuef calculate_p0e(valuef W, valuef w, valuef p_star, valuef e_star)
     return pow(max(e_star * e_m6phi * iv_au0, 0.f), Gamma);
 }
 
+valuef calculate_p0(valuef p_star, valuef W, valuef w)
+{
+    valuef iv_au0 = safe_divide(p_star, w);
+
+    //p* = p0 au0 e^6phi
+    //au0 = w / p*
+    ///p* / (w/p*) = p0 e^6phi
+    ///p* * p*/w = p0 e^6phi
+    ///p*^2/w = p0 e^6phi
+    ///p*^2/w e^-6phi = p0
+
+    valuef e_m6phi = W*W*W;
+
+    return safe_divide(p_star*p_star * e_m6phi, w);
+}
+
 valuef eos(valuef W, valuef w, valuef p_star, valuef e_star)
 {
     valuef Gamma = get_Gamma();
-    return calculate_p0e(W, w, p_star, e_star) * (Gamma - 1);
+    return calculate_p0e(p_star, e_star, W, w) * (Gamma - 1);
 }
 
 //todo: I may need to set vi to 0 here manually
@@ -58,6 +74,20 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
     v3f real_value = -gB + safe_divide(W*W * gA, w*h, 1e-6) * cY.invert().raise(Si);
 
     return ternary(p_star <= min_p_star, (v3f){}, real_value);
+}
+
+v3f calculate_ui(valuef p_star, valuef epsilon, v3f Si, valuef w, valuef gA, v3f gB, const unit_metric<valuef, 3, 3>& cY)
+{
+    valuef h = calculate_h_from_epsilon(epsilon);
+
+    v3f u_k;
+
+    for(int i=0; i < 3; i++)
+        u_k[i] = safe_divide(Si[i], h * p_star, 1e-6);
+
+    valuef u0 = safe_divide(w, p_star * gA);
+
+    return -gB * u0 + cY.invert().raise(u_k);
 }
 
 valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, const derivative_data& d, valuef total_elapsed, valuef linear_damping_timescale)
@@ -143,7 +173,12 @@ struct hydrodynamic_concrete
 
     valuef calculate_p0e(valuef W)
     {
-        return ::calculate_p0e(W, w, p_star, e_star);
+        return ::calculate_p0e(p_star, e_star, W, w);
+    }
+
+    valuef calculate_p0(valuef W)
+    {
+        return ::calculate_p0(p_star, W, w);
     }
 
     valuef eos(valuef W)
@@ -156,6 +191,13 @@ struct hydrodynamic_concrete
         valuef epsilon = calculate_epsilon(W);
 
         return ::calculate_vi(gA, gB, W, w, epsilon, Si, cY, p_star);
+    }
+
+    v3f calculate_ui(valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
+    {
+        valuef epsilon = calculate_epsilon(W);
+
+        return ::calculate_ui(p_star, epsilon, Si, w, gA, gB, cY);
     }
 
     ///rhs here to specifically indicate that we're returning -(di Vec v^i), ie the negative
@@ -219,7 +261,31 @@ struct hydrodynamic_concrete
     }
 };
 
-///it might be because i'm using hydro_args.eos instead of P
+template<typename T>
+valuef full_hydrodynamic_args<T>::get_density(bssn_args& args, const derivative_data& d)
+{
+    hydrodynamic_concrete hydro_args(d.pos, d.dim, *this);
+
+    return hydro_args.calculate_p0(args.W);
+}
+
+template<typename T>
+valuef full_hydrodynamic_args<T>::get_energy(bssn_args& args, const derivative_data& d)
+{
+    hydrodynamic_concrete hydro_args(d.pos, d.dim, *this);
+
+    return hydro_args.calculate_epsilon(args.W);
+}
+
+template<typename T>
+v3f full_hydrodynamic_args<T>::get_u(bssn_args& args, const derivative_data& d)
+{
+    hydrodynamic_concrete hydro_args(d.pos, d.dim, *this);
+
+    ///nope, need to raise this!
+    return hydro_args.calculate_ui(args.gA, args.gB, args.W, args.cY);
+}
+
 template<typename T>
 v3f full_hydrodynamic_args<T>::get_colour(bssn_args& args, const derivative_data& d)
 {
@@ -229,7 +295,6 @@ v3f full_hydrodynamic_args<T>::get_colour(bssn_args& args, const derivative_data
     return {this->colour[0][pos, dim], this->colour[1][pos, dim], this->colour[2][pos, dim]};
 }
 
-///it might be because i'm using hydro_args.eos instead of P
 template<typename T>
 valuef full_hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& d)
 {
