@@ -1453,6 +1453,10 @@ void build_raytrace_kernels(cl::context ctx, const std::vector<plugin*>& plugins
         return value_impl::make_function(bssn_to_guv, "bssn_to_guv");
     }, {"bssn_to_guv"});
 
+    cl::async_build_and_cache(ctx, [=]{
+        return value_impl::make_function(capture_matter_fields, "capture_matter_fields", plugins, use_colour);
+    }, {"capture_matter_fields"});
+
     cl::async_build_and_cache(ctx, []{
         return value_impl::make_function(trace4x4, "trace4x4");
     }, {"trace4x4"}, "-cl-fast-relaxed-math");
