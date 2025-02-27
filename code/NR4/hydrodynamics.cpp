@@ -278,7 +278,7 @@ valuef full_hydrodynamic_args<T>::get_energy(bssn_args& args, const derivative_d
 }
 
 template<typename T>
-v4f full_hydrodynamic_args<T>::get_u(bssn_args& args, const derivative_data& d)
+v4f full_hydrodynamic_args<T>::get_4_velocity(bssn_args& args, const derivative_data& d)
 {
     hydrodynamic_concrete hydro_args(d.pos, d.dim, *this);
 

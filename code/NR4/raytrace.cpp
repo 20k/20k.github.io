@@ -443,6 +443,99 @@ void bssn_to_guv(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> l
     }
 }
 
+void capture_matter_fields(execution_context& ectx, literal<v3i> upper_dim, literal<v3i> lower_dim,
+                           literal<valuef> scale,
+                           bssn_args_mem<buffer<valuef>> in,
+                           literal<value<uint64_t>> slice,
+                           std::array<buffer_mut<valuef>, 4> velocity4,
+                           buffer_mut<valuef> density, buffer_mut<valuef> energy,
+                           std::array<buffer_mut<valuef>, 3> colour_opt,
+                           value_impl::builder::placeholder plugin_ph,
+                           std::vector<plugin*> plugins, bool capture_colour)
+{
+    all_adm_args_mem plugin_data = make_arg_provider(plugins);
+    plugin_ph.add(plugin_data);
+
+    using namespace single_source;
+
+    valuei x = value_impl::get_global_id(0);
+    valuei y = value_impl::get_global_id(1);
+    valuei z = value_impl::get_global_id(2);
+
+    pin(x);
+    pin(y);
+    pin(z);
+
+    if_e(x >= lower_dim.get().x() || y >= lower_dim.get().y() || z >= lower_dim.get().z(), [&]{
+        return_e();
+    });
+
+    v3i pos_lo = {x, y, z};
+
+    //builds the 4-metric from the bssn variables
+    auto get_metric = [&](v3i posu)
+    {
+        bssn_args args(posu, upper_dim.get(), in);
+
+        metric<valuef, 3, 3> Yij = args.cY / max(args.W * args.W, valuef(0.0001f));
+        metric<valuef, 4, 4> met = calculate_real_metric(Yij, args.gA, args.gB);
+        pin(met);
+
+        return met;
+    };
+
+    #define QUANTITY_GETTER(func) \
+    auto func = [&](v3i posu) \
+    { \
+        bssn_args args(posu, upper_dim.get(), in); \
+        derivative_data d; \
+        d.pos = posu; \
+        d.dim = upper_dim.get(); \
+        d.scale = scale.get(); \
+        \
+        return plugin_data.func(args, d); \
+    };
+
+    QUANTITY_GETTER(get_density);
+    QUANTITY_GETTER(get_energy);
+    QUANTITY_GETTER(get_4_velocity);
+    QUANTITY_GETTER(get_colour);
+
+    #undef QUANTITY_GETTER
+
+    v3i centre_lo = (lower_dim.get() - 1)/2;
+    v3i centre_hi = (upper_dim.get() - 1)/2;
+
+    //calculating the scaling factor, to convert from the smaller mesh's coordinate system to the larger mesh
+    valuef to_upper = (valuef)centre_hi.x() / (valuef)centre_lo.x();
+
+    //larger mesh coordinate
+    v3f f_upper = (v3f)pos_lo * to_upper;
+
+    tensor<value<uint64_t>, 3> p = (tensor<value<uint64_t>, 3>)pos_lo;
+    tensor<value<uint64_t>, 3> d = (tensor<value<uint64_t>, 3>)lower_dim.get();
+
+    value<uint64_t> lidx = p.z() * d.x() * d.y() + p.y() * d.x() + p.x() + slice.get() * d.x() * d.y() * d.z();
+
+    valuef density_out = function_trilinear(get_density, f_upper);
+    valuef energy_out = function_trilinear(get_energy, f_upper);
+    v4f velocity_out = function_trilinear(get_4_velocity, f_upper);
+
+    as_ref(density[lidx]) = density_out;
+    as_ref(energy[lidx]) = energy_out;
+
+    for(int i=0; i < 4; i++)
+        as_ref(velocity4[i][lidx]) = velocity_out[i];
+
+    if(capture_colour)
+    {
+        v3f colour_out = function_trilinear(get_colour, f_upper);
+
+        for(int i=0; i < 3; i++)
+            as_ref(colour_opt[i][lidx]) = colour_out[i];
+    }
+}
+
 valuef acceleration_to_precision(v4f acceleration, valuef max_acceleration)
 {
     valuef diff = acceleration.length() * 0.01f;
@@ -1273,7 +1366,7 @@ void build_raytrace_kernels(cl::context ctx, const std::vector<plugin*>& plugins
 
                     bssn_args args = bssn_at(pos, dim.get(), in);
 
-                    v3f c = plugin_data.get_total_colour(args, d);
+                    v3f c = plugin_data.get_colour(args, d);
                     pin(c);
 
                     return c;

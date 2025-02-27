@@ -62,11 +62,11 @@ struct adm_args_mem : virtual value_impl::single_source::argument_pack
 
     v4f get_4_momentum(bssn_args& args, const derivative_data& d)
     {
-        return get_u(args, d) * get_density(args, d);
+        return get_4_velocity(args, d) * get_density(args, d);
     }
 
     ///velocity: upper indices, affine parameterised, spatial components
-    virtual v4f get_u(bssn_args& args, const derivative_data& d){return {};}
+    virtual v4f get_4_velocity(bssn_args& args, const derivative_data& d){return {};}
 
     virtual v3f get_colour(bssn_args& args, const derivative_data& d){return {};}
     virtual valuef adm_p(bssn_args& args, const derivative_data& d) {return valuef();};
@@ -101,12 +101,12 @@ struct all_adm_args_mem : value_impl::single_source::argument_pack
 
     ///remember: energy is *specific* energy
 
-    v4f get_u(bssn_args& args, const derivative_data& d);
+    v4f get_4_velocity(bssn_args& args, const derivative_data& d);
     v4f get_4_momentum(bssn_args& args, const derivative_data& d);
     valuef get_density(bssn_args& args, const derivative_data& d);
     valuef get_energy(bssn_args& args, const derivative_data& d);
 
-    v3f get_total_colour(bssn_args& args, const derivative_data& d)
+    v3f get_colour(bssn_args& args, const derivative_data& d)
     {
         v3f col;
 

@@ -61,7 +61,7 @@ struct full_hydrodynamic_args : adm_args_mem, hydrodynamic_base_args<T>, hydrody
 
     virtual valuef get_density(bssn_args& args, const derivative_data& d) override;
     virtual valuef get_energy(bssn_args& args, const derivative_data& d) override;
-    virtual v4f get_u(bssn_args& args, const derivative_data& d) override;
+    virtual v4f get_4_velocity(bssn_args& args, const derivative_data& d) override;
 
     virtual v3f get_colour(bssn_args& args, const derivative_data& d) override;
     virtual valuef adm_p(bssn_args& args, const derivative_data& d) override;
