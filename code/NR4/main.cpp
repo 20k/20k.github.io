@@ -651,6 +651,8 @@ float get_timestep(float simulation_width, t3i size)
 
 struct raytrace_manager
 {
+    std::vector<plugin*> plugins;
+
     cl::buffer positions;
     cl::buffer velocities;
     cl::buffer results;
@@ -682,9 +684,10 @@ struct raytrace_manager
     cl::buffer energy_block; ///emission
     std::vector<cl::buffer> u_block; //only spatial components
 
-    raytrace_manager(cl::context& ctx, const std::vector<plugin*>& plugins,
+    raytrace_manager(cl::context& ctx, const std::vector<plugin*>& _plugins,
                      bool _use_colour, bool _use_matter, float _time_between_snapshots) : positions(ctx), velocities(ctx), results(ctx), texture_coordinates(ctx), zshifts(ctx), occlusion(ctx), gpu_position(ctx), tetrads{ctx, ctx, ctx, ctx}, energy_block(ctx), density_block(ctx)
     {
+        plugins = _plugins;
         use_colour = _use_colour;
         use_matter = _use_matter;
         time_between_snapshots = _time_between_snapshots;

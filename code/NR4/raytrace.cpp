@@ -1273,7 +1273,7 @@ void build_raytrace_kernels(cl::context ctx, const std::vector<plugin*>& plugins
 
                     bssn_args args = bssn_at(pos, dim.get(), in);
 
-                    v3f c = plugin_data.get_colour(args, d);
+                    v3f c = plugin_data.get_total_colour(args, d);
                     pin(c);
 
                     return c;
