@@ -550,6 +550,7 @@ struct trace4_state
 void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
             buffer_mut<v4f> positions, buffer_mut<v4f> velocities,
             buffer_mut<valuei> results, buffer_mut<valuef> zshift,
+            buffer_mut<v4f> matter_colour,
             literal<v3i> dim,
             literal<valuef> scale,
             literal<valuef> universe_size,
@@ -602,6 +603,8 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
                          clamp(grid_t, valuef(1), (valuef)last_slice.get() - 3),
                          grid_t);
 
+        grid_t = clamp(grid_t, valuef(0.f), (valuef)last_slice.get() - 1);
+
         grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
         pin(grid_position);
 
@@ -609,23 +612,64 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
         return grid_fpos;
     };
 
+    auto get_index = [&](v4i pos)
+    {
+        tensor<value<uint64_t>, 3> p = (tensor<value<uint64_t>, 3>)pos.yzw();
+        tensor<value<uint64_t>, 3> d = (tensor<value<uint64_t>, 3>)dim.get();
+
+        value<uint64_t> idx = ((value<uint64_t>)pos.x()) * d.x() * d.y() * d.z() + p.z() * d.x() * d.y() + p.y() * d.x() + p.x();
+
+        return idx;
+    };
+
     auto get_dX = [&](v4f position, v4f velocity, trace4_state st) {
         return velocity;
     };
 
+    auto get_Guvb = [&](v4i pos) {
+        auto v = Guv_at(pos, dim.get(), Guv_buf, last_slice.get());
+        pin(v);
+        return v;
+    };
+
+    auto get_velocity = [&](v4i pos)
+    {
+        auto idx = get_index(pos);
+        v4f out = (v4f){velocity4_in[0][idx], velocity4_in[1][idx], velocity4_in[2][idx], velocity4_in[3][idx]};
+        pin(out);
+        return out;
+    };
+
+    auto get_energy = [&](v4i pos)
+    {
+        auto idx = get_index(pos);
+        valuef en = (valuef)energy_in[idx];
+        pin(en);
+        return en;
+    };
+
+    auto get_density = [&](v4i pos)
+    {
+        auto idx = get_index(pos);
+        valuef den = (valuef)density_in[idx];
+        pin(den);
+        return den;
+    };
+
+    auto get_colour = [&](v4i pos)
+    {
+        auto idx = get_index(pos);
+        v3f col = (v3f){colour_in[0][idx], colour_in[1][idx], colour_in[2][idx]};
+        pin(col);
+        return col;
+    };
+
+    auto get_guv_at = [&](v4f fpos) {
+        return function_quadlinear(get_Guvb, fpos);
+    };
+
     auto get_dV = [&](v4f position, v4f velocity, trace4_state st) {
         v4f grid_fpos = world_to_grid4(position);
-
-        auto get_Guvb = [&](v4i pos) {
-            auto v = Guv_at(pos, dim.get(), Guv_buf, last_slice.get());
-            pin(v);
-            return v;
-        };
-
-        auto get_guv_at = [&](v4f fpos) {
-            return function_quadlinear(get_Guvb, fpos);
-        };
-
         auto Guv = get_guv_at(grid_fpos);
 
         tensor<valuef, 4, 4, 4> dGuv;
@@ -710,18 +754,94 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
         return v;
     };
 
+    auto position_to_metric = [&](v4f fpos)
+    {
+        auto val = function_quadlinear(get_Guvb, world_to_grid4(fpos));
+        pin(val);
+        return val;
+    };
+
     verlet_context<valuef, 4> ctx;
     ctx.start(pos_in, vel_in, get_dX, get_dV, get_dS, get_state);
 
     mut<valuei> result = declare_mut_e(valuei(2));
     mut<valuei> idx = declare_mut_e("i", valuei(0));
+    mut<valuef> intensity = declare_mut_e(valuef(0)); //affine parameter
+    mut<valuef> tau = declare_mut_e(valuef(0)); //affine parameter
+    mut_v3f colour_acc = declare_mut_e(v3f{0,0,0});
+
+    valuef ku_uobsu = 0;
+
+    {
+        metric<valuef, 4, 4> met = position_to_metric(pos_in);
+        pin(met);
+
+        ku_uobsu = met.dot(vel_in, e0[0]);
+    }
 
     for_e(idx < 512, assign_b(idx, idx + 1), [&]
     {
         ctx.next(get_dX, get_dV, get_dS, get_state, velocity_process);
 
+        valuef ds = declare_e(ctx.ds_m);
+
         v4f cposition = as_constant(ctx.position);
         v4f cvelocity = as_constant(ctx.velocity);
+
+        if(use_matter)
+        {
+            v4f grid_fpos = world_to_grid4(cposition);
+
+            metric<valuef, 4, 4> met = get_guv_at(grid_fpos);
+            pin(met);
+
+            v4f thing_velocity = function_quadlinear(get_velocity, grid_fpos);
+
+            valuef local_energy_density = function_quadlinear(get_energy, grid_fpos);
+            valuef local_density = function_quadlinear(get_density, grid_fpos) * 100;
+
+            v3f colour;
+
+            if(use_colour)
+            {
+                //so. For physical accuracy reasons, colour is actually p*, so it follows the correct advection
+                //todo: however, I am assuming that brightness is proportional to e0. hmm. i may need to modify my definition of colour
+                //so that its transformed to rest mass density units
+                colour = function_quadlinear(get_colour, grid_fpos) * 100;
+                //colour = function_quadlinear(get_colour, grid_fpos) * 100 * local_energy_density / max(local_density, 1e-6f);
+            }
+            else
+                colour = {local_energy_density, local_energy_density, local_energy_density};
+
+            valuef ka_ua = met.dot(cvelocity, thing_velocity);
+
+            ///also zp1
+            valuef igamma = ka_ua / ku_uobsu;
+
+            float opacity_mult = 1000;
+
+            valuef dTau_dLambda = igamma * local_density * opacity_mult;
+
+            float energy_mult = 100;
+
+            valuef emission = local_energy_density * local_density * energy_mult;
+
+            ///so. dI_dLambda * dLambda = dI, ie the amount of intensity change
+            ///this represents the amount of nabbed colour from our object
+            valuef dI_dLambda = igamma * emission * exp(-tau);
+
+            valuef dI = dI_dLambda * ds;
+
+            ///todo: I don't know if I need to drop the igamma term from dI_dLambda here
+            v3f redshifted_colour = redshift(colour, igamma - 1);
+
+            as_ref(tau) += dTau_dLambda * ds;
+            as_ref(intensity) += dI_dLambda * ds;
+            as_ref(colour_acc) += dI * redshifted_colour;
+
+            ///so, we have emission, which is total energy per unit time per area
+            ///what this paper wants is spectral radiance, which is energy per
+        }
 
         valuef radius_sq = dot(cposition.yzw(), cposition.yzw());
 
@@ -743,26 +863,26 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
     v4f final_position = declare_e(ctx.position);
     v4f final_velocity = declare_e(ctx.velocity);
 
-    auto get_Guvb = [&](v4i pos)
-    {
-        auto val = Guv_at(pos, dim.get(), Guv_buf, last_slice.get());
-        pin(val);
-        return val;
-    };
-
-    auto position_to_metric = [&](v4f fpos)
-    {
-        auto val = function_quadlinear(get_Guvb, world_to_grid4(fpos));
-        pin(val);
-        return val;
-    };
-
     valuef zp1 = get_zp1(pos_in, vel_in, e0[0], final_position, final_velocity, (v4f){1, 0, 0, 0}, position_to_metric);
 
     as_ref(results[screen_position, screen_size]) = as_constant(result);
     as_ref(zshift[screen_position, screen_size]) = zp1 - 1;
     as_ref(positions[screen_position, screen_size]) = final_position;
     as_ref(velocities[screen_position, screen_size]) = final_velocity;
+
+    if(use_matter)
+    {
+        v3f fin_colour = declare_e(colour_acc);
+        valuef final_tau = declare_e(tau);
+
+        valuef occ = 1 - exp(-final_tau);
+
+        as_ref(matter_colour[screen_position, screen_size]) = (v4f){fin_colour.x(),fin_colour.y(),fin_colour.z(),occ};
+    }
+    else
+    {
+        as_ref(matter_colour[screen_position, screen_size]) = (v4f){0,0,0,0};
+    }
 }
 
 void calculate_texture_coordinates(execution_context& ectx, literal<v2i> screen_sizel,

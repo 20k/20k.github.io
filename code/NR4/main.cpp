@@ -669,7 +669,7 @@ struct raytrace_manager
 
     cl::buffer texture_coordinates;
     cl::buffer zshifts;
-    cl::buffer occlusion;
+    cl::buffer matter_colours;
 
     cl::buffer gpu_position;
 
@@ -685,7 +685,7 @@ struct raytrace_manager
     std::vector<cl::buffer> velocity_block; //only spatial components
 
     raytrace_manager(cl::context& ctx, const std::vector<plugin*>& _plugins,
-                     bool _use_colour, bool _use_matter, float _time_between_snapshots) : positions(ctx), velocities(ctx), results(ctx), texture_coordinates(ctx), zshifts(ctx), occlusion(ctx), gpu_position(ctx), tetrads{ctx, ctx, ctx, ctx}, energy_block(ctx), density_block(ctx)
+                     bool _use_colour, bool _use_matter, float _time_between_snapshots) : positions(ctx), velocities(ctx), results(ctx), texture_coordinates(ctx), zshifts(ctx), matter_colours(ctx), gpu_position(ctx), tetrads{ctx, ctx, ctx, ctx}, energy_block(ctx), density_block(ctx)
     {
         plugins = _plugins;
         use_colour = _use_colour;
@@ -836,7 +836,7 @@ struct raytrace_manager
         results.alloc(width * height * sizeof(cl_int));
         texture_coordinates.alloc(width * height * sizeof(cl_float2));
         zshifts.alloc(width * height * sizeof(cl_float));
-        occlusion.alloc(width * height * sizeof(cl_float4));
+        matter_colours.alloc(width * height * sizeof(cl_float4));
     }
 
     void render3(cl::command_queue& cqueue, tensor<float, 4> camera_pos, quat camera_quat, cl::image& background, cl::gl_rendertexture& screen_tex, float simulation_width, float simulation_extra_width, mesh& m,
@@ -848,7 +848,7 @@ struct raytrace_manager
 
         texture_coordinates.set_to_zero(cqueue);
         zshifts.set_to_zero(cqueue);
-        occlusion.set_to_zero(cqueue);
+        matter_colours.set_to_zero(cqueue);
 
         int buf = m.valid_derivative_buffer;
 
@@ -886,7 +886,7 @@ struct raytrace_manager
             cl::args args;
             args.push_back(screen_size);
             args.push_back(camera_quat.q);
-            args.push_back(positions, velocities, results, zshifts, occlusion);
+            args.push_back(positions, velocities, results, zshifts, matter_colours);
             args.push_back(m.dim);
             args.push_back(full_scale);
             args.push_back(simulation_extra_width * simulation_width/2.f);
@@ -920,7 +920,7 @@ struct raytrace_manager
 
         texture_coordinates.set_to_zero(cqueue);
         zshifts.set_to_zero(cqueue);
-        occlusion.set_to_zero(cqueue);
+        matter_colours.set_to_zero(cqueue);
 
         {
             cl_float3 vel = {0,0,0};
@@ -958,7 +958,7 @@ struct raytrace_manager
 
         cl::args args;
         args.push_back(screen_size);
-        args.push_back(positions, velocities, results, zshifts);
+        args.push_back(positions, velocities, results, zshifts, matter_colours);
         args.push_back(reduced_dim);
         args.push_back(reduced_scale);
         args.push_back(simulation_width/2.f);
@@ -1002,7 +1002,7 @@ struct raytrace_manager
 
         cl::args args2;
         args2.push_back(screen_size);
-        args2.push_back(positions, velocities, results, zshifts, occlusion);
+        args2.push_back(positions, velocities, results, zshifts, matter_colours);
         args2.push_back(texture_coordinates);
         args2.push_back(background, screen_tex);
         args2.push_back(background_size);

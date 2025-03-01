@@ -68,6 +68,7 @@ struct adm_args_mem : virtual value_impl::single_source::argument_pack
     ///velocity: upper indices, affine parameterised, spatial components
     virtual v4f get_4_velocity(bssn_args& args, const derivative_data& d){return {};}
 
+    //todo: needs to be transformed into units of.. rest mass? energy? brightness? help
     virtual v3f get_colour(bssn_args& args, const derivative_data& d){return {};}
     virtual valuef adm_p(bssn_args& args, const derivative_data& d) {return valuef();};
     virtual tensor<valuef, 3> adm_Si(bssn_args& args, const derivative_data& d) {return tensor<valuef, 3>();}
