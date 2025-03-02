@@ -724,11 +724,11 @@ struct raytrace_manager
         density_block.set_to_zero(cqueue);
         energy_block.set_to_zero(cqueue);
 
+        for(int i=0; i < 3; i++)
+            colour_block.emplace_back(ctx);
+
         if(use_colour)
         {
-            for(int i=0; i < 3; i++)
-                colour_block.emplace_back(ctx);
-
             for(auto& i : colour_block)
             {
                 i.alloc(mem_size);
@@ -904,7 +904,7 @@ struct raytrace_manager
         blit(cqueue, background, screen_tex, simulation_extra_width * simulation_width);
     }
 
-    void render4(cl::command_queue& cqueue, tensor<float, 4> camera_pos, quat camera_quat, cl::image& background, cl::gl_rendertexture& screen_tex, float simulation_width, mesh& m,
+    void render4(cl::command_queue& cqueue, tensor<float, 4> camera_pos, quat camera_quat, cl::image& background, cl::gl_rendertexture& screen_tex, float simulation_width, float simulation_extra_width, mesh& m,
                  bool lock_camera_to_slider, bool progress_camera_time)
     {
         if(Guv_block.size() == 0)
@@ -961,7 +961,7 @@ struct raytrace_manager
         args.push_back(positions, velocities, results, zshifts, matter_colours);
         args.push_back(reduced_dim);
         args.push_back(reduced_scale);
-        args.push_back(simulation_width/2.f);
+        args.push_back(simulation_extra_width * simulation_width/2.f);
         args.push_back(tetrads[0], tetrads[1], tetrads[2], tetrads[3]);
 
         for(auto& i : Guv_block)
@@ -982,7 +982,7 @@ struct raytrace_manager
 
         cqueue.exec("trace4x4", args, {screen_size.x(), screen_size.y()}, {8, 8});
 
-        blit(cqueue, background, screen_tex, simulation_width);
+        blit(cqueue, background, screen_tex, simulation_extra_width * simulation_width);
     }
 
     void blit(cl::command_queue& cqueue, cl::image background, cl::gl_rendertexture& screen_tex, float simulation_width)
@@ -1282,7 +1282,7 @@ initial_params get_initial_params()
     #ifdef TURBO_DETONATE
     neutron_star::parameters p1;
 
-    p1.colour = {1, 0, 0};
+    //p1.colour = {1, 0, 0};
     p1.position = {-15, 0, 0};
     p1.linear_momentum.momentum = {0, -0.25f, 0};
     p1.K.msols = 123.6;
@@ -1290,7 +1290,7 @@ initial_params get_initial_params()
 
     neutron_star::parameters p2;
 
-    p2.colour = {0, 0, 1};
+    //p2.colour = {0, 0, 1};
     p2.position = {15, 0, 0};
     p2.linear_momentum.momentum = {0, 0.25f, 0};
     p2.K.msols = 123.6;
@@ -1643,8 +1643,8 @@ int main()
             if(render && (render_frame_idx % render_skipping) == 0)
                 rt_bssn.render3(cqueue, camera4, camera_quat, background, screen_tex, simulation_width, render_size_scale, m, lock_camera_to_slider, progress_camera_time);
 
-            if(render2)
-                rt_bssn.render4(cqueue, camera4, camera_quat, background, screen_tex, simulation_width, m, lock_camera_to_slider, progress_camera_time);
+            if(render2 && (render_frame_idx % render_skipping) == 0)
+                rt_bssn.render4(cqueue, camera4, camera_quat, background, screen_tex, simulation_width, render_size_scale, m, lock_camera_to_slider, progress_camera_time);
         }
 
         if(debug_render)
