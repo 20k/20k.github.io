@@ -295,7 +295,9 @@ v3f full_hydrodynamic_args<T>::get_colour(bssn_args& args, const derivative_data
     v3i pos = d.pos;
     v3i dim = d.dim;
 
-    return {this->colour[0][pos, dim], this->colour[1][pos, dim], this->colour[2][pos, dim]};
+    v3f raw_colour = {this->colour[0][pos, dim], this->colour[1][pos, dim], this->colour[2][pos, dim]};
+
+    return raw_colour / max(this->p_star[pos, dim], 1e-6f);
 }
 
 template<typename T>

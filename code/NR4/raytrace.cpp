@@ -169,18 +169,9 @@ valuef energy_of(v3f v)
     return v.x()*0.2125f + v.y()*0.7154f + v.z()*0.0721f;
 }
 
-v3f redshift(v3f v, valuef z)
+v3f redshift_without_intensity(v3f v, valuef z)
 {
     using namespace single_source;
-
-    {
-        valuef iemit = energy_of(v);
-        valuef iobs = iemit / pow(z+1, 4.f);
-
-        v = (iobs / iemit) * v;
-
-        pin(v);
-    }
 
     valuef radiant_energy = energy_of(v);
 
@@ -218,6 +209,22 @@ v3f redshift(v3f v, valuef z)
     as_ref(result) = clamp(result, 0.f, 1.f);
 
     return declare_e(result);
+}
+
+v3f redshift(v3f v, valuef z)
+{
+    using namespace single_source;
+
+    {
+        valuef iemit = energy_of(v);
+        valuef iobs = iemit / pow(z+1, 4.f);
+
+        v = (iobs / iemit) * v;
+
+        pin(v);
+    }
+
+    return redshift_without_intensity(v, z);
 }
 
 template<typename T>
@@ -605,6 +612,8 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
 
         grid_t = clamp(grid_t, valuef(0.f), (valuef)last_slice.get() - 1);
 
+        pin(grid_t);
+
         grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
         pin(grid_position);
 
@@ -777,6 +786,7 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
         pin(met);
 
         ku_uobsu = met.dot(vel_in, e0[0]);
+        pin(ku_uobsu);
     }
 
     for_e(idx < 512, assign_b(idx, idx + 1), [&]
@@ -796,9 +806,12 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
             pin(met);
 
             v4f thing_velocity = function_quadlinear(get_velocity, grid_fpos);
+            pin(thing_velocity);
 
             valuef local_energy_density = function_quadlinear(get_energy, grid_fpos);
-            valuef local_density = function_quadlinear(get_density, grid_fpos) * 100;
+            pin(local_energy_density);
+            valuef local_density = function_quadlinear(get_density, grid_fpos);
+            pin(local_density);
 
             v3f colour;
 
@@ -807,24 +820,34 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
                 //so. For physical accuracy reasons, colour is actually p*, so it follows the correct advection
                 //todo: however, I am assuming that brightness is proportional to e0. hmm. i may need to modify my definition of colour
                 //so that its transformed to rest mass density units
-                colour = function_quadlinear(get_colour, grid_fpos) * 100;
+                colour = function_quadlinear(get_colour, grid_fpos) * 1;
                 //colour = function_quadlinear(get_colour, grid_fpos) * 100 * local_energy_density / max(local_density, 1e-6f);
+
+                pin(colour);
             }
             else
-                colour = {local_energy_density, local_energy_density, local_energy_density};
+                colour = {1, 1, 1};
+
+            pin(colour);
 
             valuef ka_ua = met.dot(cvelocity, thing_velocity);
+            pin(ka_ua);
 
             ///also zp1
             valuef igamma = ka_ua / ku_uobsu;
 
             float opacity_mult = 1000;
 
-            valuef dTau_dLambda = igamma * local_density * opacity_mult;
+            valuef dTau_dLambda = igamma *  local_density * opacity_mult;
 
-            float energy_mult = 100;
+            float energy_mult = 10000;
 
-            valuef emission = local_energy_density * local_density * energy_mult;
+            //valuef total_energy = local_energy_density * local_density;
+            //valuef compared_to_density = total_energy / local_density;
+
+            valuef power = local_energy_density * local_density;
+
+            valuef emission = power * energy_mult;
 
             ///so. dI_dLambda * dLambda = dI, ie the amount of intensity change
             ///this represents the amount of nabbed colour from our object
@@ -832,8 +855,12 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
 
             valuef dI = dI_dLambda * ds;
 
+            colour = clamp(colour, 0.f, 1.f);
+
             ///todo: I don't know if I need to drop the igamma term from dI_dLambda here
-            v3f redshifted_colour = redshift(colour, igamma - 1);
+            v3f redshifted_colour = redshift_without_intensity(colour, igamma - 1);
+
+            pin(redshifted_colour);
 
             as_ref(tau) += dTau_dLambda * ds;
             as_ref(intensity) += dI_dLambda * ds;
@@ -1478,6 +1505,23 @@ void build_raytrace_kernels(cl::context ctx, const std::vector<plugin*>& plugins
             v3f colour = {0,0,0};
             valuef density = 0.f;
 
+            auto get_rho = [&](v3i pos)
+            {
+                derivative_data d;
+                d.pos = pos;
+                d.dim = dim.get();
+                d.scale = scale.get();
+
+                bssn_args args = bssn_at(pos, dim.get(), in);
+
+                valuef p = plugin_data.adm_p(args, d);
+                pin(p);
+
+                return p;
+            };
+
+            valuef rho = function_trilinear(get_rho, grid_position);
+
             if(use_colour)
             {
                 auto get_col = [&](v3i pos)
@@ -1495,34 +1539,15 @@ void build_raytrace_kernels(cl::context ctx, const std::vector<plugin*>& plugins
                     return c;
                 };
 
-                colour = function_trilinear(get_col, grid_position) * 1000;
-                density = colour.length();
+                colour = function_trilinear(get_col, grid_position) * 1;
             }
             else
             {
-                auto get_rho = [&](v3i pos)
-                {
-                    derivative_data d;
-                    d.pos = pos;
-                    d.dim = dim.get();
-                    d.scale = scale.get();
 
-                    bssn_args args = bssn_at(pos, dim.get(), in);
-
-                    valuef p = plugin_data.adm_p(args, d);
-                    pin(p);
-
-                    return p;
-                };
-
-                valuef rho = function_trilinear(get_rho, grid_position);
-
-                colour = {rho, rho, rho};
-                colour = fabs(colour);
-                colour = colour * 1000;
-
-                density = rho * 1000;;
+                colour = {1, 1, 1};
             }
+
+            density = rho * 1000;
 
             /*if_e(screen_position.x() == screen_size.x()/2 && screen_position.y() == screen_size.y()/2, [&]{
                 valuef S = function_trilinear(get_dbg, grid_position);
