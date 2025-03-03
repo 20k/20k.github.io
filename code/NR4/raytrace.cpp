@@ -944,6 +944,7 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
 
                 pin(colour);
 
+                //who'da thunk it, matter accelerates off to oblivion internally in a black hole
                 valuef ka_ua = dot(cvelocity, thing_velocity);
                 pin(ka_ua);
 
