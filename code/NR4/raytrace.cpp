@@ -782,7 +782,6 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
 
     mut<valuei> result = declare_mut_e(valuei(2));
     mut<valuei> idx = declare_mut_e("i", valuei(0));
-    mut<valuef> intensity = declare_mut_e(valuef(0)); //affine parameter
     mut<valuef> tau = declare_mut_e(valuef(0)); //affine parameter
     mut_v3f colour_acc = declare_mut_e(v3f{0,0,0});
 
@@ -794,8 +793,6 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
 
         ku_uobsu = met.dot(vel_in, e0[0]);
         pin(ku_uobsu);
-
-        //ku_uobsu = 1;
     }
 
     for_e(idx < 2048, assign_b(idx, idx + 1), [&]
@@ -846,12 +843,11 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
                 float opacity_mult = 1000;
                 float energy_mult = 10000;
 
-                #if 1
                 ///also zp1
                 ///igamma is comoving / observer
                 valuef igamma = ka_ua / ku_uobsu;
 
-                igamma = max(igamma, 0.1f);
+                igamma = max(igamma, 0.01f);
 
                 valuef dTau_dLambda = igamma * local_density * opacity_mult;
 
@@ -898,16 +894,6 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
                 ///= iGamma p_0 etau / iGamma^4
                 ///= iGamma^-3 p_0 etau
 
-                /*valuef dI_dLambda = igamma * emission * exp(-tau);
-
-                valuef dI = dI_dLambda * ds;
-
-                colour = clamp(colour, 0.f, 1.f);
-
-                v3f redshifted_colour = redshift_without_intensity(colour, igamma - 1);
-
-                pin(redshifted_colour);*/
-
                 valuef ctau = declare_e(tau);
                 valuef transparency = exp(-ctau);
 
@@ -922,39 +908,8 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
                 v3f redshifted_colour = redshift_without_intensity(colour, igamma - 1);
                 pin(redshifted_colour);
 
-                #endif // 0
-
-                #if 0
-                ///also zp1, and igamma
-                valuef v0_over_v = ka_ua / ku_uobsu;
-                valuef X0 = local_density * opacity_mult;
-                valuef N0 = local_energy_density * local_density * energy_mult;
-
-                valuef X = v0_over_v * X;
-                valuef N = pow(v0_over_v, -2.f) * N0;
-
-                valuef dI_ddistance = -X * declare_e(intensity) + N * pow(v0_over_v, 3.f);
-
-                valuef ddistance_dLambda = ku_uobsu;
-
-                valuef dI_dLambda = ddistance_dLambda * dI_ddistance;
-
-                valuef dI = dI_dLambda * ds;
-
-                //valuef dTau_dLambda = X0 * ddistance_dLambda;
-                #endif
-
-                /*if_e(x == 200 && y == screen_size.y()/2, [&]{
-                    print("hi dRf %f igamma %f\n", dRf_dLambda, igamma);
-                });*/
-
                 as_ref(tau) += dTau_dLambda * ds;
-                //as_ref(intensity) += dI_dLambda * ds;
                 as_ref(colour_acc) += dRf_dLambda * redshifted_colour * ds;
-
-                ///so, we have emission, which is total energy per unit time per area
-                ///what this paper wants is spectral radiance, which is energy per
-
             });
         }
 
