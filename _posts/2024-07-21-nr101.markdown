@@ -340,7 +340,7 @@ Damping the hamiltonian constraint is unnecessary here, but [this](https://arxiv
 
 Even with all the constraint damping, the equations can still be numerically unstable - the last tool in the toolbox is called Kreiss-Oliger dissipation. This essentially is a blur on your data - it extracts a certain order of frequencies from your simulation grid, and damps them. The [Einstein Toolkit](https://einsteintoolkit.org/thornguide/CactusNumerical/Dissipation/documentation.html) site gives this definition[^original]:
 
-[^original]: I do not have access to the linked paper sadly
+[^original]: Einstein toolkit references Global Atmospheric Research Programme Publication Series no. 10 which can be found on [World Meteorological Organization e-Library](https://library.wmo.int/idurl/4/29240).
 
 $$\partial_t U = \partial_t U + (-1)^{(p+3)/2} \epsilon \frac{h^p}{2^{p+1}} (\frac{\partial^{p+1}}{\partial x^{p+1}} + \frac{\partial^{p+1}}{\partial y^{p+1}} + \frac{\partial^{p+1}}{\partial z^{p+1}})U$$
 
