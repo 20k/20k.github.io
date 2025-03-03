@@ -656,10 +656,10 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
         return out;
     };
 
-    auto get_energy = [&](v4i pos)
+    auto get_total_energy = [&](v4i pos)
     {
         auto idx = get_index(pos);
-        valuef en = (valuef)energy_in[idx];
+        valuef en = (valuef)energy_in[idx] * (valuef)density_in[idx];
         pin(en);
         return en;
     };
@@ -818,8 +818,8 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
                 v4f thing_velocity = function_quadlinear(get_velocity_lo, grid_fpos);
                 pin(thing_velocity);
 
-                valuef local_energy_density = function_quadlinear(get_energy, grid_fpos);
-                pin(local_energy_density);
+                valuef local_energy = function_quadlinear(get_total_energy, grid_fpos);
+                pin(local_energy);
 
                 v3f colour;
 
@@ -844,19 +844,19 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
                 pin(ka_ua);
 
                 float opacity_mult = 10000;
-                float energy_mult = 1000000;
+                float energy_mult = 100000;
 
                 #if 1
                 ///also zp1
                 ///igamma is comoving / observer
                 valuef igamma = ka_ua / ku_uobsu;
 
-                igamma = max(igamma, 1e-3f);
+                igamma = max(igamma, 0.1f);
 
                 valuef dTau_dLambda = igamma * local_density * opacity_mult;
 
                 ///todo: i can calculate an emission coefficient from an emitted power as P = 4pi j
-                valuef emission = local_energy_density * local_density * energy_mult;
+                valuef emission = local_energy * energy_mult;
 
                 ///http://astronomy.nmsu.edu/nicole/teaching/astr505/lectures/lecture19/slide01.html
                 ///https://arxiv.org/pdf/1207.4234
