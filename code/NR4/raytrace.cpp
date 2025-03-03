@@ -525,7 +525,14 @@ void capture_matter_fields(execution_context& ectx, literal<v3i> upper_dim, lite
 
     valuef density_out = function_trilinear(get_density, f_upper);
     valuef energy_out = function_trilinear(get_energy, f_upper);
-    v4f velocity_out = function_trilinear(get_4_velocity, f_upper);
+
+    v4f velocity_upper = function_trilinear(get_4_velocity, f_upper);
+    pin(velocity_upper);
+
+    m44f met = function_trilinear(get_metric, f_upper);
+    pin(met);
+
+    v4f velocity_out = met.lower(velocity_upper);
 
     as_ref(density[lidx]) = density_out;
     as_ref(energy[lidx]) = energy_out;
@@ -641,7 +648,7 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
         return v;
     };
 
-    auto get_velocity = [&](v4i pos)
+    auto get_velocity_lo = [&](v4i pos)
     {
         auto idx = get_index(pos);
         v4f out = (v4f){velocity4_in[0][idx], velocity4_in[1][idx], velocity4_in[2][idx], velocity4_in[3][idx]};
@@ -808,10 +815,7 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
 
             if_e(local_density > valuef(1e-5f), [&]
             {
-                metric<valuef, 4, 4> met = get_guv_at(grid_fpos);
-                pin(met);
-
-                v4f thing_velocity = function_quadlinear(get_velocity, grid_fpos);
+                v4f thing_velocity = function_quadlinear(get_velocity_lo, grid_fpos);
                 pin(thing_velocity);
 
                 valuef local_energy_density = function_quadlinear(get_energy, grid_fpos);
@@ -836,7 +840,7 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
 
                 pin(colour);
 
-                valuef ka_ua = met.dot(cvelocity, thing_velocity);
+                valuef ka_ua = dot(cvelocity, thing_velocity);
                 pin(ka_ua);
 
                 float opacity_mult = 10000;
