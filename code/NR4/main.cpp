@@ -1227,7 +1227,7 @@ initial_params get_initial_params()
     init.add(p1);
     #endif // 0
 
-    //#define HEADON_COLLAPSE
+    #define HEADON_COLLAPSE
     #ifdef HEADON_COLLAPSE
     neutron_star::parameters p1;
 
@@ -1278,7 +1278,7 @@ initial_params get_initial_params()
     init.add(p2);
     #endif
 
-    #define TURBO_DETONATE
+    //#define TURBO_DETONATE
     #ifdef TURBO_DETONATE
     neutron_star::parameters p1;
 

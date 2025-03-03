@@ -787,6 +787,8 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
 
         ku_uobsu = met.dot(vel_in, e0[0]);
         pin(ku_uobsu);
+
+        //ku_uobsu = 1;
     }
 
     for_e(idx < 512, assign_b(idx, idx + 1), [&]
@@ -813,61 +815,143 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
             valuef local_density = function_quadlinear(get_density, grid_fpos);
             pin(local_density);
 
-            v3f colour;
-
-            if(use_colour)
+            if_e(local_density > valuef(1e-6f), [&]
             {
-                //so. For physical accuracy reasons, colour is actually p*, so it follows the correct advection
-                //todo: however, I am assuming that brightness is proportional to e0. hmm. i may need to modify my definition of colour
-                //so that its transformed to rest mass density units
-                colour = function_quadlinear(get_colour, grid_fpos) * 1;
-                //colour = function_quadlinear(get_colour, grid_fpos) * 100 * local_energy_density / max(local_density, 1e-6f);
+                v3f colour;
+
+                if(use_colour)
+                {
+                    //so. For physical accuracy reasons, colour is actually p*, so it follows the correct advection
+                    //todo: however, I am assuming that brightness is proportional to e0. hmm. i may need to modify my definition of colour
+                    //so that its transformed to rest mass density units
+                    colour = function_quadlinear(get_colour, grid_fpos) * 1;
+                    //colour = function_quadlinear(get_colour, grid_fpos) * 100 * local_energy_density / max(local_density, 1e-6f);
+
+                    pin(colour);
+                }
+                else
+                    colour = {1, 1, 1};
+
+                colour = clamp(colour, 0.f, 1.f);
 
                 pin(colour);
-            }
-            else
-                colour = {1, 1, 1};
 
-            pin(colour);
+                valuef ka_ua = met.dot(cvelocity, thing_velocity);
+                pin(ka_ua);
 
-            valuef ka_ua = met.dot(cvelocity, thing_velocity);
-            pin(ka_ua);
+                float opacity_mult = 10000;
+                float energy_mult = 100000;
 
-            ///also zp1
-            valuef igamma = ka_ua / ku_uobsu;
+                #if 1
+                ///also zp1
+                ///igamma is comoving / observer
+                valuef igamma = ka_ua / ku_uobsu;
 
-            float opacity_mult = 1000;
+                igamma = max(igamma, 1e-3f);
 
-            valuef dTau_dLambda = igamma *  local_density * opacity_mult;
+                valuef dTau_dLambda = igamma * local_density * opacity_mult;
 
-            float energy_mult = 10000;
+                ///todo: i can calculate an emission coefficient from an emitted power as P = 4pi j
+                valuef emission = local_energy_density * local_density * energy_mult;
 
-            //valuef total_energy = local_energy_density * local_density;
-            //valuef compared_to_density = total_energy / local_density;
+                ///http://astronomy.nmsu.edu/nicole/teaching/astr505/lectures/lecture19/slide01.html
+                ///https://arxiv.org/pdf/1207.4234
 
-            valuef power = local_energy_density * local_density;
+                ///so. dI_dLambda * dLambda = dI, ie the amount of intensity change
+                ///this is the *lorentz invariant* intensity change
+                ///but, I want the change in intensity with respect to the observer
+                ///now, given a radiant flux, I = Rf / v^4
+                ///given a spectral flux, I = Sf / v^3
+                ///we have a radiant flux. We'd like to calculate the radiant flux in the
+                ///observers frame, not the comoving frame
+                ///_0 subscripts mean in rest frame
+                ///Because I is invariant, therefore Rf/v^4 = Rf_0/v_0^4
+                ///or, Rf = Rf_0 (v^4 / v_0^4)
+                ///this is, correctly, our redshift() algorithm in general
+                ///however, we have a lorentz invariant emission coefficient, called j. J is a spectral
+                ///emission coefficient, and its lorentz invariant quantity is j / v^3
+                ///an emission cofficient here has units of spectral power (?), and therefore we can equivalently say
+                ///that it is P/v^4
+                ///therefore rf_0 = energy emitted
 
-            valuef emission = power * energy_mult;
+                ///This gives us the equation
+                ///dIv / dLambda = iGamma (P_0 / v^4) etau
 
-            ///so. dI_dLambda * dLambda = dI, ie the amount of intensity change
-            ///this represents the amount of nabbed colour from our object
-            valuef dI_dLambda = igamma * emission * exp(-tau);
+                ///dIv / dLambda = iGamma (p_0 / comoving^4) etau
 
-            valuef dI = dI_dLambda * ds;
+                ///(Rf / observer^4) = Iv
+                ///dRf = dIv observer^4
+                ///dRf / dLambda = iGamma (observer^4 / comoving^4) p_0 etau
+                ///iGamma = comoving / observer
+                ///dRf / dLambda = (comoving / observer) (observer^4 / comoving^4) p_0 etau
+                ///dRf / dLambda = observer^3 / comoving^3 p_0 etau
+                ///dRf / dLambda = pow(igamma, -3) p_0 etau
 
-            colour = clamp(colour, 0.f, 1.f);
+                ///we'd like dRf / dLambda
+                ///Rf = Iv v^4
+                ///dRf / dLambda = v^4 iGamma (p_0 / v0^4) etau
+                /// = (v^4 / v0^4) iGamma p_0 etau
+                ///= iGamma p_0 etau / iGamma^4
+                ///= iGamma^-3 p_0 etau
 
-            ///todo: I don't know if I need to drop the igamma term from dI_dLambda here
-            v3f redshifted_colour = redshift_without_intensity(colour, igamma - 1);
+                /*valuef dI_dLambda = igamma * emission * exp(-tau);
 
-            pin(redshifted_colour);
+                valuef dI = dI_dLambda * ds;
 
-            as_ref(tau) += dTau_dLambda * ds;
-            as_ref(intensity) += dI_dLambda * ds;
-            as_ref(colour_acc) += dI * redshifted_colour;
+                colour = clamp(colour, 0.f, 1.f);
 
-            ///so, we have emission, which is total energy per unit time per area
-            ///what this paper wants is spectral radiance, which is energy per
+                v3f redshifted_colour = redshift_without_intensity(colour, igamma - 1);
+
+                pin(redshifted_colour);*/
+
+                valuef ctau = declare_e(tau);
+                valuef transparency = exp(-ctau);
+
+                if_e(transparency <= 0.001f, [&]{
+                    as_ref(result) = valuei(1);
+                    break_e();
+                });
+
+                valuef dRf_dLambda = pow(igamma, -3.f) * emission * transparency;
+                pin(dRf_dLambda);
+
+                v3f redshifted_colour = redshift_without_intensity(colour, igamma - 1);
+                pin(redshifted_colour);
+
+                #endif // 0
+
+                #if 0
+                ///also zp1, and igamma
+                valuef v0_over_v = ka_ua / ku_uobsu;
+                valuef X0 = local_density * opacity_mult;
+                valuef N0 = local_energy_density * local_density * energy_mult;
+
+                valuef X = v0_over_v * X;
+                valuef N = pow(v0_over_v, -2.f) * N0;
+
+                valuef dI_ddistance = -X * declare_e(intensity) + N * pow(v0_over_v, 3.f);
+
+                valuef ddistance_dLambda = ku_uobsu;
+
+                valuef dI_dLambda = ddistance_dLambda * dI_ddistance;
+
+                valuef dI = dI_dLambda * ds;
+
+                //valuef dTau_dLambda = X0 * ddistance_dLambda;
+                #endif
+
+                if_e(x == 200 && y == screen_size.y()/2, [&]{
+                    print("hi dRf %f igamma %f\n", dRf_dLambda, igamma);
+                });
+
+                as_ref(tau) += dTau_dLambda * ds;
+                //as_ref(intensity) += dI_dLambda * ds;
+                as_ref(colour_acc) += dRf_dLambda * redshifted_colour * ds;
+
+                ///so, we have emission, which is total energy per unit time per area
+                ///what this paper wants is spectral radiance, which is energy per
+
+            });
         }
 
         valuef radius_sq = dot(cposition.yzw(), cposition.yzw());
