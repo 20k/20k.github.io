@@ -1245,7 +1245,7 @@ initial_params get_initial_params()
 
     initial_params init;
     init.dim = {155, 155, 155};
-    init.simulation_width = 70;
+    init.simulation_width = 120;
 
     init.add(p1);
     init.add(p2);
