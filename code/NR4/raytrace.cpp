@@ -759,7 +759,7 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
     };
 
     auto get_dS = [&](v4f position, v4f velocity, v4f acceleration, trace4_state st) {
-        return acceleration_to_precision(acceleration, 0.0002f);
+        return acceleration_to_precision(acceleration, 0.00002f);
     };
 
     auto get_state = [](v4f position) {
@@ -798,7 +798,7 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
         //ku_uobsu = 1;
     }
 
-    for_e(idx < 512, assign_b(idx, idx + 1), [&]
+    for_e(idx < 2048, assign_b(idx, idx + 1), [&]
     {
         ctx.next(get_dX, get_dV, get_dS, get_state, velocity_process);
 
@@ -844,7 +844,7 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
                 pin(ka_ua);
 
                 float opacity_mult = 10000;
-                float energy_mult = 100000;
+                float energy_mult = 1000000;
 
                 #if 1
                 ///also zp1
@@ -912,7 +912,7 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
                 valuef transparency = exp(-ctau);
 
                 if_e(transparency <= 0.001f, [&]{
-                    as_ref(result) = valuei(1);
+                    as_ref(result) = valuei(3);
                     break_e();
                 });
 
@@ -1107,16 +1107,12 @@ void render(execution_context& ectx, literal<v2i> screen_sizel,
 
     v2i screen_position = {x, y};
 
-    if_e(results[screen_position, screen_size] == 0 || results[screen_position, screen_size] == 2, [&]{
+    if_e(results[screen_position, screen_size] == 0 || results[screen_position, screen_size] == 2 || results[screen_position, screen_size] == 3, [&]{
         v4f colour = matter_colour[screen_position, screen_size];
 
         colour = clamp(colour, v4f{0,0,0,0}, v4f{1,1,1,1});
 
-        valuef zp1 = declare_e(zshift[screen_position, screen_size]) + 1;
-
         v3f cvt = colour.xyz();
-
-        cvt = clamp(cvt, v3f{0,0,0}, v3f{1,1,1});
 
         cvt = linear_to_srgb_gpu(cvt);
 
@@ -1657,7 +1653,7 @@ void build_raytrace_kernels(cl::context ctx, const std::vector<plugin*>& plugins
             as_ref(accumulated_colour) += density * colour * sample_length * transparency;
 
             if_e(transparency <= 0.001f, [&]{
-                as_ref(result) = valuei(1);
+                as_ref(result) = valuei(3);
                 break_e();
             });
 
