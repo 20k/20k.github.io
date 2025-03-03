@@ -268,7 +268,7 @@ valuef full_hydrodynamic_args<T>::get_density(bssn_args& args, const derivative_
 
     //return hydro_args.p_star;
 
-    return ternary(hydro_args.p_star >= min_p_star * 1, hydro_args.calculate_p0(args.W), valuef(0.f));
+    return ternary(hydro_args.p_star >= min_p_star * 10, hydro_args.calculate_p0(args.W), valuef(0.f));
 }
 
 template<typename T>
@@ -278,7 +278,7 @@ valuef full_hydrodynamic_args<T>::get_energy(bssn_args& args, const derivative_d
 
     hydrodynamic_concrete hydro_args(d.pos, d.dim, *this);
 
-    return ternary(hydro_args.p_star >= min_p_star * 1, hydro_args.calculate_epsilon(args.W), valuef(0.f));
+    return ternary(hydro_args.p_star >= min_p_star * 10, hydro_args.calculate_epsilon(args.W), valuef(0.f));
 }
 
 template<typename T>
@@ -292,7 +292,7 @@ v4f full_hydrodynamic_args<T>::get_4_velocity(bssn_args& args, const derivative_
 
     v4f velocity = {u0, ui.x(), ui.y(), ui.z()};
 
-    return ternary(hydro_args.p_star >= min_p_star * 1, velocity, (v4f){1,0,0,0});
+    return ternary(hydro_args.p_star >= min_p_star * 10, velocity, (v4f){1,0,0,0});
 }
 
 template<typename T>
