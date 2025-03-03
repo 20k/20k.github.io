@@ -759,7 +759,7 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
     };
 
     auto get_dS = [&](v4f position, v4f velocity, v4f acceleration, trace4_state st) {
-        return acceleration_to_precision(acceleration, 0.00002f);
+        return acceleration_to_precision(acceleration, 0.0002f);
     };
 
     auto get_state = [](v4f position) {
@@ -843,8 +843,8 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
                 valuef ka_ua = dot(cvelocity, thing_velocity);
                 pin(ka_ua);
 
-                float opacity_mult = 10000;
-                float energy_mult = 100000;
+                float opacity_mult = 1000;
+                float energy_mult = 10000;
 
                 #if 1
                 ///also zp1
