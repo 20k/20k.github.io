@@ -813,7 +813,7 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
             valuef local_density = function_quadlinear(get_density, grid_fpos);
             pin(local_density);
 
-            if_e(local_density > valuef(1e-5f), [&]
+            if_e(local_density > valuef(1e-9f), [&]
             {
                 v4f thing_velocity = function_quadlinear(get_velocity_lo, grid_fpos);
                 pin(thing_velocity);
