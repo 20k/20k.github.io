@@ -1227,7 +1227,7 @@ initial_params get_initial_params()
     init.add(p1);
     #endif // 0
 
-    #define HEADON_COLLAPSE
+    //#define HEADON_COLLAPSE
     #ifdef HEADON_COLLAPSE
     neutron_star::parameters p1;
 
@@ -1249,6 +1249,32 @@ initial_params get_initial_params()
 
     init.add(p1);
     init.add(p2);
+    #endif
+
+    #define HEADON_COLLAPSE2
+    #ifdef HEADON_COLLAPSE2
+    neutron_star::parameters p1;
+
+    p1.position = {-15, 0, 0};
+    p1.linear_momentum.momentum = {0, -0.1, 0};
+    p1.K.msols = 123.6;
+    p1.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
+
+    neutron_star::parameters p2;
+
+    p2.position = {15, 0, 0};
+    p2.linear_momentum.momentum = {0, 0.1, 0};
+    p2.K.msols = 123.6;
+    p2.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
+
+    initial_params init;
+    init.dim = {213, 213, 213};
+    init.simulation_width = 120;
+
+    init.add(p1);
+    init.add(p2);
+
+    init.time_between_snapshots = 3;
     #endif
 
     //#define INSPIRAL
@@ -1298,8 +1324,8 @@ initial_params get_initial_params()
 
     initial_params init;
 
-    init.dim = {155, 155, 155};
-    init.simulation_width = 80;
+    init.dim = {177, 177, 177};
+    init.simulation_width = 100;
     init.time_between_snapshots = 20;
 
     init.add(p1);
