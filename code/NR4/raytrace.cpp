@@ -163,6 +163,104 @@ v2f angle_to_tex(const v2f& angle)
     return {sxf, syf};
 }
 
+#if 0
+v2f bbody_approx_xc(valuef temperature)
+{
+    using namespace single_source;
+    mut<valuef> x = declare_mut_e(valuef());
+    mut<valuef> y = declare_mut_e(valuef());
+
+    auto poly = [](valuef T, float c1, float c2, float c3, float c4)
+    {
+        return c1 * pow(10.f, 9.f) / pow(T, 3.f) + c2 * pow(10.f, 6.f) / (T*T) + c3 * pow(10.f, 3.f) / T + c4;
+    };
+
+    if_e(temperature <= valuef(4000), [&]{
+        valuef T = clamp(temperature, 1667, 4000);
+
+        as_ref(x) = poly(T, -0.2661239, -0.2343589, 0.8776956, 0.179910f);
+
+        //as_ref(x) = (-0.2661239f * pow(10.f, 9.f)) / (T*T*T) - 0.2343589f * pow(10.f, 6.f) /
+    });
+
+    if_e(temperature > valuef(4000), [&]{
+        valuef T = clamp(temperature, 4000, 25000);
+
+        as_ref(x) = poly(-3.0258469f, 2.1070379f, 0.2226347f, 0.240390f);
+    });
+
+    auto y_poly = [](valuef xc, float c1, float c2, float c3, float c4)
+    {
+        return c1 * pow(xc, 3.f) + c2 * pow(xc, 2.f) + c3 * xc + c4;
+    };
+
+    valuef xc = declare_e(x);
+
+    if_e(temperature <= valuef(2222), [&]{
+        as_ref(y) = y_poly(xc, -1.1063814, -1.34811020, 2.18555832, -0.20219683);
+    });
+
+    if_e(temperature > valuef(2222) && temperature <= valuef(4000), [&]{
+        as_ref(y) = y_poly(xc, -0.9549476f, -1.37418593f, 2.09137015f, -0.16748867f);
+    });
+
+    if_e(temperature > valuef(4000), [&]{
+        as_ref(y) = y_poly(xc, 3.0817580f, -5.8733867f, 3.75112997f, -0.37001483f);
+    });
+
+    valuef yc = declare_e(y);
+
+    return {xy, yc};
+}
+
+v3f bbody_approx_linear_rgb(valuef temperature)
+{
+    v2f xy = bbody_approx_xc(temperature);
+
+    valuef Y = 1;
+    valuef X = (Y/xy.y()) * xy.x();
+    valuef Z = (Y / xy.y()) * (1 - xy.x() - xy.y());
+
+
+}
+#endif
+
+v3f bbody_approx_linear_rgb(valuef T)
+{
+    T = clamp(T, 1000.f, 15000.f);
+
+    ///https://en.wikipedia.org/wiki/Planckian_locus#Approximation
+    valuef uT = (0.860117757 + 1.54118254 * pow(10., -4.) * T + 1.28641212 * pow(10., -7.) * pow(T, 2.f)) /
+                (1 + 8.42420235 * pow(10., -4.) * T + 7.08145163 * pow(10., -7.) * pow(T, 2.f));
+
+
+    valuef vT = (0.317398726 + 4.22806245 * pow(10., -5.) * T + 4.20481691 * pow(10., -8.) * pow(T, 2.f)) /
+                (1 - 2.89741816 * pow(10., -5.) * T + 1.61456053 * pow(10., -7.) * pow(T, 2.f));
+
+    ///https://en.wikipedia.org/wiki/CIE_1960_color_space
+    valuef x = 3 * uT / (2 * uT - 8 * vT + 4);
+    valuef y = 2 * vT / (2 * uT - 8 * vT + 4);
+
+    ///https://en.wikipedia.org/wiki/CIE_1931_color_space#CIE_xy_chromaticity_diagram_and_the_CIE_xyY_color_space
+    valuef Y = 1;
+    valuef X = (Y / y) * x;
+    valuef Z = (Y / y) * (1 - x - y);
+
+    valuef largest = max(max(X, Y), Z);
+
+    X = X / largest;
+    Y = Y / largest;
+    Z = Z / largest;
+
+    ///https://en.wikipedia.org/wiki/SRGB#From_CIE_XYZ_to_sRGB
+    ///https://color.org/chardata/rgb/sRGB.pdf
+    valuef Rl = 3.2406255 * X - 1.537208 * Y - 0.4986286 * Z;
+    valuef Gl = -0.9689307 * X + 1.8757561 * Y + 0.0415175 * Z;
+    valuef Bl = 0.0557101 * X - 0.2040211 * Y + 1.0569959 * Z;
+
+    return v3f{Rl, Gl, Bl};
+}
+
 //calculate Y of XYZ
 valuef energy_of(v3f v)
 {
@@ -175,14 +273,23 @@ v3f redshift_without_intensity(v3f v, valuef z)
 
     valuef radiant_energy = energy_of(v);
 
+    valuef root_temperature = 6000;
+
+    valuef next_temp = root_temperature / (z + 1);
+
     v3f red = {1/0.2125f, 0.f, 0.f};
     v3f green = {0, 1/0.7154, 0.f};
     v3f blue = {0.f, 0.f, 1/0.0721};
 
+    v3f bbody_colour = bbody_approx_linear_rgb(next_temp);
+
     mut_v3f result = declare_mut_e((v3f){0,0,0});
 
+    valuef brighten = radiant_energy / energy_of(bbody_colour);
+    v3f hue_out = brighten * bbody_colour;
+
     if_e(z >= 0, [&]{
-        as_ref(result) = mix(v, radiant_energy * red, tanh(z));
+        as_ref(result) = mix(v, hue_out, tanh(z));
     });
 
     if_e(z < 0, [&]{
@@ -190,10 +297,10 @@ v3f redshift_without_intensity(v3f v, valuef z)
 
         valuef interpolating_fraction = tanh(iv1pz);
 
-        v3f col = mix(v, radiant_energy * blue, interpolating_fraction);
+        v3f col = mix(v, hue_out, interpolating_fraction);
 
         //calculate spilling into white
-        {
+        /*{
             valuef final_energy = energy_of(clamp(col, 0.f, 1.f));
             valuef real_energy = energy_of(col);
 
@@ -201,7 +308,7 @@ v3f redshift_without_intensity(v3f v, valuef z)
 
             col.x() += remaining_energy * red.x();
             col.y() += remaining_energy * green.y();
-        }
+        }*/
 
         as_ref(result) = col;
     });
