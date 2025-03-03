@@ -803,20 +803,20 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
         if(use_matter)
         {
             v4f grid_fpos = world_to_grid4(cposition);
-
-            metric<valuef, 4, 4> met = get_guv_at(grid_fpos);
-            pin(met);
-
-            v4f thing_velocity = function_quadlinear(get_velocity, grid_fpos);
-            pin(thing_velocity);
-
-            valuef local_energy_density = function_quadlinear(get_energy, grid_fpos);
-            pin(local_energy_density);
             valuef local_density = function_quadlinear(get_density, grid_fpos);
             pin(local_density);
 
-            if_e(local_density > valuef(1e-6f), [&]
+            if_e(local_density > valuef(1e-5f), [&]
             {
+                metric<valuef, 4, 4> met = get_guv_at(grid_fpos);
+                pin(met);
+
+                v4f thing_velocity = function_quadlinear(get_velocity, grid_fpos);
+                pin(thing_velocity);
+
+                valuef local_energy_density = function_quadlinear(get_energy, grid_fpos);
+                pin(local_energy_density);
+
                 v3f colour;
 
                 if(use_colour)
@@ -940,9 +940,9 @@ void trace4x4(execution_context& ectx, literal<v2i> screen_sizel,
                 //valuef dTau_dLambda = X0 * ddistance_dLambda;
                 #endif
 
-                if_e(x == 200 && y == screen_size.y()/2, [&]{
+                /*if_e(x == 200 && y == screen_size.y()/2, [&]{
                     print("hi dRf %f igamma %f\n", dRf_dLambda, igamma);
-                });
+                });*/
 
                 as_ref(tau) += dTau_dLambda * ds;
                 //as_ref(intensity) += dI_dLambda * ds;
