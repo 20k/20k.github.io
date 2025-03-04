@@ -1170,6 +1170,17 @@ void render(execution_context& ectx, literal<v2i> screen_sizel,
 
     v2i screen_position = {x, y};
 
+    #ifdef RENDER_EVENT_HORIZONS
+    if_e(results[screen_position, screen_size] == 0, [&]{
+        v3f cvt = {1, 0, 0};
+
+        cvt = linear_to_srgb_gpu(cvt);
+
+        screen.write(ectx, {x, y}, (v4f){cvt.x(),cvt.y(),cvt.z(),1});
+        return_e();
+    });
+    #endif
+
     if_e(results[screen_position, screen_size] == 0 || results[screen_position, screen_size] == 2 || results[screen_position, screen_size] == 3, [&]{
         v4f colour = matter_colour[screen_position, screen_size];
 
