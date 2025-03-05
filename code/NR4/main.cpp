@@ -1297,7 +1297,7 @@ initial_params get_initial_params()
 
     initial_params init;
 
-    init.dim = {177, 177, 177};
+    init.dim = {199, 199, 199};
     init.simulation_width = 130;
 
     init.add(p1);
@@ -1488,6 +1488,7 @@ int main()
     bool lock_camera_to_slider = false;
     bool progress_camera_time = false;
     float render_size_scale = 1;
+    float advance_time_mult = 1;
 
     vec3f camera_pos = {0, 0, -25};;
     quat camera_quat;
@@ -1513,7 +1514,7 @@ int main()
         float ftime_s = frame_time.restart();
 
         if(progress_camera_time)
-            cam_time += ftime_s;
+            cam_time += ftime_s * advance_time_mult;
 
         if(!ImGui::GetIO().WantCaptureKeyboard)
         {
@@ -1613,6 +1614,7 @@ int main()
 
         ImGui::Checkbox("Override Camera Time", &lock_camera_to_slider);
         ImGui::Checkbox("Advance Override Camera Time", &progress_camera_time);
+        ImGui::SliderFloat("Advance Time Mult", &advance_time_mult, 0.1f, 100.f);
 
         ///lock to camera, progress camera time
         ImGui::DragFloat("Override Time", &cam_time, 1.f, 0.f, 400.f);
