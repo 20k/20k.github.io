@@ -321,7 +321,7 @@ struct mesh
 
             for(int i=0; i < (int)linear_in.size(); i++)
             {
-                kreiss_individual(linear_in[i], linear_out[i], 0.05f, 4);
+                kreiss_individual(linear_in[i], linear_out[i], 0.3f, 4);
             }
 
             for(int i=0; i < (int)plugin_buffers[in].size(); i++)
@@ -644,7 +644,7 @@ float get_timestep(float simulation_width, t3i size)
     float ratio_at_base = 30.f/255.f;
     float new_ratio = simulation_width / size.x();
 
-    return 0.035f * (new_ratio / ratio_at_base);
+    return 0.03f * (new_ratio / ratio_at_base);
 }
 
 #define MIP_LEVELS 10
@@ -746,13 +746,13 @@ struct raytrace_manager
         }
     }
 
-    void deallocate()
+    void deallocate(cl::context& ctx)
     {
         Guv_block.clear();
 
         colour_block.clear();
-        density_block.alloc(0);
-        energy_block.alloc(0);
+        density_block = cl::buffer(ctx);
+        energy_block = cl::buffer(ctx);
         velocity_block.clear();
     }
 
@@ -761,7 +761,7 @@ struct raytrace_manager
     {
         if(!capture_4slices)
         {
-            deallocate();
+            deallocate(ctx);
             return;
         }
 
@@ -1180,7 +1180,7 @@ initial_params get_initial_params()
     #define NEUTRON_STAR_TEST
     #ifdef NEUTRON_STAR_TEST
 
-    /*//double K = 123.741;
+    /*//double K = 123.641;
     //double p0_c_kg_m3 = 6.235 * pow(10., 17.);*/
 
     /*neutron_star::parameters p1;
@@ -1251,7 +1251,7 @@ initial_params get_initial_params()
     init.add(p2);
     #endif
 
-    #define HEADON_COLLAPSE2
+    //#define HEADON_COLLAPSE2
     #ifdef HEADON_COLLAPSE2
     neutron_star::parameters p1;
 
@@ -1277,31 +1277,35 @@ initial_params get_initial_params()
     init.time_between_snapshots = 3;
     #endif
 
-    //#define INSPIRAL
+    #define INSPIRAL
     #ifdef INSPIRAL
     neutron_star::parameters p1;
 
     //p1.colour = {1, 0, 0};
-    p1.position = {-20, 0, 0};
-    p1.linear_momentum.momentum = {0, -0.25f, 0};
-    p1.K.msols = 123.6;
-    p1.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
+    p1.position = {-54.6/2, 0, 0};
+    p1.linear_momentum.momentum = {0, -0.21f, 0};
+    p1.K.msols = 123.641;
+    p1.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
 
     neutron_star::parameters p2;
 
     //p2.colour = {0, 0, 1};
-    p2.position = {20, 0, 0};
-    p2.linear_momentum.momentum = {0, 0.25f, 0};
-    p2.K.msols = 123.6;
-    p2.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
+    p2.position = {54.6/2, 0, 0};
+    p2.linear_momentum.momentum = {0, 0.21f, 0};
+    p2.K.msols = 123.641;
+    p2.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
 
     initial_params init;
 
-    init.dim = {155, 155, 155};
-    init.simulation_width = 100;
+    init.dim = {177, 177, 177};
+    init.simulation_width = 130;
 
     init.add(p1);
     init.add(p2);
+
+    init.linear_viscosity_timescale = 50;
+    init.time_between_snapshots = 20;
+
     #endif
 
     //#define TURBO_DETONATE

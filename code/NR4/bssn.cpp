@@ -409,7 +409,7 @@ tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, const deri
     }
 
     ///gauge damping parameter, commonly set to 2
-    float N = 2.f;
+    float N = 1.f;
 
     return (3/4.f) * args.cG_undiff(derivs) + djbjbi * 1 - N * args.gB;
     #endif // GAMMA_DRIVER
@@ -499,7 +499,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
                 sum += 0.5f * (args.cY[k, i] * cD[k, j] + args.cY[k, j] * cD[k, i]);
             }
 
-            float cK = -0.18f;
+            float cK = -0.01f;
 
             dtcY.idx(i, j) += cK * args.gA * sum;
         }
@@ -657,7 +657,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3h mom
     {
         for(int j=0; j < 3; j++)
         {
-            float Ka = 0.08f;
+            float Ka = 0.01f;
 
             dtcA[i, j] += Ka * args.gA * 0.5f *
                               (cd_low[i, j]
@@ -901,7 +901,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
         //valuef s = sign(dmbm);
         valuef s = step(dmbm);
 
-        value X = 0.9f;
+        value X = 0.1f;
 
         dtcG += -(X * s + 2.f/3.f) * Gi * dmbm;
         #endif

@@ -73,7 +73,7 @@ namespace neutron_star
 
         double Gamma = 2;
 
-        //123.741 is a good number
+        //123.641 is a good number
         param_K K;
         //6.235 * pow(10., 17.) kg/m3 is a good number
         param_mass mass;
