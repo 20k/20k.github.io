@@ -657,7 +657,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3h mom
     {
         for(int j=0; j < 3; j++)
         {
-            float Ka = 0.01f;
+            float Ka = 0.02f;
 
             dtcA[i, j] += Ka * args.gA * 0.5f *
                               (cd_low[i, j]
@@ -901,7 +901,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
         //valuef s = sign(dmbm);
         valuef s = step(dmbm);
 
-        value X = 0.1f;
+        value X = 0.9f;
 
         dtcG += -(X * s + 2.f/3.f) * Gi * dmbm;
         #endif

@@ -321,7 +321,7 @@ struct mesh
 
             for(int i=0; i < (int)linear_in.size(); i++)
             {
-                kreiss_individual(linear_in[i], linear_out[i], 0.3f, 4);
+                kreiss_individual(linear_in[i], linear_out[i], 0.05f, 4);
             }
 
             for(int i=0; i < (int)plugin_buffers[in].size(); i++)
@@ -644,7 +644,7 @@ float get_timestep(float simulation_width, t3i size)
     float ratio_at_base = 30.f/255.f;
     float new_ratio = simulation_width / size.x();
 
-    return 0.03f * (new_ratio / ratio_at_base);
+    return 0.035f * (new_ratio / ratio_at_base);
 }
 
 #define MIP_LEVELS 10
@@ -1277,34 +1277,101 @@ initial_params get_initial_params()
     init.time_between_snapshots = 3;
     #endif
 
-    #define INSPIRAL
-    #ifdef INSPIRAL
+    //#define INSPIRAL_2
+    #ifdef INSPIRAL_2
+
+    float rad_ms_to_s = 1000;
+
+    float real_rad = 1.78 * rad_ms_to_s;
+
+    float d_over_madm = 14.3;
+    float m_adm = 2.681; //msols
+
+    double m_to_kg = 1.3466 * std::pow(10., 27.);
+    double msol_kg = 1.988416 * std::pow(10., 30.);
+    double msol_meters = msol_kg / m_to_kg;
+
+    float distance_between_stars = d_over_madm * m_adm
+
+    ///1476.619635
+    //printf("msol %f\n", msol_meters);
+
+    //float separation_km =
+
+    ///hi, you're trying to work out why the neutron stars lose too much energy
+    ///its almost certainly kreiss-oliger
     neutron_star::parameters p1;
 
     //p1.colour = {1, 0, 0};
     p1.position = {-54.6/2, 0, 0};
-    p1.linear_momentum.momentum = {0, -0.21f, 0};
+    ///was 0.23
+    p1.linear_momentum.momentum = {0, -0.23, 0};
+    p1.K.msols = 123.6;
+    p1.mass.p0_kg_m3 = 4.58 * pow(10., 17.);
+
+    neutron_star::parameters p2;
+
+    //p2.colour = {0, 0, 1};
+    p2.position = {54.6/2, 0, 0};
+    p2.linear_momentum.momentum = {0, 0.23, 0};
+    p2.K.msols = 123.6;
+    p2.mass.p0_kg_m3 = 4.58 * pow(10., 17.);
+
+    initial_params init;
+
+    init.dim = {155, 155, 155};
+    init.simulation_width = 150;
+
+    init.add(p1);
+    init.add(p2);
+
+    init.linear_viscosity_timescale = 500;
+    init.time_between_snapshots = 20;
+    init.lapse_damp_timescale = 20;
+
+
+    #endif // INSPIRAL_2
+
+
+    #define INSPIRAL
+    #ifdef INSPIRAL
+    ///hi, you're trying to work out why the neutron stars lose too much energy
+    ///its almost certainly kreiss-oliger
+    neutron_star::parameters p1;
+
+    float radial_pos = geometric_to_msol(1000 * 54.6/2, 1);
+
+    printf("Radial pos %f\n", radial_pos);
+
+    ///hang on
+    ///i'm in units of c=g=msol=1
+    ///so 1 unit of distance isn't 1km
+    //p1.colour = {1, 0, 0};
+    p1.position = {-radial_pos, 0, 0};
+    ///was 0.23
+    p1.linear_momentum.momentum = {0, -0.4, 0};
     p1.K.msols = 123.641;
     p1.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
 
     neutron_star::parameters p2;
 
     //p2.colour = {0, 0, 1};
-    p2.position = {54.6/2, 0, 0};
-    p2.linear_momentum.momentum = {0, 0.21f, 0};
+    p2.position = {radial_pos, 0, 0};
+    p2.linear_momentum.momentum = {0, 0.4, 0};
     p2.K.msols = 123.641;
     p2.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
 
     initial_params init;
 
-    init.dim = {199, 199, 199};
-    init.simulation_width = 130;
+    init.dim = {155, 155, 155};
+    init.simulation_width = radial_pos * 2 * 3;
 
     init.add(p1);
     init.add(p2);
 
-    init.linear_viscosity_timescale = 50;
+    init.linear_viscosity_timescale = 500;
     init.time_between_snapshots = 20;
+    init.lapse_damp_timescale = 20;
 
     #endif
 
@@ -1617,7 +1684,7 @@ int main()
         ImGui::SliderFloat("Advance Time Mult", &advance_time_mult, 0.1f, 100.f);
 
         ///lock to camera, progress camera time
-        ImGui::DragFloat("Override Time", &cam_time, 1.f, 0.f, 400.f);
+        ImGui::DragFloat("Override Time", &cam_time, 1.f, 0.f, 4000.f);
         ImGui::Checkbox("Capture Render Slices", &rt_bssn.capture_4slices);
         ImGui::SliderInt("Render Skipping", &render_skipping, 1, 32);
         ImGui::SliderFloat("Render Size Scale", &render_size_scale, 0.1f, 10.f);
