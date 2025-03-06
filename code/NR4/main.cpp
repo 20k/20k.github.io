@@ -1349,7 +1349,8 @@ initial_params get_initial_params()
     //p1.colour = {1, 0, 0};
     p1.position = {-radial_pos, 0, 0};
     ///was 0.23
-    p1.linear_momentum.momentum = {0, -0.4, 0};
+    ///0.265 was reasonable
+    p1.linear_momentum.momentum = {0, -0.27, 0};
     p1.K.msols = 123.641;
     p1.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
 
@@ -1357,7 +1358,7 @@ initial_params get_initial_params()
 
     //p2.colour = {0, 0, 1};
     p2.position = {radial_pos, 0, 0};
-    p2.linear_momentum.momentum = {0, 0.4, 0};
+    p2.linear_momentum.momentum = {0, 0.27, 0};
     p2.K.msols = 123.641;
     p2.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
 
@@ -1369,8 +1370,8 @@ initial_params get_initial_params()
     init.add(p1);
     init.add(p2);
 
-    init.linear_viscosity_timescale = 500;
-    init.time_between_snapshots = 20;
+    init.linear_viscosity_timescale = 75;
+    init.time_between_snapshots = 15;
     init.lapse_damp_timescale = 20;
 
     #endif

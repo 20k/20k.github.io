@@ -8,7 +8,7 @@
 #include <toolkit/opencl.hpp>
 #include "value_alias.hpp"
 
-//#define MOMENTUM_CONSTRAINT_DAMPING
+#define MOMENTUM_CONSTRAINT_DAMPING
 
 template<typename T>
 struct bssn_args_mem : value_impl::single_source::argument_pack
