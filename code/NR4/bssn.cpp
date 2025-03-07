@@ -1188,7 +1188,7 @@ void enforce_algebraic_constraints(cl::context ctx)
 
 void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
 {
-    auto func = [plugins](execution_context&, bssn_args_mem<buffer<valuef>> in, value_impl::builder::placeholder plugin_ph, literal<v3i> ldim, literal<valuef> scale, write_only_image<2> write) {
+    auto func = [plugins](execution_context&, bssn_args_mem<buffer<valuef>> in, bssn_derivatives_mem<buffer<valueh>> derivs_in, value_impl::builder::placeholder plugin_ph, literal<v3i> ldim, literal<valuef> scale, write_only_image<2> write) {
         using namespace single_source;
 
         all_adm_args_mem plugin_data = make_arg_provider(plugins);
@@ -1215,15 +1215,20 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
         });
 
         bssn_args args(pos, dim, in);
+        bssn_derivatives derivs(pos, dim, derivs_in);
 
         derivative_data d;
         d.pos = pos;
         d.dim = dim;
         d.scale = scale.get();
 
+        valuef p = fabs(calculate_hamiltonian_constraint(args, derivs, d, plugin_data.adm_p(args, d))) * 1000;
+
         //valuef p = plugin_data.mem.adm_p(args, d);
 
-        valuef p = plugin_data.dbg(args, d);
+        //valuef p = plugin_data.dbg(args, d);
+
+
 
         //valuef test_val = in.cY[0][lid];
         //valuef display = ((test_val - 1) / 0.1f) * 0.5f + 0.5f;

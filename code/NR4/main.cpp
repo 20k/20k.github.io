@@ -1752,9 +1752,12 @@ int main()
             float scale = get_scale(simulation_width, dim);
 
             cl::args args;
-            m.buffers[0].append_to(args);
+            m.buffers[m.valid_derivative_buffer].append_to(args);
 
-            m.add_plugin_args(args, 0);
+            for(auto& i : m.derivatives)
+                args.push_back(i);
+
+            m.add_plugin_args(args, m.valid_derivative_buffer);
 
             args.push_back(dim);
             args.push_back(scale);
