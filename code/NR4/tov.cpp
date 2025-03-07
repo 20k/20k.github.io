@@ -145,12 +145,12 @@ tov::integration_state tov::make_integration_state_si(double p0, double rmin, co
     return make_integration_state(p0_msol, rmin, param);
 }
 
-double tov::integration_solution::M_geom()
+double tov::integration_solution::M_geom() const
 {
     return msol_to_geometric(M_msol, 1);
 }
 
-double tov::integration_solution::R_geom()
+double tov::integration_solution::R_geom() const
 {
     return msol_to_geometric(R_msol, 1);
 }
@@ -301,7 +301,9 @@ std::vector<double> initial::calculate_isotropic_r(const tov::integration_soluti
         double r = sol.radius[i];
         double m = sol.cumulative_mass[i];
 
-        double rhs = (pow(r, 0.5) - pow(r - 2 * m, 0.5)) / (r * pow(r - 2 * m, 0.5));
+        double rhs = (1 - sqrtf(1 - 2 * m/r)) / (r * sqrt(1 - 2 * m/r));
+
+        //double rhs = (pow(r, 0.5) - pow(r - 2 * m, 0.5)) / (r * pow(r - 2 * m, 0.5));
         dlog_dr.push_back(rhs);
     }
 
@@ -349,7 +351,7 @@ std::vector<double> initial::calculate_tov_phi(const tov::integration_solution& 
 
     auto isotropic_to_schwarzschild = [&](auto isotropic_in)
     {
-        return interpolate_by_radius(isotropic_r, sol.radius, isotropic_in);
+        return tov::interpolate_by_radius(isotropic_r, sol.radius, isotropic_in);
     };
 
     int samples = sol.radius.size();
@@ -371,9 +373,9 @@ std::vector<double> initial::calculate_tov_phi(const tov::integration_solution& 
         double r_bar = isotropic_r[i];
 
         double r = isotropic_to_schwarzschild(r_bar);
-        double e = interpolate_by_radius(sol.radius, sol.energy_density, r);
+        double e = tov::interpolate_by_radius(sol.radius, sol.energy_density, r);
 
-        check_mass += 2 * M_PI * r_bar*r_bar * pow(phi[i], 5.) * e * (r_bar - last_r_bar);
+        check_mass += 4 * M_PI * r_bar*r_bar * pow(phi[i], 5.) * e * (r_bar - last_r_bar);
 
         last_r_bar = r_bar;
     }

@@ -1332,7 +1332,6 @@ initial_params get_initial_params()
 
     #endif // INSPIRAL_2
 
-
     #define INSPIRAL
     #ifdef INSPIRAL
     ///hi, you're trying to work out why the neutron stars lose too much energy

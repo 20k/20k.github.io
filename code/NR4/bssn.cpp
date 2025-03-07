@@ -422,7 +422,7 @@ tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, const deri
     #endif // ZERO_SHIFT
 }
 
-tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
+tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, valuef rho_s)
 {
     using namespace single_source;
 
@@ -509,6 +509,8 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
     }
     #endif
 
+    dtcY += 0.5f * args.gA * args.cY.to_tensor() * -calculate_hamiltonian_constraint(args, derivs, d, rho_s);
+
     return dtcY;
 }
 
@@ -530,7 +532,7 @@ valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const derivative_data&
         dibiw += args.gB[i] * diff1(args.W, i, d);
     }
 
-    return (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw + 0.01f * calculate_hamiltonian_constraint(args, derivs, d, rho_s);
+    return (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw + 0.0005f * calculate_hamiltonian_constraint(args, derivs, d, rho_s);
 }
 
 tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
@@ -1080,7 +1082,7 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, float lapse
             as_ref(out.gB[i][pos, dim]) = apply_evolution(base.gB[i][pos, dim], dtgB[i], timestep.get());
         }
 
-        auto dtcY = get_dtcY(args, derivs, d);
+        auto dtcY = get_dtcY(args, derivs, d, rho_s);
 
         for(int i=0; i < 6; i++)
         {
@@ -1222,12 +1224,17 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
         d.dim = dim;
         d.scale = scale.get();
 
-        valuef p = fabs(calculate_hamiltonian_constraint(args, derivs, d, plugin_data.adm_p(args, d))) * 1000;
+        valuef ham = calculate_hamiltonian_constraint(args, derivs, d, plugin_data.adm_p(args, d));
+
+        valuef p = fabs(ham) * 1000;
+
+        if_e(pos.x() == 50 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+            print("Ham %f\n", ham);
+        });
 
         //valuef p = plugin_data.mem.adm_p(args, d);
 
         //valuef p = plugin_data.dbg(args, d);
-
 
 
         //valuef test_val = in.cY[0][lid];

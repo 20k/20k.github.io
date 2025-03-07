@@ -556,9 +556,11 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     valuef mu_h_cfl = mu_h_cfl_b[pos, dim];
     valuef phi = cfl_b[pos, dim] + u_correction_b[pos, dim];
+    //with raised index
     v3f Si_cfl = {Si_cfl_b[0][pos, dim], Si_cfl_b[1][pos, dim], Si_cfl_b[2][pos, dim]};
 
     valuef mu_h = mu_h_cfl * pow(phi, -8);
+    //with raised index
     v3f Si = Si_cfl * pow(phi, -10);
 
     valuef Gamma = get_Gamma();
@@ -715,6 +717,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     valuef w = p_star * gA * u0;
 
+    //with raised index
     v3f ui = Si / ((mu + pressure) * u0);
 
     v3f u_i;

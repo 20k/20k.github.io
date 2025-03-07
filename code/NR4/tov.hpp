@@ -89,8 +89,8 @@ namespace tov
 
         int radius_to_index(double r) const;
 
-        double M_geom();
-        double R_geom();
+        double M_geom() const;
+        double R_geom() const;
     };
 
     integration_solution solve_tov(const integration_state& start, const parameters& param, double min_radius, double min_pressure);
