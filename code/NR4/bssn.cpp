@@ -339,7 +339,11 @@ valuef calculate_hamiltonian_constraint_adm(bssn_args& args, bssn_derivatives& d
     using namespace single_source;
 
     auto icY = args.cY.invert();
-    auto W2Rij = calculate_W2Rij(args, derivs, d);
+    auto christoff2 = christoffel_symbols_2(args.cY.invert(), derivs.dcY);
+    auto fchristoff2 = get_full_christoffel2(args.W, derivs.dW, args.cY, args.cY.invert(), christoff2);
+
+    auto W2Rij = args.W * args.W * calculate_adm_Rij(fchristoff2, d);
+
     valuef R = trace(W2Rij, icY);
 
     pin(icY);
