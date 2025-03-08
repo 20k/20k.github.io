@@ -481,7 +481,45 @@ tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, const deri
     float M = 3.1;
 
     ///gauge damping parameter, commonly set to 2
-    float N = 0.5/M;
+    //float N = 0.5/M;
+
+    valuef N = 0.5f / M;
+
+    {
+        using namespace single_source;
+
+        auto icY = args.cY.invert();
+        pin(icY);
+
+        //valuef Ns_r = 0;
+
+        {
+            float R0 = 1.31f * 0.01;
+
+            //valuef W = max(args.W, 1e-1f);
+
+            valuef W = clamp(args.W, 1e-3f, 0.95f);
+
+            float a = 2;
+            float b = 2;
+
+            valuef sum = 0;
+
+            for(int i=0; i < 3; i++)
+            {
+                for(int j=0; j < 3; j++)
+                {
+                    sum += icY.idx(i, j) * diff1(W, i, d) * diff1(W, j, d);
+                }
+            }
+
+            valuef result = R0 * sqrt(sum) / pow(1 - pow(W, a), b);
+
+            N = max(N, result);
+
+            //print("N %f dW %f %f %f divisor %f\n", result, diff1(W, 0, d), diff1(W, 1, d), diff1(W, 2, d), pow(1 - pow(W, a), b));
+        }
+    }
 
     return (3/4.f) * args.cG_undiff(derivs) + djbjbi * 1 - N * args.gB;
     #endif // GAMMA_DRIVER
