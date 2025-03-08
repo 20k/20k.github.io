@@ -334,29 +334,38 @@ tensor<valuef, 3, 3> calculate_adm_Rij(const tensor<valuef, 3, 3, 3>& christoff2
     return ret;
 }
 
-valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, valuef rho_s, bool adm)
+valuef calculate_hamiltonian_constraint_adm(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, valuef rho_s)
 {
     using namespace single_source;
 
-    valuef R = 0;
+    auto icY = args.cY.invert();
+    auto W2Rij = calculate_W2Rij(args, derivs, d);
+    valuef R = trace(W2Rij, icY);
+
+    pin(icY);
+
+    tensor<valuef, 3, 3> AMN = icY.raise(icY.raise(args.cA, 0), 1);
+
+    valuef AMN_Amn = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            AMN_Amn += AMN[i, j] * args.cA[i, j];
+        }
+    }
+
+    return R + (2.f/3.f) * args.K * args.K - AMN_Amn - 16 * M_PI * rho_s;
+}
+
+valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, valuef rho_s)
+{
+    using namespace single_source;
 
     auto icY = args.cY.invert();
-
-    if(!adm)
-    {
-        auto W2Rij = calculate_W2Rij(args, derivs, d);
-
-        R = trace(W2Rij, icY);
-    }
-    else
-    {
-        auto christoff2 = christoffel_symbols_2(args.cY.invert(), derivs.dcY);
-        auto fchristoff2 = get_full_christoffel2(args.W, derivs.dW, args.cY, args.cY.invert(), christoff2);
-
-        auto W2Rij = args.W * args.W * calculate_adm_Rij(fchristoff2, d);
-
-        R = trace(W2Rij, icY);
-    }
+    auto W2Rij = calculate_W2Rij(args, derivs, d);
+    valuef R = trace(W2Rij, icY);
 
     pin(icY);
 
@@ -1274,7 +1283,7 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
         d.scale = scale.get();
 
         valuef rho_s = plugin_data.adm_p(args, d);
-        valuef ham = calculate_hamiltonian_constraint(args, derivs, d, rho_s, true);
+        valuef ham = calculate_hamiltonian_constraint_adm(args, derivs, d, rho_s);
 
         valuef p = fabs(ham) * 1000;
 

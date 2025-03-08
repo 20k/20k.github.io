@@ -775,7 +775,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     }
 
     ///this looks correct too???
-    if_e(pos.x() == 50 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+    /*if_e(pos.x() == 50 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
         valuef adm_p = w * h * pow(args.W, 3.f) - eos(args.W, w, p_star, e_star);
 
         auto d0 = get_differentiation_variables<3>(phi, 0);
@@ -803,7 +803,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
         //valuef rhs = middle + -2 * M_PI * pow(phi, -3.f) * ppw2p;
 
         print("hi lap %f ppw2p %f err %f rho %f\n", laplacian, rhs, (rhs - laplacian), adm_p);
-    });
+    });*/
 }
 
 valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev)
