@@ -122,6 +122,14 @@ tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const derivativ
     return Mi;
 }
 
+valuef calculate_momentum_constraint_summed(bssn_args& args, const derivative_data& d, v3f Si_lower)
+{
+    v3f cst = calculate_momentum_constraint(args, d, Si_lower);
+
+    return sqrt(cst.x() * cst.x() + cst.y() * cst.y() + cst.z() * cst.z());
+}
+
+
 void make_derivatives(cl::context ctx)
 {
     auto differentiate = [](execution_context&, buffer<valuef> in, std::array<buffer_mut<derivative_t>, 3> out, literal<v3i> ldim, literal<valuef> scale)
@@ -723,7 +731,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3h mom
     {
         for(int j=0; j < 3; j++)
         {
-            float Ka = 0.05f;
+            float Ka = 0.0005f;
 
             dtcA[i, j] += Ka * args.gA * 0.5f *
                               (cd_low[i, j]
@@ -1287,14 +1295,16 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
         d.scale = scale.get();
 
         valuef rho_s = plugin_data.adm_p(args, d);
-        valuef ham = calculate_hamiltonian_constraint_adm(args, derivs, d, rho_s);
+        //valuef ham = calculate_hamiltonian_constraint_adm(args, derivs, d, rho_s);
 
-        valuef p = fabs(ham) * 1000;
+        //valuef p = fabs(ham) * 1000;
+
+        valuef momentum = calculate_momentum_constraint_summed(args, d, plugin_data.adm_Si(args, d));
+
+        valuef p = fabs(momentum) * 1000;
 
         //valuef p = plugin_data.mem.adm_p(args, d);
-
         //valuef p = plugin_data.dbg(args, d);
-
 
         //valuef test_val = in.cY[0][lid];
         //valuef display = ((test_val - 1) / 0.1f) * 0.5f + 0.5f;
@@ -1315,6 +1325,7 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
         });
 
 
+        #if 0
         if_e(pos.x() == 50 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
             using namespace single_source;
 
@@ -1351,7 +1362,7 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
 
             write.write({pos.x(), pos.y()}, (v4f){1, 0, 0, 1});
         });
-
+        #endif
     };
 
     cl::async_build_and_cache(ctx, [=] {
