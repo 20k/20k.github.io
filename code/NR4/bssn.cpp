@@ -301,16 +301,64 @@ tensor<valuef, 3, 3> calculate_W2Rij(bssn_args& args, bssn_derivatives& derivs, 
     return w2Rphiij + calculate_cRij(args, derivs, d) * args.W * args.W;
 }
 
-valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, valuef rho_s)
+tensor<valuef, 3, 3> calculate_adm_Rij(const tensor<valuef, 3, 3, 3>& christoff2, const derivative_data& d)
+{
+    tensor<valuef, 3, 3> ret;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            valuef s1 = 0;
+            valuef s2 = 0;
+            valuef s3 = 0;
+            valuef s4 = 0;
+
+            for(int k=0; k < 3; k++)
+            {
+                s1 += diff1(christoff2[k, i, j], k, d);
+
+                s2 += -diff1(christoff2[k, k, j], i, d);
+
+                for(int l=0; l < 3; l++)
+                {
+                    s3 += christoff2[l, i, j] * christoff2[k, l, k];
+                    s4 += -christoff2[l, k, j] * christoff2[k, l, i];
+                }
+            }
+
+            ret[i, j] = s1 + s2 + s3 + s4;
+        }
+    }
+
+    return ret;
+}
+
+valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, valuef rho_s, bool adm)
 {
     using namespace single_source;
 
-    auto W2Rij = calculate_W2Rij(args, derivs, d);
+    valuef R = 0;
 
     auto icY = args.cY.invert();
-    pin(icY);
 
-    valuef R = trace(W2Rij, icY);
+    if(!adm)
+    {
+        auto W2Rij = calculate_W2Rij(args, derivs, d);
+
+        R = trace(W2Rij, icY);
+    }
+    else
+    {
+        auto christoff2 = christoffel_symbols_2(args.cY.invert(), derivs.dcY);
+        auto fchristoff2 = get_full_christoffel2(args.W, derivs.dW, args.cY, args.cY.invert(), christoff2);
+
+        auto W2Rij = args.W * args.W * calculate_adm_Rij(fchristoff2, d);
+
+        R = trace(W2Rij, icY);
+    }
+
+    pin(icY);
 
     tensor<valuef, 3, 3> AMN = icY.raise(icY.raise(args.cA, 0), 1);
 
@@ -1187,6 +1235,7 @@ void enforce_algebraic_constraints(cl::context ctx)
     }, {"enforce_algebraic_constraints"});
 }
 
+///todo: I think the hamiltonian constraint I'm using is expecting ADM, but we're using BSSN
 
 void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
 {
@@ -1224,13 +1273,10 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
         d.dim = dim;
         d.scale = scale.get();
 
-        valuef ham = calculate_hamiltonian_constraint(args, derivs, d, plugin_data.adm_p(args, d));
+        valuef rho_s = plugin_data.adm_p(args, d);
+        valuef ham = calculate_hamiltonian_constraint(args, derivs, d, rho_s, true);
 
         valuef p = fabs(ham) * 1000;
-
-        if_e(pos.x() == 50 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-            print("Ham %f\n", ham);
-        });
 
         //valuef p = plugin_data.mem.adm_p(args, d);
 
@@ -1254,6 +1300,45 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
         {
             write.write({pos.x(), pos.y()}, col);
         });
+
+
+        if_e(pos.x() == 50 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+            using namespace single_source;
+
+            auto icY = args.cY.invert();
+            pin(icY);
+
+            /*auto W2Rij = calculate_W2Rij(args, derivs, d);
+            valuef R = trace(W2Rij, icY);*/
+
+            auto christoff2 = christoffel_symbols_2(args.cY.invert(), derivs.dcY);
+            auto fchristoff2 = get_full_christoffel2(args.W, derivs.dW, args.cY, args.cY.invert(), christoff2);
+
+            auto W2Rij = args.W * args.W * calculate_adm_Rij(fchristoff2, d);
+
+            valuef R = trace(W2Rij, icY);
+
+            tensor<valuef, 3, 3> AMN = icY.raise(icY.raise(args.cA, 0), 1);
+
+            valuef AMN_Amn = 0;
+
+            for(int i=0; i < 3; i++)
+            {
+                for(int j=0; j < 3; j++)
+                {
+                    AMN_Amn += AMN[i, j] * args.cA[i, j];
+                }
+            }
+
+            valuef cham = R + (2.f/3.f) * args.K * args.K - AMN_Amn - 16 * M_PI * rho_s;
+
+            print("Ham %f\n", cham);
+
+            print("Hd K %f R %.23f rho %f rho_all %f Asum %f", args.K, R, rho_s, -16 * M_PI * rho_s, AMN_Amn);
+
+            write.write({pos.x(), pos.y()}, (v4f){1, 0, 0, 1});
+        });
+
     };
 
     cl::async_build_and_cache(ctx, [=] {

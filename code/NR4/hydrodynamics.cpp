@@ -563,6 +563,24 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     //with raised index
     v3f Si = Si_cfl * pow(phi, -10);
 
+    //ok so, delta lambda = -2 pi phi^-3 ppw2p, where ppw2p = mu_h_cfl
+
+    ///wait, i neglected Aij.. which isn't correct?
+    /*{
+        auto d0 = get_differentiation_variables<3>(phi, 0);
+        auto d1 = get_differentiation_variables<3>(phi, 1);
+        auto d2 = get_differentiation_variables<3>(phi, 2);
+
+        valuef laplacian = (d0[0] + d0[2] + d1[0] + d1[2] + d2[0] + d2[2] - 6 * phi) / (scale.get() * scale.get());
+
+        valuef ppw2p = mu_h_cfl;
+
+        valuef rhs = -2 * M_PI * pow(phi, -3.f) * ppw2p;
+
+        print("hi lap %f ppw2p %f err %f\n", laplacian, rhs, (rhs - laplacian));
+    }*/
+
+
     valuef Gamma = get_Gamma();
 
     auto mu_to_p0 = [&](valuef mu)
@@ -755,6 +773,37 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
         for(int i=0; i < (int)hydro.colour.size(); i++)
             as_ref(hydro.colour[i][pos, dim]) = colour_in[index][i] * p_star;
     }
+
+    ///this looks correct too???
+    if_e(pos.x() == 50 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
+        valuef adm_p = w * h * pow(args.W, 3.f) - eos(args.W, w, p_star, e_star);
+
+        auto d0 = get_differentiation_variables<3>(phi, 0);
+        auto d1 = get_differentiation_variables<3>(phi, 1);
+        auto d2 = get_differentiation_variables<3>(phi, 2);
+
+        tensor<valuef, 3, 3> Aij = args.cA;
+
+        auto Kij = Aij / (args.W * args.W);
+
+        auto lAij = pow(phi, -2) * Kij;
+
+        auto Yij = args.cY / (args.W * args.W);
+
+        auto lYij = Yij * pow(phi, 4.f);
+        auto lAIJ = raise_both(lAij, lYij.invert());
+
+        valuef middle = -(1.f/8.f) * pow(phi, -7.f) * sum_multiply(lAIJ, lAij);
+
+        valuef laplacian = (d0[0] + d0[2] + d1[0] + d1[2] + d2[0] + d2[2] - 6 * phi) / (scale.get() * scale.get());
+
+        valuef ppw2p = mu_h_cfl;
+
+        valuef rhs = middle + -2 * M_PI * pow(phi, 5.f) * mu_h;
+        //valuef rhs = middle + -2 * M_PI * pow(phi, -3.f) * ppw2p;
+
+        print("hi lap %f ppw2p %f err %f rho %f\n", laplacian, rhs, (rhs - laplacian), adm_p);
+    });
 }
 
 valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev)

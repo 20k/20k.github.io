@@ -74,6 +74,7 @@ std::array<T, elements> get_differentiation_variables(const T& in, int direction
 }
 
 template std::array<valuef, 5> get_differentiation_variables<5, valuef>(const valuef&, int);
+template std::array<valuef, 3> get_differentiation_variables<3, valuef>(const valuef&, int);
 
 template<typename T>
 value<T> diff1_generic(const value<T>& in, int direction, const derivative_data& d)
