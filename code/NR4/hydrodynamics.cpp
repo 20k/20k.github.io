@@ -71,7 +71,7 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
 
     //note to self, actually hand derived this and am sure its correct
     //tol is very intentionally set to 1e-6, breaks if lower than this
-    v3f real_value = -gB + safe_divide(W*W * gA, w*h, 1e-6) * cY.invert().raise(Si);
+    v3f real_value = -gB + safe_divide(W*W * gA, w*h, 1e-7) * cY.invert().raise(Si);
 
     return ternary(p_star <= min_p_star, (v3f){}, real_value);
 }
@@ -813,7 +813,7 @@ valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev)
     valuef A = pow(max(W, 0.001f), 3.f * Gamma - 3.f);
     valuef wG = pow(w_prev, Gamma - 1);
 
-    return safe_divide(wG, wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 1e-7f), Gamma - 2));
+    return safe_divide(wG, wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 1e-8f), Gamma - 2));
 }
 
 valuef calculate_w_constant(valuef W, const inverse_metric<valuef, 3, 3>& icY, v3f Si)
@@ -1177,11 +1177,11 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     });
 
     //test bound
-    mut<valuef> bound = declare_mut_e(valuef(1.f));
+    mut<valuef> bound = declare_mut_e(valuef(0.9));
 
-    if_e((hydro.e_star[pos, dim] <= hydro.p_star[pos, dim]) || (hydro.p_star[pos, dim] <= min_p_star * 10), [&]{
+    /*if_e((hydro.e_star[pos, dim] <= hydro.p_star[pos, dim]) || (hydro.p_star[pos, dim] <= min_p_star * 10), [&]{
         as_ref(bound) = valuef(1.f);
-    });
+    });*/
 
     bssn_args args(pos, dim, in);
 
@@ -1189,17 +1189,17 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     valuef e_star = hydro.e_star[pos, dim];
 
     v3f Si = {hydro.Si[0][pos, dim], hydro.Si[1][pos, dim], hydro.Si[2][pos, dim]};
+    pin(Si);
 
     valuef w = calculate_w(p_star, e_star, args.W, args.cY.invert(), Si);
     valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
     valuef h = calculate_h_from_epsilon(epsilon);
 
-    v3f dfsi = {hydro.Si[0][pos, dim], hydro.Si[1][pos, dim], hydro.Si[2][pos, dim]};
 
-    v3f u_k;
+    /*v3f u_k;
 
     for(int i=0; i < 3; i++)
-        u_k[i] = safe_divide(dfsi[i], h * hydro.p_star[pos, dim], 1e-6);
+        u_k[i] = safe_divide(dfsi[i], h * hydro.p_star[pos, dim], 1e-8);
 
     valuef cst = declare_e(bound);
 
@@ -1218,7 +1218,15 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     as_ref(hydro.Si[0][pos, dim]) = fin[0];
     as_ref(hydro.Si[1][pos, dim]) = fin[1];
-    as_ref(hydro.Si[2][pos, dim]) = fin[2];
+    as_ref(hydro.Si[2][pos, dim]) = fin[2];*/
+
+    valuef cst = p_star * as_constant(bound) * h;
+
+    v3f clamped = clamp(Si, -cst, cst);
+
+    as_ref(hydro.Si[0][pos, dim]) = clamped[0];
+    as_ref(hydro.Si[1][pos, dim]) = clamped[1];
+    as_ref(hydro.Si[2][pos, dim]) = clamped[2];
 }
 
 hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx, float _linear_viscosity_timescale, bool _use_colour)

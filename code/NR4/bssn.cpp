@@ -483,7 +483,7 @@ tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, const deri
 
     #define MASS_DAMP
     #ifdef MASS_DAMP
-    float M = 3.1/2;
+    float M = 3.1;
     N = 0.5f / M;
     #endif // MASS_DAMP
 
@@ -645,7 +645,7 @@ valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const derivative_data&
         dibiw += args.gB[i] * diff1(args.W, i, d);
     }
 
-    return (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw + 0.0001f * calculate_hamiltonian_constraint(args, derivs, d, rho_s);
+    return (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw + 0.0005f * calculate_hamiltonian_constraint(args, derivs, d, rho_s);
 }
 
 tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
