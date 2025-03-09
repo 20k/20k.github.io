@@ -1363,7 +1363,7 @@ initial_params get_initial_params()
 
     initial_params init;
 
-    init.dim = {255, 255, 255};
+    init.dim = {213, 213, 213};
     init.simulation_width = radial_pos * 2 * 3 * 1.75;
 
     init.add(p1);
