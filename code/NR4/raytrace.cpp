@@ -1181,10 +1181,21 @@ void render(execution_context& ectx, literal<v2i> screen_sizel,
     });
     #endif
 
-    if_e(results[screen_position, screen_size] == 0 || results[screen_position, screen_size] == 2 || results[screen_position, screen_size] == 3, [&]{
-        v4f colour = matter_colour[screen_position, screen_size];
+    auto fix_colour = [&](v4f col)
+    {
+        valuef occ = clamp(col.w(), 0.f, 1.f);
 
-        colour = clamp(colour, v4f{0,0,0,0}, v4f{1,1,1,1});
+        v3f col_normed = col.xyz() / max(max(max(col.x(), col.y()), col.z()), 1e-4f);
+
+        v3f normed = ternary(col.x() > 1 || col.y() > 1 || col.z() > 1, col_normed, col.xyz());
+
+        normed = clamp(normed, 0.f, 1.f);
+
+        return (v4f){normed.x(), normed.y(), normed.z(), occ};
+    };
+
+    if_e(results[screen_position, screen_size] == 0 || results[screen_position, screen_size] == 2 || results[screen_position, screen_size] == 3, [&]{
+        v4f colour = fix_colour(matter_colour[screen_position, screen_size]);
 
         v3f cvt = colour.xyz();
 
@@ -1398,9 +1409,7 @@ void render(execution_context& ectx, literal<v2i> screen_sizel,
     v3f cvt = declare_e(end_result);
     #endif // ANISOTROPIC
 
-    v4f colour = matter_colour[screen_position, screen_size];
-
-    colour = clamp(colour, v4f{0,0,0,0}, v4f{1,1,1,1});
+    v4f colour = fix_colour(matter_colour[screen_position, screen_size]);
 
     valuef zp1 = declare_e(zshift[screen_position, screen_size]) + 1;
 

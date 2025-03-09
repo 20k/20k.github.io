@@ -478,25 +478,27 @@ tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, const deri
         djbjbi[i] = sum;
     }
 
-    float M = 3.1;
-
     ///gauge damping parameter, commonly set to 2
-    //float N = 0.5/M;
+    valuef N = 2;
 
-    valuef N = 0.5f / M;
+    //#define MASS_DAMP
+    #ifdef MASS_DAMP
+    float M = 3.1/2;
+    N = 0.5f / M;
+    #endif // MASS_DAMP
 
+    //#define VARIABLE_DAMP
+    #ifdef VARIABLE_DAMP
     {
+        N = 0.05f;
+
         using namespace single_source;
 
         auto icY = args.cY.invert();
         pin(icY);
 
-        //valuef Ns_r = 0;
-
         {
-            float R0 = 1.31f * 0.01;
-
-            //valuef W = max(args.W, 1e-1f);
+            float R0 = 1.31f;
 
             valuef W = clamp(args.W, 1e-3f, 0.95f);
 
@@ -515,11 +517,14 @@ tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, const deri
 
             valuef result = R0 * sqrt(sum) / pow(1 - pow(W, a), b);
 
-            N = max(N, result);
+            /*if_e(result >= N, [&]{
+                print("N %f dW %f %f %f divisor %f\n", result, diff1(W, 0, d), diff1(W, 1, d), diff1(W, 2, d), pow(1 - pow(W, a), b));
+            });*/
 
-            //print("N %f dW %f %f %f divisor %f\n", result, diff1(W, 0, d), diff1(W, 1, d), diff1(W, 2, d), pow(1 - pow(W, a), b));
+            N = max(N, result);
         }
     }
+    #endif
 
     return (3/4.f) * args.cG_undiff(derivs) + djbjbi * 1 - N * args.gB;
     #endif // GAMMA_DRIVER
@@ -616,7 +621,8 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
     }
     #endif
 
-    dtcY += 0.5f * args.gA * args.cY.to_tensor() * -calculate_hamiltonian_constraint(args, derivs, d, rho_s);
+    //this appears to do literally nothing
+    //dtcY += 0.005f * args.gA * args.cY.to_tensor() * -calculate_hamiltonian_constraint(args, derivs, d, rho_s);
 
     return dtcY;
 }
@@ -639,7 +645,7 @@ valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const derivative_data&
         dibiw += args.gB[i] * diff1(args.W, i, d);
     }
 
-    return (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw + 0.0005f * calculate_hamiltonian_constraint(args, derivs, d, rho_s);
+    return (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw + 0.0001f * calculate_hamiltonian_constraint(args, derivs, d, rho_s);
 }
 
 tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)

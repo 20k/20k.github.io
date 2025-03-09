@@ -237,7 +237,7 @@ tov::integration_solution tov::solve_tov(const integration_state& start, const p
 }
 
 //personally i liked the voyage home better
-std::vector<double> tov::search_for_adm_mass(double adm_mass, const parameters& param)
+std::vector<double> tov::search_for_rest_mass(double adm_mass, const parameters& param)
 {
     double r_approx = adm_mass / 0.06;
 

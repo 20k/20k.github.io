@@ -22,6 +22,7 @@ namespace neutron_star
 
     struct param_rest_mass
     {
+        ///in msols
         double mass = 0;
         int result_index = 0;
     };

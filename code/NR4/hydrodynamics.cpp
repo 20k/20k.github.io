@@ -4,11 +4,11 @@
 ///so like. What if I did the projective real strategy?
 
 //stable with 1e-6, but the neutron star dissipates
-constexpr float min_p_star = 1e-7f;
+constexpr float min_p_star = 1e-8f;
 
 template<typename T>
 inline
-T safe_divide(const T& top, const T& bottom, float tol = 1e-6)
+T safe_divide(const T& top, const T& bottom, float tol = 1e-7)
 {
     return top / max(bottom, T{tol});
 }
@@ -303,7 +303,7 @@ v3f full_hydrodynamic_args<T>::get_colour(bssn_args& args, const derivative_data
 
     v3f raw_colour = {this->colour[0][pos, dim], this->colour[1][pos, dim], this->colour[2][pos, dim]};
 
-    return raw_colour / max(this->p_star[pos, dim], 1e-6f);
+    return raw_colour / max(this->p_star[pos, dim], 1e-5f);
 }
 
 template<typename T>

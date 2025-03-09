@@ -504,7 +504,7 @@ neutron_star::data::data(const parameters& p) : params(p)
     {
         param_rest_mass mass = params.mass.rest_mass.value();
 
-        std::vector<double> masses = tov::search_for_adm_mass(mass.mass, tov_params);
+        std::vector<double> masses = tov::search_for_rest_mass(mass.mass, tov_params);
 
         assert(masses.size() > 0 && mass.result_index >= 0 && mass.result_index < (int)masses.size());
 
