@@ -1332,7 +1332,7 @@ initial_params get_initial_params()
 
     #endif // INSPIRAL_2
 
-    //#define INSPIRAL
+    #define INSPIRAL
     #ifdef INSPIRAL
     ///hi, you're trying to work out why the neutron stars lose too much energy
     ///its almost certainly kreiss-oliger
@@ -1375,19 +1375,19 @@ initial_params get_initial_params()
 
     #endif
 
-    #define FUN
+    //#define FUN
     #ifdef FUN
     neutron_star::parameters p1;
 
-    p1.colour = {1, 1, 1};
+    //p1.colour = {1, 1, 1};
     p1.position = {0, 0, 0};
-    p1.linear_momentum.momentum = {-0.05, -0.07, 0};
+    p1.linear_momentum.momentum = {-0.03, -0.08, 0};
     p1.K.msols = 123.641;
     p1.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
 
     neutron_star::parameters p2;
 
-    p2.colour = {10 * 1, 10 * 69.f/255.f, 0};
+    //p2.colour = {10 * 1, 10 * 128/255.f, 0};
     p2.position = {50, 0, 0};
     p2.linear_momentum.momentum = {0, 0.09, 0};
     p2.K.msols = 423.641;
@@ -1399,7 +1399,7 @@ initial_params get_initial_params()
 
     initial_params init;
 
-    init.dim = {177, 177, 177};
+    init.dim = {233, 233, 233};
     init.simulation_width = 180;
 
     init.add(p1);
