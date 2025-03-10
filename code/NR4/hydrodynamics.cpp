@@ -8,7 +8,7 @@ constexpr float min_p_star = 1e-8f;
 
 template<typename T>
 inline
-T safe_divide(const T& top, const T& bottom, float tol = 1e-6)
+auto safe_divide(const auto& top, const T& bottom, float tol = 1e-6)
 {
     return top / max(bottom, T{tol});
 }
@@ -28,7 +28,13 @@ valuef calculate_epsilon(valuef p_star, valuef e_star, valuef W, valuef w)
     valuef e_m6phi = W*W*W;
     valuef Gamma = get_Gamma();
 
-    return pow(safe_divide(e_m6phi, w), Gamma - 1) * pow(e_star, Gamma) * pow(p_star, Gamma - 2);
+    ///this probably isn't super regular
+
+    ///(W^3^Gamma-1 / w^(gamma - 1)) * e*^Gamma * p*^(Gamma - 2)
+    ///p*^(Gamma - 2) * W^3^Gamma-1 * e*^Gamma / w^(Gamma - 1)
+    ///p*^(Gamma - 2) * W^3^Gamma-1 * e* * e*^Gamma-1 / w^(Gamma - 1)
+
+    return pow(p_star, Gamma - 2) * pow(e_m6phi, Gamma - 1) * e_star * safe_divide(pow(e_star, Gamma - 1), pow(w, Gamma - 1));
 }
 
 valuef calculate_p0e(valuef p_star, valuef e_star, valuef W, valuef w)
@@ -53,7 +59,7 @@ valuef calculate_p0(valuef p_star, valuef W, valuef w)
 
     valuef e_m6phi = W*W*W;
 
-    return safe_divide(p_star*p_star * e_m6phi, w);
+    return p_star * e_m6phi * safe_divide(p_star, w);
 }
 
 valuef eos(valuef W, valuef w, valuef p_star, valuef e_star)
@@ -69,9 +75,11 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
 {
     valuef h = calculate_h_from_epsilon(epsilon);
 
+    v3f Si_upper = cY.invert().raise(Si);
+
     //note to self, actually hand derived this and am sure its correct
     //tol is very intentionally set to 1e-6, breaks if lower than this
-    v3f real_value = -gB + safe_divide(W*W * gA, w*h, 1e-6) * cY.invert().raise(Si);
+    v3f real_value = -gB + (W*W * gA / h) * safe_divide(Si_upper, w, 1e-6);
 
     return ternary(p_star <= min_p_star, (v3f){}, real_value);
 }
@@ -104,7 +112,7 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
     valuef littledv = dkvk * d.scale;
     valuef Gamma = get_Gamma();
 
-    valuef A = safe_divide(pow(e_star, Gamma) * pow(p_star, Gamma - 1) * pow(e_m6phi, Gamma - 1), pow(w, Gamma - 1), 1e-6f);
+    valuef A = pow(e_star, Gamma) * pow(e_m6phi, Gamma - 1) * safe_divide(pow(p_star, Gamma - 1), pow(w, Gamma - 1), 1e-6f);
 
     //ctx.add("DBG_A", A);
 
@@ -246,7 +254,7 @@ struct hydrodynamic_concrete
 
         for(int k=0; k < 3; k++)
         {
-            value to_diff = safe_divide(w * vi[k] * e_6phi, p_star, 1e-6);
+            value to_diff = safe_divide(w, p_star, 1e-6) * vi[k] * e_6phi;
 
             sum_interior_rhs += diff1(to_diff, k, d);
         }
@@ -314,7 +322,7 @@ valuef full_hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& 
     valuef h = hydro_args.calculate_h_with_eos(args.W);
 
     return ternary(hydro_args.p_star <= 0,
-                   valuef(),
+                   {},
                    hydro_args.w * h * pow(args.W, 3.f) - hydro_args.eos(args.W));
 }
 
@@ -326,7 +334,7 @@ tensor<valuef, 3> full_hydrodynamic_args<T>::adm_Si(bssn_args& args, const deriv
     valuef p_star = this->p_star[d.pos, d.dim];
 
     return ternary(p_star <= 0,
-                   v3f(),
+                   {},
                    pow(args.W, 3.f) * cSi);
 }
 
@@ -348,7 +356,7 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
     }
 
     return ternary(hydro_args.p_star <= 0,
-                   tensor<valuef, 3, 3>(),
+                   {},
                    W2_Sij + hydro_args.eos(args.W) * args.cY.to_tensor());
 }
 
@@ -1087,7 +1095,8 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
         valuef w2_m_p2_calc = w2_m_p2(hydro_args.p_star, hydro_args.e_star, args.W, args.cY.invert(), hydro_args.Si, w);
 
-        valuef p5 = safe_divide(args.gA * h * w2_m_p2_calc, w) * (diff1(args.W, k, d) / max(args.W, 0.1f));
+        valuef p5 = args.gA * h * (w - hydro_args.p_star * safe_divide(hydro_args.p_star, w)) * (diff1(args.W, k, d) / max(args.W, 0.1f));
+        //valuef p5 = args.gA * h * safe_divide(w2_m_p2_calc, w) * (diff1(args.W, k, d) / max(args.W, 0.1f));
 
         dSi_p1[k] += (p1 + p2 + p3 + p4 + p5);
     }
@@ -1170,7 +1179,7 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         return_e();
     });
 
-    if_e(hydro.p_star[pos, dim] < valuef(1e-6f), [&]{
+    if_e(hydro.p_star[pos, dim] < valuef(1e-7f), [&]{
         valuef e_star = declare_e(hydro.e_star[pos, dim]);
 
         as_ref(hydro.e_star[pos, dim]) = min(e_star, 10 * hydro.p_star[pos, dim]);
@@ -1180,7 +1189,7 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     mut<valuef> bound = declare_mut_e(valuef(0.9));
 
     /*if_e((hydro.e_star[pos, dim] <= hydro.p_star[pos, dim]) || (hydro.p_star[pos, dim] <= min_p_star * 10), [&]{
-        as_ref(bound) = valuef(1.f);
+        as_ref(bound) = valuef(0.2f);
     });*/
 
     bssn_args args(pos, dim, in);
@@ -1194,31 +1203,6 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     valuef w = calculate_w(p_star, e_star, args.W, args.cY.invert(), Si);
     valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
     valuef h = calculate_h_from_epsilon(epsilon);
-
-
-    /*v3f u_k;
-
-    for(int i=0; i < 3; i++)
-        u_k[i] = safe_divide(dfsi[i], h * hydro.p_star[pos, dim], 1e-8);
-
-    valuef cst = declare_e(bound);
-
-    if_e(u_k[0] >= -cst && u_k[0] <= cst &&
-         u_k[1] >= -cst && u_k[1] <= cst &&
-         u_k[2] >= -cst && u_k[2] <= cst, [&]{
-        return_e();
-    });
-
-    u_k = clamp(u_k, -cst, cst);
-
-    //maybe i should just do clamp(Si, pstar * bound) and hodge podge it
-    v3f fin = u_k * h * hydro.p_star[pos, dim];
-
-    pin(fin);
-
-    as_ref(hydro.Si[0][pos, dim]) = fin[0];
-    as_ref(hydro.Si[1][pos, dim]) = fin[1];
-    as_ref(hydro.Si[2][pos, dim]) = fin[2];*/
 
     valuef cst = p_star * as_constant(bound) * h;
 

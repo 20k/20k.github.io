@@ -918,6 +918,14 @@ The source terms conspire very conveniently to avoid having to calculate infinit
 
 ## Implementation
 
+### Divisions by zero
+
+As you may have noticed, our equations involve quite a bit of dividing by zero. In general, there are many instances of divisions by $w$, or $W$, which we'll have to deal with
+
+In general, dealing with this is pretty straightforward. For division by $W$, I clamp $W$ to $0.1$. This might seem quite large, but in general we don't really care about the hydrodynamics near the singularity of a black hole, and its more important for the equations to remain regular
+
+For divisions by equations involving $\rho_*$ or $w$, its a bit tricker. In general, I use a division tolerance of $1e-6$
+
 Divisions by zero s u c c
 
 Subnote: Projective reals (1/inf = 0)
