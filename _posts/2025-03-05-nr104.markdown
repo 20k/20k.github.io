@@ -750,53 +750,34 @@ We're going to be looking at two papers today, primarily the latter:
 
 [Hydrodynamic Simulations in 3+1 General Relativity](https://arxiv.org/pdf/gr-qc/0209102)
 
-If you're thinking *this sure seems like a lot to cram in one article*, in general relativity: the initial conditions are often significantly more complicated than the evolution equations. Today that's especially true, because its not going to be too bad to get from here to the end of the article
+We're going to modify this paper a little to remove some divergent quantities, and I'll illustrate how to track matter per-star as it moves around the grid
 
-We are going to modify this paper quite a bit though:
-
-1. We'll be removing divergent quantities from the equations, and translating to a more modern notation
-2. I'll also show you how to make this run super duper fast, so that the overhead of neutron star simulations is minimal
-3. We'll be adding the ability to track exactly what matter originated from which neutron star as they mix
-
-We'll also need to modify the BSSN equations a bit to add matter terms in
-
-Todo: Brief recap of ADM
+We'll also need to perform the standard modifications to the BSSN equations to add matter terms in
 
 ## Paper notation and equations
 
-Todo: Up front, specify variables, what they mean, their ranges and bounds
-Todo: List all the helper equations in the article
+|Paper Notation | Description |
+|-|-|
+|$\rho$| ADM scalar matter source. We'll be calling this $\rho_s$ to avoid confusion |
+|$S_i$| ADM vector matter source. Also known as $j_i$ |
+|$S_{ij}$| ADM tensor matter source |
+|$S$ | The trace of $S_{ij}$ with respect to $\gamma_{ij}$|
+|$\rho_*$| Evolution variable related to the fluid's matter density |
+|$e_*$| Evolution variable related to the fluid's energy |
+|$\tilde{S}_k$ | Evolution variable related to the fluid momentum|
+|$u^i$ | Spatial part of the fluid 4-velocity |
+|$u^0$| The lorentz factor (the first component of the fluid 4-velocity)|
+|$w$| $p_* \alpha u^0$, used to calculate the lorentz factor|
+|$v^i$ | The coordinate 3-velocity|
+|$P$ | Pressure. We'll be using their notation instead of $p$|
 
-## Initial conditions
+The convention that they use for the fluid variables lines up with ours
 
-First off, we need to translate from our ADM quantities, to this paper's quantities:
+$\rho_s$, $S_i$ and $S_{ij}$ together make up the components of the stress energy tensor $T_{\mu\nu}$
 
-Todo: It would be better to calculate w^2 from $S^i$, though it might be too annoying?
-Todo: Use 22 to calculate $h$
+$\rho_*$, $e_*$, and $\tilde{S}_k$ are what we'll be solving the evolution equations for
 
-Todo: tablify
-Todo: phi -> W
-Todo; delta phi
-
-$$\gamma_{lorentz}^2 =\frac{\mu_H + P}{\mu + P}$$
-$$u^0 = \gamma_{lorentz}$$
-$$p_* = \rho_0 \alpha u^0 W^{-3}$$
-$$e_* = (\rho_0 \epsilon)^\frac{1}{\Gamma}\alpha u^0 W^{-3}$$
-$$P = (\Gamma-1) \rho_0 \epsilon$$
-
-I think $\rho_0 + \rho_0 \epsilon + P = \mu + P$
-
-$\rho_0 + (P/(\Gamma-1)) = \mu$
-
-Note that $\Gamma=2$ is used in the gamma law equation of state: $(\Gamma-1) \rho_0 \epsilon$
-
-$$\tilde{S}_i = W^{-3} \gamma_{ij} S^j$$
-
-$$\rho_0 \epsilon = \frac{P}{\Gamma-1}$$
-
-## Equations
-
-First off, we need to convert from the old style conformal factor $\phi$, to ours $W^2$. The conformal decomposition is defined as follows: $$\tilde{\gamma}_{ij} = W^2 \gamma_{ij} = e^{-4\phi} \gamma_{ij}$$
+We'll also need to convert this papers older style conformal factor $\phi$, to ours which is $W$. The conformal decomposition is defined as follows: $$\tilde{\gamma}_{ij} = W^2 \gamma_{ij} = e^{-4\phi} \gamma_{ij}$$
 
 |Ours|Theirs|
 |-|-|
@@ -808,7 +789,24 @@ First off, we need to convert from the old style conformal factor $\phi$, to our
 |$\frac{1}{W^3}$|$e^{6\phi}$|
 |$-\frac{\partial_i W}{2W}$|$\partial_i \phi$|
 
-I know this is basic, but it saves a lot of time looking things up when you check the reference paper
+This is basic, but it saves a lot of time looking things up when you check the reference paper
+
+## Initial conditions
+
+First off, we need to translate from our hydrodynamic quantities, to this paper's quantities. We'll also need the equation of state for a perfect fluid, which is $P = (\Gamma - 1) \rho_0 \epsilon$, where $\Gamma = 2$
+
+|Symbol | Initial value |
+|-|-|
+|$\rho_0$ | Numerically calculated from the inverted neutron star equation of state from $P$ and $\mu$, via $\mu = \rho_0 + \frac{P}{\Gamma - 1}$  |
+|$\rho_*$| $\rho_0 \alpha u^0 W^{-3}$ |
+|$\rho_0 \epsilon $| $\frac{P}{\Gamma - 1}$ (perfect fluid EoS)|
+|$e_*$| $(\rho_0 \epsilon)^{\frac{1}{\Gamma}} \alpha u^0 W^{-3}$|
+|$u_i$ | $\beta^i u^0 + \gamma_{ij} u^j$|
+|$\tilde{S}_k$| $\rho_* h u_k$ |
+
+We already have the lorentz factor $u^0$ from our initial conditions, as well as distributions for $P$, $\mu$, and $u^i$. $u_i$'s derivation can be worked out by lowering $u^\mu$ with the metric tensor $g_{\mu\nu}$
+
+## Evolution Equations
 
 The equations themselves are straightforward:
 
@@ -822,19 +820,17 @@ $$\begin{align}
 \end{align}
 $$
 
-Todo: Ok, you can calculate $w^2 - p_*^2$ directly, to avoid doing a $p_*^2$. That's pretty spicy. Its sort of not because we do a p*2 to calculate w so do i really care
-
-There are two quantities we need to calculate here, $v^i$ and $w$
+There are two nontrivial quantities we need to calculate here, $v^i$ and $w$
 
 ### $v^i$
 
 Firstly, we calculate $u_k = \frac{\tilde{S}_k}{p_* h}$
 
-Then, we calculate $v^i = -\beta + \frac{p_* \alpha h \tilde{\gamma}^{ij} u_j}{w h e^{4\phi}}$. I've borrowed this from [2.12](https://arxiv.org/pdf/gr-qc/9908027), with adjustments
+The quantity $v^i$ is as follows:
 
-Conveniently, this quantity is actually:
+$$v^i = -\beta^i + \frac{W^2 \alpha \tilde{\gamma}^{ij} \tilde{S}_j}{w h}$$
 
-$v^i = -\beta^i + \frac{W^2 \alpha \tilde{\gamma}^{ij} \tilde{S}_j}{w h}$
+This can either be worked out from [2.12](https://arxiv.org/pdf/gr-qc/9908027) and converting their variables, or by calculating $\frac{u^i}{u^0}$ as $$g^{i\nu} u_{\nu}$$. You'll also have to work out the quantity $u_0$ if you're deriving this by hand. Todo: Do this at the endof the article
 
 ### $w$
 
@@ -847,53 +843,51 @@ There are two problems:
 1. There is no analytic solution
 2. It divides by zero a fair bit
 
-We can solve #1 very easily using fixed point iteration with the initial guess $w=1$ (or perhaps, $w=p_*$) as this is a lorentz factor multiplied by density terms. Simply plug in your guess into the right hand side, calculate the new value of $w$, and rinse and repeat. #2 is more of a pain
+We can solve #1 by using fixed point iteration with the initial guess $w=1$ (or perhaps, $w=p_*$) as this is a lorentz factor multiplied by density terms. Simply plug in your guess into the right hand side, calculate the new value of $w$, and rinse and repeat. #2 is more of a pain
 
-The way this equation is structured is a little messy. Lets rearrange it a bit:
+The way this equation is structured is mildly unimplementable. Lets rearrange it a bit:
 
 $$\begin{align}
-A = (W^3)^{\Gamma-1}\\
-D = \frac{w^{\Gamma-1}}{w^{\Gamma-1} + A \Gamma e_*^{\Gamma} p_*^{\Gamma-2}}\\
-w^2 = p_*^2 + W^2 \tilde{\gamma}^{ij} \tilde{S}_i \tilde{S}_j D^2\\
+A &= (W^3)^{\Gamma-1}\\
+D &= \frac{w^{\Gamma-1}}{w^{\Gamma-1} + A \Gamma e_*^{\Gamma} p_*^{\Gamma-2}}\\
+w^2 &= p_*^2 + W^2 \tilde{\gamma}^{ij} \tilde{S}_i \tilde{S}_j D^2\\
 \end{align}
 $$
 
-Todo: Only limit the bottom right term of D
+The singular part is the divisor of $D$, and to fix it you can simply clamp the bottom to a small constant. We'll be getting back to the singular division issue later, as we'll be handling it systematically
 
-No matter how we rearrange this though to make it easier to work with, we do need to work out what the limit of $w$ is as $\frac{1}{w} -> 0$. In our case, you can assume that its either because $\alpha = 0$, in which case we're at a singularity, or $p_* = 0$, in which case there's no matter
-
-Its worth noting the special case here when $\Gamma = 2$, in that the factor of $p_*$ drops out
+Its worth noting here that when $\Gamma = 2$, the factor of $p_*$ drops out
 
 ### Recovering the primitive variables
 
-$\rho_0$ and $\epsilon$ are often called the primitive variables, and recovering them requires $w$. Once you have that, you can calculate:
+$\rho_0$ and $\epsilon$ are called the primitive hydrodynamic variables, and recovering them requires $w$. Once you have that, you can calculate:
 
-$$\rho_0 = \frac{W^3 p_*^2}{w}$$
-
-And
-
-$$\epsilon = e_*^\Gamma p_*^{\Gamma - 2} (\frac{W^3}{w})^{\Gamma - 1}$$
-
-Both of these non regular divisions have their limits at $0$
+$$\begin{align}
+\rho_0 &= \frac{W^3 p_*^2}{w}\\
+\epsilon &= e_*^\Gamma p_*^{\Gamma - 2} (\frac{W^3}{w})^{\Gamma - 1}
+\end{align}
+$$
 
 Other usefully optimised quantities are:
 
-$$\rho_0 \epsilon = \left (e_* W^3 \frac{p_*}{w} \right)^\Gamma$$
-
-$$h = 1 + \Gamma \epsilon$$
+$$\begin{align}
+\rho_0 \epsilon &= \left (e_* W^3 \frac{p_*}{w} \right)^\Gamma\\
+h &= 1 + \Gamma \epsilon
+\end{align}
+$$
 
 ## ADM Source terms
 
 There are four standard adm source terms. These make up the components of the stress energy tensor, which are fed into our ADM equations to make matter work
 
 $$\begin{align}
-\rho_s &= h w e^{-6\phi} - P\\
+\rho_s &= h w W^3 - P\\
 S_i &= W^3\tilde{S}_i\\
 S_{ij} &= \frac{W^3}{wh}\tilde{S}_i \tilde{S}_j + P \gamma_{ij}\\
-S &= \gamma^{ij} S_{ij}\\
+S &= \gamma^{ij} S_{ij} = W^2 \tilde{\gamma}^{ij} S_{ij} \\
 \end{align}$$
 
-There's a (genuinely) small problem: these source terms are singular at the singularity. The issue is that $\gamma_{ij}$ is undefined
+There's a minor problem: $S_{ij}$ is singular at the singularity. The issue is that $\gamma_{ij}$ is undefined
 
 Luckily, we can skip to the future, and discover that the form of our $S_{ij}$ source term is actually: $-W^2 8 \pi \alpha S_{ij}$[^alttechnique]. Given that $$W^2 \gamma_{ij} = \tilde{\gamma}_{ij}$$, we can instead re-format our equation like this:
 
@@ -919,8 +913,6 @@ $$\begin{align}
 \mathcal{H} &\mathrel{+}= -16 \pi \rho_s\\
 \mathcal{M}_i &\mathrel{+}= -8 \pi S_i\\
 \end{align}$$
-
-Todo: check a second source for $M$ to make sure its the correct sign
 
 The source terms conspire very conveniently to avoid having to calculate infinite quantities at the singularity which is great. The only infinities we have to worry about are in the actual hydrodynamic evolution equations themselves
 
