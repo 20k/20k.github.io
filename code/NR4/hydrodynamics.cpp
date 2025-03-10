@@ -81,6 +81,7 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
     //tol is very intentionally set to 1e-6, breaks if lower than this
     v3f real_value = -gB + (W*W * gA / h) * safe_divide(Si_upper, w, 1e-6);
 
+    //return real_value;
     return ternary(p_star <= min_p_star, (v3f){}, real_value);
 }
 
@@ -1179,7 +1180,7 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         return_e();
     });
 
-    if_e(hydro.p_star[pos, dim] < valuef(1e-7f), [&]{
+    if_e(hydro.p_star[pos, dim] < min_p_star * 10, [&]{
         valuef e_star = declare_e(hydro.e_star[pos, dim]);
 
         as_ref(hydro.e_star[pos, dim]) = min(e_star, 10 * hydro.p_star[pos, dim]);
