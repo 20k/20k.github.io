@@ -1058,7 +1058,7 @@ In the implementation strategy I chose, I flush $v$ to zero when calculated, whi
 
 #### e_* blows up
 
-One known consequence of the atmosphere-free formulation is that a thin shell of material drifts away from the star, and remains suspended around it. This isn't ideal. This thin shell can end up superheating, causing unfun code times. This is a similar problem to fluid accelerating massively
+One known consequence of the atmosphere-free formulation is that a thin (resolution dependent) shell of material drifts away from the star, and remains suspended around it. This isn't ideal, but currently I'm unaware of anything that can be done to prevent this. This thin shell can end up superheating, causing unfun code times. This is a similar problem to fluid accelerating massively
 
 This paper fixes it by clamping $$e_* = min(e_*, 10 \rho_*)$$. I do this when $\rho_* < 10\rho_{min}$, though I haven't found this modification is terribly important in practice
 
@@ -1077,6 +1077,14 @@ Luckily, we already completely accidentally have the cure. The gauge damping met
 <iframe width="560" height="315" src="https://www.youtube.com/embed/81lubH4l3-M?si=mdrF9Um59VbhmkIT" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 The star does eventually settle to a completely stable form
+
+#### Hamiltonian damping
+
+:)
+
+#### Gauge damping
+
+:(
 
 ## Testing
 
