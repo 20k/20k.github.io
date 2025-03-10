@@ -916,7 +916,7 @@ $$\begin{align}
 
 The source terms conspire very conveniently to avoid having to calculate infinite quantities at the singularity which is great. The only infinities we have to worry about are in the actual hydrodynamic evolution equations themselves
 
-## Implementation
+## Implementation Details
 
 ### Divisions by zero
 
@@ -924,13 +924,159 @@ As you may have noticed, our equations involve quite a bit of dividing by zero. 
 
 In general, dealing with this is pretty straightforward. For division by $W$, I clamp $W$ to $0.1$. This might seem quite large, but in general we don't really care about the hydrodynamics near the singularity of a black hole, and its more important for the equations to remain regular
 
-For divisions by equations involving $\rho_*$ or $w$, its a bit tricker. In general, I use a division tolerance of $1e-6$
+For divisions by equations involving $\rho_*$ or $w$, I use a division tolerance of $1e-6$
 
-Divisions by zero s u c c
+### Stability
 
-Subnote: Projective reals (1/inf = 0)
+#### Non atmospheric hydrodynamics
 
-Subnote 2: The actual projective reals \[a:b\]
+One of the key aspects of this paper is the non-atmospheric aspect of it. The idea here is that when $\rho_* < \rho_{min}$ (here, $1e-8$), you flush all your evolution variables to $0$ for a true vacuum. This is a tad unusual as hydrodynamics goes, but it does leave a few questions about exactly how and when to flush your evolution variables to zero
+
+We're using a pretty different integration scheme (backwards euler) compared to the paper. You may be tempted to flush variables to zero at the end of a backwards euler substep, but this is actually the wrong choice. Consider that the next backwards euler iteration is calculated as:
+
+$$next = base + f(in)$$
+
+If our cell value is just below $\rho_{min}$, and our neighbours are above, in the next iteration there'll be effectively a hole in the simulation grid which fluid will rush into. Because $base$ is nonzero, this means that we'll end up with too much fluid in our current cell. This can cause an oscillatory behaviour which doesn't converge very well
+
+Instead, I copy the current cell value over if $\rho_* < \rho_{min}$, and only perform a flush after the whole backwards euler substep is resolved
+
+#### Operator Splitting
+
+Our equations are of the form:
+
+$$\partial_t X + \partial_i (X v^i) = \mathrm{rhs}$$
+
+Operator splitting means that you update all the advection terms first, and then evaluate the rhs post advection. You might notice that this is effectively a backwards euler step given that our right hand size is $0$ for most of our evolution variables. In general, this is something you don't need to worry about with a stable integrator
+
+I did some fairly extensive testing of various operator splitting methods vs treating these as regular evolution equations for this article, and was not able to find any stability difference at all. Operator splitting requires a few extra buffers for storage of intermediate variables, so in this case it was strictly worse
+
+#### Artificial Viscosity
+
+There are two reasons to introduce artificial viscosity
+
+1. To deal with shocks, ie discontinuities
+2. To damp the oscillations that occur as a result of our approximate initial conditions
+
+To do this, you modify the $\partial_k P$ pressure term in the evolution of $$\tilde{S}_k$$ extra viscous term. There are two complementary ways to modify this
+
+1. Quadratic viscosity
+2. Linear viscosity
+
+##### Quadratic Viscosity
+
+$$\begin{cases}
+P_{Qvis} = C_{Qvis}A(\delta v)^2\;\;\mathrm{for} \;\delta v < 0\\
+0 \; \mathrm{otherwise}
+\end{cases}$$
+
+Where:
+
+$$\begin{align}
+A &= e_*^\Gamma (W^3)^{\Gamma-1} \frac{p_*^{\Gamma-1}}{w^{\Gamma-1}}\\
+\delta v &= 2 \partial_k v^k \Delta h
+\end{align}$$
+
+Where $$\Delta h$$ is the scale. $C_{Qvis}$ is a damping constant, which I set to $1$, and this paper recommends the range $[0.1, 1]$
+
+Quadratic viscosity is generally left on throughout a simulation
+
+##### Linear viscosity
+
+$$\begin{cases}
+P_{Qvis} = -C_{Lvis}\sqrt{(\Gamma/n) p_* A}\;\;\mathrm{for} \;\delta v < 0\\
+0 \; \mathrm{otherwise}
+\end{cases}$$
+
+$C_{Lvis}$ is a damping constant in the range $[0, 1]$. In my case, I set this damping constant as follows:
+
+$$C_{Lvis} = e^{-\frac{t^2}{2 S^2}}$$
+
+$S$ is a constant that represents a damping timescale for the linear viscosity, as it is generally only useful in the early parts of the simulation to iron out the star's oscillations
+
+##### Viscosity $e_*$
+
+When using viscosity, you have to modify the evolution equation of $e_*$. The term to add is:
+
+$$\partial_t e_* += -(\rho_0 \epsilon)^{(-1 + \frac{1}{\Gamma})} \;\; \frac{P_{extra}}{\Gamma} \; \partial_k (\frac{w W^{-3} v^k}{p_*})$$
+
+#### Black Hole Collapse
+
+Matter within a black hole in the set of equations I'm presenting here is only moderately badly behaved at the singularity, which is frankly incredible. You do need to do two things to make this work well
+
+1. Disable all viscosity in the vicinity of an event horizon
+2. Dissipate all the matter fields to zero when within an event horizon
+
+In general, the lapse $\alpha$ is a good surrogate variable for being near an event horizon. I use a conservative $0.45$ for disabling viscosity, and $0.15$ for dissipating matter fields. The latter constraint imposes a minimum simulation resolution to successfully simulate a black hole
+
+#### Boundaries
+
+The sommerfeld boundary conditions I find tend to be a bit unstable with matter. Simply damping the fields away to zero as they approach the boundary works very well
+
+#### Velocity clamping
+
+One persistent problem I have run into in this simulation is $$\tilde{S}_k$$ blowing up to infinitely high values. There doesn't appear to be any particular constraints on this variable, which can lead to the fluid acquiring rather crazy velocities
+
+To fix this, after a backwards euler subset, I enforce a constraint to limit the maximum velocity that the fluid can take:
+
+```c++
+    valuef bound = 0.9f;
+
+    valuef p_star = hydro.p_star[pos, dim];
+    valuef e_star = hydro.e_star[pos, dim];
+
+    v3f Si = {hydro.Si[0][pos, dim], hydro.Si[1][pos, dim], hydro.Si[2][pos, dim]};
+    pin(Si);
+
+    valuef w = calculate_w(p_star, e_star, args.W, args.cY.invert(), Si);
+    valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
+    valuef h = calculate_h_from_epsilon(epsilon);
+
+    valuef cst = p_star * bound * h;
+
+    v3f clamped = clamp(Si, -cst, cst);
+
+    as_ref(hydro.Si[0][pos, dim]) = clamped[0];
+    as_ref(hydro.Si[1][pos, dim]) = clamped[1];
+    as_ref(hydro.Si[2][pos, dim]) = clamped[2];
+```
+
+Luckily we can avoid calculating the actual fluid velocity $u_k$. This step is also necessary to stabilise fluid inflowing into an event horizon
+
+The bound of $0.9$ is arbitrary. There is likely a theoretical reason to derive a value $< 1$, as that is the maximum stable value under testing
+
+#### Kreiss-Oliger
+
+All hydrodynamic fields have Kreiss-Oliger damping applied to them at the same strength as the BSSN variables
+
+#### Leibnitz
+
+As mentioned previously, there are ambiguities as to when to flush the evolution variables to $0$. One thing to keep in mind is that you may be tempted to apply a standard Leibnitz rule to the following expression:
+
+$$\partial_k (X v^k) = (\partial_k X) v^k + (\partial_k v^k) X $$
+
+In the implementation strategy I chose, I flush $v$ to zero when calculated, which makes these two quantities quite inequivalent when discretised. Its not wrong to do so, but you may find stability differences if you're expanding out the partial derivatives rather than calculating them directly
+
+#### e_* blows up
+
+One known consequence of the atmosphere-free formulation is that a thin shell of material drifts away from the star, and remains suspended around it. This isn't ideal. This thin shell can end up superheating, causing unfun code times. This is a similar problem to fluid accelerating massively
+
+This paper fixes it by clamping $$e_* = min(e_*, 10 \rho_*)$$. I do this when $\rho_* < 10\rho_{min}$, though I haven't found this modification is terribly important in practice
+
+#### Unphysical oscillations, and gauge collapse
+
+The paper mentions some oscillations appear increasingly as time goes on, though they also mark them as non-relevant. While I'm not sure exactly whether or not the following test case is what they describe, I did notice something odd when looking at an isolated neutron star:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/To-_85LlW8g?si=tnZYw1nmhKpH1jvx" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+This took me a very hot minute to track down. It appears that there's an unfortunate coupling between the $\partial_k \alpha$ term in the evolution equations, and the BSSN evolution equations themselves
+
+You see, at the begining of the simulation, the stars want to collapse to a stable state. On top of this, the initial gauge conditions are *also* a guess, and *also* want to collapse to a stable state. The combination of these two mutually dependent collapses happening simultaneously appears to cause an ever increasing series of oscillations
+
+Luckily, we already completely accidentally have the cure. The gauge damping method implemented in the second article can be used to partially delay the initial collapse of the gauge, which can allow the star to fully settle to a stable state. While it wasn't designed for this whatsoever, it does appear to accidentally work well
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/81lubH4l3-M?si=mdrF9Um59VbhmkIT" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+The star does eventually settle to a completely stable form
 
 ## Testing
 
