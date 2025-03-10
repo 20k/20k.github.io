@@ -909,7 +909,7 @@ The modifications are straightforward:
 $$\begin{align}
 \partial_t K &\mathrel{+}= 4 \pi \alpha (S + \rho_s)\\
 \partial_t \tilde{A}_{ij} &\mathrel{+}= -8 \pi \alpha \tilde{S}_{ij}^{TF}\\
-\partial \tilde{\Gamma}^i &\mathrel{+}= -16 \pi \alpha \tilde{\gamma}^{ij} S_j\\
+\partial_t \tilde{\Gamma}^i &\mathrel{+}= -16 \pi \alpha \tilde{\gamma}^{ij} S_j\\
 \mathcal{H} &\mathrel{+}= -16 \pi \rho_s\\
 \mathcal{M}_i &\mathrel{+}= -8 \pi S_i\\
 \end{align}$$
