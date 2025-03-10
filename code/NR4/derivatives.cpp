@@ -109,11 +109,6 @@ valuef diff1(const valuef& in, int direction, const derivative_data& d)
     return diff1_generic(in, direction, d);
 }
 
-valueh diff1(const valueh& in, int direction, const derivative_data& d)
-{
-    return diff1_generic(in, direction, d);
-}
-
 ///this uses the commutativity of partial derivatives to lopsidedly prefer differentiating dy in the x direction
 ///as this is better on the memory layout
 valuef diff2(const valuef& in, int idx, int idy, const valuef& dx, const valuef& dy, const derivative_data& d)

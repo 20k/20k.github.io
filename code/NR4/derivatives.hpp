@@ -24,7 +24,6 @@ std::array<T, elements> get_differentiation_variables(const T& in, int direction
 
 //1st derivative
 valuef diff1(const valuef& in, int direction, const derivative_data& d);
-valueh diff1(const valueh& in, int direction, const derivative_data& d);
 
 //2nd derivative
 valuef diff2(const valuef& in, int idx, int idy, const valuef& dx, const valuef& dy, const derivative_data& d);

@@ -764,7 +764,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3h mom
     {
         for(int j=0; j < 3; j++)
         {
-            dMi[i, j] = (valuef)diff1((valuef)momentum_constraint[j], i, d);
+            dMi[i, j] = diff1((valuef)momentum_constraint[j], i, d);
         }
     }
 
