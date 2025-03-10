@@ -1363,13 +1363,13 @@ initial_params get_initial_params()
 
     initial_params init;
 
-    init.dim = {143, 143, 143};
-    init.simulation_width = radial_pos * 6 * 1.5;
+    init.dim = {213, 213, 213};
+    init.simulation_width = radial_pos * 6 * 1.75;
 
     init.add(p1);
     init.add(p2);
 
-    init.linear_viscosity_timescale = 400;
+    init.linear_viscosity_timescale = 0;
     init.time_between_snapshots = 15;
     init.lapse_damp_timescale = 20;
 
