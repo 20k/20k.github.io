@@ -40,9 +40,9 @@ struct mesh
 
     bool using_momentum_constraint = false;
     std::vector<cl::buffer> momentum_constraint;
-    //cl::buffer temporary_buffer;
-    //cl::buffer temporary_single;
-    //std::vector<double> hamiltonian_error;
+    cl::buffer temporary_buffer;
+    cl::buffer temporary_single;
+    std::vector<double> hamiltonian_error;
     //std::vector<double> Mi_error;
     //std::vector<double> cG_error;
 
@@ -56,7 +56,7 @@ struct mesh
     int valid_derivative_buffer = 0;
 
     ///strictly only for rendering
-    mesh(cl::context& ctx, t3i _dim, float _simulation_width) : buffers{ctx, ctx, ctx}, sommerfeld_points(ctx), evolve_points(ctx)
+    mesh(cl::context& ctx, t3i _dim, float _simulation_width) : buffers{ctx, ctx, ctx}, sommerfeld_points(ctx), evolve_points(ctx), temporary_buffer(ctx), temporary_single(ctx)
     {
         dim = _dim;
         simulation_width = _simulation_width;
@@ -193,8 +193,8 @@ struct mesh
             derivatives.push_back(buf);
         }
 
-        //temporary_buffer.alloc(sizeof(cl_float) * uint64_t{dim.x()} * dim.y() * dim.z());
-        //temporary_single.alloc(sizeof(cl_ulong));
+        temporary_buffer.alloc(sizeof(cl_float) * uint64_t{dim.x()} * dim.y() * dim.z());
+        temporary_single.alloc(sizeof(cl_ulong));
 
         std::vector<cl_int3> boundary;
 
@@ -250,8 +250,8 @@ struct mesh
 
         evolve_length = evolve.size();
 
-        //temporary_buffer.set_to_zero(cqueue);
-        //temporary_single.set_to_zero(cqueue);
+        temporary_buffer.set_to_zero(cqueue);
+        temporary_single.set_to_zero(cqueue);
         calculate_derivatives_for(cqueue, buffers[0], derivatives);;
         valid_derivative_buffer = 0;
     }
@@ -360,7 +360,7 @@ struct mesh
             cqueue.exec("enforce_algebraic_constraints", args, {dim.x() * dim.y() * dim.z()}, {128});
         };
 
-        #if 0
+        #if 1
         auto calculate_constraint_errors = [&](int pack_idx)
         {
             auto sum_over = [&](cl::buffer buf)
@@ -387,6 +387,8 @@ struct mesh
                 for(auto& i : derivatives)
                     args.push_back(i);
 
+                add_plugin_args(args, pack_idx);
+
                 args.push_back(temporary_buffer);
                 args.push_back(dim);
                 args.push_back(scale);
@@ -394,6 +396,7 @@ struct mesh
                 cqueue.exec("calculate_hamiltonian", args, {dim.x() * dim.y() * dim.z()}, {128});
                 hamiltonian_error.push_back(sum_over(temporary_buffer));
 
+                #if 0
                 double Mi = 0;
 
                 cqueue.exec("calculate_Mi0", args, {dim.x() * dim.y() * dim.z()}, {128});
@@ -419,6 +422,7 @@ struct mesh
                 cG += fabs(sum_over(temporary_buffer));
 
                 cG_error.push_back(cG);
+                #endif
             }
         };
         #endif
@@ -587,7 +591,7 @@ struct mesh
 
             calculate_derivatives_for(cqueue, buffers[in_idx], derivatives);
 
-            //#define CALCULATE_CONSTRAINT_ERRORS
+            #define CALCULATE_CONSTRAINT_ERRORS
             #ifdef CALCULATE_CONSTRAINT_ERRORS
             if(iteration == 0)
                 calculate_constraint_errors(in_idx);
@@ -1363,15 +1367,15 @@ initial_params get_initial_params()
 
     initial_params init;
 
-    init.dim = {213, 213, 213};
+    init.dim = {177, 177, 177};
     init.simulation_width = radial_pos * 6 * 1.75;
 
     init.add(p1);
     init.add(p2);
 
-    init.linear_viscosity_timescale = 0;
+    init.linear_viscosity_timescale = 200;
     init.time_between_snapshots = 15;
-    init.lapse_damp_timescale = 20;
+    init.lapse_damp_timescale = 0;
 
     #endif
 
@@ -1380,16 +1384,17 @@ initial_params get_initial_params()
     neutron_star::parameters p1;
 
     //p1.colour = {1, 1, 1};
-    p1.position = {0, 0, 0};
-    p1.linear_momentum.momentum = {-0.03, -0.08, 0};
+    ///mass of 1.5
+    p1.position = {-10, 0, 0};
+    p1.linear_momentum.momentum = {-0.01, -0.07, 0};
     p1.K.msols = 123.641;
     p1.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
 
     neutron_star::parameters p2;
 
     //p2.colour = {10 * 1, 10 * 128/255.f, 0};
-    p2.position = {50, 0, 0};
-    p2.linear_momentum.momentum = {0, 0.09, 0};
+    p2.position = {40, 0, 0};
+    p2.linear_momentum.momentum = {0, 0.07, 0};
     p2.K.msols = 423.641;
     //p2.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
 
@@ -1399,7 +1404,7 @@ initial_params get_initial_params()
 
     initial_params init;
 
-    init.dim = {233, 233, 233};
+    init.dim = {199, 199, 199};
     init.simulation_width = 180;
 
     init.add(p1);
@@ -1522,7 +1527,7 @@ int main()
     make_initial_conditions(ctx);
     init_christoffel(ctx);
     make_kreiss_oliger(ctx);
-    //make_hamiltonian_error(ctx);
+    make_hamiltonian_error(ctx, plugins);
     make_global_sum(ctx);
     /*make_momentum_error(ctx, 0);
     make_momentum_error(ctx, 1);
@@ -1729,7 +1734,7 @@ int main()
 
         ImGui::Text("Elapsed %f", elapsed_t);
 
-        #if 0
+        #if 1
         std::vector<float> lines;
 
         for(auto& i : m.hamiltonian_error)
@@ -1737,6 +1742,7 @@ int main()
 
         ImGui::PlotLines("H", lines.data(), lines.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 100));
 
+        #if 0
         std::vector<float> Mis;
 
         for(auto& i : m.Mi_error)
@@ -1750,6 +1756,7 @@ int main()
             cgs.push_back(i);
 
         ImGui::PlotLines("cG", cgs.data(), cgs.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 100));
+        #endif
         #endif
 
         ImGui::End();
