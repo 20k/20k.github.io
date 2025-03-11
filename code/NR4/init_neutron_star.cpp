@@ -7,20 +7,7 @@
 #include "bssn.hpp"
 #include "tensor_algebra.hpp"
 #include "init_general.hpp"
-
-using valuef = value<float>;
-using valuei = value<int>;
-
-using v2f = tensor<valuef, 2>;
-using v3f = tensor<valuef, 3>;
-using v4f = tensor<valuef, 4>;
-using v2i = tensor<valuei, 2>;
-using v3i = tensor<valuei, 3>;
-using v4i = tensor<valuei, 4>;
-using m44f = metric<valuef, 4, 4>;
-
-using mut_v4f = tensor<mut<valuef>, 4>;
-using mut_v3f = tensor<mut<valuef>, 3>;
+#include "value_alias.hpp"
 
 void neutron_star::all_numerical_eos_gpu::init(cl::command_queue cqueue, const std::vector<neutron_star::numerical_eos>& eos)
 {

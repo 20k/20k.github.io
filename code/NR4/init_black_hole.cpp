@@ -2,9 +2,7 @@
 #include "tensor_algebra.hpp"
 #include "bssn.hpp"
 #include "../common/single_source.hpp"
-
-using valuef = value<float>;
-using v3f = tensor<valuef, 3>;
+#include "value_alias.hpp"
 
 ///todo: do it the way the paper says, even though it maketh a sad me
 tensor<valuef, 3, 3> get_aIJ(v3f world_pos, v3f bh_pos, v3f angular_momentum, v3f momentum)

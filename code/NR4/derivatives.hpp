@@ -3,11 +3,7 @@
 
 #include "../common/value2.hpp"
 #include "../common/single_source.hpp"
-
-using valueh = value<float16>;
-using valuef = value<float>;
-using valuei = value<int>;
-using v3i = tensor<value<int>, 3>;
+#include "value_alias.hpp"
 
 struct derivative_data
 {

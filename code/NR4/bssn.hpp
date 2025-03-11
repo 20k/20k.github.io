@@ -234,6 +234,8 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins);
 void make_momentum_constraint(cl::context ctx, const std::vector<plugin*>& plugins);
 void make_sommerfeld(cl::context ctx);
 
+v3i get_coordinate(valuei id, v3i dim);
+
 template<typename T, typename U, typename V>
 inline
 tensor<T, 3> grid_to_world(const tensor<T, 3>& pos, const tensor<V, 3>& dim, const U& scale)

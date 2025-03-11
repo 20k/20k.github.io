@@ -21,11 +21,9 @@ using v3h = tensor<valueh, 3>;
 using mut_v4f = tensor<mut<valuef>, 4>;
 using mut_v3f = tensor<mut<valuef>, 3>;
 
-v3i get_coordinate(valuei id, v3i dim);
-
 using t3i = tensor<int, 3>;
 using t3f = tensor<float, 3>;
 using momentum_t = valueh;
-
+using block_precision_t = valuef;
 
 #endif // VALUE_ALIAS_HPP_INCLUDED
