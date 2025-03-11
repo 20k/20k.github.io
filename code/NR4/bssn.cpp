@@ -351,6 +351,7 @@ valuef calculate_hamiltonian_constraint_adm(bssn_args& args, bssn_derivatives& d
     auto fchristoff2 = get_full_christoffel2(args.W, derivs.dW, args.cY, args.cY.invert(), christoff2);
 
     auto W2Rij = args.W * args.W * calculate_adm_Rij(fchristoff2, d);
+    pin(W2Rij);
 
     valuef R = trace(W2Rij, icY);
 
@@ -371,8 +372,10 @@ valuef calculate_hamiltonian_constraint_adm(bssn_args& args, bssn_derivatives& d
     return R + (2.f/3.f) * args.K * args.K - AMN_Amn - 16 * M_PI * rho_s;
 }
 
-valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, valuef rho_s)
+
+valuef calculate_hamiltonian_constraint1(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, valuef rho_s)
 {
+    #if 1
     using namespace single_source;
 
     auto icY = args.cY.invert();
@@ -394,6 +397,220 @@ valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& deriv
     }
 
     return R + (2.f/3.f) * args.K * args.K - AMN_Amn - 16 * M_PI * rho_s;
+    #endif
+}
+
+valuef calculate_hamiltonian_constraint2(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, valuef rho_s)
+{
+    using namespace single_source;
+
+    auto icY = args.cY.invert();
+    pin(icY);
+
+    #if 0
+    auto W2Rij = calculate_W2Rij(args, derivs, d);
+    valuef cR = trace(W2Rij, icY);
+    #endif
+
+    valuef W = args.W;
+    //auto icY = args.cY.invert();
+
+    tensor<valuef, 3, 3> cRij = calculate_cRij(args, derivs, d);
+    pin(cRij);
+
+    valuef cR = trace(cRij, icY);
+
+    ///dphi = -dW / (2W)
+
+    ///D((1/W)) = -dW / W^2
+
+    ///need to evaluate -8 D^i phi D_i phi - 8 D^i D_i phi
+    ///D^i phi = icY^ij partial_j phi
+    ///partial_j phi = -partial_j W / (2W)
+    ///so we have
+    ///(icY^ij -partial_j W / (2W)) (-partial_i W / (2W))
+    ///-8 * (1/(4W^2)) icY^ij (partial_j W) (partial_i W)
+
+    ///pt 2:
+    ///-8 D^i D_i phi
+    ///-8 icY^ik D_k D_i phi
+    ///-8 icY^ik D_k -partial_i W / (2W)
+    ///could just.. leave it like this, but doing it properly might be nice
+    ///D_k -partial_i W / (2W)
+    ///leibniz
+
+    ///A = -partial_i W
+    ///B = 1/(2W)
+    ///D_k A B = B D_k A + A D_k B
+
+    ///B is a scalar, therefore we get a partial derivative
+    ///A is not a scalar, which is fine
+
+    ///D_k B = partial_k B = - (partial_k W) / W^2
+
+    ///D_k A B = -1/(2W) D_k D_i W + partial_i W (partial_k W) / W^2
+    ///-8 icY^ik (-1/(2W) D_k D_i W + partial_i W (partial_k W) / W^2)
+    ///multiply by W^2
+    ///-8 icY^ik (-W/2 D_k D_i W + partial_i W (partial_k W))
+
+    valuef p1 = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            p1 += -8 * (1.f/4.f) * icY[i, j] * diff1(W, i, d) * diff1(W, j, d);
+        }
+    }
+
+    auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
+
+    auto DjDiW = double_covariant_derivative(args.W, derivs.dW, christoff2, d);
+
+    valuef p2 = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            p2 += -8 * icY[i, j] * (-(W/2) * DjDiW[j, i] + diff1(args.W, i, d) * diff1(args.W, j, d));
+        }
+    }
+
+    tensor<valuef, 3, 3> AMN = icY.raise(icY.raise(args.cA, 0), 1);
+
+    valuef AMN_Amn = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            AMN_Amn += AMN[i, j] * args.cA[i, j];
+        }
+    }
+
+    return W*W*cR + p1 + p2 + (2.f/3.f) * args.K * args.K - AMN_Amn - 16 * M_PI * rho_s;
+}
+
+valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, valuef rho_s)
+{
+    return calculate_hamiltonian_constraint1(args, derivs, d, rho_s);
+    //return calculate_hamiltonian_constraint2(args, derivs, d, rho_s) - calculate_hamiltonian_constraint1(args, derivs, d, rho_s);
+
+    #if 0
+    using namespace single_source;
+
+    auto icY = args.cY.invert();
+    auto W2Rij = calculate_W2Rij(args, derivs, d);
+    valuef R = trace(W2Rij, icY);
+
+    pin(icY);
+
+    tensor<valuef, 3, 3> AMN = icY.raise(icY.raise(args.cA, 0), 1);
+
+    valuef AMN_Amn = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            AMN_Amn += AMN[i, j] * args.cA[i, j];
+        }
+    }
+
+    return R + (2.f/3.f) * args.K * args.K - AMN_Amn - 16 * M_PI * rho_s;
+    #endif
+
+    #if 0
+    using namespace single_source;
+
+    auto icY = args.cY.invert();
+    pin(icY);
+
+    #if 0
+    auto W2Rij = calculate_W2Rij(args, derivs, d);
+    valuef cR = trace(W2Rij, icY);
+    #endif
+
+    valuef W = args.W;
+    //auto icY = args.cY.invert();
+
+    tensor<valuef, 3, 3> cRij = calculate_cRij(args, derivs, d);
+    pin(cRij);
+
+    valuef cR = trace(cRij, icY);
+
+    ///dphi = -dW / (2W)
+
+    ///D((1/W)) = -dW / W^2
+
+    ///need to evaluate -8 D^i phi D_i phi - 8 D^i D_i phi
+    ///D^i phi = icY^ij partial_j phi
+    ///partial_j phi = -partial_j W / (2W)
+    ///so we have
+    ///(icY^ij -partial_j W / (2W)) (-partial_i W / (2W))
+    ///-8 * (1/(4W^2)) icY^ij (partial_j W) (partial_i W)
+
+    ///pt 2:
+    ///-8 D^i D_i phi
+    ///-8 icY^ik D_k D_i phi
+    ///-8 icY^ik D_k -partial_i W / (2W)
+    ///could just.. leave it like this, but doing it properly might be nice
+    ///D_k -partial_i W / (2W)
+    ///leibniz
+
+    ///A = -partial_i W
+    ///B = 1/(2W)
+    ///D_k A B = B D_k A + A D_k B
+
+    ///B is a scalar, therefore we get a partial derivative
+    ///A is not a scalar, which is fine
+
+    ///D_k B = partial_k B = - (partial_k W) / W^2
+
+    ///D_k A B = -1/(2W) D_k D_i W + partial_i W (partial_k W) / W^2
+    ///-8 icY^ik (-1/(2W) D_k D_i W + partial_i W (partial_k W) / W^2)
+    ///multiply by W^2
+    ///-8 icY^ik (-W/2 D_k D_i W + partial_i W (partial_k W))
+
+    valuef p1 = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            p1 += -8 * (1.f/4.f) * icY[i, j] * diff1(W, i, d) * diff1(W, j, d);
+        }
+    }
+
+    auto christoff2 = christoffel_symbols_2(icY, derivs.dcY);
+
+    auto DjDiW = double_covariant_derivative(args.W, derivs.dW, christoff2, d);
+
+    valuef p2 = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            p2 += -8 * icY[i, j] * (-(W/2) * DjDiW[j, i] + diff1(args.W, i, d) * diff1(args.W, j, d));
+        }
+    }
+
+    tensor<valuef, 3, 3> AMN = icY.raise(icY.raise(args.cA, 0), 1);
+
+    valuef AMN_Amn = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            AMN_Amn += AMN[i, j] * args.cA[i, j];
+        }
+    }
+
+    return W*W*cR + p1 + p2 + (2.f/3.f) * args.K * args.K - AMN_Amn - 16 * M_PI * rho_s;
+    #endif
 }
 
 #define BLACK_HOLE_GAUGE
@@ -645,7 +862,7 @@ valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const derivative_data&
         dibiw += args.gB[i] * diff1(args.W, i, d);
     }
 
-    return (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw + args.W * 0.002f * calculate_hamiltonian_constraint(args, derivs, d, rho_s);
+    return (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw + args.W * 0.02f * calculate_hamiltonian_constraint(args, derivs, d, rho_s) * 0;
 }
 
 tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
@@ -1338,15 +1555,21 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
         d.dim = dim;
         d.scale = scale.get();
 
-        //valuef rho_s = plugin_data.adm_p(args, d);
-        //valuef ham = calculate_hamiltonian_constraint_adm(args, derivs, d, rho_s);
-        //valuef p = fabs(ham) * 1000;
+        valuef rho_s = plugin_data.adm_p(args, d);
+        valuef ham = calculate_hamiltonian_constraint(args, derivs, d, rho_s);
+        valuef p = fabs(ham) * 1000;
+
+        v3f ccGi = calculate_cG(args.cY.invert(), derivs.dcY);
+        v3f cGi = args.cG;
+
+        //valuef err = (ccGi - cGi).length() * 1000;
+        //valuef p = err;
 
         //valuef momentum = calculate_momentum_constraint_summed(args, d, plugin_data.adm_Si(args, d));
         //valuef p = fabs(momentum) * 1000;
 
         //valuef p = plugin_data.mem.adm_p(args, d);
-        valuef p = plugin_data.dbg(args, d);
+        //valuef p = plugin_data.dbg(args, d);
 
         //valuef test_val = in.cY[0][lid];
         //valuef display = ((test_val - 1) / 0.1f) * 0.5f + 0.5f;
