@@ -781,6 +781,22 @@ namespace value_impl
 
             if(equivalent(in.args[1], in.args[1].make_constant_of_type(5.f)))
                 return in.args[0] * in.args[0] * in.args[0] * in.args[0] * in.args[0];
+
+
+            if(equivalent(in.args[1], in.args[1].make_constant_of_type(-1.f)))
+                return in.args[0].make_constant_of_type(1)/in.args[0];
+
+            if(equivalent(in.args[1], in.args[1].make_constant_of_type(-2.f)))
+                return in.args[0].make_constant_of_type(1)/(in.args[0] * in.args[0]);
+
+            if(equivalent(in.args[1], in.args[1].make_constant_of_type(-3.f)))
+                return in.args[0].make_constant_of_type(1)/(in.args[0] * in.args[0] * in.args[0]);
+
+            if(equivalent(in.args[1], in.args[1].make_constant_of_type(-4.f)))
+                return in.args[0].make_constant_of_type(1)/(in.args[0] * in.args[0] * in.args[0] * in.args[0]);
+
+            if(equivalent(in.args[1], in.args[1].make_constant_of_type(-5.f)))
+                return in.args[0].make_constant_of_type(1)/(in.args[0] * in.args[0] * in.args[0] * in.args[0] * in.args[0]);
         }
 
         return in;
