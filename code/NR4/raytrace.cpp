@@ -1092,6 +1092,8 @@ void calculate_texture_coordinates(execution_context& ectx, literal<v2i> screen_
 
     position3 = fix_ray_position_cart(position3, velocity3, universe_size.get());
 
+    std::swap(position3.y(), position3.z());
+
     v2f angle = cartesian_to_spherical(position3).yz();
 
     v2f texture_coordinate = angle_to_tex(angle);
