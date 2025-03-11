@@ -591,7 +591,7 @@ struct mesh
 
             calculate_derivatives_for(cqueue, buffers[in_idx], derivatives);
 
-            #define CALCULATE_CONSTRAINT_ERRORS
+            //#define CALCULATE_CONSTRAINT_ERRORS
             #ifdef CALCULATE_CONSTRAINT_ERRORS
             if(iteration == 0)
                 calculate_constraint_errors(in_idx);
@@ -1740,7 +1740,8 @@ int main()
         for(auto& i : m.hamiltonian_error)
             lines.push_back(i);
 
-        ImGui::PlotLines("H", lines.data(), lines.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 100));
+        if(lines.size() > 0)
+            ImGui::PlotLines("H", lines.data(), lines.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 100));
 
         #if 0
         std::vector<float> Mis;
@@ -1748,14 +1749,16 @@ int main()
         for(auto& i : m.Mi_error)
             Mis.push_back(i);
 
-        ImGui::PlotLines("Mi", Mis.data(), Mis.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 100));
+        if(Mis.size() > 0)
+            ImGui::PlotLines("Mi", Mis.data(), Mis.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 100));
 
         std::vector<float> cgs;
 
         for(auto& i : m.cG_error)
             cgs.push_back(i);
 
-        ImGui::PlotLines("cG", cgs.data(), cgs.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 100));
+        if(cgs.size() > 0)
+            ImGui::PlotLines("cG", cgs.data(), cgs.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 100));
         #endif
         #endif
 
