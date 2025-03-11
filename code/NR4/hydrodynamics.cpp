@@ -4,11 +4,11 @@
 ///so like. What if I did the projective real strategy?
 
 //stable with 1e-6, but the neutron star dissipates
-constexpr float min_p_star = 1e-9f;
+constexpr float min_p_star = 1e-8f;
 
 template<typename T>
 inline
-auto safe_divide(const auto& top, const T& bottom, float tol = 1e-8)
+auto safe_divide(const auto& top, const T& bottom, float tol = 1e-6)
 {
     return top / max(bottom, T{tol});
 }

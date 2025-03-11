@@ -1064,19 +1064,19 @@ This paper fixes it by clamping $$e_* = min(e_*, 10 \rho_*)$$. I do this when $\
 
 #### Unphysical oscillations, and gauge collapse
 
-The paper mentions some oscillations appear increasingly as time goes on, though they also mark them as non-relevant. While I'm not sure exactly whether or not the following test case is what they describe, I did notice something odd when looking at an isolated neutron star:
+The paper mentions some oscillations appear to increase as time goes on, though they also mark them as non-relevant. While I'm not sure exactly whether or not the following test case is what they describe, I did notice something odd when looking at an isolated neutron star:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/To-_85LlW8g?si=tnZYw1nmhKpH1jvx" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 This took me a very hot minute to track down. It appears that there's an unfortunate coupling between the $\partial_k \alpha$ term in the evolution equations, and the BSSN evolution equations themselves
 
-You see, at the begining of the simulation, the stars want to collapse to a stable state. On top of this, the initial gauge conditions are *also* a guess, and *also* want to collapse to a stable state. The combination of these two mutually dependent collapses happening simultaneously appears to cause an ever increasing series of oscillations
+You see, at the begining of the simulation, the star wants to collapse to a stable state. On top of this, the initial gauge conditions are *also* a guess, and *also* want to collapse to a stable state. The combination of these two mutually dependent collapses happening simultaneously appears to cause an ever increasing series of oscillations
 
-Luckily, we already completely accidentally have the cure. The gauge damping method implemented in the second article can be used to partially delay the initial collapse of the gauge, which can allow the star to fully settle to a stable state. While it wasn't designed for this whatsoever, it does appear to accidentally work well
+Luckily, we already completely accidentally have the cure. The lapse damping method implemented in the second article can be used to partially delay the initial collapse of the gauge, which can allow the star to fully settle to a stable state. While it wasn't designed for this whatsoever, it does appear to accidentally work well
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/81lubH4l3-M?si=mdrF9Um59VbhmkIT" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-The star does eventually settle to a completely stable form
+The star does eventually settle to a completely stable form, with no further evolution of any fields
 
 #### Hamiltonian damping
 
