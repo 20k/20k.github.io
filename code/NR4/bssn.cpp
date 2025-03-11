@@ -1304,7 +1304,7 @@ void enforce_algebraic_constraints(cl::context ctx)
 
 void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
 {
-    auto func = [plugins](execution_context&, bssn_args_mem<buffer<valuef>> in, bssn_derivatives_mem<buffer<valueh>> derivs_in, value_impl::builder::placeholder plugin_ph, literal<v3i> ldim, literal<valuef> scale, write_only_image<2> write) {
+    auto func = [plugins](execution_context&, bssn_args_mem<buffer<valuef>> in, bssn_derivatives_mem<buffer<derivative_t>> derivs_in, value_impl::builder::placeholder plugin_ph, literal<v3i> ldim, literal<valuef> scale, write_only_image<2> write) {
         using namespace single_source;
 
         all_adm_args_mem plugin_data = make_arg_provider(plugins);

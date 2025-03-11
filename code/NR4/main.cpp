@@ -186,9 +186,11 @@ struct mesh
             cl::buffer buf(ctx);
             buf.alloc(sizeof(derivative_t::interior_type) * int64_t{dim.x()} * dim.y() * dim.z());
 
-            uint16_t hnan = 0b0111110000000001;
+            static_assert(std::numeric_limits<derivative_t::interior_type>::has_quiet_NaN);
 
-            buf.fill(cqueue, hnan);
+            auto qnan = std::numeric_limits<derivative_t::interior_type>::quiet_NaN();
+
+            buf.fill(cqueue, qnan);
 
             derivatives.push_back(buf);
         }
