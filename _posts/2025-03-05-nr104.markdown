@@ -1076,11 +1076,7 @@ Luckily, we already completely accidentally have the cure. The lapse damping met
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/81lubH4l3-M?si=mdrF9Um59VbhmkIT" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-The star does eventually settle to a completely stable form, with no further evolution of any fields
-
-#### Hamiltonian damping
-
-:)
+The star does eventually settle to a completely stable form, with no further evolution of any fields. Because of this problem, I've also found that the simulation is more robust when the initial conditions are set to $\alpha = 1$, as $\partial_i \alpha = 0$
 
 #### Gauge damping
 

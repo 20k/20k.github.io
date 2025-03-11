@@ -4,16 +4,20 @@
 #include "bssn.hpp"
 #include "derivatives.hpp"
 #include "tensor_algebra.hpp"
+#include "plugin.hpp"
 
-#if 0
-void make_hamiltonian_error(cl::context ctx)
+void make_hamiltonian_error(cl::context ctx, const std::vector<plugin*>& plugins)
 {
-    auto func = [](execution_context&,
+    auto func = [plugins](execution_context&,
                     bssn_args_mem<buffer<valuef>> args_in,
                     bssn_derivatives_mem<buffer<derivative_t>> derivatives,
+                    value_impl::builder::placeholder plugin_ph,
                     buffer_mut<valuef> out,
                     literal<v3i> ldim, literal<valuef> scale) {
         using namespace single_source;
+
+        all_adm_args_mem plugin_data = make_arg_provider(plugins);
+        plugin_ph.add(plugin_data);
 
         valuei lid = value_impl::get_global_id(0);
 
@@ -43,7 +47,7 @@ void make_hamiltonian_error(cl::context ctx)
         d.dim = dim;
         d.scale = scale.get();
 
-        valuef hamiltonian = calculate_hamiltonian_constraint(args, derivs, d);
+        valuef hamiltonian = calculate_hamiltonian_constraint(args, derivs, d, plugin_data.adm_p(args, d));
 
         as_ref(out[pos, dim]) = hamiltonian;
     };
@@ -52,7 +56,6 @@ void make_hamiltonian_error(cl::context ctx)
         return value_impl::make_function(func, "calculate_hamiltonian");
     }, {"calculate_hamiltonian"});
 }
-#endif
 
 void make_cG_error(cl::context ctx, int idx)
 {
