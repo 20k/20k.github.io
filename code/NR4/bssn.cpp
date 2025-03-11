@@ -481,13 +481,14 @@ tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, const deri
     ///gauge damping parameter, commonly set to 2
     valuef N = 2.f;
 
-    //#define MASS_DAMP
+    #define MASS_DAMP
     #ifdef MASS_DAMP
     float M = 3.1;
     N = 0.5f / M;
+    N = 0.2;
     #endif // MASS_DAMP
 
-    #define VARIABLE_DAMP
+    //#define VARIABLE_DAMP
     #ifdef VARIABLE_DAMP
     {
         N = 0.05f;
