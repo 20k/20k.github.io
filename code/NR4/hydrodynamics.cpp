@@ -877,7 +877,7 @@ valuef w2_m_p2(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef, 3,
 }
 void calculate_w_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_base_args<buffer<valuef>> hydro, buffer_mut<valuef> w_out,
                       literal<v3i> idim, literal<valuef> scale,
-                      buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
+                      literal<valuei> positions_length)
 {
     using namespace single_source;
 
@@ -891,7 +891,7 @@ void calculate_w_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         return_e();
     });
 
-    v3i pos = (v3i)positions[lid];
+    v3i pos = get_coordinate_including_boundary(lid, dim);
     pin(pos);
 
     valuef p_star = hydro.p_star[pos, dim];
@@ -917,7 +917,7 @@ void calculate_w_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
 void calculate_p_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_base_args<buffer<valuef>> hydro, buffer<valuef> w_in, buffer_mut<valuef> P_out,
                       literal<v3i> idim, literal<valuef> scale, literal<valuef> total_elapsed, literal<valuef> damping_timescale,
-                      buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length)
+                      literal<valuei> positions_length)
 {
     using namespace single_source;
 
@@ -931,7 +931,7 @@ void calculate_p_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         return_e();
     });
 
-    v3i pos = (v3i)positions[lid];
+    v3i pos = get_coordinate_including_boundary(lid, dim);
     pin(pos);
 
     valuef p_star = hydro.p_star[pos, dim];
@@ -968,7 +968,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                   hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, hydrodynamic_base_args<buffer_mut<valuef>> h_out,
                   hydrodynamic_utility_args<buffer<valuef>> util,
                   literal<v3i> idim, literal<valuef> scale, literal<valuef> timestep, literal<valuef> total_elapsed, literal<valuef> damping_timescale,
-                  buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length, bool use_colour)
+                  literal<valuei> positions_length, bool use_colour)
 {
     using namespace single_source;
 
@@ -982,7 +982,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         return_e();
     });
 
-    v3i pos = (v3i)positions[lid];
+    v3i pos = get_coordinate_including_boundary(lid, dim);
     pin(pos);
 
     derivative_data d;
@@ -1135,7 +1135,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                     hydrodynamic_base_args<buffer_mut<valuef>> hydro,
                     literal<v3i> idim,
-                    buffer<tensor<value<short>, 3>> positions, literal<valuei> positions_length, bool use_colour)
+                    literal<valuei> positions_length, bool use_colour)
 {
     using namespace single_source;
 
@@ -1149,7 +1149,7 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         return_e();
     });
 
-    v3i pos = (v3i)positions[lid];
+    v3i pos = get_coordinate_including_boundary(lid, dim);
     pin(pos);
 
     valuei boundary_dist = distance_to_boundary(pos, dim);
@@ -1317,7 +1317,6 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
 
             args.push_back(sdata.dim);
             args.push_back(sdata.scale);
-            args.push_back(sdata.evolve_points);
             args.push_back(sdata.evolve_length);
 
             cqueue.exec("calculate_w", args, {sdata.evolve_length}, {128});
@@ -1339,7 +1338,6 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
             args.push_back(sdata.scale);
             args.push_back(sdata.total_elapsed);
             args.push_back(damping_timescale);
-            args.push_back(sdata.evolve_points);
             args.push_back(sdata.evolve_length);
 
             cqueue.exec("calculate_p", args, {sdata.evolve_length}, {128});
@@ -1376,14 +1374,13 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
         args.push_back(sdata.timestep);
         args.push_back(sdata.total_elapsed);
         args.push_back(damping_timescale);
-        args.push_back(sdata.evolve_points);
         args.push_back(sdata.evolve_length);
 
         cqueue.exec("evolve_hydro_all", args, {sdata.evolve_length}, {128});
     }
 }
 
-void hydrodynamic_plugin::finalise(cl::context ctx, cl::command_queue cqueue, std::vector<cl::buffer> bssn_buffers, buffer_provider* out, t3i dim, cl::buffer evolve_points, cl_int evolve_length)
+void hydrodynamic_plugin::finalise(cl::context ctx, cl::command_queue cqueue, std::vector<cl::buffer> bssn_buffers, buffer_provider* out, t3i dim, cl_int evolve_length)
 {
     hydrodynamic_buffers& bufs = *dynamic_cast<hydrodynamic_buffers*>(out);
     auto all = bufs.get_buffers();
@@ -1397,7 +1394,6 @@ void hydrodynamic_plugin::finalise(cl::context ctx, cl::command_queue cqueue, st
         args.push_back(i);
 
     args.push_back(dim);
-    args.push_back(evolve_points);
     args.push_back(evolve_length);
 
     cqueue.exec("finalise_hydro", args, {evolve_length}, {128});

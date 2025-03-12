@@ -194,7 +194,6 @@ struct plugin_step_data
 
     std::vector<cl::buffer> bssn_buffers;
 
-    cl::buffer evolve_points;
     cl_int evolve_length = 0;
 
     t3i dim;
@@ -206,7 +205,7 @@ struct plugin_step_data
     int out_idx = 0;
     int base_idx = 0;
 
-    plugin_step_data(cl::context ctx) : evolve_points(ctx){}
+    plugin_step_data(cl::context ctx){}
 };
 
 struct plugin
@@ -218,7 +217,7 @@ struct plugin
     virtual void init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, cl::buffer u, buffer_provider* to_init, buffer_provider* to_init_utility){assert(false);}
     //virtual void pre_step(mesh& m, cl::context& ctx, cl::command_queue& mqueue, thin_intermediates_pool& pool, buffer_set& buffers, float timestep){}
     virtual void step(cl::context ctx, cl::command_queue cqueue, const plugin_step_data& sdata){assert(false);}
-    virtual void finalise(cl::context ctx, cl::command_queue cqueue, std::vector<cl::buffer> bssn_buffers, buffer_provider* out, t3i dim, cl::buffer evolve_points, cl_int evolve_length) {}
+    virtual void finalise(cl::context ctx, cl::command_queue cqueue, std::vector<cl::buffer> bssn_buffers, buffer_provider* out, t3i dim, cl_int evolve_length) {}
     //virtual void save(cl::command_queue& cqueue, const std::string& directory){assert(false);}
     //virtual void load(cl::command_queue& cqueue, const std::string& directory){assert(false);}
 

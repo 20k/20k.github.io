@@ -70,6 +70,11 @@ v3i get_coordinate(valuei id, v3i dim)
     return {x, y, z};
 }
 
+v3i get_coordinate_including_boundary(valuei id, v3i dim)
+{
+    return get_coordinate(id, dim - (v3i){4,4,4}) + (v3i){2,2,2};
+}
+
 ///so: a much better variant of this would be to only calculate aij_raised's derivative and store s1
 ///because that's the only component we actually *need* to calculate the momentum constraint in the evolution kernel
 tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const derivative_data& d, v3f Si_lower)
@@ -1111,7 +1116,6 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, float lapse
             literal<valuef> scale,
             literal<valuef> total_elapsed,
             literal<v3i> idim,
-            buffer<tensor<value<short>, 3>> positions,
             literal<valuei> positions_length) {
         using namespace single_source;
 
@@ -1128,9 +1132,7 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, float lapse
             return_e();
         });
 
-        ///if i was smart, i'd use the structure of the grid to do this directly
-        v3i pos = (v3i)positions[lid];
-
+        v3i pos = get_coordinate_including_boundary(lid, dim);
         pin(pos);
 
         bssn_args args(pos, dim, in);

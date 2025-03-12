@@ -51,12 +51,11 @@ struct mesh
     float total_elapsed = 0;
     float simulation_width = 0;
 
-    cl::buffer evolve_points;
     cl_int evolve_length;
     int valid_derivative_buffer = 0;
 
     ///strictly only for rendering
-    mesh(cl::context& ctx, t3i _dim, float _simulation_width) : buffers{ctx, ctx, ctx}, sommerfeld_points(ctx), evolve_points(ctx), temporary_buffer(ctx), temporary_single(ctx)
+    mesh(cl::context& ctx, t3i _dim, float _simulation_width) : buffers{ctx, ctx, ctx}, sommerfeld_points(ctx), temporary_buffer(ctx), temporary_single(ctx)
     {
         dim = _dim;
         simulation_width = _simulation_width;
@@ -246,9 +245,6 @@ struct mesh
         {
             return std::tie(p1.s[2], p1.s[1], p1.s[0]) < std::tie(p2.s[2], p2.s[1], p2.s[0]);
         });
-
-        evolve_points.alloc(sizeof(cl_short3) * evolve.size());
-        evolve_points.write(cqueue, evolve);
 
         evolve_length = evolve.size();
 
@@ -447,7 +443,6 @@ struct mesh
                     step_data.bssn_buffers.push_back(in);
                 });
 
-                step_data.evolve_points = evolve_points;
                 step_data.evolve_length = evolve_length;
 
                 step_data.dim = dim;
@@ -475,7 +470,6 @@ struct mesh
 
             args.push_back(dim);
             args.push_back(scale);
-            //args.push_back(evolve_points);
             //args.push_back(evolve_length);
 
             cqueue.exec("momentum_constraint", args, {dim.x() * dim.y() * dim.z()}, {128});
@@ -509,7 +503,6 @@ struct mesh
             args.push_back(scale);
             args.push_back(total_elapsed);
             args.push_back(dim);
-            args.push_back(evolve_points);
             args.push_back(evolve_length);
 
             cqueue.exec("evolve", args, {evolve_length}, {128});
@@ -638,7 +631,7 @@ struct mesh
                 bssn_buffers.push_back(in);
             });
 
-            p->finalise(ctx, cqueue, bssn_buffers, plugin_buffers[0][kk], dim, evolve_points, evolve_length);
+            p->finalise(ctx, cqueue, bssn_buffers, plugin_buffers[0][kk], dim, evolve_length);
         }
 
         total_elapsed += timestep;
