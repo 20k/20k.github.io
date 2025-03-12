@@ -485,7 +485,7 @@ tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, const deri
     #ifdef MASS_DAMP
     float M = 3.1;
     N = 0.5f / M;
-    N = 0.2;
+    N = 0.01;
     #endif // MASS_DAMP
 
     //#define VARIABLE_DAMP

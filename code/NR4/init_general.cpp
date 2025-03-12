@@ -110,7 +110,7 @@ void boot_initial_kernels(cl::context ctx)
                                        bssn_args_mem<buffer_mut<valuef>> out,
                                        buffer<valuef> cfl_reg, buffer<valuef> u,
                                        std::array<buffer<valuef>, 6> aIJ_summed,
-                                       literal<v3i> dim) {
+                                       literal<v3i> dim, literal<valuef> scale) {
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);
@@ -120,6 +120,9 @@ void boot_initial_kernels(cl::context ctx)
         if_e(lid >= dim.get().x() * dim.get().y() * dim.get().z(), [&] {
             return_e();
         });
+
+        v3i pos = get_coordinate(lid, dim.get());
+        v3f world_pos = grid_to_world((v3f)pos, dim.get(), scale.get());
 
         valuef cfl = cfl_reg[lid] + u[lid];
 
@@ -146,9 +149,23 @@ void boot_initial_kernels(cl::context ctx)
 
         tensor<valuef, 3, 3> Kij = lower_both(baIJ, flat) * pow(cfl, -2.f);
 
+        #define ZERO_SHIFT
+        #ifdef ZERO_SHIFT
+        tensor<valuef, 3> gB = {0,0,0};
+        #endif
+
+        //#define ROTATING_FRAME
+        #ifdef ROTATING_FRAME
+        v3f rotation_axis = {0, 0, 1};
+        float rotations_per_time = -2 * M_PI / 400;
+
+        v3f omega = rotation_axis * rotations_per_time;
+
+        tensor<valuef, 3> gB = cross(omega, world_pos);
+        #endif // ROTATING_FRAME
+
         //valuef gA = 1/(pow(cfl, 2));
         valuef gA = 1;
-        tensor<valuef, 3> gB = {0,0,0};
         tensor<valuef, 3> cG = {0,0,0};
 
         valuef W = pow(Yij.det(), -1/6.f);
@@ -259,6 +276,8 @@ std::pair<cl::buffer, initial_pack> initial_params::build(cl::context& ctx, cl::
     });
 
     {
+        float scale = (simulation_width / (dim.x() - 1));
+
         cl::args args;
 
         to_fill.for_each([&](cl::buffer& buf) {
@@ -272,6 +291,7 @@ std::pair<cl::buffer, initial_pack> initial_params::build(cl::context& ctx, cl::
             args.push_back(pack.disc.AIJ_cfl[i]);
 
         args.push_back(dim);
+        args.push_back(scale);
 
         cqueue.exec("calculate_bssn_variables", args, {dim.x() * dim.y() * dim.z()}, {128});
     }

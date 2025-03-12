@@ -656,7 +656,7 @@ float get_timestep(float simulation_width, t3i size)
     float ratio_at_base = 30.f/255.f;
     float new_ratio = simulation_width / size.x();
 
-    return 0.035f * (new_ratio / ratio_at_base);
+    return 0.015f * (new_ratio / ratio_at_base);
 }
 
 #define MIP_LEVELS 10
@@ -1377,7 +1377,7 @@ initial_params get_initial_params()
     initial_params init;
 
     init.dim = {213, 213, 213};
-    init.simulation_width = radial_pos * 6 * 1.4;
+    init.simulation_width = radial_pos * 6 * 1.4 * 2;
 
     init.add(p1);
     init.add(p2);
