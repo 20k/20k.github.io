@@ -1048,7 +1048,8 @@ void make_momentum_constraint(cl::context ctx, const std::vector<plugin*>& plugi
                           value_impl::builder::placeholder plugin_ph,
                           std::array<buffer_mut<momentum_t>, 3> momentum_constraint,
                           literal<v3i> ldim,
-                          literal<valuef> scale) {
+                          literal<valuef> scale,
+                          literal<valuei> positions_length) {
         using namespace single_source;
 
         all_adm_args_mem plugin_data = make_arg_provider(plugins);
@@ -1060,12 +1061,11 @@ void make_momentum_constraint(cl::context ctx, const std::vector<plugin*>& plugi
 
         v3i dim = ldim.get();
 
-        if_e(lid >= dim.x() * dim.y() * dim.z(), [&] {
+        if_e(lid >= positions_length.get(), [&] {
             return_e();
         });
 
-        v3i pos = get_coordinate(lid, dim);
-
+        v3i pos = get_coordinate_including_boundary(lid, dim);
         pin(pos);
 
         bssn_args args(pos, dim, in);
@@ -1074,16 +1074,6 @@ void make_momentum_constraint(cl::context ctx, const std::vector<plugin*>& plugi
         d.pos = pos;
         d.dim = dim;
         d.scale = scale.get();
-
-        if_e(pos.x() <= 1 || pos.x() >= dim.x() - 2 ||
-             pos.y() <= 1 || pos.y() >= dim.y() - 2 ||
-             pos.z() <= 1 || pos.z() >= dim.z() - 2, [&] {
-
-            for(int i=0; i < 3; i++)
-                as_ref(momentum_constraint[i][lid]) = valueh(0);
-
-            return_e();
-        });
 
         v3f Si_lower = plugin_data.adm_Si(args, d);
         pin(Si_lower);
