@@ -142,7 +142,7 @@ valuef calculate_momentum_constraint_summed(bssn_args& args, const derivative_da
 
 void make_derivatives(cl::context ctx)
 {
-    auto differentiate = [](execution_context&, buffer<valuef> in, std::array<buffer_mut<derivative_t>, 3> out, literal<v3i> ldim, literal<valuef> scale)
+    auto differentiate = [](execution_context&, buffer<valuef> in, std::array<buffer_mut<derivative_t>, 3> out, literal<v3i> ldim, literal<valuef> scale, literal<valuei> work_size)
     {
         using namespace single_source;
 
@@ -152,17 +152,12 @@ void make_derivatives(cl::context ctx)
 
         v3i dim = ldim.get();
 
-        if_e(lid >= dim.x() * dim.y() * dim.z(), [&] {
+        if_e(lid >= work_size.get(), [&] {
             return_e();
         });
 
-        v3i pos = get_coordinate(lid, dim);
-
-        if_e(pos.x() <= 0 || pos.x() >= dim.x() - 1 ||
-             pos.y() <= 0 || pos.y() >= dim.y() - 1 ||
-             pos.z() <= 0 || pos.z() >= dim.z() - 1, [&] {
-            return_e();
-        });
+        v3i pos = get_coordinate_including_boundary(lid, dim, 1);
+        pin(pos);
 
         valuef v1 = in[pos, dim];
 

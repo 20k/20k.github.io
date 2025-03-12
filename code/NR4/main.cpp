@@ -71,6 +71,9 @@ struct mesh
 
         auto diff = [&](cl::buffer buf, int buffer_idx)
         {
+            t3i diff_grid_size = dim - (t3i){2,2,2};
+            cl_int diff_total = diff_grid_size.x() * diff_grid_size.y() * diff_grid_size.z();
+
             cl::args args;
             args.push_back(buf);
             args.push_back(into.at(buffer_idx * 3 + 0));
@@ -78,8 +81,9 @@ struct mesh
             args.push_back(into.at(buffer_idx * 3 + 2));
             args.push_back(dim);
             args.push_back(scale);
+            args.push_back(diff_total);
 
-            cqueue.exec("differentiate", args, {dim.x()*dim.y()*dim.z()}, {128});
+            cqueue.exec("differentiate", args, {diff_total}, {128});
         };
 
         std::vector<cl::buffer> to_diff {
