@@ -54,6 +54,7 @@ void make_kreiss_oliger(cl::context ctx)
             });
 
             v3i pos = get_coordinate(lid, dim);
+            pin(pos);
 
             valuei boundary_distance = distance_to_boundary(pos, dim);
 
