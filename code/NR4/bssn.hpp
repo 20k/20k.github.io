@@ -237,6 +237,7 @@ void make_sommerfeld(cl::context ctx);
 v3i get_coordinate(valuei id, v3i dim);
 //promotes a smaller cube to a bigger cube
 v3i get_coordinate_including_boundary(valuei id, v3i dim);
+v3i get_coordinate_including_boundary(valuei id, v3i dim, int boundary_size);
 
 template<typename T, typename U, typename V>
 inline

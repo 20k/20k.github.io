@@ -72,7 +72,12 @@ v3i get_coordinate(valuei id, v3i dim)
 
 v3i get_coordinate_including_boundary(valuei id, v3i dim)
 {
-    return get_coordinate(id, dim - (v3i){4,4,4}) + (v3i){2,2,2};
+    return get_coordinate_including_boundary(id, dim, 2);
+}
+
+v3i get_coordinate_including_boundary(valuei id, v3i dim, int boundary_size)
+{
+    return get_coordinate(id, dim - (v3i){boundary_size*2,boundary_size*2,boundary_size*2}) + (v3i){boundary_size,boundary_size,boundary_size};
 }
 
 ///so: a much better variant of this would be to only calculate aij_raised's derivative and store s1
@@ -1082,7 +1087,7 @@ void make_momentum_constraint(cl::context ctx, const std::vector<plugin*>& plugi
 
         for(int i=0; i < 3; i++)
         {
-            as_ref(momentum_constraint[i][lid]) = (momentum_t)Mi[i];
+            as_ref(momentum_constraint[i][pos, dim]) = (momentum_t)Mi[i];
         }
     };
 
