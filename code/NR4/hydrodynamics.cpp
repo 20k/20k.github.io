@@ -4,7 +4,7 @@
 ///so like. What if I did the projective real strategy?
 
 //stable with 1e-6, but the neutron star dissipates
-constexpr float min_p_star = 1e-8f;
+constexpr float min_p_star = 1e-7f;
 
 template<typename T>
 inline
@@ -79,7 +79,7 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
 
     //note to self, actually hand derived this and am sure its correct
     //tol is very intentionally set to 1e-6, breaks if lower than this
-    v3f real_value = -gB + (W*W * gA / h) * safe_divide(Si_upper, w, 1e-7);
+    v3f real_value = -gB + (W*W * gA / h) * safe_divide(Si_upper, w);
 
     //produces a lot longer inspirals
     //return real_value;
@@ -114,7 +114,7 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
     valuef littledv = dkvk * d.scale;
     valuef Gamma = get_Gamma();
 
-    valuef A = pow(e_star, Gamma) * pow(e_m6phi, Gamma - 1) * safe_divide(pow(p_star, Gamma - 1), pow(w, Gamma - 1), 1e-6f);
+    valuef A = pow(e_star, Gamma) * pow(e_m6phi, Gamma - 1) * safe_divide(pow(p_star, Gamma - 1), pow(w, Gamma - 1));
 
     //ctx.add("DBG_A", A);
 
@@ -256,7 +256,7 @@ struct hydrodynamic_concrete
 
         for(int k=0; k < 3; k++)
         {
-            value to_diff = safe_divide(w, p_star, 1e-6) * vi[k] * e_6phi;
+            value to_diff = safe_divide(w, p_star) * vi[k] * e_6phi;
 
             sum_interior_rhs += diff1(to_diff, k, d);
         }
@@ -265,7 +265,7 @@ struct hydrodynamic_concrete
 
         valuef p0e = calculate_p0e(W);
 
-        valuef degenerate = safe_divide(valuef{1}, pow(p0e, 1 - 1/Gamma), 1e-6);
+        valuef degenerate = safe_divide(valuef{1}, pow(p0e, 1 - 1/Gamma));
 
         return -degenerate * (Pvis / Gamma) * sum_interior_rhs;
     }
@@ -323,9 +323,7 @@ valuef full_hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& 
 
     valuef h = hydro_args.calculate_h_with_eos(args.W);
 
-    return ternary(hydro_args.p_star <= 0,
-                   {},
-                   hydro_args.w * h * pow(args.W, 3.f) - hydro_args.eos(args.W));
+    return hydro_args.w * h * pow(args.W, 3.f) - hydro_args.eos(args.W);
 }
 
 template<typename T>
@@ -333,11 +331,7 @@ tensor<valuef, 3> full_hydrodynamic_args<T>::adm_Si(bssn_args& args, const deriv
 {
     v3f cSi = {this->Si[0][d.pos, d.dim], this->Si[1][d.pos, d.dim], this->Si[2][d.pos, d.dim]};
 
-    valuef p_star = this->p_star[d.pos, d.dim];
-
-    return ternary(p_star <= 0,
-                   {},
-                   pow(args.W, 3.f) * cSi);
+    return pow(args.W, 3.f) * cSi;
 }
 
 template<typename T>
@@ -353,13 +347,11 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
     {
         for(int j=0; j < 3; j++)
         {
-            W2_Sij[i, j] = safe_divide(pow(args.W, 5.f) * hydro_args.Si[i] * hydro_args.Si[j], hydro_args.w * h);
+            W2_Sij[i, j] = ((pow(args.W, 5.f) / h) * safe_divide(hydro_args.Si[i], hydro_args.w)) * hydro_args.Si[j];
         }
     }
 
-    return ternary(hydro_args.p_star <= 0,
-                   {},
-                   W2_Sij + hydro_args.eos(args.W) * args.cY.to_tensor());
+    return W2_Sij + hydro_args.eos(args.W) * args.cY.to_tensor();
 }
 
 template<typename T>
