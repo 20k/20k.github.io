@@ -1073,6 +1073,9 @@ void make_momentum_constraint(cl::context ctx, const std::vector<plugin*>& plugi
         v3i pos = get_coordinate_including_boundary(lid, dim);
         pin(pos);
 
+        valuei idx = pos.z() * dim.y() * dim.x() + pos.y() * dim.x() + pos.x();
+        pin(idx);
+
         bssn_args args(pos, dim, in);
 
         derivative_data d;
@@ -1087,7 +1090,7 @@ void make_momentum_constraint(cl::context ctx, const std::vector<plugin*>& plugi
 
         for(int i=0; i < 3; i++)
         {
-            as_ref(momentum_constraint[i][pos, dim]) = (momentum_t)Mi[i];
+            as_ref(momentum_constraint[i][idx]) = (momentum_t)Mi[i];
         }
     };
 
