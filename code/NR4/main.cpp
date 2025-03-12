@@ -344,10 +344,7 @@ struct mesh
 
                 for(int kk=0; kk < (int)bufs_in.size(); kk++)
                 {
-                    if(desc[kk].dissipation_coeff == 0)
-                        cl::copy(cqueue, bufs_in[kk], bufs_out[kk]);
-                    else
-                        kreiss_individual(bufs_in[kk], bufs_out[kk], desc[kk].dissipation_coeff, desc[kk].dissipation_order);
+                    kreiss_individual(bufs_in[kk], bufs_out[kk], desc[kk].dissipation_coeff, desc[kk].dissipation_order);
                 }
             }
 
