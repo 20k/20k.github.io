@@ -297,6 +297,12 @@ struct mesh
                 if(inb.alloc_size == 0)
                     return;
 
+                if(eps == 0)
+                {
+                    cl::copy(cqueue, inb, outb);
+                    return;
+                }
+
                 cl::args args;
                 args.push_back(inb);
                 args.push_back(outb);
@@ -1338,6 +1344,7 @@ initial_params get_initial_params()
 
     #endif // INSPIRAL_2
 
+    ///maybe the initial conditions are wrong
     #define INSPIRAL
     #ifdef INSPIRAL
     ///hi, you're trying to work out why the neutron stars lose too much energy
@@ -1355,7 +1362,7 @@ initial_params get_initial_params()
     p1.position = {-radial_pos, 0, 0};
     ///was 0.23
     ///0.265 was reasonable
-    p1.linear_momentum.momentum = {0, -0.32, 0};
+    p1.linear_momentum.momentum = {0, -0.3, 0};
     p1.K.msols = 123.641;
     p1.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
 
@@ -1363,19 +1370,19 @@ initial_params get_initial_params()
 
     //p2.colour = {0, 0, 1};
     p2.position = {radial_pos, 0, 0};
-    p2.linear_momentum.momentum = {0, 0.32, 0};
+    p2.linear_momentum.momentum = {0, 0.3, 0};
     p2.K.msols = 123.641;
     p2.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
 
     initial_params init;
 
-    init.dim = {177, 177, 177};
-    init.simulation_width = radial_pos * 6 * 1.75;
+    init.dim = {213, 213, 213};
+    init.simulation_width = radial_pos * 6 * 1.4;
 
     init.add(p1);
     init.add(p2);
 
-    init.linear_viscosity_timescale = 400;
+    init.linear_viscosity_timescale = 200;
     init.time_between_snapshots = 15;
     init.lapse_damp_timescale = 20;
 

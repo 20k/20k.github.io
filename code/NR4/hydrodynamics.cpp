@@ -8,7 +8,7 @@ constexpr float min_p_star = 1e-8f;
 
 template<typename T>
 inline
-auto safe_divide(const auto& top, const T& bottom, float tol = 1e-6)
+auto safe_divide(const auto& top, const T& bottom, float tol = 1e-7)
 {
     return top / max(bottom, T{tol});
 }
@@ -79,7 +79,7 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
 
     //note to self, actually hand derived this and am sure its correct
     //tol is very intentionally set to 1e-6, breaks if lower than this
-    v3f real_value = -gB + (W*W * gA / h) * safe_divide(Si_upper, w, 1e-6);
+    v3f real_value = -gB + (W*W * gA / h) * safe_divide(Si_upper, w, 1e-7);
 
     //produces a lot longer inspirals
     //return real_value;
