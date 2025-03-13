@@ -21,8 +21,6 @@
 #include "plugin.hpp"
 #include "hydrodynamics.hpp"
 
-using t3i = tensor<int, 3>;
-
 float get_scale(float simulation_width, t3i dim)
 {
     return simulation_width / (dim.x() - 1);
@@ -590,7 +588,7 @@ struct mesh
             evolve_step(base_idx, in_idx, out_idx);
         };
 
-        int iterations = 3;
+        int iterations = 2;
 
         for(int i=0; i < iterations; i++)
         {
