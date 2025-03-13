@@ -729,13 +729,13 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     //fluid dynamics cannot have a singular initial slice, so setting the clamping pretty high here because its irrelevant
     //thing is we have 0 quantities at the singularity, so as long as you don't generate a literal NaN here, you're 100% fine
 
-    valuef p_star = p0 * gA * u0 * pow(cW, -3);
-    valuef e_star = pow(p0_e, (1/Gamma)) * gA * u0 * pow(cW, -3);
+    valuef p_star = p0 * 1 * u0 * pow(cW, -3);
+    valuef e_star = pow(p0_e, (1/Gamma)) * 1 * u0 * pow(cW, -3);
 
     ///Si isn't well defined when gA != 1 in our init conditions
     ///oh! Si isn't a hydrodynamic field!
 
-    valuef w = p_star * gA * u0;
+    valuef w = p_star * 1 * u0;
 
     //with raised index
     v3f ui = Si / ((mu + pressure) * u0);

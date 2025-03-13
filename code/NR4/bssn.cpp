@@ -1329,15 +1329,15 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
         d.dim = dim;
         d.scale = scale.get();
 
-        //valuef rho_s = plugin_data.adm_p(args, d);
-        //valuef ham = calculate_hamiltonian_constraint_adm(args, derivs, d, rho_s);
-        //valuef p = fabs(ham) * 1000;
+        valuef rho_s = plugin_data.adm_p(args, d);
+        valuef ham = calculate_hamiltonian_constraint(args, derivs, d, rho_s);
+        valuef p = fabs(ham) * 1000;
 
         //valuef momentum = calculate_momentum_constraint_summed(args, d, plugin_data.adm_Si(args, d));
         //valuef p = fabs(momentum) * 1000;
 
         //valuef p = plugin_data.mem.adm_p(args, d);
-        valuef p = plugin_data.dbg(args, d);
+        //valuef p = plugin_data.dbg(args, d);
 
         //valuef test_val = in.cY[0][lid];
         //valuef display = ((test_val - 1) / 0.1f) * 0.5f + 0.5f;

@@ -162,8 +162,8 @@ void boot_initial_kernels(cl::context ctx)
 
         tensor<valuef, 3, 3> Kij = lower_both(baIJ, flat) * pow(cfl, -2.f);
 
-        //valuef gA = 1/(pow(cfl, 2));
-        valuef gA = 1;
+        valuef gA = 1/(pow(cfl, 2));
+        //valuef gA = 1;
         tensor<valuef, 3> gB = {0,0,0};
         tensor<valuef, 3> cG = {0,0,0};
 
