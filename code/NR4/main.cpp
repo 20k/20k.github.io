@@ -230,28 +230,7 @@ struct mesh
 
         sommerfeld_length = boundary.size();
 
-        std::vector<cl_short3> evolve;
-
-        for(int z=0; z < dim.z(); z++)
-        {
-            for(int y=0; y < dim.y(); y++)
-            {
-                for(int x=0; x < dim.x(); x++)
-                {
-                    if(x > 1 && x < dim.x() - 2 && y > 1 && y < dim.y() - 2 && z > 1 && z < dim.z() - 2)
-                    {
-                        evolve.push_back({x, y, z});
-                    }
-                }
-            }
-        }
-
-        std::sort(evolve.begin(), evolve.end(), [](auto p1, auto p2)
-        {
-            return std::tie(p1.s[2], p1.s[1], p1.s[0]) < std::tie(p2.s[2], p2.s[1], p2.s[0]);
-        });
-
-        evolve_length = evolve.size();
+        evolve_length = get_evolve_size_with_boundary(dim, 2);
 
         temporary_buffer.set_to_zero(cqueue);
         temporary_single.set_to_zero(cqueue);
