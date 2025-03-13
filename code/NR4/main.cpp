@@ -117,9 +117,8 @@ struct mesh
         buffers[0].allocate(dim);
 
         buffers[0].for_each([&](cl::buffer b){
-            cl_float nan = NAN;
-
-            b.fill(cqueue, nan);
+            cl_float start = 0;
+            b.fill(cqueue, start);
         });
 
         for(plugin* p : plugins)
@@ -166,9 +165,8 @@ struct mesh
             buffers[i].allocate(dim);
 
             buffers[i].for_each([&](cl::buffer b){
-                cl_float nan = NAN;
-
-                b.fill(cqueue, nan);
+                cl_float start = 0;
+                b.fill(cqueue, start);
             });
 
             for(auto& kk : plugin_buffers[i])
@@ -195,11 +193,8 @@ struct mesh
             cl::buffer buf(ctx);
             buf.alloc(sizeof(derivative_t::interior_type) * int64_t{dim.x()} * dim.y() * dim.z());
 
-            static_assert(std::numeric_limits<derivative_t::interior_type>::has_quiet_NaN);
-
-            auto qnan = std::numeric_limits<derivative_t::interior_type>::quiet_NaN();
-
-            buf.fill(cqueue, qnan);
+            derivative_t::interior_type start = 0;
+            buf.fill(cqueue, start);
 
             derivatives.push_back(buf);
         }
