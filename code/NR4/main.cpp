@@ -28,6 +28,12 @@ float get_scale(float simulation_width, t3i dim)
     return simulation_width / (dim.x() - 1);
 }
 
+int get_evolve_size_with_boundary(t3i dim, int boundary)
+{
+    t3i real_evolve_size = dim - (t3i){boundary*2, boundary*2, boundary*2};
+    return real_evolve_size.x() * real_evolve_size.y() * real_evolve_size.z();
+}
+
 struct mesh
 {
     std::vector<plugin*> plugins;
@@ -353,6 +359,8 @@ struct mesh
 
         auto enforce_constraints = [&](int idx)
         {
+            int evolve_size = get_evolve_size_with_boundary(dim, 1);
+
             cl::args args;
 
             for(int i=0; i < 6; i++)
@@ -360,9 +368,10 @@ struct mesh
             for(int i=0; i < 6; i++)
                 args.push_back(buffers[idx].cA[i]);
 
+            args.push_back(evolve_size);
             args.push_back(dim);
 
-            cqueue.exec("enforce_algebraic_constraints", args, {dim.x() * dim.y() * dim.z()}, {128});
+            cqueue.exec("enforce_algebraic_constraints", args, {evolve_size}, {128});
         };
 
         #if 1
@@ -1522,7 +1531,7 @@ int main()
     plugins.push_back(hydro);
 
     make_derivatives(ctx);
-    make_bssn(ctx, plugins, params.lapse_damp_timescale);
+    make_bssn(ctx, plugins, params);
     init_debugging(ctx, plugins);
     make_momentum_constraint(ctx, plugins);
     enforce_algebraic_constraints(ctx);

@@ -6,6 +6,7 @@
 #include <iostream>
 #include "../common/vec/dual.hpp"
 #include "plugin.hpp"
+#include "init_general.hpp"
 
 template<typename T>
 using dual = dual_types::dual_v<T>;
@@ -1096,9 +1097,9 @@ void make_momentum_constraint(cl::context ctx, const std::vector<plugin*>& plugi
 }
 
 ///https://arxiv.org/pdf/0709.3559 tested, appendix a.2
-void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, float lapse_damp_timescale)
+void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, const initial_params& cfg)
 {
-    auto bssn_function = [plugins, lapse_damp_timescale]
+    auto bssn_function = [plugins, cfg]
             (execution_context&, bssn_args_mem<buffer<valuef>> base,
             bssn_args_mem<buffer<valuef>> in,
             bssn_args_mem<buffer_mut<valuef>> out,
@@ -1181,7 +1182,7 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, float lapse
         valuef dtK = get_dtK(args, derivs, d, S, rho_s);
         as_ref(out.K[pos, dim]) = apply_evolution(base.K[pos, dim], dtK, timestep.get());
 
-        valuef dtgA = get_dtgA(args, derivs, d, total_elapsed.get(), lapse_damp_timescale);
+        valuef dtgA = get_dtgA(args, derivs, d, total_elapsed.get(), cfg.lapse_damp_timescale);
         as_ref(out.gA[pos, dim]) = clamp(apply_evolution(base.gA[pos, dim], dtgA, timestep.get()), valuef(0.f), valuef(1.f));
 
         auto dtgB = get_dtgB(args, derivs, d);
@@ -1224,7 +1225,7 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, float lapse
 
 void enforce_algebraic_constraints(cl::context ctx)
 {
-    auto func = [](execution_context&, std::array<buffer_mut<valuef>, 6> mcY, std::array<buffer_mut<valuef>, 6> mcA, literal<v3i> idim)
+    auto func = [](execution_context&, std::array<buffer_mut<valuef>, 6> mcY, std::array<buffer_mut<valuef>, 6> mcA, literal<valuei> positions_length, literal<v3i> idim)
     {
         using namespace single_source;
 
@@ -1234,11 +1235,12 @@ void enforce_algebraic_constraints(cl::context ctx)
 
         v3i dim = {idim.get().x(), idim.get().y(), idim.get().z()};
 
-        if_e(lid >= dim.x() * dim.y() * dim.z(), [&] {
+        if_e(lid >= positions_length.get(), [&] {
             return_e();
         });
 
-        v3i pos = get_coordinate(lid, dim);
+        v3i pos = get_coordinate_including_boundary(lid, dim, 1);
+        pin(pos);
 
         metric<valuef, 3, 3> cY;
         tensor<valuef, 3, 3> cA;
@@ -1254,8 +1256,8 @@ void enforce_algebraic_constraints(cl::context ctx)
                 {
                     int idx = index_table[i][j];
 
-                    cY[i, j] = mcY[idx][lid];
-                    cA[i, j] = mcA[idx][lid];
+                    cY[i, j] = mcY[idx][pos, dim];
+                    cA[i, j] = mcA[idx][pos, dim];
                 }
             }
         }
@@ -1286,8 +1288,8 @@ void enforce_algebraic_constraints(cl::context ctx)
         {
             tensor<int, 2> idx = index_table[i];
 
-            as_ref(mcY[i][lid]) = fixed_cY[idx.x(), idx.y()];
-            as_ref(mcA[i][lid]) = fixed_cA[idx.x(), idx.y()];
+            as_ref(mcY[i][pos, dim]) = fixed_cY[idx.x(), idx.y()];
+            as_ref(mcA[i][pos, dim]) = fixed_cA[idx.x(), idx.y()];
         }
     };
 

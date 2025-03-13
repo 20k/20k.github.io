@@ -25,6 +25,22 @@ void discretised_initial_data::init(cl::command_queue& cqueue, t3i dim)
     }
 }
 
+struct all_laplace_args : value_impl::single_source::argument_pack
+{
+    buffer<valuef> cfl;
+    buffer<valuef> aij_aIJ;
+    buffer<valuef> mu_h_cfl;
+
+    void build(auto& in)
+    {
+        using namespace value_impl::builder;
+
+        add(cfl, in);
+        add(aij_aIJ, in);
+        add(mu_h_cfl, in);
+    }
+};
+
 laplace_solver get_laplace_solver_impl(cl::context ctx)
 {
     laplace_solver laplace;

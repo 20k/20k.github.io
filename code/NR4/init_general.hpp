@@ -100,24 +100,9 @@ struct initial_pack
     }
 };
 
-struct all_laplace_args : value_impl::single_source::argument_pack
-{
-    buffer<valuef> cfl;
-    buffer<valuef> aij_aIJ;
-    buffer<valuef> mu_h_cfl;
-
-    void build(auto& in)
-    {
-        using namespace value_impl::builder;
-
-        add(cfl, in);
-        add(aij_aIJ, in);
-        add(mu_h_cfl, in);
-    }
-};
-
 struct initial_params
 {
+    float N = 2;
     float lapse_damp_timescale = 20.f;
     float linear_viscosity_timescale = 0;
     float time_between_snapshots = 2;
