@@ -466,7 +466,7 @@ valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, const derivative_data
 }
 
 ///todo: https://arxiv.org/pdf/1003.4681
-tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
+tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, const initial_params& cfg)
 {
     ///https://arxiv.org/pdf/gr-qc/0605030 (26)
     #ifdef GAMMA_DRIVER
@@ -485,14 +485,7 @@ tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, const deri
     }
 
     ///gauge damping parameter, commonly set to 2
-    valuef N = 2.f;
-
-    #define MASS_DAMP
-    #ifdef MASS_DAMP
-    float M = 3.1;
-    N = 0.5f / M;
-    N = 0.2;
-    #endif // MASS_DAMP
+    valuef N = cfg.N;
 
     //#define VARIABLE_DAMP
     #ifdef VARIABLE_DAMP
@@ -1185,7 +1178,7 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, const initi
         valuef dtgA = get_dtgA(args, derivs, d, total_elapsed.get(), cfg.lapse_damp_timescale);
         as_ref(out.gA[pos, dim]) = clamp(apply_evolution(base.gA[pos, dim], dtgA, timestep.get()), valuef(0.f), valuef(1.f));
 
-        auto dtgB = get_dtgB(args, derivs, d);
+        auto dtgB = get_dtgB(args, derivs, d, cfg);
 
         for(int i=0; i < 3; i++)
         {
