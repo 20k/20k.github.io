@@ -277,7 +277,7 @@ tensor<valuef, 3, 3> calculate_W2Rij(bssn_args& args, bssn_derivatives& derivs, 
     {
         for(int j=0; j < 3; j++)
         {
-            valuef v1 = args.W * didjW[i, j];
+            valuef v1 = didjW[i, j];
             valuef v2 = 0;
 
             {
@@ -290,7 +290,7 @@ tensor<valuef, 3, 3> calculate_W2Rij(bssn_args& args, bssn_derivatives& derivs, 
                     sum += raised[l, l];
                 }
 
-                v2 = args.W * args.cY[i, j] * sum;
+                v2 = args.cY[i, j] * sum;
             }
 
             valuef v3 = 0;
@@ -306,7 +306,7 @@ tensor<valuef, 3, 3> calculate_W2Rij(bssn_args& args, bssn_derivatives& derivs, 
                 v3 = -2 * args.cY[i, j] * sum;
             }
 
-            w2Rphiij[i, j] = v1 + v2 + v3;
+            w2Rphiij[i, j] = args.W * (v1 + v2) + v3;
         }
     }
 
@@ -438,7 +438,7 @@ valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, const derivative_data
     if(lapse_damp_timescale > 0)
     {
         valuef sigma = lapse_damp_timescale;
-        value h = (4.f/5.f);
+        value h = (4.f/5.f) * 3;
 
         damp = args.W * (h * exp(-(total_elapsed*total_elapsed) / (2 * sigma * sigma))) * (args.gA - args.W);
     }
@@ -622,7 +622,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
     #endif
 
     //this appears to do literally nothing
-    //dtcY += 0.005f * args.gA * args.cY.to_tensor() * -calculate_hamiltonian_constraint(args, derivs, d, rho_s);
+    //dtcY += 50.5f * args.gA * args.cY.to_tensor() * -calculate_hamiltonian_constraint(args, derivs, d, rho_s);
 
     return dtcY;
 }
@@ -775,7 +775,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3h mom
     {
         for(int j=0; j < 3; j++)
         {
-            float Ka = 0.004f;
+            float Ka = 0.04f;
 
             dtcA[i, j] += Ka * args.gA * 0.5f *
                               (cd_low[i, j]
