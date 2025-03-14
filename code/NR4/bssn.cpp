@@ -645,7 +645,7 @@ valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const derivative_data&
         dibiw += args.gB[i] * diff1(args.W, i, d);
     }
 
-    return (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw + args.W * 0.01f * calculate_hamiltonian_constraint(args, derivs, d, rho_s);
+    return (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw + args.W * 0.02f * calculate_hamiltonian_constraint(args, derivs, d, rho_s);
 }
 
 tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)

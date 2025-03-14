@@ -624,14 +624,16 @@ struct mesh
     }
 };
 
+float get_cfl()
+{
+    return 0.2975;
+}
+
 float get_timestep(float simulation_width, t3i size)
 {
-    //float timestep_at_base_c = 0.035;
+    float new_ratio = simulation_width / (size.x() - 1);
 
-    float ratio_at_base = 30.f/255.f;
-    float new_ratio = simulation_width / size.x();
-
-    return 0.035f * (new_ratio / ratio_at_base);
+    return get_cfl() * new_ratio;
 }
 
 #define MIP_LEVELS 10
@@ -1352,8 +1354,8 @@ initial_params get_initial_params()
     initial_params init;
     init.N = 0.2;
 
-    init.dim = {177, 177, 177};
-    init.simulation_width = radial_pos * 6 * 1.5;
+    init.dim = {255, 255, 255};
+    init.simulation_width = radial_pos * 6 * 1.75;
 
     init.add(p1);
     init.add(p2);
