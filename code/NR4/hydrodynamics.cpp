@@ -1116,6 +1116,23 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     de_star += ternary(boundary_dist <= 15, -hydro_args.e_star * boundary_damp, {});
     dSi += ternary(boundary_dist <= 15, -hydro_args.Si * boundary_damp, {});
 
+
+    #define TEST_CRANK
+    #ifndef TEST_CRANK
+    valuef fin_p_star = h_base.p_star[pos, dim] + dp_star * timestep.get();
+    valuef fin_e_star = h_base.e_star[pos, dim] + de_star * timestep.get();
+    v3f fin_Si = base_Si + timestep.get() * dSi;
+
+    fin_p_star = max(fin_p_star, 0.f);
+    fin_e_star = max(fin_e_star, 0.f);
+
+    as_ref(h_out.p_star[pos, dim]) = fin_p_star;
+    as_ref(h_out.e_star[pos, dim]) = fin_e_star;
+
+    as_ref(h_out.Si[0][pos, dim]) = fin_Si[0];
+    as_ref(h_out.Si[1][pos, dim]) = fin_Si[1];
+    as_ref(h_out.Si[2][pos, dim]) = fin_Si[2];
+    #else
     if_e(iteration.get() == 0, [&]{
         as_ref(dt_inout.p_star[pos, dim]) = dp_star;
         as_ref(dt_inout.e_star[pos, dim]) = declare_e(de_star);
@@ -1158,6 +1175,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         as_ref(h_out.Si[1][pos, dim]) = fin_Si[1];
         as_ref(h_out.Si[2][pos, dim]) = fin_Si[2];
     });
+    #endif
 
     if(use_colour)
     {
