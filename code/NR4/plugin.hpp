@@ -204,6 +204,7 @@ struct plugin_step_data
     int in_idx = 0;
     int out_idx = 0;
     int base_idx = 0;
+    int iteration = 0;
 
     plugin_step_data(cl::context ctx){}
 };

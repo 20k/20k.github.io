@@ -413,7 +413,7 @@ struct mesh
         };
         #endif
 
-        auto plugin_step = [&](int base_idx, int in_idx, int out_idx)
+        auto plugin_step = [&](int iteration, int base_idx, int in_idx, int out_idx)
         {
             for(int kk=0; kk < (int)plugins.size(); kk++)
             {
@@ -438,6 +438,7 @@ struct mesh
                 step_data.in_idx = in_idx;
                 step_data.out_idx = out_idx;
                 step_data.base_idx = base_idx;
+                step_data.iteration = iteration;
 
                 plugins[kk]->step(ctx, cqueue, step_data);
             }
@@ -580,7 +581,7 @@ struct mesh
                 calculate_constraint_errors(in_idx);
             #endif
 
-            plugin_step(base_idx, in_idx, out_idx);
+            plugin_step(iteration, base_idx, in_idx, out_idx);
 
             if(using_momentum_constraint)
                 calculate_momentum_constraint_for(in_idx);
