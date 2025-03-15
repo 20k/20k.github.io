@@ -634,7 +634,7 @@ float get_timestep(float simulation_width, t3i size)
 {
     float scale = get_scale(simulation_width, size);
 
-    return get_cfl() * scale * 0.75;
+    return get_cfl() * scale;
 }
 
 #define MIP_LEVELS 10

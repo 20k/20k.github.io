@@ -1116,8 +1116,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     de_star += ternary(boundary_dist <= 15, -hydro_args.e_star * boundary_damp, {});
     dSi += ternary(boundary_dist <= 15, -hydro_args.Si * boundary_damp, {});
 
-
-    #define TEST_CRANK
+    //#define TEST_CRANK
     #ifndef TEST_CRANK
     valuef fin_p_star = h_base.p_star[pos, dim] + dp_star * timestep.get();
     valuef fin_e_star = h_base.e_star[pos, dim] + de_star * timestep.get();
