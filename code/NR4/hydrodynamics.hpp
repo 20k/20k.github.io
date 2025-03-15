@@ -95,6 +95,8 @@ struct hydrodynamic_utility_buffers : buffer_provider
     cl::buffer w;
     cl::buffer P;
 
+    std::vector<cl::buffer> intermediate;
+
     hydrodynamic_utility_buffers(cl::context ctx) : w(ctx), P(ctx){}
 
     virtual std::vector<buffer_descriptor> get_description() override;

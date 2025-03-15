@@ -589,7 +589,7 @@ struct mesh
             evolve_step(base_idx, in_idx, out_idx);
         };
 
-        int iterations = 2;
+        int iterations = 3;
 
         for(int i=0; i < iterations; i++)
         {
@@ -634,7 +634,7 @@ float get_timestep(float simulation_width, t3i size)
 {
     float scale = get_scale(simulation_width, size);
 
-    return get_cfl() * scale;
+    return get_cfl() * scale * 0.75;
 }
 
 #define MIP_LEVELS 10
@@ -1355,7 +1355,7 @@ initial_params get_initial_params()
     initial_params init;
     init.N = 0.2;
 
-    init.dim = {255, 255, 255};
+    init.dim = {213, 213, 213};
     init.simulation_width = radial_pos * 6 * 1.75;
 
     init.add(p1);

@@ -463,6 +463,15 @@ void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue c
 
     P.set_to_zero(cqueue);
     w.set_to_zero(cqueue);
+
+    for(int i=0; i < 5; i++)
+        intermediate.emplace_back(ctx);
+
+    for(auto& i : intermediate)
+    {
+        i.alloc(sizeof(cl_float) * cells);
+        i.set_to_zero(cqueue);
+    }
 }
 
 struct eos_gpu : value_impl::single_source::argument_pack
@@ -966,9 +975,11 @@ void calculate_p_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
 void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                   hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, hydrodynamic_base_args<buffer_mut<valuef>> h_out,
+                  hydrodynamic_base_args<buffer_mut<valuef>> dt_inout,
                   hydrodynamic_utility_args<buffer<valuef>> util,
                   literal<v3i> idim, literal<valuef> scale, literal<valuef> timestep, literal<valuef> total_elapsed, literal<valuef> damping_timescale,
-                  literal<valuei> positions_length, bool use_colour)
+                  literal<valuei> positions_length,
+                  literal<int> iteration, bool use_colour)
 {
     using namespace single_source;
 
@@ -1099,23 +1110,54 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     v3f base_Si = {h_base.Si[0][pos, dim], h_base.Si[1][pos, dim], h_base.Si[2][pos, dim]};
 
-    v3f fin_Si = base_Si + timestep.get() * dSi;
+    valuef boundary_damp = 0.25f;
 
-    valuef fin_p_star = h_base.p_star[pos, dim] + dp_star * timestep.get();
-    valuef fin_e_star = h_base.e_star[pos, dim] + de_star * timestep.get();
+    dp_star += ternary(boundary_dist <= 15, -hydro_args.p_star * boundary_damp, {});
+    de_star += ternary(boundary_dist <= 15, -hydro_args.e_star * boundary_damp, {});
+    dSi += ternary(boundary_dist <= 15, -hydro_args.Si * boundary_damp, {});
 
-    valuef boundary_damp = 0.25f * timestep.get();
+    if_e(iteration.get() == 0, [&]{
+        as_ref(dt_inout.p_star[pos, dim]) = dp_star;
+        as_ref(dt_inout.e_star[pos, dim]) = declare_e(de_star);
 
-    fin_p_star += ternary(boundary_dist <= 15, -hydro_args.p_star * boundary_damp, {});
-    fin_e_star += ternary(boundary_dist <= 15, -hydro_args.e_star * boundary_damp, {});
-    fin_Si += ternary(boundary_dist <= 15, -hydro_args.Si * boundary_damp, {});
+        as_ref(dt_inout.Si[0][pos, dim]) = dSi[0];
+        as_ref(dt_inout.Si[1][pos, dim]) = dSi[1];
+        as_ref(dt_inout.Si[2][pos, dim]) = dSi[2];
 
-    as_ref(h_out.p_star[pos, dim]) = max(fin_p_star, 0.f);
-    as_ref(h_out.e_star[pos, dim]) = max(fin_e_star, 0.f);
+        valuef fin_p_star = h_base.p_star[pos, dim] + dp_star * timestep.get();
+        valuef fin_e_star = h_base.e_star[pos, dim] + de_star * timestep.get();
+        v3f fin_Si = base_Si + timestep.get() * dSi;
 
-    as_ref(h_out.Si[0][pos, dim]) = fin_Si[0];
-    as_ref(h_out.Si[1][pos, dim]) = fin_Si[1];
-    as_ref(h_out.Si[2][pos, dim]) = fin_Si[2];
+        fin_p_star = max(fin_p_star, 0.f);
+        fin_e_star = max(fin_e_star, 0.f);
+
+        as_ref(h_out.p_star[pos, dim]) = fin_p_star;
+        as_ref(h_out.e_star[pos, dim]) = fin_e_star;
+
+        as_ref(h_out.Si[0][pos, dim]) = fin_Si[0];
+        as_ref(h_out.Si[1][pos, dim]) = fin_Si[1];
+        as_ref(h_out.Si[2][pos, dim]) = fin_Si[2];
+    });
+
+    if_e(iteration.get() != 0, [&]{
+        valuef root_dp_star = declare_e(dt_inout.p_star[pos, dim]);
+        valuef root_de_star = declare_e(dt_inout.e_star[pos, dim]);
+        v3f root_dSi = (v3f){declare_e(dt_inout.Si[0][pos, dim]), declare_e(dt_inout.Si[1][pos, dim]), declare_e(dt_inout.Si[2][pos, dim])};
+
+        valuef fin_p_star = h_base.p_star[pos, dim] + 0.5f * (root_dp_star + dp_star) * timestep.get();
+        valuef fin_e_star = h_base.e_star[pos, dim] + 0.5f * (root_de_star + de_star) * timestep.get();
+        v3f fin_Si = base_Si + 0.5f * (root_dSi + dSi) * timestep.get();
+
+        fin_p_star = max(fin_p_star, 0.f);
+        fin_e_star = max(fin_e_star, 0.f);
+
+        as_ref(h_out.p_star[pos, dim]) = fin_p_star;
+        as_ref(h_out.e_star[pos, dim]) = fin_e_star;
+
+        as_ref(h_out.Si[0][pos, dim]) = fin_Si[0];
+        as_ref(h_out.Si[1][pos, dim]) = fin_Si[1];
+        as_ref(h_out.Si[2][pos, dim]) = fin_Si[2];
+    });
 
     if(use_colour)
     {
@@ -1366,6 +1408,11 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
         for(auto& i : cl_out)
             args.push_back(i);
 
+        for(auto& i : ubufs.intermediate)
+            args.push_back(i);
+
+        args.push_back(nullptr, nullptr, nullptr);
+
         for(auto& i : utility_buffers)
             args.push_back(i);
 
@@ -1375,6 +1422,7 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
         args.push_back(sdata.total_elapsed);
         args.push_back(damping_timescale);
         args.push_back(sdata.evolve_length);
+        args.push_back(sdata.iteration);
 
         cqueue.exec("evolve_hydro_all", args, {sdata.evolve_length}, {128});
     }
