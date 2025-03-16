@@ -589,7 +589,7 @@ struct mesh
             evolve_step(base_idx, in_idx, out_idx);
         };
 
-        int iterations = 3;
+        int iterations = 2;
 
         for(int i=0; i < iterations; i++)
         {
@@ -1355,7 +1355,7 @@ initial_params get_initial_params()
     initial_params init;
     init.N = 0.2;
 
-    init.dim = {213, 213, 213};
+    init.dim = {233, 233, 233};
     init.simulation_width = radial_pos * 6 * 2;
 
     init.add(p1);
@@ -1363,7 +1363,7 @@ initial_params get_initial_params()
 
     init.linear_viscosity_timescale = 200;
     init.time_between_snapshots = 15;
-    init.lapse_damp_timescale = 20;
+    init.lapse_damp_timescale = 20 * 3;
 
     #endif
 

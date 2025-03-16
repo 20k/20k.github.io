@@ -1160,8 +1160,8 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         valuef root_de_star = declare_e(dt_inout.e_star[pos, dim]);
         v3f root_dSi = (v3f){declare_e(dt_inout.Si[0][pos, dim]), declare_e(dt_inout.Si[1][pos, dim]), declare_e(dt_inout.Si[2][pos, dim])};
 
-        float expl = 0.4;
-        float impl = 0.6;
+        float expl = 0.5;
+        float impl = 0.5;
 
         valuef fin_p_star = h_base.p_star[pos, dim] + (expl * root_dp_star + impl * dp_star) * timestep.get();
         valuef fin_e_star = h_base.e_star[pos, dim] + (expl * root_de_star + impl * de_star) * timestep.get();
