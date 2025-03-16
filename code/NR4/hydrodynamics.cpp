@@ -1116,7 +1116,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     de_star += ternary(boundary_dist <= 15, -hydro_args.e_star * boundary_damp, {});
     dSi += ternary(boundary_dist <= 15, -hydro_args.Si * boundary_damp, {});
 
-    //#define TEST_CRANK
+    #define TEST_CRANK
     #ifndef TEST_CRANK
     valuef fin_p_star = h_base.p_star[pos, dim] + dp_star * timestep.get();
     valuef fin_e_star = h_base.e_star[pos, dim] + de_star * timestep.get();
@@ -1160,9 +1160,12 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         valuef root_de_star = declare_e(dt_inout.e_star[pos, dim]);
         v3f root_dSi = (v3f){declare_e(dt_inout.Si[0][pos, dim]), declare_e(dt_inout.Si[1][pos, dim]), declare_e(dt_inout.Si[2][pos, dim])};
 
-        valuef fin_p_star = h_base.p_star[pos, dim] + 0.5f * (root_dp_star + dp_star) * timestep.get();
-        valuef fin_e_star = h_base.e_star[pos, dim] + 0.5f * (root_de_star + de_star) * timestep.get();
-        v3f fin_Si = base_Si + 0.5f * (root_dSi + dSi) * timestep.get();
+        float expl = 0.4;
+        float impl = 0.6;
+
+        valuef fin_p_star = h_base.p_star[pos, dim] + (expl * root_dp_star + impl * dp_star) * timestep.get();
+        valuef fin_e_star = h_base.e_star[pos, dim] + (expl * root_de_star + impl * de_star) * timestep.get();
+        v3f fin_Si = base_Si + (expl * root_dSi + impl * dSi) * timestep.get();
 
         fin_p_star = max(fin_p_star, 0.f);
         fin_e_star = max(fin_e_star, 0.f);

@@ -629,7 +629,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
 
 ///https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf 2.12 or
 ///https://arxiv.org/pdf/0709.2160
-valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, const valuef& rho_s)
+valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, const valuef& rho_s, valuef timestep)
 {
     valuef dibi = 0;
 
@@ -645,7 +645,7 @@ valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const derivative_data&
         dibiw += args.gB[i] * diff1(args.W, i, d);
     }
 
-    return (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw + args.W * 0.01f * calculate_hamiltonian_constraint(args, derivs, d, rho_s);
+    return (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw + 0.15f * timestep * args.W * calculate_hamiltonian_constraint(args, derivs, d, rho_s);
 }
 
 tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
@@ -1169,7 +1169,7 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, const initi
             as_ref(out.cA[i][pos, dim]) = apply_evolution(base.cA[i][pos, dim], dtcA[idx.x(), idx.y()], timestep.get());
         }
 
-        valuef dtW = get_dtW(args, derivs, d, rho_s);
+        valuef dtW = get_dtW(args, derivs, d, rho_s, timestep.get());
         as_ref(out.W[pos, dim]) = apply_evolution(base.W[pos, dim], dtW, timestep.get());
 
         valuef dtK = get_dtK(args, derivs, d, S, rho_s);
