@@ -1340,7 +1340,7 @@ initial_params get_initial_params()
     p1.position = {-radial_pos, 0, 0};
     ///was 0.23
     ///0.265 was reasonable
-    p1.linear_momentum.momentum = {0, -0.315, 0};
+    p1.linear_momentum.momentum = {0, -0.322, 0};
     p1.K.msols = 123.641;
     p1.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
 
@@ -1348,7 +1348,7 @@ initial_params get_initial_params()
 
     //p2.colour = {0, 0, 1};
     p2.position = {radial_pos, 0, 0};
-    p2.linear_momentum.momentum = {0, 0.315, 0};
+    p2.linear_momentum.momentum = {0, 0.322, 0};
     p2.K.msols = 123.641;
     p2.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
 
@@ -1356,7 +1356,7 @@ initial_params get_initial_params()
     init.N = 0.2;
 
     init.dim = {213, 213, 213};
-    init.simulation_width = radial_pos * 6 * 2.5;
+    init.simulation_width = radial_pos * 6 * 2;
 
     init.add(p1);
     init.add(p2);
