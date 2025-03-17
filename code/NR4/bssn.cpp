@@ -44,7 +44,7 @@ tensor<T, 3> calculate_cG(const inverse_metric<T, 3, 3>& icY, const tensor<T, 3,
 
 tensor<valuef, 3> bssn_args::cG_undiff(const bssn_derivatives& derivs)
 {
-    //#define SUBSTITUTE_CG
+    #define SUBSTITUTE_CG
     #ifdef SUBSTITUTE_CG
     auto icY = cY.invert();
 
@@ -545,7 +545,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
     ///https://arxiv.org/pdf/1106.2254 also see here, after 25
     auto dtcY = lie_derivative_weight(args.gB, args.cY.to_tensor(), d) - 2 * args.gA * args.cA;
 
-    #define CY_STABILITY
+    //#define CY_STABILITY
     #ifdef CY_STABILITY
     tensor<valuef, 3, 3> d_cGi;
 
@@ -1003,7 +1003,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
 
         //#define STABILITY_SIGMA
         #ifdef STABILITY_SIGMA
-        float lapse_cst = -0.1;
+        float lapse_cst = -0.01;
 
         dtcG += lapse_cst * args.gA * Gi;
         #endif // STABILITY_SIGMA
@@ -1333,8 +1333,12 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
         //valuef ham = calculate_hamiltonian_constraint(args, derivs, d, rho_s);
         //valuef p = fabs(ham) * 1000;
 
-        valuef momentum = calculate_momentum_constraint_summed(args, d, plugin_data.adm_Si(args, d));
-        valuef p = fabs(momentum) * 10000;
+        //valuef momentum = calculate_momentum_constraint_summed(args, d, plugin_data.adm_Si(args, d));
+        //valuef p = fabs(momentum) * 10000;
+
+        v3f Gi_err = calculate_cG(args.cY.invert(), derivs.dcY) - args.cG;
+
+        valuef p = fabs(fabs(Gi_err[0]) + fabs(Gi_err[1]) + fabs(Gi_err[2])) * 1000.;
 
         //valuef p = plugin_data.mem.adm_p(args, d);
         //valuef p = plugin_data.dbg(args, d);
