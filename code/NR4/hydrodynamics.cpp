@@ -83,6 +83,7 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
 
     //produces a lot longer inspirals
     //return real_value;
+    //try changing this
     return ternary(p_star <= min_p_star, (v3f){}, real_value);
 }
 
@@ -323,7 +324,7 @@ valuef full_hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& 
 
     valuef h = hydro_args.calculate_h_with_eos(args.W);
 
-    return hydro_args.w * h * pow(args.W, 3.f) - hydro_args.eos(args.W);
+    return ternary(hydro_args.p_star <= min_p_star, {}, hydro_args.w * h * pow(args.W, 3.f) - hydro_args.eos(args.W));
 }
 
 template<typename T>
@@ -331,7 +332,9 @@ tensor<valuef, 3> full_hydrodynamic_args<T>::adm_Si(bssn_args& args, const deriv
 {
     v3f cSi = {this->Si[0][d.pos, d.dim], this->Si[1][d.pos, d.dim], this->Si[2][d.pos, d.dim]};
 
-    return pow(args.W, 3.f) * cSi;
+    valuef p_star = this->p_star[d.pos, d.dim];
+
+    return ternary(p_star <= min_p_star, {}, pow(args.W, 3.f) * cSi);
 }
 
 template<typename T>
@@ -351,7 +354,7 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
         }
     }
 
-    return W2_Sij + hydro_args.eos(args.W) * args.cY.to_tensor();
+    return ternary(hydro_args.p_star <= min_p_star, {}, W2_Sij + hydro_args.eos(args.W) * args.cY.to_tensor());
 }
 
 template<typename T>
@@ -1219,12 +1222,12 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     //it should be impossible to hit the secondary boundary dist condition in a way that has
     //any physical impact
     if_e(hydro.p_star[pos, dim] <= min_p_star || boundary_dist <= 3, [&]{
-        as_ref(hydro.p_star[pos, dim]) = valuef(0);
-        as_ref(hydro.e_star[pos, dim]) = valuef(0);
+        as_ref(hydro.p_star[pos, dim]) = declare_e(hydro.p_star[pos, dim]) * 0.9f;
+        as_ref(hydro.e_star[pos, dim]) = declare_e(hydro.e_star[pos, dim]) * 0.9f;
 
-        as_ref(hydro.Si[0][pos, dim]) = valuef(0);
-        as_ref(hydro.Si[1][pos, dim]) = valuef(0);
-        as_ref(hydro.Si[2][pos, dim]) = valuef(0);
+        as_ref(hydro.Si[0][pos, dim]) = declare_e(hydro.Si[0][pos, dim]) * 0.9f;
+        as_ref(hydro.Si[1][pos, dim]) = declare_e(hydro.Si[1][pos, dim]) * 0.9f;
+        as_ref(hydro.Si[2][pos, dim]) = declare_e(hydro.Si[2][pos, dim]) * 0.9f;
 
         if(use_colour)
         {
