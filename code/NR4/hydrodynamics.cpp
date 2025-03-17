@@ -84,7 +84,7 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
     //produces a lot longer inspirals
     //return real_value;
     //try changing this
-    return ternary(p_star <= min_p_star, (v3f){}, real_value);
+    return ternary(p_star <= min_p_star, -gB, real_value);
 }
 
 v3f calculate_ui(valuef p_star, valuef epsilon, v3f Si, valuef w, valuef gA, v3f gB, const unit_metric<valuef, 3, 3>& cY)
