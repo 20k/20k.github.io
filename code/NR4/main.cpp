@@ -1586,7 +1586,7 @@ int main()
     float render_size_scale = 1;
     float advance_time_mult = 1;
 
-    vec3f camera_pos = {0, 0, -25};;
+    vec3f camera_pos = {0, 0, -m.simulation_width/2 - 0.1f};;
     quat camera_quat;
     steady_timer frame_time;
 
