@@ -1012,11 +1012,20 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     hydrodynamic_concrete hydro_args(pos, dim, h_in, util);
 
     if_e(hydro_args.p_star <= min_p_star, [&]{
-        as_ref(h_out.p_star[pos, dim]) = h_in.p_star[pos, dim];
-        as_ref(h_out.e_star[pos, dim]) = h_in.e_star[pos, dim];
-        as_ref(h_out.Si[0][pos, dim]) = h_in.Si[0][pos, dim];
-        as_ref(h_out.Si[1][pos, dim]) = h_in.Si[1][pos, dim];
-        as_ref(h_out.Si[2][pos, dim]) = h_in.Si[2][pos, dim];
+        if_e(iteration.get() == 0, [&]{
+            as_ref(dt_inout.p_star[pos, dim]) = valuef(0.f);
+            as_ref(dt_inout.e_star[pos, dim]) = valuef(0.f);
+
+            as_ref(dt_inout.Si[0][pos, dim]) = valuef(0.f);
+            as_ref(dt_inout.Si[1][pos, dim]) = valuef(0.f);
+            as_ref(dt_inout.Si[2][pos, dim]) = valuef(0.f);
+        });
+
+        as_ref(h_out.p_star[pos, dim]) = valuef(0);
+        as_ref(h_out.e_star[pos, dim]) = valuef(0);
+        as_ref(h_out.Si[0][pos, dim]) = valuef(0);
+        as_ref(h_out.Si[1][pos, dim]) = valuef(0);
+        as_ref(h_out.Si[2][pos, dim]) = valuef(0);
 
         if(use_colour)
         {
@@ -1028,6 +1037,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     });
 
     ///todo, make all this a bit more generic
+    //todo: incorrect for crank
     if_e(args.gA < MIN_LAPSE, [&]{
         valuef damp = 0.1f;
 
@@ -1224,12 +1234,12 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     //it should be impossible to hit the secondary boundary dist condition in a way that has
     //any physical impact
     if_e(hydro.p_star[pos, dim] <= min_p_star || boundary_dist <= 3, [&]{
-        as_ref(hydro.p_star[pos, dim]) = declare_e(hydro.p_star[pos, dim]) * 0.9f;
-        as_ref(hydro.e_star[pos, dim]) = declare_e(hydro.e_star[pos, dim]) * 0.9f;
+        as_ref(hydro.p_star[pos, dim]) = declare_e(hydro.p_star[pos, dim]) * 0.f;
+        as_ref(hydro.e_star[pos, dim]) = declare_e(hydro.e_star[pos, dim]) * 0.f;
 
-        as_ref(hydro.Si[0][pos, dim]) = declare_e(hydro.Si[0][pos, dim]) * 0.9f;
-        as_ref(hydro.Si[1][pos, dim]) = declare_e(hydro.Si[1][pos, dim]) * 0.9f;
-        as_ref(hydro.Si[2][pos, dim]) = declare_e(hydro.Si[2][pos, dim]) * 0.9f;
+        as_ref(hydro.Si[0][pos, dim]) = declare_e(hydro.Si[0][pos, dim]) * 0.f;
+        as_ref(hydro.Si[1][pos, dim]) = declare_e(hydro.Si[1][pos, dim]) * 0.f;
+        as_ref(hydro.Si[2][pos, dim]) = declare_e(hydro.Si[2][pos, dim]) * 0.f;
 
         if(use_colour)
         {

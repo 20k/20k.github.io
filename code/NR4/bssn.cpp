@@ -1008,7 +1008,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
         dtcG += lapse_cst * args.gA * Gi;
         #endif // STABILITY_SIGMA
 
-        #define STABILITY_SIGMA_2
+        //#define STABILITY_SIGMA_2
         #ifdef STABILITY_SIGMA_2
         auto step = [](const valuef& in)
         {
@@ -1019,7 +1019,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
         //valuef s = sign(dmbm);
         valuef s = step(dmbm);
 
-        value X = 0.9f;
+        value X = 0.1f;
 
         dtcG += -(X * s + 2.f/3.f) * Gi * dmbm;
         #endif
