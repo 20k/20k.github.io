@@ -614,7 +614,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
                 sum += 0.5f * (args.cY[k, i] * cD[k, j] + args.cY[k, j] * cD[k, i]);
             }
 
-            float cK = -0.18f;
+            float cK = -0.05f;
 
             dtcY.idx(i, j) += cK * args.gA * sum;
         }
@@ -718,7 +718,7 @@ valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const derivative_data&
               + 4 * M_PI * (S + rho_s));
 }
 
-tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3h momentum_constraint, const derivative_data& d, tensor<valuef, 3, 3> W2_Sij)
+tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f momentum_constraint, const derivative_data& d, tensor<valuef, 3, 3> W2_Sij)
 {
     using namespace single_source;
 
@@ -764,7 +764,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3h mom
     {
         for(int j=0; j < 3; j++)
         {
-            dMi[i, j] = diff1((valuef)momentum_constraint[j], i, d);
+            dMi[i, j] = diff1(momentum_constraint[j], i, d);
         }
     }
 
@@ -1158,7 +1158,7 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, const initi
         }
 
 
-        tensor<valuef, 3, 3> dtcA = get_dtcA(args, derivs, Mi, d, W2_Sij);
+        tensor<valuef, 3, 3> dtcA = get_dtcA(args, derivs, (v3f)Mi, d, W2_Sij);
 
         tensor<int, 2> index_table[6] = {{0, 0}, {0, 1}, {0, 2}, {1, 1}, {1, 2}, {2, 2}};
 
@@ -1337,6 +1337,8 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
         //valuef p = fabs(momentum) * 10000;
 
         v3f Gi_err = calculate_cG(args.cY.invert(), derivs.dcY) - args.cG;
+
+        //valuef p = ternary(args.gA <= 0.4f, valuef(1.f), valuef(0.f));
 
         valuef p = fabs(fabs(Gi_err[0]) + fabs(Gi_err[1]) + fabs(Gi_err[2])) * 1000.;
 
