@@ -70,7 +70,8 @@ valuef eos(valuef W, valuef w, valuef p_star, valuef e_star)
 
 //todo: I may need to set vi to 0 here manually
 //or, I may need to remove the leibnitz that I'm doing
-///todo: try setting this to zero where appropriate
+//this function is numerically unstable
+//todo: try setting this to zero where appropriate
 v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, const unit_metric<valuef, 3, 3>& cY, valuef p_star)
 {
     valuef h = calculate_h_from_epsilon(epsilon);
@@ -78,13 +79,10 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
     v3f Si_upper = cY.invert().raise(Si);
 
     //note to self, actually hand derived this and am sure its correct
-    //tol is very intentionally set to 1e-6, breaks if lower than this
     v3f real_value = -gB + (W*W * gA / h) * safe_divide(Si_upper, w);
 
     //return real_value;
 
-    //produces a lot longer inspirals
-    //return real_value;
     //try changing this
     return ternary(p_star <= min_p_star, -gB, real_value);
 }
@@ -122,7 +120,7 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
     //ctx.add("DBG_A", A);
 
     ///[0.1, 1.0]
-    valuef CQvis = 1.5f;
+    valuef CQvis = 1.f;
 
     ///it looks like the littledv ?: is to only turn on viscosity when the flow is compressive
     #define COMPRESSIVE_VISCOSITY
@@ -362,7 +360,9 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
 template<typename T>
 valuef full_hydrodynamic_args<T>::dbg(bssn_args& args, const derivative_data& d)
 {
-    return fabs(this->p_star[d.pos, d.dim]) * 500;
+    return ternary(this->p_star[d.pos, d.dim] <= min_p_star, valuef(0), valuef(1));
+
+    //return fabs(this->p_star[d.pos, d.dim]) * 500;
     //return sqrt(pow(Si[0][d.pos, d.dim], 2.f) + pow(Si[1][d.pos, d.dim], 2.f)) * 10;
     //return sqrt(pow(Si[0][d.pos, d.dim], 2.f) + pow(Si[2][d.pos, d.dim], 2.f)) * 100;
     //return e_star[d.pos, d.dim] * 0.5;
@@ -377,10 +377,12 @@ std::vector<buffer_descriptor> hydrodynamic_buffers::get_description()
     buffer_descriptor p;
     p.name = "p*";
     p.dissipation_coeff = 0.05;
+    p.dissipation_order = 4;
 
     buffer_descriptor e;
     e.name = "e*";
     e.dissipation_coeff = 0.05;
+    e.dissipation_order = 4;
 
     buffer_descriptor s0;
     s0.name = "cs0";
@@ -1021,11 +1023,11 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             as_ref(dt_inout.Si[2][pos, dim]) = valuef(0.f);
         });
 
-        as_ref(h_out.p_star[pos, dim]) = valuef(0);
-        as_ref(h_out.e_star[pos, dim]) = valuef(0);
-        as_ref(h_out.Si[0][pos, dim]) = valuef(0);
-        as_ref(h_out.Si[1][pos, dim]) = valuef(0);
-        as_ref(h_out.Si[2][pos, dim]) = valuef(0);
+        as_ref(h_out.p_star[pos, dim]) = h_in.p_star[pos, dim];
+        as_ref(h_out.e_star[pos, dim]) = h_in.e_star[pos, dim];
+        as_ref(h_out.Si[0][pos, dim]) = h_in.Si[0][pos, dim];
+        as_ref(h_out.Si[1][pos, dim]) = h_in.Si[1][pos, dim];
+        as_ref(h_out.Si[2][pos, dim]) = h_in.Si[2][pos, dim];
 
         if(use_colour)
         {
@@ -1250,10 +1252,10 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         return_e();
     });
 
-    if_e(hydro.p_star[pos, dim] < min_p_star * 10, [&]{
+    if_e(hydro.p_star[pos, dim] <= min_p_star * 10, [&]{
         valuef e_star = declare_e(hydro.e_star[pos, dim]);
 
-        as_ref(hydro.e_star[pos, dim]) = min(e_star, 10 * hydro.p_star[pos, dim]);
+        as_ref(hydro.e_star[pos, dim]) = min(e_star, 100 * hydro.p_star[pos, dim]);
     });
 
     //test bound
@@ -1275,9 +1277,18 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
     valuef h = calculate_h_from_epsilon(epsilon);
 
-    valuef cst = p_star * as_constant(bound) * h;
+    ///(ab)^2 + (ac)^2 + (ad^2)
+    ///a^2 (b^2 + c^2 + d^2)
+    ///sqrt = a * sqrt(b^2 + c^2 + d^2)`
+    valuef length = sqrt(dot(Si, Si));
 
-    v3f clamped = clamp(Si, -cst, cst);
+    valuef clamped_length = min(length, p_star * h * as_constant(bound));
+
+    v3f clamped = Si * (clamped_length / length);
+
+    /*valuef cst = p_star * as_constant(bound) * h;
+
+    v3f clamped = clamp(Si, -cst, cst);*/
 
     as_ref(hydro.Si[0][pos, dim]) = clamped[0];
     as_ref(hydro.Si[1][pos, dim]) = clamped[1];
