@@ -4,11 +4,11 @@
 ///so like. What if I did the projective real strategy?
 
 //stable with 1e-6, but the neutron star dissipates
-constexpr float min_p_star = 1e-7f;
+constexpr float min_p_star = 1e-10f;
 
 template<typename T>
 inline
-auto safe_divide(const auto& top, const T& bottom, float tol = 1e-7)
+auto safe_divide(const auto& top, const T& bottom, float tol = 1e-9)
 {
     return top / max(bottom, T{tol});
 }
@@ -72,14 +72,16 @@ valuef eos(valuef W, valuef w, valuef p_star, valuef e_star)
 //or, I may need to remove the leibnitz that I'm doing
 //this function is numerically unstable
 //todo: try setting this to zero where appropriate
-v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, const unit_metric<valuef, 3, 3>& cY, valuef p_star)
+v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, const unit_metric<valuef, 3, 3>& cY, valuef p_star, bool viscosity)
 {
     valuef h = calculate_h_from_epsilon(epsilon);
 
     v3f Si_upper = cY.invert().raise(Si);
 
+    float bound = viscosity ? 1e-6f : 1e-8f;
+
     //note to self, actually hand derived this and am sure its correct
-    v3f real_value = -gB + (W*W * gA / h) * safe_divide(Si_upper, w);
+    v3f real_value = -gB + (W*W * gA / h) * safe_divide(Si_upper, w, bound);
 
     //return real_value;
 
@@ -120,7 +122,7 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
     //ctx.add("DBG_A", A);
 
     ///[0.1, 1.0]
-    valuef CQvis = 1.f;
+    valuef CQvis = 1.5f;
 
     ///it looks like the littledv ?: is to only turn on viscosity when the flow is compressive
     #define COMPRESSIVE_VISCOSITY
@@ -197,11 +199,11 @@ struct hydrodynamic_concrete
         return ::eos(W, w, p_star, e_star);
     }
 
-    v3f calculate_vi(valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
+    v3f calculate_vi(valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY, bool viscosity)
     {
         valuef epsilon = calculate_epsilon(W);
 
-        return ::calculate_vi(gA, gB, W, w, epsilon, Si, cY, p_star);
+        return ::calculate_vi(gA, gB, W, w, epsilon, Si, cY, p_star, viscosity);
     }
 
     v3f calculate_ui(valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
@@ -973,7 +975,7 @@ void calculate_p_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     if_e(args.gA >= MIN_VISCOSITY_LAPSE, [&]{
         valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
-        v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY, p_star);
+        v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY, p_star, true);
         as_ref(P) += calculate_Pvis(args.W, vi, p_star, e_star, w, d, total_elapsed.get(), damping_timescale.get());
     });
 
@@ -1072,14 +1074,16 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         return_e();
     });
 
-    v3f vi = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY);
+    v3f vi = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY, false);
 
     valuef dp_star = hydro_args.advect_rhs(hydro_args.p_star, vi, d);
     mut<valuef> de_star = declare_mut_e(hydro_args.advect_rhs(hydro_args.e_star, vi, d));
     v3f dSi = hydro_args.advect_rhs(hydro_args.Si, vi, d);
 
     if_e(args.gA >= MIN_VISCOSITY_LAPSE, [&]{
-        as_ref(de_star) += hydro_args.e_star_rhs(args.gA, args.gB, args.cY, args.W, vi, d, total_elapsed.get(), damping_timescale.get());
+        v3f vi2 = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY, true);
+
+        as_ref(de_star) += hydro_args.e_star_rhs(args.gA, args.gB, args.cY, args.W, vi2, d, total_elapsed.get(), damping_timescale.get());
     });
 
     valuef w = hydro_args.w;
@@ -1133,7 +1137,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     de_star += ternary(boundary_dist <= 15, -hydro_args.e_star * boundary_damp, {});
     dSi += ternary(boundary_dist <= 15, -hydro_args.Si * boundary_damp, {});
 
-    #define TEST_CRANK
+    //#define TEST_CRANK
     #ifndef TEST_CRANK
     valuef fin_p_star = h_base.p_star[pos, dim] + dp_star * timestep.get();
     valuef fin_e_star = h_base.e_star[pos, dim] + de_star * timestep.get();
