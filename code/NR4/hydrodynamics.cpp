@@ -4,11 +4,11 @@
 ///so like. What if I did the projective real strategy?
 
 //stable with 1e-6, but the neutron star dissipates
-constexpr float min_p_star = 1e-10f;
+constexpr float min_p_star = 1e-8f;
 
 template<typename T>
 inline
-auto safe_divide(const auto& top, const T& bottom, float tol = 1e-9)
+auto safe_divide(const auto& top, const T& bottom, float tol = 1e-8f)
 {
     return top / max(bottom, T{tol});
 }
@@ -78,7 +78,7 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
 
     v3f Si_upper = cY.invert().raise(Si);
 
-    float bound = viscosity ? 1e-6f : 1e-8f;
+    float bound = viscosity ? 1e-6f : 1e-7f;
 
     //note to self, actually hand derived this and am sure its correct
     v3f real_value = -gB + (W*W * gA / h) * safe_divide(Si_upper, w, bound);
