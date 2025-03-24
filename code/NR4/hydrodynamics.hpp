@@ -18,6 +18,16 @@ struct hydrodynamic_base_args : virtual value_impl::single_source::argument_pack
     std::array<T, 3> Si;
     std::array<T, 3> colour;
 
+    v3f index_Si(v3i pos, v3i dim)
+    {
+        return {Si[0][pos, dim], Si[1][pos, dim], Si[2][pos, dim]};
+    }
+
+    v3f index_colour(v3i pos, v3i dim)
+    {
+        return {colour[0][pos, dim], colour[1][pos, dim], colour[2][pos, dim]};
+    }
+
     void build(value_impl::type_storage& in)
     {
         using namespace value_impl::builder;

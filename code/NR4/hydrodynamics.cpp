@@ -1015,34 +1015,94 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     bssn_args args(pos, dim, in);
     hydrodynamic_concrete hydro_args(pos, dim, h_in, util);
 
-    if_e(hydro_args.p_star <= min_p_star, [&]{
+    auto write_result = [&](valuef dt_p_star, valuef dt_e_star, v3f dt_Si, v3f dt_col)
+    {
         if_e(iteration.get() == 0, [&]{
-            as_ref(dt_inout.p_star[pos, dim]) = valuef(0.f);
-            as_ref(dt_inout.e_star[pos, dim]) = valuef(0.f);
+            as_ref(dt_inout.p_star[pos, dim]) = dt_p_star;
+            as_ref(dt_inout.e_star[pos, dim]) = dt_e_star;
 
-            as_ref(dt_inout.Si[0][pos, dim]) = valuef(0.f);
-            as_ref(dt_inout.Si[1][pos, dim]) = valuef(0.f);
-            as_ref(dt_inout.Si[2][pos, dim]) = valuef(0.f);
+            for(int i=0; i < 3; i++)
+                as_ref(dt_inout.Si[i][pos, dim]) = dt_Si[i];
+
+            if(use_colour)
+            {
+                for(int i=0; i < 3; i++)
+                    as_ref(dt_inout.colour[i][pos, dim]) = dt_col[i];
+            }
+
+
+            as_ref(h_out.p_star[pos, dim]) = h_base.p_star[pos, dim] + dt_p_star * timestep.get();
+            as_ref(h_out.e_star[pos, dim]) = h_base.e_star[pos, dim] + dt_e_star * timestep.get();
+
+            for(int i=0; i < 3; i++)
+                as_ref(h_out.Si[i][pos, dim]) = h_base.Si[i][pos, dim] + dt_Si[i] * timestep.get();
+
+            if(use_colour)
+            {
+                for(int i=0; i < 3; i++)
+                    as_ref(h_out.Si[i][pos, dim]) = h_base.Si[i][pos, dim] + dt_col[i] * timestep.get();
+            }
         });
 
-        as_ref(h_out.p_star[pos, dim]) = h_in.p_star[pos, dim];
-        as_ref(h_out.e_star[pos, dim]) = h_in.e_star[pos, dim];
-        as_ref(h_out.Si[0][pos, dim]) = h_in.Si[0][pos, dim];
-        as_ref(h_out.Si[1][pos, dim]) = h_in.Si[1][pos, dim];
-        as_ref(h_out.Si[2][pos, dim]) = h_in.Si[2][pos, dim];
+        if_e(iteration.get() != 0, [&]{
+            valuef root_dp_star = declare_e(dt_inout.p_star[pos, dim]);
+            valuef root_de_star = declare_e(dt_inout.e_star[pos, dim]);
+            v3f root_dSi = declare_e(dt_inout.index_Si(pos, dim));
+
+            v3f root_dcol;
+
+            if(use_colour)
+                root_dcol = declare_e(dt_inout.index_colour(pos, dim));
+
+            float impl = 0.5;
+            float expl = 1 - impl;
+
+            valuef fin_p_star = h_base.p_star[pos, dim] + (expl * root_dp_star + impl * dt_p_star) * timestep.get();
+            valuef fin_e_star = h_base.e_star[pos, dim] + (expl * root_de_star + impl * dt_e_star) * timestep.get();
+            v3f fin_Si = h_base.index_Si(pos, dim) + (expl * root_dSi + impl * dt_Si) * timestep.get();
+
+            fin_p_star = max(fin_p_star, 0.f);
+            fin_e_star = max(fin_e_star, 0.f);
+
+            as_ref(h_out.p_star[pos, dim]) = fin_p_star;
+            as_ref(h_out.e_star[pos, dim]) = fin_e_star;
+
+            as_ref(h_out.Si[0][pos, dim]) = fin_Si[0];
+            as_ref(h_out.Si[1][pos, dim]) = fin_Si[1];
+            as_ref(h_out.Si[2][pos, dim]) = fin_Si[2];
+
+            if(use_colour)
+            {
+                v3f fin_col = h_base.index_colour(pos, dim) + (expl * root_dcol + impl * dt_col) * timestep.get();
+
+                as_ref(h_out.colour[0][pos, dim]) = max(fin_col[0], 0.f);
+                as_ref(h_out.colour[1][pos, dim]) = max(fin_col[1], 0.f);
+                as_ref(h_out.colour[2][pos, dim]) = max(fin_col[2], 0.f);
+            }
+        });
+    };
+
+    /*if_e(hydro_args.p_star <= min_p_star, [&]{
+        auto diff = [&](valuef out, valuef in)
+        {
+            return (out - in) / timestep.get();
+        };
+
+        valuef dt_p_star = diff(h_in.p_star[pos, dim], h_base.p_star[pos, dim]);
+        valuef dt_e_star = diff(h_in.e_star[pos, dim], h_base.e_star[pos, dim]);
+        v3f dt_Si = {diff(h_in.Si[0][pos, dim], h_base.Si[0][pos, dim]), diff(h_in.Si[1][pos, dim], h_base.Si[1][pos, dim]), diff(h_in.Si[2][pos, dim], h_base.Si[2][pos, dim])};
+
+        v3f dt_col;
 
         if(use_colour)
-        {
-            for(int i=0; i < h_out.colour.size(); i++)
-                as_ref(h_out.colour[i][pos, dim]) = h_in.colour[i][pos, dim];
-        }
+            dt_col = {diff(h_in.colour[0][pos, dim], h_base.colour[0][pos, dim]), diff(h_in.colour[1][pos, dim], h_base.colour[1][pos, dim]), diff(h_in.colour[2][pos, dim], h_base.colour[2][pos, dim])};
 
-        return_e();
-    });
+        write_result(dt_p_star, dt_e_star, dt_Si, dt_col);
+    });*/
 
     ///todo, make all this a bit more generic
     //todo: incorrect for crank
-    if_e(args.gA < MIN_LAPSE, [&]{
+    if_e(args.gA < MIN_LAPSE || hydro_args.p_star <= min_p_star, [&]{
         valuef damp = 0.1f;
 
         valuef dt_p_star = damp * (0 - h_in.p_star[pos, dim]);
@@ -1052,24 +1112,11 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         valuef dt_s1 = damp * (0 - h_in.Si[1][pos, dim]);
         valuef dt_s2 = damp * (0 - h_in.Si[2][pos, dim]);
 
-        valuef fin_p_star = h_base.p_star[pos, dim] + dt_p_star * timestep.get();
-        valuef fin_e_star = h_base.e_star[pos, dim] + dt_e_star * timestep.get();
+        valuef dt_col0 = damp * (0 - h_in.colour[0][pos, dim]);
+        valuef dt_col1 = damp * (0 - h_in.colour[1][pos, dim]);
+        valuef dt_col2 = damp * (0 - h_in.colour[2][pos, dim]);
 
-        valuef fin_s0 = h_base.Si[0][pos, dim] + dt_s0 * timestep.get();
-        valuef fin_s1 = h_base.Si[1][pos, dim] + dt_s1 * timestep.get();
-        valuef fin_s2 = h_base.Si[2][pos, dim] + dt_s2 * timestep.get();
-
-        as_ref(h_out.p_star[pos, dim]) = max(fin_p_star, 0.f);
-        as_ref(h_out.e_star[pos, dim]) = max(fin_e_star, 0.f);
-        as_ref(h_out.Si[0][pos, dim]) = fin_s0;
-        as_ref(h_out.Si[1][pos, dim]) = fin_s1;
-        as_ref(h_out.Si[2][pos, dim]) = fin_s2;
-
-        if(use_colour)
-        {
-            for(int i=0; i < h_out.colour.size(); i++)
-                as_ref(h_out.colour[i][pos, dim]) = h_base.colour[i][pos, dim] + damp * -h_in.colour[i][pos, dim] * timestep.get();
-        }
+        write_result(dt_p_star, dt_e_star, {dt_s0, dt_s1, dt_s2}, {dt_col0, dt_col1, dt_col2});
 
         return_e();
     });
@@ -1129,90 +1176,23 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     dSi += dSi_p1;
 
-    v3f base_Si = {h_base.Si[0][pos, dim], h_base.Si[1][pos, dim], h_base.Si[2][pos, dim]};
-
     valuef boundary_damp = 0.25f;
 
     dp_star += ternary(boundary_dist <= 15, -hydro_args.p_star * boundary_damp, {});
     de_star += ternary(boundary_dist <= 15, -hydro_args.e_star * boundary_damp, {});
     dSi += ternary(boundary_dist <= 15, -hydro_args.Si * boundary_damp, {});
 
-    //#define TEST_CRANK
-    #ifndef TEST_CRANK
-    valuef fin_p_star = h_base.p_star[pos, dim] + dp_star * timestep.get();
-    valuef fin_e_star = h_base.e_star[pos, dim] + de_star * timestep.get();
-    v3f fin_Si = base_Si + timestep.get() * dSi;
-
-    fin_p_star = max(fin_p_star, 0.f);
-    fin_e_star = max(fin_e_star, 0.f);
-
-    as_ref(h_out.p_star[pos, dim]) = fin_p_star;
-    as_ref(h_out.e_star[pos, dim]) = fin_e_star;
-
-    as_ref(h_out.Si[0][pos, dim]) = fin_Si[0];
-    as_ref(h_out.Si[1][pos, dim]) = fin_Si[1];
-    as_ref(h_out.Si[2][pos, dim]) = fin_Si[2];
-    #else
-    if_e(iteration.get() == 0, [&]{
-        as_ref(dt_inout.p_star[pos, dim]) = dp_star;
-        as_ref(dt_inout.e_star[pos, dim]) = declare_e(de_star);
-
-        as_ref(dt_inout.Si[0][pos, dim]) = dSi[0];
-        as_ref(dt_inout.Si[1][pos, dim]) = dSi[1];
-        as_ref(dt_inout.Si[2][pos, dim]) = dSi[2];
-
-        valuef fin_p_star = h_base.p_star[pos, dim] + dp_star * timestep.get();
-        valuef fin_e_star = h_base.e_star[pos, dim] + de_star * timestep.get();
-        v3f fin_Si = base_Si + timestep.get() * dSi;
-
-        fin_p_star = max(fin_p_star, 0.f);
-        fin_e_star = max(fin_e_star, 0.f);
-
-        as_ref(h_out.p_star[pos, dim]) = fin_p_star;
-        as_ref(h_out.e_star[pos, dim]) = fin_e_star;
-
-        as_ref(h_out.Si[0][pos, dim]) = fin_Si[0];
-        as_ref(h_out.Si[1][pos, dim]) = fin_Si[1];
-        as_ref(h_out.Si[2][pos, dim]) = fin_Si[2];
-    });
-
-    if_e(iteration.get() != 0, [&]{
-        valuef root_dp_star = declare_e(dt_inout.p_star[pos, dim]);
-        valuef root_de_star = declare_e(dt_inout.e_star[pos, dim]);
-        v3f root_dSi = (v3f){declare_e(dt_inout.Si[0][pos, dim]), declare_e(dt_inout.Si[1][pos, dim]), declare_e(dt_inout.Si[2][pos, dim])};
-
-        float expl = 0.5;
-        float impl = 0.5;
-
-        valuef fin_p_star = h_base.p_star[pos, dim] + (expl * root_dp_star + impl * dp_star) * timestep.get();
-        valuef fin_e_star = h_base.e_star[pos, dim] + (expl * root_de_star + impl * de_star) * timestep.get();
-        v3f fin_Si = base_Si + (expl * root_dSi + impl * dSi) * timestep.get();
-
-        fin_p_star = max(fin_p_star, 0.f);
-        fin_e_star = max(fin_e_star, 0.f);
-
-        as_ref(h_out.p_star[pos, dim]) = fin_p_star;
-        as_ref(h_out.e_star[pos, dim]) = fin_e_star;
-
-        as_ref(h_out.Si[0][pos, dim]) = fin_Si[0];
-        as_ref(h_out.Si[1][pos, dim]) = fin_Si[1];
-        as_ref(h_out.Si[2][pos, dim]) = fin_Si[2];
-    });
-    #endif
+    v3f dt_col;
 
     if(use_colour)
     {
-        for(int i=0; i < (int)h_in.colour.size(); i++)
-        {
-            valuef dt_col = hydro_args.advect_rhs(h_in.colour[i][pos, dim], vi, d);
+        v3f col = h_in.index_colour(pos, dim);
 
-            valuef fin_col = h_base.colour[i][pos, dim] + dt_col * timestep.get();
-
-            fin_col += ternary(boundary_dist <= 15, -h_in.colour[i][pos, dim] * boundary_damp, {});
-
-            as_ref(h_out.colour[i][pos, dim]) = fin_col;
-        }
+        dt_col = hydro_args.advect_rhs(col, vi, d);
+        dt_col += ternary(boundary_dist <= 15, -col * boundary_damp, {});
     }
+
+    write_result(dp_star, de_star, dSi, dt_col);
 }
 
 void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
