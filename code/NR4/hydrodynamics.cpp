@@ -4,7 +4,7 @@
 ///so like. What if I did the projective real strategy?
 
 //stable with 1e-6, but the neutron star dissipates
-constexpr float min_p_star = 5e-8f;
+constexpr float min_p_star = 1e-7f;
 
 template<typename T>
 inline
@@ -1054,7 +1054,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             if(use_colour)
                 root_dcol = declare_e(dt_inout.index_colour(pos, dim));
 
-            float impl = 0.5;
+            float impl = 0.7;
             float expl = 1 - impl;
 
             valuef fin_p_star = h_base.p_star[pos, dim] + (expl * root_dp_star + impl * dt_p_star) * timestep.get();
