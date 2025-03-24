@@ -1102,7 +1102,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     ///todo, make all this a bit more generic
     //todo: *flush* to zero if < min_p_star?
-    if_e(hydro_args.p_star <= min_p_star, [&]{
+    /*if_e(hydro_args.p_star <= min_p_star, [&]{
         valuef damp = 1.f;
 
         valuef dt_p_star = damp * (0 - h_in.p_star[pos, dim]) / timestep.get();
@@ -1119,7 +1119,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         write_result(dt_p_star, dt_e_star, {dt_s0, dt_s1, dt_s2}, {dt_col0, dt_col1, dt_col2});
 
         return_e();
-    });
+    });*/
 
     if_e(args.gA < MIN_LAPSE, [&]{
         valuef damp = 0.1f;
