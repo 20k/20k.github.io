@@ -1082,45 +1082,6 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         });
     };
 
-    /*if_e(hydro_args.p_star <= min_p_star, [&]{
-        auto diff = [&](valuef out, valuef in)
-        {
-            return (out - in) / timestep.get();
-        };
-
-        valuef dt_p_star = diff(h_in.p_star[pos, dim], h_base.p_star[pos, dim]);
-        valuef dt_e_star = diff(h_in.e_star[pos, dim], h_base.e_star[pos, dim]);
-        v3f dt_Si = {diff(h_in.Si[0][pos, dim], h_base.Si[0][pos, dim]), diff(h_in.Si[1][pos, dim], h_base.Si[1][pos, dim]), diff(h_in.Si[2][pos, dim], h_base.Si[2][pos, dim])};
-
-        v3f dt_col;
-
-        if(use_colour)
-            dt_col = {diff(h_in.colour[0][pos, dim], h_base.colour[0][pos, dim]), diff(h_in.colour[1][pos, dim], h_base.colour[1][pos, dim]), diff(h_in.colour[2][pos, dim], h_base.colour[2][pos, dim])};
-
-        write_result(dt_p_star, dt_e_star, dt_Si, dt_col);
-    });*/
-
-    ///todo, make all this a bit more generic
-    //todo: *flush* to zero if < min_p_star?
-    /*if_e(hydro_args.p_star <= min_p_star, [&]{
-        valuef damp = 1.f;
-
-        valuef dt_p_star = damp * (0 - h_in.p_star[pos, dim]) / timestep.get();
-        valuef dt_e_star = damp * (0 - h_in.e_star[pos, dim]);
-
-        valuef dt_s0 = damp * (0 - h_in.Si[0][pos, dim]) / timestep.get();
-        valuef dt_s1 = damp * (0 - h_in.Si[1][pos, dim]) / timestep.get();
-        valuef dt_s2 = damp * (0 - h_in.Si[2][pos, dim]) / timestep.get();
-
-        valuef dt_col0 = damp * (0 - h_in.colour[0][pos, dim]) / timestep.get();
-        valuef dt_col1 = damp * (0 - h_in.colour[1][pos, dim]) / timestep.get();
-        valuef dt_col2 = damp * (0 - h_in.colour[2][pos, dim]) / timestep.get();
-
-        write_result(dt_p_star, dt_e_star, {dt_s0, dt_s1, dt_s2}, {dt_col0, dt_col1, dt_col2});
-
-        return_e();
-    });*/
-
     if_e(args.gA < MIN_LAPSE, [&]{
         valuef damp = 0.1f;
 
