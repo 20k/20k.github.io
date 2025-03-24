@@ -1031,8 +1031,8 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             }
 
 
-            as_ref(h_out.p_star[pos, dim]) = h_base.p_star[pos, dim] + dt_p_star * timestep.get();
-            as_ref(h_out.e_star[pos, dim]) = h_base.e_star[pos, dim] + dt_e_star * timestep.get();
+            as_ref(h_out.p_star[pos, dim]) = max(h_base.p_star[pos, dim] + dt_p_star * timestep.get(), 0.f);
+            as_ref(h_out.e_star[pos, dim]) = max(h_base.e_star[pos, dim] + dt_e_star * timestep.get(), 0.f);
 
             for(int i=0; i < 3; i++)
                 as_ref(h_out.Si[i][pos, dim]) = h_base.Si[i][pos, dim] + dt_Si[i] * timestep.get();
@@ -1040,7 +1040,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             if(use_colour)
             {
                 for(int i=0; i < 3; i++)
-                    as_ref(h_out.Si[i][pos, dim]) = h_base.Si[i][pos, dim] + dt_col[i] * timestep.get();
+                    as_ref(h_out.colour[i][pos, dim]) = h_base.colour[i][pos, dim] + dt_col[i] * timestep.get();
             }
         });
 
