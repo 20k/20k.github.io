@@ -1061,7 +1061,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
             auto apply = [&](auto x0, auto xi, auto f_x0, auto f_xi)
             {
-                return relax * xi + (1 - relax) * (x0 + timestep.get() * 0.5f * (expl * f_x0 + impl * f_xi));
+                return relax * xi + (1 - relax) * (x0 + timestep.get() * (expl * f_x0 + impl * f_xi));
             };
 
             valuef fin_p_star = apply(h_base.p_star[pos, dim], h_in.p_star[pos, dim], root_dp_star, dt_p_star);
