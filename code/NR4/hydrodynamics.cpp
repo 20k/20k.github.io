@@ -122,7 +122,7 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
     //ctx.add("DBG_A", A);
 
     ///[0.1, 1.0]
-    valuef CQvis = 1.5f;
+    valuef CQvis = 2.5f;
 
     ///it looks like the littledv ?: is to only turn on viscosity when the flow is compressive
     #define COMPRESSIVE_VISCOSITY
@@ -1054,7 +1054,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             if(use_colour)
                 root_dcol = declare_e(dt_inout.index_colour(pos, dim));
 
-            float impl = 0.7;
+            float impl = 0.6;
             float expl = 1 - impl;
 
             valuef fin_p_star = h_base.p_star[pos, dim] + (expl * root_dp_star + impl * dt_p_star) * timestep.get();
@@ -1067,17 +1067,15 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             as_ref(h_out.p_star[pos, dim]) = fin_p_star;
             as_ref(h_out.e_star[pos, dim]) = fin_e_star;
 
-            as_ref(h_out.Si[0][pos, dim]) = fin_Si[0];
-            as_ref(h_out.Si[1][pos, dim]) = fin_Si[1];
-            as_ref(h_out.Si[2][pos, dim]) = fin_Si[2];
+            for(int i=0; i < 3; i++)
+                as_ref(h_out.Si[i][pos, dim]) = fin_Si[i];
 
             if(use_colour)
             {
                 v3f fin_col = h_base.index_colour(pos, dim) + (expl * root_dcol + impl * dt_col) * timestep.get();
 
-                as_ref(h_out.colour[0][pos, dim]) = max(fin_col[0], 0.f);
-                as_ref(h_out.colour[1][pos, dim]) = max(fin_col[1], 0.f);
-                as_ref(h_out.colour[2][pos, dim]) = max(fin_col[2], 0.f);
+                for(int i=0; i < 3; i++)
+                    as_ref(h_out.colour[i][pos, dim]) = max(fin_col[i], 0.f);
             }
         });
     };
@@ -1104,6 +1102,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     v3f vi = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY, false);
 
     valuef dp_star = hydro_args.advect_rhs(hydro_args.p_star, vi, d);
+
     mut<valuef> de_star = declare_mut_e(hydro_args.advect_rhs(hydro_args.e_star, vi, d));
     v3f dSi = hydro_args.advect_rhs(hydro_args.Si, vi, d);
 
