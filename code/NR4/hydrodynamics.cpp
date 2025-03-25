@@ -1045,7 +1045,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         });
 
         if_e(iteration.get() != 0, [&]{
-            float relax = 0.1f;
+            float relax = 0.f;
 
             valuef root_dp_star = declare_e(dt_inout.p_star[pos, dim]);
             valuef root_de_star = declare_e(dt_inout.e_star[pos, dim]);
@@ -1244,7 +1244,7 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     });
 
     //test bound
-    mut<valuef> bound = declare_mut_e(valuef(0.9));
+    mut<valuef> bound = declare_mut_e(valuef(0.8));
 
     /*if_e((hydro.e_star[pos, dim] <= hydro.p_star[pos, dim]) || (hydro.p_star[pos, dim] <= min_p_star * 10), [&]{
         as_ref(bound) = valuef(0.2f);
