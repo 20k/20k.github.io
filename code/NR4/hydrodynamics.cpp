@@ -1045,7 +1045,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         });
 
         if_e(iteration.get() != 0, [&]{
-            float relax = 0.f;
+            float relax = 0.1f;
 
             valuef root_dp_star = declare_e(dt_inout.p_star[pos, dim]);
             valuef root_de_star = declare_e(dt_inout.e_star[pos, dim]);
