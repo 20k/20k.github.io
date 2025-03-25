@@ -1040,7 +1040,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             if(use_colour)
             {
                 for(int i=0; i < 3; i++)
-                    as_ref(h_out.colour[i][pos, dim]) = h_base.colour[i][pos, dim] + dt_col[i] * timestep.get();
+                    as_ref(h_out.colour[i][pos, dim]) = max(h_base.colour[i][pos, dim] + dt_col[i] * timestep.get(), 0.f);
             }
         });
 
@@ -1086,6 +1086,21 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             }
         });
     };
+
+    if_e(hydro_args.p_star <= min_p_star, [&]{
+        valuef dp_sum = 0;
+
+        for(int i=0; i < 3; i++)
+        {
+            dp_sum += fabs(diff1(hydro_args.p_star, i, d));
+        }
+
+        if_e(dp_sum == 0, [&]{
+            write_result(0.f, 0.f, {}, {});
+
+            return_e();
+        });
+    });
 
     if_e(args.gA < MIN_LAPSE, [&]{
         valuef damp = 0.1f;
