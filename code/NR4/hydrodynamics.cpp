@@ -1045,6 +1045,8 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         });
 
         if_e(iteration.get() != 0, [&]{
+            float relax = 0.f;
+
             valuef root_dp_star = declare_e(dt_inout.p_star[pos, dim]);
             valuef root_de_star = declare_e(dt_inout.e_star[pos, dim]);
             v3f root_dSi = declare_e(dt_inout.index_Si(pos, dim));
@@ -1057,9 +1059,14 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             float impl = 0.6;
             float expl = 1 - impl;
 
-            valuef fin_p_star = h_base.p_star[pos, dim] + (expl * root_dp_star + impl * dt_p_star) * timestep.get();
-            valuef fin_e_star = h_base.e_star[pos, dim] + (expl * root_de_star + impl * dt_e_star) * timestep.get();
-            v3f fin_Si = h_base.index_Si(pos, dim) + (expl * root_dSi + impl * dt_Si) * timestep.get();
+            auto apply = [&](auto x0, auto xi, auto f_x0, auto f_xi)
+            {
+                return relax * xi + (1 - relax) * (x0 + timestep.get() * 0.5f * (expl * f_x0 + impl * f_xi));
+            };
+
+            valuef fin_p_star = apply(h_base.p_star[pos, dim], h_in.p_star[pos, dim], root_dp_star, dt_p_star);
+            valuef fin_e_star = apply(h_base.e_star[pos, dim], h_in.e_star[pos, dim], root_de_star, dt_e_star);
+            v3f fin_Si = apply(h_base.index_Si(pos, dim), h_in.index_Si(pos, dim), root_dSi, dt_Si);
 
             fin_p_star = max(fin_p_star, 0.f);
             fin_e_star = max(fin_e_star, 0.f);
@@ -1072,7 +1079,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
             if(use_colour)
             {
-                v3f fin_col = h_base.index_colour(pos, dim) + (expl * root_dcol + impl * dt_col) * timestep.get();
+                v3f fin_col = apply(h_base.index_colour(pos, dim), h_in.index_colour(pos, dim), root_dcol, dt_col);
 
                 for(int i=0; i < 3; i++)
                     as_ref(h_out.colour[i][pos, dim]) = max(fin_col[i], 0.f);
