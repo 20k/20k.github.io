@@ -473,13 +473,22 @@ void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue c
     P.set_to_zero(cqueue);
     w.set_to_zero(cqueue);
 
-    for(int i=0; i < 5; i++)
+    for(int i=0; i < 8; i++)
         intermediate.emplace_back(ctx);
 
-    for(auto& i : intermediate)
+    for(int i=0; i < 5; i++)
     {
-        i.alloc(sizeof(cl_float) * cells);
-        i.set_to_zero(cqueue);
+        intermediate[i].alloc(sizeof(cl_float) * cells);
+        intermediate[i].set_to_zero(cqueue);
+    }
+
+    if(use_colour)
+    {
+        for(int i=5; i < 8; i++)
+        {
+            intermediate[i].alloc(sizeof(cl_float) * cells);
+            intermediate[i].set_to_zero(cqueue);
+        }
     }
 }
 
@@ -1313,7 +1322,7 @@ buffer_provider* hydrodynamic_plugin::get_buffer_factory(cl::context ctx)
 
 buffer_provider* hydrodynamic_plugin::get_utility_buffer_factory(cl::context ctx)
 {
-    return new hydrodynamic_utility_buffers(ctx);
+    return new hydrodynamic_utility_buffers(ctx, use_colour);
 }
 
 void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, cl::buffer u_buf, buffer_provider* to_init, buffer_provider* to_init_utility)
@@ -1441,8 +1450,6 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
 
         for(auto& i : ubufs.intermediate)
             args.push_back(i);
-
-        args.push_back(nullptr, nullptr, nullptr);
 
         for(auto& i : utility_buffers)
             args.push_back(i);

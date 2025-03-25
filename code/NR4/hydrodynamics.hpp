@@ -102,12 +102,13 @@ struct hydrodynamic_buffers : buffer_provider
 
 struct hydrodynamic_utility_buffers : buffer_provider
 {
+    bool use_colour = false;
     cl::buffer w;
     cl::buffer P;
 
     std::vector<cl::buffer> intermediate;
 
-    hydrodynamic_utility_buffers(cl::context ctx) : w(ctx), P(ctx){}
+    hydrodynamic_utility_buffers(cl::context ctx, bool _use_colour) : w(ctx), P(ctx), use_colour(_use_colour){}
 
     virtual std::vector<buffer_descriptor> get_description() override;
     virtual std::vector<cl::buffer> get_buffers() override;
