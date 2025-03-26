@@ -1062,7 +1062,12 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             if(use_colour)
             {
                 for(int i=0; i < 3; i++)
-                    as_ref(h_out.colour[i][pos, dim]) = max(h_base.colour[i][pos, dim] + dt_col[i] * timestep.get(), 0.f);
+                {
+                    valuef fin_colour = h_base.colour[i][pos, dim] + dt_col[i] * timestep.get();
+                    fin_colour = max(fin_colour, 0.f);
+
+                    as_ref(h_out.colour[i][pos, dim]) = (fin_colour - h_base.colour[i][pos, dim]) / timestep.get();
+                }
             }
         });
 
