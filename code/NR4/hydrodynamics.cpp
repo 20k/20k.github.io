@@ -78,7 +78,7 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
 
     v3f Si_upper = cY.invert().raise(Si);
 
-    float bound = viscosity ? 1e-6f : 1e-7f;
+    float bound = viscosity ? 1e-6f : 1e-6f;
 
     //note to self, actually hand derived this and am sure its correct
     v3f real_value = -gB + (W*W * gA / h) * safe_divide(Si_upper, w, bound);
@@ -122,7 +122,7 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
     //ctx.add("DBG_A", A);
 
     ///[0.1, 1.0]
-    valuef CQvis = 2.5f;
+    valuef CQvis = 1.5f;
 
     ///it looks like the littledv ?: is to only turn on viscosity when the flow is compressive
     #define COMPRESSIVE_VISCOSITY
@@ -218,8 +218,8 @@ struct hydrodynamic_concrete
     {
         auto leib = [&](valuef v1, valuef v2, int i)
         {
-            return diff1(v1 * v2, i, d);
-            //return diff1(v1, i, d) * v2 + diff1(v2, i, d) * v1;
+            //return diff1(v1 * v2, i, d);
+            return diff1(v1, i, d) * v2 + diff1(v2, i, d) * v1;
         };
 
         valuef sum = 0;
@@ -803,6 +803,13 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
             as_ref(hydro.colour[i][pos, dim]) = colour_in[index][i] * p_star;
     }
 
+    /*hydrodynamic_concrete hydro_args(pos, dim, hydro);
+
+    valuef nh = hydro_args.calculate_h_with_eos(args.W);
+    valuef calc_p = hydro_args.w * nh * pow(args.W, 3.f) - hydro_args.eos(args.W);
+
+    print("Calcd %.23f\n", calc_p - mu_h);*/
+
     ///this looks correct too???
     /*if_e(pos.x() == 50 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
         valuef adm_p = w * h * pow(args.W, 3.f) - eos(args.W, w, p_star, e_star);
@@ -1027,8 +1034,14 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     auto write_result = [&](valuef dt_p_star, valuef dt_e_star, v3f dt_Si, v3f dt_col)
     {
         if_e(iteration.get() == 0, [&]{
-            as_ref(dt_inout.p_star[pos, dim]) = dt_p_star;
-            as_ref(dt_inout.e_star[pos, dim]) = dt_e_star;
+            valuef fin_p_star = h_base.p_star[pos, dim] + dt_p_star * timestep.get();
+            valuef fin_e_star = h_base.e_star[pos, dim] + dt_e_star * timestep.get();
+
+            fin_p_star = max(fin_p_star, 0.f);
+            fin_e_star = max(fin_e_star, 0.f);
+
+            as_ref(dt_inout.p_star[pos, dim]) = (fin_p_star - h_base.p_star[pos, dim]) / timestep.get();
+            as_ref(dt_inout.e_star[pos, dim]) = (fin_e_star - h_base.e_star[pos, dim]) / timestep.get();
 
             for(int i=0; i < 3; i++)
                 as_ref(dt_inout.Si[i][pos, dim]) = dt_Si[i];
@@ -1039,9 +1052,9 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                     as_ref(dt_inout.colour[i][pos, dim]) = dt_col[i];
             }
 
-
-            as_ref(h_out.p_star[pos, dim]) = max(h_base.p_star[pos, dim] + dt_p_star * timestep.get(), 0.f);
-            as_ref(h_out.e_star[pos, dim]) = max(h_base.e_star[pos, dim] + dt_e_star * timestep.get(), 0.f);
+            //the non correspondance here with the timestep may be causing issues
+            as_ref(h_out.p_star[pos, dim]) = fin_p_star;
+            as_ref(h_out.e_star[pos, dim]) = fin_e_star;
 
             for(int i=0; i < 3; i++)
                 as_ref(h_out.Si[i][pos, dim]) = h_base.Si[i][pos, dim] + dt_Si[i] * timestep.get();
@@ -1253,7 +1266,7 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     });
 
     //test bound
-    mut<valuef> bound = declare_mut_e(valuef(0.8));
+    mut<valuef> bound = declare_mut_e(valuef(0.9));
 
     /*if_e((hydro.e_star[pos, dim] <= hydro.p_star[pos, dim]) || (hydro.p_star[pos, dim] <= min_p_star * 10), [&]{
         as_ref(bound) = valuef(0.2f);
@@ -1274,15 +1287,14 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     ///(ab)^2 + (ac)^2 + (ad^2)
     ///a^2 (b^2 + c^2 + d^2)
     ///sqrt = a * sqrt(b^2 + c^2 + d^2)`
-    valuef length = sqrt(dot(Si, Si));
+    //valuef length = sqrt(dot(Si, Si));
 
-    valuef clamped_length = min(length, p_star * h * as_constant(bound));
+    //valuef clamped_length = min(length, p_star * h * as_constant(bound));
+    //v3f clamped = Si * (clamped_length / length);
 
-    v3f clamped = Si * (clamped_length / length);
+    valuef cst = p_star * as_constant(bound) * h;
 
-    /*valuef cst = p_star * as_constant(bound) * h;
-
-    v3f clamped = clamp(Si, -cst, cst);*/
+    v3f clamped = clamp(Si, -cst, cst);
 
     as_ref(hydro.Si[0][pos, dim]) = clamped[0];
     as_ref(hydro.Si[1][pos, dim]) = clamped[1];
