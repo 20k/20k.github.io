@@ -1284,17 +1284,20 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
     valuef h = calculate_h_from_epsilon(epsilon);
 
+    #define CIRCULAR_CLAMP
+    #ifdef CIRCULAR_CLAMP
     ///(ab)^2 + (ac)^2 + (ad^2)
     ///a^2 (b^2 + c^2 + d^2)
     ///sqrt = a * sqrt(b^2 + c^2 + d^2)`
-    //valuef length = sqrt(dot(Si, Si));
+    valuef length = sqrt(dot(Si, Si));
 
-    //valuef clamped_length = min(length, p_star * h * as_constant(bound));
-    //v3f clamped = Si * (clamped_length / length);
+    valuef clamped_length = min(length, p_star * h * as_constant(bound));
+    v3f clamped = Si * (clamped_length / length);
 
+    #else
     valuef cst = p_star * as_constant(bound) * h;
-
     v3f clamped = clamp(Si, -cst, cst);
+    #endif
 
     as_ref(hydro.Si[0][pos, dim]) = clamped[0];
     as_ref(hydro.Si[1][pos, dim]) = clamped[1];
