@@ -218,8 +218,8 @@ struct hydrodynamic_concrete
     {
         auto leib = [&](valuef v1, valuef v2, int i)
         {
-            //return diff1(v1 * v2, i, d);
-            return diff1(v1, i, d) * v2 + diff1(v2, i, d) * v1;
+            return diff1(v1 * v2, i, d);
+            //return diff1(v1, i, d) * v2 + diff1(v2, i, d) * v1;
         };
 
         valuef sum = 0;
