@@ -78,7 +78,7 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
 
     v3f Si_upper = cY.invert().raise(Si);
 
-    float bound = viscosity ? 1e-6f : 1e-6f;
+    float bound = viscosity ? 1e-6f : 1e-7f;
 
     //note to self, actually hand derived this and am sure its correct
     v3f real_value = -gB + (W*W * gA / h) * safe_divide(Si_upper, w, bound);
@@ -122,7 +122,7 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
     //ctx.add("DBG_A", A);
 
     ///[0.1, 1.0]
-    valuef CQvis = 1.5f;
+    valuef CQvis = 2.5f;
 
     ///it looks like the littledv ?: is to only turn on viscosity when the flow is compressive
     #define COMPRESSIVE_VISCOSITY
@@ -1284,7 +1284,7 @@ void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
     valuef h = calculate_h_from_epsilon(epsilon);
 
-    #define CIRCULAR_CLAMP
+    //#define CIRCULAR_CLAMP
     #ifdef CIRCULAR_CLAMP
     ///(ab)^2 + (ac)^2 + (ad^2)
     ///a^2 (b^2 + c^2 + d^2)
