@@ -348,7 +348,7 @@ tensor<valuef, 3, 3> calculate_adm_Rij(const tensor<valuef, 3, 3, 3>& christoff2
     return ret;
 }
 
-valuef calculate_hamiltonian_constraint_adm(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, valuef rho_s)
+valuef calculate_hamiltonian_constraint_adm(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, valuef adm_p)
 {
     using namespace single_source;
 
@@ -374,10 +374,10 @@ valuef calculate_hamiltonian_constraint_adm(bssn_args& args, bssn_derivatives& d
         }
     }
 
-    return R + (2.f/3.f) * args.K * args.K - AMN_Amn - 16 * M_PI * rho_s;
+    return R + (2.f/3.f) * args.K * args.K - AMN_Amn - 16 * M_PI * adm_p;
 }
 
-valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, valuef rho_s)
+valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, valuef adm_p)
 {
     using namespace single_source;
 
@@ -399,7 +399,7 @@ valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& deriv
         }
     }
 
-    return R + (2.f/3.f) * args.K * args.K - AMN_Amn - 16 * M_PI * rho_s;
+    return R + (2.f/3.f) * args.K * args.K - AMN_Amn - 16 * M_PI * adm_p;
 }
 
 #define BLACK_HOLE_GAUGE
@@ -534,7 +534,7 @@ tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, const deri
     #endif // ZERO_SHIFT
 }
 
-tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, valuef rho_s)
+tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, valuef adm_p)
 {
     using namespace single_source;
 
@@ -622,14 +622,14 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
     #endif
 
     //this appears to do literally nothing
-    //dtcY += 50.5f * args.gA * args.cY.to_tensor() * -calculate_hamiltonian_constraint(args, derivs, d, rho_s);
+    //dtcY += 50.5f * args.gA * args.cY.to_tensor() * -calculate_hamiltonian_constraint(args, derivs, d, adm_p);
 
     return dtcY;
 }
 
 ///https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf 2.12 or
 ///https://arxiv.org/pdf/0709.2160
-valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, const valuef& rho_s, valuef timestep)
+valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, const valuef& adm_p, valuef timestep)
 {
     valuef dibi = 0;
 
@@ -645,7 +645,7 @@ valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const derivative_data&
         dibiw += args.gB[i] * diff1(args.W, i, d);
     }
 
-    return (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw + 0.15f * timestep * args.W * calculate_hamiltonian_constraint(args, derivs, d, rho_s);
+    return (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw + 0.15f * timestep * args.W * calculate_hamiltonian_constraint(args, derivs, d, adm_p);
 }
 
 tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
@@ -692,7 +692,7 @@ tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs
     return W2DiDja;
 }
 
-valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, valuef S, valuef rho_s)
+valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, valuef S, valuef adm_p)
 {
     using namespace single_source;
 
@@ -715,7 +715,7 @@ valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const derivative_data&
     return v1 - sum_multiply(icY.to_tensor(), W2DiDja)
               + args.gA * (sum_multiply(AMN, args.cA)
               + (1/3.f) * args.K * args.K
-              + 4 * M_PI * (S + rho_s));
+              + 4 * M_PI * (S + adm_p));
 }
 
 tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f momentum_constraint, const derivative_data& d, tensor<valuef, 3, 3> W2_Sij)
@@ -1137,7 +1137,7 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, const initi
             Mi[i] = momentum_constraint[i][pos, dim];
         }
 
-        valuef rho_s = plugin_data.adm_p(args, d);
+        valuef adm_p = plugin_data.adm_p(args, d);
         v3f Si = plugin_data.adm_Si(args, d);
         tensor<valuef, 3, 3> W2_Sij = plugin_data.adm_W2_Sij(args, d);
 
@@ -1169,10 +1169,10 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, const initi
             as_ref(out.cA[i][pos, dim]) = apply_evolution(base.cA[i][pos, dim], dtcA[idx.x(), idx.y()], timestep.get());
         }
 
-        valuef dtW = get_dtW(args, derivs, d, rho_s, timestep.get());
+        valuef dtW = get_dtW(args, derivs, d, adm_p, timestep.get());
         as_ref(out.W[pos, dim]) = apply_evolution(base.W[pos, dim], dtW, timestep.get());
 
-        valuef dtK = get_dtK(args, derivs, d, S, rho_s);
+        valuef dtK = get_dtK(args, derivs, d, S, adm_p);
         as_ref(out.K[pos, dim]) = apply_evolution(base.K[pos, dim], dtK, timestep.get());
 
         valuef dtgA = get_dtgA(args, derivs, d, total_elapsed.get(), cfg.lapse_damp_timescale);
@@ -1185,7 +1185,7 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, const initi
             as_ref(out.gB[i][pos, dim]) = apply_evolution(base.gB[i][pos, dim], dtgB[i], timestep.get());
         }
 
-        auto dtcY = get_dtcY(args, derivs, d, rho_s);
+        auto dtcY = get_dtcY(args, derivs, d, adm_p);
 
         for(int i=0; i < 6; i++)
         {
@@ -1329,8 +1329,8 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
         d.dim = dim;
         d.scale = scale.get();
 
-        valuef rho_s = plugin_data.adm_p(args, d);
-        valuef ham = calculate_hamiltonian_constraint(args, derivs, d, rho_s);
+        valuef adm_p = plugin_data.adm_p(args, d);
+        valuef ham = calculate_hamiltonian_constraint(args, derivs, d, adm_p);
         valuef p = fabs(ham) * 1000;
 
         //valuef momentum = calculate_momentum_constraint_summed(args, d, plugin_data.adm_Si(args, d));
@@ -1393,11 +1393,11 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
                 }
             }
 
-            valuef cham = R + (2.f/3.f) * args.K * args.K - AMN_Amn - 16 * M_PI * rho_s;
+            valuef cham = R + (2.f/3.f) * args.K * args.K - AMN_Amn - 16 * M_PI * adm_p;
 
             print("Ham %f\n", cham);
 
-            print("Hd K %f R %.23f rho %f rho_all %f Asum %f", args.K, R, rho_s, -16 * M_PI * rho_s, AMN_Amn);
+            print("Hd K %f R %.23f rho %f rho_all %f Asum %f", args.K, R, adm_p, -16 * M_PI * adm_p, AMN_Amn);
 
             write.write({pos.x(), pos.y()}, (v4f){1, 0, 0, 1});
         });
