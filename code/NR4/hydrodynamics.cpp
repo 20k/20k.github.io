@@ -1482,25 +1482,24 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
     }
 }
 
-void hydrodynamic_plugin::finalise(cl::context ctx, cl::command_queue cqueue, std::vector<cl::buffer> bssn_buffers, buffer_provider* out, t3i dim, cl_int evolve_length)
+void hydrodynamic_plugin::finalise(cl::context ctx, cl::command_queue cqueue, const finalise_data& sdata)
 {
-    hydrodynamic_buffers& bufs = *dynamic_cast<hydrodynamic_buffers*>(out);
+    hydrodynamic_buffers& bufs = *dynamic_cast<hydrodynamic_buffers*>(sdata.inout);
     auto all = bufs.get_buffers();
 
     cl::args args;
 
-    for(auto& i : bssn_buffers)
+    for(auto& i : sdata.bssn_buffers)
         args.push_back(i);
 
     for(auto& i : all)
         args.push_back(i);
 
-    args.push_back(dim);
-    args.push_back(evolve_length);
+    args.push_back(sdata.dim);
+    args.push_back(sdata.evolve_length);
 
-    cqueue.exec("finalise_hydro", args, {evolve_length}, {128});
+    cqueue.exec("finalise_hydro", args, {sdata.evolve_length}, {128});
 }
-
 
 void hydrodynamic_plugin::add_args_provider(all_adm_args_mem& mem)
 {

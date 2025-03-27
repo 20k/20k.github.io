@@ -617,7 +617,17 @@ struct mesh
                 bssn_buffers.push_back(in);
             });
 
-            p->finalise(ctx, cqueue, bssn_buffers, plugin_buffers[0][kk], dim, evolve_length);
+            finalise_data data;
+            data.inout = plugin_buffers[0].at(kk);
+            data.utility_buffers = plugin_utility_buffers.at(kk);
+            data.bssn_buffers = bssn_buffers;
+            data.evolve_length = evolve_length;
+            data.dim = dim;
+            data.scale = scale;
+            data.timestep = timestep;
+            data.total_elapsed = total_elapsed;
+
+            p->finalise(ctx, cqueue, data);
         }
 
         total_elapsed += timestep;
