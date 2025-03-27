@@ -47,14 +47,14 @@ template<typename T>
 struct hydrodynamic_utility_args : virtual value_impl::single_source::argument_pack
 {
     T w;
-    T P;
+    T Q;
 
     void build(value_impl::type_storage& in)
     {
         using namespace value_impl::builder;
 
         add(w, in);
-        add(P, in);
+        add(Q, in);
     }
 };
 
@@ -104,11 +104,11 @@ struct hydrodynamic_utility_buffers : buffer_provider
 {
     bool use_colour = false;
     cl::buffer w;
-    cl::buffer P;
+    cl::buffer Q;
 
     std::vector<cl::buffer> intermediate;
 
-    hydrodynamic_utility_buffers(cl::context ctx, bool _use_colour) : w(ctx), P(ctx), use_colour(_use_colour){}
+    hydrodynamic_utility_buffers(cl::context ctx, bool _use_colour) : w(ctx), Q(ctx), use_colour(_use_colour){}
 
     virtual std::vector<buffer_descriptor> get_description() override;
     virtual std::vector<cl::buffer> get_buffers() override;

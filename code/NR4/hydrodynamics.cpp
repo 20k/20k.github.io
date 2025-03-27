@@ -151,7 +151,7 @@ struct hydrodynamic_concrete
     v3f Si;
 
     valuef w;
-    valuef P;
+    valuef Q;
 
     template<typename T>
     hydrodynamic_concrete(v3i pos, v3i dim, full_hydrodynamic_args<T> args)
@@ -160,7 +160,7 @@ struct hydrodynamic_concrete
         e_star = max(args.e_star[pos, dim], 0.f);
         Si = {args.Si[0][pos, dim], args.Si[1][pos, dim], args.Si[2][pos, dim]};
         w = args.w[pos, dim];
-        P = args.P[pos, dim];
+        Q = args.Q[pos, dim];
     }
 
     hydrodynamic_concrete(v3i pos, v3i dim, hydrodynamic_base_args<buffer<valuef>> bargs, hydrodynamic_utility_args<buffer<valuef>> uargs)
@@ -169,7 +169,7 @@ struct hydrodynamic_concrete
         e_star = max(bargs.e_star[pos, dim], 0.f);
         Si = {bargs.Si[0][pos, dim], bargs.Si[1][pos, dim], bargs.Si[2][pos, dim]};
         w = uargs.w[pos, dim];
-        P = uargs.P[pos, dim];
+        Q = uargs.Q[pos, dim];
     }
 
     valuef calculate_h_with_eos(valuef W)
@@ -247,13 +247,9 @@ struct hydrodynamic_concrete
         return ::calculate_Pvis(W, vi, p_star, e_star, w, d, total_elapsed, damping_timescale);
     }
 
-    valuef e_star_rhs(valuef gA, v3f gB, unit_metric<valuef, 3, 3> cY, valuef W, v3f vi, const derivative_data& d, valuef total_elapsed, valuef damping_timescale)
+    valuef e_star_rhs(valuef W, valuef Q_vis, v3f vi, const derivative_data& d)
     {
-        auto icY = cY.invert();
-
         valuef e_6phi = pow(max(W, 0.1f), -3.f);
-
-        valuef Pvis = calculate_Pvis(W, vi, d, total_elapsed, damping_timescale);
 
         valuef sum_interior_rhs = 0;
 
@@ -270,7 +266,7 @@ struct hydrodynamic_concrete
 
         valuef degenerate = safe_divide(valuef{1}, pow(p0e, 1 - 1/Gamma));
 
-        return -degenerate * (Pvis / Gamma) * sum_interior_rhs;
+        return -degenerate * (Q_vis / Gamma) * sum_interior_rhs;
     }
 };
 
@@ -449,28 +445,28 @@ void hydrodynamic_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t
 
 std::vector<buffer_descriptor> hydrodynamic_utility_buffers::get_description()
 {
-    buffer_descriptor P;
-    P.name = "P";
+    buffer_descriptor Q;
+    Q.name = "Q";
 
     buffer_descriptor w;
     w.name = "w";
 
-    return {w, P};
+    return {w, Q};
 }
 
 std::vector<cl::buffer> hydrodynamic_utility_buffers::get_buffers()
 {
-    return {w, P};
+    return {w, Q};
 }
 
 void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t3i size)
 {
     int64_t cells = int64_t{size.x()} * size.y() * size.z();
 
-    P.alloc(sizeof(cl_float) * cells);
+    Q.alloc(sizeof(cl_float) * cells);
     w.alloc(sizeof(cl_float) * cells);
 
-    P.set_to_zero(cqueue);
+    Q.set_to_zero(cqueue);
     w.set_to_zero(cqueue);
 
     for(int i=0; i < 8; i++)
@@ -795,7 +791,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     //in the most technical sense you might consider that we're initialising the boundary condition here
     //but w = P = 0 at the boundary
     as_ref(hydro.w[pos, dim]) = w;
-    as_ref(hydro.P[pos, dim]) = eos(args.W, w, p_star, e_star);
+    as_ref(hydro.Q[pos, dim]) = valuef(0.f);
 
     if(use_colour)
     {
@@ -949,7 +945,7 @@ void calculate_w_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 #define MIN_LAPSE 0.15f
 #define MIN_VISCOSITY_LAPSE 0.4f
 
-void calculate_p_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_base_args<buffer<valuef>> hydro, buffer<valuef> w_in, buffer_mut<valuef> P_out,
+void calculate_Q_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_base_args<buffer<valuef>> hydro, buffer<valuef> w_in, buffer_mut<valuef> Q_out,
                       literal<v3i> idim, literal<valuef> scale, literal<valuef> total_elapsed, literal<valuef> damping_timescale,
                       literal<valuei> positions_length)
 {
@@ -973,7 +969,7 @@ void calculate_p_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     v3f Si = {hydro.Si[0][pos, dim], hydro.Si[1][pos, dim], hydro.Si[2][pos, dim]};
 
     if_e(p_star <= min_p_star, [&]{
-        as_ref(P_out[pos, dim]) = valuef(0);
+        as_ref(Q_out[pos, dim]) = valuef(0);
 
         return_e();
     });
@@ -987,15 +983,15 @@ void calculate_p_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     valuef w = w_in[pos, dim];
 
-    mut<valuef> P = declare_mut_e(max(eos(args.W, w, p_star, e_star), 0.f));
+    mut<valuef> Q = declare_mut_e(valuef(0.f));
 
     if_e(args.gA >= MIN_VISCOSITY_LAPSE, [&]{
         valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
         v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY, p_star, true);
-        as_ref(P) += calculate_Pvis(args.W, vi, p_star, e_star, w, d, total_elapsed.get(), damping_timescale.get());
+        as_ref(Q) += calculate_Pvis(args.W, vi, p_star, e_star, w, d, total_elapsed.get(), damping_timescale.get());
     });
 
-    as_ref(P_out[pos, dim]) = as_constant(P);
+    as_ref(Q_out[pos, dim]) = as_constant(Q);
 }
 
 void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
@@ -1154,18 +1150,20 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     if_e(args.gA >= MIN_VISCOSITY_LAPSE, [&]{
         v3f vi2 = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY, true);
 
-        as_ref(de_star) += hydro_args.e_star_rhs(args.gA, args.gB, args.cY, args.W, vi2, d, total_elapsed.get(), damping_timescale.get());
+        as_ref(de_star) += hydro_args.e_star_rhs(args.W, hydro_args.Q, vi2, d);
     });
 
     valuef w = hydro_args.w;
     valuef h = hydro_args.calculate_h_with_eos(args.W);
+
+    valuef P = max(hydro_args.eos(args.W) + hydro_args.Q, 0.f);
 
     v3f dSi_p1;
 
     ///we could use the advanced Si here
     for(int k=0; k < 3; k++)
     {
-        valuef p1 = (-args.gA * pow(max(args.W, 0.1f), -3.f)) * diff1(hydro_args.P, k, d);
+        valuef p1 = (-args.gA * pow(max(args.W, 0.1f), -3.f)) * diff1(P, k, d);
         valuef p2 = -w * h * diff1(args.gA, k, d);
 
         valuef p3;
@@ -1190,7 +1188,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             }
         }
 
-        valuef w2_m_p2_calc = w2_m_p2(hydro_args.p_star, hydro_args.e_star, args.W, args.cY.invert(), hydro_args.Si, w);
+        //valuef w2_m_p2_calc = w2_m_p2(hydro_args.p_star, hydro_args.e_star, args.W, args.cY.invert(), hydro_args.Si, w);
 
         valuef p5 = args.gA * h * (w - hydro_args.p_star * safe_divide(hydro_args.p_star, w)) * (diff1(args.W, k, d) / max(args.W, 0.1f));
         //valuef p5 = args.gA * h * safe_divide(w2_m_p2_calc, w) * (diff1(args.W, k, d) / max(args.W, 0.1f));
@@ -1315,8 +1313,8 @@ hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx, float _linear_viscosit
     }, {"init_hydro"});
 
     cl::async_build_and_cache(ctx, []{
-        return value_impl::make_function(calculate_p_kern, "calculate_p");
-    }, {"calculate_p"});
+        return value_impl::make_function(calculate_Q_kern, "calculate_Q");
+    }, {"calculate_Q"});
 
     cl::async_build_and_cache(ctx, []{
         return value_impl::make_function(calculate_w_kern, "calculate_w");
@@ -1372,7 +1370,7 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
             args.push_back(i);
 
         args.push_back(ubufs.w);
-        args.push_back(ubufs.P);
+        args.push_back(ubufs.Q);
         args.push_back(pack.dim);
         args.push_back(pack.scale);
         args.push_back(pack.disc.mu_h_cfl);
@@ -1430,7 +1428,7 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
                 args.push_back(i);
 
             args.push_back(ubufs.w);
-            args.push_back(ubufs.P);
+            args.push_back(ubufs.Q);
 
             args.push_back(sdata.dim);
             args.push_back(sdata.scale);
@@ -1438,7 +1436,7 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
             args.push_back(damping_timescale);
             args.push_back(sdata.evolve_length);
 
-            cqueue.exec("calculate_p", args, {sdata.evolve_length}, {128});
+            cqueue.exec("calculate_Q", args, {sdata.evolve_length}, {128});
         }
     };
 
