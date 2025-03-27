@@ -1046,12 +1046,6 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             for(int i=0; i < 3; i++)
                 as_ref(dt_inout.Si[i][pos, dim]) = dt_Si[i];
 
-            if(use_colour)
-            {
-                for(int i=0; i < 3; i++)
-                    as_ref(dt_inout.colour[i][pos, dim]) = dt_col[i];
-            }
-
             //the non correspondance here with the timestep may be causing issues
             as_ref(h_out.p_star[pos, dim]) = fin_p_star;
             as_ref(h_out.e_star[pos, dim]) = fin_e_star;
@@ -1066,7 +1060,9 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                     valuef fin_colour = h_base.colour[i][pos, dim] + dt_col[i] * timestep.get();
                     fin_colour = max(fin_colour, 0.f);
 
-                    as_ref(h_out.colour[i][pos, dim]) = (fin_colour - h_base.colour[i][pos, dim]) / timestep.get();
+                    as_ref(dt_inout.colour[i][pos, dim]) = (fin_colour - h_base.colour[i][pos, dim]) / timestep.get();
+
+                    as_ref(h_out.colour[i][pos, dim]) = fin_colour;
                 }
             }
         });
