@@ -463,11 +463,11 @@ void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue c
 {
     int64_t cells = int64_t{size.x()} * size.y() * size.z();
 
-    Q.alloc(sizeof(cl_float) * cells);
     w.alloc(sizeof(cl_float) * cells);
+    Q.alloc(sizeof(cl_float) * cells);
 
-    Q.set_to_zero(cqueue);
     w.set_to_zero(cqueue);
+    Q.set_to_zero(cqueue);
 
     for(int i=0; i < 8; i++)
         intermediate.emplace_back(ctx);
@@ -983,15 +983,14 @@ void calculate_Q_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     valuef w = w_in[pos, dim];
 
-    mut<valuef> Q = declare_mut_e(valuef(0.f));
+    as_ref(Q_out[pos, dim]) = valuef(0.f);
 
     if_e(args.gA >= MIN_VISCOSITY_LAPSE, [&]{
         valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
         v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY, p_star, true);
-        as_ref(Q) += calculate_Pvis(args.W, vi, p_star, e_star, w, d, total_elapsed.get(), damping_timescale.get());
-    });
 
-    as_ref(Q_out[pos, dim]) = as_constant(Q);
+        as_ref(Q_out[pos, dim]) = calculate_Pvis(args.W, vi, p_star, e_star, w, d, total_elapsed.get(), damping_timescale.get());
+    });
 }
 
 void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
@@ -1148,9 +1147,25 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     v3f dSi = hydro_args.advect_rhs(hydro_args.Si, vi, d);
 
     if_e(args.gA >= MIN_VISCOSITY_LAPSE, [&]{
+
+        /*valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
+        v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY, p_star, true);
+        as_ref(Q) += calculate_Pvis(args.W, vi, p_star, e_star, w, d, total_elapsed.get(), damping_timescale.get());*/
+
         v3f vi2 = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY, true);
 
-        as_ref(de_star) += hydro_args.e_star_rhs(args.W, hydro_args.Q, vi2, d);
+        valuef Q = hydro_args.Q;
+
+        //as_ref(Q) += calculate_Pvis(args.W, vi, p_star, e_star, w, d, total_elapsed.get(), damping_timescale.get());
+        valuef Q2 = calculate_Pvis(args.W, vi2, hydro_args.p_star, hydro_args.e_star, hydro_args.w, d, total_elapsed.get(), damping_timescale.get());
+
+        if_e(Q != Q2,[&]{
+            print("Qerr %.24f %.23f %.23f\n", Q - Q2, Q, Q2);
+        });
+
+        //valuef Q = calculate_Pvis(args.W, vi2, d, total_elapsed.get(), damping_timescale.get());
+
+        as_ref(de_star) += hydro_args.e_star_rhs(args.W, Q, vi2, d);
     });
 
     valuef w = hydro_args.w;
