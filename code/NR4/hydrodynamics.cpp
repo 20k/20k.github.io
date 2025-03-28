@@ -122,7 +122,7 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
     //ctx.add("DBG_A", A);
 
     ///[0.1, 1.0]
-    valuef CQvis = 2.5f;
+    valuef CQvis = 1.5f;
 
     ///it looks like the littledv ?: is to only turn on viscosity when the flow is compressive
     #define COMPRESSIVE_VISCOSITY
@@ -1313,7 +1313,7 @@ void enforce_hydro_constraints(execution_context& ectx, bssn_args_mem<buffer<val
     });
 
     //test bound
-    mut<valuef> bound = declare_mut_e(valuef(0.9));
+    mut<valuef> bound = declare_mut_e(valuef(1.5f));
 
     /*if_e((hydro.e_star[pos, dim] <= hydro.p_star[pos, dim]) || (hydro.p_star[pos, dim] <= min_p_star * 10), [&]{
         as_ref(bound) = valuef(0.2f);
