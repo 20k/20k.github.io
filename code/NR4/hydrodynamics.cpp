@@ -1265,7 +1265,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     write_result(dp_star, de_star, dSi, dt_col);
 }
 
-void finalise_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
+void enforce_hydro_constraints(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                     hydrodynamic_base_args<buffer_mut<valuef>> hydro,
                     literal<v3i> idim,
                     literal<valuei> positions_length, bool use_colour)
@@ -1373,8 +1373,8 @@ hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx, float _linear_viscosit
     }, {"evolve_hydro_all"});
 
     cl::async_build_and_cache(ctx, [&]{
-        return value_impl::make_function(finalise_hydro, "finalise_hydro", use_colour);
-    }, {"finalise_hydro"});
+        return value_impl::make_function(enforce_hydro_constraints, "enforce_hydro_constraints", use_colour);
+    }, {"enforce_hydro_constraints"});
 }
 
 buffer_provider* hydrodynamic_plugin::get_buffer_factory(cl::context ctx)
@@ -1539,7 +1539,7 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
         args.push_back(sdata.dim);
         args.push_back(sdata.evolve_length);
 
-        cqueue.exec("finalise_hydro", args, {sdata.evolve_length}, {128});
+        cqueue.exec("enforce_hydro_constraints", args, {sdata.evolve_length}, {128});
     }
 }
 
@@ -1559,7 +1559,7 @@ void hydrodynamic_plugin::finalise(cl::context ctx, cl::command_queue cqueue, co
     args.push_back(sdata.dim);
     args.push_back(sdata.evolve_length);
 
-    cqueue.exec("finalise_hydro", args, {sdata.evolve_length}, {128});
+    cqueue.exec("enforce_hydro_constraints", args, {sdata.evolve_length}, {128});
 }
 
 void hydrodynamic_plugin::add_args_provider(all_adm_args_mem& mem)
