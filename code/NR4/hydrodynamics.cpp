@@ -928,16 +928,30 @@ void calculate_w_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     valuef e_star = hydro.e_star[pos, dim];
     v3f Si = {hydro.Si[0][pos, dim], hydro.Si[1][pos, dim], hydro.Si[2][pos, dim]};
 
-    if_e(p_star <= min_p_star, [&]{
-        as_ref(w_out[pos, dim]) = valuef(0);
+    derivative_data d;
+    d.pos = pos;
+    d.dim = dim;
+    d.scale = scale.get();
 
-        return_e();
+    if_e(p_star <= min_p_star, [&]{
+        valuef dp_sum = 0;
+
+        for(int i=0; i < 3; i++)
+        {
+            dp_sum += fabs(diff1(p_star, i, d));
+        }
+
+        if_e(dp_sum == 0, [&]{
+            as_ref(w_out[pos, dim]) = valuef(0);
+
+            return_e();
+        });
     });
 
     bssn_args args(pos, dim, in);
 
     valuef w = calculate_w(p_star, e_star, args.W, args.cY.invert(), Si);
-    w = max(w, p_star * args.gA * 1);
+    //w = max(w, p_star * args.gA * 1);
 
     as_ref(w_out[pos, dim]) = w;
 }
@@ -1168,16 +1182,10 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     v3f dSi = hydro_args.advect_rhs(hydro_args.Si, vi, d);
 
     if_e(args.gA >= MIN_VISCOSITY_LAPSE, [&]{
-
-        /*valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
-        v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY, p_star, true);
-        as_ref(Q) += calculate_Pvis(args.W, vi, p_star, e_star, w, d, total_elapsed.get(), damping_timescale.get());*/
-
         v3f vi2 = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY, true);
 
         valuef Q = hydro_args.Q;
 
-        //as_ref(Q) += calculate_Pvis(args.W, vi, p_star, e_star, w, d, total_elapsed.get(), damping_timescale.get());
         /*valuef Q2 = calculate_Pvis(args.W, vi2, hydro_args.p_star, hydro_args.e_star, hydro_args.w, d, total_elapsed.get(), damping_timescale.get());
 
         if_e(Q != Q2,[&]{
