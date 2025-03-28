@@ -968,16 +968,31 @@ void calculate_Q_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     valuef e_star = hydro.e_star[pos, dim];
     v3f Si = {hydro.Si[0][pos, dim], hydro.Si[1][pos, dim], hydro.Si[2][pos, dim]};
 
-    if_e(p_star <= min_p_star, [&]{
+    /*if_e(p_star <= min_p_star, [&]{
         as_ref(Q_out[pos, dim]) = valuef(0);
 
         return_e();
-    });
+    });*/
 
     derivative_data d;
     d.pos = pos;
     d.dim = dim;
     d.scale = scale.get();
+
+    if_e(p_star <= min_p_star, [&]{
+        valuef dp_sum = 0;
+
+        for(int i=0; i < 3; i++)
+        {
+            dp_sum += fabs(diff1(p_star, i, d));
+        }
+
+        if_e(dp_sum == 0, [&]{
+            as_ref(Q_out[pos, dim]) = valuef(0);
+
+            return_e();
+        });
+    });
 
     bssn_args args(pos, dim, in);
 
@@ -989,7 +1004,13 @@ void calculate_Q_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
         v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY, p_star, true);
 
-        as_ref(Q_out[pos, dim]) = calculate_Pvis(args.W, vi, p_star, e_star, w, d, total_elapsed.get(), damping_timescale.get());
+        valuef Q = calculate_Pvis(args.W, vi, p_star, e_star, w, d, total_elapsed.get(), damping_timescale.get());
+
+        /*if_e(lid == 3898942, [&]{
+            print("Q kern %.23f %i\n", Q, lid);
+        });*/
+
+        as_ref(Q_out[pos, dim]) = Q;
     });
 }
 
@@ -1157,11 +1178,15 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         valuef Q = hydro_args.Q;
 
         //as_ref(Q) += calculate_Pvis(args.W, vi, p_star, e_star, w, d, total_elapsed.get(), damping_timescale.get());
-        valuef Q2 = calculate_Pvis(args.W, vi2, hydro_args.p_star, hydro_args.e_star, hydro_args.w, d, total_elapsed.get(), damping_timescale.get());
+        /*valuef Q2 = calculate_Pvis(args.W, vi2, hydro_args.p_star, hydro_args.e_star, hydro_args.w, d, total_elapsed.get(), damping_timescale.get());
 
         if_e(Q != Q2,[&]{
-            print("Qerr %.24f %.23f %.23f\n", Q - Q2, Q, Q2);
-        });
+            print("Qerr %.24f %.23f %.23f %i\n", Q - Q2, Q, Q2, lid);
+        });*/
+
+        /*if_e(lid == 3898942, [&]{
+            print("Evolve Kern %.24f %.23f %.23f %i\n", Q - Q2, Q, Q2, lid);
+        });*/
 
         //valuef Q = calculate_Pvis(args.W, vi2, d, total_elapsed.get(), damping_timescale.get());
 
