@@ -4,11 +4,11 @@
 ///so like. What if I did the projective real strategy?
 
 //stable with 1e-6, but the neutron star dissipates
-constexpr float min_p_star = 1e-7f;
+constexpr float min_p_star = 1e-6f;
 
 template<typename T>
 inline
-auto safe_divide(const auto& top, const T& bottom, float tol = 1e-7f)
+auto safe_divide(const auto& top, const T& bottom, float tol = 1e-6f)
 {
     return top / max(bottom, T{tol});
 }
@@ -122,7 +122,7 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
     //ctx.add("DBG_A", A);
 
     ///[0.1, 1.0]
-    valuef CQvis = 1.5f;
+    valuef CQvis = 0.5f;
 
     ///it looks like the littledv ?: is to only turn on viscosity when the flow is compressive
     #define COMPRESSIVE_VISCOSITY
@@ -1179,9 +1179,11 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     valuef dp_star = hydro_args.advect_rhs(hydro_args.p_star, vi, d);
 
     mut<valuef> de_star = declare_mut_e(hydro_args.advect_rhs(hydro_args.e_star, vi, d));
-    v3f dSi = hydro_args.advect_rhs(hydro_args.Si, vi, d);
+    mut_v3f dSi = declare_mut_e(hydro_args.advect_rhs(hydro_args.Si, vi, d));
 
-    if_e(args.gA >= MIN_VISCOSITY_LAPSE, [&]{
+    value<bool> is_degenerate = hydro_args.p_star <= min_p_star;
+
+    if_e(args.gA >= MIN_VISCOSITY_LAPSE && !is_degenerate, [&]{
         v3f vi2 = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY, true);
 
         valuef Q = hydro_args.Q;
@@ -1244,13 +1246,15 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         dSi_p1[k] += (p1 + p2 + p3 + p4 + p5);
     }
 
-    dSi += dSi_p1;
+    if_e(!is_degenerate, [&]{
+        as_ref(dSi) += dSi_p1;
+    });
 
     valuef boundary_damp = 0.25f;
 
     dp_star += ternary(boundary_dist <= 15, -hydro_args.p_star * boundary_damp, {});
     de_star += ternary(boundary_dist <= 15, -hydro_args.e_star * boundary_damp, {});
-    dSi += ternary(boundary_dist <= 15, -hydro_args.Si * boundary_damp, {});
+    as_ref(dSi) += ternary(boundary_dist <= 15, -hydro_args.Si * boundary_damp, {});
 
     v3f dt_col;
 
@@ -1262,7 +1266,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         dt_col += ternary(boundary_dist <= 15, -col * boundary_damp, {});
     }
 
-    write_result(dp_star, de_star, dSi, dt_col);
+    write_result(dp_star, de_star, as_constant(dSi), dt_col);
 }
 
 void enforce_hydro_constraints(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
