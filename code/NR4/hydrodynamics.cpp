@@ -8,7 +8,7 @@ constexpr float min_p_star = 1e-6f;
 
 template<typename T>
 inline
-auto safe_divide(const auto& top, const T& bottom, float tol = 1e-6f)
+auto safe_divide(const auto& top, const T& bottom, float tol = 1e-7f)
 {
     return top / max(bottom, T{tol});
 }
@@ -136,7 +136,7 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
 
     ///paper i'm looking at only turns on viscosity inside a star, ie p > pcrit. We could calculate a crit value
     ///or, we could simply make this time variable, though that's kind of annoying
-    valuef CLvis = 1.f * linear_damping;
+    valuef CLvis = 0.1f * 1.f * linear_damping;
     valuef n = 1;
 
     valuef PLvis = ternary(littledv < 0, -CLvis * sqrt((get_Gamma()/n) * p_star * A) * littledv, valuef(0.f));
