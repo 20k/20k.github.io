@@ -78,7 +78,7 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
 
     v3f Si_upper = cY.invert().raise(Si);
 
-    float bound = viscosity ? 1e-6f : 1e-7f;
+    float bound = viscosity ? 1e-7f : 1e-7f;
 
     //note to self, actually hand derived this and am sure its correct
     v3f real_value = -gB + (W*W * gA / h) * safe_divide(Si_upper, w, bound);
