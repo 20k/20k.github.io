@@ -4,7 +4,7 @@
 ///so like. What if I did the projective real strategy?
 
 //stable with 1e-6, but the neutron star dissipates
-constexpr float min_p_star = 1e-6f;
+constexpr float min_p_star = 1e-7f;
 
 template<typename T>
 inline
@@ -847,7 +847,7 @@ valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev)
     valuef A = pow(max(W, 0.001f), 3.f * Gamma - 3.f);
     valuef wG = pow(w_prev, Gamma - 1);
 
-    return safe_divide(wG, wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 1e-7f), Gamma - 2));
+    return safe_divide(wG, wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 1e-7f), Gamma - 2), 1e-8f);
 }
 
 valuef calculate_w_constant(valuef W, const inverse_metric<valuef, 3, 3>& icY, v3f Si)
@@ -873,7 +873,7 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef
 {
     using namespace single_source;
 
-    valuef w = 0.5f;
+    valuef w = p_star;
 
     valuef p_sq = p_star * p_star;
 
@@ -1362,6 +1362,39 @@ void enforce_hydro_constraints(execution_context& ectx, bssn_args_mem<buffer<val
     #endif
 }
 
+void sum_rest_mass(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
+                    hydrodynamic_base_args<buffer<valuef>> hydro,
+                    hydrodynamic_utility_args<buffer<valuef>> util,
+                    literal<v3i> idim,
+                    literal<valuei> positions_length, buffer_mut<value<std::int64_t>> sum)
+{
+    using namespace single_source;
+
+    valuei lid = value_impl::get_global_id(0);
+
+    pin(lid);
+
+    v3i dim = idim.get();
+
+    if_e(lid >= positions_length.get(), []{
+        return_e();
+    });
+
+    v3i pos = get_coordinate_including_boundary(lid, dim);
+    pin(pos);
+
+    bssn_args args(pos, dim, in);
+    hydrodynamic_concrete hydro_args(pos, dim, hydro, util);
+
+    valuef rest_mass = hydro_args.calculate_p0(args.W);
+
+    valued as_double = (valued)rest_mass * pow(10., 8.);
+
+    value<std::int64_t> as_uint = (value<std::int64_t>)as_double;
+
+    sum.atom_add_e(0, as_uint);
+}
+
 hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx, float _linear_viscosity_timescale, bool _use_colour, float _linear_viscosity_strength, float _quadratic_viscosity_strength)
 {
     linear_viscosity_timescale = _linear_viscosity_timescale;
@@ -1540,7 +1573,7 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
         cqueue.exec("evolve_hydro_all", args, {sdata.evolve_length}, {128});
     }
 
-    {
+    /*{
         cl::args args;
 
         for(auto& i : sdata.bssn_buffers)
@@ -1553,7 +1586,7 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
         args.push_back(sdata.evolve_length);
 
         cqueue.exec("enforce_hydro_constraints", args, {sdata.evolve_length}, {128});
-    }
+    }*/
 }
 
 void hydrodynamic_plugin::finalise(cl::context ctx, cl::command_queue cqueue, const finalise_data& sdata)
