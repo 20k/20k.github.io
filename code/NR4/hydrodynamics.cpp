@@ -1313,11 +1313,13 @@ void enforce_hydro_constraints(execution_context& ectx, bssn_args_mem<buffer<val
         return_e();
     });
 
+    #ifdef CLAMP_E_STAR
     if_e(hydro.p_star[pos, dim] <= min_p_star * 10, [&]{
         valuef e_star = declare_e(hydro.e_star[pos, dim]);
 
         as_ref(hydro.e_star[pos, dim]) = min(e_star, 100 * hydro.p_star[pos, dim]);
     });
+    #endif
 
     #ifdef CLAMP_VELOCITY
     //test bound
