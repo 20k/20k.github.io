@@ -1319,6 +1319,7 @@ void enforce_hydro_constraints(execution_context& ectx, bssn_args_mem<buffer<val
         as_ref(hydro.e_star[pos, dim]) = min(e_star, 100 * hydro.p_star[pos, dim]);
     });
 
+    #ifdef CLAMP_VELOCITY
     //test bound
     mut<valuef> bound = declare_mut_e(valuef(1.5f));
 
@@ -1356,6 +1357,7 @@ void enforce_hydro_constraints(execution_context& ectx, bssn_args_mem<buffer<val
     as_ref(hydro.Si[0][pos, dim]) = clamped[0];
     as_ref(hydro.Si[1][pos, dim]) = clamped[1];
     as_ref(hydro.Si[2][pos, dim]) = clamped[2];
+    #endif
 }
 
 hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx, float _linear_viscosity_timescale, bool _use_colour, float _linear_viscosity_strength, float _quadratic_viscosity_strength)
