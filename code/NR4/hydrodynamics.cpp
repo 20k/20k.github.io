@@ -890,7 +890,8 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef
 
         pin(w_next);
 
-        w = w_next;
+        w = mix(w, w_next, valuef(0.9f));
+        pin(w);
     }
 
     return w;
