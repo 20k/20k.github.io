@@ -103,7 +103,9 @@ v3f calculate_ui(valuef p_star, valuef epsilon, v3f Si, valuef w, valuef gA, v3f
     return -gB * u0 + cY.invert().raise(u_k);
 }
 
-valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, const derivative_data& d, valuef total_elapsed, valuef linear_damping_timescale)
+valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, const derivative_data& d,
+                      valuef total_elapsed, valuef linear_damping_timescale,
+                      float linear_strength, float quadratic_strength)
 {
     valuef e_m6phi = pow(W, 3.f);
 
@@ -122,7 +124,7 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
     //ctx.add("DBG_A", A);
 
     ///[0.1, 1.0]
-    valuef CQvis = 0.1f;
+    valuef CQvis = quadratic_strength;
 
     ///it looks like the littledv ?: is to only turn on viscosity when the flow is compressive
     #define COMPRESSIVE_VISCOSITY
@@ -136,7 +138,7 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
 
     ///paper i'm looking at only turns on viscosity inside a star, ie p > pcrit. We could calculate a crit value
     ///or, we could simply make this time variable, though that's kind of annoying
-    valuef CLvis = 0.1f * 1.f * linear_damping;
+    valuef CLvis = linear_strength * linear_damping;
     valuef n = 1;
 
     valuef PLvis = ternary(littledv < 0, -CLvis * sqrt((get_Gamma()/n) * p_star * A) * littledv, valuef(0.f));
@@ -242,9 +244,9 @@ struct hydrodynamic_concrete
         return ret;
     }
 
-    valuef calculate_Pvis(valuef W, v3f vi, const derivative_data& d, valuef total_elapsed, valuef damping_timescale)
+    valuef calculate_Pvis(valuef W, v3f vi, const derivative_data& d, valuef total_elapsed, valuef damping_timescale, float linear_strength, float quadratic_strength)
     {
-        return ::calculate_Pvis(W, vi, p_star, e_star, w, d, total_elapsed, damping_timescale);
+        return ::calculate_Pvis(W, vi, p_star, e_star, w, d, total_elapsed, damping_timescale, linear_strength, quadratic_strength);
     }
 
     valuef e_star_rhs(valuef W, valuef Q_vis, v3f vi, const derivative_data& d)
@@ -961,7 +963,7 @@ void calculate_w_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
 void calculate_Q_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_base_args<buffer<valuef>> hydro, buffer<valuef> w_in, buffer_mut<valuef> Q_out,
                       literal<v3i> idim, literal<valuef> scale, literal<valuef> total_elapsed, literal<valuef> damping_timescale,
-                      literal<valuei> positions_length)
+                      literal<valuei> positions_length, float quadratic_strength, float linear_strength)
 {
     using namespace single_source;
 
@@ -1018,7 +1020,7 @@ void calculate_Q_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
         v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY, p_star, true);
 
-        valuef Q = calculate_Pvis(args.W, vi, p_star, e_star, w, d, total_elapsed.get(), damping_timescale.get());
+        valuef Q = calculate_Pvis(args.W, vi, p_star, e_star, w, d, total_elapsed.get(), damping_timescale.get(), linear_strength, quadratic_strength);
 
         /*if_e(lid == 3898942, [&]{
             print("Q kern %.23f %i\n", Q, lid);
@@ -1355,17 +1357,19 @@ void enforce_hydro_constraints(execution_context& ectx, bssn_args_mem<buffer<val
     as_ref(hydro.Si[2][pos, dim]) = clamped[2];
 }
 
-hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx, float _linear_viscosity_timescale, bool _use_colour)
+hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx, float _linear_viscosity_timescale, bool _use_colour, float _linear_viscosity_strength, float _quadratic_viscosity_strength)
 {
     linear_viscosity_timescale = _linear_viscosity_timescale;
     use_colour = _use_colour;
+    linear_viscosity_strength = _linear_viscosity_strength;
+    quadratic_viscosity_strength = _quadratic_viscosity_strength;
 
     cl::async_build_and_cache(ctx, [&]{
         return value_impl::make_function(init_hydro, "init_hydro", use_colour);
     }, {"init_hydro"});
 
-    cl::async_build_and_cache(ctx, []{
-        return value_impl::make_function(calculate_Q_kern, "calculate_Q");
+    cl::async_build_and_cache(ctx, [this]{
+        return value_impl::make_function(calculate_Q_kern, "calculate_Q", linear_viscosity_strength, quadratic_viscosity_strength);
     }, {"calculate_Q"});
 
     cl::async_build_and_cache(ctx, []{

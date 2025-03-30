@@ -119,8 +119,10 @@ struct hydrodynamic_plugin : plugin
 {
     float linear_viscosity_timescale = 200.f;
     bool use_colour = false;
+    float linear_viscosity_strength = 0.f; ///[0, 1]
+    float quadratic_viscosity_strength = 0.f; ///[0, 1], though can be > 1
 
-    hydrodynamic_plugin(cl::context ctx, float _linear_viscosity_timescale, bool _use_colour);
+    hydrodynamic_plugin(cl::context ctx, float _linear_viscosity_timescale, bool _use_colour, float _linear_visco_strength, float _quadratic_visco_strength);
 
     ///we get three copies of these
     virtual buffer_provider* get_buffer_factory(cl::context ctx) override;
