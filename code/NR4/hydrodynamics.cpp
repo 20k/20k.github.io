@@ -220,6 +220,8 @@ struct hydrodynamic_concrete
     ///rhs here to specifically indicate that we're returning -(di Vec v^i), ie the negative
     valuef advect_rhs(valuef base, valuef in, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
     {
+        using namespace single_source;
+
         /*https://arxiv.org/pdf/gr-qc/0209102 todo: implement A2*/
 
         /*auto leib = [&](valuef v1, valuef v2, int i)
@@ -245,7 +247,12 @@ struct hydrodynamic_concrete
             valuef v_phalf = safe_divide(p_adj[1] * v_adj[1] + p_adj[2] * v_adj[2], p_adj[1] + p_adj[2]);
             valuef v_mhalf = safe_divide(p_adj[1] * v_adj[1] + p_adj[0] * v_adj[0], p_adj[1] + p_adj[0]);
 
-            std::cout << "Hi " << value_to_string(v_phalf) << std::endl;
+            auto v_at_offset = [&](int offset)
+            {
+                std::array<valuef, 3> v_adj = get_differentiation_variables<3, valuef>(vi[which], which);
+
+                return v_adj.at(offset + 1);
+            };
 
             auto Dni_half_q = [&](int offset)
             {
@@ -261,7 +268,16 @@ struct hydrodynamic_concrete
 
                 valuef mult = pos_half * neg_half;
 
-                return ternary(mult > 0, safe_divide(2 * mult, neg_half + pos_half), valuef(0.f));
+                ///todo: need to handle negative sign
+
+                valuef pb = 2 * mult / max(neg_half + pos_half, 1e-7f);
+                valuef nb = -2 * mult / max(fabs(neg_half + pos_half), 1e-7f);
+
+                valuef sg = ternary(neg_half + pos_half >= 0, pb, nb);
+
+                return ternary(mult > 0, sg, valuef(0.f));
+
+                //return ternary(mult > 0, safe_divide(2 * mult, neg_half + pos_half), valuef(0.f));
             };
 
             auto q_half = [&](int offset)
@@ -269,21 +285,46 @@ struct hydrodynamic_concrete
                 std::array<valuef, 7> p2 = get_differentiation_variables<7, valuef>(q, which);
 
                 valuef b1 = p2.at(3 + offset) + d.scale * Dni_q(offset) / 2;
-                valuef b2 = p2.at(3 + offset + 1) - d.scale * Dni_q(offset - 1) / 2;
+                valuef b2 = p2.at(3 + offset + 1) - d.scale * Dni_q(offset + 1) / 2;
 
-                return ternary(vi[which] >= 0, b1, b2);
+                valuef cvi = v_at_offset(offset);
+
+                return ternary(cvi >= 0, b1, b2);
             };
 
             valuef q_phalf = q_half(0);
             valuef q_mhalf = q_half(-1);
 
-            return v_mhalf * q_mhalf - v_phalf * q_phalf;
+            valuef result = v_mhalf * q_mhalf - v_phalf * q_phalf;
+
+            //if(which == 0)
+            {
+                if_e(result != 0 && fabs(result) >= 27.147009, [&]{
+                    std::array<valuef, 7> p2 = get_differentiation_variables<7, valuef>(q, which);
+
+                    valuef t1 = Dni_q(0)/2;
+
+                    valuef pos_1 = Dni_half_q(0);
+                    valuef pos_2 = Dni_half_q(-1);
+
+                    valuef b1 = p2.at(3) + d.scale * Dni_q(0) / 2;
+                    valuef b2 = p2.at(3 + 1) - d.scale * Dni_q(0 + 1) / 2;
+
+                    valuef cvi = v_at_offset(0);
+
+                    valuef res = ternary(cvi >= 0, b1, b2);
+
+                    print("Result %f %i start %f %f %f %f comp %f %f %f %f c2 %f %f %f\n", result, valuei(which), v_mhalf, q_mhalf, v_phalf, q_phalf, b1, b2, cvi, res, t1, pos_1, pos_2);
+                });
+            }
+
+            return result;
 
             //valuef q_phalf = ternary(v_adj[1])
 
         };
 
-        return get_delta(in, 0) + get_delta(in, 1) + get_delta(in, 2);
+        return (get_delta(in, 0) + get_delta(in, 1) + get_delta(in, 2));
     }
 
     v3f advect_rhs(v3f base, v3f in, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
