@@ -1369,7 +1369,8 @@ void sum_rest_mass(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                     hydrodynamic_base_args<buffer<valuef>> hydro,
                     hydrodynamic_utility_args<buffer<valuef>> util,
                     literal<v3i> idim,
-                    literal<valuei> positions_length, buffer_mut<value<std::int64_t>> sum)
+                    literal<valuei> positions_length,
+                    literal<valuef> scale, buffer_mut<value<std::int64_t>> sum)
 {
     using namespace single_source;
 
@@ -1389,9 +1390,17 @@ void sum_rest_mass(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     bssn_args args(pos, dim, in);
     hydrodynamic_concrete hydro_args(pos, dim, hydro, util);
 
-    valuef rest_mass = hydro_args.calculate_p0(args.W);
+    /*valuef p0 = hydro_args.calculate_p0(args.W);
 
-    valued as_double = (valued)rest_mass * pow(10., 12.);
+    valuef u0 = safe_divide(hydro_args.w, hydro_args.p_star * args.gA);
+
+    metric<valuef, 3, 3> Yij = args.cY / (args.W * args.W);
+
+    valuef m0 = p0 * u0 * sqrt(Yij.det());*/
+
+    valuef m0 = hydro_args.p_star;
+
+    valued as_double = (valued)m0 * pow(10., 12.) * (valued)pow(scale.get(), 3.f);
 
     value<std::int64_t> as_uint = (value<std::int64_t>)as_double;
 
@@ -1675,6 +1684,7 @@ void hydrodynamic_plugin::finalise(cl::context ctx, cl::command_queue cqueue, co
 
         args.push_back(sdata.dim);
         args.push_back(sdata.evolve_length);
+        args.push_back(sdata.scale);
         args.push_back(ubufs.dbg);
 
         cqueue.exec("sum_rest_mass", args, {sdata.evolve_length}, {128});
