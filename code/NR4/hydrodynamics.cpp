@@ -87,7 +87,7 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
     //return real_value;
 
     //try changing this
-    return ternary(p_star <= min_p_star, -gB, real_value);
+    return ternary(p_star <= min_p_star, {}, real_value);
     //return ternary(p_star <= min_p_star, {}, real_value);
 }
 
@@ -313,7 +313,7 @@ struct hydrodynamic_concrete
 
                 valuef cvi = v_at_offset(offset);
 
-                return ternary(cvi >= -gB[which], b1, b2);
+                return ternary(cvi >= 0, b1, b2);
             };
 
             valuef q_phalf = q_half(0);
