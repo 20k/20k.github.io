@@ -87,8 +87,8 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
     //return real_value;
 
     //try changing this
-    return ternary(p_star <= min_p_star, {}, real_value);
     //return ternary(p_star <= min_p_star, {}, real_value);
+    return ternary(p_star <= min_p_star, {}, real_value);
 }
 
 v3f calculate_ui(valuef p_star, valuef epsilon, v3f Si, valuef w, valuef gA, v3f gB, const unit_metric<valuef, 3, 3>& cY)
@@ -282,16 +282,17 @@ struct hydrodynamic_concrete
             };
             #endif
 
-            /*auto MC = [&](valuef a, valuef b)
+            #if 0
+            auto MC = [&](valuef a, valuef b)
             {
-                valuef pb = 2 * a*b / max(a + b, 1e-7f);
-                valuef nb = -2 * a*b / max(fabs(a + b), 1e-7f);
+                //valuef pb = 2 * a*b / max(a + b, 1e-7f);
+                //valuef nb = -2 * a*b / max(fabs(a + b), 1e-7f);
 
-                valuef sg = ternary(a + b >= 0, pb, nb);
+                //valuef sg = ternary(a + b >= 0, pb, nb);
 
-                return ternary(a*b > 0, safe_divide(2 * a * b, a + b), valuef(0.f));
+                //return ternary(a*b > 0, safe_divide(2 * a * b, a + b), valuef(0.f));
 
-                //return ternary(a*b <= 0, valuef(0.f), sign(a) * min(min(2 * fabs(a), 2 * fabs(b)), fabs(a + b)/2.f));
+                return ternary(a*b <= 0, valuef(0.f), sign(a) * min(min(2 * fabs(a), 2 * fabs(b)), fabs(a + b)/2.f));
             };
 
             auto Dni_q = [&](int offset)
@@ -302,7 +303,8 @@ struct hydrodynamic_concrete
                 valuef b = (p2.at(3 + offset) - p2.at(3 + offset - 1));
 
                 return MC(a, b) / d.scale;
-            };*/
+            };
+            #endif
 
             auto q_half = [&](int offset)
             {
@@ -313,7 +315,7 @@ struct hydrodynamic_concrete
 
                 valuef cvi = v_at_offset(offset);
 
-                return ternary(cvi >= 0, b1, b2);
+                return ternary(cvi >= -gB[which], b1, b2);
             };
 
             valuef q_phalf = q_half(0);
@@ -490,27 +492,27 @@ std::vector<buffer_descriptor> hydrodynamic_buffers::get_description()
 {
     buffer_descriptor p;
     p.name = "p*";
-    p.dissipation_coeff = 0.01;
+    p.dissipation_coeff = 0.0;
     p.dissipation_order = 4;
 
     buffer_descriptor e;
     e.name = "e*";
-    e.dissipation_coeff = 0.01;
+    e.dissipation_coeff = 0.0;
     e.dissipation_order = 4;
 
     buffer_descriptor s0;
     s0.name = "cs0";
-    s0.dissipation_coeff = 0.01;
+    s0.dissipation_coeff = 0.05;
     s0.dissipation_order = 4;
 
     buffer_descriptor s1;
     s1.name = "cs1";
-    s1.dissipation_coeff = 0.01;
+    s1.dissipation_coeff = 0.05;
     s1.dissipation_order = 4;
 
     buffer_descriptor s2;
     s2.name = "cs2";
-    s2.dissipation_coeff = 0.01;
+    s2.dissipation_coeff = 0.05;
     s2.dissipation_order = 4;
 
     buffer_descriptor c0;
@@ -1303,7 +1305,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     value<bool> is_degenerate = hydro_args.p_star <= min_p_star;
 
-    if_e(args.gA >= MIN_VISCOSITY_LAPSE && !is_degenerate, [&]{
+    if_e(args.gA >= MIN_VISCOSITY_LAPSE, [&]{
         v3f vi2 = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY, true);
 
         valuef Q = hydro_args.Q;
@@ -1366,9 +1368,9 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         dSi_p1[k] += (p1 + p2 + p3 + p4 + p5);
     }
 
-    if_e(!is_degenerate, [&]{
+    //if_e(!is_degenerate, [&]{
         as_ref(dSi) += dSi_p1;
-    });
+    //});
 
     valuef boundary_damp = 0.25f;
 
