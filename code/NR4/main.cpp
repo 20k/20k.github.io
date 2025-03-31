@@ -1363,7 +1363,7 @@ initial_params get_initial_params()
     p2.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
 
     initial_params init;
-    init.N = 0.2;
+    init.N = 0.18;
 
     init.dim = {199, 199, 199};
     init.simulation_width = radial_pos * 6 * 2;

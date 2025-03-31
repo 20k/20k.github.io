@@ -8,8 +8,9 @@ constexpr float min_p_star = 1e-6f;
 
 template<typename T>
 inline
-auto safe_divide(const auto& top, const T& bottom, float tol = 1e-8f)
+auto safe_divide(const auto& top, const T& bottom, float tol = 1e-7f)
 {
+    //return ternary(bottom <= tol, T{}, top / bottom);
     return top / max(bottom, T{tol});
 }
 
@@ -86,7 +87,8 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
     //return real_value;
 
     //try changing this
-    return ternary(p_star <= min_p_star, -gB, real_value);
+    //return ternary(p_star <= min_p_star, -gB, real_value);
+    return ternary(p_star <= min_p_star, {}, real_value);
 }
 
 v3f calculate_ui(valuef p_star, valuef epsilon, v3f Si, valuef w, valuef gA, v3f gB, const unit_metric<valuef, 3, 3>& cY)
@@ -124,7 +126,7 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
     //ctx.add("DBG_A", A);
 
     ///[0.1, 1.0]
-    valuef CQvis = quadratic_strength * 0.1f;
+    valuef CQvis = quadratic_strength;
 
     ///it looks like the littledv ?: is to only turn on viscosity when the flow is compressive
     #define COMPRESSIVE_VISCOSITY
@@ -216,9 +218,11 @@ struct hydrodynamic_concrete
     }
 
     ///rhs here to specifically indicate that we're returning -(di Vec v^i), ie the negative
-    valuef advect_rhs(valuef in, v3f vi, const derivative_data& d)
+    valuef advect_rhs(valuef base, valuef in, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
     {
-        auto leib = [&](valuef v1, valuef v2, int i)
+        /*https://arxiv.org/pdf/gr-qc/0209102 todo: implement A2*/
+
+        /*auto leib = [&](valuef v1, valuef v2, int i)
         {
             return diff1(v1 * v2, i, d);
             //return diff1(v1, i, d) * v2 + diff1(v2, i, d) * v1;
@@ -231,15 +235,31 @@ struct hydrodynamic_concrete
             sum += leib(in, vi[i], i);
         }
 
-        return -sum;
+        return -sum;*/
+
+        auto get_delta(valuef q, int which)
+        {
+            std::array<valuef, 3> p_adj = get_differentiation_variables<3, valuef>(p_star, which);
+            std::array<valuef, 3> v_adj = get_differentiation_variables<3, valuef>(vi[which], which);
+
+            valuef v_phalf = safe_divide(p_adj[1] * v_adj[1] + p_adj[2] * v_adj[2], p_adj[1] + p_adj[2]);
+            valuef v_mhalf = safe_divide(p_adj[1] * v_adj[1] + p_adj[0] * v_adj[0], p_adj[1] + p_adj[0]);
+
+
+
+            //valuef q_phalf = ternary(v_adj[1])
+
+        };
+
+        return get_delta(in, 0) + get_delta(in, 1) + get_delta(in, 2);
     }
 
-    v3f advect_rhs(v3f in, v3f vi, const derivative_data& d)
+    v3f advect_rhs(v3f base, v3f in, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
     {
         v3f ret;
 
         for(int i=0; i < 3;  i++)
-            ret[i] = advect_rhs(in[i], vi, d);
+            ret[i] = advect_rhs(base[i], in[i], vi, d, args.gA, args.gB, args.W, args.cY);
 
         return ret;
     }
@@ -1182,10 +1202,12 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     v3f vi = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY, false);
 
-    valuef dp_star = hydro_args.advect_rhs(hydro_args.p_star, vi, d);
+    valuef dp_star = hydro_args.advect_rhs(h_base.p_star[pos, dim], hydro_args.p_star, vi, d, args.gA, args.gB, args.W, args.cY);
 
-    mut<valuef> de_star = declare_mut_e(hydro_args.advect_rhs(hydro_args.e_star, vi, d));
-    mut_v3f dSi = declare_mut_e(hydro_args.advect_rhs(hydro_args.Si, vi, d));
+    mut<valuef> de_star = declare_mut_e(hydro_args.advect_rhs(h_base.e_star[pos, dim], hydro_args.e_star, vi, d, args.gA, args.gB, args.W, args.cY));
+    v3f base_Si = {h_base.Si[0][pos, dim], h_base.Si[1][pos, dim], h_base.Si[2][pos, dim]};
+
+    mut_v3f dSi = declare_mut_e(hydro_args.advect_rhs(base_Si, hydro_args.Si, vi, d, args.gA, args.gB, args.W, args.cY));
 
     value<bool> is_degenerate = hydro_args.p_star <= min_p_star;
 
