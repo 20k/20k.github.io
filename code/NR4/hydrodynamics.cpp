@@ -488,6 +488,9 @@ void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue c
             intermediate[i].set_to_zero(cqueue);
         }
     }
+
+    dbg.alloc(sizeof(cl_long));
+    dbg.set_to_zero(cqueue);
 }
 
 struct eos_gpu : value_impl::single_source::argument_pack
@@ -1388,7 +1391,7 @@ void sum_rest_mass(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     valuef rest_mass = hydro_args.calculate_p0(args.W);
 
-    valued as_double = (valued)rest_mass * pow(10., 8.);
+    valued as_double = (valued)rest_mass * pow(10., 12.);
 
     value<std::int64_t> as_uint = (value<std::int64_t>)as_double;
 
@@ -1421,6 +1424,10 @@ hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx, float _linear_viscosit
     cl::async_build_and_cache(ctx, [&]{
         return value_impl::make_function(enforce_hydro_constraints, "enforce_hydro_constraints", use_colour);
     }, {"enforce_hydro_constraints"});
+
+    cl::async_build_and_cache(ctx, [&]{
+        return value_impl::make_function(sum_rest_mass, "sum_rest_mass");
+    }, {"sum_rest_mass"});
 }
 
 buffer_provider* hydrodynamic_plugin::get_buffer_factory(cl::context ctx)
@@ -1594,18 +1601,89 @@ void hydrodynamic_plugin::finalise(cl::context ctx, cl::command_queue cqueue, co
     hydrodynamic_buffers& bufs = *dynamic_cast<hydrodynamic_buffers*>(sdata.inout);
     auto all = bufs.get_buffers();
 
-    cl::args args;
+    {
+        cl::args args;
 
-    for(auto& i : sdata.bssn_buffers)
-        args.push_back(i);
+        for(auto& i : sdata.bssn_buffers)
+            args.push_back(i);
 
-    for(auto& i : all)
-        args.push_back(i);
+        for(auto& i : all)
+            args.push_back(i);
 
-    args.push_back(sdata.dim);
-    args.push_back(sdata.evolve_length);
+        args.push_back(sdata.dim);
+        args.push_back(sdata.evolve_length);
 
-    cqueue.exec("enforce_hydro_constraints", args, {sdata.evolve_length}, {128});
+        cqueue.exec("enforce_hydro_constraints", args, {sdata.evolve_length}, {128});
+    }
+
+    #define DEBUG_REST_MASS
+    #ifdef DEBUG_REST_MASS
+    hydrodynamic_utility_buffers& ubufs = *dynamic_cast<hydrodynamic_utility_buffers*>(sdata.utility_buffers);
+
+    {
+        cl::args args;
+
+        for(auto& i : sdata.bssn_buffers)
+            args.push_back(i);
+
+        for(auto i : bufs.get_buffers())
+            args.push_back(i);
+
+        args.push_back(ubufs.w);
+
+        args.push_back(sdata.dim);
+        args.push_back(sdata.scale);
+        args.push_back(sdata.evolve_length);
+
+        cqueue.exec("calculate_w", args, {sdata.evolve_length}, {128});
+    }
+
+    {
+        cl::args args;
+
+        for(auto& i : sdata.bssn_buffers)
+            args.push_back(i);
+
+        for(auto i : bufs.get_buffers())
+            args.push_back(i);
+
+        args.push_back(ubufs.w);
+        args.push_back(ubufs.Q);
+
+        args.push_back(sdata.dim);
+        args.push_back(sdata.scale);
+        args.push_back(sdata.total_elapsed);
+        args.push_back(linear_viscosity_timescale);
+        args.push_back(sdata.evolve_length);
+
+        cqueue.exec("calculate_Q", args, {sdata.evolve_length}, {128});
+    }
+
+    {
+        ubufs.dbg.set_to_zero(cqueue);
+
+        cl::args args;
+
+        for(auto& i : sdata.bssn_buffers)
+            args.push_back(i);
+
+        for(auto& i : all)
+            args.push_back(i);
+
+        args.push_back(ubufs.w);
+        args.push_back(ubufs.Q);
+
+        args.push_back(sdata.dim);
+        args.push_back(sdata.evolve_length);
+        args.push_back(ubufs.dbg);
+
+        cqueue.exec("sum_rest_mass", args, {sdata.evolve_length}, {128});
+
+        cl_long out = ubufs.dbg.read<cl_long>(cqueue).at(0);
+
+        debug_rest_mass.push_back(out / pow(10., 12.));
+    }
+    #endif // DEBUG_REST_MASS
 }
 
 void hydrodynamic_plugin::add_args_provider(all_adm_args_mem& mem)

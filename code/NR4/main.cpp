@@ -1511,7 +1511,7 @@ int main()
 
     t3i dim = params.dim;
 
-    plugin* hydro = new hydrodynamic_plugin(ctx, params.linear_viscosity_timescale, params.hydrodynamics_wants_colour(), params.linear_viscosity_strength, params.quadratic_viscosity_strength);
+    hydrodynamic_plugin* hydro = new hydrodynamic_plugin(ctx, params.linear_viscosity_timescale, params.hydrodynamics_wants_colour(), params.linear_viscosity_strength, params.quadratic_viscosity_strength);
 
     std::vector<plugin*> plugins;
     plugins.push_back(hydro);
@@ -1759,6 +1759,14 @@ int main()
             ImGui::PlotLines("cG", cgs.data(), cgs.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 100));
         #endif
         #endif
+
+        std::vector<float> rest_mass;
+
+        for(auto& i : hydro->debug_rest_mass)
+            rest_mass.push_back(i);
+
+        if(rest_mass.size() > 0)
+            ImGui::PlotLines("M0", rest_mass.data(), rest_mass.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 100));
 
         ImGui::End();
 

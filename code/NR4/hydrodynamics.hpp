@@ -107,8 +107,9 @@ struct hydrodynamic_utility_buffers : buffer_provider
     cl::buffer Q;
 
     std::vector<cl::buffer> intermediate;
+    cl::buffer dbg;
 
-    hydrodynamic_utility_buffers(cl::context ctx, bool _use_colour) : w(ctx), Q(ctx), use_colour(_use_colour){}
+    hydrodynamic_utility_buffers(cl::context ctx, bool _use_colour) : w(ctx), Q(ctx), dbg(ctx), use_colour(_use_colour){}
 
     virtual std::vector<buffer_descriptor> get_description() override;
     virtual std::vector<cl::buffer> get_buffers() override;
@@ -121,6 +122,8 @@ struct hydrodynamic_plugin : plugin
     bool use_colour = false;
     float linear_viscosity_strength = 0.f; ///[0, 1]
     float quadratic_viscosity_strength = 0.f; ///[0, 1], though can be > 1
+
+    std::vector<double> debug_rest_mass;
 
     hydrodynamic_plugin(cl::context ctx, float _linear_viscosity_timescale, bool _use_colour, float _linear_visco_strength, float _quadratic_visco_strength);
 
