@@ -218,7 +218,7 @@ struct hydrodynamic_concrete
     }
 
     ///rhs here to specifically indicate that we're returning -(di Vec v^i), ie the negative
-    valuef advect_rhs(valuef last, valuef base, valuef in, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
+    valuef advect_rhs(valuef qm1, valuef q, valuef qp1, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
     {
         /*https://arxiv.org/pdf/gr-qc/0209102 todo: implement A2*/
 
@@ -237,7 +237,7 @@ struct hydrodynamic_concrete
 
         return -sum;*/
 
-        auto get_delta = [&](valuef q, int which)
+        auto get_delta = [&](int which)
         {
             std::array<valuef, 3> p_adj = get_differentiation_variables<3, valuef>(p_star, which);
             std::array<valuef, 3> v_adj = get_differentiation_variables<3, valuef>(vi[which], which);
@@ -245,13 +245,16 @@ struct hydrodynamic_concrete
             valuef v_phalf = safe_divide(p_adj[1] * v_adj[1] + p_adj[2] * v_adj[2], p_adj[1] + p_adj[2]);
             valuef v_mhalf = safe_divide(p_adj[1] * v_adj[1] + p_adj[0] * v_adj[0], p_adj[1] + p_adj[0]);
 
+            valuef q_phalf = (qp1 - q) / d.scale;
+            valuef q_mhalf = (q - qm1) / d.scale;
+
 
 
             //valuef q_phalf = ternary(v_adj[1])
             return valuef(0.f);
         };
 
-        return get_delta(in, 0) + get_delta(in, 1) + get_delta(in, 2);
+        return get_delta(0) + get_delta(1) + get_delta(2);
     }
 
     v3f advect_rhs(v3f last, v3f base, v3f in, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
