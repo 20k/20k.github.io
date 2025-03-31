@@ -1350,7 +1350,7 @@ initial_params get_initial_params()
     p1.position = {-radial_pos, 0, 0};
     ///was 0.23
     ///0.265 was reasonable
-    p1.linear_momentum.momentum = {0, -0.32, 0};
+    p1.linear_momentum.momentum = {0, -0.27, 0};
     p1.K.msols = 123.641;
     p1.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
 
@@ -1358,7 +1358,7 @@ initial_params get_initial_params()
 
     //p2.colour = {0, 0, 1};
     p2.position = {radial_pos, 0, 0};
-    p2.linear_momentum.momentum = {0, 0.32, 0};
+    p2.linear_momentum.momentum = {0, 0.27, 0};
     p2.K.msols = 123.641;
     p2.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
 
