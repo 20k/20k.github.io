@@ -87,8 +87,8 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
     //return real_value;
 
     //try changing this
-    //return ternary(p_star <= min_p_star, -gB, real_value);
-    return ternary(p_star <= min_p_star, {}, real_value);
+    return ternary(p_star <= min_p_star, -gB, real_value);
+    //return ternary(p_star <= min_p_star, {}, real_value);
 }
 
 v3f calculate_ui(valuef p_star, valuef epsilon, v3f Si, valuef w, valuef gA, v3f gB, const unit_metric<valuef, 3, 3>& cY)
@@ -218,7 +218,7 @@ struct hydrodynamic_concrete
     }
 
     ///rhs here to specifically indicate that we're returning -(di Vec v^i), ie the negative
-    valuef advect_rhs(valuef base, valuef in, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
+    valuef advect_rhs(valuef in, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
     {
         using namespace single_source;
 
@@ -244,8 +244,8 @@ struct hydrodynamic_concrete
             std::array<valuef, 3> p_adj = get_differentiation_variables<3, valuef>(p_star, which);
             std::array<valuef, 3> v_adj = get_differentiation_variables<3, valuef>(vi[which], which);
 
-            valuef v_phalf = safe_divide(p_adj[1] * v_adj[1] + p_adj[2] * v_adj[2], p_adj[1] + p_adj[2], 1e-6f);
-            valuef v_mhalf = safe_divide(p_adj[1] * v_adj[1] + p_adj[0] * v_adj[0], p_adj[1] + p_adj[0], 1e-6f);
+            valuef v_phalf = safe_divide(p_adj[1] * v_adj[1] + p_adj[2] * v_adj[2], p_adj[1] + p_adj[2], 1e-8f);
+            valuef v_mhalf = safe_divide(p_adj[1] * v_adj[1] + p_adj[0] * v_adj[0], p_adj[1] + p_adj[0], 1e-8f);
 
             auto v_at_offset = [&](int offset)
             {
@@ -261,7 +261,7 @@ struct hydrodynamic_concrete
                 return (p2.at(3 + offset + 1) - p2.at(3 + offset)) / d.scale;
             };
 
-            #if 0
+            #if 1
             auto Dni_q = [&](int offset)
             {
                 valuef pos_half = Dni_half_q(offset);
@@ -271,20 +271,27 @@ struct hydrodynamic_concrete
 
                 ///todo: need to handle negative sign
 
-                /*valuef pb = 2 * mult / max(neg_half + pos_half, 1e-7f);
-                valuef nb = -2 * mult / max(fabs(neg_half + pos_half), 1e-7f);
+                valuef pb = 2 * mult / max(neg_half + pos_half, 1e-8f);
+                valuef nb = -2 * mult / max(fabs(neg_half + pos_half), 1e-8f);
 
                 valuef sg = ternary(neg_half + pos_half >= 0, pb, nb);
 
-                return ternary(mult > 0, sg, valuef(0.f));*/
+                return ternary(mult > 0, sg, valuef(0.f));
 
                 //return ternary(mult > 0, safe_divide(2 * mult, neg_half + pos_half), valuef(0.f));
             };
             #endif
 
-            auto MC = [&](valuef a, valuef b)
+            /*auto MC = [&](valuef a, valuef b)
             {
-                return ternary(a*b <= 0, valuef(0.f), sign(a) * min(min(2 * fabs(a), 2 * fabs(b)), fabs(a + b)/2.f));
+                valuef pb = 2 * a*b / max(a + b, 1e-7f);
+                valuef nb = -2 * a*b / max(fabs(a + b), 1e-7f);
+
+                valuef sg = ternary(a + b >= 0, pb, nb);
+
+                return ternary(a*b > 0, safe_divide(2 * a * b, a + b), valuef(0.f));
+
+                //return ternary(a*b <= 0, valuef(0.f), sign(a) * min(min(2 * fabs(a), 2 * fabs(b)), fabs(a + b)/2.f));
             };
 
             auto Dni_q = [&](int offset)
@@ -295,7 +302,7 @@ struct hydrodynamic_concrete
                 valuef b = (p2.at(3 + offset) - p2.at(3 + offset - 1));
 
                 return MC(a, b) / d.scale;
-            };
+            };*/
 
             auto q_half = [&](int offset)
             {
@@ -306,7 +313,7 @@ struct hydrodynamic_concrete
 
                 valuef cvi = v_at_offset(offset);
 
-                return ternary(cvi >= 0, b1, b2);
+                return ternary(cvi >= gB[which], b1, b2);
             };
 
             valuef q_phalf = q_half(0);
@@ -341,12 +348,12 @@ struct hydrodynamic_concrete
         return (get_delta(in, 0) + get_delta(in, 1) + get_delta(in, 2)) / d.scale;
     }
 
-    v3f advect_rhs(v3f base, v3f in, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
+    v3f advect_rhs(v3f in, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
     {
         v3f ret;
 
         for(int i=0; i < 3;  i++)
-            ret[i] = advect_rhs(base[i], in[i], vi, d, gA, gB, W, cY);
+            ret[i] = advect_rhs(in[i], vi, d, gA, gB, W, cY);
 
         return ret;
     }
@@ -1289,12 +1296,10 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     v3f vi = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY, false);
 
-    valuef dp_star = hydro_args.advect_rhs(h_base.p_star[pos, dim], hydro_args.p_star, vi, d, args.gA, args.gB, args.W, args.cY);
+    valuef dp_star = hydro_args.advect_rhs(hydro_args.p_star, vi, d, args.gA, args.gB, args.W, args.cY);
 
-    mut<valuef> de_star = declare_mut_e(hydro_args.advect_rhs(h_base.e_star[pos, dim], hydro_args.e_star, vi, d, args.gA, args.gB, args.W, args.cY));
-    v3f base_Si = {h_base.Si[0][pos, dim], h_base.Si[1][pos, dim], h_base.Si[2][pos, dim]};
-
-    mut_v3f dSi = declare_mut_e(hydro_args.advect_rhs(base_Si, hydro_args.Si, vi, d, args.gA, args.gB, args.W, args.cY));
+    mut<valuef> de_star = declare_mut_e(hydro_args.advect_rhs(hydro_args.e_star, vi, d, args.gA, args.gB, args.W, args.cY));
+    mut_v3f dSi = declare_mut_e(hydro_args.advect_rhs(hydro_args.Si, vi, d, args.gA, args.gB, args.W, args.cY));
 
     value<bool> is_degenerate = hydro_args.p_star <= min_p_star;
 
@@ -1425,17 +1430,19 @@ void enforce_hydro_constraints(execution_context& ectx, bssn_args_mem<buffer<val
         return_e();
     });
 
+    //#define CLAMP_E_STAR
     #ifdef CLAMP_E_STAR
     if_e(hydro.p_star[pos, dim] <= min_p_star * 10, [&]{
         valuef e_star = declare_e(hydro.e_star[pos, dim]);
 
-        as_ref(hydro.e_star[pos, dim]) = min(e_star, 100 * hydro.p_star[pos, dim]);
+        as_ref(hydro.e_star[pos, dim]) = min(e_star, 10 * hydro.p_star[pos, dim]);
     });
     #endif
 
+    #define CLAMP_VELOCITY
     #ifdef CLAMP_VELOCITY
     //test bound
-    mut<valuef> bound = declare_mut_e(valuef(1.5f));
+    mut<valuef> bound = declare_mut_e(valuef(10.5f));
 
     /*if_e((hydro.e_star[pos, dim] <= hydro.p_star[pos, dim]) || (hydro.p_star[pos, dim] <= min_p_star * 10), [&]{
         as_ref(bound) = valuef(0.2f);
