@@ -237,7 +237,7 @@ struct hydrodynamic_concrete
 
         return -sum;*/
 
-        auto get_delta(valuef q, int which)
+        auto get_delta = [&](valuef q, int which)
         {
             std::array<valuef, 3> p_adj = get_differentiation_variables<3, valuef>(p_star, which);
             std::array<valuef, 3> v_adj = get_differentiation_variables<3, valuef>(vi[which], which);
@@ -245,7 +245,39 @@ struct hydrodynamic_concrete
             valuef v_phalf = safe_divide(p_adj[1] * v_adj[1] + p_adj[2] * v_adj[2], p_adj[1] + p_adj[2]);
             valuef v_mhalf = safe_divide(p_adj[1] * v_adj[1] + p_adj[0] * v_adj[0], p_adj[1] + p_adj[0]);
 
+            std::cout << "Hi " << value_to_string(v_phalf) << std::endl;
 
+            auto Dni_half_q = [&](int offset)
+            {
+                std::array<valuef, 7> p2 = get_differentiation_variables<7, valuef>(q, which);
+
+                return (p2.at(3 + offset + 1) - p2.at(3 + offset)) / d.scale;
+            };
+
+            auto Dni_q = [&](int offset)
+            {
+                valuef pos_half = Dni_half_q(offset);
+                valuef neg_half = Dni_half_q(offset - 1);
+
+                valuef mult = pos_half * neg_half;
+
+                return ternary(mult > 0, safe_divide(2 * mult, neg_half + pos_half), valuef(0.f));
+            };
+
+            auto q_half = [&](int offset)
+            {
+                std::array<valuef, 7> p2 = get_differentiation_variables<7, valuef>(q, which);
+
+                valuef b1 = p2.at(3 + offset) + d.scale * Dni_q(offset) / 2;
+                valuef b2 = p2.at(3 + offset + 1) - d.scale * Dni_q(offset - 1) / 2;
+
+                return ternary(vi[which] >= 0, b1, b2);
+            };
+
+            valuef q_phalf = q_half(0);
+            valuef q_mhalf = q_half(-1);
+
+            return v_mhalf * q_mhalf - v_phalf * q_phalf;
 
             //valuef q_phalf = ternary(v_adj[1])
 
@@ -259,7 +291,7 @@ struct hydrodynamic_concrete
         v3f ret;
 
         for(int i=0; i < 3;  i++)
-            ret[i] = advect_rhs(base[i], in[i], vi, d, args.gA, args.gB, args.W, args.cY);
+            ret[i] = advect_rhs(base[i], in[i], vi, d, gA, gB, W, cY);
 
         return ret;
     }
@@ -1074,7 +1106,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         return_e();
     });
 
-    v3i pos = get_coordinate_including_boundary(lid, dim);
+    v3i pos = get_coordinate_including_boundary(lid, dim, 3);
     pin(pos);
 
     derivative_data d;
@@ -1286,13 +1318,13 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     v3f dt_col;
 
-    if(use_colour)
+    /*if(use_colour)
     {
         v3f col = h_in.index_colour(pos, dim);
 
         dt_col = hydro_args.advect_rhs(col, vi, d);
         dt_col += ternary(boundary_dist <= 15, -col * boundary_damp, {});
-    }
+    }*/
 
     write_result(dp_star, de_star, as_constant(dSi), dt_col);
 }
@@ -1519,6 +1551,8 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
     }
 }
 
+int get_evolve_size_with_boundary(t3i dim, int boundary);
+
 void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const plugin_step_data& sdata)
 {
     float damping_timescale = linear_viscosity_timescale;
@@ -1574,6 +1608,8 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
 
     std::vector<cl::buffer> cl_base = bufs_base.get_buffers();
 
+    int elen = get_evolve_size_with_boundary(sdata.dim, 3);
+
     {
         std::vector<cl::buffer> cl_in = bufs_in.get_buffers();
         std::vector<cl::buffer> cl_out = bufs_out.get_buffers();
@@ -1605,10 +1641,10 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
         args.push_back(sdata.timestep);
         args.push_back(sdata.total_elapsed);
         args.push_back(damping_timescale);
-        args.push_back(sdata.evolve_length);
+        args.push_back(elen);
         args.push_back(sdata.iteration);
 
-        cqueue.exec("evolve_hydro_all", args, {sdata.evolve_length}, {128});
+        cqueue.exec("evolve_hydro_all", args, {elen}, {128});
     }
 
     /*{
