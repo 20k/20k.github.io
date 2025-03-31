@@ -1365,7 +1365,7 @@ initial_params get_initial_params()
     initial_params init;
     init.N = 0.2;
 
-    init.dim = {233, 233, 233};
+    init.dim = {199, 199, 199};
     init.simulation_width = radial_pos * 6 * 2;
 
     init.add(p1);
@@ -1767,6 +1767,9 @@ int main()
 
         if(rest_mass.size() > 0)
             ImGui::PlotLines("M0", rest_mass.data(), rest_mass.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 100));
+
+        if(rest_mass.size() > 0)
+            ImGui::Text("M0: %f\n", rest_mass.back());
 
         ImGui::End();
 

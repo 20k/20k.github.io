@@ -4,11 +4,11 @@
 ///so like. What if I did the projective real strategy?
 
 //stable with 1e-6, but the neutron star dissipates
-constexpr float min_p_star = 1e-7f;
+constexpr float min_p_star = 1e-6f;
 
 template<typename T>
 inline
-auto safe_divide(const auto& top, const T& bottom, float tol = 1e-7f)
+auto safe_divide(const auto& top, const T& bottom, float tol = 1e-8f)
 {
     return top / max(bottom, T{tol});
 }
@@ -124,7 +124,7 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
     //ctx.add("DBG_A", A);
 
     ///[0.1, 1.0]
-    valuef CQvis = quadratic_strength;
+    valuef CQvis = quadratic_strength * 0.1f;
 
     ///it looks like the littledv ?: is to only turn on viscosity when the flow is compressive
     #define COMPRESSIVE_VISCOSITY
