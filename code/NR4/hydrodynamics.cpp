@@ -218,7 +218,7 @@ struct hydrodynamic_concrete
     }
 
     ///rhs here to specifically indicate that we're returning -(di Vec v^i), ie the negative
-    valuef advect_rhs(valuef qm1, valuef q, valuef qp1, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
+    valuef advect_rhs(valuef base, valuef in, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
     {
         /*https://arxiv.org/pdf/gr-qc/0209102 todo: implement A2*/
 
@@ -237,7 +237,7 @@ struct hydrodynamic_concrete
 
         return -sum;*/
 
-        auto get_delta = [&](int which)
+        auto get_delta(valuef q, int which)
         {
             std::array<valuef, 3> p_adj = get_differentiation_variables<3, valuef>(p_star, which);
             std::array<valuef, 3> v_adj = get_differentiation_variables<3, valuef>(vi[which], which);
@@ -245,24 +245,21 @@ struct hydrodynamic_concrete
             valuef v_phalf = safe_divide(p_adj[1] * v_adj[1] + p_adj[2] * v_adj[2], p_adj[1] + p_adj[2]);
             valuef v_mhalf = safe_divide(p_adj[1] * v_adj[1] + p_adj[0] * v_adj[0], p_adj[1] + p_adj[0]);
 
-            valuef q_phalf = (qp1 - q) / d.scale;
-            valuef q_mhalf = (q - qm1) / d.scale;
-
 
 
             //valuef q_phalf = ternary(v_adj[1])
-            return valuef(0.f);
+
         };
 
-        return get_delta(0) + get_delta(1) + get_delta(2);
+        return get_delta(in, 0) + get_delta(in, 1) + get_delta(in, 2);
     }
 
-    v3f advect_rhs(v3f last, v3f base, v3f in, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
+    v3f advect_rhs(v3f base, v3f in, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
     {
         v3f ret;
 
         for(int i=0; i < 3;  i++)
-            ret[i] = advect_rhs(last[i], base[i], in[i], vi, d, gA, gB, W, cY);
+            ret[i] = advect_rhs(base[i], in[i], vi, d, args.gA, args.gB, args.W, args.cY);
 
         return ret;
     }
@@ -514,13 +511,6 @@ void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue c
 
     dbg.alloc(sizeof(cl_long));
     dbg.set_to_zero(cqueue);
-
-    for(int i=0; i < 5; i++)
-    {
-        last.emplace_back(ctx);
-        last.back().alloc(sizeof(cl_float) * cells);
-        last.back().set_to_zero(cqueue);
-    }
 }
 
 struct eos_gpu : value_impl::single_source::argument_pack
@@ -1067,7 +1057,6 @@ void calculate_Q_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                   hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, hydrodynamic_base_args<buffer_mut<valuef>> h_out,
                   hydrodynamic_base_args<buffer_mut<valuef>> dt_inout,
-                  buffer<valuef> last_p_star, buffer<valuef> last_e_star, std::array<buffer<valuef>, 3> last_Si,
                   hydrodynamic_utility_args<buffer<valuef>> util,
                   literal<v3i> idim, literal<valuef> scale, literal<valuef> timestep, literal<valuef> total_elapsed, literal<valuef> damping_timescale,
                   literal<valuei> positions_length,
@@ -1213,13 +1202,12 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     v3f vi = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY, false);
 
-    valuef dp_star = hydro_args.advect_rhs(last_p_star[pos, dim], h_base.p_star[pos, dim], hydro_args.p_star, vi, d, args.gA, args.gB, args.W, args.cY);
+    valuef dp_star = hydro_args.advect_rhs(h_base.p_star[pos, dim], hydro_args.p_star, vi, d, args.gA, args.gB, args.W, args.cY);
 
-    mut<valuef> de_star = declare_mut_e(hydro_args.advect_rhs(last_e_star[pos, dim], h_base.e_star[pos, dim], hydro_args.e_star, vi, d, args.gA, args.gB, args.W, args.cY));
+    mut<valuef> de_star = declare_mut_e(hydro_args.advect_rhs(h_base.e_star[pos, dim], hydro_args.e_star, vi, d, args.gA, args.gB, args.W, args.cY));
     v3f base_Si = {h_base.Si[0][pos, dim], h_base.Si[1][pos, dim], h_base.Si[2][pos, dim]};
-    v3f lSi = {last_Si[0][pos, dim], last_Si[1][pos, dim], last_Si[2][pos, dim]};
 
-    mut_v3f dSi = declare_mut_e(hydro_args.advect_rhs(lSi, base_Si, hydro_args.Si, vi, d, args.gA, args.gB, args.W, args.cY));
+    mut_v3f dSi = declare_mut_e(hydro_args.advect_rhs(base_Si, hydro_args.Si, vi, d, args.gA, args.gB, args.W, args.cY));
 
     value<bool> is_degenerate = hydro_args.p_star <= min_p_star;
 
@@ -1298,13 +1286,13 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     v3f dt_col;
 
-    /*if(use_colour)
+    if(use_colour)
     {
         v3f col = h_in.index_colour(pos, dim);
 
         dt_col = hydro_args.advect_rhs(col, vi, d);
         dt_col += ternary(boundary_dist <= 15, -col * boundary_damp, {});
-    }*/
+    }
 
     write_result(dp_star, de_star, as_constant(dSi), dt_col);
 }
@@ -1609,9 +1597,6 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
         for(auto& i : ubufs.intermediate)
             args.push_back(i);
 
-        for(auto& i : ubufs.last)
-            args.push_back(i);
-
         for(auto& i : utility_buffers)
             args.push_back(i);
 
@@ -1644,7 +1629,6 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
 
 void hydrodynamic_plugin::finalise(cl::context ctx, cl::command_queue cqueue, const finalise_data& sdata)
 {
-    hydrodynamic_utility_buffers& ubufs = *dynamic_cast<hydrodynamic_utility_buffers*>(sdata.utility_buffers);
     hydrodynamic_buffers& bufs = *dynamic_cast<hydrodynamic_buffers*>(sdata.inout);
     auto all = bufs.get_buffers();
 
@@ -1663,14 +1647,9 @@ void hydrodynamic_plugin::finalise(cl::context ctx, cl::command_queue cqueue, co
         cqueue.exec("enforce_hydro_constraints", args, {sdata.evolve_length}, {128});
     }
 
-    cl::copy(cqueue, all.at(0), ubufs.last.at(0));
-    cl::copy(cqueue, all.at(1), ubufs.last.at(1));
-    cl::copy(cqueue, all.at(2), ubufs.last.at(2));
-    cl::copy(cqueue, all.at(3), ubufs.last.at(3));
-    cl::copy(cqueue, all.at(4), ubufs.last.at(4));
-
     #define DEBUG_REST_MASS
     #ifdef DEBUG_REST_MASS
+    hydrodynamic_utility_buffers& ubufs = *dynamic_cast<hydrodynamic_utility_buffers*>(sdata.utility_buffers);
 
     {
         cl::args args;
