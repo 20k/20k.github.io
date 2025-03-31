@@ -218,7 +218,7 @@ struct hydrodynamic_concrete
     }
 
     ///rhs here to specifically indicate that we're returning -(di Vec v^i), ie the negative
-    valuef advect_rhs(valuef base, valuef in, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
+    valuef advect_rhs(valuef last, valuef base, valuef in, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
     {
         /*https://arxiv.org/pdf/gr-qc/0209102 todo: implement A2*/
 
@@ -254,12 +254,12 @@ struct hydrodynamic_concrete
         return get_delta(in, 0) + get_delta(in, 1) + get_delta(in, 2);
     }
 
-    v3f advect_rhs(v3f base, v3f in, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
+    v3f advect_rhs(v3f last, v3f base, v3f in, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
     {
         v3f ret;
 
         for(int i=0; i < 3;  i++)
-            ret[i] = advect_rhs(base[i], in[i], vi, d, gA, gB, W, cY);
+            ret[i] = advect_rhs(last[i], base[i], in[i], vi, d, gA, gB, W, cY);
 
         return ret;
     }
@@ -1210,12 +1210,13 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     v3f vi = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY, false);
 
-    valuef dp_star = hydro_args.advect_rhs(h_base.p_star[pos, dim], hydro_args.p_star, vi, d, args.gA, args.gB, args.W, args.cY);
+    valuef dp_star = hydro_args.advect_rhs(last_p_star[pos, dim], h_base.p_star[pos, dim], hydro_args.p_star, vi, d, args.gA, args.gB, args.W, args.cY);
 
-    mut<valuef> de_star = declare_mut_e(hydro_args.advect_rhs(h_base.e_star[pos, dim], hydro_args.e_star, vi, d, args.gA, args.gB, args.W, args.cY));
+    mut<valuef> de_star = declare_mut_e(hydro_args.advect_rhs(last_e_star[pos, dim], h_base.e_star[pos, dim], hydro_args.e_star, vi, d, args.gA, args.gB, args.W, args.cY));
     v3f base_Si = {h_base.Si[0][pos, dim], h_base.Si[1][pos, dim], h_base.Si[2][pos, dim]};
+    v3f lSi = {last_Si[0][pos, dim], last_Si[1][pos, dim], last_Si[2][pos, dim]};
 
-    mut_v3f dSi = declare_mut_e(hydro_args.advect_rhs(base_Si, hydro_args.Si, vi, d, args.gA, args.gB, args.W, args.cY));
+    mut_v3f dSi = declare_mut_e(hydro_args.advect_rhs(lSi, base_Si, hydro_args.Si, vi, d, args.gA, args.gB, args.W, args.cY));
 
     value<bool> is_degenerate = hydro_args.p_star <= min_p_star;
 
