@@ -237,7 +237,7 @@ struct hydrodynamic_concrete
 
         return -sum;*/
 
-        auto get_delta(valuef q, int which)
+        auto get_delta = [&](valuef q, int which)
         {
             std::array<valuef, 3> p_adj = get_differentiation_variables<3, valuef>(p_star, which);
             std::array<valuef, 3> v_adj = get_differentiation_variables<3, valuef>(vi[which], which);
@@ -248,7 +248,7 @@ struct hydrodynamic_concrete
 
 
             //valuef q_phalf = ternary(v_adj[1])
-
+            return valuef(0.f);
         };
 
         return get_delta(in, 0) + get_delta(in, 1) + get_delta(in, 2);
@@ -259,7 +259,7 @@ struct hydrodynamic_concrete
         v3f ret;
 
         for(int i=0; i < 3;  i++)
-            ret[i] = advect_rhs(base[i], in[i], vi, d, args.gA, args.gB, args.W, args.cY);
+            ret[i] = advect_rhs(base[i], in[i], vi, d, gA, gB, W, cY);
 
         return ret;
     }
@@ -511,6 +511,13 @@ void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue c
 
     dbg.alloc(sizeof(cl_long));
     dbg.set_to_zero(cqueue);
+
+    for(int i=0; i < 5; i++)
+    {
+        last.emplace_back(ctx);
+        last.back().alloc(sizeof(cl_float) * cells);
+        last.back().set_to_zero(cqueue);
+    }
 }
 
 struct eos_gpu : value_impl::single_source::argument_pack
@@ -1057,6 +1064,7 @@ void calculate_Q_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                   hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, hydrodynamic_base_args<buffer_mut<valuef>> h_out,
                   hydrodynamic_base_args<buffer_mut<valuef>> dt_inout,
+                  buffer<valuef> last_p_star, buffer<valuef> last_e_star, std::array<buffer<valuef>, 3> last_Si,
                   hydrodynamic_utility_args<buffer<valuef>> util,
                   literal<v3i> idim, literal<valuef> scale, literal<valuef> timestep, literal<valuef> total_elapsed, literal<valuef> damping_timescale,
                   literal<valuei> positions_length,
@@ -1286,13 +1294,13 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     v3f dt_col;
 
-    if(use_colour)
+    /*if(use_colour)
     {
         v3f col = h_in.index_colour(pos, dim);
 
         dt_col = hydro_args.advect_rhs(col, vi, d);
         dt_col += ternary(boundary_dist <= 15, -col * boundary_damp, {});
-    }
+    }*/
 
     write_result(dp_star, de_star, as_constant(dSi), dt_col);
 }
@@ -1597,6 +1605,9 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
         for(auto& i : ubufs.intermediate)
             args.push_back(i);
 
+        for(auto& i : ubufs.last)
+            args.push_back(i);
+
         for(auto& i : utility_buffers)
             args.push_back(i);
 
@@ -1629,6 +1640,7 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
 
 void hydrodynamic_plugin::finalise(cl::context ctx, cl::command_queue cqueue, const finalise_data& sdata)
 {
+    hydrodynamic_utility_buffers& ubufs = *dynamic_cast<hydrodynamic_utility_buffers*>(sdata.utility_buffers);
     hydrodynamic_buffers& bufs = *dynamic_cast<hydrodynamic_buffers*>(sdata.inout);
     auto all = bufs.get_buffers();
 
@@ -1647,9 +1659,14 @@ void hydrodynamic_plugin::finalise(cl::context ctx, cl::command_queue cqueue, co
         cqueue.exec("enforce_hydro_constraints", args, {sdata.evolve_length}, {128});
     }
 
+    cl::copy(cqueue, all.at(0), ubufs.last.at(0));
+    cl::copy(cqueue, all.at(1), ubufs.last.at(1));
+    cl::copy(cqueue, all.at(2), ubufs.last.at(2));
+    cl::copy(cqueue, all.at(3), ubufs.last.at(3));
+    cl::copy(cqueue, all.at(4), ubufs.last.at(4));
+
     #define DEBUG_REST_MASS
     #ifdef DEBUG_REST_MASS
-    hydrodynamic_utility_buffers& ubufs = *dynamic_cast<hydrodynamic_utility_buffers*>(sdata.utility_buffers);
 
     {
         cl::args args;

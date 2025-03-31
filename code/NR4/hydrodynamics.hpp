@@ -108,6 +108,7 @@ struct hydrodynamic_utility_buffers : buffer_provider
 
     std::vector<cl::buffer> intermediate;
     cl::buffer dbg;
+    std::vector<cl::buffer> last;
 
     hydrodynamic_utility_buffers(cl::context ctx, bool _use_colour) : w(ctx), Q(ctx), dbg(ctx), use_colour(_use_colour){}
 
