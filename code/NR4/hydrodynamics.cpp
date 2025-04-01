@@ -251,9 +251,13 @@ struct hydrodynamic_concrete
             {
                 std::array<valuef, 3> v_adj = get_differentiation_variables<3, valuef>(vi[which], which);
 
+                //std::cout << "hi " << value_to_string(v_adj.at(offset + 1)) << std::endl;
+                //std::cout << "offset " << offset + 1 << " which " << which << std::endl;
+
                 return v_adj.at(offset + 1);
             };
 
+            #if 0
             auto Dni_half_q = [&](int offset)
             {
                 std::array<valuef, 7> p2 = get_differentiation_variables<7, valuef>(q, which);
@@ -306,6 +310,7 @@ struct hydrodynamic_concrete
             };
             #endif
 
+            ///its possible that we need to flip more things here for left and right
             auto q_half = [&](int offset)
             {
                 std::array<valuef, 7> p2 = get_differentiation_variables<7, valuef>(q, which);
@@ -315,11 +320,62 @@ struct hydrodynamic_concrete
 
                 valuef cvi = v_at_offset(offset);
 
-                return ternary(cvi >= -gB[which], b1, b2);
+                return ternary(cvi >= 0, b1, b2);
+            };
+            #endif
+
+            auto q_at = [&](int offset)
+            {
+                 std::array<valuef, 7> q2 = get_differentiation_variables<7, valuef>(q, which);
+
+                 return q2.at(3 + offset);
             };
 
-            valuef q_phalf = q_half(0);
-            valuef q_mhalf = q_half(-1);
+            auto ri = [&](int offset)
+            {
+                return safe_divide(q_at(offset) - q_at(offset - 1), q_at(offset + 1) - q_at(offset));
+
+                //return (p2.at(3 + offset + 1) - p2.at(3 + offset)) / d.scale;
+            };
+
+            ///superbee
+            auto phi_ri = [&](int offset)
+            {
+                valuef r = ri(offset);
+
+
+                auto max3 = [&](valuef v1, valuef v2, valuef v3)
+                {
+                    return max(max(v1, v2), v3);
+                };
+
+                return max3(0.f, min(2 * r, 1), min(r, 2));
+
+                //return max(valuef(0.f), min(valuef(1.f), r));
+
+                //return 2 * r / (r*r + 1);
+            };
+
+            valuef vm1 = v_at_offset(-1);
+            valuef v0 = v_at_offset(0);
+            valuef v1 = v_at_offset(1);
+
+            valuef qm1 = q_at(-1);
+            valuef q0 = q_at(0);
+            valuef q1 = q_at(1);
+            valuef q2 = q_at(2);
+
+            valuef u_p_L = q0 + 0.5f * phi_ri(0) * (q1 - q0);
+            valuef u_p_R = q1 - 0.5f * phi_ri(1) * (q2 - q1);
+
+            valuef u_m_L = qm1 + 0.5f * phi_ri(-1) * (q0 - qm1);
+            valuef u_m_R = q0 - 0.5f * phi_ri(0) * (q1 - q0);
+
+            valuef q_phalf = ternary(v0 >= 0, u_p_L, u_p_R);
+            valuef q_mhalf = ternary(vm1 >= 0, u_m_L, u_m_R);
+
+            //valuef q_phalf = q_half(0);
+            //valuef q_mhalf = q_half(-1);
 
             valuef result = v_mhalf * q_mhalf - v_phalf * q_phalf;
 
