@@ -4,7 +4,7 @@
 ///so like. What if I did the projective real strategy?
 
 //stable with 1e-6, but the neutron star dissipates
-constexpr float min_p_star = 1e-7f;
+constexpr float min_p_star = 1e-6f;
 
 template<typename T>
 inline
@@ -248,8 +248,8 @@ struct hydrodynamic_concrete
             std::array<valuef, 3> p_adj = get_differentiation_variables<3, valuef>(p_star, which);
             std::array<valuef, 3> v_adj = get_differentiation_variables<3, valuef>(vi[which], which);
 
-            valuef v_phalf = safe_divide(p_adj[1] * v_adj[1] + p_adj[2] * v_adj[2], p_adj[1] + p_adj[2], 1e-8f);
-            valuef v_mhalf = safe_divide(p_adj[1] * v_adj[1] + p_adj[0] * v_adj[0], p_adj[1] + p_adj[0], 1e-8f);
+            valuef v_phalf = safe_divide(p_adj[1] * v_adj[1] + p_adj[2] * v_adj[2], p_adj[1] + p_adj[2]);
+            valuef v_mhalf = safe_divide(p_adj[1] * v_adj[1] + p_adj[0] * v_adj[0], p_adj[1] + p_adj[0]);
 
             auto v_at_offset = [&](int offset)
             {
@@ -348,16 +348,23 @@ struct hydrodynamic_concrete
             {
                 valuef r = ri(offset);
 
-                /*auto max3 = [&](valuef v1, valuef v2, valuef v3)
+                auto max3 = [&](valuef v1, valuef v2, valuef v3)
                 {
                     return max(max(v1, v2), v3);
                 };
 
-                return max3(0.f, min(2 * r, 1), min(r, 2));*/
+                auto min3 = [&](valuef v1, valuef v2, valuef v3)
+                {
+                    return min(min(v1, v2), v3);
+                };
+
+                /*return max3(0.f, min(2 * r, 1), min(r, 2));*/
 
                 //return max(valuef(0.f), min(valuef(1.f), r));
 
-                return 2 * r / (r*r + 1);
+                return max(valuef(0.f), min3(2 * r, (1 + 2 * r)/3, 2));
+
+                //return 2 * r / (r*r + 1);
             };
 
             valuef vm1 = v_at_offset(-1);
@@ -552,27 +559,27 @@ std::vector<buffer_descriptor> hydrodynamic_buffers::get_description()
 {
     buffer_descriptor p;
     p.name = "p*";
-    p.dissipation_coeff = 0.0;
+    p.dissipation_coeff = 0.03;
     p.dissipation_order = 4;
 
     buffer_descriptor e;
     e.name = "e*";
-    e.dissipation_coeff = 0.0;
+    e.dissipation_coeff = 0.03;
     e.dissipation_order = 4;
 
     buffer_descriptor s0;
     s0.name = "cs0";
-    s0.dissipation_coeff = 0.05;
+    s0.dissipation_coeff = 0.03;
     s0.dissipation_order = 4;
 
     buffer_descriptor s1;
     s1.name = "cs1";
-    s1.dissipation_coeff = 0.05;
+    s1.dissipation_coeff = 0.03;
     s1.dissipation_order = 4;
 
     buffer_descriptor s2;
     s2.name = "cs2";
-    s2.dissipation_coeff = 0.05;
+    s2.dissipation_coeff = 0.03;
     s2.dissipation_order = 4;
 
     buffer_descriptor c0;
@@ -1026,7 +1033,7 @@ valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev)
     valuef A = pow(max(W, 0.001f), 3.f * Gamma - 3.f);
     valuef wG = pow(w_prev, Gamma - 1);
 
-    return safe_divide(wG, wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 1e-7f), Gamma - 2), 1e-8f);
+    return safe_divide(wG, wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 1e-7f), Gamma - 2), 1e-7f);
 }
 
 valuef calculate_w_constant(valuef W, const inverse_metric<valuef, 3, 3>& icY, v3f Si)
@@ -1365,7 +1372,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     value<bool> is_degenerate = hydro_args.p_star <= min_p_star;
 
-    if_e(args.gA >= MIN_VISCOSITY_LAPSE, [&]{
+    if_e(args.gA >= MIN_VISCOSITY_LAPSE && !is_degenerate, [&]{
         v3f vi2 = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY, true);
 
         valuef Q = hydro_args.Q;
@@ -1428,9 +1435,9 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         dSi_p1[k] += (p1 + p2 + p3 + p4 + p5);
     }
 
-    //if_e(!is_degenerate, [&]{
+    if_e(!is_degenerate, [&]{
         as_ref(dSi) += dSi_p1;
-    //});
+    });
 
     valuef boundary_damp = 0.25f;
 
@@ -1501,7 +1508,7 @@ void enforce_hydro_constraints(execution_context& ectx, bssn_args_mem<buffer<val
     });
     #endif
 
-    #define CLAMP_VELOCITY
+    //#define CLAMP_VELOCITY
     #ifdef CLAMP_VELOCITY
     //test bound
     mut<valuef> bound = declare_mut_e(valuef(0.9f));
