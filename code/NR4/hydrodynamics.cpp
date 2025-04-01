@@ -10,8 +10,12 @@ template<typename T>
 inline
 auto safe_divide(const auto& top, const T& bottom, float tol = 1e-7f)
 {
+    valuef bsign = ternary(bottom >= 0, valuef(1.f), valuef(-1.f));
+
+    return ternary(fabs(bottom) <= tol, top / (bsign * tol), top / bottom);
+
     //return ternary(bottom <= tol, T{}, top / bottom);
-    return top / max(bottom, T{tol});
+    //return top / max(bottom, T{tol});
 }
 
 valuef get_Gamma()
@@ -333,6 +337,7 @@ struct hydrodynamic_concrete
 
             auto ri = [&](int offset)
             {
+                ///the definition of safe divide is the problem
                 return safe_divide(q_at(offset) - q_at(offset - 1), q_at(offset + 1) - q_at(offset));
 
                 //return (p2.at(3 + offset + 1) - p2.at(3 + offset)) / d.scale;
@@ -343,17 +348,16 @@ struct hydrodynamic_concrete
             {
                 valuef r = ri(offset);
 
-
-                auto max3 = [&](valuef v1, valuef v2, valuef v3)
+                /*auto max3 = [&](valuef v1, valuef v2, valuef v3)
                 {
                     return max(max(v1, v2), v3);
                 };
 
-                return max3(0.f, min(2 * r, 1), min(r, 2));
+                return max3(0.f, min(2 * r, 1), min(r, 2));*/
 
                 //return max(valuef(0.f), min(valuef(1.f), r));
 
-                //return 2 * r / (r*r + 1);
+                return 2 * r / (r*r + 1);
             };
 
             valuef vm1 = v_at_offset(-1);
