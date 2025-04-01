@@ -222,7 +222,7 @@ struct hydrodynamic_concrete
     }
 
     ///rhs here to specifically indicate that we're returning -(di Vec v^i), ie the negative
-    valuef advect_rhs(valuef in, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
+    valuef advect_rhs(valuef in, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY, valuef timestep)
     {
         using namespace single_source;
 
@@ -243,14 +243,55 @@ struct hydrodynamic_concrete
 
         return -sum;*/
 
+
+
+        ///https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2012/Chapter_4.pdf
         auto get_delta = [&](valuef q, int which)
         {
-            std::array<valuef, 3> p_adj = get_differentiation_variables<3, valuef>(p_star, which);
             std::array<valuef, 3> v_adj = get_differentiation_variables<3, valuef>(vi[which], which);
+            std::array<valuef, 7> q_adj = get_differentiation_variables<7, valuef>(in, which);
+            std::array<valuef, 3> p_adj = get_differentiation_variables<3, valuef>(p_star, which);
 
             valuef v_phalf = safe_divide(p_adj[1] * v_adj[1] + p_adj[2] * v_adj[2], p_adj[1] + p_adj[2]);
             valuef v_mhalf = safe_divide(p_adj[1] * v_adj[1] + p_adj[0] * v_adj[0], p_adj[1] + p_adj[0]);
 
+            valuef theta_mhalf = ternary(v_mhalf >= 0, valuef(1), valuef(-1));
+            valuef theta_phalf = ternary(v_phalf >= 0, valuef(1), valuef(-1));
+
+            valuef qm2 = q_adj.at(3 - 2);
+            valuef qm1 = q_adj.at(3 - 1);
+            valuef q0 = q_adj.at(3);
+            valuef q1 = q_adj.at(3 + 1);
+            valuef q2 = q_adj.at(3 + 2);
+
+            valuef r_mhalf = ternary(v_mhalf >= 0, safe_divide(qm1 - qm2, q0 - qm1), safe_divide(q1 - q0, q0 - qm1));
+            valuef r_phalf = ternary(v_phalf >= 0, safe_divide(q0 - qm1, q1 - q0), safe_divide(q2 - q1, q1 - q0));
+
+            auto phi_r = [&](valuef r)
+            {
+                auto max3 = [&](valuef v1, valuef v2, valuef v3)
+                {
+                    return max(max(v1, v2), v3);
+                };
+
+                return max3(0.f, min(valuef(1.f), 2 * r), min(valuef(2), r));
+            };
+
+            valuef phi_mhalf = phi_r(r_mhalf);
+            valuef phi_phalf = phi_r(r_phalf);
+
+            valuef f_mhalf_1 = 0.5f * v_mhalf * ((1 + theta_mhalf) * qm1 + (1 - theta_mhalf) * q0);
+            valuef f_phalf_1 = 0.5f * v_phalf * ((1 + theta_phalf) * q0 + (1 - theta_phalf) * q1);
+
+            valuef f_mhalf_2 = (1.f/4.f) * fabs(v_mhalf) * (1 - fabs(v_mhalf * timestep / d.scale)) * 2 * phi_mhalf * (q0 - qm1);
+            valuef f_phalf_2 = (1.f/4.f) * fabs(v_phalf) * (1 - fabs(v_phalf * timestep / d.scale)) * 2 * phi_phalf * (q1 - q0);
+
+            valuef f_mhalf = f_mhalf_1 + f_mhalf_2;
+            valuef f_phalf = f_phalf_1 + f_phalf_2;
+
+            return f_mhalf - f_phalf;
+
+            #if 0
             auto v_at_offset = [&](int offset)
             {
                 std::array<valuef, 3> v_adj = get_differentiation_variables<3, valuef>(vi[which], which);
@@ -412,17 +453,18 @@ struct hydrodynamic_concrete
             }*/
 
             return result;
+            #endif
         };
 
         return (get_delta(in, 0) + get_delta(in, 1) + get_delta(in, 2)) / d.scale;
     }
 
-    v3f advect_rhs(v3f in, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
+    v3f advect_rhs(v3f in, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY, valuef timestep)
     {
         v3f ret;
 
         for(int i=0; i < 3;  i++)
-            ret[i] = advect_rhs(in[i], vi, d, gA, gB, W, cY);
+            ret[i] = advect_rhs(in[i], vi, d, gA, gB, W, cY, timestep);
 
         return ret;
     }
@@ -1365,10 +1407,10 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     v3f vi = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY, false);
 
-    valuef dp_star = hydro_args.advect_rhs(hydro_args.p_star, vi, d, args.gA, args.gB, args.W, args.cY);
+    valuef dp_star = hydro_args.advect_rhs(hydro_args.p_star, vi, d, args.gA, args.gB, args.W, args.cY, timestep.get());
 
-    mut<valuef> de_star = declare_mut_e(hydro_args.advect_rhs(hydro_args.e_star, vi, d, args.gA, args.gB, args.W, args.cY));
-    mut_v3f dSi = declare_mut_e(hydro_args.advect_rhs(hydro_args.Si, vi, d, args.gA, args.gB, args.W, args.cY));
+    mut<valuef> de_star = declare_mut_e(hydro_args.advect_rhs(hydro_args.e_star, vi, d, args.gA, args.gB, args.W, args.cY, timestep.get()));
+    mut_v3f dSi = declare_mut_e(hydro_args.advect_rhs(hydro_args.Si, vi, d, args.gA, args.gB, args.W, args.cY, timestep.get()));
 
     value<bool> is_degenerate = hydro_args.p_star <= min_p_star;
 
