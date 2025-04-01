@@ -264,7 +264,7 @@ struct hydrodynamic_concrete
             valuef q1 = q_adj.at(3 + 1);
             valuef q2 = q_adj.at(3 + 2);
 
-            valuef r_mhalf = ternary(v_mhalf >= 0, safe_divide(qm1 - qm2, q0 - qm1), safe_divide(q1 - q0, q0 - qm1));
+            /*valuef r_mhalf = ternary(v_mhalf >= 0, safe_divide(qm1 - qm2, q0 - qm1), safe_divide(q1 - q0, q0 - qm1));
             valuef r_phalf = ternary(v_phalf >= 0, safe_divide(q0 - qm1, q1 - q0), safe_divide(q2 - q1, q1 - q0));
 
             auto phi_r = [&](valuef r)
@@ -281,16 +281,41 @@ struct hydrodynamic_concrete
 
                 return max3(0.f, min(valuef(1.f), 2 * r), min(valuef(2), r));
                 //return max(valuef(0.f), min3((1 + r)/2, 2, 2 * r));
+            };*/
+
+            auto csign = [&](valuef v)
+            {
+                return ternary(v >= 0, valuef(1), valuef(-1));
             };
 
-            valuef phi_mhalf = phi_r(r_mhalf);
-            valuef phi_phalf = phi_r(r_phalf);
+            valuef pr_mhalf = ternary(v_mhalf >= 0.f, qm1 - qm2, q1 - q0) * csign(q0 - qm1);
+            valuef pr_phalf = ternary(v_phalf >= 0.f, q0 - qm1, q2 - q1) * csign(q1 - q0);
+
+            auto multiplied_phi_r = [&](valuef pr, valuef bot)
+            {
+                auto max3 = [&](valuef v1, valuef v2, valuef v3)
+                {
+                    return max(max(v1, v2), v3);
+                };
+
+                auto min3 = [&](valuef v1, valuef v2, valuef v3)
+                {
+                    return min(min(v1, v2), v3);
+                };
+
+                return max3(0.f, min(fabs(bot), 2 * pr), min(2 * fabs(bot), pr));
+            };
+
+            valuef phi_mhalf = multiplied_phi_r(pr_mhalf, q0 - qm1);
+            valuef phi_phalf = multiplied_phi_r(pr_phalf, q1 - q0);
 
             valuef f_mhalf_1 = 0.5f * v_mhalf * ((1 + theta_mhalf) * qm1 + (1 - theta_mhalf) * q0);
             valuef f_phalf_1 = 0.5f * v_phalf * ((1 + theta_phalf) * q0 + (1 - theta_phalf) * q1);
 
-            valuef f_mhalf_2 = (1.f/2.f) * fabs(v_mhalf) * (1 - fabs(v_mhalf * timestep / d.scale)) * phi_mhalf * (q0 - qm1);
-            valuef f_phalf_2 = (1.f/2.f) * fabs(v_phalf) * (1 - fabs(v_phalf * timestep / d.scale)) *  phi_phalf * (q1 - q0);
+            //valuef f_mhalf_2 = (1.f/2.f) * fabs(v_mhalf) * (1 - fabs(v_mhalf * timestep / d.scale)) * phi_mhalf * (q0 - qm1);
+            //valuef f_phalf_2 = (1.f/2.f) * fabs(v_phalf) * (1 - fabs(v_phalf * timestep / d.scale)) *  phi_phalf * (q1 - q0);
+            valuef f_mhalf_2 = (1.f/2.f) * fabs(v_mhalf) * (1 - fabs(v_mhalf * timestep / d.scale)) * phi_mhalf * csign(q0 - qm1);
+            valuef f_phalf_2 = (1.f/2.f) * fabs(v_phalf) * (1 - fabs(v_phalf * timestep / d.scale)) *  phi_phalf * csign(q1 - q0);
 
             valuef f_mhalf = f_mhalf_1 + f_mhalf_2;
             valuef f_phalf = f_phalf_1 + f_phalf_2;
