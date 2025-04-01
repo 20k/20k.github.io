@@ -4,7 +4,7 @@
 ///so like. What if I did the projective real strategy?
 
 //stable with 1e-6, but the neutron star dissipates
-constexpr float min_p_star = 1e-7f;
+constexpr float min_p_star = 1e-8f;
 
 template<typename T>
 inline
@@ -274,7 +274,13 @@ struct hydrodynamic_concrete
                     return max(max(v1, v2), v3);
                 };
 
+                auto min3 = [&](valuef v1, valuef v2, valuef v3)
+                {
+                    return min(min(v1, v2), v3);
+                };
+
                 return max3(0.f, min(valuef(1.f), 2 * r), min(valuef(2), r));
+                //return max(valuef(0.f), min3((1 + r)/2, 2, 2 * r));
             };
 
             valuef phi_mhalf = phi_r(r_mhalf);
@@ -283,8 +289,8 @@ struct hydrodynamic_concrete
             valuef f_mhalf_1 = 0.5f * v_mhalf * ((1 + theta_mhalf) * qm1 + (1 - theta_mhalf) * q0);
             valuef f_phalf_1 = 0.5f * v_phalf * ((1 + theta_phalf) * q0 + (1 - theta_phalf) * q1);
 
-            valuef f_mhalf_2 = (1.f/4.f) * fabs(v_mhalf) * (1 - fabs(v_mhalf * timestep / d.scale)) * 2 * phi_mhalf * (q0 - qm1);
-            valuef f_phalf_2 = (1.f/4.f) * fabs(v_phalf) * (1 - fabs(v_phalf * timestep / d.scale)) * 2 * phi_phalf * (q1 - q0);
+            valuef f_mhalf_2 = (1.f/2.f) * fabs(v_mhalf) * (1 - fabs(v_mhalf * timestep / d.scale)) * phi_mhalf * (q0 - qm1);
+            valuef f_phalf_2 = (1.f/2.f) * fabs(v_phalf) * (1 - fabs(v_phalf * timestep / d.scale)) *  phi_phalf * (q1 - q0);
 
             valuef f_mhalf = f_mhalf_1 + f_mhalf_2;
             valuef f_phalf = f_phalf_1 + f_phalf_2;
@@ -601,27 +607,27 @@ std::vector<buffer_descriptor> hydrodynamic_buffers::get_description()
 {
     buffer_descriptor p;
     p.name = "p*";
-    p.dissipation_coeff = 0.03;
+    p.dissipation_coeff = 0.00;
     p.dissipation_order = 4;
 
     buffer_descriptor e;
     e.name = "e*";
-    e.dissipation_coeff = 0.03;
+    e.dissipation_coeff = 0.00;
     e.dissipation_order = 4;
 
     buffer_descriptor s0;
     s0.name = "cs0";
-    s0.dissipation_coeff = 0.03;
+    s0.dissipation_coeff = 0.00;
     s0.dissipation_order = 4;
 
     buffer_descriptor s1;
     s1.name = "cs1";
-    s1.dissipation_coeff = 0.03;
+    s1.dissipation_coeff = 0.00;
     s1.dissipation_order = 4;
 
     buffer_descriptor s2;
     s2.name = "cs2";
-    s2.dissipation_coeff = 0.03;
+    s2.dissipation_coeff = 0.00;
     s2.dissipation_order = 4;
 
     buffer_descriptor c0;

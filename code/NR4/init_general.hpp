@@ -107,7 +107,7 @@ struct initial_params
     float linear_viscosity_timescale = 0;
     float time_between_snapshots = 2;
     float linear_viscosity_strength = 0.1f;
-    float quadratic_viscosity_strength = 0.5f;
+    float quadratic_viscosity_strength = 0.1f;
 
     t3i dim = {155, 155, 155};
     float simulation_width = 40;
