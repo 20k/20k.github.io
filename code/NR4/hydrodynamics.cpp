@@ -287,7 +287,7 @@ struct hydrodynamic_concrete
             valuef f_phalf_1 = 0.5f * v_phalf * ((1 + theta_phalf) * q0 + (1 - theta_phalf) * q1);
 
             valuef f_mhalf_2 = (1.f/2.f) * fabs(v_mhalf) * (1 - fabs(v_mhalf * timestep / d.scale)) * phi_mhalf * (q0 - qm1);
-            valuef f_phalf_2 = (1.f/2.f) * fabs(v_phalf) * (1 - fabs(v_phalf * timestep / d.scale)) *  phi_phalf * (q1 - q0);
+            valuef f_phalf_2 = (1.f/2.f) * fabs(v_phalf) * (1 - fabs(v_phalf * timestep / d.scale)) * phi_phalf * (q1 - q0);
 
             valuef f_mhalf = f_mhalf_1 + f_mhalf_2;
             valuef f_phalf = f_phalf_1 + f_phalf_2;
