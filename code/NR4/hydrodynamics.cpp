@@ -1110,7 +1110,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             if(use_colour)
                 root_dcol = declare_e(dt_inout.index_colour(pos, dim));
 
-            float impl = 0.6;
+            float impl = 0.5;
             float expl = 1 - impl;
 
             auto apply = [&](auto x0, auto xi, auto f_x0, auto f_xi)
