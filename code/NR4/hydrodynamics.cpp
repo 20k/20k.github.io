@@ -3,7 +3,6 @@
 
 ///so like. What if I did the projective real strategy?
 
-//stable with 1e-6, but the neutron star dissipates
 constexpr float min_p_star = 1e-7f;
 constexpr float min_evolve_p_star = 1e-7f;
 
@@ -657,24 +656,6 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     //with raised index
     v3f Si = Si_cfl * pow(phi, -10);
 
-    //ok so, delta lambda = -2 pi phi^-3 ppw2p, where ppw2p = mu_h_cfl
-
-    ///wait, i neglected Aij.. which isn't correct?
-    /*{
-        auto d0 = get_differentiation_variables<3>(phi, 0);
-        auto d1 = get_differentiation_variables<3>(phi, 1);
-        auto d2 = get_differentiation_variables<3>(phi, 2);
-
-        valuef laplacian = (d0[0] + d0[2] + d1[0] + d1[2] + d2[0] + d2[2] - 6 * phi) / (scale.get() * scale.get());
-
-        valuef ppw2p = mu_h_cfl;
-
-        valuef rhs = -2 * M_PI * pow(phi, -3.f) * ppw2p;
-
-        print("hi lap %f ppw2p %f err %f\n", laplacian, rhs, (rhs - laplacian));
-    }*/
-
-
     valuef Gamma = get_Gamma();
 
     auto mu_to_p0 = [&](valuef mu)
@@ -867,44 +848,6 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
         for(int i=0; i < (int)hydro.colour.size(); i++)
             as_ref(hydro.colour[i][pos, dim]) = colour_in[index][i] * p_star;
     }
-
-    /*hydrodynamic_concrete hydro_args(pos, dim, hydro);
-
-    valuef nh = hydro_args.calculate_h_with_eos(args.W);
-    valuef calc_p = hydro_args.w * nh * pow(args.W, 3.f) - hydro_args.eos(args.W);
-
-    print("Calcd %.23f\n", calc_p - mu_h);*/
-
-    ///this looks correct too???
-    /*if_e(pos.x() == 50 && pos.y() == dim.y()/2 && pos.z() == dim.z()/2, [&]{
-        valuef adm_p = w * h * pow(args.W, 3.f) - eos(args.W, w, p_star, e_star);
-
-        auto d0 = get_differentiation_variables<3>(phi, 0);
-        auto d1 = get_differentiation_variables<3>(phi, 1);
-        auto d2 = get_differentiation_variables<3>(phi, 2);
-
-        tensor<valuef, 3, 3> Aij = args.cA;
-
-        auto Kij = Aij / (args.W * args.W);
-
-        auto lAij = pow(phi, -2) * Kij;
-
-        auto Yij = args.cY / (args.W * args.W);
-
-        auto lYij = Yij * pow(phi, 4.f);
-        auto lAIJ = raise_both(lAij, lYij.invert());
-
-        valuef middle = -(1.f/8.f) * pow(phi, -7.f) * sum_multiply(lAIJ, lAij);
-
-        valuef laplacian = (d0[0] + d0[2] + d1[0] + d1[2] + d2[0] + d2[2] - 6 * phi) / (scale.get() * scale.get());
-
-        valuef ppw2p = mu_h_cfl;
-
-        valuef rhs = middle + -2 * M_PI * pow(phi, 5.f) * mu_h;
-        //valuef rhs = middle + -2 * M_PI * pow(phi, -3.f) * ppw2p;
-
-        print("hi lap %f ppw2p %f err %f rho %f\n", laplacian, rhs, (rhs - laplacian), adm_p);
-    });*/
 }
 
 valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev)
@@ -1013,7 +956,6 @@ void calculate_w_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
         if_e(dp_sum == 0, [&]{
             as_ref(w_out[pos, dim]) = valuef(0);
-
             return_e();
         });
     });
@@ -1052,12 +994,6 @@ void calculate_Q_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     valuef e_star = hydro.e_star[pos, dim];
     v3f Si = {hydro.Si[0][pos, dim], hydro.Si[1][pos, dim], hydro.Si[2][pos, dim]};
 
-    /*if_e(p_star <= min_p_star, [&]{
-        as_ref(Q_out[pos, dim]) = valuef(0);
-
-        return_e();
-    });*/
-
     derivative_data d;
     d.pos = pos;
     d.dim = dim;
@@ -1073,7 +1009,6 @@ void calculate_Q_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
         if_e(dp_sum == 0, [&]{
             as_ref(Q_out[pos, dim]) = valuef(0);
-
             return_e();
         });
     });
@@ -1089,10 +1024,6 @@ void calculate_Q_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY, p_star, true);
 
         valuef Q = calculate_Pvis(args.W, vi, p_star, e_star, w, d, total_elapsed.get(), damping_timescale.get(), linear_strength, quadratic_strength);
-
-        /*if_e(lid == 3898942, [&]{
-            print("Q kern %.23f %i\n", Q, lid);
-        });*/
 
         as_ref(Q_out[pos, dim]) = Q;
     });
@@ -1257,18 +1188,6 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         v3f vi2 = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY, true);
 
         valuef Q = hydro_args.Q;
-
-        /*valuef Q2 = calculate_Pvis(args.W, vi2, hydro_args.p_star, hydro_args.e_star, hydro_args.w, d, total_elapsed.get(), damping_timescale.get());
-
-        if_e(Q != Q2,[&]{
-            print("Qerr %.24f %.23f %.23f %i\n", Q - Q2, Q, Q2, lid);
-        });*/
-
-        /*if_e(lid == 3898942, [&]{
-            print("Evolve Kern %.24f %.23f %.23f %i\n", Q - Q2, Q, Q2, lid);
-        });*/
-
-        //valuef Q = calculate_Pvis(args.W, vi2, d, total_elapsed.get(), damping_timescale.get());
 
         as_ref(de_star) += hydro_args.e_star_rhs(args.W, Q, vi2, d);
     });
@@ -1455,14 +1374,6 @@ void sum_rest_mass(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     bssn_args args(pos, dim, in);
     hydrodynamic_concrete hydro_args(pos, dim, hydro, util);
-
-    /*valuef p0 = hydro_args.calculate_p0(args.W);
-
-    valuef u0 = safe_divide(hydro_args.w, hydro_args.p_star * args.gA);
-
-    metric<valuef, 3, 3> Yij = args.cY / (args.W * args.W);
-
-    valuef m0 = p0 * u0 * sqrt(Yij.det());*/
 
     valuef m0 = hydro_args.p_star;
 
