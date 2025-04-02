@@ -4,7 +4,8 @@
 ///so like. What if I did the projective real strategy?
 
 //stable with 1e-6, but the neutron star dissipates
-constexpr float min_p_star = 1e-8f;
+constexpr float min_p_star = 1e-7f;
+constexpr float min_evolve_p_star = 1e-7f;
 
 template<typename T>
 inline
@@ -92,7 +93,7 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
 
     //try changing this
     //return ternary(p_star <= min_p_star, {}, real_value);
-    return ternary(p_star <= min_p_star, {}, real_value);
+    return ternary(p_star <= min_evolve_p_star, {}, real_value);
 }
 
 v3f calculate_ui(valuef p_star, valuef epsilon, v3f Si, valuef w, valuef gA, v3f gB, const unit_metric<valuef, 3, 3>& cY)
@@ -226,8 +227,6 @@ struct hydrodynamic_concrete
     {
         using namespace single_source;
 
-        /*https://arxiv.org/pdf/gr-qc/0209102 todo: implement A2*/
-
         /*auto leib = [&](valuef v1, valuef v2, int i)
         {
             return diff1(v1 * v2, i, d);
@@ -243,9 +242,7 @@ struct hydrodynamic_concrete
 
         return -sum;*/
 
-
-
-        ///https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2012/Chapter_4.pdf
+        ///https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2012/Chapter_4.pdf 4.38
         auto get_delta = [&](valuef q, int which)
         {
             std::array<valuef, 3> v_adj = get_differentiation_variables<3, valuef>(vi[which], which);
@@ -264,7 +261,7 @@ struct hydrodynamic_concrete
             valuef q1 = q_adj.at(3 + 1);
             valuef q2 = q_adj.at(3 + 2);
 
-            /*valuef r_mhalf = ternary(v_mhalf >= 0, safe_divide(qm1 - qm2, q0 - qm1), safe_divide(q1 - q0, q0 - qm1));
+            valuef r_mhalf = ternary(v_mhalf >= 0, safe_divide(qm1 - qm2, q0 - qm1), safe_divide(q1 - q0, q0 - qm1));
             valuef r_phalf = ternary(v_phalf >= 0, safe_divide(q0 - qm1, q1 - q0), safe_divide(q2 - q1, q1 - q0));
 
             auto phi_r = [&](valuef r)
@@ -281,210 +278,21 @@ struct hydrodynamic_concrete
 
                 return max3(0.f, min(valuef(1.f), 2 * r), min(valuef(2), r));
                 //return max(valuef(0.f), min3((1 + r)/2, 2, 2 * r));
-            };*/
-
-            auto csign = [&](valuef v)
-            {
-                return ternary(v >= 0, valuef(1), valuef(-1));
             };
 
-            valuef pr_mhalf = ternary(v_mhalf >= 0.f, qm1 - qm2, q1 - q0) * csign(q0 - qm1);
-            valuef pr_phalf = ternary(v_phalf >= 0.f, q0 - qm1, q2 - q1) * csign(q1 - q0);
-
-            auto multiplied_phi_r = [&](valuef pr, valuef bot)
-            {
-                auto max3 = [&](valuef v1, valuef v2, valuef v3)
-                {
-                    return max(max(v1, v2), v3);
-                };
-
-                auto min3 = [&](valuef v1, valuef v2, valuef v3)
-                {
-                    return min(min(v1, v2), v3);
-                };
-
-                return max3(0.f, min(fabs(bot), 2 * pr), min(2 * fabs(bot), pr));
-            };
-
-            valuef phi_mhalf = multiplied_phi_r(pr_mhalf, q0 - qm1);
-            valuef phi_phalf = multiplied_phi_r(pr_phalf, q1 - q0);
+            valuef phi_mhalf = phi_r(r_mhalf);
+            valuef phi_phalf = phi_r(r_phalf);
 
             valuef f_mhalf_1 = 0.5f * v_mhalf * ((1 + theta_mhalf) * qm1 + (1 - theta_mhalf) * q0);
             valuef f_phalf_1 = 0.5f * v_phalf * ((1 + theta_phalf) * q0 + (1 - theta_phalf) * q1);
 
-            //valuef f_mhalf_2 = (1.f/2.f) * fabs(v_mhalf) * (1 - fabs(v_mhalf * timestep / d.scale)) * phi_mhalf * (q0 - qm1);
-            //valuef f_phalf_2 = (1.f/2.f) * fabs(v_phalf) * (1 - fabs(v_phalf * timestep / d.scale)) *  phi_phalf * (q1 - q0);
-            valuef f_mhalf_2 = (1.f/2.f) * fabs(v_mhalf) * (1 - fabs(v_mhalf * timestep / d.scale)) * phi_mhalf * csign(q0 - qm1);
-            valuef f_phalf_2 = (1.f/2.f) * fabs(v_phalf) * (1 - fabs(v_phalf * timestep / d.scale)) *  phi_phalf * csign(q1 - q0);
+            valuef f_mhalf_2 = (1.f/2.f) * fabs(v_mhalf) * (1 - fabs(v_mhalf * timestep / d.scale)) * phi_mhalf * (q0 - qm1);
+            valuef f_phalf_2 = (1.f/2.f) * fabs(v_phalf) * (1 - fabs(v_phalf * timestep / d.scale)) *  phi_phalf * (q1 - q0);
 
             valuef f_mhalf = f_mhalf_1 + f_mhalf_2;
             valuef f_phalf = f_phalf_1 + f_phalf_2;
 
             return f_mhalf - f_phalf;
-
-            #if 0
-            auto v_at_offset = [&](int offset)
-            {
-                std::array<valuef, 3> v_adj = get_differentiation_variables<3, valuef>(vi[which], which);
-
-                //std::cout << "hi " << value_to_string(v_adj.at(offset + 1)) << std::endl;
-                //std::cout << "offset " << offset + 1 << " which " << which << std::endl;
-
-                return v_adj.at(offset + 1);
-            };
-
-            #if 0
-            auto Dni_half_q = [&](int offset)
-            {
-                std::array<valuef, 7> p2 = get_differentiation_variables<7, valuef>(q, which);
-
-                return (p2.at(3 + offset + 1) - p2.at(3 + offset)) / d.scale;
-            };
-
-            #if 1
-            auto Dni_q = [&](int offset)
-            {
-                valuef pos_half = Dni_half_q(offset);
-                valuef neg_half = Dni_half_q(offset - 1);
-
-                valuef mult = pos_half * neg_half;
-
-                ///todo: need to handle negative sign
-
-                valuef pb = 2 * mult / max(neg_half + pos_half, 1e-8f);
-                valuef nb = -2 * mult / max(fabs(neg_half + pos_half), 1e-8f);
-
-                valuef sg = ternary(neg_half + pos_half >= 0, pb, nb);
-
-                return ternary(mult > 0, sg, valuef(0.f));
-
-                //return ternary(mult > 0, safe_divide(2 * mult, neg_half + pos_half), valuef(0.f));
-            };
-            #endif
-
-            #if 0
-            auto MC = [&](valuef a, valuef b)
-            {
-                //valuef pb = 2 * a*b / max(a + b, 1e-7f);
-                //valuef nb = -2 * a*b / max(fabs(a + b), 1e-7f);
-
-                //valuef sg = ternary(a + b >= 0, pb, nb);
-
-                //return ternary(a*b > 0, safe_divide(2 * a * b, a + b), valuef(0.f));
-
-                return ternary(a*b <= 0, valuef(0.f), sign(a) * min(min(2 * fabs(a), 2 * fabs(b)), fabs(a + b)/2.f));
-            };
-
-            auto Dni_q = [&](int offset)
-            {
-                std::array<valuef, 7> p2 = get_differentiation_variables<7, valuef>(q, which);
-
-                valuef a = (p2.at(3 + offset + 1) - p2.at(3 + offset));
-                valuef b = (p2.at(3 + offset) - p2.at(3 + offset - 1));
-
-                return MC(a, b) / d.scale;
-            };
-            #endif
-
-            ///its possible that we need to flip more things here for left and right
-            auto q_half = [&](int offset)
-            {
-                std::array<valuef, 7> p2 = get_differentiation_variables<7, valuef>(q, which);
-
-                valuef b1 = p2.at(3 + offset) + d.scale * Dni_q(offset) / 2;
-                valuef b2 = p2.at(3 + offset + 1) - d.scale * Dni_q(offset + 1) / 2;
-
-                valuef cvi = v_at_offset(offset);
-
-                return ternary(cvi >= 0, b1, b2);
-            };
-            #endif
-
-            auto q_at = [&](int offset)
-            {
-                 std::array<valuef, 7> q2 = get_differentiation_variables<7, valuef>(q, which);
-
-                 return q2.at(3 + offset);
-            };
-
-            auto ri = [&](int offset)
-            {
-                ///the definition of safe divide is the problem
-                return safe_divide(q_at(offset) - q_at(offset - 1), q_at(offset + 1) - q_at(offset));
-
-                //return (p2.at(3 + offset + 1) - p2.at(3 + offset)) / d.scale;
-            };
-
-            ///superbee
-            auto phi_ri = [&](int offset)
-            {
-                valuef r = ri(offset);
-
-                auto max3 = [&](valuef v1, valuef v2, valuef v3)
-                {
-                    return max(max(v1, v2), v3);
-                };
-
-                auto min3 = [&](valuef v1, valuef v2, valuef v3)
-                {
-                    return min(min(v1, v2), v3);
-                };
-
-                /*return max3(0.f, min(2 * r, 1), min(r, 2));*/
-
-                //return max(valuef(0.f), min(valuef(1.f), r));
-
-                return max(valuef(0.f), min3(2 * r, (1 + 2 * r)/3, 2));
-
-                //return 2 * r / (r*r + 1);
-            };
-
-            valuef vm1 = v_at_offset(-1);
-            valuef v0 = v_at_offset(0);
-            valuef v1 = v_at_offset(1);
-
-            valuef qm1 = q_at(-1);
-            valuef q0 = q_at(0);
-            valuef q1 = q_at(1);
-            valuef q2 = q_at(2);
-
-            valuef u_p_L = q0 + 0.5f * phi_ri(0) * (q1 - q0);
-            valuef u_p_R = q1 - 0.5f * phi_ri(1) * (q2 - q1);
-
-            valuef u_m_L = qm1 + 0.5f * phi_ri(-1) * (q0 - qm1);
-            valuef u_m_R = q0 - 0.5f * phi_ri(0) * (q1 - q0);
-
-            valuef q_phalf = ternary(v0 >= 0, u_p_L, u_p_R);
-            valuef q_mhalf = ternary(vm1 >= 0, u_m_L, u_m_R);
-
-            //valuef q_phalf = q_half(0);
-            //valuef q_mhalf = q_half(-1);
-
-            valuef result = v_mhalf * q_mhalf - v_phalf * q_phalf;
-
-            //if(which == 0)
-            /*{
-                if_e(result != 0 && fabs(result) >= 27.147009, [&]{
-                    std::array<valuef, 7> p2 = get_differentiation_variables<7, valuef>(q, which);
-
-                    valuef t1 = Dni_q(0)/2;
-
-                    valuef pos_1 = Dni_half_q(0);
-                    valuef pos_2 = Dni_half_q(-1);
-
-                    valuef b1 = p2.at(3) + d.scale * Dni_q(0) / 2;
-                    valuef b2 = p2.at(3 + 1) - d.scale * Dni_q(0 + 1) / 2;
-
-                    valuef cvi = v_at_offset(0);
-
-                    valuef res = ternary(cvi >= 0, b1, b2);
-
-                    print("Result %f %i start %f %f %f %f comp %f %f %f %f c2 %f %f %f\n", result, valuei(which), v_mhalf, q_mhalf, v_phalf, q_phalf, b1, b2, cvi, res, t1, pos_1, pos_2);
-                });
-            }*/
-
-            return result;
-            #endif
         };
 
         return (get_delta(in, 0) + get_delta(in, 1) + get_delta(in, 2)) / d.scale;
@@ -580,7 +388,7 @@ valuef full_hydrodynamic_args<T>::adm_p(bssn_args& args, const derivative_data& 
 
     valuef h = hydro_args.calculate_h_with_eos(args.W);
 
-    return ternary(hydro_args.p_star <= min_p_star, {}, hydro_args.w * h * pow(args.W, 3.f) - hydro_args.eos(args.W));
+    return ternary(hydro_args.p_star <= min_evolve_p_star, {}, hydro_args.w * h * pow(args.W, 3.f) - hydro_args.eos(args.W));
 }
 
 template<typename T>
@@ -590,7 +398,7 @@ tensor<valuef, 3> full_hydrodynamic_args<T>::adm_Si(bssn_args& args, const deriv
 
     valuef p_star = this->p_star[d.pos, d.dim];
 
-    return ternary(p_star <= min_p_star, {}, pow(args.W, 3.f) * cSi);
+    return ternary(p_star <= min_evolve_p_star, {}, pow(args.W, 3.f) * cSi);
 }
 
 template<typename T>
@@ -610,13 +418,13 @@ tensor<valuef, 3, 3> full_hydrodynamic_args<T>::adm_W2_Sij(bssn_args& args, cons
         }
     }
 
-    return ternary(hydro_args.p_star <= min_p_star, {}, W2_Sij + hydro_args.eos(args.W) * args.cY.to_tensor());
+    return ternary(hydro_args.p_star <= min_evolve_p_star, {}, W2_Sij + hydro_args.eos(args.W) * args.cY.to_tensor());
 }
 
 template<typename T>
 valuef full_hydrodynamic_args<T>::dbg(bssn_args& args, const derivative_data& d)
 {
-    return ternary(this->p_star[d.pos, d.dim] <= min_p_star, valuef(0), valuef(1));
+    return ternary(this->p_star[d.pos, d.dim] <= min_evolve_p_star, valuef(0), valuef(1));
 
     //return fabs(this->p_star[d.pos, d.dim]) * 500;
     //return sqrt(pow(Si[0][d.pos, d.dim], 2.f) + pow(Si[1][d.pos, d.dim], 2.f)) * 10;
@@ -1443,7 +1251,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     mut<valuef> de_star = declare_mut_e(hydro_args.advect_rhs(hydro_args.e_star, vi, d, args.gA, args.gB, args.W, args.cY, timestep.get()));
     mut_v3f dSi = declare_mut_e(hydro_args.advect_rhs(hydro_args.Si, vi, d, args.gA, args.gB, args.W, args.cY, timestep.get()));
 
-    value<bool> is_degenerate = hydro_args.p_star <= min_p_star;
+    value<bool> is_degenerate = hydro_args.p_star <= min_evolve_p_star;
 
     if_e(args.gA >= MIN_VISCOSITY_LAPSE && !is_degenerate, [&]{
         v3f vi2 = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY, true);
