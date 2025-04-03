@@ -333,6 +333,49 @@ struct hydrodynamic_concrete
 
         return -degenerate * (Q_vis / Gamma) * sum_interior_rhs;
     }
+
+    v3f Si_rhs(valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY, valuef Q_vis, v3f vi, const derivative_data& d)
+    {
+        valuef P = max(eos(W) + Q, 0.f);
+
+        valuef h = calculate_h_with_eos(W);
+
+        v3f dSi;
+
+        for(int k=0; k < 3; k++)
+        {
+            valuef p1 = (-gA * pow(max(W, 0.1f), -3.f)) * diff1(P, k, d);
+            valuef p2 = -w * h * diff1(gA, k, d);
+
+            valuef p3;
+
+            for(int j=0; j < 3; j++)
+            {
+                p3 += -Si[j] * diff1(gB[j], k, d) ;
+            }
+
+            valuef p4;
+
+            for(int i=0; i < 3; i++)
+            {
+                for(int j=0; j < 3; j++)
+                {
+                    valuef deriv = diff1(cY.invert()[i,j], k, d);
+
+                    valuef l1 = Si[i] / h;
+                    valuef l2 = safe_divide(Si[j], w);
+
+                    p4 += 0.5f * gA * W * W * l1 * l2 * deriv;
+                }
+            }
+
+            valuef p5 = gA * h * (w - p_star * safe_divide(p_star, w)) * (diff1(W, k, d) / max(W, 0.1f));
+
+            dSi[k] = p1 + p2 + p3 + p4 + p5;
+        }
+
+        return dSi;
+    }
 };
 
 template<typename T>
@@ -1173,59 +1216,21 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     mut_v3f dSi = declare_mut_e(hydro_args.advect_rhs(hydro_args.Si, vi, d, timestep.get()));
 
     //only apply advection terms for matter which is ~0
-    value<bool> is_degenerate = hydro_args.p_star <= min_evolve_p_star;
-
-    //adds the e* viscosity term. Unstable near or in a black hole
-    if_e(args.gA >= MIN_VISCOSITY_LAPSE && !is_degenerate, [&]{
-        v3f vi2 = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY, true);
-
+    if_e(hydro_args.p_star >= min_evolve_p_star, [&]{
         valuef Q = hydro_args.Q;
 
-        as_ref(de_star) += hydro_args.e_star_rhs(args.W, Q, vi2, d);
-    });
+        as_ref(dSi) += hydro_args.Si_rhs(args.gA, args.gB, args.W, args.cY, Q, vi, d);
 
-    valuef w = hydro_args.w;
-    valuef h = hydro_args.calculate_h_with_eos(args.W);
+        //adds the e* viscosity term. Unstable near or in a black hole
+        if_e(args.gA >= MIN_VISCOSITY_LAPSE, [&]{
+            //it can be helpful to calculate the velocity with slightly more restrictive tolerances
+            //because the viscosity is a more unstable term
+            //i don't use this property currently, but if you're finding that more visosity leads to blowups
+            //in the halo around a star, it can be useful to tweak the tol inside calculate_vi for visco = true
+            v3f vi2 = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY, true);
 
-    valuef P = max(hydro_args.eos(args.W) + hydro_args.Q, 0.f);
-
-    v3f dSi_p1;
-
-    //Si rhs
-    for(int k=0; k < 3; k++)
-    {
-        valuef p1 = (-args.gA * pow(max(args.W, 0.1f), -3.f)) * diff1(P, k, d);
-        valuef p2 = -w * h * diff1(args.gA, k, d);
-
-        valuef p3;
-
-        for(int j=0; j < 3; j++)
-        {
-            p3 += -hydro_args.Si[j] * diff1(args.gB[j], k, d) ;
-        }
-
-        valuef p4;
-
-        for(int i=0; i < 3; i++)
-        {
-            for(int j=0; j < 3; j++)
-            {
-                valuef deriv = diff1(args.cY.invert()[i,j], k, d);
-
-                valuef l1 = hydro_args.Si[i] / h;
-                valuef l2 = safe_divide(hydro_args.Si[j], w);
-
-                p4 += 0.5f * args.gA * args.W * args.W * l1 * l2 * deriv;
-            }
-        }
-
-        valuef p5 = args.gA * h * (w - hydro_args.p_star * safe_divide(hydro_args.p_star, w)) * (diff1(args.W, k, d) / max(args.W, 0.1f));
-
-        dSi_p1[k] += (p1 + p2 + p3 + p4 + p5);
-    }
-
-    if_e(!is_degenerate, [&]{
-        as_ref(dSi) += dSi_p1;
+            as_ref(de_star) += hydro_args.e_star_rhs(args.W, Q, vi2, d);
+        });
     });
 
     valuef boundary_damp = 0.25f;
