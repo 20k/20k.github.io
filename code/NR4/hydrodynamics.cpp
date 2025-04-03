@@ -850,7 +850,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     ///Si isn't well defined when gA != 1 in our init conditions
     ///oh! Si isn't a hydrodynamic field!
 
-    valuef w = p_star * 1 * u0;
+    valuef w = p_star * gA * u0;
 
     //with raised index
     v3f ui = Si / ((mu + pressure) * u0);
