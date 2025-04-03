@@ -1,8 +1,6 @@
 #include "hydrodynamics.hpp"
 #include "init_general.hpp"
 
-///so like. What if I did the projective real strategy?
-
 constexpr float min_p_star = 1e-7f;
 constexpr float min_evolve_p_star = 1e-7f;
 
@@ -13,9 +11,6 @@ auto safe_divide(const auto& top, const T& bottom, float tol = 1e-7f)
     valuef bsign = ternary(bottom >= 0, valuef(1.f), valuef(-1.f));
 
     return ternary(fabs(bottom) <= tol, top / (bsign * tol), top / bottom);
-
-    //return ternary(bottom <= tol, T{}, top / bottom);
-    //return top / max(bottom, T{tol});
 }
 
 valuef get_Gamma()
@@ -32,8 +27,6 @@ valuef calculate_epsilon(valuef p_star, valuef e_star, valuef W, valuef w)
 {
     valuef e_m6phi = W*W*W;
     valuef Gamma = get_Gamma();
-
-    ///this probably isn't super regular
 
     ///(W^3^Gamma-1 / w^(gamma - 1)) * e*^Gamma * p*^(Gamma - 2)
     ///p*^(Gamma - 2) * W^3^Gamma-1 * e*^Gamma / w^(Gamma - 1)
@@ -90,8 +83,8 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
 
     //return real_value;
 
-    //try changing this
-    //return ternary(p_star <= min_p_star, {}, real_value);
+    //returning -gB seems more proper to me as that's the limit as p* -> 0, but the paper specifically says to set vi = 0
+    //return ternary(p_star <= min_evolve_p_star, -gB, real_value);
     return ternary(p_star <= min_evolve_p_star, {}, real_value);
 }
 
@@ -126,8 +119,6 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
     valuef Gamma = get_Gamma();
 
     valuef A = pow(e_star, Gamma) * pow(e_m6phi, Gamma - 1) * safe_divide(pow(p_star, Gamma - 1), pow(w, Gamma - 1));
-
-    //ctx.add("DBG_A", A);
 
     ///[0.1, 1.0]
     valuef CQvis = quadratic_strength;
@@ -222,13 +213,15 @@ struct hydrodynamic_concrete
     }
 
     ///rhs here to specifically indicate that we're returning -(di Vec v^i), ie the negative
-    valuef advect_rhs(valuef in, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY, valuef timestep)
+    valuef advect_rhs(valuef in, v3f vi, const derivative_data& d, valuef timestep)
     {
         using namespace single_source;
 
-        /*auto leib = [&](valuef v1, valuef v2, int i)
+        #ifdef NAIVE_DISCRETISATION
+        auto leib = [&](valuef v1, valuef v2, int i)
         {
             return diff1(v1 * v2, i, d);
+            //leibnitzing it out introduces more error
             //return diff1(v1, i, d) * v2 + diff1(v2, i, d) * v1;
         };
 
@@ -239,8 +232,11 @@ struct hydrodynamic_concrete
             sum += leib(in, vi[i], i);
         }
 
-        return -sum;*/
+        return -sum;
+        #endif
 
+        #define VAN_LEER
+        #ifdef VAN_LEER
         ///https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2012/Chapter_4.pdf 4.38
         auto get_delta = [&](valuef q, int which)
         {
@@ -263,6 +259,7 @@ struct hydrodynamic_concrete
             valuef r_mhalf = ternary(v_mhalf >= 0, safe_divide(qm1 - qm2, q0 - qm1), safe_divide(q1 - q0, q0 - qm1));
             valuef r_phalf = ternary(v_phalf >= 0, safe_divide(q0 - qm1, q1 - q0), safe_divide(q2 - q1, q1 - q0));
 
+            //superbee
             auto phi_r = [&](valuef r)
             {
                 auto max3 = [&](valuef v1, valuef v2, valuef v3)
@@ -285,6 +282,8 @@ struct hydrodynamic_concrete
             valuef f_mhalf_1 = 0.5f * v_mhalf * ((1 + theta_mhalf) * qm1 + (1 - theta_mhalf) * q0);
             valuef f_phalf_1 = 0.5f * v_phalf * ((1 + theta_phalf) * q0 + (1 - theta_phalf) * q1);
 
+            //uses the average flux approximation (?)
+            //ideally, I wouldn't use that, the sole blocker is the lack of a good equation source
             valuef f_mhalf_2 = (1.f/2.f) * fabs(v_mhalf) * (1 - fabs(v_mhalf * timestep / d.scale)) * phi_mhalf * (q0 - qm1);
             valuef f_phalf_2 = (1.f/2.f) * fabs(v_phalf) * (1 - fabs(v_phalf * timestep / d.scale)) * phi_phalf * (q1 - q0);
 
@@ -295,14 +294,15 @@ struct hydrodynamic_concrete
         };
 
         return (get_delta(in, 0) + get_delta(in, 1) + get_delta(in, 2)) / d.scale;
+        #endif
     }
 
-    v3f advect_rhs(v3f in, v3f vi, const derivative_data& d, valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY, valuef timestep)
+    v3f advect_rhs(v3f in, v3f vi, const derivative_data& d, valuef timestep)
     {
         v3f ret;
 
         for(int i=0; i < 3;  i++)
-            ret[i] = advect_rhs(in[i], vi, d, gA, gB, W, cY, timestep);
+            ret[i] = advect_rhs(in[i], vi, d, timestep);
 
         return ret;
     }
@@ -340,19 +340,15 @@ valuef full_hydrodynamic_args<T>::get_density(bssn_args& args, const derivative_
 {
     hydrodynamic_concrete hydro_args(d.pos, d.dim, *this);
 
-    //return hydro_args.p_star;
-
-    return ternary(hydro_args.p_star >= min_p_star * 10, hydro_args.calculate_p0(args.W), valuef(0.f));
+    return ternary(hydro_args.p_star >= min_p_star, hydro_args.calculate_p0(args.W), valuef(0.f));
 }
 
 template<typename T>
 valuef full_hydrodynamic_args<T>::get_energy(bssn_args& args, const derivative_data& d)
 {
-    //return get_density(args, d) * 10;
-
     hydrodynamic_concrete hydro_args(d.pos, d.dim, *this);
 
-    return ternary(hydro_args.p_star >= min_p_star * 10, hydro_args.calculate_epsilon(args.W), valuef(0.f));
+    return ternary(hydro_args.p_star >= min_p_star, hydro_args.calculate_epsilon(args.W), valuef(0.f));
 }
 
 template<typename T>
@@ -366,7 +362,7 @@ v4f full_hydrodynamic_args<T>::get_4_velocity(bssn_args& args, const derivative_
 
     v4f velocity = {u0, ui.x(), ui.y(), ui.z()};
 
-    return ternary(hydro_args.p_star >= min_p_star * 10, velocity, (v4f){1,0,0,0});
+    return ternary(hydro_args.p_star >= min_p_star, velocity, (v4f){1,0,0,0});
 }
 
 template<typename T>
@@ -377,7 +373,7 @@ v3f full_hydrodynamic_args<T>::get_colour(bssn_args& args, const derivative_data
 
     v3f raw_colour = {this->colour[0][pos, dim], this->colour[1][pos, dim], this->colour[2][pos, dim]};
 
-    return raw_colour / max(this->p_star[pos, dim], 1e-5f);
+    return raw_colour / max(this->p_star[pos, dim], 1e-7f);
 }
 
 template<typename T>
@@ -439,27 +435,27 @@ std::vector<buffer_descriptor> hydrodynamic_buffers::get_description()
 {
     buffer_descriptor p;
     p.name = "p*";
-    p.dissipation_coeff = 0.00;
+    p.dissipation_coeff = 0;
     p.dissipation_order = 4;
 
     buffer_descriptor e;
     e.name = "e*";
-    e.dissipation_coeff = 0.00;
+    e.dissipation_coeff = 0;
     e.dissipation_order = 4;
 
     buffer_descriptor s0;
     s0.name = "cs0";
-    s0.dissipation_coeff = 0.00;
+    s0.dissipation_coeff = 0;
     s0.dissipation_order = 4;
 
     buffer_descriptor s1;
     s1.name = "cs1";
-    s1.dissipation_coeff = 0.00;
+    s1.dissipation_coeff = 0;
     s1.dissipation_order = 4;
 
     buffer_descriptor s2;
     s2.name = "cs2";
-    s2.dissipation_coeff = 0.00;
+    s2.dissipation_coeff = 0;
     s2.dissipation_order = 4;
 
     buffer_descriptor c0;
@@ -537,6 +533,7 @@ void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue c
     for(int i=0; i < 8; i++)
         intermediate.emplace_back(ctx);
 
+    ///p* e* Si0 Si1 Si2
     for(int i=0; i < 5; i++)
     {
         intermediate[i].alloc(sizeof(cl_float) * cells);
@@ -545,6 +542,7 @@ void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue c
 
     if(use_colour)
     {
+        ///r* g* b*
         for(int i=5; i < 8; i++)
         {
             intermediate[i].alloc(sizeof(cl_float) * cells);
@@ -857,7 +855,7 @@ valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev)
     valuef A = pow(max(W, 0.001f), 3.f * Gamma - 3.f);
     valuef wG = pow(w_prev, Gamma - 1);
 
-    return safe_divide(wG, wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 1e-7f), Gamma - 2), 1e-7f);
+    return safe_divide(wG, wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, 1e-7f), Gamma - 2));
 }
 
 valuef calculate_w_constant(valuef W, const inverse_metric<valuef, 3, 3>& icY, v3f Si)
@@ -900,6 +898,7 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef
 
         pin(w_next);
 
+        ///relaxation. Its not really necessary
         w = mix(w, w_next, valuef(0.9f));
         pin(w);
     }
@@ -907,17 +906,6 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef
     return w;
 }
 
-valuef w2_m_p2(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef, 3, 3> icY, v3f Si, valuef w)
-{
-    valuef p_sq = p_star * p_star;
-
-    valuef cst = calculate_w_constant(W, icY, Si);
-
-    valuef D = w_next_interior(p_star, e_star, W, w);
-
-    return max(cst * D*D, 0.f);
-
-}
 void calculate_w_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_base_args<buffer<valuef>> hydro, buffer_mut<valuef> w_out,
                       literal<v3i> idim, literal<valuef> scale,
                       literal<valuei> positions_length)
@@ -962,10 +950,7 @@ void calculate_w_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     bssn_args args(pos, dim, in);
 
-    valuef w = calculate_w(p_star, e_star, args.W, args.cY.invert(), Si);
-    //w = max(w, p_star * args.gA * 1);
-
-    as_ref(w_out[pos, dim]) = w;
+    as_ref(w_out[pos, dim]) = calculate_w(p_star, e_star, args.W, args.cY.invert(), Si);
 }
 
 #define MIN_LAPSE 0.15f
@@ -1062,8 +1047,10 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     bssn_args args(pos, dim, in);
     hydrodynamic_concrete hydro_args(pos, dim, h_in, util);
 
+    //crank nicolson
     auto write_result = [&](valuef dt_p_star, valuef dt_e_star, v3f dt_Si, v3f dt_col)
     {
+        //predictor, ie euler
         if_e(iteration.get() == 0, [&]{
             valuef fin_p_star = h_base.p_star[pos, dim] + dt_p_star * timestep.get();
             valuef fin_e_star = h_base.e_star[pos, dim] + dt_e_star * timestep.get();
@@ -1077,7 +1064,6 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             for(int i=0; i < 3; i++)
                 as_ref(dt_inout.Si[i][pos, dim]) = dt_Si[i];
 
-            //the non correspondance here with the timestep may be causing issues
             as_ref(h_out.p_star[pos, dim]) = fin_p_star;
             as_ref(h_out.e_star[pos, dim]) = fin_e_star;
 
@@ -1098,6 +1084,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             }
         });
 
+        //corrector, ie the next fixed point step for crank nicolson
         if_e(iteration.get() != 0, [&]{
             float relax = 0.f;
 
@@ -1110,6 +1097,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             if(use_colour)
                 root_dcol = declare_e(dt_inout.index_colour(pos, dim));
 
+            //impl = 1 == backwards euler, impl = 0 == fowards euler. impl = 0.5 == crank nicolson/implicit midpoint
             float impl = 0.5;
             float expl = 1 - impl;
 
@@ -1141,6 +1129,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         });
     };
 
+    //early terminate
     if_e(hydro_args.p_star <= min_p_star, [&]{
         valuef dp_sum = 0;
 
@@ -1156,6 +1145,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         });
     });
 
+    //we're in a black hole, damp away the material
     if_e(args.gA < MIN_LAPSE, [&]{
         valuef damp = 0.1f;
 
@@ -1177,13 +1167,15 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     v3f vi = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY, false);
 
-    valuef dp_star = hydro_args.advect_rhs(hydro_args.p_star, vi, d, args.gA, args.gB, args.W, args.cY, timestep.get());
+    valuef dp_star = hydro_args.advect_rhs(hydro_args.p_star, vi, d, timestep.get());
 
-    mut<valuef> de_star = declare_mut_e(hydro_args.advect_rhs(hydro_args.e_star, vi, d, args.gA, args.gB, args.W, args.cY, timestep.get()));
-    mut_v3f dSi = declare_mut_e(hydro_args.advect_rhs(hydro_args.Si, vi, d, args.gA, args.gB, args.W, args.cY, timestep.get()));
+    mut<valuef> de_star = declare_mut_e(hydro_args.advect_rhs(hydro_args.e_star, vi, d, timestep.get()));
+    mut_v3f dSi = declare_mut_e(hydro_args.advect_rhs(hydro_args.Si, vi, d, timestep.get()));
 
+    //only apply advection terms for matter which is ~0
     value<bool> is_degenerate = hydro_args.p_star <= min_evolve_p_star;
 
+    //adds the e* viscosity term. Unstable near or in a black hole
     if_e(args.gA >= MIN_VISCOSITY_LAPSE && !is_degenerate, [&]{
         v3f vi2 = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY, true);
 
@@ -1199,7 +1191,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     v3f dSi_p1;
 
-    ///we could use the advanced Si here
+    //Si rhs
     for(int k=0; k < 3; k++)
     {
         valuef p1 = (-args.gA * pow(max(args.W, 0.1f), -3.f)) * diff1(P, k, d);
@@ -1227,10 +1219,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             }
         }
 
-        //valuef w2_m_p2_calc = w2_m_p2(hydro_args.p_star, hydro_args.e_star, args.W, args.cY.invert(), hydro_args.Si, w);
-
         valuef p5 = args.gA * h * (w - hydro_args.p_star * safe_divide(hydro_args.p_star, w)) * (diff1(args.W, k, d) / max(args.W, 0.1f));
-        //valuef p5 = args.gA * h * safe_divide(w2_m_p2_calc, w) * (diff1(args.W, k, d) / max(args.W, 0.1f));
 
         dSi_p1[k] += (p1 + p2 + p3 + p4 + p5);
     }
@@ -1247,13 +1236,13 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     v3f dt_col;
 
-    /*if(use_colour)
+    if(use_colour)
     {
         v3f col = h_in.index_colour(pos, dim);
 
-        dt_col = hydro_args.advect_rhs(col, vi, d);
+        dt_col = hydro_args.advect_rhs(col, vi, d, timestep.get());
         dt_col += ternary(boundary_dist <= 15, -col * boundary_damp, {});
-    }*/
+    }
 
     write_result(dp_star, de_star, as_constant(dSi), dt_col);
 }
@@ -1299,6 +1288,7 @@ void enforce_hydro_constraints(execution_context& ectx, bssn_args_mem<buffer<val
         return_e();
     });
 
+    //as per paper, clamp e* to 10 p*. I haven't found this to be a problem
     //#define CLAMP_E_STAR
     #ifdef CLAMP_E_STAR
     if_e(hydro.p_star[pos, dim] <= min_p_star * 10, [&]{
@@ -1308,6 +1298,8 @@ void enforce_hydro_constraints(execution_context& ectx, bssn_args_mem<buffer<val
     });
     #endif
 
+    //clamps Si. In some formulations, I've found this to be very important for stability
+    //currently it seems unimportant for the van-leer scheme, but the evolution of Si can be unstable
     //#define CLAMP_VELOCITY
     #ifdef CLAMP_VELOCITY
     //test bound
@@ -1375,6 +1367,7 @@ void sum_rest_mass(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     bssn_args args(pos, dim, in);
     hydrodynamic_concrete hydro_args(pos, dim, hydro, util);
 
+    //surprise! p* is the conserved rest mass
     valuef m0 = hydro_args.p_star;
 
     valued as_double = (valued)m0 * pow(10., 12.) * (valued)pow(scale.get(), 3.f);
@@ -1436,6 +1429,7 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
     for(auto& i : pack.ns_colours)
         lin_cols.push_back(i.value_or((t3f){1,1,1}));
 
+    //buffer for storing our stars colours in
     cl::buffer lin_buf(ctx);
     lin_buf.alloc(sizeof(cl_float3) * lin_cols.size());
     lin_buf.write(cqueue, lin_cols);
@@ -1445,6 +1439,7 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
     hydrodynamic_buffers& bufs = *dynamic_cast<hydrodynamic_buffers*>(to_init);
     hydrodynamic_utility_buffers& ubufs = *dynamic_cast<hydrodynamic_utility_buffers*>(to_init_utility);
 
+    //initialises the hydrodynamics
     {
         t3i dim = pack.dim;
 
@@ -1487,6 +1482,7 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
 
     auto utility_buffers = ubufs.get_buffers();
 
+    //calculate W, and Q. Q requires the derivative of W, and evolving hydro requires the derivative of Q
     auto calc_intermediates = [&](hydrodynamic_buffers& in)
     {
         {
@@ -1533,6 +1529,7 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
 
     int elen = get_evolve_size_with_boundary(sdata.dim, 3);
 
+    //evolve the hydrodynamics
     {
         std::vector<cl::buffer> cl_in = bufs_in.get_buffers();
         std::vector<cl::buffer> cl_out = bufs_out.get_buffers();
@@ -1591,6 +1588,7 @@ void hydrodynamic_plugin::finalise(cl::context ctx, cl::command_queue cqueue, co
     hydrodynamic_buffers& bufs = *dynamic_cast<hydrodynamic_buffers*>(sdata.inout);
     auto all = bufs.get_buffers();
 
+    //enforce the constraints once at the end of the simulation step
     {
         cl::args args;
 
