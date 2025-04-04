@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Numerical Relativity 104: Simulating binary neutron star collisions (N body relativistic eularian hydrodynamics)"
+title:  "Numerical Relativity 10x: Simulating binary neutron star collisions (N body relativistic eularian hydrodynamics)"
 date:   2026-02-02 12:33:23 +0000
 categories: C++
 ---
