@@ -13,3 +13,6 @@
 [submodule "code/common/networking"]
 	path = code/common/networking
 	url = https://github.com/20k/networking
+[submodule "code/common/libtov"]
+	path = code/common/libtov
+	url = git@github.com:20k/libtov.git

@@ -3,10 +3,11 @@
 
 #include <vec/tensor.hpp>
 #include <vector>
-#include "tov.hpp"
+#include <libtov/tov.hpp>
 #include <toolkit/opencl.hpp>
 
 struct discretised_initial_data;
+using t3f = tensor<float, 3>;
 
 ///end goal: calculate conformal ppw2p and conformal aij_aij
 ///take in a tov solution
