@@ -144,7 +144,6 @@ The procedure is as follows:
 
 I'll be showing you the code for how to do this. One thing to note is that $K$ is frequently given in geometric units instead of physical units, so I'll flag up when the units are wonky
 
-
 These equations are extremely easy to solve, once you've got everything in the correct units. Firstly, you might notice that the equations are singular at $r=0$. We're going to instead start at $r=r_{min}=10^{-6}$
 
 Then, we need initial values for our other variables, at $r=r_{min}$:
@@ -160,7 +159,7 @@ Once we've done this, lets integrate. This is done by spotting that these are si
 
 ## Implementation
 
-These equations are extremely fast to solve, so we're going for the route one solution here. Here's how all the unit conversions work:
+These equations are extremely fast to solve, so we're going for the route one solution of basic euler integration. Here's how all the unit conversions work:
 
 ```c++
 ///https://www.seas.upenn.edu/~amyers/NaturalUnits.pdf

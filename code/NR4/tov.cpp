@@ -1,11 +1,9 @@
 #include "tov.hpp"
 #include <cmath>
-#define M_PI 3.14159265358979323846
-#include <vec/vec.hpp>
-#include "../common/value2.hpp"
-#include "../common/single_source.hpp"
 #include "laplace.hpp"
-#include "value_alias.hpp"
+#include <numbers>
+
+auto pi = std::numbers::pi;
 
 ///https://www.seas.upenn.edu/~amyers/NaturalUnits.pdf
 //https://nssdc.gsfc.nasa.gov/planetary/factsheet/sunfact.html
@@ -107,7 +105,7 @@ double tov::parameters::energy_density_to_pressure(double mu) const
 tov::integration_state tov::make_integration_state(double p0, double rmin, const parameters& param)
 {
     double e = param.rest_mass_density_to_energy_density(p0);
-    double m = (4./3.) * M_PI * e * std::pow(rmin, 3.);
+    double m = (4./3.) * pi * e * std::pow(rmin, 3.);
 
     integration_state out;
     out.p = param.rest_mass_density_to_pressure(p0);
@@ -169,8 +167,8 @@ integration_dr get_derivs(double r, const tov::integration_state& st, const tov:
 
     integration_dr out;
 
-    out.dm = 4 * M_PI * e * std::pow(r, 2.);
-    out.dp = -(e + p) * (m + 4 * M_PI * r*r*r * p) / (r * (r - 2 * m));
+    out.dm = 4 * pi * e * std::pow(r, 2.);
+    out.dp = -(e + p) * (m + 4 * pi * r*r*r * p) / (r * (r - 2 * m));
     return out;
 }
 
@@ -224,7 +222,7 @@ std::vector<double> tov::search_for_rest_mass(double adm_mass, const parameters&
 {
     double r_approx = adm_mass / 0.06;
 
-    double start_E = adm_mass / ((4./3.) * M_PI * r_approx*r_approx*r_approx);
+    double start_E = adm_mass / ((4./3.) * pi * r_approx*r_approx*r_approx);
     double start_P = param.energy_density_to_pressure(start_E);
     double start_density = param.pressure_to_rest_mass_density(start_P);
 
@@ -358,7 +356,7 @@ std::vector<double> initial::calculate_tov_phi(const tov::integration_solution& 
         double r = isotropic_to_schwarzschild(r_bar);
         double e = tov::interpolate_by_radius(sol.radius, sol.energy_density, r);
 
-        check_mass += 4 * M_PI * r_bar*r_bar * pow(phi[i], 5.) * e * (r_bar - last_r_bar);
+        check_mass += 4 * pi * r_bar*r_bar * pow(phi[i], 5.) * e * (r_bar - last_r_bar);
 
         last_r_bar = r_bar;
     }

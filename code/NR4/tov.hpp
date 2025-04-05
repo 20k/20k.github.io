@@ -3,7 +3,6 @@
 
 #include <vector>
 #include <vec/tensor.hpp>
-#include <toolkit/opencl.hpp>
 
 using t3i = tensor<int, 3>;
 using t3f = tensor<float, 3>;
