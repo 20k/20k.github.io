@@ -15,7 +15,6 @@
 #include <SFML/Graphics/Image.hpp>
 #include <GLFW/glfw3.h>
 #include "raytrace_init.hpp"
-#include "tov.hpp"
 #include "laplace.hpp"
 #include "init_neutron_star.hpp"
 #include "plugin.hpp"

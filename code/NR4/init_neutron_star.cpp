@@ -1,5 +1,4 @@
 #include "init_neutron_star.hpp"
-#include "tov.hpp"
 #include "../common/vec/tensor.hpp"
 #include "../common/value2.hpp"
 #include "../common/single_source.hpp"
@@ -461,9 +460,7 @@ void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cq
 
 neutron_star::data::data(const parameters& p) : params(p)
 {
-    tov::parameters tov_params;
-    tov_params.K = params.K.msols.value();
-    tov_params.Gamma = params.Gamma;
+    tov::eos::numerical tov_params = tov::eos::from_polytropic(params.Gamma, params.K.msols.value());
 
     /*//kg/m^3 -> m/m^3 -> 1/m^2
     double p0_geom = si_to_geometric(p0, 1, 0);

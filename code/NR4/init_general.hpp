@@ -5,7 +5,6 @@
 #include "tensor_algebra.hpp"
 #include "laplace.hpp"
 #include "init_neutron_star.hpp"
-#include "tov.hpp"
 #include "plugin.hpp"
 
 ///todo: tabulate the underlying equation of state, stick it in a buffer per star
