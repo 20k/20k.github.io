@@ -79,14 +79,14 @@ Here's some additional equations that are useful:
 
 In general, you'll need to numerically invert $F$. You'll note that $\epsilon$ is also not specified here, and it is also provided by your equation of state
 
-### Equations of state
+### Equation of state (EOS)
 
-We have two equations here:
+The simplest equation of state is to model our body as something called a polytrope. This assigns simple relations between our currently unconstrained variables:
 
-1. $P = (\Gamma - 1) \rho_0 \epsilon$
-2. $P = K \rho_0^\Gamma$
+1. $P = (\Gamma - 1) \rho_0 \epsilon$ - sometimes called the Gamma law equation of state, for a perfect fluid
+2. $P = K \rho_0^\Gamma$ - the polytropic equation of state
 
-The former is the perfect fluid equation of state (often assumed implicitly), and the latter is the polytropic equation of state (which makes our neutron star a 'polytrope'). This is the simplest equation of state in general
+The perfect fluid equation of state is often assumed implicitly. Its worth noting that the polytropic equation of state is actually a *subset* of the perfect fluid equation of state for an adiabatic process, which means that this is actually only one state model overall. In general, basic hydrodynamic simulations tend to construct stars with a polytropic equation of state, and then evolve them with the perfect fluid equation of state
 
 With these, we can calculate our variables a bit more directly:
 
@@ -98,11 +98,11 @@ With these, we can calculate our variables a bit more directly:
 |$K$|Polytropic Constant (informal)|$\mathrm{kg}^{1-\Gamma} \; \mathrm{m}^{3\Gamma-1}\;\mathrm{s}^{-2}$|$\mathrm{m}^{2\Gamma-2}$|||
 |$\Gamma$| Polytropic index, often $2$| None | None |||
 
-This in general is the 'toy' equation of state, modelling a neutron star as a simple polytrope
+This in general is the 'toy' equation of state, although it is extremely widely used in these simulations. You may see papers also using $\Gamma = 1.75$. In this article, while I'll be going over specific test cases later, please assume that $\Gamma = 2$ and $K = 123.641$ in units of $c=G=M_\odot=1$
 
 ### Less toy equations of state
 
-The more advanced modelling is to consider your neutron star as a piecewise polytrope:
+A more advanced method of modelling a neutron star is to construct a piecewise representation of its equation of state: Essentially, you piece together a bunch of polytropic parts (with different $K$ and $\Gamma$ values) based on some real physics, and ensure some kind of continuity at the boundary between them:
 
 https://www.as.utexas.edu/astronomy/education/spring13/bromm/secure/TOC_Supplement.pdf
 
@@ -117,7 +117,7 @@ K_n \rho_0^{\Gamma_n}, & \mathrm{\rho_0^{n-1} < \rho_0 < \rho_0^n} \\
 \end{equation}
 $$
 
-And
+Using a piecewise perfect fluid equation of state, we can get the relations for the other variables:
 
 $$
 \begin{align}
@@ -127,18 +127,18 @@ a_i &= a_{i-1} + \frac{K_{i-1}}{\Gamma_{i-1} - 1} (\rho_0^i)^{\Gamma_{i-1} - 1} 
 \end{align}
 $$
 
-I've converted these equations into our notation
+I've converted these equations into our notation, as you should be aware that $\epsilon$ has a different construction in the referenced papers. Note that the $i$ in $(p_0^i)$ is an index due to an unfortunate notational clash, and it gets raised to the power of $\Gamma_{i-1} - 1$
 
 https://arxiv.org/pdf/0812.2163 see (7)
 https://www.as.utexas.edu/astronomy/education/spring13/bromm/secure/TOC_Supplement.pdf See (25) for details
 
 ## Solving the TOV equations
 
-It is common to solve these equations in units of $c=G=M_\odot$, where $M_\odot$ is the mass of the sun. This is why I've provided all the units up above, and we're going go through [converting](https://www.seas.upenn.edu/~amyers/NaturalUnits.pdf) from SI units, to geometric units ($c=G=1$), to that new unit system ($c=G=M_\odot$). In general, you need to redefine mass to avoid your numbers blowing up too much. We're also going to be solving tov with the 'toy' equation of state ($\Gamma = 2$), though a lot of room is left for you to plug in any equation of state that you like into the code presented
+It is common to solve these equations in units of $c=G=M_\odot=1$, where $M_\odot$ is the mass of the sun. This is why I've provided all the units up above, and we're going go through [converting](https://www.seas.upenn.edu/~amyers/NaturalUnits.pdf) from SI units, to geometric units ($c=G=1$), to that new unit system ($c=G=M_\odot=1$). In general, you need to redefine mass to avoid the numerics blowing up. We're also going to be solving TOV with the 'toy' equation of state ($\Gamma = 2$), though a lot of room is left for you to plug in any equation of state that you like into the code presented
 
-The procedure is as follows:
+The procedure for doing the unit conversion is as follows:
 
-1. Convert your quantity into geometric units
+1. Convert your quantity into geometric units as per usual
 2. Convert the mass of the sun, $1.988416 * 10^{30} \mathrm{kg}$, into meters, which is ~$1476.6196 \mathrm{m}$
 3. Divide your quantity in $\mathrm{m}^n$ (eg $\mathrm{m}^2$) by $1476.6196^n$
 
