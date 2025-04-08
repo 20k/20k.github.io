@@ -734,7 +734,7 @@ $$\begin{align}
 \end{align}$$
 
 Initially this might seem a tad unsolvable, but we have an equation of state that you can use to tie together $\mu$ and $p$. This paper leaves out the fact that there is no easy solution to this series of equations, and so I'll detail the procedure for solving this
-
+of
 1. Make an initial guess for $W_0=1$ and $\mu_0 = \mu_H$
 2. Numerically find a $\mu$ such that $(\mu_n + p) W^2 - p = \mu_H$, giving $\mu_{n+1}$. I do a simple linear search. You'll also have to invert the equation of state to go from $\mu$ -> $p$, which I tabulate and bruteforce as its fairly quick to search
 3. Calculate $W_{n+1} = \frac{\sqrt{1 + \sqrt{4 \frac{\gamma_{ij} S^i S^j}{(\mu + p)^2} + 1}}}{\sqrt{2}}$
