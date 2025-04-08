@@ -650,33 +650,6 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     bssn_args args(pos, dim, in);
 
-    /*auto pressure_to_p0 = [&](valuef P)
-    {
-        valuei offset = index * eos_data.pressure_stride.get();
-
-        mut<valuei> i = declare_mut_e(valuei(0));
-        mut<valuef> out = declare_mut_e(valuef(0));
-
-        for_e(i < eos_data.pressure_stride.get() - 1, assign_b(i, i+1), [&]{
-            valuef p1 = eos_data.pressures[offset + i];
-            valuef p2 = eos_data.pressures[offset + i + 1];
-
-            if_e(P >= p1 && P <= p2, [&]{
-                valuef val = (P - p1) / (p2 - p1);
-
-                as_ref(out) = (((valuef)i + val) / (valuef)eos_data.pressure_stride.get()) * max_density;
-
-                break_e();
-            });
-        });
-
-        if_e(i == eos_data.pressure_stride.get(), [&]{
-            print("Error, overflowed pressure data\n");
-        });
-
-        return declare_e(out);
-    };*/
-
     auto p0_to_pressure = [&](valuef p0)
     {
         valuei offset = index * eos_data.pressure_stride.get();
