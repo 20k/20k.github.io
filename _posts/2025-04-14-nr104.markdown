@@ -623,7 +623,7 @@ Next up, we need to give it momentum and spin, which means exiting spherical sym
 
 The next step we need to do is take our matter distribution - spin it up somehow, and give it some momentum. To do this, we'll need to transplant it into the ADM formalism, and solve a bunch more equations
 
-The actual paper we're going to be implementing today is [this](https://arxiv.org/pdf/1606.04881) one. Its going to be a step up in complexity compared to things we've solved previously together. One of the key things today in this article is that I'm going to present you with a simpler and fast procedure for implementing this paper, without losing any generality, as I've been able to skip some of the complexity. For consistency, we'll be keeping our existing notation, and below is the conversions we'll make
+The actual paper we're going to be implementing today is [this](https://arxiv.org/pdf/1606.04881) one. Its going to be a step up in complexity compared to things we've solved previously together. One of the key things today in this article, is that I'm going to present you with a simpler and fast procedure for implementing this paper, without losing any generality, as I've been able to skip some of the complexity. For consistency, we'll be keeping our existing notation, and below is the conversions we'll make:
 
 |Symbol|This article|Paper
 |-|-|-|
@@ -631,6 +631,8 @@ The actual paper we're going to be implementing today is [this](https://arxiv.or
 |Pressure|$P$ or $p$|$p$|
 
 I'm trying to stem the incredibly random notational divergence in the literature a bit to make things less crazy to follow, which is why I'm converting. We'll also be swapping from $P$ to $p$, because $P^i$ will be used for the ADM momentum
+
+Todo: need an ADM recap
 
 If you remember from our black hole initial conditions paper, the basic idea for many kinds of initial conditions is that of conformal flatness. That is to say, we take our adm metric $\gamma_{ij}$, and perform a conformal transform on it by a scalar, to end up with a conformal metric. In this paper, our ADM variables are transformed as follows:
 
@@ -646,17 +648,17 @@ Where $$\bar{\gamma}_{ij}$$ is the conformally flat (ie the identity matrix) met
 
 [^explicitly]: I explicitly picked this paper because it allows us to construct multiple black holes and neutron stars together
 
-The conformally flatness assumption, as well as the maximal slice assumption, gives us a familiar looking constraint to solve:
+The conformally flatness assumption, as well as the maximal slice assumption, gives us a familiar looking constraint to solve [(18)](https://arxiv.org/pdf/1606.04881):
 
 $$\partial^i \partial_i \Phi = -\frac{1}{8} \Phi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \Phi^5 \mu_H$$
 
 One thing to note is that any time you see a $\pi$, its a sure fire bet that it means there are matter terms involved
 
-|Variable|Meaning|
-|-|-|
-|$\Phi$|Conformal factor, unknown|
-|$\bar{A}_{ij}$| Conformal extrinsic curvature|
-|$\mu_H$| Scalar matter source for the ADM equations|
+|Variable|Meaning| Solution method |
+|-|-|-|
+|$\Phi$|Conformal factor| Laplacian, via the hamiltonian constraint |
+|$\bar{A}_{ij}$| Conformal extrinsic curvature| Derived from our physical parameters (mass, momentum, spin), requires some numerical integration|
+|$\mu_H$| Scalar matter source for the ADM equations| Derived from our TOV solution, requires some numerical integration |
 
 This paper in theory lets us solve the TOV equations in a conformally flat spacetime, via (77-79), but we've deliberately skipping this step, as solving the TOV equations directly is much simpler. In general I wouldn't recommend implementing section VI (other than (83-84)), and I think eq (82) is incorrect unfortunately
 
@@ -669,6 +671,7 @@ The procedure in this paper is as follows:
 3. Use these, as well as our ADM momentum and angular momentum to calculate $\bar{A}_{ij}$
 4. Use that $\bar{A}_{ij}$ solution to construct $\Phi$, the real conformal factor
 5. Construct the final real hydrodynamic variables from the conformal ones defined earlier
+6. Go outside and celebrate with our loved ones who miss us
 
 ## Solving for $\Phi_{tov}$
 
@@ -681,7 +684,7 @@ C &= \frac{1}{2R}(\sqrt{R^2 - 2MR} + R - M) \mathrm{exp}(-\int^R_0 \frac{1 - (1 
 
 Where $R$ is the radius of the star in schwarzschild coordinates, and $M$ is the total rest mass (ie the integral of $m(r)$). Technical details of how this works is available on the linked page
 
-Integrating this is moderately straightforward, and can be done by keeping a running summation of the integral within $\mathrm{exp}$. $m$ is still secretly a function of radius $m(r)$, and is still the cumulative mass from earlier. To get back to the topic at hand, note that we're looking for a $\Phi_{tov}$ from a metric defined as follows:
+Integrating this is moderately straightforward, and can be done by keeping a running summation of the integral within $\mathrm{exp}$. Todo: Code! $m$ is still secretly a function of radius $m(r)$, and is still the cumulative mass from earlier. To get back to the topic at hand, note that we're looking for a $\Phi_{tov}$ from a metric defined as follows:
 
 $$ds^2 = -\alpha^2(\bar{r}) dt^2 + (\Phi_{tov}(\bar{r}))^4(d\bar{r}^2 + \bar{r}^2 d\Omega)$$
 
@@ -693,18 +696,18 @@ We can see that $e^{2\Lambda} = \Phi_{tov}^4$. And, helpfully, someone smarter[^
 
 [^smrt]: [https://physics.stackexchange.com/questions/145342/schwarzschild-metric-in-isotropic-coordinates](https://physics.stackexchange.com/questions/145342/schwarzschild-metric-in-isotropic-coordinates)
 
-This is a much nicer way of calculating this quantity, as $\Phi_{tov} = (\frac{r}{\bar{r}})^\frac{1}{2}$. Do note as an implementation detail, when you're looking up eg a pressure at a radius, you'll want to ensure that you have the ability to look it up by $isotropic$ radius. Ie we need to keep on hand the function $r = f(\bar{r})$, which you should tabulate somewhere
+This is a much nicer way of calculating this quantity, as $\Phi_{tov} = (\frac{r}{\bar{r}})^\frac{1}{2}$. Do note as an implementation detail, when you're looking up eg a pressure at a radius, you'll want to ensure that you have the ability to look it up by *isotropic* radius. Ie we need to keep on hand the function $r = f(\bar{r})$, which you should tabulate somewhere
 
 ## Calculating the conformal hydrodynamic variables
 
-Once we have $\phi_{tov}$, this is straightforward. We define new conformal variables as such (83-84), keeping in mind that we're using slightly different notation from the paper:
+Once we have $\Phi_{tov}$, this is straightforward. We define new conformal variables as such (83-84), keeping in mind that we're using slightly different notation from the paper:
 
 $$\begin{align}
 \bar{\mu} &= \Phi_{tov}^8 \mu_{tov}\\
 \bar{p} &= \Phi_{tov}^8 p_{tov}
 \end{align}$$
 
-These are the only two variables we now need from the hydrodynamics
+These are the only two variables we now need from the hydrodynamics. You'll need the equation of state for later, so keep it around somewhere
 
 ## Calculating $\bar{A}^{ij}$
 
@@ -804,7 +807,7 @@ $$N(r) = \frac{8 \pi}{3} \int^r_0 \kappa x^4\;dx$$
 
 Remembering that $\kappa(x)$ is a function, and $x$ is the integration variable
 
-When $r>r_0$, $N(r) = 1$, and you should enforce this
+When $r>r_0$, $N(r) = 1$, and you should enforce this. Todo: Boundary condition for squiggly N
 
 ## Calculating $\Phi$, the conformal factor
 
@@ -859,7 +862,7 @@ Next up, we need to do a bit of work. First off, we need to remember that we can
 
 $$- 2 \pi \Phi^{-3} \bar{\mu}_H$$
 
-Which is a matter term on the right hand side to prevent it from being flat. To make this all interoperate correctly and give correct solutions, I'll lay out how this works:
+Which is a matter term on the right hand side, and prevents it from being trivially flat. To make this all interoperate correctly and give correct solutions, I'll lay out how this works:
 
 |Type|Function|
 |-|-|
@@ -887,7 +890,7 @@ This lets us solve for our final quantities. Firstly, we'll need some helpers:
 | Conformal Linear Adm Matter Source | $$\tilde{S}^i_P$$ | $$P^i \sigma(r)$$ |
 | Conformal Adm Matter Source | $$\tilde{S}^i$$ | $$\tilde{S}^i_P + \eta^{ik} \tilde{S}_k^J$$ |
 
-It is important to note that $\tilde{S}_i^J$ is not simply a function of radius, and is both a function of radius *and* angle. This gives us our final quantities:
+It is super important to note that $\tilde{S}_i^J$ is not simply a function of radius, and is both a function of radius *and* angle - this breaks the spherical symmetry of the solution, and is why we can't solve this in 1D. This gives us our final quantities:
 
 |Name|Symbol|Value|
 |-|-|-|
@@ -909,18 +912,57 @@ The variables $S^i$ and $\mu_H$ are not actually hydrodynamic quantities, and so
 |$\mu$|Total mass-energy density|
 |$p$|Pressure|
 
-We unfortunately cannot simply transform our conformal variables, as they are not actually equivalent. We must instead construct them from $S^i$ and $\mu_H$. To do this, we have the following equations:
+We unfortunately cannot simply transform our conformal variables from earlier, as they are not actually equivalent - its a non linear transform, so our variables wouldn't correspond correctly. We must instead construct them from $S^i$ and $\mu_H$ only. To do this, we have the following equations:
 
 $$\begin{align}
 \mu_H &= (\mu + p) W^2 - p \\
 \gamma_{ij} S^i S^j &= (\mu + p)^2 W^2 (W^2 - 1)
 \end{align}$$
 
-Initially this might seem a tad unsolvable, but we have an equation of state that you can use to tie together $\mu$ and $p$. This paper leaves out the fact that there is no easy solution to this series of equations, and so I'll detail the procedure for solving this
+Initially this might seem a tad unsolvable, but we have an equation of state that you can use to tie together $\mu$ and $p$. This paper leaves out the fact that there is no easy solution to this series of equations, and so I'll detail a procedure I came up with for solving this. You'll also need the ability to go from $\mu$ -> $p$, eg via a numerical invert to your equation of state. I tabulate this
 
 1. Make an initial guess for $W_0=1$ and $\mu_0 = \mu_H$
-2. Numerically find a $\mu$ such that $(\mu_n + p) W^2 - p = \mu_H$, giving $\mu_{n+1}$. I do a simple linear search. You'll also have to invert the equation of state to go from $\mu$ -> $p$, which I tabulate and bruteforce as its fairly quick to search
-3. Calculate $W_{n+1} = \frac{\sqrt{1 + \sqrt{4 \frac{\gamma_{ij} S^i S^j}{(\mu + p)^2} + 1}}}{\sqrt{2}}$
+2. Calculate $W_{n+1} = \frac{\sqrt{1 + \sqrt{4 \frac{\gamma_{ij} S^i S^j}{(\mu_n + p)^2} + 1}}}{\sqrt{2}}$
+3. Numerically find a $\mu$ such that $(\mu_n + p) W_{n+1}^2 - p = \mu_H$, giving $\mu_{n+1}$. I do a simple linear search
 4. Iterate until the desired accuracy is reached
 
 This is applying fixed point iteration to these two equations to solve them simultaneously. Once you've solved for $W$ and $\mu$, then calculate $u^i = \frac{S^i}{(\mu + p)W}$. The full fluid 4-velocity is $(W, u^i)$
+
+The hydrodynamics formalism you're using might also require the rest mass density, or energy, and in this case: simply apply the equation of state to recover them
+
+# Results
+
+If all goes well, you'll get something that looks like this, when doing some basic raytracing:
+
+![polytrope](/assets/nr4_polytrope.PNG)
+
+Its actually a bit tricky to test this in general. There's some sanity checks we can run:
+
+1. Calculate the quantity $M_0 = \int \rho_0 u^0 W^{-3}$ (where $W$ is the BSSN conformal factor), and check that its equal to the rest mass
+2. Calculate the hamiltonian constraint, and check the error. You may have small errors due to the presence of a discontinuity at the edge of the star
+3. Implement a relativistic hydrodynamics formalism to check that the star is stable and works correctly
+
+Really though, the only proper way to check this is 3. So along with this article, I've bundled an entire hydrodynamics formalism along with the code, which will be the subject of the next article
+
+Todo: Link a static star
+
+# Discussion + Limitations
+
+While this approach is quite general, it does have some limitations:
+
+1. The approximation to a spinning star isn't super adequate. In general, spinning stars can be larger than a static star before forming a black hole, which isn't really expressible here as our solution is derived from a static star
+2. Our stars are strictly spherical initially (though with a non spherical velocity), resulting in them relaxing to a stable oblate shape
+
+These aren't too bad, but its always worth knowing where the limitations lie
+
+In general, I'm pretty happy with how this has all turned out: In my first pass at this a few years ago as a beginner, I followed the paper's methodology much more closely and it was significantly more complex in comparison to what I've presented here. I'm quite pleased at how much I've managed to simplify this, so its a huge win in general for me. It helps when you have some idea of what you're doing!
+
+# Next time
+
+This article was initially *half* of a larger article, that simply carried on straight into an introduction to relativistic hydrodynamics. The formalism I implemented turned out to have some problems, so I made the executive decision to split out the formalism-independent parts into this article, and the next one will examine a specific hydrodynamics scheme, which is why the ending is a little abrupt here. We'll probably get at least one more article on neutron stars down the line as well, where I implement a more modern formalism
+
+This series has (largely, I added some bits) been a complete from-scratch reimplementation of techniques I experimented with when I was much less experienced with numerical relativity, and past me wasn't aware of the limitations of the formalism I chose back then. It isn't so unworkable as to be useless, but there are some limitations which are very interesting in their own right as they directly lead into the reasons that newer formalisms were developed, so its a very interesting case to run through
+
+Anyway. Here's a picture of a cat. Good luck!
+
+Todo: Cat
