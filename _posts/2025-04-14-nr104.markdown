@@ -31,7 +31,7 @@ All stars (other than black holes) are in something known as hydrostatic equilib
 
 We don't get to pick this pressure completely freely however. There are two other variables we need to complete our description of a star:
 
-1. The density of matter at the centre of the star $p_c$
+1. The density of matter at the centre of the star $\rho_c$
 2. An *equation of state*, which relates the pressure $P$, to the density of matter, within the star
 
 It might seem surprising, but with this all together, we're able to fully describe any **non spinning** body in hydrostatic equilibrium. This gives us:
@@ -70,13 +70,15 @@ $$\begin{align}
 \frac{dP}{dr} &= -(\mu + P)\frac{m + 4 \pi r^3 P}{r(r-2m)}
 \end{align}$$
 
+Its time to lay out all the notation we'll be using
+
 |Symbol|Meaning|
 |-|-|
 |$r$|The radius, which parameterises the integration|
 |$m$|The mass at a radius of less than $r$. Corresponds to the ADM mass (todo: wait, does it?)|
 |$P$|Pressure at $r$|
 |$\mu$| Total specific energy density at $r$. This isn't the energy density integrated, 'total' refers to a combination of different energies - but at a specific point|
-|$\epsilon$| Specific internal energy density, ar $r$|
+|$\epsilon$| Specific internal energy density, at $r$|
 |$\rho_0$ | Rest mass density at $r$|
 |$P = F(\rho_0)$ | Equation of state|
 
@@ -90,16 +92,19 @@ As mentioned previously, we need an equation of state to tie together $\mu$, $\r
 |$m$|Mass|$\mathrm{kg}$|$\mathrm{m}$| Integration variable |
 |$P$|Pressure|$\mathrm{kg}\;\mathrm{m}^{-1} \; \mathrm{s}^{-2}$|$\mathrm{m}^{-2}$| Integration variable |
 |$\mu$|Total Specific Energy Density|$\mathrm{kg}\; \mathrm{m}^{-1}\; \mathrm{s}^{-2}$|$\mathrm{m}^{-2}$|$\mu = \rho_0 (1 + \epsilon)$|
-|$\rho_0$|Rest Mass Density|$\mathrm{kg}\; \mathrm{m}^{-3}$|$\mathrm{m}^{-2}$|Invert EoS||
+|$\rho_0$|Rest Mass Density|$\mathrm{kg}\; \mathrm{m}^{-3}$|$\mathrm{m}^{-2}$|Invert equation of state||
+|$\epsilon$|Specific energy density|$\mathrm{m}^{2} \; \mathrm{s}^{-2}$ (?)[^notsupersure]|Dimensionless (?)|Equation of state||
 
-We'll also be getting $\epsilon$ by interrogating our equation of state. Here's some additional equations that are useful:
+[^notsupersure]: I'm not incredibly sure about this. I've calculated this to make the units pan out between $\mu$ and $\rho_0$ via $\mu = \rho_0 (1 + \epsilon)$. If this is wrong, please let me know. You never actually need to do unit conversions on this variable, but still it'd be nice to be correct here
+
+Here's some additional equations that are useful:
 
 |Equation| Notes |
 |-|-|
 |$h = 1 + \epsilon + \frac{P}{\rho_0}$| Specific enthalpy |
 |$\rho_0h = \mu + P$| |
 
-In general, you'll need to numerically invert the equation of state for some arbitrary equation
+In general, you'll need to numerically invert the equation of state for some arbitrary equation, which brings us neatly to our next topic:
 
 ### Equation of state (EOS)
 
@@ -117,8 +122,10 @@ With these, we can calculate our variables a bit more directly:
 |$P$|Pressure|$\mathrm{kg}\;\mathrm{m}^{-1} \; \mathrm{s}^{-2}$|$\mathrm{m}^{-2}$|$P$|$K \rho_0^\Gamma$|
 |$\mu$|Total Energy Density|$\mathrm{kg}\; \mathrm{m}^{-1}\; \mathrm{s}^{-2}$|$\mathrm{m}^{-2}$|$(\frac{P}{K})^{1/\Gamma} + \frac{P}{\Gamma-1}$|$\rho_0 + K \frac{\rho_0^\Gamma}{\Gamma-1}$|
 |$\rho_0$|Rest Mass Density|$\mathrm{kg}\; \mathrm{m}^{-3}$|$\mathrm{m}^{-2}$|$(\frac{P}{K})^{1/\Gamma}$|$\rho_0$|
-|$K$|Polytropic Constant (informal)|$\mathrm{kg}^{1-\Gamma} \; \mathrm{m}^{3\Gamma-1}\;\mathrm{s}^{-2}$|$\mathrm{m}^{2\Gamma-2}$|||
+|$K$|Polytropic Constant (informal)|$\mathrm{kg}^{1-\Gamma} \; \mathrm{m}^{3\Gamma-1}\;\mathrm{s}^{-2}$ [^yep]|$\mathrm{m}^{2\Gamma-2}$|||
 |$\Gamma$| Polytropic index, often $2$| Dimensionless constant | Dimensionless constant |||
+
+[^yep]: yep
 
 This in general is the 'toy' equation of state, although it is extremely widely used in these simulations. You may see papers also using $\Gamma = 1.75$. In this article, while I'll be going over specific test cases later, please assume that $\Gamma = 2$ and $K = 123.641$ in units of $c=G=M_\odot=1$
 
@@ -139,7 +146,7 @@ K_n \rho_0^{\Gamma_n}, & \mathrm{\rho_0^{n-1} < \rho_0 < \rho_0^n} \\
 \end{equation}
 $$
 
-Using a piecewise perfect fluid equation of state, we can get the relations for the other variables:
+Using a piecewise perfect fluid equation of state ($P = (\Gamma_i - 1) \rho_0 \epsilon$), we can get the relations for the other variables:
 
 $$
 \begin{align}
@@ -149,51 +156,27 @@ a_i &= a_{i-1} + \frac{K_{i-1}}{\Gamma_{i-1} - 1} (\rho_0^i)^{\Gamma_{i-1} - 1} 
 \end{align}
 $$
 
+You'd then calculate $\mu$ from $\epsilon$ and $\rho_0$ as per usual. You'll need to numerically invert the equation for $P$, which is something we'll implement later
+
 I've converted these equations into our notation, as you should be aware that $\epsilon$ has a different construction in the referenced papers. Note that the $i$ and $n$ in $(p_0^i)$ is an index due to an unfortunate notational clash, and it gets raised to the power of $\Gamma_{i-1} - 1$
 
 Please see [here (7)](https://arxiv.org/pdf/0812.2163) and [here (25)](https://www.as.utexas.edu/astronomy/education/spring13/bromm/secure/TOC_Supplement.pdf) for more details
 
 ## Solving the TOV equations
 
-It is common to solve these equations in units of $c=G=M_\odot=1$, where $M_\odot$ is the mass of the sun. This is why I've provided all the units up above, and we're going go through [converting](https://www.seas.upenn.edu/~amyers/NaturalUnits.pdf) from SI units, to geometric units ($c=G=1$), to that new unit system ($c=G=M_\odot=1$). In general, you need to redefine mass to avoid the numerics blowing up. While I'll be solving this with the 'toy' $\Gamma=2$ equation of state, I'm presenting a method that makes absolutely no assumptions
+It's common to solve these equations in units of $c=G=M_\odot=1$, where $M_\odot$ is the mass of the sun. This is why I've provided all the units up above, and we're going go through [converting](https://www.seas.upenn.edu/~amyers/NaturalUnits.pdf) from SI units, to geometric units ($c=G=1$), to that new unit system ($c=G=M_\odot=1$). In general, you need to redefine mass to avoid the numerics blowing up. While I'll be solving this with the 'toy' $\Gamma=2$ equation of state, I'm presenting a method that makes absolutely no assumptions
 
 ### Unit conversions
 
 The procedure for doing the unit conversion is as follows:
 
 1. Given an quantity in SI units $\mathrm{kg}^\alpha \mathrm{m}^\beta \mathrm{s}^\gamma$, convert it to geometric units by dividing by $G^{-\alpha} c^{2 \alpha - \gamma}$. This gives you a new geometrised unit, $\mathrm{m}^{\alpha + \beta + \gamma}$
-2. Convert the mass of the sun, $1.988416 * 10^{30} \mathrm{kg}$, into meters, which is ~$1476.6196 \mathrm{m}$
+2. Convert the *nominal*[^nominal] mass of the sun, $1.988416 * 10^{30} \mathrm{kg}$, into meters, which is ~$1476.6196 \mathrm{m}$
 3. Divide your quantity in units of $\mathrm{m}^n$ (eg $\mathrm{m}^2$) by $1476.6196^n$
 
-I'll be showing you the code for how to do this. One thing to note is that $K$ is frequently given in geometric units instead of physical units, so I'll flag up when the units are wonky
+[^nominal]: For obvious reasons, the actual mass of the sun would be a terrible idea to use. So the mass of the sun is a defined constant which is nearly equivalent
 
-### Initial conditions
-
-Once you've got everything in the correct units, we can start solving. Firstly, you might notice that the equations are singular at $r=0$. We're going to instead start at $r=r_{min}=10^{-6}$
-
-This is the set of initial values to use at $r_{min}$:
-
-|Variable|Value|
-|-|-|
-|$M$| $\frac{4}{3} \pi r_{min}^3 \mu\;$ (the integral of $\frac{dm}{dr}$, with $\mu$ held constant) |
-|$P$| $K \rho_c^\Gamma$ |
-|$r$| $r_{min}$ |
-
-### Integration
-
-With the initial conditions done, you can integrate the equations. This is done by spotting that these are simple first order in 'time' (where $dt=dr$) systems, and can be solved with euler integration[^unstable] very straightforwardly. The termination condition is when $P < 0$, or you can use a small cutoff. I also do a few sanity checks, to make sure we haven't accidentally constructed a black hole, or something with a suspiciously low mass or radius
-
-That's it!
-
-[^unstable]: I've seen multiple reports in the literature that these equations are very stiff and hard to solve, but have not found this in practice
-
-## Implementation
-
-These equations are extremely fast to solve, so there's nothing too fancy going on here
-
-### Unit conversioins
-
-Here's how all the unit conversions work:
+One thing to note is that $K$ is frequently given in geometric units instead of physical units, so I'll flag up when the units are wonky. Codewise, this is pretty easy:
 
 ```c++
 ///https://www.seas.upenn.edu/~amyers/NaturalUnits.pdf
@@ -228,9 +211,33 @@ double geometric_to_si(double quantity, double kg_exponent, double s_exponent)
 }
 ```
 
+### Initial conditions
+
+Once you've got everything in the correct units, we can start solving. Firstly, you might notice that the equations are singular at $r=0$. We're going to instead start at $r=r_{min}=10^{-6}$
+
+This is the set of initial values to use at $r_{min}$:
+
+|Variable|Value|
+|-|-|
+|$M$| $\frac{4}{3} \pi r_{min}^3 \mu_c\;$ (the integral of $\frac{dm}{dr}$, with $\mu_c$ held constant, where $\mu_c$ is $\mu$ at the central density) |
+|$P$| $K \rho_c^\Gamma$ |
+|$r$| $r_{min}$ |
+
+### Integration
+
+With the initial conditions done, you can integrate the equations. This is done by spotting that these are simple first order in 'time' (where $dt=dr$) systems, and can be solved with euler integration[^unstable] very straightforwardly. The termination condition is when $P < 0$, or you can use a small cutoff. I also do a few sanity checks, to make sure we haven't accidentally constructed a black hole, or something with a suspiciously low mass or radius
+
+That's it!
+
+[^unstable]: I've seen multiple reports in the literature that these equations are very stiff and hard to solve, but have not found this in practice
+
+## Implementation
+
+These equations are extremely fast to solve, so there's nothing too fancy going on here
+
 ### Equation of State
 
-For flexibility, I define a very general class of equation of state:
+For flexibility, I define a very general class of equation of state. This is essentially an adaptor, which automatically generates all the conversions you might want, which you can override specific parts of
 
 ```c++
 struct base
@@ -260,11 +267,11 @@ struct base
 };
 ```
 
-In theory, we only have to actually define two members here to get everything we'll need: `p0_to_P`, and `p0_to_mu`. Later down the line, it'll become a bit more obvious when we want to do this for performance reasons
+In theory, we only have to actually define two members here to get everything we'll need: `p0_to_P`, and `p0_to_mu`, and all the rest can be derived via numerical inverts. This isn't incredible for performance, but depending on your use case, may be either fine or the only option for numerical equations of state
 
 #### Polytropic equation of state
 
-This is simple enough:
+The functions we need here are simple:
 
 ```c++
 double tov::eos::polytrope::p0_to_mu(double p0) const
@@ -318,6 +325,7 @@ double invert(T&& func, double y, double lower = 0, double upper = 1, bool shoul
 
         double x = func(next);
 
+        //function assumed to be monotonically increasing
         if(upper_mu >= lower_mu)
         {
             if(x >= y)
@@ -326,6 +334,7 @@ double invert(T&& func, double y, double lower = 0, double upper = 1, bool shoul
             else
                 lower = next;
         }
+        //function assumed to be monotonically decreasing
         else
         {
             if(x >= y)
@@ -341,9 +350,9 @@ double invert(T&& func, double y, double lower = 0, double upper = 1, bool shoul
 
 This performs a basic binary search through our function space, until some very low error tolerance is reached. Additionally, for many functions we won't actually know what our upper bound is, so this guessess it by doubling. That'll only work for functions which are monotonically *increasing*, which is true for all our EoS functions
 
-### INtegration
+### Integration
 
-Initialising the integration state in units of $c=G=M\odot$ is straightforward:
+Initialising the integration state in units of $c=G=M_\odot$ is straightforward:
 
 ```c++
 struct integration_state
@@ -493,7 +502,7 @@ We're going to define a few test cases:
 
 Note that a test case you might find over [here](https://colab.research.google.com/drive/1yMD2j3Y6TcsykCI59YWiW9WAMW-SPf12#scrollTo=00FWl5YzbSaB) uses too low of a value of $N$, and produces incorrect results. Its correct if you bump it up
 
-[^waste]: If you'd like a peek behind the scenes on the development of these articles, it took me several days and 1k+ lines of code to figure out that this was the error that was preventing my integrator from working properly
+[^waste]: If you'd like a peek behind the scenes on the development of these articles, it took me several days and 1k+ lines of code to figure out that this was the error that was preventing my integrator from working properly. One of the reasons why I'm being as pedantic as possible about units, and coordinate systems, is to try and help other people avoid my mistakes
 
 Where the code for solving these looks like this:
 
@@ -519,17 +528,17 @@ Incidentally, the notebook test case we link gives `14.136399564110704km 1.40027
 
 All in all: this appears to work, but literature replication is a disaster as usual
 
-## Solving for a specific ADM mass
+## Solving for a specific mass
 
-You might notice, the ADM mass is not our free parameter - despite generally being what we want to specify - but instead the central density is
+You might notice, the mass of our star is not a free parameter - despite generally being what we want to specify - but instead the central density is
 
-I think we both know deep down in our hearts that this section wasn't going to read "here's how to calculate the central density from the ADM mass", and that instead we'd be forced to bruteforce it. In general, I spent a while trying to find a good way to work out an a-priori range, but I gave up and I just bruteforce from $\mu=0$ to $\mu=0.1$
+I think we both know deep down in our hearts that this section wasn't going to read "here's how to calculate the central density from the ADM mass", and that instead we'd be forced to bruteforce it. In general, I spent a while trying to find a good way to work out an a-priori range to constrain the parameter space, but I gave up and I just bruteforce from $\mu=0$ to $\mu=0.1$
 
-There's a teeny problem here though when looking for the initial conditions for a specific mass. Neutron star masses are not unique. You see, the graph of radius vs mass for increasing central densities looks like this:
+There's a teeny problem here though when looking for the initial conditions for a specific mass: neutron star masses are not unique. You see, the graph of radius vs mass for increasing central densities looks like this:
 
 ![neutron](/assets/nr4_neutron.PNG)
 
-This means that there might be multiple solutions for central density for a specific ADM mass, and for realistic neutron stars there are at least two. Which makes this problem much more annoying. Anyway, lets write a basic procedure for this:
+This means that there might be multiple solutions for the central density for a specific ADM mass, and for realistic neutron stars there are at least two. Which makes this problem much more annoying. Anyway, lets write a basic procedure for this:
 
 ```c++
 //personally i liked the voyage home better
@@ -608,7 +617,7 @@ The lower density branch here (with larger radius) is the correct neutron star i
 
 At the end of this process, we've gained the ability to fully describe the following variables of our neutron star: rest mass density $\rho_0$, energy density $\mu$, baryonic/rest mass $M$ (also called $M_0$), and pressure $P$. Keep this in mind as we carry on forwards. We've now solved the first step in our initial conditions procedure: constructing a spherically symmetric, static neutron star
 
-Next up, we need to give it momentum and spin. This is where things get a bit complicated
+Next up, we need to give it momentum and spin, which means exiting spherical symmetry. This is where things get a bit complicated
 
 # Bowen-York Type Initial Data for Binaries with Neutron Stars
 
