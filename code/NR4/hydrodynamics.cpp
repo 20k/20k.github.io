@@ -824,9 +824,6 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     valuef p_star = p0 * gA * u0 * pow(cW, -3);
     valuef e_star = pow(p0 * epsilon, (1/Gamma)) * gA * u0 * pow(cW, -3);
 
-    ///Si isn't well defined when gA != 1 in our init conditions
-    ///oh! Si isn't a hydrodynamic field!
-
     valuef w = p_star * gA * u0;
 
     //with raised index
@@ -857,8 +854,6 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     as_ref(hydro.Si[2][pos, dim]) = Si_lo_cfl[2];
 
     //strictly speaking i don't need to set these
-    //in the most technical sense you might consider that we're initialising the boundary condition here
-    //but w = P = 0 at the boundary
     as_ref(hydro.w[pos, dim]) = w;
     as_ref(hydro.Q[pos, dim]) = valuef(0.f);
 
