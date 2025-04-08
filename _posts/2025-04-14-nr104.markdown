@@ -32,7 +32,7 @@ It might seem surprising, but with this all together, we're able to fully descri
 
 [^restmass]: You could think of this as a count of the number of particles that make up the star if you're thinking about frames of reference or simultaneity with measurements
 
-You might notice that we often have a real measurement of the total mass of the star $M_0$. This allows you in general to reduce the number of possible central rest mass densities to a small number - in general
+You might notice that we often have a real measurement of the total mass of the star $M_0$. This allows you in general to reduce the number of possible central rest mass densities to a small number
 
 In newtonian dynamics, the equations governing hydrostatic equilibrium are sufficiently simple that I wouldn't be writing this article. You've probably noticed roughly about now that this article is really very long, so clearly something's about to go terribly wrong. From here on out I'm exiting explanatory background mode, and we're now going to dig into it
 

@@ -460,7 +460,7 @@ void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cq
 
 neutron_star::data::data(const parameters& p) : params(p)
 {
-    tov::eos::numerical tov_params = tov::eos::from_polytropic(params.Gamma, params.K.msols.value());
+    tov::eos::polytrope tov_params(params.Gamma, params.K.msols.value());
 
     /*//kg/m^3 -> m/m^3 -> 1/m^2
     double p0_geom = si_to_geometric(p0, 1, 0);
@@ -498,7 +498,7 @@ neutron_star::data::data(const parameters& p) : params(p)
         assert(false);
 
     start = tov::make_integration_state(p0_msols, 1e-6, tov_params);
-    sol = tov::solve_tov(start, tov_params, 1e-6, 0);
+    sol = tov::solve_tov(start, tov_params, 1e-6, 0).value();
 
     total_mass = sol.M_msol;
     stored = get_eos();
