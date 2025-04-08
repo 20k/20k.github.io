@@ -734,6 +734,11 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
         return declare_e(out);
     };
 
+    auto mu_to_P = [&](valuef mu)
+    {
+        return p0_to_pressure(mu_to_p0(mu));
+    };
+
     auto get_mu_for = [&](valuef muh, valuef W)
     {
         ///solve the equation muh = (mu + f(mu)) W^2 - mu
@@ -760,17 +765,8 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
             pin(test_mu1);
             pin(test_mu2);
 
-            valuef p0_1 = mu_to_p0(test_mu1);
-            valuef p0_2 = mu_to_p0(test_mu2);
-
-            pin(p0_1);
-            pin(p0_2);
-
-            valuef p_1 = p0_to_pressure(p0_1);
-            valuef p_2 = p0_to_pressure(p0_2);
-
-            pin(p_1);
-            pin(p_2);
+            valuef p_1 = mu_to_P(test_mu1);
+            valuef p_2 = mu_to_P(test_mu2);
 
             valuef test_muh1 = (test_mu1 + p_1) * W*W - p_1;
             valuef test_muh2 = (test_mu2 + p_2) * W*W - p_2;
@@ -814,10 +810,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
         //(yijsisj) / (mu+p)^2 = W^4 - W^2
         //C = W^4 - W^2
         //W = sqrt(1 + sqrt(4C + 1)) / sqrt(2)
-        valuef p0 = mu_to_p0(mu);
-        valuef pressure = p0_to_pressure(mu);
-
-        pin(p0);
+        valuef pressure = mu_to_P(mu);
         pin(pressure);
 
         valuef C = ysj / pow(mu + pressure, 2.f);
@@ -833,8 +826,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     }
 
     valuef p0 = mu_to_p0(mu);
-
-    valuef pressure = p0_to_pressure(p0);
+    valuef pressure = mu_to_P(mu);
 
     valuef epsilon = (mu / p0) - 1;
 
