@@ -818,7 +818,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     valuef gA = 1;
     v3f gB = {0,0,0};
 
-    //fluid dynamics cannot have a singular initial slice, so setting the clamping pretty high here because its irrelevant
+    //fluid dynamics cannot have a singular initial slice
     //thing is we have 0 quantities at the singularity, so as long as you don't generate a literal NaN here, you're 100% fine
 
     valuef p_star = p0 * gA * u0 * pow(cW, -3);
