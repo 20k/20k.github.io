@@ -655,6 +655,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     });
 
     valuef max_density = eos_data.max_densities[index];
+    valuef max_mu = eos_data.max_mus[index];
 
     bssn_args args(pos, dim, in);
 
@@ -709,37 +710,13 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     auto mu_to_p0 = [&](valuef mu)
     {
-        ///mu = p0 + f(p0) / (Gamma-1)
-        mut<valuei> i = declare_mut_e(valuei(0));
-        mut<valuef> out = declare_mut_e(valuef(0));
+        valuei offset = index * eos_data.stride.get();
 
-        int steps = 400;
+        valuef idx = clamp((mu / max_mu) * (valuef)eos_data.stride.get(), valuef(0), (valuef)eos_data.stride.get() - 2);
 
-        for_e(i < steps, assign_b(i, i+1), [&]{
-            valuef frac = (valuef)i / steps;
-            valuef frac2 = (valuef)(i + 1) / steps;
+        valuei fidx = (valuei)idx;
 
-            valuef d0 = frac * max_density;
-            valuef d1 = frac2 * max_density;
-
-            pin(d0);
-            pin(d1);
-
-            valuef mu0 = d0 + p0_to_pressure(d0) / (Gamma - 1);
-            valuef mu1 = d1 + p0_to_pressure(d1) / (Gamma - 1);
-
-            pin(mu0);
-            pin(mu1);
-
-            if_e(mu >= mu0 && mu <= mu1, [&]{
-                valuef frac = (mu - mu0) / (mu1 - mu0);
-
-                as_ref(out) = mix(d0, d1, frac);
-                break_e();
-            });
-        });
-
-        return declare_e(out);
+        return mix(eos_data.mu_to_p0[offset + fidx], eos_data.mu_to_p0[offset + fidx + 1], idx - floor(idx));
     };
 
     auto mu_to_P = [&](valuef mu)
