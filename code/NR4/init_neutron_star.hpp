@@ -85,23 +85,29 @@ namespace neutron_star
     {
         ///linear map from rest mass density -> pressure
         std::vector<float> pressure;
+        std::vector<float> mu_to_p0;
         float max_density = 0;
+        float max_mu = 0;
     };
 
     struct all_numerical_eos_gpu
     {
+        ///p0 -> pressure
         cl::buffer pressures;
+        cl::buffer mu_to_p0;
         cl::buffer max_densities;
+        cl::buffer max_mus;
         cl_int stride = 0;
         cl_int count = 0;
 
-        all_numerical_eos_gpu(cl::context ctx) : pressures(ctx), max_densities(ctx){}
+        all_numerical_eos_gpu(cl::context ctx) : pressures(ctx), mu_to_p0(ctx), max_densities(ctx), max_mus(ctx){}
 
         void init(cl::command_queue cqueue, const std::vector<numerical_eos>& eos);
     };
 
     struct data
     {
+        tov::eos::base* eos = nullptr;
         parameters params;
         tov::integration_solution sol;
         double p0_msols = 0;

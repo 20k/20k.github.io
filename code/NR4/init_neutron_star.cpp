@@ -18,25 +18,49 @@ void neutron_star::all_numerical_eos_gpu::init(cl::command_queue cqueue, const s
     for(auto& i : eos)
         assert(i.pressure.size() == root_size);
 
+    for(auto& i : eos)
+        assert(i.mu_to_p0.size() == root_size);
+
     stride = root_size;
     count = eos.size();
 
     pressures.alloc(sizeof(cl_float) * stride * count);
+    mu_to_p0.alloc(sizeof(cl_float) * stride * count);
+
     max_densities.alloc(sizeof(cl_float) * count);
+    max_mus.alloc(sizeof(cl_float) * count);
 
-    std::vector<float> all_pressures;
-    std::vector<float> all_densities;
-
-    for(int i=0; i < (int)eos.size(); i++)
     {
-        for(auto& j : eos[i].pressure)
-            all_pressures.push_back(j);
+        std::vector<float> all_pressures;
+        std::vector<float> max_densities_vec;
 
-        all_densities.push_back(eos[i].max_density);
+        for(int i=0; i < (int)eos.size(); i++)
+        {
+            for(auto& j : eos[i].pressure)
+                all_pressures.push_back(j);
+
+            max_densities_vec.push_back(eos[i].max_density);
+        }
+
+        pressures.write(cqueue, all_pressures);
+        max_densities.write(cqueue, max_densities_vec);
     }
 
-    pressures.write(cqueue, all_pressures);
-    max_densities.write(cqueue, all_densities);
+    {
+        std::vector<float> all_p0s;
+        std::vector<float> max_mus_vec;
+
+        for(int i=0; i < (int)eos.size(); i++)
+        {
+            for(auto& j : eos[i].mu_to_p0)
+                all_p0s.push_back(j);
+
+            max_mus_vec.push_back(eos[i].max_mu);
+        }
+
+        mu_to_p0.write(cqueue, all_p0s);
+        max_mus.write(cqueue, max_mus_vec);
+    }
 }
 
 template<typename T, typename U>
@@ -460,7 +484,8 @@ void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cq
 
 neutron_star::data::data(const parameters& p) : params(p)
 {
-    tov::eos::polytrope tov_params(params.Gamma, params.K.msols.value());
+    tov::eos::polytrope* tov_params = new tov::eos::polytrope(params.Gamma, params.K.msols.value());
+    eos = tov_params;
 
     /*//kg/m^3 -> m/m^3 -> 1/m^2
     double p0_geom = si_to_geometric(p0, 1, 0);
@@ -488,7 +513,7 @@ neutron_star::data::data(const parameters& p) : params(p)
     {
         param_rest_mass mass = params.mass.rest_mass.value();
 
-        std::vector<double> masses = tov::search_for_rest_mass(mass.mass, tov_params);
+        std::vector<double> masses = tov::search_for_rest_mass(mass.mass, *tov_params);
 
         assert(masses.size() > 0 && mass.result_index >= 0 && mass.result_index < (int)masses.size());
 
@@ -497,8 +522,8 @@ neutron_star::data::data(const parameters& p) : params(p)
     else
         assert(false);
 
-    start = tov::make_integration_state(p0_msols, 1e-6, tov_params);
-    sol = tov::solve_tov(start, tov_params, 1e-6, 0).value();
+    start = tov::make_integration_state(p0_msols, 1e-6, *tov_params);
+    sol = tov::solve_tov(start, *tov_params, 1e-6, 0).value();
 
     total_mass = sol.M_msol;
     stored = get_eos();
@@ -512,15 +537,26 @@ neutron_star::numerical_eos neutron_star::data::get_eos()
 
     ret.max_density = max_density;
 
+    ret.max_mu = eos->p0_to_mu(max_density);
+
     int max_samples = 400;
 
     for(int i=0; i < max_samples; i++)
     {
         double density = ((double)i / max_samples) * max_density;
 
-        double pressure = params.K.msols.value() * pow(density, params.Gamma);
+        double pressure = eos->p0_to_P(density);
 
         ret.pressure.push_back(pressure);
+    }
+
+    for(int i=0; i < max_samples; i++)
+    {
+        double mu = ((double)i / max_samples) * ret.max_mu;
+
+        double p0 = eos->mu_to_p0(mu);
+
+        ret.mu_to_p0.push_back(p0);
     }
 
     return ret;

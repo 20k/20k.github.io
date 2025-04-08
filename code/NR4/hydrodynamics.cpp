@@ -600,8 +600,12 @@ void hydrodynamic_utility_buffers::allocate(cl::context ctx, cl::command_queue c
 struct eos_gpu : value_impl::single_source::argument_pack
 {
     buffer<valuef> pressures;
-    buffer<valuef> densities;
-    literal<valuei> pressure_stride;
+    buffer<valuef> max_densities;
+
+    buffer<valuef> mu_to_p0;
+    buffer<valuef> max_mus;
+
+    literal<valuei> stride;
     literal<valuei> eos_count;
 
     void build(auto& in)
@@ -609,8 +613,12 @@ struct eos_gpu : value_impl::single_source::argument_pack
         using namespace value_impl::builder;
 
         add(pressures, in);
-        add(densities, in);
-        add(pressure_stride, in);
+        add(max_densities, in);
+
+        add(mu_to_p0, in);
+        add(max_mus, in);
+
+        add(stride, in);
         add(eos_count, in);
     }
 };
@@ -646,31 +654,31 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
         return_e();
     });
 
-    valuef max_density = eos_data.densities[index];
+    valuef max_density = eos_data.max_densities[index];
 
     bssn_args args(pos, dim, in);
 
     auto pressure_to_p0 = [&](valuef P)
     {
-        valuei offset = index * eos_data.pressure_stride.get();
+        valuei offset = index * eos_data.stride.get();
 
         mut<valuei> i = declare_mut_e(valuei(0));
         mut<valuef> out = declare_mut_e(valuef(0));
 
-        for_e(i < eos_data.pressure_stride.get() - 1, assign_b(i, i+1), [&]{
+        for_e(i < eos_data.stride.get() - 1, assign_b(i, i+1), [&]{
             valuef p1 = eos_data.pressures[offset + i];
             valuef p2 = eos_data.pressures[offset + i + 1];
 
             if_e(P >= p1 && P <= p2, [&]{
                 valuef val = (P - p1) / (p2 - p1);
 
-                as_ref(out) = (((valuef)i + val) / (valuef)eos_data.pressure_stride.get()) * max_density;
+                as_ref(out) = (((valuef)i + val) / (valuef)eos_data.stride.get()) * max_density;
 
                 break_e();
             });
         });
 
-        if_e(i == eos_data.pressure_stride.get(), [&]{
+        if_e(i == eos_data.stride.get(), [&]{
             print("Error, overflowed pressure data\n");
         });
 
@@ -679,9 +687,9 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     auto p0_to_pressure = [&](valuef p0)
     {
-        valuei offset = index * eos_data.pressure_stride.get();
+        valuei offset = index * eos_data.stride.get();
 
-        valuef idx = clamp((p0 / max_density) * (valuef)eos_data.pressure_stride.get(), valuef(0), (valuef)eos_data.pressure_stride.get() - 2);
+        valuef idx = clamp((p0 / max_density) * (valuef)eos_data.stride.get(), valuef(0), (valuef)eos_data.stride.get() - 2);
 
         valuei fidx = (valuei)idx;
 
@@ -1460,7 +1468,7 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
         args.push_back(pack.disc.Si_cfl[1]);
         args.push_back(pack.disc.Si_cfl[2]);
         args.push_back(pack.disc.star_indices);
-        args.push_back(neos.pressures, neos.max_densities, neos.stride, neos.count);
+        args.push_back(neos.pressures, neos.max_densities, neos.mu_to_p0, neos.max_mus, neos.stride, neos.count);
         args.push_back(lin_buf);
 
         cqueue.exec("init_hydro", args, {dim.x(), dim.y(), dim.z()}, {8,8,1});
