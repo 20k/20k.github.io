@@ -650,7 +650,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     bssn_args args(pos, dim, in);
 
-    auto pressure_to_p0 = [&](valuef P)
+    /*auto pressure_to_p0 = [&](valuef P)
     {
         valuei offset = index * eos_data.pressure_stride.get();
 
@@ -675,7 +675,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
         });
 
         return declare_e(out);
-    };
+    };*/
 
     auto p0_to_pressure = [&](valuef p0)
     {
@@ -836,7 +836,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     valuef pressure = p0_to_pressure(p0);
 
-    valuef p0_e = pressure / (Gamma - 1);
+    valuef epsilon = (mu / p0) - 1;
 
     valuef gA = 1;
     v3f gB = {0,0,0};
@@ -845,7 +845,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     //thing is we have 0 quantities at the singularity, so as long as you don't generate a literal NaN here, you're 100% fine
 
     valuef p_star = p0 * gA * u0 * pow(cW, -3);
-    valuef e_star = pow(p0_e, (1/Gamma)) * gA * u0 * pow(cW, -3);
+    valuef e_star = pow(p0 * epsilon, (1/Gamma)) * gA * u0 * pow(cW, -3);
 
     ///Si isn't well defined when gA != 1 in our init conditions
     ///oh! Si isn't a hydrodynamic field!
@@ -869,7 +869,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
         u_i[s] = gB[s] * u0 + sum;
     }
 
-    valuef h = calculate_h_from_epsilon(p0_e / p0);
+    valuef h = calculate_h_from_epsilon(epsilon);
 
     v3f Si_lo_cfl = p_star * h * u_i;
 
