@@ -552,7 +552,8 @@ At the end of this process, we've gained the ability to fully describe the follo
 
 Next up, we need to give it momentum and spin, which means exiting spherical symmetry. This is where things get a bit complicated
 
-# ADM Refresher
+# Preamble
+## ADM Refresher
 
 If you can remember how the ADM formalism works, skip this segment. This isn't really the article for a full redo of the ADM formalism (see: todo for a real intro)
 
@@ -573,6 +574,54 @@ In a simulation we evolve these slices forwards in time: Here we're only trying 
 |$K_{ij}$| Extrinsic curvature|
 
 $\beta^i = 0$, and either $\alpha = 1$ or $\alpha$ is calculated from a conformal factor we'll find later as $\frac{1}{\Phi^2}$
+
+## Numerical integration
+
+We're about to integrate a lot of equations in 1d, of the form $\int_0^{x_{upper}} f(x) dx$ (where generally, $x$ = $r$). This can be done super duper easily via a routine like this:
+
+```c++
+///integrates in the half open range [0, index)
+auto integrate_to_index = [&](auto&& func, int index)
+{
+    assert(index >= 0 && index <= samples);
+
+    double last_r = 0;
+    std::vector<double> out;
+    out.reserve(index);
+
+    double current = 0;
+
+    for(int i=0; i < index; i++)
+    {
+        double r = radius_iso[i];
+        double dr = (r - last_r);
+
+        current += func(i) * dr;
+
+        out.push_back(current);
+
+        last_r = r;
+    }
+
+    assert(out.size() == index);
+
+    return out;
+};
+```
+
+Note that I don't just return the integral, but the running tally as we integrate. This means that if we have an integral like this:
+
+$$\int_0^{x} f(x) dx$$
+
+We can first calculate:
+
+$$\int_0^{x_{upper}} f(x) dx$$
+
+And then simply lookup in a table the value of $\int_0^{x} f(x) dx$
+
+I have everything tabulated in buffers, and integrate up to *indices*, which respresent a specific radius $r$. This avoids a lot of sampling, and interpolation, and in general is pretty simple. Note the usage of the isotropic radius here as our integration variable $dr$
+
+I'll be providing some examples of how to use this. Some work has been put into making sure that the computational complexity is minimal (to avoid calculating $N^2$ integrals or something), though it hasn't been micro-optimised
 
 # Bowen-York Type Initial Data for Binaries with Neutron Stars
 
