@@ -5,6 +5,8 @@ date:   2026-02-02 12:33:23 +0000
 categories: C++
 ---
 
+Todo: I dislike the intro, its too wishy washy but doesn't really introduce anything useful
+
 Today's job is very simple, conceptually. We're going to dig into what it means for something to be a neutron star - how you represent these in general relativity, and all the necessary steps you'll need to solve along the way to successfully bring one to life in a full general relativistic simulation
 
 You should know before we get into this, that it is going to be a *huge* pain, so saddle up
@@ -93,7 +95,7 @@ As mentioned previously, we need an equation of state to tie together $\mu$, $\r
 |$P$|Pressure|$\mathrm{kg}\;\mathrm{m}^{-1} \; \mathrm{s}^{-2}$|$\mathrm{m}^{-2}$| Integration variable |
 |$\mu$|Total Specific Energy Density|$\mathrm{kg}\; \mathrm{m}^{-1}\; \mathrm{s}^{-2}$|$\mathrm{m}^{-2}$|$\mu = \rho_0 (1 + \epsilon)$|
 |$\rho_0$|Rest Mass Density|$\mathrm{kg}\; \mathrm{m}^{-3}$|$\mathrm{m}^{-2}$|Invert equation of state||
-|$\epsilon$|Specific energy density|$\mathrm{m}^{2} \; \mathrm{s}^{-2}$ (?)[^notsupersure]|Dimensionless (?)|Equation of state||
+|$\epsilon$|Specific internal energy density|$\mathrm{m}^{2} \; \mathrm{s}^{-2}$ (?)[^notsupersure]|Dimensionless (?)|Equation of state||
 
 [^notsupersure]: I'm not incredibly sure about this. I've calculated this to make the units pan out between $\mu$ and $\rho_0$ via $\mu = \rho_0 (1 + \epsilon)$. If this is wrong, please let me know. You never actually need to do unit conversions on this variable, but still it'd be nice to be correct here
 
