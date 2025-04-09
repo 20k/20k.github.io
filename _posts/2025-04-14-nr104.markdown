@@ -774,7 +774,7 @@ $$\Delta \Phi = -\frac{1}{8} \Phi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \Phi^{-
 
 This is a standard laplacian. We're going to go over the details of how to perform our full construction after we finish up our next step, which is solving for $\bar{\mu}_H$. Whatever it is, it can't be that bad, right?
 
-Todo: Londo (wesley?)
+![londo](/assets/nr4_londo.PNG)
 
 ### Solving for $\bar{\mu}_H$ is indeed that bad
 
@@ -805,9 +805,13 @@ Sometimes I wish I'd taken up fishing
 
 #### Combining lorentz factors
 
+Todo: I need to check this
+
 Of course, we can't simply *add* lorentz factors together, that'd be madness. Instead you use the rapidity formula. This gives us:
 
 $$W = \mathrm{cosh}(\mathrm{arccosh}(W_P) + \mathrm{arccosh}(W_J)) $$
+
+One key feature that is extremely important is that $W_J$ is *not* symmetric in 3d. It is a function of both angle and radius, which renders $\tilde{\mu}_H$ non symmetric as well. While we can solve everything else in 1D up to this point, we now have to discretise everything onto a 3d grid
 
 With this done, its finally over, and I can now describe the procedure for solving our laplacian
 
@@ -815,7 +819,7 @@ With this done, its finally over, and I can now describe the procedure for solvi
 
 Here, I'm going to describe how to mix together neutron stars, and black holes. For both neutron stars, and black holes, we have an extrinsic curvature $\bar{A}^{ij}$. For black holes, use the procedure as specified here in Todo article. This is great, we simply sum every extrinsic curvature linearly, and then calculate $\bar{A}^{ij} \bar{A}_{ij}$
 
-Next up, we need to do a bit of work. First off, we need to remember that we can express our conformal factor $\Phi = 1 + u + F$. $u$ is a correction, and what we solve for in the laplacian. We didn't dig into this, but as black holes have no matter distribution, the term $F$ (originally called: $\frac{1}{a}$) is to stop the solution from being trivially conformally flat. This isn't a problem for neutron stars, as you can see in our laplacian we have the term:
+Next up, we need to do a bit of work. First off, we need to remember that we can express our conformal factor as $\Phi = 1 + u + F$. $u$ is a correction, and what we solve for in the laplacian. We didn't dig into this, but as black holes have no matter distribution, the term $F$ (originally called: $\frac{1}{a}$) is to stop the solution from being trivially conformally flat. This isn't a problem for neutron stars, as you can see in our laplacian we have the term:
 
 $$- 2 \pi \Phi^{-3} \bar{\mu}_H$$
 
@@ -847,7 +851,7 @@ This lets us solve for our final quantities. Firstly, we'll need some helpers:
 | Conformal Linear Adm Matter Source | $$\tilde{S}^i_P$$ | $$P^i \sigma(r)$$ |
 | Conformal Adm Matter Source | $$\tilde{S}^i$$ | $$\tilde{S}^i_P + \eta^{ik} \tilde{S}_k^J$$ |
 
-It is super important to note that $\tilde{S}_i^J$ is not simply a function of radius, and is both a function of radius *and* angle - this breaks the spherical symmetry of the solution, and is why we can't solve this in 1D. This gives us our final quantities:
+It is important to note that $\tilde{S}_i^J$ is not simply a function of radius, and is both a function of radius *and* angle. To get our final quantities:
 
 |Name|Symbol|Value|
 |-|-|-|
@@ -879,13 +883,13 @@ $$\begin{align}
 Initially this might seem a tad unsolvable, but we have an equation of state that you can use to tie together $\mu$ and $p$. This paper leaves out the fact that there is no easy solution to this series of equations, and so I'll detail a procedure I came up with for solving this. You'll also need the ability to go from $\mu$ -> $p$, eg via a numerical invert to your equation of state. I tabulate this
 
 1. Make an initial guess for $W_0=1$ and $\mu_0 = \mu_H$
-2. Calculate $W_{n+1} = \frac{\sqrt{1 + \sqrt{4 \frac{\gamma_{ij} S^i S^j}{(\mu_n + p)^2} + 1}}}{\sqrt{2}}$
+2. Calculate $W_{n+1} = \frac{\sqrt{1 + \sqrt{4 \frac{\gamma_{ij} S^i S^j}{(\mu_n + p)^2} + 1}}}{\sqrt{2}}$ (from eq 2.)
 3. Numerically find a $\mu$ such that $(\mu_n + p) W_{n+1}^2 - p = \mu_H$, giving $\mu_{n+1}$. I do a simple linear search
 4. Iterate until the desired accuracy is reached
 
 This is applying fixed point iteration to these two equations to solve them simultaneously. Once you've solved for $W$ and $\mu$, then calculate $u^i = \frac{S^i}{(\mu + p)W}$. The full fluid 4-velocity is $(W, u^i)$
 
-The hydrodynamics formalism you're using might also require the rest mass density, or energy, and in this case: simply apply the equation of state to recover them
+To get the rest mass density, and specific internal energy density: apply the equation of state to recover them
 
 # Results
 
@@ -895,7 +899,7 @@ If all goes well, you'll get something that looks like this, when doing some bas
 
 Its actually a bit tricky to test this in general. There's some sanity checks we can run:
 
-1. Calculate the quantity $M_0 = \int \rho_0 u^0 W^{-3}$ (where $W$ is the BSSN conformal factor), and check that its equal to the rest mass
+1. Calculate the quantity $M_0 = \int \rho_0 u^0 W^{-3} (\Delta x)^3$ (where $W$ is the BSSN conformal factor, and $\Delta x$ is the scale), and check that its equal to the rest mass
 2. Calculate the hamiltonian constraint, and check the error. You may have small errors due to the presence of a discontinuity at the edge of the star
 3. Implement a relativistic hydrodynamics formalism to check that the star is stable and works correctly
 
@@ -916,7 +920,7 @@ In general, I'm pretty happy with how this has all turned out: In my first pass 
 
 # Next time
 
-This article was initially *half* of a larger article, that simply carried on straight into an introduction to relativistic hydrodynamics. The formalism I implemented turned out to have some problems, so I made the executive decision to split out the formalism-independent parts into this article, and the next one will examine a specific hydrodynamics scheme, which is why the ending is a little abrupt here. We'll probably get at least one more article on neutron stars down the line as well, where I implement a more modern formalism
+This article was initially *half* of a larger article, that simply carried on straight into an introduction to relativistic hydrodynamics. The formalism I implemented turned out to have some problems, so I made the executive decision to split out the formalism-independent parts into this article, and the next one will examine a specific hydrodynamics scheme, which is why the ending is a little awkward here. We'll probably get at least one more article on neutron stars down the line as well, where I implement a more modern formalism
 
 This series has (largely, I added some bits) been a complete from-scratch reimplementation of techniques I experimented with when I was much less experienced with numerical relativity, and past me wasn't aware of the limitations of the formalism I chose back then. It isn't so unworkable as to be useless, but there are some limitations which are very interesting in their own right as they directly lead into the reasons that newer formalisms were developed, so its a very interesting case to run through
 
