@@ -555,7 +555,7 @@ Next up, we need to give it momentum and spin, which means exiting spherical sym
 # Preamble
 ## ADM Refresher
 
-If you can remember how the ADM formalism works, skip this segment. This isn't really the article for a full redo of the ADM formalism (see: todo for a real intro)
+If you can remember how the ADM formalism works, skip this segment. This isn't really the article for a full redo of the ADM formalism (see: todo for a real intro), but here's a quick overview
 
 The ADM formalism is the process of taking a 4d metric tensor $g_{\mu\nu}$, and splitting it up into a series of 3d slices (called a foliation). Each 3d slice has a number of variables associated with it: $\gamma_{ij},\;K_{ij},\;\alpha,\;\beta^i$. We'll only be dealing with the ADM formalism, and not the offshoots like BSSN, today. The main things to remember are as follows:
 
@@ -676,8 +676,6 @@ The procedure in this paper is as follows:
 6. Go outside and celebrate with our loved ones who miss us
 
 ## Solving for $\Phi_{tov}$
-
-Todo: Its unclear what's going on here. Is rbar / r a constant? is it a function of radius?
 
 First off, we need to start over in section VI. Given that we a-priori have our matter distribution, we don't need to solve for $\alpha$, or $\Theta$ luckily, and the only variable we need is $\Phi_{tov}$. There's a nicer way of solving for $\Phi_{tov}$ than specified in the paper, but first we should talk about $\bar{r}$. One thing that absolutely must be noted is that the paper we're working on is in *isotropic* coordinates with the radial coordinate $\bar{r}$. Up until now, we've been working in *schwarzschild* coordinates with the radial coordinate $r$. We're going to have to perform a conversion between the two: the conversion function is defined [as follows (24 + 25)](https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html#x1-2004r4):
 
@@ -922,7 +920,7 @@ The variables $S^i$ and $\mu_H$ are not actually hydrodynamic quantities, and so
 |$\mu$|Total mass-energy density|
 |$p$|Pressure|
 
-We unfortunately cannot simply transform our conformal variables from earlier, as they are not actually equivalent - its a non linear transform, so our variables wouldn't correspond correctly. We must instead construct them from $S^i$ and $\mu_H$ only. To do this, we have the following equations:
+We unfortunately cannot simply transform our conformal variables from earlier, as they are not actually equivalent - an equation of state is generally non linear, so our variables wouldn't correspond correctly. We must instead construct them from $S^i$ and $\mu_H$ only. To do this, we have the following equations:
 
 $$\begin{align}
 \mu_H &= (\mu + p) W^2 - p \\
@@ -952,9 +950,11 @@ Its actually a bit tricky to test this in general. There's some sanity checks we
 2. Calculate the hamiltonian constraint, and check the error. You may have small errors due to the presence of a discontinuity at the edge of the star
 3. Implement a relativistic hydrodynamics formalism to check that the star is stable and works correctly
 
-Really though, the only proper way to check this is 3. So along with this article, I've bundled an entire hydrodynamics formalism along with the code, which will be the subject of the next article
+Really though, the only proper way to check this is 3. So along with this article, I've bundled an entire hydrodynamics formalism, which will be the subject of the next article
 
-Todo: Link a static star
+<iframe width="560" height="315" src="https://www.youtube.com/embed/3651CYjUmHk?si=QjzACH6vhY2Fi7i-" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Top left is the hamiltonian constraint (which is damped, this is a new feature we'll go over next time). The graph on the right is the rest mass, which slowly decreases for formalism specific reasons. There's a small bit of jiggling initially as the lapse settles down, but the star is clearly very stable
 
 # Discussion + Limitations
 
