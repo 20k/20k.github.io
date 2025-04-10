@@ -833,7 +833,16 @@ Which should be set to $0$ when $r>r_0$. What's $W$?
 
 #### $W$, aka the lorentz factor
 
-There are two lorentz factors in this paper. One for the linear momentum, and one for the angular momentum
+This is the segment of the paper where things start to get very wonky. If we skip to the initial data procedure, we can see that just after (62), it says:
+
+"In this equation, the boost factor W for the stellar model is given by Eq. (56) for linear momentum or Eq. (61) for angular momentum"
+
+Given that the language is identical to the language used for $\bar{A}_{ij}$, a casual read of this might suggest one of the two following things:
+
+1. We sum the lorentz factors
+2. We sum the quantity $(\bar{\mu} + \bar{p}) W^2_{type} - \bar{p}$ for the angular, and linear lorentz factors
+
+These two lorentz factors are given as follows:
 
 Linear (60):
 
@@ -846,21 +855,49 @@ W_{J}^2 &=\frac{1}{2}\left (1 + \sqrt{1 + \frac{4 J_i J^i r^2 \sin^2 \theta}{\ma
 \sin^2 \theta &= 1 - (\hat{J}^i \hat{l}_i)^2 \\
 \end{align}$$
 
-$l_i$ is the same unit normal as earlier. For $\sin^2 \theta$, you'll want to ensure that $J^i$ and $l_i$ are normalised (hence the hats) to a length of $1$, as we're using the formula $\mathrm{dot}(a, b) = \cos \theta ||a||\;||b||$. $\theta$ more technically is the angle between $J^i$ and $l^i$. Note that the quantity $\theta$ becomes undefined as $J^i J_i$ tends to $0$, but given the prefix term, we can simply set $\sin^2 \theta$ to anything when this happens
+$l_i$ is the same unit normal as earlier. For $\sin^2 \theta$, you'll want to ensure that $J^i$ and $l_i$ are normalised (hence the hats) to a length of $1$, as we're using the formula $\mathrm{dot}(a, b) = \cos \theta ||a||\;||b||$. $\theta$ more technically is the angle between $J^i$ and $l^i$. Note that the quantity $\theta$ becomes undefined as $J^i J_i$ tends to $0$, but given the prefix term, you can simply set $\sin^2 \theta$ to anything when this happens
 
-Sometimes I wish I'd taken up fishing
+Now. The tricky part comes in in that both of these options are clearly wrong. See, a lorentz factor is $1$ when it corresponds to no velocity. This means that if we trial setting $W=1$ for both contributions to sanity check this procedure, our summed lorentz factor is:
 
-#### Combining lorentz factors
+$$W_{sum} = W_J + W_P = 2$$
 
-Todo: I need to check this
+Which is clearly incorrect. Running the same idea for superimposing the matter terms gives a similar answer:
 
-Of course, we can't simply *add* lorentz factors together, that'd be madness. Instead you use the rapidity formula. This gives us:
+$$\bar{\mu}_H^{summed} = ((\bar{\mu} + \bar{p}) W^2_P - \bar{p}) + ((\bar{\mu} + \bar{p}) W^2_J - \bar{p}) = 2 \bar{\mu} $$
 
-$$W = \mathrm{cosh}(\mathrm{arccosh}(W_P) + \mathrm{arccosh}(W_J)) $$
+Which is also clearly incorrect - we really can't just sum things that have a lorentz factor in them, as it doesn't add linearly. This paper, other [(e1)](https://arxiv.org/pdf/2101.10252), [(e2)](https://arxiv.org/pdf/2404.09924) papers by the same authors referencing this procedure, and the [thesis](https://repository.gatech.edu/server/api/core/bitstreams/f5e116da-ebff-4380-96e8-027304d9db82/content) on which this paper is based appear to have developed a curious feature where the details of how this works is somewhat conspicuously absent. I've found a lot of minor mistakes in papers in general, but this is quite a significant omission
 
-One key feature that is extremely important is that $W_J$ is *not* symmetric in 3d. It is a function of both angle and radius, which renders $\tilde{\mu}_H$ non symmetric as well. While we can solve everything else in 1D up to this point, we now have to discretise everything onto a 3d grid
+You might consider that we could add lorentz factors via a rapidity formula, but this is incorrect as these two terms are lorentz factors representing velocities in a direction
 
-With this done, its finally over, and I can now describe the procedure for solving our laplacian
+##### Searching slightly further afield
+
+Now, that's not the only definition of the lorentz factor in this paper. We also have (27):
+
+$$W^2 = \frac{1}{2}(1 + \sqrt{1 + \frac{4 \bar{\gamma}_{ij} \bar{S}^i \bar{S}^j}{(\bar{\mu} + \bar{p})^2}})$$
+
+Which brings up the question: What's $\bar{S}^i$? Well, we have two quantities here, defined via (32) and (33):
+
+$$\begin{align}
+\bar{S}^i = P^i \sigma(r) \\
+\bar{S}_i = \epsilon_{ijk} J^j x^k \kappa(r)
+\end{align}
+$$
+
+You might be hoping we can add these together (after raising the second quantity), but lets examine the general form of $\bar{S}^i$:
+
+$$\bar{S}^i = (\bar{\mu} + \bar{p}) W \bar{u}^i$$
+
+Obvious problem: The lorentz factor. Unlike the previous example, as $\bar{u}^i$ tends to zero, this has the right asymptotic behaviour, but it'd produce incorrect answers to add them in general. On top of that, $\bar{u}$ is the spatial components of a (conformal) 4-velocity, which means that this is actually the spatial parts of a 4-momentum(ish) vector multiplied by a lorentz factor, which makes it super wrong to add them together. In general, you can't simply add velocities, or momentums in GR
+
+##### This is a bit odd
+
+This is a strange one - the procedure laid out here is clearly incomplete, and in a few places it looks like the paper is being specific with its language to avoid specifying how to do this, which smells like its non trivial. Luckily there's a workaround. After the maximal slicing and conformal flatness assumption, we end up with the relation:
+
+$$\bar{\nabla}_j \bar{A}^{ij} =8 \pi \bar{S}^i$$
+
+Which here simplifies to $\partial_j \bar{A}^{ij} = 8 \pi \bar{S}^i$. Solutions to this equation are linear, so we can take the sum of all $\bar{A}^{ij}$'s calculated earlier, and use that to derive $\bar{S}^i$. Then derive the lorentz factor from its equation up above (27)
+
+This does make me wonder: What's going on here - did I simply miss something? Why would the paper say to use the lorentz factor, when there's actually a trivially simple equation on hand? I don't have an answer for you
 
 ### Solving the laplacian, finally
 
@@ -890,15 +927,7 @@ F^{sum} &= \sum^N_{k=1} F_{(k)} \\
 
 That's it, we're good to go. From here on, its just a standard laplacian of exactly the same form we solved in todo: this article, and there's absolutely nothing special whatsoever
 
-This lets us solve for our final quantities. Firstly, we'll need some helpers:
-
-|Name|Symbol|Value|
-|-|-|-|
-| Conformal Angular Adm Matter Source | $$\tilde{S}^J_i$$ | $$\epsilon_{ijk} J^j x^k \kappa(r)$$ ($x$ is the current coordinate world position relative to the star) |
-| Conformal Linear Adm Matter Source | $$\tilde{S}^i_P$$ | $$P^i \sigma(r)$$ |
-| Conformal Adm Matter Source | $$\tilde{S}^i$$ | $$\tilde{S}^i_P + \eta^{ik} \tilde{S}_k^J$$ |
-
-It is important to note that $\tilde{S}_i^J$ is not simply a function of radius, and is both a function of radius *and* angle. To get our final quantities:
+To get our final quantities:
 
 |Name|Symbol|Value|
 |-|-|-|
