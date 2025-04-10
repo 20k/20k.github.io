@@ -897,7 +897,9 @@ $$\bar{\nabla}_j \bar{A}^{ij} =8 \pi \bar{S}^i$$
 
 Which here simplifies to $\partial_j \bar{A}^{ij} = 8 \pi \bar{S}^i$. Solutions to this equation are linear, so we can take the sum of all $\bar{A}^{ij}$'s calculated earlier, and use that to derive $\bar{S}^i$. Then derive the lorentz factor from its equation up above (27)
 
-This does make me wonder: What's going on here - did I simply miss something? Why would the paper say to use the lorentz factor, when there's actually a trivially simple equation on hand? I don't have an answer for you
+This does make me wonder: What's going on here - did I simply miss something? I don't have an answer for you[^error]
+
+[^error]: In general, its clear that the procedure implemented is not the one described. In [this](https://arxiv.org/pdf/1606.04881) paper (82) is clearly incorrect. In [this](https://arxiv.org/pdf/2101.10252) paperl, the mistake is repeated as (31). In a later [paper](https://arxiv.org/pdf/2404.09924), this mistake is corrected as (22)
 
 ### Solving the laplacian, finally
 
