@@ -225,21 +225,6 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
 
     tensor<valuef, 3, 3> AIJ = AIJ_p + AIJ_j;
 
-    v3f P_lower = flat.lower(P);
-
-    valuef M = lM.get();
-    valuef squiggly_N = l_sN.get();
-
-    valuef W2_P = 0.5f * (1 + sqrt(1 + (4 * dot(P_lower, P)) / (M*M)));
-
-    v3f J_norm = J / max(J.length(), valuef(0.0001f));
-    v3f li_lower_norm = li_lower / max(li_lower.length(), valuef(0.0001f));
-    value sin2 = 1 - pow(dot(J_norm, li_lower_norm), valuef(2.f));
-
-    valuef W2_J = 0.5f * (1 + sqrt(1 + (4 * dot(J_lower, J) * r * r * sin2) / (squiggly_N*squiggly_N)));
-
-    valuef W = cosh(acosh(sqrt(W2_P)) + acosh(sqrt(W2_J)));
-
     tensor<int, 2> index_table[6] = {{0, 0}, {0, 1}, {0, 2}, {1, 1}, {1, 2}, {2, 2}};
 
     for(int i=0; i < 6; i++)
@@ -248,33 +233,6 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
         as_ref(AIJ_accumulate[i][pos, dim]) += AIJ[idx.x(), idx.y()];
         as_ref(AIJ_this_star[i][pos, dim]) = AIJ[idx.x(), idx.y()];
     }
-
-    v3f Si_P = P * sigma;
-    v3f S_iJ;
-
-    for(int i=0; i < 3; i++)
-    {
-        for(int j=0; j < 3; j++)
-        {
-            for(int k=0; k < 3; k++)
-            {
-                S_iJ[i] += eijk[i, j, k] * J[j] * from_body[k] * kappa;
-            }
-        }
-    }
-
-    v3f Si = Si_P + iflat.raise(S_iJ);
-
-    //valuef W2 = 0.5f * (1 + sqrt(1 + (4 * flat.dot(cSi, cSi)) / pow(mu_cfl + pressure_cfl, 2.f)));
-
-    valuef mu_h = (mu_cfl + pressure_cfl) * W*W - pressure_cfl;
-
-    //as_ref(mu_h_cfl_out[pos, dim]) += mu_h;
-
-    /*for(int i=0; i < 3; i++)
-    {
-        as_ref(Si_out[i][pos, dim]) += Si[i];
-    }*/
 
     if_e(r <= radius_b[samples-1], [&]{
         as_ref(star_indices[pos, dim]) = index.get();
@@ -389,8 +347,6 @@ void matter_p2(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b, b
                 d.pos = pos;
                 d.dim = dim;
                 d.scale = scale;
-
-                std::cout << "TT " << value_to_string(diffable_AIJ[i, j]) << std::endl;
 
                 sum += diff1(diffable_AIJ[i, j], j, d);
             }
