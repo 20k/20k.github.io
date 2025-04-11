@@ -583,8 +583,6 @@ I personally found the $r'$ notation to be pretty confusing given that its also 
 
 The equation for this is (54):
 
-$$\bar{A}^{ij}_J =\frac{6}{r^3}l^{(i} \epsilon^{{j)}kl}J_k l_l N$$
-
 Here's what everything means
 
 |Symbol|Definition|
