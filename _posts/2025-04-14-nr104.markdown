@@ -7,7 +7,7 @@ categories: C++
 
 Todo: I dislike the intro, its too wishy washy but doesn't really introduce anything useful
 
-Today's job is very simple, conceptually. We're going to dig into what it means for something to be a neutron star - how you represent these in general relativity, and all the necessary steps you'll need to solve along the way to successfully bring one to life in a full general relativistic simulation
+Today's job is very simple, conceptually. We're going to dig into what it means for something to be a neutron star - how you represent these in general relativity, and all the necessary steps you'll need to solve along the way to successfully bring one to life in a full numerical relativistic simulation
 
 You should know before we get into this, that it is going to be a *huge* pain, so saddle up
 
@@ -511,6 +511,8 @@ std::optional<tov::integration_solution> tov::solve_tov(const integration_state&
 
 ## Testing the implementation
 
+Todo: I need another test case
+
 We're going to define a few test cases:
 
 | Case | $\rho_c$ | $K$ | $\Gamma$ | Expected $M$ | Expected $R$ | Notes |
@@ -522,7 +524,7 @@ Note that a test case you might find over [here](https://colab.research.google.c
 
 [^waste]: If you'd like a peek behind the scenes on the development of these articles, it took me several days and 1k+ lines of code to figure out that this was the error that was preventing my integrator from working properly. One of the reasons why I'm being as pedantic as possible about units, and coordinate systems, is to try and help other people avoid my mistakes
 
-Where the code for solving these looks like this:
+The code for solving these looks like this:
 
 ```c++
 void test_1()
@@ -636,14 +638,21 @@ The actual paper we're going to be implementing today is [this](https://arxiv.or
 
 I'm trying to stem the incredibly random notational divergence in the literature a bit to make things less crazy to follow, which is why I'm converting. We'll also be swapping from $P$ to $p$, because $P^i$ will be used for the ADM momentum
 
-If you remember from our black hole initial conditions paper, the basic idea for many kinds of initial conditions is that of conformal flatness. That is to say, we take our adm metric $\gamma_{ij}$, and perform a conformal transform on it by a scalar, to end up with a conformal metric. In this paper, our ADM variables are transformed as follows:
+If you remember from our black hole initial conditions paper, the basic idea for many kinds of initial conditions is based on a few principles:
+
+1. A conformal transform, creating a set of conformal variables
+2. The conformal metric tensor is flat (ie the identity matrix in cartesian coordinates)
+
+In this paper, the ADM variables are transformed as follows:
 
 $$\begin{align}
 \gamma_{ij} &= \Phi^4 \bar{\gamma}_{ij}\\
 A_{ij} &= \Phi^{-2} \bar{A}_{ij}
 \end{align}$$
 
-Where $$\bar{\gamma}_{ij}$$ is the conformally flat (ie the identity matrix) metric tensor, $A_{ij}$ is the trace-free extrinsic curvature, and $\Phi$ is the conformal factor. Its important to note that this is the same conformal decomposition as the black hole initial conditions we've used previously[^explicitly]. Similarly, we're trying to solve for exactly two things only in this paper
+Where $$\bar{\gamma}_{ij}$$ is the conformally flat (ie the identity matrix) metric tensor, $A_{ij}$ is the trace-free extrinsic curvature, and $\Phi$ is the conformal factor. Anything with a bar over it is a conformal variable, eg $\bar{A}_{ij}$.
+
+Its important to note that this is the same conformal decomposition as the black hole initial conditions we've used previously[^explicitly]. Similarly, we're trying to solve for exactly two things only in this paper
 
 1. The conformal factor $\Phi$
 2. The extrinsic curvature $$\bar{A}_{ij}$$
@@ -823,7 +832,7 @@ This is a standard laplacian. We're going to go over the details of how to perfo
 
 ![londo](/assets/nr4_londo.PNG)
 
-### Solving for $\bar{\mu}_H$ is indeed that bad
+### Solving for $\bar{\mu}_H$
 
 The definition can be found by applying $\Phi_{tov}^8$ to $\mu_H$ (6 + 20):
 
@@ -833,73 +842,18 @@ Which should be set to $0$ when $r>r_0$. What's $W$?
 
 #### $W$, aka the lorentz factor
 
-This is the segment of the paper where things start to get very wonky. If we skip to the initial data procedure, we can see that just after (62), it says:
+I've moved an extremely extended discussion about the correct way to calculate this variable to the end of the article for flow reasons, and you should note that this is an ad-hoc procedure. If you're ever interested in the behind-the-scenes development of these articles, you can skip over there to enjoy my frustration
 
-"In this equation, the boost factor W for the stellar model is given by Eq. (56) for linear momentum or Eq. (61) for angular momentum"
-
-Given that the language is identical to the language used for $\bar{A}_{ij}$, a casual read of this might suggest one of the two following things:
-
-1. We sum the lorentz factors
-2. We sum the quantity $(\bar{\mu} + \bar{p}) W^2_{type} - \bar{p}$ for the angular, and linear lorentz factors
-
-These two lorentz factors are given as follows:
-
-Linear (60):
-
-$$W_{P}^2 = \frac{1}{2}\left (1 + \sqrt{1 + \frac{4 P_i P^i}{\mathcal{M}^2}} \right)$$
-
-Angular (65):
+The two equations we'll be using are this:
 
 $$\begin{align}
-W_{J}^2 &=\frac{1}{2}\left (1 + \sqrt{1 + \frac{4 J_i J^i r^2 \sin^2 \theta}{\mathcal{N}^2}} \right)\\
-\sin^2 \theta &= 1 - (\hat{J}^i \hat{l}_i)^2 \\
+\bar{\nabla}_j \bar{A}^{ij} &= 8 \pi \bar{S}^i \\
+
+W^2 &= \frac{1}{2}\left [1 + \sqrt{1 + \frac{4 \bar{\gamma}_{ij} \bar{S}^i \bar{S}^j}{(\bar{\mu} + \bar{p})^2}}\right]\\
 \end{align}$$
 
-$l_i$ is the same unit normal as earlier. For $\sin^2 \theta$, you'll want to ensure that $J^i$ and $l_i$ are normalised (hence the hats) to a length of $1$, as we're using the formula $\mathrm{dot}(a, b) = \cos \theta ||a||\;||b||$. $\theta$ more technically is the angle between $J^i$ and $l^i$. Note that the quantity $\theta$ becomes undefined as $J^i J_i$ tends to $0$, but given the prefix term, you can simply set $\sin^2 \theta$ to anything when this happens
+Remember that the conformal metric tensor is flat, so $\bar{\nabla}_j \bar{A}^{ij} = \partial_j \bar{A}^{ij}$. Here, $\bar{A}^{ij}$ is the two summed components of the extrinsic curvature for a single star only: $\bar{A}^{ij} = \bar{A}^{ij}_P +  \bar{A}^{ij}_J$, and this is not the total extrinsic curvature. You don't need to worry about imposing a boundary condition exterior to the star, as $W^2$ is multiplied by matter terms
 
-Now. The tricky part comes in in that both of these options are clearly wrong. See, a lorentz factor is $1$ when it corresponds to no velocity. This means that if we trial setting $W=1$ for both contributions to sanity check this procedure, our summed lorentz factor is:
-
-$$W_{sum} = W_J + W_P = 2$$
-
-Which is clearly incorrect. Running the same idea for superimposing the matter terms gives a similar answer:
-
-$$\bar{\mu}_H^{summed} = ((\bar{\mu} + \bar{p}) W^2_P - \bar{p}) + ((\bar{\mu} + \bar{p}) W^2_J - \bar{p}) = 2 \bar{\mu} $$
-
-Which is also clearly incorrect - we really can't just sum things that have a lorentz factor in them, as it doesn't add linearly. This paper, other [(e1)](https://arxiv.org/pdf/2101.10252), [(e2)](https://arxiv.org/pdf/2404.09924) papers by the same authors referencing this procedure, and the [thesis](https://repository.gatech.edu/server/api/core/bitstreams/f5e116da-ebff-4380-96e8-027304d9db82/content) on which this paper is based appear to have developed a curious feature where the details of how this works is somewhat conspicuously absent. I've found a lot of minor mistakes in papers in general, but this is quite a significant omission
-
-You might consider that we could add lorentz factors via a rapidity formula, but this is incorrect as these two terms are lorentz factors representing velocities in a direction
-
-##### Searching slightly further afield
-
-Now, that's not the only definition of the lorentz factor in this paper. We also have (27):
-
-$$W^2 = \frac{1}{2}(1 + \sqrt{1 + \frac{4 \bar{\gamma}_{ij} \bar{S}^i \bar{S}^j}{(\bar{\mu} + \bar{p})^2}})$$
-
-Which brings up the question: What's $\bar{S}^i$? Well, we have two quantities here, defined via (32) and (33):
-
-$$\begin{align}
-\bar{S}^i = P^i \sigma(r) \\
-\bar{S}_i = \epsilon_{ijk} J^j x^k \kappa(r)
-\end{align}
-$$
-
-You might be hoping we can add these together (after raising the second quantity), but lets examine the general form of $\bar{S}^i$:
-
-$$\bar{S}^i = (\bar{\mu} + \bar{p}) W \bar{u}^i$$
-
-Obvious problem: The lorentz factor. Unlike the previous example, as $\bar{u}^i$ tends to zero, this has the right asymptotic behaviour, but it'd produce incorrect answers to add them in general. On top of that, $\bar{u}$ is the spatial components of a (conformal) 4-velocity, which means that this is actually the spatial parts of a 4-momentum(ish) vector multiplied by a lorentz factor, which makes it super wrong to add them together. In general, you can't simply add velocities, or momentums in GR
-
-##### This is a bit odd
-
-This is a strange one - the procedure laid out here is clearly incomplete, and in a few places it looks like the paper is being specific with its language to avoid specifying how to do this, which smells like its non trivial. Luckily there's a workaround. After the maximal slicing and conformal flatness assumption, we end up with the relation:
-
-$$\bar{\nabla}_j \bar{A}^{ij} =8 \pi \bar{S}^i$$
-
-Which here simplifies to $\partial_j \bar{A}^{ij} = 8 \pi \bar{S}^i$. Solutions to this equation are linear, so we can take the sum of all $\bar{A}^{ij}$'s calculated earlier, and use that to derive $\bar{S}^i$. Then derive the lorentz factor from its equation up above (27)
-
-This does make me wonder: What's going on here - did I simply miss something? I don't have an answer for you[^error]
-
-[^error]: In general, its clear that the procedure implemented is not the one described. In [this](https://arxiv.org/pdf/1606.04881) paper (82) is clearly incorrect. In [this](https://arxiv.org/pdf/2101.10252) paperl, the mistake is repeated as (31). In a later [paper](https://arxiv.org/pdf/2404.09924), this mistake is corrected as (22)
 
 ### Solving the laplacian, finally
 
@@ -993,6 +947,7 @@ While this approach is quite general, it does have some limitations:
 
 1. The approximation to a spinning star isn't super adequate. In general, spinning stars can be larger than a static star before forming a black hole, which isn't really expressible here as our solution is derived from a static star
 2. Our stars are strictly spherical initially (though with a non spherical velocity), resulting in them relaxing to a stable oblate shape
+3. The calculation of the lorentz factor is positively a debacle
 
 These aren't too bad, but its always worth knowing where the limitations lie
 
@@ -1009,6 +964,80 @@ Anyway. Here's a picture of a cat. Good luck!
 Todo: Cat
 
 # Appendix
+
+## $W$, aka the lorentz factor, extended discussion
+
+This is the segment of the paper where things start to get very wonky. If we skip to the initial data procedure, we can see that just after (62), it says:
+
+"In this equation, the boost factor W for the stellar model is given by Eq. (56) for linear momentum or Eq. (61) for angular momentum"
+
+Given that the language is identical to the language used for $\bar{A}_{ij}$, a casual read of this might suggest one of the two following things:
+
+1. We sum the lorentz factors[^superpose]
+2. We sum the quantity $(\bar{\mu} + \bar{p}) W^2_{type} - \bar{p}$ for the angular, and linear lorentz factors
+
+[^superpose]: Do note that this argument is more for illustrative purposes to demonstrate that the second case is wrong, for a reader who is less able to immediately spot that this is an error. If you're more familiar with GR, you'll know that there are other more obvious grounds to rule this out immediately (in that lorentz factors not adding together is basic GR)
+
+These two lorentz factors are given as follows:
+
+Linear (60):
+
+$$W_{P}^2 = \frac{1}{2}\left (1 + \sqrt{1 + \frac{4 P_i P^i}{\mathcal{M}^2}} \right)$$
+
+Angular (65):
+
+$$\begin{align}
+W_{J}^2 &=\frac{1}{2}\left (1 + \sqrt{1 + \frac{4 J_i J^i r^2 \sin^2 \theta}{\mathcal{N}^2}} \right)\\
+\sin^2 \theta &= 1 - (\hat{J}^i \hat{l}_i)^2 \\
+\end{align}$$
+
+$l_i$ is the same unit normal as earlier. For $\sin^2 \theta$, $J^i$ and $l_i$ are normalised (hence the hats) to a length of $1$, as I've plugged in the formula $\mathrm{dot}(a, b) = \cos \theta ||a||\;||b||$. $\theta$ more technically is the angle between $J^i$ and $l^i$. Note that the quantity $\theta$ becomes undefined as $J^i J_i$ tends to $0$, but given the prefix term, $\sin^2 \theta$ can be set to anything when this happens
+
+Now. The tricky part comes in in that both of these options are clearly wrong. See, a lorentz factor is $1$ when it corresponds to no velocity. This means that if we trial setting $W=1$ for both contributions to run a basic sanity check this procedure, our summed lorentz factor is:
+
+$$W_{sum} = W_J + W_P = 2$$
+
+Which is clearly incorrect, as a stationary fluid should have a lorentz factor of $1$. Running the same idea for superimposing the matter terms gives a similar answer:
+
+$$\bar{\mu}_H^{summed} = ((\bar{\mu} + \bar{p}) W^2_P - \bar{p}) + ((\bar{\mu} + \bar{p}) W^2_J - \bar{p}) = 2 \bar{\mu} $$
+
+Which is also clearly incorrect - we really can't just sum things that have a lorentz factor in them, as it doesn't add linearly. This paper, other [(e1)](https://arxiv.org/pdf/2101.10252), [(e2)](https://arxiv.org/pdf/2404.09924) papers by the same authors referencing this procedure, and the [thesis](https://repository.gatech.edu/server/api/core/bitstreams/f5e116da-ebff-4380-96e8-027304d9db82/content) on which this paper is based appear to have developed a curious feature where the details of how this works is somewhat conspicuously absent. I've found a lot of minor mistakes in papers in general, but this is quite a significant omission
+
+You might consider that we could add lorentz factors via a rapidity formula, but this is incorrect as these two terms are lorentz factors representing velocities in a direction
+
+### Searching slightly further afield
+
+Now, that's not the only definition of the lorentz factor in this paper. We also have (27):
+
+$$W^2 = \frac{1}{2}\left [1 + \sqrt{1 + \frac{4 \bar{\gamma}_{ij} \bar{S}^i \bar{S}^j}{(\bar{\mu} + \bar{p})^2}}\right]$$
+
+Which brings up the question: What's $\bar{S}^i$? Well, we have two quantities here, defined via (32) and (33):
+
+$$\begin{align}
+\bar{S}^i = P^i \sigma(r) \\
+\bar{S}_i = \epsilon_{ijk} J^j x^k \kappa(r)
+\end{align}
+$$
+
+You might be hoping we can add these together (after raising the second quantity), but lets examine the general form of $\bar{S}^i$:
+
+$$\bar{S}^i = (\bar{\mu} + \bar{p}) W \bar{u}^i$$
+
+Obvious problem: The lorentz factor. Unlike the previous example, as $\bar{u}^i$ tends to zero, this has the right asymptotic behaviour, but it'd produce incorrect answers to add them in general. On top of that, $\bar{u}$ is the spatial components of a (conformal) 4-velocity, which means that this is actually the spatial parts of a 4-momentum(ish) vector multiplied by a lorentz factor, which makes it super wrong to add them together. In general, you can't simply add velocities, or momentums in GR
+
+I'm giving informal descriptions of what's going on here, but from a technical perspective, these are both projections of the 4d stress-energy tensor, so summing the contributions from the same body doesn't seem correct - as its overlaying the contributions from two fluids with different (or zero) energies on top of each other
+
+### This is a bit odd
+
+This is a strange one - the procedure laid out here is clearly incomplete, and in a few places the paper is being specific with its language to avoid specifying how to do this, which smells like its non trivial. Luckily there's a workaround. After the maximal slicing and conformal flatness assumption, we end up with the relation:
+
+$$\bar{\nabla}_j \bar{A}^{ij} = 8 \pi \bar{S}^i$$
+
+Which here simplifies to $\partial_j \bar{A}^{ij} = 8 \pi \bar{S}^i$. Solutions to this equation are linear, so we can take the sum of the two $\bar{A}^{ij}$'s calculated earlier for a single star, and use that to derive $\bar{S}^i$. Then derive the lorentz factor from its equation up above (27)
+
+This does make me wonder: What's going on here - did I simply miss something? I don't have an answer for you[^error]
+
+[^error]: In general, its clear that the procedure implemented is not the one described. In [this](https://arxiv.org/pdf/1606.04881) paper (82) is clearly incorrect. In [this](https://arxiv.org/pdf/2101.10252) paper, the mistake is repeated as (31). In a later [paper](https://arxiv.org/pdf/2404.09924), this mistake is corrected as (22)
 
 ## Solving TOV for a specific mass
 

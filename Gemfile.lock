@@ -9,6 +9,7 @@ GEM
     em-websocket (0.5.3)
       eventmachine (>= 0.12.9)
       http_parser.rb (~> 0)
+    eventmachine (1.2.7)
     eventmachine (1.2.7-x64-mingw32)
     ffi (1.17.1)
     forwardable-extended (2.6.0)
@@ -78,6 +79,8 @@ GEM
     rouge (4.5.1)
     rubyzip (2.4.1)
     safe_yaml (1.0.5)
+    sass-embedded (1.83.4-x64-mingw-ucrt)
+      google-protobuf (~> 4.29)
     sass-embedded (1.83.4-x64-mingw32)
       google-protobuf (~> 4.29)
     terminal-table (3.0.2)
@@ -91,6 +94,7 @@ GEM
     webrick (1.9.1)
 
 PLATFORMS
+  x64-mingw-ucrt
   x64-mingw32
 
 DEPENDENCIES
