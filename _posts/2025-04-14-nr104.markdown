@@ -507,9 +507,9 @@ We're going to define a few test cases:
 
 | Case | $\rho_c$ | $K$ | $\Gamma$ | Expected $M$ | Expected $R$ | Notes |
 |-|-|-|-|-|-|-|
-| [C1](https://arxiv.org/pdf/1606.04881) (section VII) | $6.235\; 10^{17}\; \mathrm{kg}\;\mathrm{m}^{-3}$ |  $123.641 M_{\odot}^2$ where $c=G=1$[^waste] | $2$ |$1.543 M_\odot$ where $c=G=1$ | $13.4 \; \mathrm{km}$ in Isotropic coordinates | |
-| [C2](https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html) (see after interior) | $1.28 \; 10^{-3} \; \mathrm{m^{-2}}$ where $c=G=M_{\odot} = 1$ | $100$ where $c=G=M_{\odot} = 1$ | $2$ | $1.4 M_{\odot}$ where $c=G=1$ | $14.15\; \mathrm{km}$ where $c=G=1$ in schwarzschild coordinates | |
-| [C3](https://arxiv.org/pdf/gr-qc/0110047) (see: C) | $8.0\;10^{-3}$ where $c=G=1$ | $100$ where $c=G=M_{\odot} = 1$ | $2$ | $1.447 M_{\odot}$ where $c=G=1$ | unclear | The paper mixes up rest and gravitational mass frequently |
+| [C1](https://arxiv.org/pdf/1606.04881) (section VII) | $6.235 \times 10^{17}\; \mathrm{kg}\;\mathrm{m}^{-3}$ |  $123.641 M_{\odot}^2$ where $c=G=1$[^waste] | $2$ |$1.543 M_\odot$ where $c=G=1$ | $13.4 \; \mathrm{km}$ in Isotropic coordinates | |
+| [C2](https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html) (see after interior) | $1.28 \times 10^{-3} \; \mathrm{m^{-2}}$ where $c=G=M_{\odot} = 1$ | $100$ where $c=G=M_{\odot} = 1$ | $2$ | $1.4 M_{\odot}$ where $c=G=1$ | $14.15\; \mathrm{km}$ where $c=G=1$ in schwarzschild coordinates | |
+| [C3](https://arxiv.org/pdf/gr-qc/0110047) (see: C) | $8.0 \times 10^{-3}$ where $c=G=1$ | $100$ where $c=G=M_{\odot} = 1$ | $2$ | $1.447 M_{\odot}$ where $c=G=1$ | unclear | The paper mixes up rest and gravitational mass frequently |
 
 Note that a test case you might find over [here](https://colab.research.google.com/drive/1yMD2j3Y6TcsykCI59YWiW9WAMW-SPf12#scrollTo=00FWl5YzbSaB) uses too low of a value of $N$, and produces incorrect results. Its correct if you bump it up
 
@@ -536,7 +536,9 @@ void case_1()
 We're able to match all these test cases exactly. I get:
 
 C1: `Solved for 15.8102km Iso 13.4349km 1.54315 msols`
+
 C2: `Solved for 14.1461km Iso 11.9894km 1.40021 msols`
+
 C3: `Solved for 8.60881km Iso 6.29109km 1.44678 msols`
 
 Incidentally, the notebook test case we link gives `14.136399564110704km 1.400270088513766msols` when corrected, which is pretty close
