@@ -35,7 +35,9 @@ All stars[^allstars] (other than black holes) are in *hydrostatic equilibrium* -
 [^allstars]: Everything in this article could also be used to describe less crazy stars or planets, which would have correspondingly different equations of state
 
 1. The density of matter at the centre of the star: $\rho_c$
-2. An equation of state, which relates the pressure $P$, to the density of matter, within the star
+2. An equation of state, which relates the pressure $P$, to the density[^density] of matter, within the star
+
+[^density]: I *believe* that strictly speaking the equation of state only necessarily relates the energy of matter to the pressure, but in this article I'm going to assume we can convert between energy, density, and pressure freely
 
 With all of these together, we can use the equations for hydrostatic equilibrium, and end up with a full description of a **non spinning** body. This gives us:
 
