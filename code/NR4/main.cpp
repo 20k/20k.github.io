@@ -1272,7 +1272,8 @@ initial_params get_initial_params()
     p1.position = {-radial_pos, 0, 0};
     ///was 0.23
     ///0.265 was reasonable
-    p1.linear_momentum.momentum = {0, -0.25, 0};
+    p1.linear_momentum.momentum = {0, 0, 0};
+    p1.angular_momentum.momentum = {0, 0, 3};
     p1.K.msols = 123.641;
     p1.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
 
@@ -1280,23 +1281,57 @@ initial_params get_initial_params()
 
     //p2.colour = {0, 0, 1};
     p2.position = {radial_pos, 0, 0};
-    p2.linear_momentum.momentum = {0, 0.25, 0};
+    p2.linear_momentum.momentum = {0, 0, 0};
+    p2.angular_momentum.momentum = {0, 0, 3};
     p2.K.msols = 123.641;
     p2.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
+
+    initial_params init;
+    init.N = 0.1;
+
+    init.dim = {199, 199, 199};
+    init.simulation_width = radial_pos * 6;
+
+    init.add(p1);
+    init.add(p2);
+
+    init.linear_viscosity_timescale = 0;
+    init.time_between_snapshots = 15;
+    init.lapse_damp_timescale = 0;
+    #endif
+
+    //#define RACE
+    #ifdef RACE
+    neutron_star::parameters p1;
+
+    float radial_pos = geometric_to_msol(1000 * 54.6/2, 1);
+
+    printf("Radial pos %f\n", radial_pos);
+
+    ///hang on
+    ///i'm in units of c=g=msol=1
+    ///so 1 unit of distance isn't 1km
+    //p1.colour = {1, 0, 0};
+    p1.position = {0, 0, 0};
+    ///was 0.23
+    ///0.265 was reasonable
+    //p1.linear_momentum.momentum = {0.25, 0, 0};
+    p1.angular_momentum.momentum = {0.f, 0.f, 0.9f};
+    p1.K.msols = 123.641;
+    p1.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
+
 
     initial_params init;
     init.N = 0.2;
 
     init.dim = {199, 199, 199};
-    init.simulation_width = radial_pos * 6 * 1.5;
+    init.simulation_width = radial_pos * 6;
 
     init.add(p1);
-    init.add(p2);
 
     init.linear_viscosity_timescale = 200;
     init.time_between_snapshots = 15;
     init.lapse_damp_timescale = 0;
-
     #endif
 
     //#define STATIONARY
