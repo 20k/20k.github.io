@@ -152,10 +152,8 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
         return declare_e(out);
     };
 
-    auto get_ext = [&](v3i pos)
+    auto get_ext = [&](v3f fpos)
     {
-        v3f fpos = (v3f)pos;
-
         v3f body_pos = lbody_pos.get();
         v3f world_pos = grid_to_world(fpos, dim, scale);
 
@@ -246,11 +244,13 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
 
         for(int j=0; j < 3; j++)
         {
-            v3i offset;
-            offset[j] = 1;
+            v3f offset;
+            offset[j] = 0.1f;
 
-            tensor<valuef, 3, 3> right = get_ext(pos + offset);
-            tensor<valuef, 3, 3> left = get_ext(pos - offset);
+            v3f fpos = (v3f)pos;
+
+            tensor<valuef, 3, 3> right = get_ext(fpos + offset);
+            tensor<valuef, 3, 3> left = get_ext(fpos - offset);
 
             auto diff = (right - left) / (2 * scale);
 
@@ -302,7 +302,7 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
         as_ref(Si_out[i][pos, dim]) += cSi[i];
     }
 
-    tensor<valuef, 3, 3> AIJ = get_ext(pos);
+    tensor<valuef, 3, 3> AIJ = get_ext(fpos);
 
     tensor<int, 2> index_table[6] = {{0, 0}, {0, 1}, {0, 2}, {1, 1}, {1, 2}, {2, 2}};
 
