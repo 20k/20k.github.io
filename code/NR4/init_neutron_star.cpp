@@ -116,7 +116,7 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
         return_e();
     });
 
-    auto get = [&](single_source::buffer<valuef> quantity, valuef upper_boundary, valuef r)
+    auto get = [&](single_source::buffer<valuef> quantity, valuef upper_boundary, valuef r, bool debug = false)
     {
         mut<valuef> out = declare_mut_e(valuef(-1.f));
         mut<valuei> found = declare_mut_e(valuei(0));
@@ -127,13 +127,18 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
         });
 
         if_e(r > radius_b[samples - 1], [&]{
+            if(debug)
+            {
+                print("EFound val %f r %f\n", upper_boundary, r);
+            }
+
             as_ref(out) = upper_boundary;
             as_ref(found) = valuei(1);
         });
 
         if_e(r > radius_b[0] && r <= radius_b[samples - 1], [&]{
             mut<valuei> index = declare_mut_e(valuei(0));
-            mut<valuef> last_r = declare_mut_e(valuef(0.f));
+            //mut<valuef> last_r = declare_mut_e(valuef(0.f));
 
             for_e(index < samples - 1, assign_b(index, index+1), [&]{
                 valuef r1 = radius_b[index];
@@ -144,6 +149,12 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
 
                      as_ref(out) = mix(quantity[index], quantity[index + 1], frac);
                      as_ref(found) = valuei(1);
+
+                      if(debug)
+                        {
+                            print("Found val %f r %f\n", out, r);
+                        }
+
                      break_e();
                 });
             });
@@ -168,14 +179,20 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
 
         v3f li = from_body / max(r, valuef(0.0001f));
 
+        print("Samples %i\n", samples);
+
+        valuef max_uN = declare_e(uN_b[samples - 1]);
+
         ///todo: need to define upper boundaries
         valuef Q = get(Q_b, 1.f, r);
         valuef C = get(C_b, C_b[samples-1], r);
-        valuef N = get(uN_b, uN_b[samples - 1], r);
+        valuef N = get(uN_b, max_uN, r, true);
         valuef sigma = get(sigma_b, 0.f, r);
         valuef kappa = get(kappa_b, 0.f, r);
 
-        printf("Upper N %.32f\n", uN_b[samples - 1]);
+        print("N %f r %f max_rad %f\n", N, r, radius_b[samples - 1]);
+
+        print("Upper N %.32f\n", max_uN);
 
         valuef mu_cfl = get(mu_cfl_b, 0.f, r);
         valuef pressure_cfl = get(pressure_cfl_b, 0.f, r);
@@ -248,17 +265,22 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
 
         for(int j=0; j < 3; j++)
         {
+            float off = 1;
+
             v3f offset;
-            offset[j] = 0.01f;
+            offset[j] = off;
 
             v3f fpos = (v3f)pos;
 
             tensor<valuef, 3, 3> right = get_ext(fpos + offset);
             tensor<valuef, 3, 3> left = get_ext(fpos - offset);
+            pin(right);
+            pin(left);
 
-            auto diff = (right - left) / (0.01f * 2 * scale);
+            auto diff = (right - left) / (off * 2 * scale);
 
             sum += diff[i, j] / (8 * M_PI);
+            pin(sum);
         }
 
         Si[i] = sum;
@@ -737,6 +759,8 @@ void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cq
     cl::buffer cl_Q = d2f(Q);
     cl::buffer cl_C = d2f(C);
     cl::buffer cl_uN = d2f(unsquiggly_N);
+
+    assert(cl_uN.alloc_size == cl_Q.alloc_size);
 
     cl::buffer cl_sigma = d2f(sigma);
     cl::buffer cl_kappa = d2f(kappa);
