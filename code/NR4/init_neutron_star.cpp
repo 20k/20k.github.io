@@ -112,6 +112,10 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
 
     v3i pos = {x, y, z};
 
+    if_e(distance_to_boundary(pos, dim) <= 2, [&]{
+        return_e();
+    });
+
     auto get = [&](single_source::buffer<valuef> quantity, valuef upper_boundary, valuef r)
     {
         mut<valuef> out = declare_mut_e(valuef(-1.f));
@@ -245,14 +249,14 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
         for(int j=0; j < 3; j++)
         {
             v3f offset;
-            offset[j] = 0.1f;
+            offset[j] = 0.01f;
 
             v3f fpos = (v3f)pos;
 
             tensor<valuef, 3, 3> right = get_ext(fpos + offset);
             tensor<valuef, 3, 3> left = get_ext(fpos - offset);
 
-            auto diff = (right - left) / (2 * scale);
+            auto diff = (right - left) / (0.01f * 2 * scale);
 
             sum += diff[i, j] / (8 * M_PI);
         }
@@ -292,6 +296,74 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
         flat[i, i] = valuef(1);
 
     valuef W2 = 0.5f * (1 + sqrt(1 + (4 * flat.dot(cSi, cSi)) / max(pow(mu_cfl + pressure_cfl, 2.f), valuef(1e-12f))));
+
+    {
+        v3f body_pos = lbody_pos.get();
+        v3f world_pos = grid_to_world(fpos, dim, scale);
+
+        v3f from_body = world_pos - body_pos;
+
+        valuef r = from_body.length();
+        pin(r);
+
+        v3f li = from_body / max(r, valuef(0.0001f));
+
+        valuef sigma = get(sigma_b, 0.f, r);
+        valuef kappa = get(kappa_b, 0.f, r);
+
+        auto iflat = flat.invert();
+
+        v3f li_lower = flat.lower(li);
+        v3f P = linear_momentum.get();
+        v3f J = angular_momentum.get();
+        v3f J_lower = flat.lower(J);
+
+        v3f P_lower = flat.lower(P);
+
+        valuef M = lM.get();
+        valuef squiggly_N = l_sN.get();
+
+        valuef W2_P = 0.5f * (1 + sqrt(1 + (4 * dot(P_lower, P)) / (M*M)));
+
+        v3f J_norm = J / max(J.length(), valuef(0.0001f));
+        v3f li_lower_norm = li_lower / max(li_lower.length(), valuef(0.0001f));
+        value sin2 = 1 - pow(dot(J_norm, li_lower_norm), valuef(2.f));
+
+        valuef W2_J = 0.5f * (1 + sqrt(1 + (4 * dot(J_lower, J) * r * r * sin2) / (squiggly_N*squiggly_N)));
+
+        auto eijk = get_eijk();
+
+        v3f Si_P = P * sigma;
+        v3f S_iJ;
+
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                for(int k=0; k < 3; k++)
+                {
+                    S_iJ[i] += eijk[i, j, k] * J[j] * from_body[k] * kappa;
+                }
+            }
+        }
+
+        v3f tSi = Si_P + iflat.raise(S_iJ);
+
+        valuef cW = sqrt(0.5f * (1 + sqrt(1 + (4 * flat.dot(tSi, tSi)) / max(pow(mu_cfl + pressure_cfl, 2.f), valuef(1e-12f)))));
+
+        /*cSi[0] = tSi[0];
+        cSi[1] = tSi[1];
+        cSi[2] = tSi[2];
+
+        W2 = cW * cW;*/
+
+        /*if_e(mu_cfl > 0 && W2 > 0, [&]{
+            valuef m1 = (mu_cfl + pressure_cfl) * W2 - pressure_cfl;
+            valuef m2 = (mu_cfl + pressure_cfl) * cW*cW - pressure_cfl;
+
+            print("%.24f %.24f r_err %.24f %f %f calc W2 %f paper W2 %f\n", m1, m2, (m1 - m2) / m1, W2_J, W2_P, W2, cW*cW);
+        });*/
+    }
 
     valuef mu_h = (mu_cfl + pressure_cfl) * W2 - pressure_cfl;
 
