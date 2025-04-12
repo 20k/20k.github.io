@@ -112,28 +112,19 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
 
     v3i pos = {x, y, z};
 
-    v3f fpos = (v3f)pos;
-
-    v3f body_pos = lbody_pos.get();
-    v3f world_pos = grid_to_world(fpos, dim, scale);
-
-    v3f from_body = world_pos - body_pos;
-
-    valuef r = from_body.length();
-    pin(r);
-
-    v3f li = from_body / max(r, valuef(0.001f));
-
-    auto get = [&](single_source::buffer<valuef> quantity, valuef upper_boundary)
+    auto get = [&](single_source::buffer<valuef> quantity, valuef upper_boundary, valuef r)
     {
-        mut<valuef> out = declare_mut_e(valuef(0.f));
+        mut<valuef> out = declare_mut_e(valuef(-1.f));
+        mut<valuei> found = declare_mut_e(valuei(0));
 
         if_e(r <= radius_b[0], [&]{
             as_ref(out) = quantity[0];
+            as_ref(found) = valuei(1);
         });
 
         if_e(r > radius_b[samples - 1], [&]{
             as_ref(out) = upper_boundary;
+            as_ref(found) = valuei(1);
         });
 
         if_e(r > radius_b[0] && r <= radius_b[samples - 1], [&]{
@@ -148,84 +139,170 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
                      valuef frac = (r - r1) / (r2 - r1);
 
                      as_ref(out) = mix(quantity[index], quantity[index + 1], frac);
+                     as_ref(found) = valuei(1);
                      break_e();
                 });
             });
         });
 
+        if_e(found == 0, [&]{
+            print("Borked get\n");
+        });
+
         return declare_e(out);
     };
 
-    ///todo: need to define upper boundaries
-    valuef Q = get(Q_b, 1.f);
-    valuef C = get(C_b, C_b[samples-1]);
-    valuef N = get(uN_b, uN_b[samples - 1]);
-    valuef sigma = get(sigma_b, 0.f);
-    valuef kappa = get(kappa_b, 0.f);
+    auto get_ext = [&](v3i pos)
+    {
+        v3f fpos = (v3f)pos;
 
-    printf("Upper N %.32f\n", uN_b[samples - 1]);
+        v3f body_pos = lbody_pos.get();
+        v3f world_pos = grid_to_world(fpos, dim, scale);
 
-    valuef mu_cfl = get(mu_cfl_b, 0.f);
-    valuef pressure_cfl = get(pressure_cfl_b, 0.f);
+        v3f from_body = world_pos - body_pos;
+
+        valuef r = from_body.length();
+        pin(r);
+
+        v3f li = from_body / max(r, valuef(0.0001f));
+
+        ///todo: need to define upper boundaries
+        valuef Q = get(Q_b, 1.f, r);
+        valuef C = get(C_b, C_b[samples-1], r);
+        valuef N = get(uN_b, uN_b[samples - 1], r);
+        valuef sigma = get(sigma_b, 0.f, r);
+        valuef kappa = get(kappa_b, 0.f, r);
+
+        printf("Upper N %.32f\n", uN_b[samples - 1]);
+
+        valuef mu_cfl = get(mu_cfl_b, 0.f, r);
+        valuef pressure_cfl = get(pressure_cfl_b, 0.f, r);
+
+        unit_metric<valuef, 3, 3> flat;
+
+        for(int i=0; i < 3; i++)
+            flat[i, i] = valuef(1);
+
+        ///super duper unnecessary here but i'm being 110% pedantic
+        auto iflat = flat.invert();
+        pin(iflat);
+
+        v3f li_lower = flat.lower(li);
+        v3f P = linear_momentum.get();
+        v3f J = angular_momentum.get();
+
+        valuef pk_lk = dot(P, li_lower);
+
+        tensor<valuef, 3, 3> AIJ_p;
+
+        valuef cr = max(r, valuef(0.01f));
+
+        ///hmm. I think the extrinsic curvature may be wrong
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                AIJ_p[i, j] = (3 * Q / (2 * cr*cr)) *   (P[i] * li[j] + P[j] * li[i] - (iflat[i, j] - li[i] * li[j]) * pk_lk)
+                             +(3 * C / (cr*cr*cr*cr)) * (P[i] * li[j] + P[j] * li[i] + (iflat[i, j] - 5 * li[i] * li[j]) * pk_lk);
+            }
+        }
+
+        auto eijk = get_eijk();
+
+        //super unnecessary, being pedantic
+        auto eIJK = iflat.raise(iflat.raise(iflat.raise(eijk, 0), 1), 2);
+
+        tensor<valuef, 3, 3> AIJ_j;
+
+        v3f J_lower = flat.lower(J);
+
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                valuef sum = 0;
+
+                for(int k=0; k < 3; k++)
+                {
+                    for(int l=0; l < 3; l++)
+                    {
+                        sum += (3 / (cr*cr*cr)) * (li[i] * eIJK[j, k, l] + li[j] * eIJK[i, k, l]) * J_lower[k] * li_lower[l] * N;
+                    }
+                }
+
+                AIJ_j[i, j] += sum;
+            }
+        }
+
+        tensor<valuef, 3, 3> AIJ = AIJ_p + AIJ_j;
+        return AIJ;
+    };
+
+    tensor<valuef, 3> Si;
+
+    for(int i=0; i < 3; i++)
+    {
+        valuef sum = 0;
+
+        for(int j=0; j < 3; j++)
+        {
+            v3i offset;
+            offset[j] = 1;
+
+            tensor<valuef, 3, 3> right = get_ext(pos + offset);
+            tensor<valuef, 3, 3> left = get_ext(pos - offset);
+
+            auto diff = (right - left) / (2 * scale);
+
+            sum += diff[i, j] / (8 * M_PI);
+        }
+
+        Si[i] = sum;
+    }
+
+    v3f cSi = declare_e(Si);
+
+    /*
+    valuef mu_h = (mu_cfl + pressure_cfl) * W2 - pressure_cfl;
+
+    as_ref(mu_h_cfl_out[pos, dim]) += mu_h;
+
+    for(int i=0; i < 3; i++)
+    {
+        as_ref(Si_out[i][pos, dim]) += cSi[i];
+    }*/
+
+
+    v3f fpos = (v3f)pos;
+
+    v3f body_pos = lbody_pos.get();
+    v3f world_pos = grid_to_world(fpos, dim, scale);
+
+    v3f from_body = world_pos - body_pos;
+
+    valuef r = from_body.length();
+    pin(r);
+
+    valuef mu_cfl = get(mu_cfl_b, 0.f, r);
+    valuef pressure_cfl = get(pressure_cfl_b, 0.f, r);
 
     unit_metric<valuef, 3, 3> flat;
 
     for(int i=0; i < 3; i++)
         flat[i, i] = valuef(1);
 
-    ///super duper unnecessary here but i'm being 110% pedantic
-    auto iflat = flat.invert();
-    pin(iflat);
+    valuef W2 = 0.5f * (1 + sqrt(1 + (4 * flat.dot(cSi, cSi)) / max(pow(mu_cfl + pressure_cfl, 2.f), valuef(1e-12f))));
 
-    v3f li_lower = flat.lower(li);
-    v3f P = linear_momentum.get();
-    v3f J = angular_momentum.get();
+    valuef mu_h = (mu_cfl + pressure_cfl) * W2 - pressure_cfl;
 
-    valuef pk_lk = dot(P, li_lower);
-
-    tensor<valuef, 3, 3> AIJ_p;
-
-    valuef cr = max(r, valuef(0.01f));
-
-    ///hmm. I think the extrinsic curvature may be wrong
-    for(int i=0; i < 3; i++)
-    {
-        for(int j=0; j < 3; j++)
-        {
-            AIJ_p[i, j] = (3 * Q / (2 * cr*cr)) *   (P[i] * li[j] + P[j] * li[i] - (iflat[i, j] - li[i] * li[j]) * pk_lk)
-                         +(3 * C / (cr*cr*cr*cr)) * (P[i] * li[j] + P[j] * li[i] + (iflat[i, j] - 5 * li[i] * li[j]) * pk_lk);
-        }
-    }
-
-    auto eijk = get_eijk();
-
-    //super unnecessary, being pedantic
-    auto eIJK = iflat.raise(iflat.raise(iflat.raise(eijk, 0), 1), 2);
-
-    tensor<valuef, 3, 3> AIJ_j;
-
-    v3f J_lower = flat.lower(J);
+    as_ref(mu_h_cfl_out[pos, dim]) += mu_h;
 
     for(int i=0; i < 3; i++)
     {
-        for(int j=0; j < 3; j++)
-        {
-            valuef sum = 0;
-
-            for(int k=0; k < 3; k++)
-            {
-                for(int l=0; l < 3; l++)
-                {
-                    sum += (3 / (cr*cr*cr)) * (li[i] * eIJK[j, k, l] + li[j] * eIJK[i, k, l]) * J_lower[k] * li_lower[l] * N;
-                }
-            }
-
-            AIJ_j[i, j] += sum;
-        }
+        as_ref(Si_out[i][pos, dim]) += cSi[i];
     }
 
-
-    tensor<valuef, 3, 3> AIJ = AIJ_p + AIJ_j;
+    tensor<valuef, 3, 3> AIJ = get_ext(pos);
 
     tensor<int, 2> index_table[6] = {{0, 0}, {0, 1}, {0, 2}, {1, 1}, {1, 2}, {2, 2}};
 
@@ -235,6 +312,7 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
         as_ref(AIJ_accumulate[i][pos, dim]) += AIJ[idx.x(), idx.y()];
         as_ref(AIJ_this_star[i][pos, dim]) = AIJ[idx.x(), idx.y()];
     }
+
 
     if_e(r <= radius_b[samples-1], [&]{
         as_ref(star_indices[pos, dim]) = index.get();
@@ -258,6 +336,8 @@ void matter_p2(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b, b
                 std::array<buffer_mut<valuef>, 6> AIJ_accumulate, std::array<buffer_mut<valuef>, 6> AIJ_this_star, buffer_mut<valuef> mu_h_cfl_out,
                 std::array<buffer_mut<valuef>, 3> Si_out, buffer_mut<valuei> star_indices, literal<valuei> index)
 {
+    return;
+
     using namespace single_source;
 
     valuei x = get_global_id(0);
