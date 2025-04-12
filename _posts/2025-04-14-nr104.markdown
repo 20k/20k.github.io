@@ -30,7 +30,7 @@ We won't be exploring magnetic fields in this article, but you should know they 
 
 ## Bodies in hydrostatic equilibrium
 
-All stars[^allstars] (other than black holes) in *hydrostatic equilibrium*. This means that their gravity is counterbalanced by an internal pressure. Surprisingly enough, this constraint, along with two other parameters, is enough to fully determine the structure of a star. We also need:
+All stars[^allstars] (other than black holes) are in *hydrostatic equilibrium* - this means that their gravity is counterbalanced by an internal pressure. Surprisingly enough, this constraint, along with two other parameters, is enough to fully determine the structure of a star. We also need:
 
 [^allstars]: Everything in this article could also be used to describe less crazy stars or planets, which would have correspondingly different equations of state
 
