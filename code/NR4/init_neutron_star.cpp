@@ -157,7 +157,7 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
         return declare_e(out);
     };
 
-    auto get_ext = [&](v3f fpos)
+    auto get_AIJ = [&](v3f fpos)
     {
         v3f body_pos = lbody_pos.get();
         v3f world_pos = grid_to_world(fpos, dim, scale);
@@ -178,13 +178,10 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
         valuef sigma = get(sigma_b, 0.f, r);
         valuef kappa = get(kappa_b, 0.f, r);
 ;
-        valuef mu_cfl = get(mu_cfl_b, 0.f, r);
-        valuef pressure_cfl = get(pressure_cfl_b, 0.f, r);
-
         unit_metric<valuef, 3, 3> flat;
 
         for(int i=0; i < 3; i++)
-            flat[i, i] = valuef(1);
+            flat[i, i] = 1;
 
         ///super duper unnecessary here but i'm being 110% pedantic
         auto iflat = flat.invert();
@@ -255,8 +252,8 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
 
             v3f fpos = (v3f)pos;
 
-            tensor<valuef, 3, 3> right = get_ext(fpos + offset);
-            tensor<valuef, 3, 3> left = get_ext(fpos - offset);
+            tensor<valuef, 3, 3> right = get_AIJ(fpos + offset);
+            tensor<valuef, 3, 3> left = get_AIJ(fpos - offset);
             pin(right);
             pin(left);
 
@@ -287,7 +284,7 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
     unit_metric<valuef, 3, 3> flat;
 
     for(int i=0; i < 3; i++)
-        flat[i, i] = valuef(1);
+        flat[i, i] = 1;
 
     v3f Wu_hi = cSi / max(mu_cfl + pressure_cfl, valuef(1e-12f));
 
@@ -372,7 +369,7 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
         as_ref(Si_out[i][pos, dim]) += cSi[i];
     }
 
-    tensor<valuef, 3, 3> AIJ = get_ext(fpos);
+    tensor<valuef, 3, 3> AIJ = get_AIJ(fpos);
 
     tensor<int, 2> index_table[6] = {{0, 0}, {0, 1}, {0, 2}, {1, 1}, {1, 2}, {2, 2}};
 
@@ -509,7 +506,7 @@ void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cq
         return (8*M_PI/3.) * kappa[idx] * pow(r, 4.);
     }, samples);
 
-    auto d2f = [&](const std::vector<double>& in)
+    auto to_gpu = [&](const std::vector<double>& in)
     {
         std::vector<float> f;
         f.reserve(in.size());
@@ -523,18 +520,16 @@ void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cq
         return buf;
     };
 
-    cl::buffer cl_Q = d2f(Q);
-    cl::buffer cl_C = d2f(C);
-    cl::buffer cl_uN = d2f(unsquiggly_N);
+    cl::buffer cl_Q = to_gpu(Q);
+    cl::buffer cl_C = to_gpu(C);
+    cl::buffer cl_uN = to_gpu(unsquiggly_N);
 
-    assert(cl_uN.alloc_size == cl_Q.alloc_size);
+    cl::buffer cl_sigma = to_gpu(sigma);
+    cl::buffer cl_kappa = to_gpu(kappa);
 
-    cl::buffer cl_sigma = d2f(sigma);
-    cl::buffer cl_kappa = d2f(kappa);
-
-    cl::buffer cl_mu_cfl = d2f(mu_cfl);
-    cl::buffer cl_pressure_cfl = d2f(pressure_cfl);
-    cl::buffer cl_radius = d2f(radius_iso);
+    cl::buffer cl_mu_cfl = to_gpu(mu_cfl);
+    cl::buffer cl_pressure_cfl = to_gpu(pressure_cfl);
+    cl::buffer cl_radius = to_gpu(radius_iso);
 
     t3f linear_momentum;
 

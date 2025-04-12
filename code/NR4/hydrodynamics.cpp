@@ -774,16 +774,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     valuef cW = max(args.W, 0.0001f);
     metric<valuef, 3, 3> Yij = args.cY / (cW*cW);
 
-    valuef ysj = 0;
-
-    for(int i=0; i < 3; i++)
-    {
-        for(int j=0; j < 3; j++)
-        {
-            ysj += Yij[i, j] * Si[i] * Si[j];
-        }
-    }
-
+    valuef ysj = Yij.dot(Si, Si);
     pin(ysj);
 
     valuef u0 = 1;
