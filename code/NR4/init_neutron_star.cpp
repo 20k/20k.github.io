@@ -623,11 +623,11 @@ neutron_star::data::data(const parameters& p) : params(p)
     {
         p0_msols = params.mass.p0_msols.value();
     }
-    else if(params.mass.rest_mass)
+    else if(params.mass.adm_mass)
     {
-        param_rest_mass mass = params.mass.rest_mass.value();
+        param_adm_mass mass = params.mass.adm_mass.value();
 
-        std::vector<double> masses = tov::search_for_rest_mass(mass.mass, *tov_params);
+        std::vector<double> masses = tov::search_for_adm_mass(mass.mass, *tov_params);
 
         assert(masses.size() > 0 && mass.result_index >= 0 && mass.result_index < (int)masses.size());
 
