@@ -1564,12 +1564,14 @@ $$W_{P}^2 = \frac{1}{2}\left (1 + \sqrt{1 + \frac{4 P_i P^i}{\mathcal{M}^2}} \ri
 
 Angular (65):
 
-$$\begin{align}
+$$
+\begin{align}
 W_{J}^2 &=\frac{1}{2}\left (1 + \sqrt{1 + \frac{4 J_i J^i r^2 \sin^2 \theta}{\mathcal{N}^2}} \right)\\
 \sin^2 \theta &= 1 - (\hat{J}^i \hat{l}_i)^2 \\
-\end{align}$$
+\end{align}
+$$
 
-$l_i$ is the same unit normal as earlier. For $\sin^2 \theta$, $J^i$ and $l_i$ are normalised (hence the hats) to a length of $1$, as I've plugged in the formula $\mathrm{dot}(a, b) = \cos \theta ||a||\;||b||$. $\theta$ more technically is the angle between $J^i$ and $l^i$. Note that the quantity $\theta$ becomes undefined as $J^i J_i$ tends to $0$, but given the prefix term, $\sin^2 \theta$ can be set to anything when this happens
+$l_i$ is the same unit normal as earlier. For $\sin^2 \theta$, $J^i$ and $l_i$ are normalised (hence the hats) to a length of $1$, as I've plugged in the formula $\mathrm{dot}(a, b) = \cos \theta \mid a\mid \;\mid b\mid $. $\theta$ more technically is the angle between $J^i$ and $l^i$. Note that the quantity $\theta$ becomes undefined as $J^i J_i$ tends to $0$, but given the prefix term, $\sin^2 \theta$ can be set to anything when this happens
 
 Now. The tricky part comes in in that both of these options can be straightforwardly shown to be incorrect. See, a lorentz factor is $1$ when it corresponds to no velocity. This means that if we trial setting $W=1$ for both contributions to run a basic sanity check for this procedure, our summed lorentz factor is:
 
