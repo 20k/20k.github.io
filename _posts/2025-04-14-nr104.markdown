@@ -91,7 +91,7 @@ Here's what everything means:
 |$m$|The mass at a radius of less than $r$. Corresponds to the ADM mass|
 |$P$|Pressure at $r$|
 |$\mu$| Total specific energy density at $r$. This isn't the energy density integrated, 'total' refers to a combination of different energies - but at a specific point|
-|$\epsilon$| Specific internal energy density, at $r$|
+|$\epsilon$| Specific internal energy density at $r$|
 |$\rho_0$ | Rest mass density at $r$ (used later)|
 
 As mentioned previously, we need an equation of state to tie together $\mu$, $\rho_0$ and $P$, which is used implicitly. Here's how to actually calculate everything, and how it all relates:[^relates]
@@ -180,7 +180,7 @@ It's common to solve these equations in units of $c=G=M_\odot=1$, where $M_\odot
 
 The procedure for doing the unit conversion [is as follows](https://www.seas.upenn.edu/~amyers/NaturalUnits.pdf):
 
-1. Given n quantity in SI units $\mathrm{kg}^\alpha \mathrm{m}^\beta \mathrm{s}^\gamma$, convert it to geometric units by dividing by $G^{-\alpha} c^{2 \alpha - \gamma}$. This gives you a new geometrised unit, $\mathrm{m}^{\alpha + \beta + \gamma}$
+1. Given a quantity in SI units $\mathrm{kg}^\alpha \mathrm{m}^\beta \mathrm{s}^\gamma$, convert it to geometric units by dividing by $G^{-\alpha} c^{2 \alpha - \gamma}$. This gives you a new geometrised unit, $\mathrm{m}^{\alpha + \beta + \gamma}$
 2. Convert the *nominal*[^nominal] mass of the sun, $1.988416 * 10^{30} \mathrm{kg}$, into meters, which is ~$1476.6196 \mathrm{m}$
 3. Divide your quantity in units of $\mathrm{m}^n$ (eg $\mathrm{m}^2$) by $1476.6196^n$
 
@@ -229,7 +229,7 @@ This is the set of initial values to use at $r_{min}$:
 
 |Variable|Value|Notes|
 |-|-|-|
-|$M$| $\frac{4}{3} \pi r_{min}^3 \mu_c\;$ | The integral of $\frac{dm}{dr}$, with $\mu_c$ held constant, where $\mu_c$ is $\mu$ at the central density |
+|$m$| $\frac{4}{3} \pi r_{min}^3 \mu_c\;$ | The integral of $\frac{dm}{dr}$, with $\mu_c$ held constant, where $\mu_c$ is $\mu$ at the central density |
 |$P$| $K \rho_c^\Gamma$ | Apply the equation of state to $\rho_c$ (or $\mu_c$ if that's what you have instead), this is the polytropic specific formula |
 |$r$| $r_{min}$ | |
 
@@ -245,7 +245,7 @@ These equations are extremely fast to solve, so there's nothing fancy going on h
 
 ### Equation of State
 
-For flexibility, I define a very general class of equation of state. This is essentially an adaptor, which automatically generates all the conversions you might want, which you can override specific parts of. In the strictest possible sense, our equation of state only actually needs to convert between $\mu$ and $P$, and $\rho_0$ is technically unnecessary to provide - but in practice its a lot simpler to include it (and we'll need it for the hydrodynamics later)
+For flexibility, I define a very general class of equation of state. This is essentially an adaptor, which automatically generates all the conversions you might want, which you can override specific parts of as necessary. In the strictest possible sense, our equation of state only actually needs to convert between $\mu$ and $P$, and $\rho_0$ is technically unnecessary to provide - but in practice its a lot simpler to include it (and we'll need it for the hydrodynamics later)
 
 ```c++
 struct base
@@ -547,14 +547,14 @@ We'll be going over the isotropic <-> schwarzschild conversion later in this art
 
 ## Key takeaways from solving TOV
 
-At the end of this process, we've gained the ability to fully describe the following variables of our neutron star: rest mass density $\rho_0$, energy density $\mu$, baryonic/rest mass $M_0$, and pressure $P$. Keep this in mind as we carry on forwards. We've now solved the first step in our initial conditions procedure: constructing a spherically symmetric, static neutron star
+At the end of this process, we've gained the ability to fully describe the following variables of our neutron star: rest mass density $\rho_0$, energy density $\mu$, ADM mass $M$, and pressure $P$. I've also described how to calculate the rest mass $M_0$ at the end of this article. We've now solved the first step in our initial conditions procedure: constructing a spherically symmetric, static neutron star
 
 Next up, we need to give it momentum and spin, which means exiting spherical symmetry. This is where things get a bit complicated
 
 # Preamble
 ## ADM Refresher
 
-If you can remember how the ADM formalism works, skip this segment. This isn't really the article for a full redo of the ADM formalism (see: todo for a real intro), but here's a quick overview
+If you can remember how the ADM formalism works, skip this segment. This isn't really the article for a [full redo](https://20k.github.io/c++/2024/07/31/nr101.html#the-adm-arnowittdesermisner-formalism) of the ADM formalism, but here's a quick overview
 
 The ADM formalism is the process of taking a 4d metric tensor $g_{\mu\nu}$, and splitting it up into a series of 3d slices (called a foliation). Each 3d slice has a number of variables associated with it: $\gamma_{ij},\;K_{ij},\;\alpha,\;\beta^i$. We'll only be dealing with the ADM formalism, and not the offshoots like BSSN, today. The main things to remember are as follows:
 
@@ -618,7 +618,7 @@ $$\int_0^{x_{upper}} f(x) dx$$
 
 And then simply lookup in a table the value of $\int_0^{x} f(x) dx$ for performance reasons
 
-I have everything tabulated in buffers, and integrate up to *indices*, which respresent a specific radius $r$. This avoids a lot of sampling, and interpolation, and in general is pretty simple. Note the usage of the isotropic radius here as our integration variable $dr$
+I have everything tabulated in buffers, and integrate up to *indices*, which respresent a specific radius $r$. This avoids a lot of sampling, and interpolation, and in general is pretty simple
 
 I'll be providing some examples of how to use this. Some work has been put into making sure that the computational complexity is minimal (to avoid calculating $N^2$ integrals or something), though it hasn't been micro-optimised
 
@@ -626,7 +626,7 @@ I'll be providing some examples of how to use this. Some work has been put into 
 
 The next step we need to do is take our matter distribution - spin it up somehow, and give it some momentum. To do this, we'll need to transplant it into the ADM formalism, and solve a bunch more equations
 
-The actual paper we're going to be implementing today is [this](https://arxiv.org/pdf/1606.04881) one. Its going to be a step up in complexity compared to things we've solved previously together. One of the key things today in this article is that I'm going to present you with a simpler and fast procedure for implementing this paper, without losing any generality, as I've been able to skip some of the complexity. For consistency, we'll be keeping our existing notation, and below is the conversions we'll make:
+The actual paper we're going to be implementing today is [this](https://arxiv.org/pdf/1606.04881) one. Its going to be a step up in complexity compared to things we've solved previously together. One of the key things today is that I'm going to present you with a simpler and fast procedure for implementing this paper, without losing any generality, as I've been able to skip some of the complexity. For consistency, we'll be keeping our existing notation, and below is the conversions we'll make:
 
 |Symbol|This article|Paper
 |-|-|-|
@@ -635,10 +635,7 @@ The actual paper we're going to be implementing today is [this](https://arxiv.or
 
 I'm trying to stem the incredibly random notational divergence in the literature a bit to make things less crazy to follow, which is why I'm converting. We'll also be swapping from $P$ to $p$, because $P^i$ will be used for the ADM momentum
 
-If you remember from our black hole initial conditions paper, the basic idea for many kinds of initial conditions is based on a few principles:
-
-1. A conformal transform, creating a set of conformal variables
-2. The conformal metric tensor is flat (ie the identity matrix in cartesian coordinates)
+If you remember from our black hole initial conditions paper, the basic idea for many kinds of initial conditions is based on the principle of a conformal transform, where your variables are multiplied by a conformal factor: $\Phi$
 
 In this paper, the ADM variables are transformed as follows:
 
@@ -649,14 +646,16 @@ A_{ij} &= \Phi^{-2} \bar{A}_{ij}
 
 Where $$\bar{\gamma}_{ij}$$ is the conformally flat (ie the identity matrix) metric tensor, $A_{ij}$ is the trace-free extrinsic curvature, and $\Phi$ is the conformal factor. Anything with a bar over it is a conformal variable, eg $\bar{A}_{ij}$.
 
-Its important to note that this is the same conformal decomposition as the black hole initial conditions we've used previously[^explicitly]. Similarly, we're trying to solve for exactly two things only in this paper
+Its important to note that this is the same conformal decomposition as the [black hole initial conditions](https://20k.github.io/c++/2025/01/12/nr102.html#initial-conditions) we've used previously[^explicitly]. We're primarily trying to solve for exactly two things only in this paper, and everything else will largely fall out the other end:
 
 1. The conformal factor $\Phi$
 2. The extrinsic curvature $$\bar{A}_{ij}$$
 
 [^explicitly]: I explicitly picked this paper because it allows us to construct multiple black holes and neutron stars together
 
-The conformally flatness assumption, as well as the maximal slice assumption, gives us a familiar looking constraint to solve [(18)](https://arxiv.org/pdf/1606.04881):
+The hydrodynamic variables will be recovered *after* we've constructed the above
+
+The conformal flatness assumption, as well as the maximal slice assumption, gives us a familiar looking constraint to solve [(18)](https://arxiv.org/pdf/1606.04881):
 
 $$\partial^i \partial_i \Phi = -\frac{1}{8} \Phi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \Phi^5 \mu_H$$
 
@@ -668,7 +667,7 @@ One thing to note is that any time you see a $\pi$, its a sure fire bet that it 
 |$\bar{A}_{ij}$| Conformal extrinsic curvature| Derived from our physical parameters (mass, momentum, spin), requires some numerical integration|
 |$\mu_H$| Scalar matter source for the ADM equations| Derived from our TOV solution, requires some numerical integration |
 
-This paper in theory lets us solve the TOV equations in a conformally flat spacetime, via (77-79), but we've deliberately skipping this step, as solving the TOV equations directly is much simpler. In general I wouldn't recommend implementing section VI (other than (83-84)), and I think eq (82) is incorrect unfortunately
+This paper in theory lets us solve the TOV equations in a conformally flat spacetime, via (77-79), but we've deliberately skipping this step, as solving the TOV equations directly is much simpler. In general I wouldn't recommend implementing section VI (other than (83-84)), and I think (82) is incorrect unfortunately
 
 ## Implementing this paper
 
@@ -839,18 +838,38 @@ Which should be set to $0$ when $r>r_0$. What's $W$?
 
 #### $W$, aka the lorentz factor
 
-I've moved an extremely extended discussion about the correct way to calculate this variable to the end of the article for flow reasons, and you should note that this is an ad-hoc procedure. If you're ever interested in the behind-the-scenes development of these articles, you can skip over there to enjoy my frustration
+I've moved an extremely extended discussion about the correct way to calculate this variable to the end of the article for flow reasons. If you're ever interested in the behind-the-scenes development of these articles, you can skip over there to enjoy my frustration, as well as some maths. This deviates from the procedure specified in the paper, as it does not work in our case
 
-The two equations we'll be using are this:
+We'll need to plug some source $\bar{S}^i$ into the following equation to calculate the lorentz factor:
+
+$$W^2 = \frac{1}{2}\left [1 + \sqrt{1 + \frac{4 \bar{\gamma}_{ij} \bar{S}^i \bar{S}^j}{(\bar{\mu} + \bar{p})^2}}\right]\\$$
+
+There are two ways to calculate $\bar{S}^i$:
+
+##### Way the first
+
+For this method, we have to calculate two individual sources - a linear part $\bar{S}^i_P$, and an angular part $\bar{S}^i_J$, and sum them together:
 
 $$\begin{align}
-\bar{\nabla}_j \bar{A}^{ij} &= 8 \pi \bar{S}^i \\
+\bar{S}^i_P &= P^i \sigma \\
+\bar{S}^i_J &= \epsilon^{ijk} J_j x_k \kappa \\
+\bar{S}^i_{summed} &= \bar{S}^i_P + \bar{S}^i_J
+\end{align}
+$$
 
-W^2 &= \frac{1}{2}\left [1 + \sqrt{1 + \frac{4 \bar{\gamma}_{ij} \bar{S}^i \bar{S}^j}{(\bar{\mu} + \bar{p})^2}}\right]\\
-\end{align}$$
+where $\epsilon^{ijk}$ is the levi civita symbol, and $x_k$ is the world position relative to the centre of the neutron star
 
-Remember that the conformal metric tensor is flat, so $\bar{\nabla}_j \bar{A}^{ij} = \partial_j \bar{A}^{ij}$. Here, $\bar{A}^{ij}$ is the two summed components of the extrinsic curvature for a single star only: $\bar{A}^{ij} = \bar{A}^{ij}_P +  \bar{A}^{ij}_J$, and this is not the total extrinsic curvature. You don't need to worry about imposing a boundary condition exterior to the star, as $W^2$ is multiplied by matter terms
+##### Way the second
 
+We can use the momentum constraint to calculate a source from the extrinsic curvature for a single star:
+
+$$
+\bar{\nabla}_j \bar{A}^{ij} = 8 \pi \bar{S}^i
+$$
+
+Remember that the conformal metric tensor is flat, so $\bar{\nabla}_j \bar{A}^{ij} = \partial_j \bar{A}^{ij}$. Here, $\bar{A}^{ij}$ is the two summed components of the extrinsic curvature for a single star only: $\bar{A}^{ij} = \bar{A}^{ij}_P +  \bar{A}^{ij}_J$, and this is not the total extrinsic curvature for all stars. You don't need to worry about imposing a boundary condition exterior to the star, as $W^2$ is multiplied by matter terms
+
+This is the method I've implemented, but there's an implementation of the former method as well lurking in the code
 
 ### Solving the laplacian, finally
 
@@ -909,16 +928,18 @@ $$\begin{align}
 \gamma_{ij} S^i S^j &= (\mu + p)^2 W^2 (W^2 - 1)
 \end{align}$$
 
-Initially this might seem a tad unsolvable, but we have an equation of state that you can use to tie together $\mu$ and $p$. This paper leaves out the fact that there is no easy solution to this series of equations, and so I'll detail a procedure I came up with for solving this. You'll also need the ability to go from $\mu$ -> $p$, eg via a numerical invert to your equation of state. I tabulate this
+Initially this might seem a tad unsolvable, but we have an equation of state that you can use to tie together $\mu$ and $p$. This paper omits the way you should solve these equations (which is non trivial), and so I'll detail a procedure I came up with for solving this. You'll also need the ability to go from $\mu$ -> $p$, eg via a numerical invert to your equation of state. I tabulate this
 
 1. Make an initial guess for $W_0=1$ and $\mu_0 = \mu_H$
-2. Calculate $W_{n+1} = \frac{\sqrt{1 + \sqrt{4 \frac{\gamma_{ij} S^i S^j}{(\mu_n + p)^2} + 1}}}{\sqrt{2}}$ (from eq 2.)
+2. Calculate $W_{n+1} = \frac{\sqrt{1 + \sqrt{4 \frac{\gamma_{ij} S^i S^j}{(\mu_n + p)^2} + 1}}}{\sqrt{2}}$ (from eq 2.) Todo: I think i accidentally just reinvented (27)
 3. Numerically find a $\mu$ such that $(\mu_n + p) W_{n+1}^2 - p = \mu_H$, giving $\mu_{n+1}$. I do a simple linear search
 4. Iterate until the desired accuracy is reached
 
 This is applying fixed point iteration to these two equations to solve them simultaneously. Once you've solved for $W$ and $\mu$, then calculate $u^i = \frac{S^i}{(\mu + p)W}$. The full fluid 4-velocity is $(W, u^i)$
 
 To get the rest mass density, and specific internal energy density: apply the equation of state to recover them
+
+Todo: Specify ADM variables
 
 # Results
 
@@ -928,7 +949,7 @@ If all goes well, you'll get something that looks like this, when doing some bas
 
 Its actually a bit tricky to test this in general. There's some sanity checks we can run:
 
-1. Calculate the quantity $M_0 = \int \rho_0 u^0 W^{-3} (\Delta x)^3$ (where $W$ is the BSSN conformal factor, and $\Delta x$ is the scale), and check that its equal to the todo: ADM mass? Rest mass?
+1. Calculate the quantity $M_0 = \int \rho_0 u^0 W^{-3} (\Delta x)^3$ (where $W$ is the BSSN conformal factor, and $\Delta x$ is the scale), and check that its equal to the rest mass
 2. Calculate the hamiltonian constraint, and check the error. You may have small errors due to the presence of a discontinuity at the edge of the star
 3. Implement a relativistic hydrodynamics formalism to check that the star is stable and works correctly
 
@@ -938,13 +959,15 @@ Really though, the only proper way to check this is 3. So along with this articl
 
 Top left is the hamiltonian constraint (which is damped, this is a new feature we'll go over next time). The graph on the right is $M_0$, which slowly decreases for formalism specific reasons. There's a small bit of jiggling initially as the lapse settles down, but the star is clearly very stable
 
+Todo: List the explicit test case
+
 # Discussion + Limitations
 
 While this approach is quite general, it does have some limitations:
 
 1. The approximation to a spinning star isn't super adequate. In general, spinning stars can be larger than a static star before forming a black hole, which isn't really expressible here as our solution is derived from a static star
 2. Our stars are strictly spherical initially (though with a non spherical velocity), resulting in them relaxing to a stable oblate shape
-3. The calculation of the lorentz factor is positively a debacle
+3. Conformal flatness isn't entirely valid for spinning bodies, and we'll get the usual junk radiation. This is a common feature of these kinds of simulations
 
 These aren't too bad, but its always worth knowing where the limitations lie
 
@@ -961,80 +984,6 @@ Anyway. Here's a picture of a cat. Good luck!
 Todo: Cat
 
 # Appendix
-
-## $W$, aka the lorentz factor, extended discussion
-
-This is the segment of the paper where things start to get very wonky. If we skip to the initial data procedure, we can see that just after (62), it says:
-
-"In this equation, the boost factor W for the stellar model is given by Eq. (56) for linear momentum or Eq. (61) for angular momentum"
-
-Given that the language is identical to the language used for $\bar{A}_{ij}$, a casual read of this might suggest one of the two following things:
-
-1. We sum the lorentz factors[^superpose]
-2. We sum the quantity $(\bar{\mu} + \bar{p}) W^2_{type} - \bar{p}$ for the angular, and linear lorentz factors
-
-[^superpose]: Do note that this argument is more for illustrative purposes to demonstrate that the second case is wrong, for a reader who is less able to immediately spot that this is an error. If you're more familiar with GR, you'll know that there are other more obvious grounds to rule this out immediately (in that lorentz factors not adding together is basic GR)
-
-These two lorentz factors are given as follows:
-
-Linear (60):
-
-$$W_{P}^2 = \frac{1}{2}\left (1 + \sqrt{1 + \frac{4 P_i P^i}{\mathcal{M}^2}} \right)$$
-
-Angular (65):
-
-$$\begin{align}
-W_{J}^2 &=\frac{1}{2}\left (1 + \sqrt{1 + \frac{4 J_i J^i r^2 \sin^2 \theta}{\mathcal{N}^2}} \right)\\
-\sin^2 \theta &= 1 - (\hat{J}^i \hat{l}_i)^2 \\
-\end{align}$$
-
-$l_i$ is the same unit normal as earlier. For $\sin^2 \theta$, $J^i$ and $l_i$ are normalised (hence the hats) to a length of $1$, as I've plugged in the formula $\mathrm{dot}(a, b) = \cos \theta ||a||\;||b||$. $\theta$ more technically is the angle between $J^i$ and $l^i$. Note that the quantity $\theta$ becomes undefined as $J^i J_i$ tends to $0$, but given the prefix term, $\sin^2 \theta$ can be set to anything when this happens
-
-Now. The tricky part comes in in that both of these options are clearly wrong. See, a lorentz factor is $1$ when it corresponds to no velocity. This means that if we trial setting $W=1$ for both contributions to run a basic sanity check this procedure, our summed lorentz factor is:
-
-$$W_{sum} = W_J + W_P = 2$$
-
-Which is clearly incorrect, as a stationary fluid should have a lorentz factor of $1$. Running the same idea for superimposing the matter terms gives a similar answer:
-
-$$\bar{\mu}_H^{summed} = ((\bar{\mu} + \bar{p}) W^2_P - \bar{p}) + ((\bar{\mu} + \bar{p}) W^2_J - \bar{p}) = 2 \bar{\mu} $$
-
-Which is also clearly incorrect - we really can't just sum things that have a lorentz factor in them, as it doesn't add linearly. This paper, other [(e1)](https://arxiv.org/pdf/2101.10252), [(e2)](https://arxiv.org/pdf/2404.09924) papers by the same authors referencing this procedure, and the [thesis](https://repository.gatech.edu/server/api/core/bitstreams/f5e116da-ebff-4380-96e8-027304d9db82/content) on which this paper is based appear to have developed a curious feature where the details of how this works is somewhat conspicuously absent. I've found a lot of minor mistakes in papers in general, but this is quite a significant omission
-
-You might consider that we could add lorentz factors via a rapidity formula, but this is incorrect as these two terms are lorentz factors representing velocities in a direction
-
-### Searching slightly further afield
-
-Now, that's not the only definition of the lorentz factor in this paper. We also have (27):
-
-$$W^2 = \frac{1}{2}\left [1 + \sqrt{1 + \frac{4 \bar{\gamma}_{ij} \bar{S}^i \bar{S}^j}{(\bar{\mu} + \bar{p})^2}}\right]$$
-
-Which brings up the question: What's $\bar{S}^i$? Well, we have two quantities here, defined via (32) and (33):
-
-$$\begin{align}
-\bar{S}^i = P^i \sigma(r) \\
-\bar{S}_i = \epsilon_{ijk} J^j x^k \kappa(r)
-\end{align}
-$$
-
-You might be hoping we can add these together (after raising the second quantity), but lets examine the general form of $\bar{S}^i$:
-
-$$\bar{S}^i = (\bar{\mu} + \bar{p}) W \bar{u}^i$$
-
-Obvious problem: The lorentz factor. Unlike the previous example, as $\bar{u}^i$ tends to zero, this has the right asymptotic behaviour, but it'd produce incorrect answers to add them in general. On top of that, $\bar{u}$ is the spatial components of a (conformal) 4-velocity, which means that this is actually the spatial parts of a 4-momentum(ish) vector multiplied by a lorentz factor, which makes it super wrong to add them together. In general, you can't simply add velocities, or momentums in GR
-
-I'm giving informal descriptions of what's going on here, but from a technical perspective, these are both projections of the 4d stress-energy tensor, so summing the contributions from the same body doesn't seem correct - as its overlaying the contributions from two fluids with different (or zero) energies on top of each other
-
-### This is a bit odd
-
-This is a strange one - the procedure laid out here is clearly incomplete, and in a few places the paper is being specific with its language to avoid specifying how to do this, which smells like its non trivial. Luckily there's a workaround. After the maximal slicing and conformal flatness assumption, we end up with the relation:
-
-$$\bar{\nabla}_j \bar{A}^{ij} = 8 \pi \bar{S}^i$$
-
-Which here simplifies to $\partial_j \bar{A}^{ij} = 8 \pi \bar{S}^i$. Solutions to this equation are linear, so we can take the sum of the two $\bar{A}^{ij}$'s calculated earlier for a single star, and use that to derive $\bar{S}^i$. Then derive the lorentz factor from its equation up above (27)
-
-This does make me wonder: What's going on here - did I simply miss something? I don't have an answer for you[^error]
-
-[^error]: In general, its clear that the procedure implemented is not the one described. In [this](https://arxiv.org/pdf/1606.04881) paper (82) is clearly incorrect. In [this](https://arxiv.org/pdf/2101.10252) paper, the mistake is repeated as (31). In a later [paper](https://arxiv.org/pdf/2404.09924), this mistake is corrected as (22)
 
 ## Solving TOV for a specific mass
 
@@ -1163,3 +1112,87 @@ Armed with this information, we can calculate $M_0$ in [this](https://arxiv.org/
 | $\tilde{\Gamma}^i$ | Conformal Christoffel symbol | $\tilde{\gamma}^{jk} \tilde{\Gamma}^i_{jk}$ | Evolved numerically despite having an analytic value from conformal variables, for stability reasons |
 | $\alpha$ | Lapse | $\alpha$ | No change |
 | $\beta^i$ | Shift | $\beta^i$ | No change |
+
+
+## $W$, aka the lorentz factor, extended discussion
+
+This is the segment of the paper where things start to get a tad wonky. If we skip to the initial data procedure, we can see that just after (66), it says:
+
+"In this equation, the boost factor W for the stellar model is given by Eq. (60) for linear momentum or Eq. (65) for angular momentum"
+
+Given that the language is identical to the language used for $\bar{A}_{ij}$, a casual read of this might suggest one of the two following things:
+
+1. We sum the lorentz factors[^superpose]
+2. We sum the quantity $(\bar{\mu} + \bar{p}) W^2_{type} - \bar{p}$ for the angular, and linear lorentz factors
+
+[^superpose]: Do note that this argument is more for illustrative purposes to demonstrate that the second case is wrong, for a reader who is less able to immediately spot that this is an error. If you're more familiar with GR, you'll know that there are other more obvious grounds to rule this out immediately (in that lorentz factors not adding together is basic GR)
+
+These two lorentz factors are given as follows:
+
+Linear (60):
+
+$$W_{P}^2 = \frac{1}{2}\left (1 + \sqrt{1 + \frac{4 P_i P^i}{\mathcal{M}^2}} \right)$$
+
+Angular (65):
+
+$$\begin{align}
+W_{J}^2 &=\frac{1}{2}\left (1 + \sqrt{1 + \frac{4 J_i J^i r^2 \sin^2 \theta}{\mathcal{N}^2}} \right)\\
+\sin^2 \theta &= 1 - (\hat{J}^i \hat{l}_i)^2 \\
+\end{align}$$
+
+$l_i$ is the same unit normal as earlier. For $\sin^2 \theta$, $J^i$ and $l_i$ are normalised (hence the hats) to a length of $1$, as I've plugged in the formula $\mathrm{dot}(a, b) = \cos \theta ||a||\;||b||$. $\theta$ more technically is the angle between $J^i$ and $l^i$. Note that the quantity $\theta$ becomes undefined as $J^i J_i$ tends to $0$, but given the prefix term, $\sin^2 \theta$ can be set to anything when this happens
+
+Now. The tricky part comes in in that both of these options can be straightforwardly shown to be incorrect. See, a lorentz factor is $1$ when it corresponds to no velocity. This means that if we trial setting $W=1$ for both contributions to run a basic sanity check for this procedure, our summed lorentz factor is:
+
+$$W_{sum} = W_J + W_P = 2$$
+
+Which isn't right, as a stationary fluid should have a lorentz factor of $1$. Running the same idea for superimposing the matter terms gives a similar answer:
+
+$$\bar{\mu}_H^{summed} = ((\bar{\mu} + \bar{p}) W^2_P - \bar{p}) + ((\bar{\mu} + \bar{p}) W^2_J - \bar{p}) = 2 \bar{\mu} $$
+
+Which is also clearly incorrect - we really can't just sum things that have a lorentz factor in them, as it doesn't add linearly. This paper, other [(e1)](https://arxiv.org/pdf/2101.10252), [(e2)](https://arxiv.org/pdf/2404.09924) papers by the same authors referencing this procedure, and the [thesis](https://repository.gatech.edu/server/api/core/bitstreams/f5e116da-ebff-4380-96e8-027304d9db82/content) on which this paper is based do not specify the details on how this works. This paper does construct a neutron binary with spinning and moving neutron stars, so its clear that its being done somehow (figure 8a clearly has linear momentum), it just does not specify how
+
+You might consider that we could add lorentz factors via a rapidity formula, but this is incorrect as these two terms are lorentz factors representing velocities in a direction
+
+### Searching slightly further afield
+
+Now, that's not the only definition of the lorentz factor in this paper. We also have (27):
+
+$$W^2 = \frac{1}{2}\left [1 + \sqrt{1 + \frac{4 \bar{\gamma}_{ij} \bar{S}^i \bar{S}^j}{(\bar{\mu} + \bar{p})^2}}\right]$$
+
+Which brings up the question: What's $\bar{S}^i$? Well, we have two quantities here, defined via (32) and (33):
+
+$$\begin{align}
+\bar{S}^i &= P^i \sigma(r) \\
+\bar{S}_i &= \epsilon_{ijk} J^j x^k \kappa(r)
+\end{align}
+$$
+
+The question becomes, can we just add these together (after raising the second quantity), or do we have to do something more complex like calculating the 4-velocities and doing lorentz boosts? Off-hand, its tricky to know what to do with it
+
+### This is a bit odd
+
+This is a strange one - the procedure laid out here is incomplete unfortunately. After the maximal slicing and conformal flatness assumption, we end up with the relation:
+
+$$\bar{\nabla}_j \bar{A}^{ij} = 8 \pi \bar{S}^i$$
+
+Which here simplifies to $\partial_j \bar{A}^{ij} = 8 \pi \bar{S}^i$. This is a very chopped down form of the momentum constraint. Solutions to this equation are linear, so we can take the sum of the two $\bar{A}^{ij}$'s calculated earlier for a single star, and use that to derive $\bar{S}^i$. Then derive the lorentz factor from its equation up above (27)
+
+Its likely that this also implies that we can sum the individual sources $\bar{S}^i$. Ie, because of the linearity, we can say:
+
+$$\bar{\nabla}_j \bar{A}^{ij}_J + \bar{\nabla}_j \bar{A}^{ij}_P = 8 \pi \bar{S}_J^i + 8 \pi \bar{S}_P^i$$
+
+Which further implies that $S_{new}^i = S_J^i + S_P^i$. It seems correct enough
+
+In general, this kind of step being left out of a paper can consume a significant amount of time investigatory time unfortunately, but it comes with the territory, and literature replication is always difficult[^error]
+
+[^error]: In general, its clear that the procedure implemented is not *entirely* the one described. In [this](https://arxiv.org/pdf/1606.04881) paper (82) is incorrect. In [this](https://arxiv.org/pdf/2101.10252) paper, the mistake is repeated as (31). In a later [paper](https://arxiv.org/pdf/2404.09924), this mistake is corrected as (22)
+
+### Unnecessary further investigation
+
+After writing this all, I decided to reach out to the author, which is something I never do. They said two things:
+
+1. They state they have not done neutron stars with both spin and linear momentum
+2. If you want spin, you should add the two $\bar{S}^i$ components together, and calculate the lorentz factor from (27)
+
+I'm going to leave this topic alone now
