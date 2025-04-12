@@ -200,7 +200,6 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
 
         valuef cr = max(r, valuef(0.00001f));
 
-        ///hmm. I think the extrinsic curvature may be wrong
         for(int i=0; i < 3; i++)
         {
             for(int j=0; j < 3; j++)
@@ -219,7 +218,6 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
 
         v3f J_lower = flat.lower(J);
 
-        ///the issue, i think (?), is that the derivative is discontinuous as N caps out
         for(int i=0; i < 3; i++)
         {
             for(int j=0; j < 3; j++)
