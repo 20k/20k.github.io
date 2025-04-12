@@ -89,7 +89,7 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
                 literal<valuei> lsamples, literal<valuef> lM, literal<valuef> l_sN,
                 literal<v3i> ldim, literal<valuef> lscale,
                 literal<v3f> lbody_pos, literal<v3f> linear_momentum, literal<v3f> angular_momentum,
-                std::array<buffer_mut<valuef>, 6> AIJ_accumulate, std::array<buffer_mut<valuef>, 6> AIJ_this_star, buffer_mut<valuef> mu_h_cfl_out,
+                std::array<buffer_mut<valuef>, 6> AIJ_accumulate, buffer_mut<valuef> mu_h_cfl_out,
                 std::array<buffer_mut<valuef>, 3> Si_out, buffer_mut<valuei> star_indices, literal<valuei> index)
 {
     using namespace single_source;
@@ -116,7 +116,7 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
         return_e();
     });
 
-    auto get = [&](single_source::buffer<valuef> quantity, valuef upper_boundary, valuef r, bool debug = false)
+    auto get = [&](single_source::buffer<valuef> quantity, valuef upper_boundary, valuef r)
     {
         mut<valuef> out = declare_mut_e(valuef(-1.f));
         mut<valuei> found = declare_mut_e(valuei(0));
@@ -127,11 +127,6 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
         });
 
         if_e(r > radius_b[samples - 1], [&]{
-            if(debug)
-            {
-                print("EFound val %f r %f\n", upper_boundary, r);
-            }
-
             as_ref(out) = upper_boundary;
             as_ref(found) = valuei(1);
         });
@@ -149,11 +144,6 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
 
                      as_ref(out) = mix(quantity[index], quantity[index + 1], frac);
                      as_ref(found) = valuei(1);
-
-                      if(debug)
-                        {
-                            print("Found val %f r %f\n", out, r);
-                        }
 
                      break_e();
                 });
@@ -177,9 +167,7 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
         valuef r = from_body.length();
         pin(r);
 
-        v3f li = from_body / max(r, valuef(0.0001f));
-
-        //print("Samples %i\n", samples);
+        v3f li = from_body / max(r, valuef(0.000001f));
 
         valuef max_uN = declare_e(uN_b[samples - 1]);
 
@@ -189,11 +177,7 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
         valuef N = get(uN_b, 1.f, r);
         valuef sigma = get(sigma_b, 0.f, r);
         valuef kappa = get(kappa_b, 0.f, r);
-
-        //print("N %f r %f max_rad %f\n", N, r, radius_b[samples - 1]);
-
-        //print("Upper N %.32f\n", max_uN);
-
+;
         valuef mu_cfl = get(mu_cfl_b, 0.f, r);
         valuef pressure_cfl = get(pressure_cfl_b, 0.f, r);
 
@@ -214,7 +198,7 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
 
         tensor<valuef, 3, 3> AIJ_p;
 
-        valuef cr = max(r, valuef(0.01f));
+        valuef cr = max(r, valuef(0.00001f));
 
         ///hmm. I think the extrinsic curvature may be wrong
         for(int i=0; i < 3; i++)
@@ -266,7 +250,7 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
 
         for(int j=0; j < 3; j++)
         {
-            float off = 1;
+            float off = 0.01;
 
             v3f offset;
             offset[j] = off;
@@ -289,17 +273,6 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
 
     v3f cSi = declare_e(Si);
 
-    /*
-    valuef mu_h = (mu_cfl + pressure_cfl) * W2 - pressure_cfl;
-
-    as_ref(mu_h_cfl_out[pos, dim]) += mu_h;
-
-    for(int i=0; i < 3; i++)
-    {
-        as_ref(Si_out[i][pos, dim]) += cSi[i];
-    }*/
-
-
     v3f fpos = (v3f)pos;
 
     v3f body_pos = lbody_pos.get();
@@ -318,16 +291,11 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
     for(int i=0; i < 3; i++)
         flat[i, i] = valuef(1);
 
-    //valuef W2 = 0.5f * (1 + sqrt(1 + (4 * flat.dot(cSi, cSi)) / max(pow(mu_cfl + pressure_cfl, 2.f), valuef(1e-12f))));
-
     v3f Wu_hi = cSi / max(mu_cfl + pressure_cfl, valuef(1e-12f));
 
     valuef W2 = 0.5f * (1 + sqrt(1 + 4 * flat.dot(Wu_hi, Wu_hi)));
 
-    /*if_e(W2 >= 10, [&]{
-        print("Hi W2 %f cS %f %f %f\n", W2, cSi[0], cSi[1], cSi[2]);
-    });*/
-
+    #if 0
     {
         v3f body_pos = lbody_pos.get();
         v3f world_pos = grid_to_world(fpos, dim, scale);
@@ -395,6 +363,7 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
             print("%.24f %.24f r_err %.24f %f %f calc W2 %f paper W2 %f\n", m1, m2, (m1 - m2) / m1, W2_J, W2_P, W2, cW*cW);
         });
     }
+    #endif
 
     valuef mu_h = (mu_cfl + pressure_cfl) * W2 - pressure_cfl;
 
@@ -413,7 +382,6 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
     {
         tensor<int, 2> idx = index_table[i];
         as_ref(AIJ_accumulate[i][pos, dim]) += AIJ[idx.x(), idx.y()];
-        //as_ref(AIJ_this_star[i][pos, dim]) = AIJ[idx.x(), idx.y()];
     }
 
 
@@ -430,226 +398,18 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
     });*/
 }
 
-void matter_p2(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b, buffer<valuef> uN_b,
-                buffer<valuef> sigma_b, buffer<valuef> kappa_b,
-                buffer<valuef> mu_cfl_b, buffer<valuef> pressure_cfl_b, buffer<valuef> radius_b,
-                literal<valuei> lsamples, literal<valuef> lM, literal<valuef> l_sN,
-                literal<v3i> ldim, literal<valuef> lscale,
-                literal<v3f> lbody_pos, literal<v3f> linear_momentum, literal<v3f> angular_momentum,
-                std::array<buffer_mut<valuef>, 6> AIJ_accumulate, std::array<buffer_mut<valuef>, 6> AIJ_this_star, buffer_mut<valuef> mu_h_cfl_out,
-                std::array<buffer_mut<valuef>, 3> Si_out, buffer_mut<valuei> star_indices, literal<valuei> index)
-{
-    return;
-
-    using namespace single_source;
-
-    valuei x = get_global_id(0);
-    valuei y = get_global_id(1);
-    valuei z = get_global_id(2);
-
-    pin(x);
-    pin(y);
-    pin(z);
-
-    v3i dim = ldim.get();
-    valuef scale = lscale.get();
-    valuei samples = lsamples.get();
-
-    if_e(x >= dim.x() || y >= dim.y() || z >= dim.z(), [&]{
-        return_e();
-    });
-
-    v3i pos = {x, y, z};
-
-    v3f fpos = (v3f)pos;
-
-    v3f body_pos = lbody_pos.get();
-    v3f world_pos = grid_to_world(fpos, dim, scale);
-
-    v3f from_body = world_pos - body_pos;
-
-    valuef r = from_body.length();
-    pin(r);
-
-    v3f li = from_body / max(r, valuef(0.001f));
-
-    auto get = [&](single_source::buffer<valuef> quantity, valuef upper_boundary)
-    {
-        mut<valuef> out = declare_mut_e(valuef(0.f));
-
-        if_e(r <= radius_b[0], [&]{
-            as_ref(out) = quantity[0];
-        });
-
-        if_e(r > radius_b[samples - 1], [&]{
-            as_ref(out) = upper_boundary;
-        });
-
-        if_e(r > radius_b[0] && r <= radius_b[samples - 1], [&]{
-            mut<valuei> index = declare_mut_e(valuei(0));
-            mut<valuef> last_r = declare_mut_e(valuef(0.f));
-
-            for_e(index < samples - 1, assign_b(index, index+1), [&]{
-                valuef r1 = radius_b[index];
-                valuef r2 = radius_b[index + 1];
-
-                if_e(r > r1 && r <= r2, [&]{
-                     valuef frac = (r - r1) / (r2 - r1);
-
-                     as_ref(out) = mix(quantity[index], quantity[index + 1], frac);
-                     break_e();
-                });
-            });
-        });
-
-        return declare_e(out);
-    };
-
-    valuef sigma = get(sigma_b, 0.f);
-    valuef kappa = get(kappa_b, 0.f);
-
-    tensor<valuef, 3, 3> diffable_AIJ;
-
-    for(int i=0; i < 3; i++)
-    {
-        for(int j=0; j < 3; j++)
-        {
-            int table[3][3] = {{0, 1, 2},
-                               {1, 3, 4},
-                               {2, 4, 5}};
-
-            diffable_AIJ[i, j] = AIJ_this_star[table[i][j]][pos, dim];
-        }
-    }
-
-    mut_v3f Si = declare_mut_e(v3f());
-
-    derivative_data d;
-    d.pos = pos;
-    d.dim = dim;
-    d.scale = scale;
-
-    if_e(distance_to_boundary(pos, dim) >= 2, [&]{
-        for(int i=0; i < 3; i++)
-        {
-            valuef sum = 0;
-
-            for(int j=0; j < 3; j++)
-            {
-                sum += diff1(diffable_AIJ[i, j], j, d);
-            }
-
-            as_ref(Si[i]) = sum / (8 * M_PI);
-        }
-    });
-
-    unit_metric<valuef, 3, 3> flat;
-
-    for(int i=0; i < 3; i++)
-        flat[i, i] = valuef(1);
-
-    valuef mu_cfl = get(mu_cfl_b, 0.f);
-    valuef pressure_cfl = get(pressure_cfl_b, 0.f);
-
-    v3f cSi = declare_e(Si);
-
-    valuef W2 = 0.5f * (1 + sqrt(1 + (4 * flat.dot(cSi, cSi)) / max(pow(mu_cfl + pressure_cfl, 2.f), valuef(1e-12f))));
-
-    {
-        auto iflat = flat.invert();
-
-        v3f li_lower = flat.lower(li);
-        v3f P = linear_momentum.get();
-        v3f J = angular_momentum.get();
-        v3f J_lower = flat.lower(J);
-
-        v3f P_lower = flat.lower(P);
-
-        valuef M = lM.get();
-        valuef squiggly_N = l_sN.get();
-
-        valuef W2_P = 0.5f * (1 + sqrt(1 + (4 * dot(P_lower, P)) / (M*M)));
-
-        v3f J_norm = J / max(J.length(), valuef(0.0001f));
-        v3f li_lower_norm = li_lower / max(li_lower.length(), valuef(0.0001f));
-        value sin2 = 1 - pow(dot(J_norm, li_lower_norm), valuef(2.f));
-
-        valuef W2_J = 0.5f * (1 + sqrt(1 + (4 * dot(J_lower, J) * r * r * sin2) / (squiggly_N*squiggly_N)));
-
-        auto eijk = get_eijk();
-
-        v3f Si_P = P * sigma;
-        v3f S_iJ;
-
-        for(int i=0; i < 3; i++)
-        {
-            for(int j=0; j < 3; j++)
-            {
-                for(int k=0; k < 3; k++)
-                {
-                    S_iJ[i] += eijk[i, j, k] * J[j] * from_body[k] * kappa;
-                }
-            }
-        }
-
-        v3f tSi = Si_P + iflat.raise(S_iJ);
-
-        valuef cW = sqrt(0.5f * (1 + sqrt(1 + (4 * flat.dot(tSi, tSi)) / max(pow(mu_cfl + pressure_cfl, 2.f), valuef(1e-12f)))));
-
-        /*cSi[0] = tSi[0];
-        cSi[1] = tSi[1];
-        cSi[2] = tSi[2];
-
-        W2 = cW * cW;*/
-
-        /*if_e(mu_cfl > 0 && W2 > 0, [&]{
-            valuef m1 = (mu_cfl + pressure_cfl) * W2 - pressure_cfl;
-            valuef m2 = (mu_cfl + pressure_cfl) * cW*cW - pressure_cfl;
-
-            valuef d0 = diff1(diffable_AIJ[0, 0], 0, d);
-            valuef d1 = diff1(diffable_AIJ[1, 1], 1, d);
-            valuef d2 = diff1(diffable_AIJ[2, 2], 2, d);
-
-            //print("hi1 %f %f %f hi2 %f %f %f\n", cSi[0], cSi[1], cSi[2], tSi[0], tSi[1], tSi[2]);
-
-            print("%.24f %.24f r_err %.24f %f %f calc W2 %f paper W2 %f\n", m1, m2, (m1 - m2) / m1, W2_J, W2_P, W2, cW*cW);
-        });*/
-    }
-
-    valuef mu_h = (mu_cfl + pressure_cfl) * W2 - pressure_cfl;
-
-    as_ref(mu_h_cfl_out[pos, dim]) += mu_h;
-
-    for(int i=0; i < 3; i++)
-    {
-        as_ref(Si_out[i][pos, dim]) += cSi[i];
-    }
-}
 
 void neutron_star::boot_solver(cl::context ctx)
 {
     cl::async_build_and_cache(ctx, [=] {
         return value_impl::make_function(matter_accum, "matter_accum");
     }, {"matter_accum"});
-
-    cl::async_build_and_cache(ctx, [=] {
-        return value_impl::make_function(matter_p2, "matter_p2");
-    }, {"matter_p2"});
 }
 
 void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cqueue,
                                          discretised_initial_data& dsol,
                                          tensor<int, 3> dim, float scale, int index)
 {
-    std::vector<cl::buffer> AIJ_temp;
-
-    for(int i=0; i < 6; i++)
-    {
-        AIJ_temp.emplace_back(ctx);
-
-        AIJ_temp.back().alloc(sizeof(cl_float) * dim.x() * dim.y() * dim.z());
-    }
-
     std::vector<double> radius_iso = initial::calculate_isotropic_r(sol);
     ///hang on. can i literally just treat the schwarzschild data like its in isotropic?
     ///I think because of the way its laid out: yes
@@ -805,9 +565,6 @@ void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cq
     }
 
     {
-        for(int i=0; i < 6; i++)
-            AIJ_temp[i].set_to_zero(cqueue);
-
         cl_float clM = M;
         cl_float clsN = squiggly_N;
 
@@ -830,14 +587,12 @@ void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cq
         args.push_back((t3f)linear_momentum);
         args.push_back((t3f)angular_momentum);
         args.push_back(dsol.AIJ_cfl[0], dsol.AIJ_cfl[1], dsol.AIJ_cfl[2], dsol.AIJ_cfl[3], dsol.AIJ_cfl[4], dsol.AIJ_cfl[5]);
-        args.push_back(AIJ_temp[0], AIJ_temp[1], AIJ_temp[2], AIJ_temp[3], AIJ_temp[4], AIJ_temp[5]);
         args.push_back(dsol.mu_h_cfl);
         args.push_back(dsol.Si_cfl[0], dsol.Si_cfl[1], dsol.Si_cfl[2]);
         args.push_back(dsol.star_indices);
         args.push_back(index);
 
         cqueue.exec("matter_accum", args, {dim.x(), dim.y(), dim.z()}, {8,8,1});
-        cqueue.exec("matter_p2", args, {dim.x(), dim.y(), dim.z()}, {8,8,1});
     }
 }
 
