@@ -179,20 +179,20 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
 
         v3f li = from_body / max(r, valuef(0.0001f));
 
-        print("Samples %i\n", samples);
+        //print("Samples %i\n", samples);
 
         valuef max_uN = declare_e(uN_b[samples - 1]);
 
         ///todo: need to define upper boundaries
         valuef Q = get(Q_b, 1.f, r);
         valuef C = get(C_b, C_b[samples-1], r);
-        valuef N = get(uN_b, max_uN, r, true);
+        valuef N = get(uN_b, 1.f, r);
         valuef sigma = get(sigma_b, 0.f, r);
         valuef kappa = get(kappa_b, 0.f, r);
 
-        print("N %f r %f max_rad %f\n", N, r, radius_b[samples - 1]);
+        //print("N %f r %f max_rad %f\n", N, r, radius_b[samples - 1]);
 
-        print("Upper N %.32f\n", max_uN);
+        //print("Upper N %.32f\n", max_uN);
 
         valuef mu_cfl = get(mu_cfl_b, 0.f, r);
         valuef pressure_cfl = get(pressure_cfl_b, 0.f, r);
@@ -235,6 +235,7 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
 
         v3f J_lower = flat.lower(J);
 
+        ///the issue, i think (?), is that the derivative is discontinuous as N caps out
         for(int i=0; i < 3; i++)
         {
             for(int j=0; j < 3; j++)
@@ -317,7 +318,15 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
     for(int i=0; i < 3; i++)
         flat[i, i] = valuef(1);
 
-    valuef W2 = 0.5f * (1 + sqrt(1 + (4 * flat.dot(cSi, cSi)) / max(pow(mu_cfl + pressure_cfl, 2.f), valuef(1e-12f))));
+    //valuef W2 = 0.5f * (1 + sqrt(1 + (4 * flat.dot(cSi, cSi)) / max(pow(mu_cfl + pressure_cfl, 2.f), valuef(1e-12f))));
+
+    v3f Wu_hi = cSi / max(mu_cfl + pressure_cfl, valuef(1e-12f));
+
+    valuef W2 = 0.5f * (1 + sqrt(1 + 4 * flat.dot(Wu_hi, Wu_hi)));
+
+    /*if_e(W2 >= 10, [&]{
+        print("Hi W2 %f cS %f %f %f\n", W2, cSi[0], cSi[1], cSi[2]);
+    });*/
 
     {
         v3f body_pos = lbody_pos.get();
@@ -379,12 +388,12 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
 
         W2 = cW * cW;*/
 
-        /*if_e(mu_cfl > 0 && W2 > 0, [&]{
+        if_e(mu_cfl > 0 && W2 > 0, [&]{
             valuef m1 = (mu_cfl + pressure_cfl) * W2 - pressure_cfl;
             valuef m2 = (mu_cfl + pressure_cfl) * cW*cW - pressure_cfl;
 
             print("%.24f %.24f r_err %.24f %f %f calc W2 %f paper W2 %f\n", m1, m2, (m1 - m2) / m1, W2_J, W2_P, W2, cW*cW);
-        });*/
+        });
     }
 
     valuef mu_h = (mu_cfl + pressure_cfl) * W2 - pressure_cfl;
@@ -404,7 +413,7 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
     {
         tensor<int, 2> idx = index_table[i];
         as_ref(AIJ_accumulate[i][pos, dim]) += AIJ[idx.x(), idx.y()];
-        as_ref(AIJ_this_star[i][pos, dim]) = AIJ[idx.x(), idx.y()];
+        //as_ref(AIJ_this_star[i][pos, dim]) = AIJ[idx.x(), idx.y()];
     }
 
 
