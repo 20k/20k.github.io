@@ -9,7 +9,7 @@ Todo: I dislike the intro, its too wishy washy but doesn't really introduce anyt
 
 Today's job is very simple, conceptually. We're going to dig into what it means for something to be a neutron star - how you represent these in general relativity, and all the necessary steps you'll need to solve along the way to successfully bring one to life in a full numerical relativistic simulation. We'll be giving them both spin and momentum, because they're not terribly useful otherwise
 
-You should know before we get into this, that it is going to be a *huge* pain, so saddle up
+You should know before we get into this, that it is going to be a *huge* pain, so saddle up. The code for the first half of this article is available as a standalone library [here](https://github.com/20k/libtov), and the second half of this article is available over [here](https://github.com/20k/20k.github.io/blob/master/code/NR4)
 
 # Background
 
@@ -692,7 +692,7 @@ Where $R$ is the radius of the star in schwarzschild coordinates, and $M$ is the
 
 [^linked]: It uses what I personally think is [one of the most interesting results](https://en.wikipedia.org/wiki/Birkhoff%27s_theorem_(relativity)) in GR: Any spherically symmetric vacuum spacetime is locally the schwarzschild metric. So exterior to our star in the stationary solution, it matches a schwarzschild solution with some mass, to the tov solution so they line up correctly
 
-Integrating this is moderately straightforward, and can be done by keeping a running summation of the integral within $\mathrm{exp}$:
+Integrating this ([code link](https://github.com/20k/libtov/blob/e95131af6a837118fe301dabfa604640edacb563/tov.cpp#L323)) is moderately straightforward, and can be done by keeping a running summation of the integral within $\mathrm{exp}$:
 
 ```c++
 
@@ -785,6 +785,8 @@ $$\begin{align}
 These are the only two variables you now need from the TOV solution. You'll also need the equation of state for later, so keep it around somewhere
 
 ## Calculating $\bar{A}^{ij}$
+
+The code for this section is available over [here](https://github.com/20k/20k.github.io/tree/master/code/NR4/init_neutron_star.cpp)
 
 From here, its time to dig into the really fun bits. As with our black hole solution, we have two parameters we can specify: the ADM momentum $P^i$, and the ADM angular momentum $J^i$. These are broken up into two equations: (51), and (54) - which we simply sum together
 
@@ -1240,6 +1242,8 @@ This allows you to now calculate these non conformal variables:
 Note that two of these - the metric, and extrinsic curvature, are two of the initial variables we were trying to solve for. We still need to do a bit of work for the hydrodynamics
 
 ## Recovering the hydrodynamic variables
+
+The code for this section is available over [here](https://github.com/20k/20k.github.io/tree/master/code/NR4/hydrodynamics.cpp), see `init_hydro`
 
 The variables $S^i$ and $\mu_H$ are not actually hydrodynamic quantities, and so we have to construct our final *real* quantities that we could plug into a fluid dynamics simulation
 
