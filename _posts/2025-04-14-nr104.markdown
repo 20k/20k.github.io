@@ -11,6 +11,8 @@ Today's job is very simple, conceptually. We're going to dig into what it means 
 
 You should know before we get into this, that it is going to be a *huge* pain, so saddle up. The code for the first half of this article is available as a standalone library [here](https://github.com/20k/libtov), and the second half of this article is available over [here](https://github.com/20k/20k.github.io/blob/master/code/NR4)
 
+![intro](/assets/nr4_intro_cat.jpg)
+
 # Background
 
 ## So, what even is a neutron star anyway?
@@ -775,6 +777,8 @@ This is a much nicer way of calculating this quantity, as $\Phi_{tov} = (\frac{r
 
 From now on, **our $r$ coordinate is always isotropic**. Variables such as $\bar{\mu}$ should be considered a function of isotropic radius. In general, if you're operating similarly to how I am where your variables are stored in buffers of the same length instead of actually looking things up by physical quantities, you don't need to do anything
 
+![isotropic_wesley](/assets/nr4_coordinates.jpg)
+
 ## Calculating the conformal hydrodynamic variables
 
 Once we have $\Phi_{tov}$, this is straightforward. The new conformal variables are defined as such (83-84), keeping in mind that we're using slightly different notation from the paper:
@@ -1242,6 +1246,8 @@ This allows you to now calculate these non conformal variables:
 | Initial Adm Matter Source | $$S^i$$ | $$\Phi^{-10} \tilde{S}^i$$ |
 
 Note that two of these - the metric, and extrinsic curvature, are two of the initial variables we were trying to solve for. We still need to do a bit of work for the hydrodynamics
+
+![nr4_bed](/assets/nr4_bed_cat.png)
 
 ## Recovering the hydrodynamic variables
 
