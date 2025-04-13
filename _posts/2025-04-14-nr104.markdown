@@ -6,7 +6,6 @@ categories: C++
 ---
 
 Todo: I dislike the intro, its too wishy washy but doesn't really introduce anything useful
-Todo: Add a reference to this https://github.com/zachetienne/nrpytutorial/blob/master/Tutorial-ADM_Initial_Data-TOV.ipynb because it looks good
 
 Today's job is very simple, conceptually. We're going to dig into what it means for something to be a neutron star - how you represent these in general relativity, and all the necessary steps you'll need to solve along the way to successfully bring one to life in a full numerical relativistic simulation. We'll be giving them both spin and momentum, because they're not terribly useful otherwise
 
@@ -1459,6 +1458,7 @@ $\Gamma = 2, K = 123.641 M_\odot^2, p_c = 6.235 \times 10^{17}\; \mathrm{kg}/\ma
 
 Top left is the hamiltonian constraint (which is damped, this is a new feature we'll go over next time). The graph on the right is $M_0$, which slowly decreases for formalism specific reasons. There's a small bit of jiggling initially as the lapse settles down, but the star is clearly very stable
 
+More involved testing is going to involve chatting about the hydrodynamics formulation, so we'll get around to that next time
 
 # Discussion + Limitations
 
@@ -1478,9 +1478,11 @@ This article was initially *half* of a larger article, that simply carried on st
 
 This series has (largely, I added some bits) been a complete from-scratch reimplementation of techniques I experimented with when I was much less experienced with numerical relativity, and past me wasn't aware of the limitations of the formalism I chose back then. It isn't so unworkable as to be useless, but there are some limitations which are very interesting in their own right as they directly lead into the reasons that newer formalisms were developed, so its a very interesting case to run through
 
-Anyway. Here's a picture of a cat. Good luck!
+Anyway. Here's a picture of a cat
 
-Todo: Cat
+![nr4_cat](/assets/nr4_catend.jpg)
+
+Good luck!
 
 # Appendix
 
@@ -1697,3 +1699,25 @@ After writing this all, I decided to reach out to the author, which is something
 2. If you want both, you should add the two $\bar{S}^i$ components together, and calculate the lorentz factor from (27)
 
 I'm going to leave this topic alone now, this segment was really just to illustrate some of the joy that goes into this
+
+# Useful References/Further reading
+
+I only discovered this after I'd implemented everything, but it looks like a good resource:
+
+[https://github.com/zachetienne/nrpytutorial/blob/master/Tutorial-ADM_Initial_Data-TOV.ipynb](https://github.com/zachetienne/nrpytutorial/blob/master/Tutorial-ADM_Initial_Data-TOV.ipynb)
+
+Primary TOV reference [https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html](https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html)
+
+Primary paper reference for the second half of this article [https://arxiv.org/pdf/1606.04881](https://arxiv.org/pdf/1606.04881)
+
+Hydrodynamics papers used:
+
+[https://arxiv.org/pdf/gr-qc/9908027](https://arxiv.org/pdf/gr-qc/9908027)
+
+[https://arxiv.org/pdf/gr-qc/0209102](https://arxiv.org/pdf/gr-qc/0209102)
+
+Unit conversions: [https://www.seas.upenn.edu/~amyers/NaturalUnits.pdf](https://www.seas.upenn.edu/~amyers/NaturalUnits.pdf)
+
+Useful TOV reference: [https://www.as.utexas.edu/astronomy/education/spring13/bromm/secure/TOC_Supplement.pdf](https://www.as.utexas.edu/astronomy/education/spring13/bromm/secure/TOC_Supplement.pdf)
+
+Relativistic radiative transfer equations for raytracing: [https://arxiv.org/pdf/1207.4234](https://arxiv.org/pdf/1207.4234). There may or may not be an article about implementing this. A basic version of these equations has been included
