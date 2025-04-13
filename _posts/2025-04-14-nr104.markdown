@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Numerical Relativity 104: How do you build a neutron star from scratch, and what even is it?"
+title:  "Numerical Relativity 104: How do you build a neutron star from scratch?"
 date:   2026-02-02 12:33:23 +0000
 categories: C++
 ---
@@ -9,7 +9,7 @@ Todo: I dislike the intro, its too wishy washy but doesn't really introduce anyt
 
 Today's job is very simple, conceptually. We're going to dig into what it means for something to be a neutron star - how you represent these in general relativity, and all the necessary steps you'll need to solve along the way to successfully bring one to life in a full numerical relativistic simulation. We'll be giving them both spin and momentum, because they're not terribly useful otherwise
 
-You should know before we get into this, that it is going to be a *huge* pain, so saddle up. The code for the first half of this article is available as a standalone library [here](https://github.com/20k/libtov), and the second half of this article is available over [here](https://github.com/20k/20k.github.io/blob/master/code/NR4)
+You should know before we get into this, that this is going to be a bit of a pain, so please bear with me a bit. The code for the first half of this article is available as a standalone library [here](https://github.com/20k/libtov), and the second half of this article is available over [here](https://github.com/20k/20k.github.io/blob/master/code/NR4)
 
 ![intro](/assets/nr4_intro_cat.jpg)
 
@@ -40,11 +40,11 @@ All stars[^allstars] (other than black holes) are in *hydrostatic equilibrium* -
 
 [^density]: I *believe* that strictly speaking the equation of state only necessarily relates the energy of matter to the pressure, but in this article I'm going to assume we can convert between energy, density, and pressure freely
 
-With all of these together, we can use the equations for hydrostatic equilibrium, and end up with a full description of a **non spinning** body. This gives us:
+So really that's all a neutron star is for us: Some kind of equation of state, and a central density. With those two pieces, we can use the equations for hydrostatic equilibrium, and end up with a full description of a **non spinning** body. This gives us:
 
-1. The radius $r$ of the star, in schwarzschild coordinates
+1. The radius $R$ of the star, in schwarzschild coordinates
 2. The total (ADM) mass of the star $M$, as well as its rest mass $M_0$[^restmass]
-3. The distribution of mass (+ pressure + energy) within the star
+3. The distribution of mass (and pressure, and energy) within the star
 
 [^restmass]: You can think of the ADM mass as being the 'gravitational' mass, and the rest mass as being the amount of matter
 
@@ -58,7 +58,7 @@ This is the game plan for what we'll be doing today:
 
 1. First we'll be constructing a non spinning, isolated neutron star. This will be modelled as a self gravitating fluid in hydrostatic equilibrium. We'll be solving an equation known as the TOV (Tolman–Oppenheimer–Volkoff) equation, which will fully describe that static star. This is actually a set of partial differential equations, and a good reference for what we're doing is over [here](https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html)
 2. Then, we must re-describe that same star as a spinning, moving star. This involves integrating another series of equations, which will be derived from [this](https://arxiv.org/pdf/1606.04881) paper. Its notable that while a real spinning star would be oblate, not modelling this is a deliberate approximation
-3. Once we have our spinning, moving body, we then have to make it physical by solving for a correction, to make it satisfy physical constraints. If you remember the [black hole initial conditions](https://20k.github.io/c++/2025/01/12/nr102.html#initial-conditions), this is the same process. I won't assume you remember how to do this, but I will assume you can solve a laplacian
+3. Once we have our spinning, moving body, we then have to make it physical by solving for a correction, to make it satisfy our constraints. If you remember the [black hole initial conditions](https://20k.github.io/c++/2025/01/12/nr102.html#initial-conditions), this is the same process. I won't assume you remember how to do this, but I will assume you can solve a laplacian
 4. After all of this, we then need to construct our final hydrodynamic variables - like velocity, density, and energy density. Along the way, we'll be constructing our ADM variables as well, though this is much simpler
 
 Each of these steps is extremely non trivial, and will be presented in detail. If you're wondering why we don't simply directly construct a spinning neutron star through some kind of spinning hydrostatic equilibrium solution, its because the equation simply doesn't exist
@@ -628,46 +628,78 @@ I'll be providing some examples of how to use this. Some work has been put into 
 
 The next step we need to do is take our matter distribution - spin it up somehow, and give it some momentum. To do this, we'll need to transplant it into the ADM formalism, and solve a bunch more equations
 
-The actual paper we're going to be implementing today is [this](https://arxiv.org/pdf/1606.04881) one. Its going to be a step up in complexity compared to things we've solved previously together. One of the key things today is that I'm going to present you with a simpler and fast procedure for implementing this paper, without losing any generality, as I've been able to skip some of the complexity. For consistency, we'll be keeping our existing notation, and below is the conversions we'll make:
+The actual paper we're going to be implementing today is [this](https://arxiv.org/pdf/1606.04881) one. Its going to be a step up in complexity compared to things we've solved previously together. One of the key things today is that I'm going to present you with a simpler and fast procedure for implementing this paper, without losing any generality, as I've been able to skip some of the complexity. But first, a bit of background:
+
+## Fluids in General Relativity
+
+In this paper, our neutron star is modelled as a perfect fluid - this is a very common way to model bodies in general relativity. Matter interactions in GR happen through something called the stress-energy tensor $T_{\mu\nu}$, representing all the matter in the spacetime
+
+The stress-energy tensor for a perfect fluid is calculated [as follows](https://en.wikipedia.org/wiki/Stress%E2%80%93energy_tensor#Stress%E2%80%93energy_of_a_fluid_in_equilibrium):
+
+$$T^{\mu\nu} = (\mu + p) u^\mu u^\nu + p g^{\mu\nu}$$
+
+These components are then projected onto our hypersurface (ie, we're sticking this into the ADM formalism). Here, this paper actually only requires two parts of that projection, which are defined as follows[^follows]:
+
+$$\begin{align}
+\mu_H &= n^\mu n^\nu T_{\mu\nu}\\
+S^i &= -\gamma^{i\mu}n^\nu T_{\mu\nu}
+\end{align}$$
+
+[^follows]: Note that I think this paper implicitly assumes that $n = (1, 0, 0, 0)$. Ie $\alpha = 1$, $\beta^i = 0$. This doesn't affect the lapse or shift we can set later, as its essentially an implementation detail, but this will crop up in the next article when we initialise our hydro variables
+
+In fluid terms:
+
+$$\begin{align}
+\mu_H &= (\mu + p)W^2 - p \\
+S^i &= (\mu + p) W u^i\\
+\end{align}
+$$
+
+Where $W$ is a lorentz factor, and $u^i$ is the spatial components of a fluid 4-velocity. These two variables fully encompass our fluid's state here, and *also* fully determine the structure of our spacetime. Calculating these is our major goal here
+
+$S^i$ will be broken up into two parts: An angular momentum part, and a linear momentum part. These are used implicitly to calculate the extrinsic curvature
+
+## Starting off
+
+For consistency[^notation], we'll be keeping our existing notation, and below is the conversions we'll make:
+
+[^notation]: I'm trying to stem some of the incredibly random notational divergence in the literature. This area has extremely inconsistent notation
 
 |Symbol|This article|Paper
 |-|-|-|
 |Total energy density|$\mu$|$\rho$|
 |Pressure|$P$ or $p$|$p$|
 
-I'm trying to stem the incredibly random notational divergence in the literature a bit to make things less crazy to follow, which is why I'm converting. We'll also be swapping from $P$ to $p$, because $P^i$ will be used for the ADM momentum
+The swap from $P$ to $p$ is because $P^i$ will be used for the ADM momentum
 
-If you remember from the black hole initial conditions paper, the basic idea for many kinds of initial conditions is based on the principle of a conformal transform, where your variables are multiplied by a conformal factor: $\Phi$
-
-In this paper, the ADM variables are transformed as follows:
+If you remember from the black hole initial conditions paper, the basic idea for many kinds of initial conditions is based on the principle of a conformal transform, where your variables are multiplied by a conformal factor: $\Phi$. In this paper, our variables are transformed as follows:
 
 $$\begin{align}
 \gamma_{ij} &= \Phi^4 \bar{\gamma}_{ij}\\
-A_{ij} &= \Phi^{-2} \bar{A}_{ij}
+A_{ij} &= \Phi^{-2} \bar{A}_{ij}\\
+\mu_H &= \Phi^{-8} \bar{\mu}_H\\
+S^i &= \Phi^{-10} \bar{S}^i
 \end{align}$$
 
-Where $$\bar{\gamma}_{ij}$$ is the conformally flat (ie the identity matrix) metric tensor, $A_{ij}$ is the trace-free extrinsic curvature, and $\Phi$ is the conformal factor. Anything with a bar over it is a conformal variable, eg $\bar{A}_{ij}$
+Here's what everything is:
 
-Its important to note that this is the same conformal decomposition as the [black hole initial conditions](https://20k.github.io/c++/2025/01/12/nr102.html#initial-conditions) we've used previously[^explicitly]. We're primarily trying to solve for two things only in this paper, and everything else will largely fall out the other end:
+|Variable|Meaning| Solution method | Notes
+|-|-|-|-|
+|$\Phi$|Conformal factor| Laplacian, via the hamiltonian constraint |
+|$$\bar{\gamma}_{ij}$$| Conformal metric tensor | We've already got it | Conformal flatness is imposed, ie we make it the identity matrix |
+|$\bar{A}_{ij}$| Conformal extrinsic curvature| Derived from our physical parameters (mass, momentum, spin), requires some numerical integration | Trace-free'dom is imposed, which is called maximal slicing ($K=0$)  |
+|$\bar{\mu}_H$| The ADM projection of part of the stress-energy tensor, conformally transformed | Derived from our TOV solution, requires some numerical integration | |
+|$\bar{S}^i$| The ADM projection of part of the stress-energy tensor, conformally transformed | Calculated from our physical parameters + TOV, requires some numerical integration (surprise!) | |
 
-1. The conformal factor $\Phi$
-2. The extrinsic curvature $$\bar{A}_{ij}$$
+Anything with a bar over it is a conformal variable, and their indices are raised and lowered with the conformal metric. This is the same conformal decomposition as the [black hole initial conditions](https://20k.github.io/c++/2025/01/12/nr102.html#initial-conditions) we've used previously[^explicitly]
 
 [^explicitly]: I explicitly picked this paper because it allows us to construct multiple black holes and neutron stars together
 
-The hydrodynamic variables will be recovered *after* we've constructed the above
+Conformal flatness + maximal slicing gives us a familiar looking constraint to solve [(18)](https://arxiv.org/pdf/1606.04881):
 
-The conformal flatness assumption, as well as the maximal slice assumption, gives us a familiar looking constraint to solve [(18)](https://arxiv.org/pdf/1606.04881):
+$$\partial^i \partial_i \Phi = -\frac{1}{8} \Phi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \Phi^{-3} \bar{\mu}_H$$
 
-$$\partial^i \partial_i \Phi = -\frac{1}{8} \Phi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \Phi^5 \mu_H$$
-
-One thing to note is that any time you see a $\pi$, its a sure fire bet that it means there are matter terms involved
-
-|Variable|Meaning| Solution method |
-|-|-|-|
-|$\Phi$|Conformal factor| Laplacian, via the hamiltonian constraint |
-|$\bar{A}_{ij}$| Conformal extrinsic curvature| Derived from our physical parameters (mass, momentum, spin), requires some numerical integration|
-|$\mu_H$| Scalar matter source for the ADM equations| Derived from our TOV solution, requires some numerical integration |
+Solving this equation, calculating $\bar{A}^{ij}$, $\bar{\mu}_H$, and $\bar{S}^i$, are most of the work of what we'll be doing. One thing to note is that any time you see a $\pi$, its a sure fire bet that it means there are matter terms involved. The final hydrodynamic variables will be recovered *after* we've solved the above
 
 This paper in theory lets us solve the TOV equations in a conformally flat spacetime, via (77-79), but I've deliberately skipped this step, as solving the TOV equations directly is much simpler. In general I wouldn't recommend implementing section VI (other than (83-84)), and I think (82) is incorrect unfortunately
 
@@ -896,7 +928,7 @@ Anyway. Implementing this is under (64):
 
 $$\mathcal{N} = \frac{8 \pi}{3} \int^{r_0}_0 (\bar{\mu} + \bar{p}) r^4\; dr$$
 
-Where $r_0$ is the isotropic radius of our neutron star, and $r$ is the integration variable. Perhaps this goes without saying for people with better reading skills than I, but this function is **not** $N$
+Where $r_0$ is the isotropic radius of our neutron star, and $r$ is the integration variable. Perhaps this goes without saying for people with better reading skills, but this function is **not** $N$
 
 #### $\kappa$ | Function of radius
 
@@ -918,7 +950,7 @@ When $r>r_0$, $N(r) = 1$. You should enforce this
 
 ### This is when I swap to cartesian coordinates
 
-In general, the extrinsic curvature has no obligation to be a simple function of radius. While its true that the linear momentum component is, the angular momentum component is not. That means that I pick the boundary between these functions, and the extrinsic curvature calculations, to be where I discretise to 3D and port everything to the GPU
+Up until now, we've been solving everything in one dimension, as a function of radius - TOV is spherically symmetric, so it works great. Unfortunately, the extrinsic curvature has no obligation to be a simple function of radius - and while its true that the linear momentum component is, the angular momentum component is not. That means that I pick the boundary between these functions, and the extrinsic curvature calculations, to be where I discretise to 3D and port everything to the GPU
 
 I pass all the constituent components that I need to calculate $\bar{A}^{ij}_P$ and $\bar{A}^{ij}_J$ to the GPU in many buffers and calculate it in 3d directly. Here's the basic form of what I'm doing on the host for buffers, which includes a `double` -> `float` conversion given that GPUs are a bit allergic to double precision
 
@@ -949,9 +981,7 @@ I pass all the constituent components that I need to calculate $\bar{A}^{ij}_P$ 
     cl::buffer cl_radius = to_gpu(radius_iso);
 ```
 
-There's one generic kernel which handles every kind of matter-ful object in the scene. In general, its important to only use one generic kernel, because if you have to compile-per-object then compiling kernels will eat up 99% of your init time
-
-Implementing the extrinsic curvature is only mildly horrendous. First up, we need the ability to interpolate buffers by their isotropic radius, which includes a boundary condition for the exterior of the star
+Implementing the extrinsic curvature on the GPU is only mildly horrendous. First up, we need the ability to interpolate buffers by their isotropic radius, which includes a boundary condition for the exterior of the star
 
 ```c++
 auto get = [&](single_source::buffer<valuef> quantity, valuef upper_boundary, valuef r)
@@ -977,12 +1007,12 @@ auto get = [&](single_source::buffer<valuef> quantity, valuef upper_boundary, va
             valuef r2 = radius_b[index + 1];
 
             if_e(r > r1 && r <= r2, [&]{
-                    valuef frac = (r - r1) / (r2 - r1);
+                valuef frac = (r - r1) / (r2 - r1);
 
-                    as_ref(out) = mix(quantity[index], quantity[index + 1], frac);
-                    as_ref(found) = valuei(1);
+                as_ref(out) = mix(quantity[index], quantity[index + 1], frac);
+                as_ref(found) = valuei(1);
 
-                    break_e();
+                break_e();
             });
         });
     });
@@ -1004,78 +1034,75 @@ Next comes the actual implementation of the extrinsic curvature
 auto get_AIJ = [&](v3f fpos)
 {
     v3f body_pos = lbody_pos.get();
-        v3f world_pos = grid_to_world(fpos, dim, scale);
+    v3f world_pos = grid_to_world(fpos, dim, scale);
 
-        v3f from_body = world_pos - body_pos;
+    v3f from_body = world_pos - body_pos;
 
-        valuef r = from_body.length();
-        pin(r);
+    valuef r = from_body.length();
+    pin(r);
 
-        v3f li = from_body / max(r, valuef(0.000001f));
+    v3f li = from_body / max(r, valuef(0.000001f));
 
-        valuef max_uN = declare_e(uN_b[samples - 1]);
+    //look up functions by isotropic radius
+    valuef Q = get(Q_b, 1.f, r);
+    valuef C = get(C_b, C_b[samples-1], r);
+    valuef N = get(uN_b, 1.f, r);
 
-        //look up functions by isotropic radius
-        valuef Q = get(Q_b, 1.f, r);
-        valuef C = get(C_b, C_b[samples-1], r);
-        valuef N = get(uN_b, 1.f, r);
+    v3f li_lower = flat.lower(li);
+    v3f P = linear_momentum.get();
+    v3f J = angular_momentum.get();
 
-        v3f li_lower = flat.lower(li);
-        v3f P = linear_momentum.get();
-        v3f J = angular_momentum.get();
+    valuef pk_lk = dot(P, li_lower);
 
-        valuef pk_lk = dot(P, li_lower);
+    tensor<valuef, 3, 3> AIJ_p;
 
-        tensor<valuef, 3, 3> AIJ_p;
+    valuef cr = max(r, valuef(0.00001f));
 
-        valuef cr = max(r, valuef(0.00001f));
-
-        //calculate linear part
-        for(int i=0; i < 3; i++)
+    //calculate linear part
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
         {
-            for(int j=0; j < 3; j++)
-            {
-                AIJ_p[i, j] = (3 * Q / (2 * cr*cr)) *   (P[i] * li[j] + P[j] * li[i] - (iflat[i, j] - li[i] * li[j]) * pk_lk)
-                             +(3 * C / (cr*cr*cr*cr)) * (P[i] * li[j] + P[j] * li[i] + (iflat[i, j] - 5 * li[i] * li[j]) * pk_lk);
-            }
+            AIJ_p[i, j] = (3 * Q / (2 * cr*cr)) *   (P[i] * li[j] + P[j] * li[i] - (iflat[i, j] - li[i] * li[j]) * pk_lk)
+                            +(3 * C / (cr*cr*cr*cr)) * (P[i] * li[j] + P[j] * li[i] + (iflat[i, j] - 5 * li[i] * li[j]) * pk_lk);
         }
+    }
 
-        auto eijk = get_eijk();
+    auto eijk = get_eijk();
 
-        //super unnecessary, being pedantic
-        auto eIJK = iflat.raise(iflat.raise(iflat.raise(eijk, 0), 1), 2);
+    //super unnecessary, being pedantic
+    auto eIJK = iflat.raise(iflat.raise(iflat.raise(eijk, 0), 1), 2);
 
-        tensor<valuef, 3, 3> AIJ_j;
+    tensor<valuef, 3, 3> AIJ_j;
 
-        v3f J_lower = flat.lower(J);
+    v3f J_lower = flat.lower(J);
 
-        //calculate angular part
-        for(int i=0; i < 3; i++)
+    //calculate angular part
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
         {
-            for(int j=0; j < 3; j++)
-            {
-                valuef sum = 0;
+            valuef sum = 0;
 
-                for(int k=0; k < 3; k++)
+            for(int k=0; k < 3; k++)
+            {
+                for(int l=0; l < 3; l++)
                 {
-                    for(int l=0; l < 3; l++)
-                    {
-                        sum += (3 / (cr*cr*cr)) * (li[i] * eIJK[j, k, l] + li[j] * eIJK[i, k, l]) * J_lower[k] * li_lower[l] * N;
-                    }
+                    sum += (3 / (cr*cr*cr)) * (li[i] * eIJK[j, k, l] + li[j] * eIJK[i, k, l]) * J_lower[k] * li_lower[l] * N;
                 }
-
-                AIJ_j[i, j] += sum;
             }
-        }
 
-        tensor<valuef, 3, 3> AIJ = AIJ_p + AIJ_j;
-        return AIJ;
+            AIJ_j[i, j] += sum;
+        }
+    }
+
+    return AIJ_p + AIJ_j;
 };
 ```
 
 ## Calculating $\Phi$, the conformal factor
 
-We now have $\bar{\mu}$, $\bar{p}$, and $\bar{A}^{ij} = \bar{A}^{ij}_P + \bar{A}^{ij}_J$. We're going to put this all together, and solve the final piece of our puzzle (22):
+For every star, we now have $\bar{\mu}$, $\bar{p}$, and $\bar{A}^{ij} = \bar{A}^{ij}_P + \bar{A}^{ij}_J$. We'll need to combine all those pieces into one, and then solve the final part of our puzzle (22):
 
 $$\Delta \Phi = -\frac{1}{8} \Phi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \Phi^{-3} \bar{\mu}_H$$
 
@@ -1108,11 +1135,11 @@ For this method, we have to calculate two individual sources - a linear part $\b
 $$\begin{align}
 \bar{S}^i_P &= P^i \sigma \\
 \bar{S}_i^J &= \epsilon_{ijk} J^j x^k \kappa \\
-\bar{S}^i_{summed} &= \bar{S}^i_P + \bar{S}^i_J
+\bar{S}^i_{summed} &= \bar{S}^i_P + \bar{\gamma}^{ij}\bar{S}_j^J
 \end{align}
 $$
 
-where $\epsilon_{ijk}$ is the levi civita symbol, and $x_k$ is the world position relative to the centre of the neutron star
+where $\epsilon_{ijk}$ is the levi civita symbol, and $x^k$ is the world position relative to the centre of the neutron star
 
 ```c++
 auto Si_direct_sum = [&]()
@@ -1155,7 +1182,6 @@ $$
 
 Remember that the conformal metric tensor is flat, so $\bar{\nabla}_j \bar{A}^{ij} = \partial_j \bar{A}^{ij}$. Here, $\bar{A}^{ij}$ is the two summed components of the extrinsic curvature for a single star only: $\bar{A}^{ij} = \bar{A}^{ij}_P +  \bar{A}^{ij}_J$, and this is not the total extrinsic curvature for all stars. You don't need to worry about imposing a boundary condition exterior to the star, as $W^2$ is multiplied by matter terms
 
-
 ```c++
 auto Si_from_AIJ = [&]()
 {
@@ -1192,7 +1218,7 @@ auto Si_from_AIJ = [&]()
 };
 ```
 
-These are both equivalent. Way the first is slightly better, but they produce identical results and is what is turned on by default. Once we're here, $\mu_H$ is easy to calculate and accumulate. This accumulation step only works if our stars do not overlap, which in general they don't
+These produce identical results - way the first is slightly better, and is what is turned on by default. Once we're here, $\bar{\mu}_H$ is easy to calculate
 
 ```c++
     valuef mu_cfl = get(mu_cfl_b, 0.f, r);
@@ -1203,15 +1229,13 @@ These are both equivalent. Way the first is slightly better, but they produce id
     valuef W2 = 0.5f * (1 + sqrt(1 + 4 * flat.dot(Wu_hi, Wu_hi)));
 
     valuef mu_h = (mu_cfl + pressure_cfl) * W2 - pressure_cfl;
-
-    as_ref(mu_h_cfl_out[pos, dim]) += mu_h;
 ```
 
 ### Solving the laplacian, finally
 
 Here, I'm going to describe how to mix together neutron stars, and black holes. For both neutron stars, and black holes, we have an extrinsic curvature $\bar{A}^{ij}$. For black holes, use the procedure as specified [here in a previous article](https://20k.github.io/c++/2025/01/12/nr102.html#initial-conditions) to get their extrinsic curvature. This is great, we simply sum every extrinsic curvature linearly, and then calculate $\bar{A}^{ij} \bar{A}_{ij}$ for all objects
 
-Next up, we need to do a bit of work. First off, we need to remember that we can express our conformal factor as $\Phi = 1 + u + F$. $u$ is a correction, and what we solve for in the laplacian. We didn't dig into this, but as black holes have no matter distribution, the term $F$ (originally called: $\frac{1}{a}$) is to stop the solution from being trivially conformally flat. This isn't a problem for neutron stars, as you can see in our laplacian we have the term:
+Next up, we need to do a bit of work. First off, we need to remember that we can express our conformal factor as $\Phi = 1 + u + F$. $u$ is a correction, and what we solve for in the laplacian. We didn't dig into this, but as black holes have no matter distribution, the term $F$ (originally called: $\frac{1}{a}$) is to stop the solution from being trivially flat. This isn't a problem for neutron stars, as you can see in our laplacian we have the term:
 
 $$- 2 \pi \Phi^{-3} \bar{\mu}_H$$
 
@@ -1224,7 +1248,9 @@ Which is a matter term on the right hand side, and prevents it from being trivia
 
 To calculate $F$, sum over $F_{(i)}$ for every object
 
-The last thing to do is figure out what to do with our individual $\bar{\mu}_H$ terms. Luckily, you simply sum these, and make sure that an individual neutron stars contribution is $0$ outside of its radius. To make this super explicit:
+The last thing to do is figure out what to do with our individual $\bar{\mu}_H$ terms. Luckily, you simply sum these[^onlyworks]. To make this super explicit:
+
+[^onlyworks]: This only works if the stars are not overlapping
 
 $$\begin{align}
 \bar{A}_{ij}^{sum} &= \sum^N_{k=1} \bar{A}_{ij}^{(k)}\\
@@ -1234,13 +1260,13 @@ F^{sum} &= \sum^N_{k=1} F_{(k)} \\
 \Delta u &= -\frac{1}{8} \Phi^{-7} \bar{A}_{ij}^{sum} \bar{A}^{ij}_{sum} - 2 \pi \Phi^{-3} \bar{\mu}^{sum}_H
 \end{align}$$
 
-That's it, we're good to go. From here on, its just a standard laplacian of exactly the same form we solved [previously](https://20k.github.io/c++/2025/01/12/nr102.html#solving-for-u), and its an identical process
+That's it, we're good to go. From here on, its just a standard laplacian of exactly the same form we solved [previously](https://20k.github.io/c++/2025/01/12/nr102.html#solving-for-u), with nothing special going on
 
 This allows you to now calculate these non conformal variables:
 
 |Name|Symbol|Value|
 |-|-|-|
-|Metric Tensor|$$\gamma_{ij}$$|$$\Phi^4 \eta_{ij}$$|
+|Metric Tensor|$$\gamma_{ij}$$|$$\Phi^4 \bar{\gamma}_{ij}$$|
 |Extrinsic Curvature|$$K_{ij}$$|$$\Phi^{-2} \bar{A}_{ij}$$|
 | Initial Adm Matter Source | $$\mu_H$$ | $$\Phi^{-8} \bar{\mu}_H$$ |
 | Initial Adm Matter Source | $$S^i$$ | $$\Phi^{-10} \tilde{S}^i$$ |
@@ -1253,7 +1279,7 @@ Note that two of these - the metric, and extrinsic curvature, are two of the ini
 
 The code for this section is available over [here](https://github.com/20k/20k.github.io/tree/master/code/NR4/hydrodynamics.cpp), see init_hydro
 
-The variables $S^i$ and $\mu_H$ are not actually hydrodynamic quantities, and so we have to construct our final *real* quantities that we could plug into a fluid dynamics simulation
+The variables $S^i$ and $\mu_H$ are not actually hydrodynamic quantities - but instead projections of the stress-energy tensor - and so we have to construct our final real quantities that we could plug into a fluid dynamics simulation
 
 |Symbol|Name|
 |-|-|
@@ -1275,10 +1301,10 @@ $$\begin{align}
 \gamma_{ij} S^i S^j &= (\mu + p)^2 W^2 (W^2 - 1)
 \end{align}$$
 
-Initially this might seem a tad unsolvable, but we have an equation of state that you can use to tie together $\mu$ and $p$. This paper omits the way you should solve these equations (which is non trivial), and so I'll detail a procedure I came up with for solving this. You'll also need the ability to go from $\mu$ -> $p$, eg via a numerical invert to your equation of state
+Initially this might seem a tad unsolvable, but we have an equation of state that you can use to tie together $\mu$ and $p$. This paper omits the way you should solve these equations (which is non trivial), and so I'll detail a procedure I came up with for solving this. You'll also need the ability to go from $\mu$ -> $p$, ie $p = f(\mu)$
 
 1. Make an initial guess for $W_0=1$ and $\mu_0 = \mu_H$
-2. Calculate $W_{n+1} = \frac{\sqrt{1 + \sqrt{4 \frac{\gamma_{ij} S^i S^j}{(\mu_n + p)^2} + 1}}}{\sqrt{2}}$ (from eq 2.) Todo: I think i accidentally just reinvented (27)
+2. Calculate $W_{n+1} = \frac{\sqrt{1 + \sqrt{4 \frac{\gamma_{ij} S^i S^j}{(\mu_n + p)^2} + 1}}}{\sqrt{2}}$ (from eq 2., equivalent to (27))
 3. Numerically find a $\mu$ such that $(\mu_n + p) W_{n+1}^2 - p = \mu_H$, giving $\mu_{n+1}$. I do a simple linear search
 4. Iterate until the desired accuracy is reached
 
@@ -1448,7 +1474,7 @@ Implementing this isn't super fun:
     v3f ui = Si / ((mu + pressure) * u0);
 ```
 
-To get the rest mass density, and specific internal energy density, I apply the equation of state to recover them. That's it. We're done! We have our final ADM quantities, and our hydrodynamic quantities as well, so its mission accomplished
+To get the rest mass density, and specific internal energy density, I apply the equation of state to recover them. That's it. We're done! We have our final ADM quantities, and our hydrodynamic quantities as well, so its mission accomplished. Initial values for the gauge variables are $\beta^i = 0$, and $\alpha = 1$ or $\alpha = \frac{1}{\Phi^2}$
 
 # Results
 

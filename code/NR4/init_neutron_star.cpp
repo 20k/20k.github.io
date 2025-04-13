@@ -177,8 +177,6 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
 
         v3f li = from_body / max(r, valuef(0.000001f));
 
-        valuef max_uN = declare_e(uN_b[samples - 1]);
-
         valuef Q = get(Q_b, 1.f, r);
         valuef C = get(C_b, C_b[samples-1], r);
         valuef N = get(uN_b, 1.f, r);
@@ -229,8 +227,7 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
             }
         }
 
-        tensor<valuef, 3, 3> AIJ = AIJ_p + AIJ_j;
-        return AIJ;
+        return AIJ_p + AIJ_j;
     };
 
     auto Si_from_AIJ = [&]()
