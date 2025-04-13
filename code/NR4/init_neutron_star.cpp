@@ -133,7 +133,6 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
 
         if_e(r > radius_b[0] && r <= radius_b[samples - 1], [&]{
             mut<valuei> index = declare_mut_e(valuei(0));
-            //mut<valuef> last_r = declare_mut_e(valuef(0.f));
 
             for_e(index < samples - 1, assign_b(index, index+1), [&]{
                 valuef r1 = radius_b[index];
@@ -157,6 +156,15 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
         return declare_e(out);
     };
 
+    unit_metric<valuef, 3, 3> flat;
+
+    for(int i=0; i < 3; i++)
+        flat[i, i] = 1;
+
+    ///super duper unnecessary here but i'm being 110% pedantic
+    auto iflat = flat.invert();
+    pin(iflat);
+
     auto get_AIJ = [&](v3f fpos)
     {
         v3f body_pos = lbody_pos.get();
@@ -171,21 +179,9 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
 
         valuef max_uN = declare_e(uN_b[samples - 1]);
 
-        ///todo: need to define upper boundaries
         valuef Q = get(Q_b, 1.f, r);
         valuef C = get(C_b, C_b[samples-1], r);
         valuef N = get(uN_b, 1.f, r);
-        valuef sigma = get(sigma_b, 0.f, r);
-        valuef kappa = get(kappa_b, 0.f, r);
-;
-        unit_metric<valuef, 3, 3> flat;
-
-        for(int i=0; i < 3; i++)
-            flat[i, i] = 1;
-
-        ///super duper unnecessary here but i'm being 110% pedantic
-        auto iflat = flat.invert();
-        pin(iflat);
 
         v3f li_lower = flat.lower(li);
         v3f P = linear_momentum.get();
@@ -237,36 +233,39 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
         return AIJ;
     };
 
-    tensor<valuef, 3> Si;
-
-    for(int i=0; i < 3; i++)
+    auto Si_from_AIJ = [&]()
     {
-        valuef sum = 0;
+        tensor<valuef, 3> Si;
 
-        for(int j=0; j < 3; j++)
+        for(int i=0; i < 3; i++)
         {
-            float off = 0.01;
+            valuef sum = 0;
 
-            v3f offset;
-            offset[j] = off;
+            for(int j=0; j < 3; j++)
+            {
+                float off = 0.01;
 
-            v3f fpos = (v3f)pos;
+                v3f offset;
+                offset[j] = off;
 
-            tensor<valuef, 3, 3> right = get_AIJ(fpos + offset);
-            tensor<valuef, 3, 3> left = get_AIJ(fpos - offset);
-            pin(right);
-            pin(left);
+                v3f fpos = (v3f)pos;
 
-            auto diff = (right - left) / (off * 2 * scale);
+                tensor<valuef, 3, 3> right = get_AIJ(fpos + offset);
+                tensor<valuef, 3, 3> left = get_AIJ(fpos - offset);
+                pin(right);
+                pin(left);
 
-            sum += diff[i, j] / (8 * M_PI);
-            pin(sum);
+                auto diff = (right - left) / (off * 2 * scale);
+
+                sum += diff[i, j] / (8 * M_PI);
+                pin(sum);
+            }
+
+            Si[i] = sum;
         }
 
-        Si[i] = sum;
-    }
-
-    v3f cSi = declare_e(Si);
+        return declare_e(Si);
+    };
 
     v3f fpos = (v3f)pos;
 
@@ -278,52 +277,13 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
     valuef r = from_body.length();
     pin(r);
 
-    valuef mu_cfl = get(mu_cfl_b, 0.f, r);
-    valuef pressure_cfl = get(pressure_cfl_b, 0.f, r);
-
-    unit_metric<valuef, 3, 3> flat;
-
-    for(int i=0; i < 3; i++)
-        flat[i, i] = 1;
-
-    v3f Wu_hi = cSi / max(mu_cfl + pressure_cfl, valuef(1e-12f));
-
-    valuef W2 = 0.5f * (1 + sqrt(1 + 4 * flat.dot(Wu_hi, Wu_hi)));
-
-    #if 0
+    auto Si_direct_sum = [&]()
     {
-        v3f body_pos = lbody_pos.get();
-        v3f world_pos = grid_to_world(fpos, dim, scale);
-
-        v3f from_body = world_pos - body_pos;
-
-        valuef r = from_body.length();
-        pin(r);
-
-        v3f li = from_body / max(r, valuef(0.0001f));
+        v3f P = linear_momentum.get();
+        v3f J = angular_momentum.get();
 
         valuef sigma = get(sigma_b, 0.f, r);
         valuef kappa = get(kappa_b, 0.f, r);
-
-        auto iflat = flat.invert();
-
-        v3f li_lower = flat.lower(li);
-        v3f P = linear_momentum.get();
-        v3f J = angular_momentum.get();
-        v3f J_lower = flat.lower(J);
-
-        v3f P_lower = flat.lower(P);
-
-        valuef M = lM.get();
-        valuef squiggly_N = l_sN.get();
-
-        valuef W2_P = 0.5f * (1 + sqrt(1 + (4 * dot(P_lower, P)) / (M*M)));
-
-        v3f J_norm = J / max(J.length(), valuef(0.0001f));
-        v3f li_lower_norm = li_lower / max(li_lower.length(), valuef(0.0001f));
-        value sin2 = 1 - pow(dot(J_norm, li_lower_norm), valuef(2.f));
-
-        valuef W2_J = 0.5f * (1 + sqrt(1 + (4 * dot(J_lower, J) * r * r * sin2) / (squiggly_N*squiggly_N)));
 
         auto eijk = get_eijk();
 
@@ -342,23 +302,18 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
         }
 
         v3f tSi = Si_P + iflat.raise(S_iJ);
+        pin(tSi);
+        return tSi;
+    };
 
-        valuef cW = sqrt(0.5f * (1 + sqrt(1 + (4 * flat.dot(tSi, tSi)) / max(pow(mu_cfl + pressure_cfl, 2.f), valuef(1e-12f)))));
+    v3f Si = Si_direct_sum();
 
-        /*cSi[0] = tSi[0];
-        cSi[1] = tSi[1];
-        cSi[2] = tSi[2];
+    valuef mu_cfl = get(mu_cfl_b, 0.f, r);
+    valuef pressure_cfl = get(pressure_cfl_b, 0.f, r);
 
-        W2 = cW * cW;*/
+    v3f Wu_hi = Si / max(mu_cfl + pressure_cfl, valuef(1e-12f));
 
-        if_e(mu_cfl > 0 && W2 > 0, [&]{
-            valuef m1 = (mu_cfl + pressure_cfl) * W2 - pressure_cfl;
-            valuef m2 = (mu_cfl + pressure_cfl) * cW*cW - pressure_cfl;
-
-            print("%.24f %.24f r_err %.24f %f %f calc W2 %f paper W2 %f\n", m1, m2, (m1 - m2) / m1, W2_J, W2_P, W2, cW*cW);
-        });
-    }
-    #endif
+    valuef W2 = 0.5f * (1 + sqrt(1 + 4 * flat.dot(Wu_hi, Wu_hi)));
 
     valuef mu_h = (mu_cfl + pressure_cfl) * W2 - pressure_cfl;
 
@@ -366,7 +321,7 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
 
     for(int i=0; i < 3; i++)
     {
-        as_ref(Si_out[i][pos, dim]) += cSi[i];
+        as_ref(Si_out[i][pos, dim]) += Si[i];
     }
 
     tensor<valuef, 3, 3> AIJ = get_AIJ(fpos);
@@ -378,7 +333,6 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
         tensor<int, 2> idx = index_table[i];
         as_ref(AIJ_accumulate[i][pos, dim]) += AIJ[idx.x(), idx.y()];
     }
-
 
     if_e(r <= radius_b[samples-1], [&]{
         as_ref(star_indices[pos, dim]) = index.get();

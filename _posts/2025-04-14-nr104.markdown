@@ -1549,7 +1549,7 @@ This is the segment of the paper where things start to get a tad wonky. If we sk
 Given that the language is identical to the language used for $\bar{A}_{ij}$, a casual read of this might suggest one of the two following things:
 
 1. We sum the lorentz factors[^superpose]
-2. We sum the quantity $(\bar{\mu} + \bar{p}) W^2_{type} - \bar{p}$ for the angular, and linear lorentz factors
+2. We sum the quantity $\left [(\bar{\mu} + \bar{p}) W^2_{type} - \bar{p} \right ]$ for the angular, and linear lorentz factors
 
 [^superpose]: Do note that this argument is more for illustrative purposes to demonstrate that the second case is wrong, for a reader who is less able to immediately spot that this is an error. If you're more familiar with GR, you'll know that there are other more obvious grounds to rule this out immediately (in that lorentz factors not adding together is basic GR)
 
@@ -1618,9 +1618,9 @@ In general, this kind of step being left out of a paper can consume a significan
 
 ### Unnecessary further investigation
 
-After writing this all, I decided to reach out to the author, which is something I never do. They said two things:
+After writing this all, I decided to reach out to the author, which is something I never do - but I'm loathe to present speculation here. They said two things:
 
 1. They state they have not done neutron stars with both spin and linear momentum
-2. If you want spin, you should add the two $\bar{S}^i$ components together, and calculate the lorentz factor from (27)
+2. If you want both, you should add the two $\bar{S}^i$ components together, and calculate the lorentz factor from (27)
 
 I'm going to leave this topic alone now, this segment was really just to illustrate some of the joy that goes into this
