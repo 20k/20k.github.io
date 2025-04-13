@@ -760,7 +760,6 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
             pin(test_muh2);
 
             if_e(muh >= test_muh1 && muh <= test_muh2, [&]{
-
                 valuef frac = (muh - test_muh1) / (test_muh2 - test_muh1);
 
                 as_ref(out) = mix(test_mu1, test_mu2, frac);

@@ -119,7 +119,7 @@ Here's some additional equations that are useful:
 |$h = 1 + \epsilon + \frac{P}{\rho_0}$| Specific enthalpy |
 |$\rho_0h = \mu + P$| |
 
-In general, you'll need to numerically invert the equation of state for some arbitrary equation
+In general, you'll need to numerically invert the equation of state for some arbitrary equation. So, what's the deal with the equation of state?
 
 ## Equation of state (EOS)
 
@@ -144,7 +144,7 @@ With these, I can make you a more useful variable table:
 
 This in general is the 'toy' equation of state, although it is extremely widely used in these simulations and the literature. A common range for $\Gamma$ is $1.75$ to $2.25$. In this article, while I'll be going over specific test cases later, you can assume that $\Gamma = 2$ and $K = 123.641$ in units of $c=G=M_\odot=1$
 
-### Less toy equations of state
+### Piecewise equations of state
 
 A more advanced method of modelling a neutron star is to construct a piecewise representation of its equation of state: Essentially, you piece together a bunch of polytropic parts (with different $K$ and $\Gamma$ values) based on some real physics, and ensure some kind of continuity at the boundary between them:
 
@@ -240,7 +240,7 @@ This is the set of initial values to use at $r_{min}$:
 
 ### Equation of State
 
-For flexibility, I define a very general class of equation of state. This is essentially an adaptor, which automatically generates all the conversions you might want, which you can override specific parts of as necessary. In the strictest possible sense, our equation of state only actually needs to convert between $\mu$ and $P$, and $\rho_0$ is technically unnecessary to provide - but in practice its a lot simpler to include it (and we'll need it for the hydrodynamics later)
+For flexibility, I define a very general class of equation of state. This is essentially an adaptor, which automatically generates all the conversions you might want, and you can override specific parts of as necessary
 
 ```c++
 struct base
@@ -502,8 +502,6 @@ std::optional<tov::integration_solution> tov::solve_tov(const integration_state&
 
 ## Testing the implementation
 
-We're going to define a few test cases:
-
 | Case | $\rho_c$ | $K$ | $\Gamma$ | Expected $M$ | Expected $R$ | Notes |
 |-|-|-|-|-|-|-|
 | [C1](https://arxiv.org/pdf/1606.04881) (section VII) | $6.235 \times 10^{17}\; \mathrm{kg}\;\mathrm{m}^{-3}$ |  $123.641 M_{\odot}^2$ where $c=G=1$[^waste] | $2$ |$1.543 M_\odot$ | $13.4 \; \mathrm{km}$ where $c=G=1$ in Isotropic coordinates | |
@@ -610,7 +608,7 @@ auto integrate_to_index = [&](auto&& func, int index)
 };
 ```
 
-Note that I don't just return the integral, but the running integral. This means that if we have an integral like this:
+Note that I don't just return the integral, but the running integral. This means that if we have an integral like this that gets evaluated repeatedly:
 
 $$g(x) = \int_0^{x} f(x) dx$$
 
@@ -618,11 +616,7 @@ We can first calculate:
 
 $$\int_0^{x_{upper}} f(x) dx$$
 
-And then simply lookup in a table the value of $\int_0^{x} f(x) dx$ for performance reasons
-
-I have everything tabulated in buffers, and integrate up to *indices*, which respresent a specific radius $r$. This avoids a lot of sampling, and interpolation, and in general is pretty simple
-
-I'll be providing some examples of how to use this. Some work has been put into making sure that the computational complexity is minimal (to avoid calculating $N^2$ integrals or something), though it hasn't been micro-optimised
+And then simply lookup in a table the value of $\int_0^{x} f(x) dx$ for performance reasons. I have everything tabulated in buffers, and always integrate up to *indices*, which respresent a specific radius $r$
 
 # Bowen-York Type Initial Data for Binaries with Neutron Stars
 
@@ -632,7 +626,7 @@ The actual paper we're going to be implementing today is [this](https://arxiv.or
 
 ## Fluids in General Relativity
 
-In this paper, our neutron star is modelled as a perfect fluid - this is a very common way to model bodies in general relativity. Matter interactions in GR happen through something called the stress-energy tensor $T_{\mu\nu}$, representing all the matter in the spacetime
+In this paper, our neutron star is modelled as a perfect fluid - this is a very common way to model bodies in general relativity. Matter interactions in GR happen through something called the stress-energy tensor $T_{\mu\nu}$, representing all the matter (and energy) in the spacetime
 
 The stress-energy tensor for a perfect fluid is calculated [as follows](https://en.wikipedia.org/wiki/Stress%E2%80%93energy_tensor#Stress%E2%80%93energy_of_a_fluid_in_equilibrium):
 
@@ -655,7 +649,7 @@ S^i &= (\mu + p) W u^i\\
 \end{align}
 $$
 
-Where $W$ is a lorentz factor, and $u^i$ is the spatial components of a fluid 4-velocity. These two variables fully encompass our fluid's state here, and *also* fully determine the structure of our spacetime. Calculating these is our major goal here
+Where $W$ is a lorentz factor, and $u^i$ is the spatial components of a fluid 4-velocity. These two variables fully encompass our fluid's state here, and *also* fully determine the structure of our spacetime. Calculating these is a major goal here
 
 $S^i$ will be broken up into two parts: An angular momentum part, and a linear momentum part. These are used implicitly to calculate the extrinsic curvature
 
@@ -672,7 +666,7 @@ For consistency[^notation], we'll be keeping our existing notation, and below is
 
 The swap from $P$ to $p$ is because $P^i$ will be used for the ADM momentum
 
-If you remember from the black hole initial conditions paper, the basic idea for many kinds of initial conditions is based on the principle of a conformal transform, where your variables are multiplied by a conformal factor: $\Phi$. In this paper, our variables are transformed as follows:
+The basic idea for many kinds of initial conditions is based on the principle of a conformal transform, where your variables are multiplied by a conformal factor: $\Phi$. In this paper, our variables are transformed as follows:
 
 $$\begin{align}
 \gamma_{ij} &= \Phi^4 \bar{\gamma}_{ij}\\
@@ -699,7 +693,7 @@ Conformal flatness + maximal slicing gives us a familiar looking constraint to s
 
 $$\partial^i \partial_i \Phi = -\frac{1}{8} \Phi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \Phi^{-3} \bar{\mu}_H$$
 
-Solving this equation, calculating $\bar{A}^{ij}$, $\bar{\mu}_H$, and $\bar{S}^i$, are most of the work of what we'll be doing. One thing to note is that any time you see a $\pi$, its a sure fire bet that it means there are matter terms involved. The final hydrodynamic variables will be recovered *after* we've solved the above
+Solving this equation - and calculating $\bar{A}^{ij}$, $\bar{\mu}_H$, and $\bar{S}^i$ - is most of the work of what we'll be doing. One thing to note is that any time you see a $\pi$, its a sure fire bet that it means there are matter terms involved. The final hydrodynamic variables will be recovered *after* we've solved the above
 
 This paper in theory lets us solve the TOV equations in a conformally flat spacetime, via (77-79), but I've deliberately skipped this step, as solving the TOV equations directly is much simpler. In general I wouldn't recommend implementing section VI (other than (83-84)), and I think (82) is incorrect unfortunately
 
@@ -775,7 +769,7 @@ std::vector<double> initial::calculate_isotropic_r(const tov::integration_soluti
 }
 ```
 
-To get back to the topic at hand, note that we're looking for a $\Phi_{tov}$ from a metric defined as follows:
+To get back to the topic at hand, note that we're looking for a $\Phi_{tov}$ for a metric defined as follows (73):
 
 $$ds^2 = -\alpha^2(\bar{r}) dt^2 + (\Phi_{tov}(\bar{r}))^4(d\bar{r}^2 + \bar{r}^2 d\Omega)$$
 
@@ -1122,7 +1116,7 @@ Which will be set to $0$ when $r>r_0$. What's $W$?
 
 I've moved an extremely extended discussion about the correct way to calculate this variable to the end of the article for flow reasons. If you're ever interested in the behind-the-scenes development of these articles, you can skip over there to enjoy my frustration, as well as some maths. This deviates from the procedure specified in the paper, as it does not work in our case
 
-To cut a long story short, we'll need to plug some source $\bar{S}^i$ into the following equation to calculate the lorentz factor:
+To cut a long story short, we'll need to plug some source $\bar{S}^i$ into the following equation to calculate the lorentz factor (27):
 
 $$W^2 = \frac{1}{2}\left [1 + \sqrt{1 + \frac{4 \bar{\gamma}_{ij} \bar{S}^i \bar{S}^j}{(\bar{\mu} + \bar{p})^2}}\right]\\$$
 
@@ -1130,7 +1124,7 @@ There are two ways to calculate $\bar{S}^i$:
 
 ##### Way the first
 
-For this method, we have to calculate two individual sources - a linear part $\bar{S}^i_P$, and an angular part $\bar{S}^i_J$, then sum them together:
+For this method, we have to calculate two individual sources - a linear part $\bar{S}^i_P$ (32), and an angular part $\bar{S}^i_J$ (33), then sum them together:
 
 $$\begin{align}
 \bar{S}^i_P &= P^i \sigma \\
@@ -1423,7 +1417,6 @@ Implementing this isn't super fun:
             pin(test_muh2);
 
             if_e(muh >= test_muh1 && muh <= test_muh2, [&]{
-
                 valuef frac = (muh - test_muh1) / (test_muh2 - test_muh1);
 
                 as_ref(out) = mix(test_mu1, test_mu2, frac);
