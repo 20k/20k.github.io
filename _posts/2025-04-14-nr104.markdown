@@ -548,6 +548,8 @@ At the end of this process, we've gained the ability to fully describe the follo
 
 Next up, we need to give it momentum and spin, which means exiting spherical symmetry. This is where things get a bit complicated
 
+![nr4_mrow](/assets/nr4_kedited.png)
+
 # Preamble
 ## ADM Refresher
 
