@@ -997,82 +997,72 @@ Next comes the actual implementation of the extrinsic curvature
 auto get_AIJ = [&](v3f fpos)
 {
     v3f body_pos = lbody_pos.get();
-    v3f world_pos = grid_to_world(fpos, dim, scale);
+        v3f world_pos = grid_to_world(fpos, dim, scale);
 
-    v3f from_body = world_pos - body_pos;
+        v3f from_body = world_pos - body_pos;
 
-    valuef r = from_body.length();
-    pin(r);
+        valuef r = from_body.length();
+        pin(r);
 
-    v3f li = from_body / max(r, valuef(0.000001f));
+        v3f li = from_body / max(r, valuef(0.000001f));
 
-    //interpolate all those functions we just calculated at the current isotropic radial coordinate
-    valuef Q = get(Q_b, 1.f, r);
-    valuef C = get(C_b, C_b[samples-1], r);
-    valuef N = get(uN_b, 1.f, r);
-    valuef sigma = get(sigma_b, 0.f, r);
-    valuef kappa = get(kappa_b, 0.f, r);
+        valuef max_uN = declare_e(uN_b[samples - 1]);
 
-    valuef mu_cfl = get(mu_cfl_b, 0.f, r);
-    valuef pressure_cfl = get(pressure_cfl_b, 0.f, r);
+        //look up functions by isotropic radius
+        valuef Q = get(Q_b, 1.f, r);
+        valuef C = get(C_b, C_b[samples-1], r);
+        valuef N = get(uN_b, 1.f, r);
 
-    unit_metric<valuef, 3, 3> flat;
+        v3f li_lower = flat.lower(li);
+        v3f P = linear_momentum.get();
+        v3f J = angular_momentum.get();
 
-    for(int i=0; i < 3; i++)
-        flat[i, i] = valuef(1);
+        valuef pk_lk = dot(P, li_lower);
 
-    ///super duper unnecessary here but i'm being 110% pedantic
-    auto iflat = flat.invert();
-    pin(iflat);
+        tensor<valuef, 3, 3> AIJ_p;
 
-    v3f li_lower = flat.lower(li);
-    v3f P = linear_momentum.get();
-    v3f J = angular_momentum.get();
+        valuef cr = max(r, valuef(0.00001f));
 
-    valuef pk_lk = dot(P, li_lower);
-
-    tensor<valuef, 3, 3> AIJ_p;
-
-    valuef cr = max(r, valuef(0.00001f));
-
-    for(int i=0; i < 3; i++)
-    {
-        for(int j=0; j < 3; j++)
+        //calculate linear part
+        for(int i=0; i < 3; i++)
         {
-            AIJ_p[i, j] = (3 * Q / (2 * cr*cr)) *   (P[i] * li[j] + P[j] * li[i] - (iflat[i, j] - li[i] * li[j]) * pk_lk)
-                            +(3 * C / (cr*cr*cr*cr)) * (P[i] * li[j] + P[j] * li[i] + (iflat[i, j] - 5 * li[i] * li[j]) * pk_lk);
-        }
-    }
-
-    auto eijk = get_eijk();
-
-    //super unnecessary, being pedantic
-    auto eIJK = iflat.raise(iflat.raise(iflat.raise(eijk, 0), 1), 2);
-
-    tensor<valuef, 3, 3> AIJ_j;
-
-    v3f J_lower = flat.lower(J);
-
-    for(int i=0; i < 3; i++)
-    {
-        for(int j=0; j < 3; j++)
-        {
-            valuef sum = 0;
-
-            for(int k=0; k < 3; k++)
+            for(int j=0; j < 3; j++)
             {
-                for(int l=0; l < 3; l++)
-                {
-                    sum += (3 / (cr*cr*cr)) * (li[i] * eIJK[j, k, l] + li[j] * eIJK[i, k, l]) * J_lower[k] * li_lower[l] * N;
-                }
+                AIJ_p[i, j] = (3 * Q / (2 * cr*cr)) *   (P[i] * li[j] + P[j] * li[i] - (iflat[i, j] - li[i] * li[j]) * pk_lk)
+                             +(3 * C / (cr*cr*cr*cr)) * (P[i] * li[j] + P[j] * li[i] + (iflat[i, j] - 5 * li[i] * li[j]) * pk_lk);
             }
-
-            AIJ_j[i, j] += sum;
         }
-    }
 
-    tensor<valuef, 3, 3> AIJ = AIJ_p + AIJ_j;
-    return AIJ;
+        auto eijk = get_eijk();
+
+        //super unnecessary, being pedantic
+        auto eIJK = iflat.raise(iflat.raise(iflat.raise(eijk, 0), 1), 2);
+
+        tensor<valuef, 3, 3> AIJ_j;
+
+        v3f J_lower = flat.lower(J);
+
+        //calculate angular part
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                valuef sum = 0;
+
+                for(int k=0; k < 3; k++)
+                {
+                    for(int l=0; l < 3; l++)
+                    {
+                        sum += (3 / (cr*cr*cr)) * (li[i] * eIJK[j, k, l] + li[j] * eIJK[i, k, l]) * J_lower[k] * li_lower[l] * N;
+                    }
+                }
+
+                AIJ_j[i, j] += sum;
+            }
+        }
+
+        tensor<valuef, 3, 3> AIJ = AIJ_p + AIJ_j;
+        return AIJ;
 };
 ```
 
@@ -1110,12 +1100,43 @@ For this method, we have to calculate two individual sources - a linear part $\b
 
 $$\begin{align}
 \bar{S}^i_P &= P^i \sigma \\
-\bar{S}^i_J &= \epsilon^{ijk} J_j x_k \kappa \\
+\bar{S}_i^J &= \epsilon_{ijk} J^j x^k \kappa \\
 \bar{S}^i_{summed} &= \bar{S}^i_P + \bar{S}^i_J
 \end{align}
 $$
 
-where $\epsilon^{ijk}$ is the levi civita symbol, and $x_k$ is the world position relative to the centre of the neutron star
+where $\epsilon_{ijk}$ is the levi civita symbol, and $x_k$ is the world position relative to the centre of the neutron star
+
+```c++
+auto Si_direct_sum = [&]()
+{
+    v3f P = linear_momentum.get();
+    v3f J = angular_momentum.get();
+
+    valuef sigma = get(sigma_b, 0.f, r);
+    valuef kappa = get(kappa_b, 0.f, r);
+
+    auto eijk = get_eijk();
+
+    v3f Si_P = P * sigma;
+    v3f S_iJ;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            for(int k=0; k < 3; k++)
+            {
+                S_iJ[i] += eijk[i, j, k] * J[j] * from_body[k] * kappa;
+            }
+        }
+    }
+
+    v3f tSi = Si_P + iflat.raise(S_iJ);
+    pin(tSi);
+    return tSi;
+};
+```
 
 ##### Way the second
 
@@ -1127,9 +1148,57 @@ $$
 
 Remember that the conformal metric tensor is flat, so $\bar{\nabla}_j \bar{A}^{ij} = \partial_j \bar{A}^{ij}$. Here, $\bar{A}^{ij}$ is the two summed components of the extrinsic curvature for a single star only: $\bar{A}^{ij} = \bar{A}^{ij}_P +  \bar{A}^{ij}_J$, and this is not the total extrinsic curvature for all stars. You don't need to worry about imposing a boundary condition exterior to the star, as $W^2$ is multiplied by matter terms
 
-Todo: Code, notes, impl
 
-This is the method I've implemented, but there's an implementation of the former method as well lurking in the code
+```c++
+auto Si_from_AIJ = [&]()
+{
+    tensor<valuef, 3> Si;
+
+    for(int i=0; i < 3; i++)
+    {
+        valuef sum = 0;
+
+        for(int j=0; j < 3; j++)
+        {
+            float off = 0.01;
+
+            v3f offset;
+            offset[j] = off;
+
+            v3f fpos = (v3f)pos;
+
+            tensor<valuef, 3, 3> right = get_AIJ(fpos + offset);
+            tensor<valuef, 3, 3> left = get_AIJ(fpos - offset);
+            pin(right);
+            pin(left);
+
+            auto diff = (right - left) / (off * 2 * scale);
+
+            sum += diff[i, j] / (8 * M_PI);
+            pin(sum);
+        }
+
+        Si[i] = sum;
+    }
+
+    return declare_e(Si);
+};
+```
+
+These are both equivalent. Way the first is slightly better, but they produce identical results and is what is turned on by default. Once we're here, $\mu_H$ is easy to calculate and accumulate. This accumulation step only works if our stars do not overlap, which in general they don't
+
+```c++
+    valuef mu_cfl = get(mu_cfl_b, 0.f, r);
+    valuef pressure_cfl = get(pressure_cfl_b, 0.f, r);
+
+    v3f Wu_hi = Si / max(mu_cfl + pressure_cfl, valuef(1e-12f));
+
+    valuef W2 = 0.5f * (1 + sqrt(1 + 4 * flat.dot(Wu_hi, Wu_hi)));
+
+    valuef mu_h = (mu_cfl + pressure_cfl) * W2 - pressure_cfl;
+
+    as_ref(mu_h_cfl_out[pos, dim]) += mu_h;
+```
 
 ### Solving the laplacian, finally
 
@@ -1168,7 +1237,6 @@ This allows you to now calculate these non conformal variables:
 |Extrinsic Curvature|$$K_{ij}$$|$$\Phi^{-2} \bar{A}_{ij}$$|
 | Initial Adm Matter Source | $$\mu_H$$ | $$\Phi^{-8} \bar{\mu}_H$$ |
 | Initial Adm Matter Source | $$S^i$$ | $$\Phi^{-10} \tilde{S}^i$$ |
-| Initial Pressure | $$P$$ | $$\Phi^{-8} \bar{P}$$ |
 
 Note that two of these - the metric, and extrinsic curvature, are two of the initial variables we were trying to solve for. We still need to do a bit of work for the hydrodynamics
 
@@ -1184,7 +1252,12 @@ The variables $S^i$ and $\mu_H$ are not actually hydrodynamic quantities, and so
 |$\mu$|Total mass-energy density|
 |$p$|Pressure|
 
-We unfortunately cannot simply transform our conformal variables from earlier, as they are not actually equivalent - an equation of state is generally non linear, so our variables wouldn't correspond correctly. We must instead construct them from $S^i$ and $\mu_H$ only. To do this, we have the following equations:
+We unfortunately cannot simply transform our conformal variables from earlier. There are two issues:
+
+1. They no longer match up to each other - an equation of state is generally non linear, so our variables wouldn't correspond correctly after a conformal transform
+2. They are no longer physically relevant. $\mu_H$ is physical because we've solved for a conformal factor that makes it satisfy our constraints exactly, and $S^i$ fulfills our momentum constraint. Using the old conformal variables wouldn't generate a solution that satisfies the physical constraints
+
+We must construct our hydrodynamic variables from $S^i$ and $\mu_H$ only. To do this, we have the following equations:
 
 $$\begin{align}
 \mu_H &= (\mu + p) W^2 - p \\
