@@ -1243,7 +1243,7 @@ Note that two of these - the metric, and extrinsic curvature, are two of the ini
 
 ## Recovering the hydrodynamic variables
 
-The code for this section is available over [here](https://github.com/20k/20k.github.io/tree/master/code/NR4/hydrodynamics.cpp), see `init_hydro`
+The code for this section is available over [here](https://github.com/20k/20k.github.io/tree/master/code/NR4/hydrodynamics.cpp), see init_hydro
 
 The variables $S^i$ and $\mu_H$ are not actually hydrodynamic quantities, and so we have to construct our final *real* quantities that we could plug into a fluid dynamics simulation
 
