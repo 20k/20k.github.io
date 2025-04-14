@@ -7,6 +7,10 @@ categories: C++
 
 Today's job is very simple, conceptually. We're going to dig into what it means for something to be a neutron star - how you represent these in general relativity, and all the necessary steps you'll need to solve along the way to successfully bring one to life in a full numerical relativistic simulation. We'll be giving them both spin and momentum, because they're not terribly useful otherwise
 
+This is the first of two articles, with the goal of simulating neutron star collisions:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/VWg5p858Tgg?si=RUg28CgiIgqx9sfH" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
 You should know before we get into this, that we're stepping into quite an involved process, and there's a lot of different equations to be solved. No individual step requires any advanced maths or solving techniques - so as long as we try and keep a clear oversight of the overarching process, we'll be fine
 
 As always, the code is available - for the first half of this article I've broken this out into a standalone library [here](https://github.com/20k/libtov), and the second half of this article is available over [here](https://github.com/20k/20k.github.io/blob/master/code/NR4). If you’re looking for someone with a lot of enthusiasm for GPU programming, and who’d rather love to do a PhD in numerical relativity - please give me a shout![^contact]
@@ -31,8 +35,6 @@ If this sounds sufficiently exotic that it might pose some fundamental physics p
 This means that a fully predictive approach with a single answer is out of the window, and we'll have to use some kind of model. The core tool we'll be using is something called an *equation of state* (EOS) to encapsulate a neutron star's physics, which relates various physical parameters together
 
 We won't be exploring magnetic fields in this article, but you should know they can play an important role in the physics
-
-![cover](/assets/nr4_cover.PNG)
 
 ## Bodies in hydrostatic equilibrium
 

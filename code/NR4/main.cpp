@@ -1080,7 +1080,7 @@ cl::image load_background(cl::context ctx, cl::command_queue cqueue, const std::
 
 initial_params get_initial_params()
 {
-    #define INSPIRAL_BH
+    //#define INSPIRAL_BH
     #ifdef INSPIRAL_BH
     black_hole_params p1;
     p1.bare_mass = 0.483f;
@@ -1257,7 +1257,7 @@ initial_params get_initial_params()
 
     #endif // INSPIRAL_2
 
-    //#define INSPIRAL
+    #define INSPIRAL
     #ifdef INSPIRAL
     neutron_star::parameters p1;
 
@@ -1535,7 +1535,7 @@ int main()
     hydrodynamic_plugin* hydro = new hydrodynamic_plugin(ctx, params.linear_viscosity_timescale, params.hydrodynamics_wants_colour(), params.linear_viscosity_strength, params.quadratic_viscosity_strength);
 
     std::vector<plugin*> plugins;
-    //plugins.push_back(hydro);
+    plugins.push_back(hydro);
 
     make_derivatives(ctx);
     make_bssn(ctx, plugins, params);
