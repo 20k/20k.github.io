@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Numerical Relativity 104: How do you build a neutron star from scratch?"
+title:  "Numerical Relativity 104: How to build a neutron star - from scratch
 date:   2026-02-02 12:33:23 +0000
 categories: C++
 ---
