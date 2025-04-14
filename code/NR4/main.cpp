@@ -714,34 +714,33 @@ struct raytrace_manager
             i.set_to_zero(cqueue);
         }
 
-        if(!use_matter)
-            return;
-
-        density_block.alloc(mem_size);
-        energy_block.alloc(mem_size);
-
-        density_block.set_to_zero(cqueue);
-        energy_block.set_to_zero(cqueue);
-
         for(int i=0; i < 3; i++)
             colour_block.emplace_back(ctx);
-
-        if(use_colour)
-        {
-            for(auto& i : colour_block)
-            {
-                i.alloc(mem_size);
-                i.set_to_zero(cqueue);
-            }
-        }
 
         for(int i=0; i < 4; i++)
             velocity_block.emplace_back(ctx);
 
-        for(auto& i : velocity_block)
+        if(use_matter)
         {
-            i.alloc(mem_size);
-            i.set_to_zero(cqueue);
+            density_block.alloc(mem_size);
+            energy_block.alloc(mem_size);
+
+            density_block.set_to_zero(cqueue);
+            energy_block.set_to_zero(cqueue);
+
+            if(use_colour)
+            {
+                for(auto& i : colour_block)
+                {
+                    i.alloc(mem_size);
+                    i.set_to_zero(cqueue);
+                }
+            }
+            for(auto& i : velocity_block)
+            {
+                i.alloc(mem_size);
+                i.set_to_zero(cqueue);
+            }
         }
     }
 
