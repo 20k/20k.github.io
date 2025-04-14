@@ -11,7 +11,7 @@ This is the first of two articles, with the goal of simulating neutron star coll
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/VWg5p858Tgg?si=RUg28CgiIgqx9sfH" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-You should know before we get into this, that we're stepping into quite an involved process, and there's a lot of different equations to be solved. No individual step requires any advanced maths or solving techniques - so as long as we try and keep a clear oversight of the overarching process, we'll be fine
+You should know before we get into this, that we're stepping into quite an involved process, and there's a lot of different equations to be solved. No individual step requires any advanced maths or solving techniques - so as long as we try and keep a clear oversight of the overarching process, it'll be fine
 
 As always, the code is available - for the first half of this article I've broken this out into a standalone library [here](https://github.com/20k/libtov), and the second half of this article is available over [here](https://github.com/20k/20k.github.io/blob/master/code/NR4). If you’re looking for someone with a lot of enthusiasm for GPU programming, and who’d rather love to do a PhD in numerical relativity - please give me a shout![^contact]
 
