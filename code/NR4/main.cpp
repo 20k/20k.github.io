@@ -1535,7 +1535,9 @@ int main()
     hydrodynamic_plugin* hydro = new hydrodynamic_plugin(ctx, params.linear_viscosity_timescale, params.hydrodynamics_wants_colour(), params.linear_viscosity_strength, params.quadratic_viscosity_strength);
 
     std::vector<plugin*> plugins;
-    plugins.push_back(hydro);
+
+    if(params.hydrodynamics_enabled())
+        plugins.push_back(hydro);
 
     make_derivatives(ctx);
     make_bssn(ctx, plugins, params);
