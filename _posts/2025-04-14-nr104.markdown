@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Numerical Relativity 104: How to build a neutron star - from scratch
+title:  "Numerical Relativity 104: How to build a neutron star - from scratch"
 date:   2026-02-02 12:33:23 +0000
 categories: C++
 ---
@@ -1702,7 +1702,7 @@ Which isn't right, as a stationary fluid should have a lorentz factor of $1$. Ru
 
 $$\bar{\mu}_H^{summed} = ((\bar{\mu} + \bar{p}) W^2_P - \bar{p}) + ((\bar{\mu} + \bar{p}) W^2_J - \bar{p}) = 2 \bar{\mu} $$
 
-Which is also clearly incorrect - we really can't just sum things that have a lorentz factor in them, as it doesn't add linearly. This paper, other [(e1)](https://arxiv.org/pdf/2101.10252), [(e2)](https://arxiv.org/pdf/2404.09924) papers by the same authors referencing this procedure, and the [thesis](https://repository.gatech.edu/server/api/core/bitstreams/f5e116da-ebff-4380-96e8-027304d9db82/content) on which this paper is based do not specify the details on how this works. This paper does construct a neutron binary with spinning and moving neutron stars, so its clear that its being done somehow (figure 8a clearly has linear momentum), it just does not specify how
+Which is also clearly incorrect - we really can't just sum things that have a lorentz factor in them, as it doesn't add linearly. This paper, other [(e1)](https://arxiv.org/pdf/2101.10252), [(e2)](https://arxiv.org/pdf/2404.09924) papers by the same authors referencing this procedure, and the [thesis](https://repository.gatech.edu/server/api/core/bitstreams/f5e116da-ebff-4380-96e8-027304d9db82/content) on which this paper is based do not specify the details on how this works. This paper does construct a neutron binary with spinning and moving neutron stars, so its clear that its being done somehow (figure 8a clearly has linear momentum, and its a spinning test case), it just does not specify how
 
 You might consider that we could add lorentz factors via a rapidity formula, but this is incorrect as these two terms are lorentz factors representing velocities in a direction
 
@@ -1736,7 +1736,7 @@ $$\bar{\nabla}_j \bar{A}^{ij}_J + \bar{\nabla}_j \bar{A}^{ij}_P = 8 \pi \bar{S}_
 
 Which further implies that $S_{new}^i = S_J^i + S_P^i$. It seems correct enough
 
-In general, this kind of step being left out of a paper can consume a significant amount of time investigatory time unfortunately, but it comes with the territory, and literature replication is always difficult[^error]
+In general, this kind of step being left out of a paper can consume a significant amount of investigatory time unfortunately, but it comes with the territory, and literature replication is always difficult[^error]
 
 [^error]: In general, its clear that the procedure implemented is not *entirely* the one described. In [this](https://arxiv.org/pdf/1606.04881) paper (82) is incorrect. In [this](https://arxiv.org/pdf/2101.10252) paper, the mistake is repeated as (31). In a later [paper](https://arxiv.org/pdf/2404.09924), this mistake is corrected as (22)
 
