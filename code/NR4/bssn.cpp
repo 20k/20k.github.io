@@ -629,7 +629,7 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
 
 ///https://iopscience.iop.org/article/10.1088/1361-6382/ac7e16/pdf 2.12 or
 ///https://arxiv.org/pdf/0709.2160
-valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, const valuef& adm_p, valuef timestep)
+valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d, const valuef& adm_p, valuef timestep, valuef should_damp)
 {
     valuef dibi = 0;
 
@@ -645,7 +645,7 @@ valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const derivative_data&
         dibiw += args.gB[i] * diff1(args.W, i, d);
     }
 
-    return (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw + 0.15f * timestep * args.gA * args.W * calculate_hamiltonian_constraint(args, derivs, d, adm_p) * 0;
+    return (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw + should_damp * 0.15f * timestep * args.gA * args.W * calculate_hamiltonian_constraint(args, derivs, d, adm_p);
 }
 
 tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
@@ -718,7 +718,7 @@ valuef get_dtK(bssn_args& args, bssn_derivatives& derivs, const derivative_data&
               + 4 * M_PI * (S + adm_p));
 }
 
-tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f momentum_constraint, const derivative_data& d, tensor<valuef, 3, 3> W2_Sij)
+tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f momentum_constraint, const derivative_data& d, tensor<valuef, 3, 3> W2_Sij, valuef should_damp)
 {
     using namespace single_source;
 
@@ -775,7 +775,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
     {
         for(int j=0; j < 3; j++)
         {
-            float Ka = 0.04f;
+            valuef Ka = 0.04f * should_damp;
 
             dtcA[i, j] += Ka * args.gA * 0.5f *
                               (cd_low[i, j]
@@ -1122,6 +1122,9 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, const initi
         v3i pos = get_coordinate_including_boundary(lid, dim);
         pin(pos);
 
+        valuef should_damp = ternary(distance_to_boundary(pos, dim) >= valuei(5), valuef(1.f), valuef(0.f));
+        pin(should_damp);
+
         bssn_args args(pos, dim, in);
         bssn_derivatives derivs(pos, dim, derivatives);
 
@@ -1158,7 +1161,7 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, const initi
         }
 
 
-        tensor<valuef, 3, 3> dtcA = get_dtcA(args, derivs, (v3f)Mi, d, W2_Sij);
+        tensor<valuef, 3, 3> dtcA = get_dtcA(args, derivs, (v3f)Mi, d, W2_Sij, should_damp);
 
         tensor<int, 2> index_table[6] = {{0, 0}, {0, 1}, {0, 2}, {1, 1}, {1, 2}, {2, 2}};
 
@@ -1169,7 +1172,7 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, const initi
             as_ref(out.cA[i][pos, dim]) = apply_evolution(base.cA[i][pos, dim], dtcA[idx.x(), idx.y()], timestep.get());
         }
 
-        valuef dtW = get_dtW(args, derivs, d, adm_p, timestep.get());
+        valuef dtW = get_dtW(args, derivs, d, adm_p, timestep.get(), should_damp);
         as_ref(out.W[pos, dim]) = apply_evolution(base.W[pos, dim], dtW, timestep.get());
 
         valuef dtK = get_dtK(args, derivs, d, S, adm_p);
