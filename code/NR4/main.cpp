@@ -1095,6 +1095,9 @@ initial_params get_initial_params()
 
     initial_params init;
     init.dim = {213, 213, 213};
+    init.simulation_width = 30;
+    init.lapse_damp_timescale = 20;
+    init.N = 2;
 
     init.add(p1);
     init.add(p2);

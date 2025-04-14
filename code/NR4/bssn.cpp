@@ -438,7 +438,7 @@ valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, const derivative_data
     if(lapse_damp_timescale > 0)
     {
         valuef sigma = lapse_damp_timescale;
-        value h = (3.f/5.f);
+        value h = (4.f/5.f);
 
         damp = args.W * (h * exp(-(total_elapsed*total_elapsed) / (2 * sigma * sigma))) * (args.gA - args.W);
     }
@@ -645,7 +645,7 @@ valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const derivative_data&
         dibiw += args.gB[i] * diff1(args.W, i, d);
     }
 
-    return (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw + 0.15f * timestep * args.gA * args.W * calculate_hamiltonian_constraint(args, derivs, d, adm_p);
+    return (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw + 0.15f * timestep * args.gA * args.W * calculate_hamiltonian_constraint(args, derivs, d, adm_p) * 0;
 }
 
 tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
