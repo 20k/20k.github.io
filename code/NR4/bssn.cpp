@@ -1019,7 +1019,7 @@ tensor<valuef, 3> get_dtcG(bssn_args& args, bssn_derivatives& derivs, const deri
         //valuef s = sign(dmbm);
         valuef s = step(dmbm);
 
-        value X = 0.1f;
+        value X = 0.9f;
 
         dtcG += -(X * s + 2.f/3.f) * Gi * dmbm;
         #endif

@@ -5,11 +5,9 @@ date:   2026-02-02 12:33:23 +0000
 categories: C++
 ---
 
-Todo: I dislike the intro, its too wishy washy but doesn't really introduce anything useful
-
 Today's job is very simple, conceptually. We're going to dig into what it means for something to be a neutron star - how you represent these in general relativity, and all the necessary steps you'll need to solve along the way to successfully bring one to life in a full numerical relativistic simulation. We'll be giving them both spin and momentum, because they're not terribly useful otherwise
 
-You should know before we get into this, that we're stepping into quite an involved process, and there's a lot of different equations to be solved. No individual step requires any advanced maths or solving techniques. So as long as we try and keep a clear oversight of the overarching process, we'll be fine
+You should know before we get into this, that we're stepping into quite an involved process, and there's a lot of different equations to be solved. No individual step requires any advanced maths or solving techniques - so as long as we try and keep a clear oversight of the overarching process, we'll be fine
 
 As always, the code is available - for the first half of this article I've broken this out into a standalone library [here](https://github.com/20k/libtov), and the second half of this article is available over [here](https://github.com/20k/20k.github.io/blob/master/code/NR4). If you’re looking for someone with a lot of enthusiasm for GPU programming, and who’d rather love to do a PhD in numerical relativity - please give me a shout![^contact]
 
@@ -33,6 +31,8 @@ If this sounds sufficiently exotic that it might pose some fundamental physics p
 This means that a fully predictive approach with a single answer is out of the window, and we'll have to use some kind of model. The core tool we'll be using is something called an *equation of state* (EOS) to encapsulate a neutron star's physics, which relates various physical parameters together
 
 We won't be exploring magnetic fields in this article, but you should know they can play an important role in the physics
+
+![cover](/assets/nr4_cover.PNG)
 
 ## Bodies in hydrostatic equilibrium
 
@@ -59,14 +59,14 @@ In [newtonian](https://en.wikipedia.org/wiki/Hydrostatic_equilibrium#Derivation_
 
 # Overview
 
-This is the game plan for what we'll be doing today:
+This is the game plan for what we'll be doing:
 
 1. First we'll be constructing a non spinning, isolated neutron star. This will be modelled as a self gravitating fluid in hydrostatic equilibrium. We'll be solving an equation known as the TOV (Tolman–Oppenheimer–Volkoff) equation, which will fully describe that static star. This is actually a set of partial differential equations, and a good reference for what we're doing is over [here](https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html)
 2. Then, we must re-describe that same star as a spinning, moving star. This involves integrating another series of equations, which will be derived from [this](https://arxiv.org/pdf/1606.04881) paper. Its notable that while a real spinning star would be oblate, not modelling this is a deliberate approximation
 3. Once we have our spinning, moving body, we then have to make it physical by solving for a correction, to make it satisfy our constraints. If you remember the [black hole initial conditions](https://20k.github.io/c++/2025/01/12/nr102.html#initial-conditions), this is the same process. I won't assume you remember how to do this, but I will assume you can solve a laplacian
-4. After all of this, we then need to construct our final hydrodynamic variables - like velocity, density, and energy density. Along the way, we'll be constructing our ADM variables as well, though this is much simpler
+4. After all of this, we then to construct our final hydrodynamic variables - like velocity, density, and energy density. Along the way, we'll be constructing our ADM variables as well, though this is much simpler
 
-Each of these steps is extremely non trivial, and will be presented in detail. If you're wondering why we don't simply directly construct a spinning neutron star through some kind of spinning hydrostatic equilibrium solution, its because the equation simply doesn't exist
+Each of these steps is extremely non trivial, and will be presented in detail. If you're wondering why we don't simply directly construct a spinning neutron star through some kind of spinning hydrostatic equilibrium solution, its because the equation simply doesn't exist. This procedure will work for any number of black holes and neutron stars combined - as long as they don't overlap - which makes it a very good generalised initial conditions solver
 
 The goal here is to produce the following variables that we can plug into a real hydrodynamic simulation:
 
@@ -78,9 +78,9 @@ The goal here is to produce the following variables that we can plug into a real
 |$\gamma_{ij}$ | ADM metric |
 |$K_{ij}$ | Extrinsic curvature |
 
-# Tolman-Oppenheimer-Volkoff (TOV): A non spinning relativistic body in hydrostatic equilibrium
+# Part 1: Tolman-Oppenheimer-Volkoff (TOV): A non spinning relativistic body in hydrostatic equilibrium
 
-First up: Let's build a static, non spinning neutron star. What we really want to determine is the distribution of matter within the star, so we can answer the question of its structure. The way that we do this is by calculating the pressure at each point, and then reverse engineering what kind of matter that pressure via the equation of state
+First up: Let's build a static, non spinning neutron star. What we really want to determine is the distribution of matter within the star, so we can answer the question of its structure. The way that we do this is by calculating the pressure at each point, and then reverse engineering what kind of matter can produce that pressure, via the equation of state
 
 The equation that governs a relativistic, non spinning, spherically symmetric body in hydrostatic equilibrium is called the TOV equation. This is a set of two coupled partial differential equations, which we must solve simultaneously
 
@@ -554,7 +554,7 @@ Next up, we need to give it momentum and spin, which means exiting spherical sym
 
 ![nr4_mrow](/assets/nr4_kedited.png)
 
-# Preamble
+# Part 2: Preamble
 ## ADM Refresher
 
 If you can remember how the ADM formalism works, skip this segment. This isn't really the article for a [full redo](https://20k.github.io/c++/2024/07/31/nr101.html#the-adm-arnowittdesermisner-formalism) of the ADM formalism, but here's a quick overview
@@ -562,8 +562,10 @@ If you can remember how the ADM formalism works, skip this segment. This isn't r
 The ADM formalism is the process of taking a 4d metric tensor $g_{\mu\nu}$, and splitting it up into a series of 3d slices (called a foliation). Each 3d slice has a number of variables associated with it: $\gamma_{ij},\;K_{ij},\;\alpha,\;\beta^i$. We'll only be dealing with the ADM formalism, and not the offshoots like BSSN, today. The main things to remember are as follows:
 
 1. $\gamma_{ij}$ is the metric on the current 3d slice, and is used to raise and lower indices - eg $M^i = \gamma^{ij} M_i$. $\gamma^{ij}$ is the matrix inverse of $\gamma_{ij}$
-2. $K_{ij}$ is the extrinsic curvature, and is essentially a momentum term. When it is trace free ($\gamma^{ij}K_{ij} = K = 0$), it is often called $A_{ij}$
+2. $K_{ij}$ is the extrinsic curvature, and is essentially a momentum term. When it is trace free ($\gamma^{ij}K_{ij} = K = 0$), it is often called $A_{ij}$[^kay]
 3. $\alpha$ and $\beta^i$ are called the lapse and shift respectively, and are gauge variables. These are arbitrary and can be picked freely
+
+[^kay]: My biggest conspiracy theory is that this is because K, without the K, is pronounced A. This is almost definitely wrong, but its much more fun to believe
 
 In a simulation we evolve these slices forwards in time: Here we're only trying to find the initial variables on a single slice, to plug in somewhere else. This brings the total terms we're looking to solve for up to these:
 
@@ -622,7 +624,7 @@ $$\int_0^{x_{upper}} f(x) dx$$
 
 And then simply lookup in a table the value of $\int_0^{x} f(x) dx$ for performance reasons. I have everything tabulated in buffers, and always integrate up to *indices*, which respresent a specific radius $r$
 
-# Bowen-York Type Initial Data for Binaries with Neutron Stars
+# Part 2: Bowen-York Type Initial Data for Binaries with Neutron Stars
 
 The next step we need to do is take our matter distribution - spin it up somehow, and give it some momentum. To do this, we'll need to transplant it into the ADM formalism, and solve a bunch more equations
 
@@ -653,7 +655,7 @@ S^i &= (\mu + p) W u^i\\
 \end{align}
 $$
 
-Where $W$ is a lorentz factor ($=-n_\mu u^\mu$), and $u^i$ is the spatial components of a fluid 4-velocity. These two variables fully encompass our fluid's state here, and *also* fully determine the structure of our spacetime. Calculating these is a major goal here
+$W$ is a lorentz factor ($=-n_\mu u^\mu$), and $u^i$ is the spatial components of a fluid 4-velocity. These two variables fully encompass our fluid's state here, and *also* fully determine the structure of our spacetime. Calculating these is a major goal here
 
 $S^i$ will be broken up into two parts: An angular momentum part, and a linear momentum part. These are used implicitly to calculate the extrinsic curvature
 

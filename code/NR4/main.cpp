@@ -1081,8 +1081,8 @@ cl::image load_background(cl::context ctx, cl::command_queue cqueue, const std::
 
 initial_params get_initial_params()
 {
-    //#define INSPIRAL
-    #ifdef INSPIRAL
+    #define INSPIRAL_BH
+    #ifdef INSPIRAL_BH
     black_hole_params p1;
     p1.bare_mass = 0.483f;
     p1.position = {3.257, 0, 0};
@@ -1093,11 +1093,12 @@ initial_params get_initial_params()
     p2.position = {-3.257, 0, 0};
     p2.linear_momentum = {0, -0.133, 0};
 
-    initial_conditions init(ctx, cqueue, dim);
+    initial_params init;
+    init.dim = {213, 213, 213};
 
     init.add(p1);
     init.add(p2);
-    #endif // INSPIRAL
+    #endif
 
     #define NEUTRON_STAR_TEST
     #ifdef NEUTRON_STAR_TEST
@@ -1254,18 +1255,14 @@ initial_params get_initial_params()
 
     #endif // INSPIRAL_2
 
-    ///maybe the initial conditions are wrong
-    #define INSPIRAL
+    //#define INSPIRAL
     #ifdef INSPIRAL
-    ///hi, you're trying to work out why the neutron stars lose too much energy
-    ///its almost certainly kreiss-oliger
     neutron_star::parameters p1;
 
     float radial_pos = geometric_to_msol(1000 * 54.6/2, 1);
 
     printf("Radial pos %f\n", radial_pos);
 
-    ///hang on
     ///i'm in units of c=g=msol=1
     ///so 1 unit of distance isn't 1km
     //p1.colour = {1, 0, 0};
@@ -1276,6 +1273,41 @@ initial_params get_initial_params()
     p1.angular_momentum.momentum = {0, 0, 0};
     p1.K.msols = 123.641;
     p1.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
+
+    neutron_star::parameters p2;
+
+    //p2.colour = {0, 0, 1};
+    p2.position = {radial_pos, 0, 0};
+    p2.linear_momentum.momentum = {0, 0.25, 0};
+    p2.angular_momentum.momentum = {0, 0, 0};
+    p2.K.msols = 123.641;
+    p2.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
+
+    initial_params init;
+    init.N = 0.2;
+
+    init.dim = {199, 199, 199};
+    init.simulation_width = radial_pos * 6 * 1.5;
+
+    init.add(p1);
+    init.add(p2);
+
+    init.linear_viscosity_timescale = 200;
+    init.time_between_snapshots = 15;
+    init.lapse_damp_timescale = 0;
+    #endif
+
+    ///maybe the initial conditions are wrong
+    //#define INSPIRAL2
+    #ifdef INSPIRAL2
+    float radial_pos = geometric_to_msol(1000 * 54.6/2, 1);
+
+    printf("Radial pos %f\n", radial_pos);
+
+    black_hole_params p1;
+    p1.bare_mass = 1.8;
+    p1.linear_momentum = {0, -0.25, 0};
+    p1.position = {-radial_pos, 0, 0};
 
     neutron_star::parameters p2;
 
@@ -1501,7 +1533,7 @@ int main()
     hydrodynamic_plugin* hydro = new hydrodynamic_plugin(ctx, params.linear_viscosity_timescale, params.hydrodynamics_wants_colour(), params.linear_viscosity_strength, params.quadratic_viscosity_strength);
 
     std::vector<plugin*> plugins;
-    plugins.push_back(hydro);
+    //plugins.push_back(hydro);
 
     make_derivatives(ctx);
     make_bssn(ctx, plugins, params);
