@@ -52,7 +52,7 @@ laplace_solver get_laplace_solver_impl(cl::context ctx)
         auto cfl = args.cfl[pos, dim] + params.u[pos, dim];
         auto mu_h = args.mu_h_cfl[pos, dim];
 
-        return -(1.f/8.f) * pow(cfl, -7.f) * args.aij_aIJ[pos, dim] - 2 * M_PI * pow(cfl, valuef(-3)) * mu_h;
+        return -(1.f/8.f) * pow(cfl, -7) * args.aij_aIJ[pos, dim] - 2 * M_PI * pow(cfl, -3) * mu_h;
     }, all_laplace_args(), "laplace_rb_mg");
 
     return laplace;
