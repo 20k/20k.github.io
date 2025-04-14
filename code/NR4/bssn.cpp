@@ -1122,9 +1122,9 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, const initi
         v3i pos = get_coordinate_including_boundary(lid, dim);
         pin(pos);
 
-        //5 was picked literally out of a bag, other values may produce better quality results
+        //10 was picked literally out of a bag, other values may produce better quality results
         //works great though
-        valuef should_damp = ternary(distance_to_boundary(pos, dim) >= valuei(5), valuef(1.f), valuef(0.f));
+        valuef should_damp = ternary(distance_to_boundary(pos, dim) >= valuei(10), valuef(1.f), valuef(0.f));
         pin(should_damp);
 
         bssn_args args(pos, dim, in);
