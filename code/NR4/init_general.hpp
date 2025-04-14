@@ -7,9 +7,7 @@
 #include "init_neutron_star.hpp"
 #include "plugin.hpp"
 
-///todo: tabulate the underlying equation of state, stick it in a buffer per star
 ///this initial setup is horrendous
-///todo: implement downsampling. its partly why this sucks so much
 struct discretised_initial_data
 {
     cl::buffer mu_h_cfl;
