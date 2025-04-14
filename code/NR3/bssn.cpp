@@ -273,7 +273,7 @@ tensor<valuef, 3, 3> calculate_W2Rij(bssn_args& args, bssn_derivatives& derivs, 
                     sum += raised[l, l];
                 }
 
-                v2 = args.cY[i, j] * sum;
+                v2 = args.W * args.cY[i, j] * sum;
             }
 
             valuef v3 = 0;
