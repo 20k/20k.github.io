@@ -1507,6 +1507,8 @@ More involved testing is going to involve chatting about the hydrodynamics formu
 
 # Discussion + Limitations
 
+The paper we examined today rocks. Being able to mash together black holes, and neutron stars like this is great - there's virtually no performance overhead beyond solving the laplacian
+
 While this approach is quite general, it does have some limitations:
 
 1. The approximation to a spinning star isn't super adequate. In general, spinning stars can be larger than a static star before forming a black hole, which isn't really expressible here as our solution is derived from a static star
@@ -1517,11 +1519,13 @@ These aren't too bad, but its always worth knowing where the limitations lie
 
 In general, I'm pretty happy with how this has all turned out: In my first pass at this a few years ago as a beginner, I followed the paper's methodology much more closely and it was significantly more complex in comparison to what I've presented here. I'm quite pleased at how much I've managed to simplify this if you can believe it, so its a huge win in general. It helps when you have some idea of what you're doing!
 
-# Next time
+# Next time: Relativistic hydrodynamics
 
-This article was initially *half* of a larger article, that simply carried on straight into an introduction to relativistic hydrodynamics. The formalism I implemented turned out to have some problems, so I made the executive decision to split out the formalism-independent parts into this article, and the next one will examine a specific hydrodynamics scheme, which is why the ending is a little awkward here. We'll probably get at least one more article on neutron stars down the line as well, where I implement a more modern formalism
+This article was initially *half* of a (mostly completed) larger article, that simply carried on straight into an introduction to relativistic hydrodynamics. The formalism I implemented turned out to have some problems, so I made the executive decision to split out the formalism-independent parts into this article, and the next one will examine a specific hydrodynamics scheme, which is why the ending is a little awkward here. We'll probably get at least one more article on neutron stars down the line as well, where I implement a more modern formalism
 
-This series has (largely, I added some bits) been a complete from-scratch reimplementation of techniques I experimented with when I was much less experienced with numerical relativity, and past me wasn't aware of the limitations of the formalism I chose back then. It isn't so unworkable as to be useless, but there are some limitations which are very interesting in their own right as they directly lead into the reasons that newer formalisms were developed, so its a very interesting case to run through
+This series has (largely) been a complete from-scratch reimplementation of techniques I experimented with when I was much less experienced with numerical relativity, and past me wasn't aware of the limitations of the formalism I chose back then. It isn't so unworkable as to be useless, but there are some limitations which are very interesting in their own right as they directly lead into the reasons that newer formalisms were developed, so its a very interesting case to run through
+
+If you check out the associated code, do be aware that the code not described in this article for the hydro parts is still in need of a huge cleanup, but for the purposes of this article its more than good enough
 
 Anyway. Here's a picture of a cat
 
