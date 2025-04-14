@@ -13,6 +13,10 @@ You should know before we get into this, that this is going to be a bit of a pai
 
 ![intro](/assets/nr4_intro_cat.jpg)
 
+If you’re looking for someone with a lot of enthusiasm for GPU programming, and who’d rather love to do a PhD in numerical relativity - please give me a shout![^contact]
+
+[^contact]: My email is icedshot@gmail.com, or if you’d like - follow my bluesky at [@spacejames.bsky.social](https://bsky.app/profile/spacejames.bsky.social). Please feel free to contact me for any reason at all, even if you want to just chit chat or nerd out about space
+
 # Background
 
 ## So, what even is a neutron star anyway?
