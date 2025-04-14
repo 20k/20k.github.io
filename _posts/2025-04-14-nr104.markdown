@@ -23,7 +23,7 @@ As always, the code is available - for the first half of this article I've broke
 
 ## So, what even is a neutron star anyway?
 
-Fundamentally, a neutron star is a star that is so dense, that it is energetically favourable for the protons and neutrons that make it up to combine to form neutrons. As a result, they are made up largely of pure neutrons, under incredible pressure
+Fundamentally, a neutron star is a star that is so dense, that it is energetically favourable for the protons and electrons that make it up to combine to form neutrons. As a result, they are made up largely of pure neutrons, under incredible pressure
 
 If this sounds sufficiently exotic that it might pose some fundamental physics problems - then you'd be absolutely correct. Nobody is really *super* sure exactly what the deal with the physics inside a neutron star is. There's a few problems:
 
