@@ -561,9 +561,9 @@ Next up, we need to give it momentum and spin, which means exiting spherical sym
 
 If you can remember how the ADM formalism works, skip this segment. This isn't really the article for a [full redo](https://20k.github.io/c++/2024/07/31/nr101.html#the-adm-arnowittdesermisner-formalism) of the ADM formalism, but here's a quick overview
 
-The ADM formalism is the process of taking a 4d metric tensor $g_{\mu\nu}$, and splitting it up into a series of 3d slices (called a foliation). Each 3d slice has a number of variables associated with it: $\gamma_{ij},\;K_{ij},\;\alpha,\;\beta^i$. We'll only be dealing with the ADM formalism, and not the offshoots like BSSN, today. The main things to remember are as follows:
+The ADM formalism is the process of taking a 4d metric tensor $g_{\mu\nu}$, and splitting it up into a series of 3d slices (called a foliation). Each 3D slice has a number of variables associated with it: $\gamma_{ij},\;K_{ij},\;\alpha,\;\beta^i$. We'll only be dealing with the ADM formalism, and not the offshoots like BSSN, today. The main things to remember are as follows:
 
-1. $\gamma_{ij}$ is the metric on the current 3d slice, and is used to raise and lower indices - eg $M^i = \gamma^{ij} M_i$. $\gamma^{ij}$ is the matrix inverse of $\gamma_{ij}$
+1. $\gamma_{ij}$ is the metric on the current 3D slice, and is used to raise and lower indices - eg $M^i = \gamma^{ij} M_i$. $\gamma^{ij}$ is the matrix inverse of $\gamma_{ij}$
 2. $K_{ij}$ is the extrinsic curvature, and is essentially a momentum term. When it is trace free ($\gamma^{ij}K_{ij} = K = 0$), it is often called $A_{ij}$[^kay]
 3. $\alpha$ and $\beta^i$ are the lapse and shift respectively, and are gauge variables. These are arbitrary and can be picked freely
 
@@ -962,7 +962,7 @@ When $r>r_0$, $N(r) = 1$. You should enforce this
 
 Up until now, we've been solving everything in one dimension as a function of radius - TOV is spherically symmetric, so it works great. Unfortunately, the extrinsic curvature has no obligation to be a simple function of radius. That means that I pick the boundary between the radial functions calculated above, and the extrinsic curvature calculations, to be where I discretise to 3D and port everything to the GPU
 
-I pass all the constituent components that I need to calculate $\bar{A}^{ij}_P$ and $\bar{A}^{ij}_J$ to the GPU in many buffers and calculate it in 3d directly. Here's the basic form of what I'm doing on the host for buffers, which includes a `double` -> `float` conversion given that GPUs are a bit allergic to double precision
+I pass all the constituent components that I need to calculate $\bar{A}^{ij}_P$ and $\bar{A}^{ij}_J$ to the GPU in many buffers and calculate it in 3D directly. Here's the basic form of what I'm doing on the host for buffers, which includes a `double` -> `float` conversion given that GPUs are a bit allergic to double precision
 
 ```c++
     auto to_gpu = [&](const std::vector<double>& in)
