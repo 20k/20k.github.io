@@ -30,7 +30,7 @@ If this sounds sufficiently exotic that it might pose some fundamental physics p
 1. You can't make neutronium in a lab to measure its properties for dozens of very good reasons, not the least of which is because it'd explode very aggressively
 2. There's no way to make general relativity and quantum physics get along nicely at these extreme scales. For context, neutron stars have an escape velocity of ~50% the speed of light
 3. General relativity does not provide a polite solution for a spinning fluid, which means that many of the approximate models that exist are *very* approximate
-4. They have the most powerful magnetic fields of anything in the entire universe
+4. They have the most powerful magnetic fields of anything in the entire universe (allegedly)
 
 This means that a fully predictive approach with a single answer is out of the window, and we'll have to use some kind of model. The core tool we'll be using is something called an *equation of state* (EOS) to encapsulate a neutron star's physics, which relates various physical parameters together
 
