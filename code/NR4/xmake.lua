@@ -17,6 +17,8 @@ add_files("../common/toolkit/render_window.cpp")
 add_files("../common/toolkit/render_window_glfw.cpp")
 add_files("../common/toolkit/texture.cpp")
 
+add_files("../common/libtov/tov.cpp")
+
 add_includedirs("../common")
 add_includedirs("../common/imgui")
 
@@ -40,7 +42,7 @@ if is_plat("mingw") then
     add_ldflags("-mwindows")
 end
 
-target("nr3")
+target("nr4")
     set_kind("binary")
     add_files("main.cpp")
     add_files("*.cpp")
