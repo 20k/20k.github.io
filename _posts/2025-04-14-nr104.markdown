@@ -360,7 +360,7 @@ double invert(T&& func, double y, double lower = 0, double upper = 1, bool shoul
 }
 ```
 
-This performs a basic binary search through our function space, until some very low error tolerance is reached. Additionally, for many functions we won't actually know what our upper bound is, so this guesses it by doubling. That'll only work for functions which are monotonically *increasing*, which is true for all our EoS functions
+This performs a basic binary search through our function space, until some very low error tolerance is reached. Additionally, for many functions we won't actually know what our upper bound is, so this guesses it by doubling. That'll only work for functions which are monotonically *increasing*, which is true for all our EOS functions
 
 ### Integration
 
