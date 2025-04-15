@@ -121,30 +121,38 @@ void matter_accum(execution_context& ctx, buffer<valuef> Q_b, buffer<valuef> C_b
         mut<valuef> out = declare_mut_e(valuef(-1.f));
         mut<valuei> found = declare_mut_e(valuei(0));
 
+        //below our minimum radius sample
         if_e(r <= radius_b[0], [&]{
+            //implicitly uses quantity[0] as lower bound
             as_ref(out) = quantity[0];
             as_ref(found) = valuei(1);
         });
 
+        //exterior to the neutron star
         if_e(r > radius_b[samples - 1], [&]{
+            //use explicitly passed in upper bound
             as_ref(out) = upper_boundary;
             as_ref(found) = valuei(1);
         });
 
+        //lies within the neutron star samples we have
         if_e(r > radius_b[0] && r <= radius_b[samples - 1], [&]{
             mut<valuei> index = declare_mut_e(valuei(0));
 
+            //for every sample
             for_e(index < samples - 1, assign_b(index, index+1), [&]{
                 valuef r1 = radius_b[index];
                 valuef r2 = radius_b[index + 1];
 
+                //found the radial coordinate we passed in
                 if_e(r > r1 && r <= r2, [&]{
-                     valuef frac = (r - r1) / (r2 - r1);
+                    valuef frac = (r - r1) / (r2 - r1);
 
-                     as_ref(out) = mix(quantity[index], quantity[index + 1], frac);
-                     as_ref(found) = valuei(1);
+                    //linearly interpolate our quantity based on the radius
+                    as_ref(out) = mix(quantity[index], quantity[index + 1], frac);
+                    as_ref(found) = valuei(1);
 
-                     break_e();
+                    break_e();
                 });
             });
         });

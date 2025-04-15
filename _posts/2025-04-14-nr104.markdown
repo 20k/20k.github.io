@@ -49,7 +49,7 @@ All stars[^allstars] (other than black holes) are in *hydrostatic equilibrium* -
 
 So really that's all a neutron star is for us: Some kind of equation of state, and a central density. With those two pieces, we can use the equations for hydrostatic equilibrium, and end up with a full description of a **non spinning** body. This gives us:
 
-1. The radius $R$ of the star, in schwarzschild coordinates
+1. The radius $R$ of the star, in Schwarzschild coordinates
 2. The total (ADM) mass of the star $M$, as well as its rest mass $M_0$[^restmass]
 3. The distribution of mass (and pressure, and energy) within the star
 
@@ -66,7 +66,7 @@ This is the game plan for what we'll be doing:
 1. First we'll be constructing a non spinning, isolated neutron star. This will be modelled as a self gravitating fluid in hydrostatic equilibrium. We'll be solving an equation known as the TOV (Tolman–Oppenheimer–Volkoff) equation, which will fully describe that static star. This is actually a set of partial differential equations, and a good reference for what we're doing is over [here](https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html)
 2. Then, we must re-describe that same star as a spinning, moving star. This involves integrating another series of equations, which will be derived from [this](https://arxiv.org/pdf/1606.04881) paper. Its notable that while a real spinning star would be oblate, not modelling this is a deliberate approximation
 3. Once we have our spinning, moving body, we then have to make it physical by solving for a correction, to make it satisfy our constraints. If you remember the [black hole initial conditions](https://20k.github.io/c++/2025/01/12/nr102.html#initial-conditions), this is the same process. I won't assume you remember how to do this, but I will assume you can solve a laplacian
-4. After all of this, we then to construct our final hydrodynamic variables - like velocity, density, and energy density. Along the way, we'll be constructing our ADM variables as well, though this is much simpler
+4. After all of this, we'll then construct our final hydrodynamic variables - like velocity, density, and energy density. Along the way, we'll be constructing our ADM variables as well, though this is much simpler
 
 Each of these steps is extremely non trivial, and will be presented in detail. If you're wondering why we don't simply directly construct a spinning neutron star through some kind of spinning hydrostatic equilibrium solution, its because the equation simply doesn't exist. This procedure will work for any number of black holes and neutron stars combined - as long as they don't overlap - which makes it a very good generalised initial conditions solver
 
@@ -86,7 +86,7 @@ First up: Let's build a static, non spinning neutron star. What we really want t
 
 The equation that governs a relativistic, non spinning, spherically symmetric body in hydrostatic equilibrium is called the TOV equation. This is a set of two coupled partial differential equations, which we must solve simultaneously
 
-Wikipedia lists a more complex[^postnewtonian] form of the equations, so here's [(6-7)](https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html) a nicer form (in units of $c=G=1$, schwarzschild coordinates):
+Wikipedia lists a more complex[^postnewtonian] form of the equations, so here's [(6-7)](https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html) a nicer form (in units of $c=G=1$, Schwarzschild coordinates):
 
 [^postnewtonian]: They're structured in a form to compare with newtonian theory, as a post newtonian analysis. They are however not super useful
 
@@ -112,7 +112,7 @@ This equation is integrated until $P <= 0$. As mentioned previously, we need an 
 
 |Symbol|Name|Si Units|Geometric Units|How you should get this variable|
 |-|-|-|-|-|
-|$r$|Radius (schwarzschild coordinates)|$\mathrm{m}$|$\mathrm{m}$| Parameterises the integration |
+|$r$|Radius (Schwarzschild coordinates)|$\mathrm{m}$|$\mathrm{m}$| Parameterises the integration |
 |$m$|Mass|$\mathrm{kg}$|$\mathrm{m}$| Integration variable |
 |$P$|Pressure|$\mathrm{kg}\;\mathrm{m}^{-1} \; \mathrm{s}^{-2}$|$\mathrm{m}^{-2}$| Integration variable |
 |$\mu$|Total Specific Energy Density|$\mathrm{kg}\; \mathrm{m}^{-1}\; \mathrm{s}^{-2}$|$\mathrm{m}^{-2}$|$\mu = \rho_0 (1 + \epsilon)$|
@@ -511,7 +511,7 @@ std::optional<tov::integration_solution> tov::solve_tov(const integration_state&
 | Case | $\rho_c$ | $K$ | $\Gamma$ | Expected $M$ | Expected $R$ | Notes |
 |-|-|-|-|-|-|-|
 | [C1](https://arxiv.org/pdf/1606.04881) (section VII) | $6.235 \times 10^{17}\; \mathrm{kg}\;\mathrm{m}^{-3}$ |  $123.641 M_{\odot}^2$ where $c=G=1$[^waste] | $2$ |$1.543 M_\odot$ | $13.4 \; \mathrm{km}$ where $c=G=1$ in Isotropic coordinates | |
-| [C2](https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html) (see after interior) | $1.28 \times 10^{-3} \; \mathrm{m^{-2}}$ where $c=G=M_{\odot} = 1$ | $100$ where $c=G=M_{\odot} = 1$ | $2$ | $1.4 M_{\odot}$ | $14.15\; \mathrm{km}$ where $c=G=1$ in schwarzschild coordinates | |
+| [C2](https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html) (see after interior) | $1.28 \times 10^{-3} \; \mathrm{m^{-2}}$ where $c=G=M_{\odot} = 1$ | $100$ where $c=G=M_{\odot} = 1$ | $2$ | $1.4 M_{\odot}$ | $14.15\; \mathrm{km}$ where $c=G=1$ in Schwarzschild coordinates | |
 | [C3](https://arxiv.org/pdf/gr-qc/0110047) (see: C) | $8.0 \times 10^{-3}$ where $c=G=M_{\odot}=1$ | $100$ where $c=G=M_{\odot} = 1$ | $2$ | $1.447 M_{\odot}$ | unclear | The paper mixes up rest and gravitational mass frequently |
 
 Note that a test case you might find over [here](https://colab.research.google.com/drive/1yMD2j3Y6TcsykCI59YWiW9WAMW-SPf12#scrollTo=00FWl5YzbSaB) uses too low of a value of $N$, and produces incorrect results. Its correct if you bump it up
@@ -546,7 +546,7 @@ C3: `Solved for 8.60881km Iso 6.29109km 1.44678 msols`
 
 Incidentally, the notebook test case I linked gives `14.136399564110704km 1.400270088513766msols` when corrected, which is pretty close
 
-We'll be going over the isotropic <-> schwarzschild conversion later in this article, just keep in mind that there are two coordinate systems that are commonly used in the literature
+We'll be going over the isotropic <-> Schwarzschild conversion later in this article, just keep in mind that there are two coordinate systems that are commonly used in the literature
 
 ## Key takeaways from solving TOV
 
@@ -565,7 +565,7 @@ The ADM formalism is the process of taking a 4d metric tensor $g_{\mu\nu}$, and 
 
 1. $\gamma_{ij}$ is the metric on the current 3d slice, and is used to raise and lower indices - eg $M^i = \gamma^{ij} M_i$. $\gamma^{ij}$ is the matrix inverse of $\gamma_{ij}$
 2. $K_{ij}$ is the extrinsic curvature, and is essentially a momentum term. When it is trace free ($\gamma^{ij}K_{ij} = K = 0$), it is often called $A_{ij}$[^kay]
-3. $\alpha$ and $\beta^i$ are called the lapse and shift respectively, and are gauge variables. These are arbitrary and can be picked freely
+3. $\alpha$ and $\beta^i$ are the lapse and shift respectively, and are gauge variables. These are arbitrary and can be picked freely
 
 [^kay]: My biggest conspiracy theory is that this is because K, without the K, is pronounced A. This is almost definitely wrong, but its much more fun to believe
 
@@ -580,6 +580,8 @@ In a simulation we evolve these slices forwards in time: Here we're only trying 
 |$K_{ij}$| Extrinsic curvature|
 
 $\beta^i = 0$, and either $\alpha = 1$ or $\alpha$ is calculated from a conformal factor we'll find later as $\frac{1}{\Phi^2}$
+
+As always, latin indices $ijk$ have the range $[1, 3]$, and greek indices $\mu\nu\kappa$ have the range $[0, 3]$
 
 ## Numerical integration
 
@@ -640,7 +642,7 @@ The stress-energy tensor for a perfect fluid is calculated [as follows](https://
 
 $$T^{\mu\nu} = (\mu + p) u^\mu u^\nu + p g^{\mu\nu}$$
 
-These components are then projected onto our hypersurface (ie, we're sticking this into the ADM formalism). Here, this paper actually only requires two parts of that projection, which are defined as follows[^follows]:
+Where $p$ is pressure, $g$ is the metric, and $u^\mu$ is the fluid's 4-velocity. $\mu$ is still the total specific energy density. These components are then projected onto our hypersurface (ie, we're sticking this into the ADM formalism). Here, this paper actually only requires two parts of that projection, which are defined as follows[^follows]:
 
 $$\begin{align}
 \mu_H &= n^\mu n^\nu T_{\mu\nu}\\
@@ -657,7 +659,7 @@ S^i &= (\mu + p) W u^i\\
 \end{align}
 $$
 
-$W$ is a lorentz factor ($=-n_\mu u^\mu$), and $u^i$ is the spatial components of a fluid 4-velocity. These two variables fully encompass our fluid's state here, and *also* fully determine the structure of our spacetime. Calculating these is a major goal here
+$W$ is a Lorentz factor ($=-n_\mu u^\mu$), and $u^i$ is the spatial components of the fluid's 4-velocity. These two variables fully encompass our fluid's state here, and *also* fully determine the structure of our spacetime. Calculating these is a major goal here
 
 $S^i$ will be broken up into two parts: An angular momentum part, and a linear momentum part. These are used implicitly to calculate the extrinsic curvature
 
@@ -719,16 +721,16 @@ The procedure we'll be using is as follows:
 
 ## Solving for $\Phi_{tov}$
 
-First off, we need to start over in section VI. Given that we a-priori have our matter distribution, we don't need to solve for $\alpha$, or $\Theta$ luckily, and the only variable we need is $\Phi_{tov}$. There's a nicer way of solving for $\Phi_{tov}$ than specified in the paper, but first we should talk about $\bar{r}$. One thing that absolutely must be noted is that the paper we're working on is in *isotropic* coordinates with the radial coordinate $\bar{r}$. Up until now, we've been working in *schwarzschild* coordinates with the radial coordinate $r$. We're going to have to perform a conversion between the two: the conversion function is defined [as follows (24 + 25)](https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html#x1-2004r4):
+First off, we need to start over in section VI. Given that we a-priori have our matter distribution, we don't need to solve for $\alpha$, or $\Theta$ luckily, and the only variable we need is $\Phi_{tov}$. There's a nicer way of solving for $\Phi_{tov}$ than specified in the paper, but first we should talk about $\bar{r}$. One thing that absolutely must be noted is that the paper we're working on is in *isotropic* coordinates with the radial coordinate $\bar{r}$. Up until now, we've been working in *Schwarzschild* coordinates with the radial coordinate $r$. We're going to have to perform a conversion between the two: the conversion function is defined [as follows (24 + 25)](https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html#x1-2004r4):
 
 $$\begin{align}
 \bar{r} &= C\;r\;\mathrm{exp}(\int^r_0 \frac{1 - (1 - 2 \frac{m}{r})^{\frac{1}{2}}}{r(1 - 2\frac{m}{r})^{\frac{1}{2}}} dr)\\
 C &= \frac{1}{2R}(\sqrt{R^2 - 2MR} + R - M)\; \mathrm{exp}(-\int^R_0 \frac{1 - (1 - 2 \frac{m}{r})^{\frac{1}{2}}}{r(1 - 2\frac{m}{r})^{\frac{1}{2}}} dr)
 \end{align}$$
 
-Where $R$ is the radius of the star in schwarzschild coordinates, and $M$ is the total ADM mass (ie the final value of $m$ after solving TOV. $m(r)$ is still cumulative mass). $C$ is a constant. Technical details of how this works is available on the linked page[^linked], and its a good read if you're interested in how we get here
+Where $R$ is the radius of the star in Schwarzschild coordinates, and $M$ is the total ADM mass (ie the final value of $m$ after solving TOV. $m(r)$ is still cumulative mass). $C$ is a constant. Technical details of how this works is available on the [linked](https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html) page[^linked], and its a good read if you're interested in how we get here
 
-[^linked]: It uses what I personally think is [one of the most interesting results](https://en.wikipedia.org/wiki/Birkhoff%27s_theorem_(relativity)) in GR: Any spherically symmetric vacuum spacetime is locally the schwarzschild metric. So exterior to our star in the stationary solution, it matches a schwarzschild solution with some mass, to the tov solution so they line up correctly
+[^linked]: It uses what I personally think is [one of the most interesting results](https://en.wikipedia.org/wiki/Birkhoff%27s_theorem_(relativity)) in GR: Any spherically symmetric vacuum spacetime is locally the Schwarzschild metric. So exterior to our star in the stationary solution, it matches a Schwarzschild solution with some mass, to the tov solution so they line up correctly
 
 Integrating this ([code link](https://github.com/20k/libtov/blob/e95131af6a837118fe301dabfa604640edacb563/tov.cpp#L323)) is moderately straightforward, and can be done by keeping a running summation of the integral within $\mathrm{exp}$:
 
@@ -777,7 +779,7 @@ std::vector<double> initial::calculate_isotropic_r(const tov::integration_soluti
 }
 ```
 
-To get back to the topic at hand, note that we're looking for a $\Phi_{tov}$ for a metric defined as follows (73):
+To get back to the topic at hand, note that we're looking for a $\Phi_{tov}$ for a metric defined as follows [(73)](https://arxiv.org/pdf/1606.04881):
 
 $$ds^2 = -\alpha^2(\bar{r}) dt^2 + (\Phi_{tov}(\bar{r}))^4(d\bar{r}^2 + \bar{r}^2 d\Omega)$$
 
@@ -828,13 +830,13 @@ These are the only two variables you now need from the TOV solution. You'll also
 
 The code for this section is available over [here](https://github.com/20k/20k.github.io/tree/master/code/NR4/init_neutron_star.cpp)
 
-From here, its time to dig into the really fun bits - this is the main chunk of the paper. As with our black hole solution, we have two parameters we can specify: the ADM momentum $P^i$, and the ADM angular momentum $J^i$[^dimspin]. These are broken up into two equations: (51), and (54) - which we simply sum together
+From here, its time to dig into the really fun bits - this is the main chunk of the paper. As with our black hole solution, we have two parameters we can specify: the ADM momentum $P^i$, and the ADM angular momentum $J^i$[^dimspin]. The contribution from each of these to the extrinsic curvature is broken up into two equations: [(51)](https://arxiv.org/pdf/1606.04881), and (54) - which we simply sum together
 
 [^dimspin]: You might also find yourself wanting to use dimensionless spin: $\chi = \frac{J}{M^2}$
 
 ### $P^i$ (linear momentum)
 
-To calculate the contribution from the linear momentum, we need to calculate this equation:
+To calculate the contribution from the linear momentum, we have this equation:
 
 $$\begin{align}
 \bar{A}^{ij}_P &=\frac{3Q}{2r^2}(P^i l^j + P^j l^i - (\eta^{ij} - l^i l^j)(P^k l_k)) \\
@@ -873,6 +875,8 @@ I won't make you read the code for every single one of these variables, but here
     }, samples).back();
 ```
 
+This integrates over every sample
+
 #### $\sigma$ | Function of radius
 
 Next up, we'll calculate sigma. This is done via (57):
@@ -910,7 +914,7 @@ All the other variables are functionally identical in implementation. I'll get a
 
 ### $J^i$ (angular momentum)
 
-The equation for this is (54):
+The equation for this is [(54)](https://arxiv.org/pdf/1606.04881):
 
 $$ \bar{A}^{ij}_J =\frac{6}{r^3}l^{ (i } \epsilon^{j)kl} J_k l_l N $$
 
@@ -922,7 +926,7 @@ Here's what everything means
 |$r$|Coordinate distance (in isotropic coordinates) from the neutron stars origin|
 |$l^i$| $l^i=\frac{x^i}{r}$, a unit radial vector (lower with $\eta_{ij}$)|
 |$N$| We'll get to this|
-|$\epsilon^{ijk}$| The levi civita symbol|
+|$\epsilon^{ijk}$| The levi civita symbol (with its indices raised)|
 
 As previously, we'll dig into the procedure for calculating $N$, and linearise the procedure because the functions are a bit scattered
 
@@ -956,7 +960,7 @@ When $r>r_0$, $N(r) = 1$. You should enforce this
 
 ### This is when I swap to cartesian coordinates
 
-Up until now, we've been solving everything in one dimension as a function of radius - TOV is spherically symmetric, so it works great. Unfortunately, the extrinsic curvature has no obligation to be a simple function of radius - and while its true that the linear momentum component is, the angular momentum component is not. That means that I pick the boundary between these functions, and the extrinsic curvature calculations, to be where I discretise to 3D and port everything to the GPU
+Up until now, we've been solving everything in one dimension as a function of radius - TOV is spherically symmetric, so it works great. Unfortunately, the extrinsic curvature has no obligation to be a simple function of radius. That means that I pick the boundary between the radial functions calculated above, and the extrinsic curvature calculations, to be where I discretise to 3D and port everything to the GPU
 
 I pass all the constituent components that I need to calculate $\bar{A}^{ij}_P$ and $\bar{A}^{ij}_J$ to the GPU in many buffers and calculate it in 3d directly. Here's the basic form of what I'm doing on the host for buffers, which includes a `double` -> `float` conversion given that GPUs are a bit allergic to double precision
 
@@ -995,26 +999,34 @@ auto get = [&](single_source::buffer<valuef> quantity, valuef upper_boundary, va
     mut<valuef> out = declare_mut_e(valuef(-1.f));
     mut<valuei> found = declare_mut_e(valuei(0));
 
+    //below our minimum radius sample
     if_e(r <= radius_b[0], [&]{
+        //implicitly uses quantity[0] as lower bound
         as_ref(out) = quantity[0];
         as_ref(found) = valuei(1);
     });
 
+    //exterior to the neutron star
     if_e(r > radius_b[samples - 1], [&]{
+        //use explicitly passed in upper bound
         as_ref(out) = upper_boundary;
         as_ref(found) = valuei(1);
     });
 
+    //lies within the neutron star samples we have
     if_e(r > radius_b[0] && r <= radius_b[samples - 1], [&]{
         mut<valuei> index = declare_mut_e(valuei(0));
 
+        //for every sample
         for_e(index < samples - 1, assign_b(index, index+1), [&]{
             valuef r1 = radius_b[index];
             valuef r2 = radius_b[index + 1];
 
+            //found the radial coordinate we passed in
             if_e(r > r1 && r <= r2, [&]{
                 valuef frac = (r - r1) / (r2 - r1);
 
+                //linearly interpolate our quantity based on the radius
                 as_ref(out) = mix(quantity[index], quantity[index + 1], frac);
                 as_ref(found) = valuei(1);
 
@@ -1126,11 +1138,11 @@ $$\bar{\mu}_H = (\bar{\mu} + \bar{p})W^2 - \bar{p}$$
 
 Which will be set to $0$ when $r>r_0$. What's $W$?
 
-#### $W$, aka the lorentz factor
+#### $W$, aka the Lorentz factor
 
 I've moved an extremely extended discussion about the correct way to calculate this variable to the end of the article for flow reasons. If you're ever interested in the behind-the-scenes development of these articles, you can skip over there to enjoy my frustration, as well as some maths. This deviates from the procedure specified in the paper, as it does not work in our case
 
-To cut a long story short, we'll need to plug some source $\bar{S}^i$ into the following equation to calculate the lorentz factor (27):
+To cut a long story short, we'll need to plug some source $\bar{S}^i$ into the following equation to calculate the Lorentz factor (27):
 
 $$W^2 = \frac{1}{2}\left [1 + \sqrt{1 + \frac{4 \bar{\gamma}_{ij} \bar{S}^i \bar{S}^j}{(\bar{\mu} + \bar{p})^2}}\right]\\$$
 
@@ -1291,7 +1303,7 @@ The variables $S^i$ and $\mu_H$ are not actually hydrodynamic quantities - but i
 
 |Symbol|Name|
 |-|-|
-|$W$ aka $u^0$| The lorentz factor|
+|$W$ aka $u^0$| The Lorentz factor|
 |$u^i$|Fluid 4-velocity (the spatial components)|
 |$\rho_0$|Rest mass density|
 |$\mu$|Total mass-energy density|
@@ -1501,7 +1513,7 @@ Really though, the only proper way to check this is 3. So along with this articl
 
 $\Gamma = 2, K = 123.641 M_\odot^2, p_c = 6.235 \times 10^{17}\; \mathrm{kg}/\mathrm{m}^3, M=1.54315\; M_\odot, M_0 = 1.65843 \; M_\odot$
 
-Top left is the hamiltonian constraint (which is damped, this is a new feature we'll go over next time). The graph on the right is $M_0$, which slowly decreases for formalism specific reasons. There's a small bit of jiggling initially as the lapse settles down, but the star is clearly very stable. We'll be able to use this to work with a variety of interesting test cases, primarily binary neutron star inspirals next time round
+Top left is the hamiltonian constraint (which is damped, this is a new feature we'll go over next time). The graph on the right is $M_0$, which slowly decreases for formalism specific reasons. There's a small bit of jiggling initially as the lapse settles down, but the star is clearly very stable. We'll be able to use this to work with a variety of interesting test cases, primarily binary neutron star inspirals
 
 More involved testing is going to involve chatting about the hydrodynamics formulation, so we'll get around to that next time
 
@@ -1664,7 +1676,7 @@ Armed with this information, we can calculate $M_0$ in [this](https://arxiv.org/
 | $\beta^i$ | Shift | $\beta^i$ | No change |
 
 
-## $W$, aka the lorentz factor, extended discussion
+## $W$, aka the Lorentz factor, extended discussion
 
 This is the segment of the paper where things start to get a tad wonky. If we skip to the initial data procedure, we can see that just after (66), it says:
 
@@ -1672,12 +1684,12 @@ This is the segment of the paper where things start to get a tad wonky. If we sk
 
 Given that the language is identical to the language used for $\bar{A}_{ij}$, a casual read of this might suggest one of the two following things:
 
-1. We sum the lorentz factors[^superpose]
-2. We sum the quantity $\left [(\bar{\mu} + \bar{p}) W^2_{type} - \bar{p} \right ]$ for the angular, and linear lorentz factors
+1. We sum the Lorentz factors[^superpose]
+2. We sum the quantity $\left [(\bar{\mu} + \bar{p}) W^2_{type} - \bar{p} \right ]$ for the angular, and linear Lorentz factors
 
-[^superpose]: Do note that this argument is more for illustrative purposes to demonstrate that the second case is wrong, for a reader who is less able to immediately spot that this is an error. If you're more familiar with GR, you'll know that there are other more obvious grounds to rule this out immediately (in that lorentz factors not adding together is basic GR)
+[^superpose]: Do note that this argument is more for illustrative purposes to demonstrate that the second case is wrong, for a reader who is less able to immediately spot that this is an error. If you're more familiar with GR, you'll know that there are other more obvious grounds to rule this out immediately (in that Lorentz factors not adding together is basic GR)
 
-These two lorentz factors are given as follows:
+These two Lorentz factors are given as follows:
 
 Linear (60):
 
@@ -1694,21 +1706,21 @@ $$
 
 $l_i$ is the same unit normal as earlier. For $\sin^2 \theta$, $J^i$ and $l_i$ are normalised (hence the hats) to a length of $1$, as I've plugged in the formula $\mathrm{dot}(a, b) = \cos \theta \mid a\mid \;\mid b\mid $. $\theta$ more technically is the angle between $J^i$ and $l^i$. Note that the quantity $\theta$ becomes undefined as $J^i J_i$ tends to $0$, but given the prefix term, $\sin^2 \theta$ can be set to anything when this happens
 
-Now. The tricky part comes in in that both of these options can be straightforwardly shown to be incorrect. See, a lorentz factor is $1$ when it corresponds to no velocity. This means that if we trial setting $W=1$ for both contributions to run a basic sanity check for this procedure, our summed lorentz factor is:
+Now. The tricky part comes in in that both of these options can be straightforwardly shown to be incorrect. See, a Lorentz factor is $1$ when it corresponds to no velocity. This means that if we trial setting $W=1$ for both contributions to run a basic sanity check for this procedure, our summed Lorentz factor is:
 
 $$W_{sum} = W_J + W_P = 2$$
 
-Which isn't right, as a stationary fluid should have a lorentz factor of $1$. Running the same idea for superimposing the matter terms gives a similar answer:
+Which isn't right, as a stationary fluid should have a Lorentz factor of $1$. Running the same idea for superimposing the matter terms gives a similar answer:
 
 $$\bar{\mu}_H^{summed} = ((\bar{\mu} + \bar{p}) W^2_P - \bar{p}) + ((\bar{\mu} + \bar{p}) W^2_J - \bar{p}) = 2 \bar{\mu} $$
 
-Which is also clearly incorrect - we really can't just sum things that have a lorentz factor in them, as it doesn't add linearly. This paper, other [(e1)](https://arxiv.org/pdf/2101.10252), [(e2)](https://arxiv.org/pdf/2404.09924) papers by the same authors referencing this procedure, and the [thesis](https://repository.gatech.edu/server/api/core/bitstreams/f5e116da-ebff-4380-96e8-027304d9db82/content) on which this paper is based do not specify the details on how this works. This paper does construct a neutron binary with spinning and moving neutron stars, so its clear that its being done somehow (figure 8a clearly has linear momentum, and its a spinning test case), it just does not specify how
+Which is also clearly incorrect - we really can't just sum things that have a Lorentz factor in them, as it doesn't add linearly. This paper, other [(e1)](https://arxiv.org/pdf/2101.10252), [(e2)](https://arxiv.org/pdf/2404.09924) papers by the same authors referencing this procedure, and the [thesis](https://repository.gatech.edu/server/api/core/bitstreams/f5e116da-ebff-4380-96e8-027304d9db82/content) on which this paper is based do not specify the details on how this works. This paper does construct a neutron binary with spinning and moving neutron stars, so its clear that its being done somehow (figure 8a clearly has linear momentum, and its a spinning test case), it just does not specify how
 
-You might consider that we could add lorentz factors via a rapidity formula, but this is incorrect as these two terms are lorentz factors representing velocities in a direction
+You might consider that we could add Lorentz factors via a rapidity formula, but this is incorrect as these two terms are Lorentz factors representing velocities in a direction
 
 ### Searching slightly further afield
 
-Now, that's not the only definition of the lorentz factor in this paper. We also have (27):
+Now, that's not the only definition of the Lorentz factor in this paper. We also have (27):
 
 $$W^2 = \frac{1}{2}\left [1 + \sqrt{1 + \frac{4 \bar{\gamma}_{ij} \bar{S}^i \bar{S}^j}{(\bar{\mu} + \bar{p})^2}}\right]$$
 
@@ -1720,7 +1732,7 @@ $$\begin{align}
 \end{align}
 $$
 
-The question becomes, can we just add these together (after raising the second quantity), or do we have to do something more complex like calculating the 4-velocities and doing lorentz boosts? Off-hand, its tricky to know what to do with it
+The question becomes, can we just add these together (after raising the second quantity), or do we have to do something more complex like calculating the 4-velocities and doing Lorentz boosts? Off-hand, its tricky to know what to do with it
 
 ### This is a bit odd
 
@@ -1728,7 +1740,7 @@ This is a strange one - the procedure laid out here is incomplete unfortunately.
 
 $$\bar{\nabla}_j \bar{A}^{ij} = 8 \pi \bar{S}^i$$
 
-Which here simplifies to $\partial_j \bar{A}^{ij} = 8 \pi \bar{S}^i$. This is a very chopped down form of the momentum constraint. Solutions to this equation are linear, so we can take the sum of the two $\bar{A}^{ij}$'s calculated earlier for a single star, and use that to derive $\bar{S}^i$. Then derive the lorentz factor from its equation up above (27)
+Which here simplifies to $\partial_j \bar{A}^{ij} = 8 \pi \bar{S}^i$. This is a very chopped down form of the momentum constraint. Solutions to this equation are linear, so we can take the sum of the two $\bar{A}^{ij}$'s calculated earlier for a single star, and use that to derive $\bar{S}^i$. Then derive the Lorentz factor from its equation up above (27)
 
 Its likely that this also implies that we can sum the individual sources $\bar{S}^i$. Ie, because of the linearity, we can say:
 
@@ -1745,7 +1757,7 @@ In general, this kind of step being left out of a paper can consume a significan
 After writing this all, I decided to reach out to the author, which is something I never do - but I'm loathe to present speculation here. They said two things:
 
 1. They state they have not done neutron stars with both spin and linear momentum
-2. If you want both, you should add the two $\bar{S}^i$ components together, and calculate the lorentz factor from (27)
+2. If you want both, you should add the two $\bar{S}^i$ components together, and calculate the Lorentz factor from (27)
 
 I'm going to leave this topic alone now, this segment was really just to illustrate some of the joy that goes into this
 
