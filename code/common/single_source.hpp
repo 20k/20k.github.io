@@ -1032,6 +1032,7 @@ namespace value_impl
                     return "long";
 
                 assert(false);
+                return "";
             };
 
             std::string type_of_selection_arg = std::visit(type_callback, v.args.at(2).concrete);
