@@ -54,6 +54,8 @@ We're going to be looking at two papers today, primarily the latter:
 
 [Hydrodynamic Simulations in 3+1 General Relativity](https://arxiv.org/pdf/gr-qc/0209102)
 
+Note that there was a significant shift in approach from the first paper, to the second, and we'll be using the second's notation and equations
+
 In this approach, we have the following variables for our fluid dynamics:
 
 |Notation | What does it represent |
@@ -71,16 +73,90 @@ We have the following definitions:
 |$\rho_*$ | $\rho_0 \alpha u^0 W^{-3} $ | |
 |$e_*$ | $(\rho_0 \epsilon)^\frac{1}{\Gamma} \alpha u^0 W^{-3}$ | Unclear how a numerical equation of state would work, or if a varying $\Gamma$ is valid |
 |$\tilde{S}_k$ | $\rho_* h u_k$ | |
-| $h$ | $1 + \epsilon + \frac{P}{\rho_0}$ | $1 + \Gamma \epsilon$ with the perfect fluid equation of state |
+| $h$ | $1 + \epsilon + \frac{P}{\rho_0}$ | $1 + \Gamma \epsilon$ with the perfect fluid equation of state, $P = (\Gamma - 1) \rho_0 \epsilon$ |
 |$w$ | $\rho_* \alpha u^0$ | Must be calculated via an iterative procedure |
 |$v^i$ | $\frac{u^i}{u^0}$ | Represents a coordinate velocity |
 
-The notation in this article is fully harmonised with the last one. $\rho_0$ is the rest-mass density, $\epsilon$ is the specific energy density, $u^0$ is the lorentz factor, and $\alpha$ is the lapse
+The notation in this article is harmonised with the last one where appropriate. $\rho_0$ is the rest-mass density, $\epsilon$ is the specific energy density, $u^0$ is the lorentz factor, and $\alpha$ is the lapse
+
+## Initialising our variables
+
+At the end of the previous article, we ended up with our fluid quantities: $\rho_0$, $\epsilon$, $u^i$, and $u^0$
+
+There are two pitfall traps here:
+
+1. The initial procedure we used last time appears to have assumed implicitly that $\alpha = 1$, and $\beta^i = 0$ - so use these when initialising regardless of what you actually pick for them
+2. $u_i = \beta^i u^0 + \gamma_{ik} u^k$. If you want to prove this, calculate $u_i = g_{i\nu} u^\nu$
+
+We can now carry on immediately from our last article, which follows on as such:
+
+```c++
+valuef pressure = mu_to_P(mu);
+valuef p0 = pressure_to_p0(pressure);
+
+valuef epsilon = (mu / p0) - 1;
+
+//with raised index
+v3f ui = Si / ((mu + pressure) * u0);
+
+valuef gA = 1;
+v3f gB = {0,0,0};
+
+valuef p_star = p0 * gA * u0 * pow(cW, -3);
+valuef e_star = pow(p0 * epsilon, (1/Gamma)) * gA * u0 * pow(cW, -3);
+
+v3f u_i;
+
+for(int i=0; i < 3; i++)
+{
+    valuef sum = 0;
+
+    for(int k=0; k < 3; k++)
+    {
+        sum += Yij[i, k] * ui[k];
+    }
+
+    u_i[i] = gB[i] * u0 + sum;
+}
+
+valuef h = calculate_h_from_epsilon(epsilon);
+
+v3f Si_lo_cfl = p_star * h * u_i;
+
+as_ref(hydro.p_star[pos, dim]) = p_star;
+as_ref(hydro.e_star[pos, dim]) = e_star;
+as_ref(hydro.Si[0][pos, dim]) = Si_lo_cfl[0];
+as_ref(hydro.Si[1][pos, dim]) = Si_lo_cfl[1];
+as_ref(hydro.Si[2][pos, dim]) = Si_lo_cfl[2];
+```
+
+Where:
+
+```c++
+valuef calculate_h_from_epsilon(valuef epsilon)
+{
+    return 1 + get_Gamma() * epsilon;
+}
+```
+
+That's it, no other surprises
+
+## Evolution equations
+
+
+
+
+
+
+
+
+
+
+
 
 
 
 Start old article
-
 
 Some things are easy. Some things are hard. Some things are neutron star collisions. Lets get into it
 

@@ -805,6 +805,9 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     valuef epsilon = (mu / p0) - 1;
 
+    //with raised index
+    v3f ui = Si / ((mu + pressure) * u0);
+
     valuef gA = 1;
     v3f gB = {0,0,0};
 
@@ -816,21 +819,18 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
 
     valuef w = p_star * gA * u0;
 
-    //with raised index
-    v3f ui = Si / ((mu + pressure) * u0);
-
     v3f u_i;
 
-    for(int s=0; s < 3; s++)
+    for(int i=0; i < 3; i++)
     {
         valuef sum = 0;
 
         for(int k=0; k < 3; k++)
         {
-            sum += Yij[s, k] * ui[k];
+            sum += Yij[i, k] * ui[k];
         }
 
-        u_i[s] = gB[s] * u0 + sum;
+        u_i[i] = gB[i] * u0 + sum;
     }
 
     valuef h = calculate_h_from_epsilon(epsilon);
