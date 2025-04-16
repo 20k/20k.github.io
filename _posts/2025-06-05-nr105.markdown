@@ -170,10 +170,12 @@ $$\begin{align}
 Or more generally:
 
 $$
-\partial_t u + \nabla (u \textbf{v}) = Source
+\partial_t q + \nabla (q \textbf{v}) = Source
 $$
 
-This is the standard representation in hydrodynamics of advection equations, with the right hand side being called a source term (which you shouldn't confuse with an ADM source term). In hydrodynamics there are things called *conserved quantities* - like rest mass, energy, and momentum for a fluid dynamics simulation. The idea behind a conserved quantity is that we want it to be conserved (unsurprisingly), ie a good simulation should keep the total rest mass exact
+This is the standard representation in hydrodynamics of advection equations, with the right hand side being called a source term (which you shouldn't confuse with an ADM source term). In general, the source terms are split out, and no special treatment is given to their solving, so we're going to now unceremoniously ignore them
+
+In hydrodynamics there are things called *conserved quantities* - like rest mass, energy, and momentum for a fluid dynamics simulation. The idea behind a conserved quantity is that we want it to be conserved (unsurprisingly), ie a good simulation should keep the total rest mass exact
 
 Naively, you might think to discretise $\partial_i(p_* v^i)$ as something like this, like all our other derivatives:
 
@@ -198,30 +200,74 @@ This is one of the few times we'll be chatting about something which isn't direc
 
 Eularian hydrodynamics in general is concerned with solving equations of this form:
 
-$$\partial_t u + \nabla (u \textbf{v}) = Source$$
+$$\partial_t q + \nabla (q \textbf{v}) = Source$$
 
 This is generally broken up into three 1D problems (which are summed):
 
-$$\partial_t u + \partial_x(u v_x) = Source$$
+$$\partial_t q + \partial_x(q v_x) = Source$$
 
 Good techniques for solving this have the following properties:
 
-1. They conserve your quantity $u$
-2. They handle 'shocks', ie discontinuities in $u$
+1. They conserve your quantity $q$
+2. They handle 'shocks', ie discontinuities in $q$
 3. They don't produce oscillations that build up and cause everything to break
 
 | Term | Meaning|
 |-|-|
 | Finite Volume | A method of discretising the equations, so we can guarantee conservation |
-| Shock capturing | Everything doesn't blow up when there are discontinuities in $u$, like drastic pressure changes |
+| Shock capturing | Everything doesn't blow up when there are discontinuities in $q$, like drastic pressure changes |
 | Total Variation Dimishing (TVD) | The discretisation method doesn't produce increasing oscillations near discontinuities |
-| High resolution | Has a higher spatial order than 1. Currently, we're a 4th order NR sim |
+| High resolution | Has a higher spatial order of 2+ in smooth parts of the solution. Currently, we're a 4th order NR sim |
 
-In NR, 'shocks' are handled via Kreiss-Oliger dissipation[^ramble], but this isn't a conservative solution. This is fine there, but will result in hydro people making frowny faces at you. Its more socially acceptable to smooth out spacetime - less so a fluid
+In numerical relativity, 'shocks' are handled via Kreiss-Oliger dissipation[^ramble], but this isn't a conservative solution. This is fine there, but will result in hydro people making frowny faces at you. Its more socially acceptable to smooth out spacetime - less so a fluid
 
 [^ramble]: Kreiss-Oliger dissipation is only intended to handle problems that build up as a result of finite difference truncation errors. These can cause oscillations. It is however implicitly - perhaps unintentionally - used to smooth the grid in general. Particularly, singularities (being a discontinuity) are smoothed out by Kreiss-Oliger, which damps it. I don't know that this multipurpose function of Kreiss-Oliger is intended, but its common. Shocks in NR are also uncommon due to the properties of the solutions we find, whereas they are very common in fluid dynamics necessitating different solving techniques
 
 [Appendix A](https://arxiv.org/pdf/gr-qc/0209102) in the paper we're looking at describes a hydro treatment: but as far as I can tell, it does not work at all. We're going to have to come up with something different, which means: learning
+
+## Part 1
+
+The basic form of these discretisations is as follows. First off, we define a *flux* as the following quantity:
+
+$$F_i = v_i q_i$$
+
+$_i$ is a grid cell offset - I'm not going to try and fight hydro notation, its just going to clash terribly with tensor index notation and we'll live with it. The basic discretisation scheme is then as follows:
+
+$$\partial_t q = \frac{1}{\Delta x} (F^n_{i-\frac{1}{2}} - F^n_{i+\frac{1}{2}})$$
+
+where $\Delta x$ is the scale. This is the flux conserving form. Solving for the *half* grid cell points at the boundary between our grid cells, is the joy of hydrodynamics
+
+One really interesting fact is that its not possible to have an unconditionally stable method of higher than first order, spatially. All high resolution hydro methods mix between first order when near shocks, and higher order in smooth areas
+
+## Part 2
+
+https://arxiv.org/pdf/1705.10608
+
+The numerical flux has the general form:
+
+https://www.tevza.org/home/course/modelling-II_2016/books/Leveque%20-%20Finite%20Volume%20Methods%20for%20Hyperbolic%20Equations.pdf 6.30
+
+$$\begin{align}
+u_{i - \frac{1}{2}} &>= 0 \\
+F^n_{i - \frac{1}{2}} &= u_{i - \frac{1}{2}} q_{i - 1} + \frac{1}{2} u_{i - \frac{1}{2}} (\Delta x - u_{i - \frac{1}{2}} \Delta t) \sigma_{i-1}\\
+\\
+u_{i - \frac{1}{2}} &<= 0 \\
+F^n_{i - \frac{1}{2}} &= u_{i - \frac{1}{2}} q_{i} - \frac{1}{2} u_{i - \frac{1}{2}} (\Delta x + u_{i - \frac{1}{2}} \Delta t) \sigma_{i}\\
+\end{align}
+$$
+
+Or?
+
+$$\begin{align}
+F^n_{i - 1/2} = u_{i - 1/2}^- Q_i + u_{i - 1/2}^+ Q_{i - 1} + \frac{1}{2} \mid u \mid (1 - \mid \frac{u_{i - 1/2} \Delta t}{\Delta x} \mid) \delta_{i - 1/2}\\
+\\
+\end{align}
+$$
+
+Where $\sigma_i$ is a *slope limiter*. We'll be back to this
+
+
+Todo: Conventional third order is good https://ntrs.nasa.gov/api/citations/20080018695/downloads/20080018695.pdf
 
 fsa
 
