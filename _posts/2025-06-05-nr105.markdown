@@ -196,11 +196,15 @@ This kind of discretisation makes no guarantees about conservation. While it wil
 
 This is one of the few times we'll be chatting about something which isn't directly general relativity, which puts this outside my expertise. If you do hydrodynamics and know cool things about fancy high resolution schemes: please get in touch
 
-Eularian hydrodynamics in general is concerned with solving equations of this form
+Eularian hydrodynamics in general is concerned with solving equations of this form:
 
 $$\partial_t u + \nabla (u \textbf{v}) = Source$$
 
-The best techniques for doing this have the following properties:
+This is generally broken up into three 1D problems (which are summed):
+
+$$\partial_t u + \partial_x(u v_x) = Source$$
+
+Good techniques for solving this have the following properties:
 
 1. They conserve your quantity $u$
 2. They handle 'shocks', ie discontinuities in $u$
@@ -211,12 +215,13 @@ The best techniques for doing this have the following properties:
 | Finite Volume | A method of discretising the equations, so we can guarantee conservation |
 | Shock capturing | Everything doesn't blow up when there are discontinuities in $u$, like drastic pressure changes |
 | Total Variation Dimishing (TVD) | The discretisation method doesn't produce increasing oscillations near discontinuities |
+| High resolution | Has a higher spatial order than 1. Currently, we're a 4th order NR sim |
 
 In NR, 'shocks' are handled via Kreiss-Oliger dissipation[^ramble], but this isn't a conservative solution. This is fine there, but will result in hydro people making frowny faces at you. Its more socially acceptable to smooth out spacetime - less so a fluid
 
 [^ramble]: Kreiss-Oliger dissipation is only intended to handle problems that build up as a result of finite difference truncation errors. These can cause oscillations. It is however implicitly - perhaps unintentionally - used to smooth the grid in general. Particularly, singularities (being a discontinuity) are smoothed out by Kreiss-Oliger, which damps it. I don't know that this multipurpose function of Kreiss-Oliger is intended, but its common. Shocks in NR are also uncommon due to the properties of the solutions we find, whereas they are very common in fluid dynamics necessitating different solving techniques
 
-
+[Appendix A](https://arxiv.org/pdf/gr-qc/0209102) in the paper we're looking at describes a hydro treatment: but as far as I can tell, it does not work at all. We're going to have to come up with something different, which means: learning
 
 fsa
 
