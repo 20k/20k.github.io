@@ -77,7 +77,7 @@ We have the following definitions:
 |$w$ | $\rho_* \alpha u^0$ | Must be calculated via an iterative procedure |
 |$v^i$ | $\frac{u^i}{u^0}$ | Represents a coordinate velocity |
 
-The notation in this article is harmonised with the last one where appropriate. $\rho_0$ is the rest-mass density, $\epsilon$ is the specific energy density, $u^0$ is the lorentz factor, and $\alpha$ is the lapse
+The notation in this article is harmonised with the previous one. $\rho_0$ is the rest-mass density, $\epsilon$ is the specific energy density, $u^0$ is the lorentz factor, and $\alpha$ is the lapse
 
 ## Initialising our variables
 
@@ -143,17 +143,88 @@ That's it, no other surprises
 
 ## Evolution equations
 
+So far, so good. Lets look into the basic set of evolution equations [(26-28)](https://arxiv.org/pdf/gr-qc/0209102):
 
 
 
+$$\begin{align}
+\partial_t p_* + \partial_i(p_* v^i) &= 0\\
+\partial_t e_* + \partial_i(e_* v^i) &= 0\\
+\partial_t \tilde{S}_k + \partial_i(\tilde{S}_k v^i) &=
+                       - \alpha \frac{1}{W^3} \partial_k P - w h \partial_k \alpha \\
+                       &-\tilde{S}_j \partial_k \beta^j + \frac{\alpha W^2\tilde{S}_i \tilde{S}_j}{2wh} \partial_k \tilde{\gamma}^{ij}\\
+                       &+ \frac{\alpha h(w^2 - p_*^2)}{w} \frac{\partial_k W}{W}
+\end{align}
+$$
 
+There are two nontrivial quantities we need to calculate here, $v^i$ and $w$
 
+### $v^i$
 
+Firstly, we calculate $u_k = \frac{\tilde{S}_k}{p_* h}$
 
+The quantity $v^i$ is as follows:
 
+$$v^i = -\beta^i + \frac{W^2 \alpha \tilde{\gamma}^{ij} \tilde{S}_j}{w h}$$
 
+This can either be worked out from [2.12](https://arxiv.org/pdf/gr-qc/9908027) and converting their variables, or by calculating $\frac{u^i}{u^0}$ as $$g^{i\nu} u_{\nu}$$. You'll also have to work out the quantity $u_0$ if you're deriving this by hand. Todo: Do this at the endof the article
 
+### $w$
 
+This quantity is much less fun. It has the following form (29):
+
+$$w^2 = p_*^2+ W^2 \tilde{\gamma}^{ij}\tilde{S}_i \tilde{S}_j \left[1 + \frac{\Gamma e_*^{\Gamma}}{p_*(w \frac{e^{6\phi}}{p_*})^{\Gamma-1}} \right]^{-2}$$
+
+There are two problems:
+
+1. There is no analytic solution
+2. It divides by zero a fair bit
+
+We can solve #1 by using fixed point iteration with the initial guess $w=1$ (or perhaps, $w=p_*$) as this is a lorentz factor multiplied by density terms. Simply plug in your guess into the right hand side, calculate the new value of $w$, and rinse and repeat. #2 is more of a pain
+
+The way this equation is structured is mildly unimplementable. Lets rearrange it a bit:
+
+$$\begin{align}
+A &= (W^3)^{\Gamma-1}\\
+D &= \frac{w^{\Gamma-1}}{w^{\Gamma-1} + A \Gamma e_*^{\Gamma} p_*^{\Gamma-2}}\\
+w^2 &= p_*^2 + W^2 \tilde{\gamma}^{ij} \tilde{S}_i \tilde{S}_j D^2\\
+\end{align}
+$$
+
+The singular part is the divisor of $D$, and to fix it you can simply clamp the bottom to a small constant. We'll be getting back to the singular division issue later, as we'll be handling it systematically
+
+Its worth noting here that when $\Gamma = 2$, the factor of $p_*$ drops out
+
+### The reason hydrodynamics is a thing
+
+We'll get around to some implementing soon. But first: lets talk about these equations in a generic form:
+
+$$\begin{align}
+\partial_t p_* &+ \nabla  (p_* \textbf{v}) = 0\\
+\partial_t e_* &+ \nabla  (e_* \textbf{v}) = 0\\
+\partial_t \tilde{S}_k &+ \nabla  (\tilde{S}_k \textbf{v}) = F\\
+\end{align}$$
+
+This is the standard representation in hydrodynamics of advection equations, with $F$ being a source term. You see, in hydrodynamics there are things called *conserved quantities*. We might imagine these to be rest mass, energy, and momentum for a fluid dynamics simulation. The idea behind a conserved quantity is that we don't want it to change, ie we want the total rest mass to remain the same
+
+Naively, you might think to discretise $\partial_i(p_* v^i)$ as something like this, like all our other derivatives:
+
+```c++
+auto do_p_star = [&](valuef p_star, valuef v, int i)
+{
+    return diff1(p_star * v, i, d);
+};
+
+valuef sum = 0;
+
+for(int i=0; i < 3; i++) {
+    sum += do_p_star(p_star, v, i);
+}
+```
+
+This kind of discretisation makes no guarantees about conservation. While it can be made to work, in general the hydro people will be very angry at you, and your simulation will be bad quality. What's the alternative?
+
+# Hydrodynamics 101
 
 
 Start old article
