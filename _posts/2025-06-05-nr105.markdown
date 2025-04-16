@@ -1,10 +1,86 @@
 ---
 layout: post
-title:  "Numerical Relativity 10x: Simulating binary neutron star collisions (N body relativistic eularian hydrodynamics)"
+title:  "Numerical Relativity 105: Smashing neutron stars together like its 2002"
 date:   2026-02-02 12:33:23 +0000
 categories: C++
 published: false
 ---
+
+Hi! Its finally time to smash some neutron stars together. We'll be discussing how relativistic hydrodynamics works, how it compares to regular hydrodynamics, and some of the various approaches present in the literature
+
+But first up: Some background
+
+# What is hydrodynamics?
+
+If you're like me, you might not even really know why hydrodynamics is a separate area of inquiry to just solving PDEs in general. Or, you might just think its an umbrella term for people who apply the same techniques we've been using already, but simply to fluids
+
+This is incorrect. A fair chunk of this article is going to be explaining what hydrodynamics is, why we need to use different solving methods, and how that fits into general relativity. A lot of programmers' experience of fluid dynamics is the incompressible Navier-Stokes equations, so you might be wondering how similar that it is to what we're trying to do today (disclaimer: not very)
+
+So today's article is going to contain a fair bit of information about regular hydrodynamics
+
+There are three major classes of hydro formalisms
+
+## Lagrangian
+
+In the lagrangian approach, we track a number of particles around a grid. This is common in techniques like smooth particle hydrodynamics. In essence, you can construct a pseudo fluid at each point by interpolating particle properties, and then moving your particles along. We won't be going near this today, but it *is* used occasionally for GR
+
+Lagrangian formalisms don't need grid cells, as their primary unit of information is the particle
+
+Todo: Pictures
+
+## Semi-Lagrangian
+
+If your understanding of hydro is the programmers' understanding, the common style of solving Navier-Stokes is known as a Semi-Lagrangian scheme. In this approach, we have a series of grid cells representing our fluid. At each point, you look up the current cell's velocity, and trace backwards in time to find out where it could have originated from, and look up fluid quantities there
+
+Because we're tracing backwards on our grid as if we're a particle, this is vaguely a halfway house between the Lagrangian approach, and the Eularian approach, which we're about to get to
+
+Todo: Pictures
+
+## Eularian
+
+In this approach, we discretise the same as the Semi-Lagrangian approach, with our fluid properties in grid cells. However, we update our fluid quantities purely *locally*. To find our cell's update, its a function of the velocity around the cell, which we estimate via the derivatives
+
+The Eularian approach is what we'll be doing today. It matches well to General Relativity - as it does not involve any kind of non-local (or a-causal) estimates, through a curved spacetime - except as introduced via discretisation
+
+We'll get to the differences between hydro, and simple PDE solving, after we introduce the relativistic portions of this article. There are a bunch of other techniques as well like lattice Boltzmann if you're interested, this is just the major schemes
+
+Todo: Pictures
+
+# Relativistic Eularian Hydrodynamics
+
+We're going to be looking at two papers today, primarily the latter:
+
+[Fully general relativistic simulation of coalescing binary neutron stars: Preparatory tests](https://arxiv.org/pdf/gr-qc/9908027)
+
+[Hydrodynamic Simulations in 3+1 General Relativity](https://arxiv.org/pdf/gr-qc/0209102)
+
+In this approach, we have the following variables for our fluid dynamics:
+
+|Notation | What does it represent |
+|-|-|
+|$\rho_*$| Rest mass |
+|$e_*$| Energy |
+|$\tilde{S}_k$ | Momentum (ish) |
+
+This is what we'll be evolving directly. Note that I've translated the paper's old-style conformal factor $\phi$, into our newer conformal factor $W$. A table of conversions is provided at the end of this article
+
+We have the following definitions:
+
+|Variable |Definition | Notes |
+|-|-|-|
+|$\rho_*$ | $\rho_0 \alpha u^0 W^{-3} $ | |
+|$e_*$ | $(\rho_0 \epsilon)^\frac{1}{\Gamma} \alpha u^0 W^{-3}$ | Unclear how a numerical equation of state would work, or if a varying $\Gamma$ is valid |
+|$\tilde{S}_k$ | $\rho_* h u_k$ | |
+| $h$ | $1 + \epsilon + \frac{P}{\rho_0}$ | $1 + \Gamma \epsilon$ with the perfect fluid equation of state |
+|$w$ | $\rho_* \alpha u^0$ | Must be calculated via an iterative procedure |
+|$v^i$ | $\frac{u^i}{u^0}$ | Represents a coordinate velocity |
+
+The notation in this article is fully harmonised with the last one. $\rho_0$ is the rest-mass density, $\epsilon$ is the specific energy density, $u^0$ is the lorentz factor, and $\alpha$ is the lapse
+
+
+
+Start old article
+
 
 Some things are easy. Some things are hard. Some things are neutron star collisions. Lets get into it
 
@@ -16,7 +92,7 @@ We're going to be looking at two papers today, primarily the latter:
 
 [Hydrodynamic Simulations in 3+1 General Relativity](https://arxiv.org/pdf/gr-qc/0209102)
 
-We're going to modify this paper a little to remove some divergent quantities, and I'll illustrate how to track matter per-star as it moves around the grid
+We're going to modify this paper a little to remove some divergent quantities
 
 We'll also need to perform the standard modifications to the BSSN equations to add matter terms in
 
@@ -63,7 +139,7 @@ First off, we need to translate from our hydrodynamic quantities, to this paper'
 
 |Symbol | Initial value |
 |-|-|
-|$\rho_0$ | Numerically calculated from the inverted neutron star equation of state from $P$ and $\mu$, via $\mu = \rho_0 + \frac{P}{\Gamma - 1}$  |
+|$\rho_0$ | Numerically calculated from the inverted neutron star equation of state from $P$ and $\mu$. For a polytrope, this is $\mu = \rho_0 + \frac{P}{\Gamma - 1}$  |
 |$\rho_*$| $\rho_0 \alpha u^0 W^{-3}$ |
 |$\rho_0 \epsilon $| $\frac{P}{\Gamma - 1}$ (perfect fluid EoS)|
 |$e_*$| $(\rho_0 \epsilon)^{\frac{1}{\Gamma}} \alpha u^0 W^{-3}$|
@@ -71,6 +147,8 @@ First off, we need to translate from our hydrodynamic quantities, to this paper'
 |$\tilde{S}_k$| $\rho_* h u_k$ |
 
 We already have the lorentz factor $u^0$ from our initial conditions, as well as distributions for $P$, $\mu$, and $u^i$. $u_i$'s derivation can be worked out by lowering $u^\mu$ with the metric tensor $g_{\mu\nu}$
+
+Note that $\alpha = 1$ and $\beta^i = 0$ for us, as these were assumed in the construction of our initial conditions in the last article. This is different from the initial values we'll be using for the evolution, confusingly
 
 ## Evolution Equations
 
@@ -357,31 +435,6 @@ Do: Spin test
 Advecting arbitrary scalar fields
 
 ## Merger
-
-# Initial conditions, abridged
-
-## Step 1
-
-Solve these two equations for the following quantities: mass ($M$), radius ($R$), and energy density ($\mu$). Stop integrating when $P <= 0$. This determines $R$. The integration should start at $r=r_{min}$
-
-$$\begin{align}
-\frac{dm}{dr} &= 4 \pi r^2 \mu\\
-\frac{dP}{dr} &= -(\mu + P)\frac{m + 4 \pi r^3 P}{r(r-2m)}
-\end{align}$$
-
-With the equation of state:
-
-$$P = K \rho_0^\Gamma$$
-
-Boundary conditions are:
-
-1. $M(0) = \frac{4}{3} \pi r_{min}^3 \mu_c$,
-2. $P(0) = K \rho_{c}^\Gamma$, where $\rho_{c}$ is the central rest mass density
-
-$\mu_c$ is the energy density at the centre of the star, calculated from the rest central density
-
-## Step 2
-
 
 ## papers
 
