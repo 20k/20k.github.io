@@ -73,6 +73,8 @@ std::array<T, elements> get_differentiation_variables(const T& in, int direction
     return vars;
 }
 
+template std::array<valuef, 11> get_differentiation_variables<11, valuef>(const valuef&, int);
+template std::array<valuef, 9> get_differentiation_variables<9, valuef>(const valuef&, int);
 template std::array<valuef, 7> get_differentiation_variables<7, valuef>(const valuef&, int);
 template std::array<valuef, 5> get_differentiation_variables<5, valuef>(const valuef&, int);
 template std::array<valuef, 3> get_differentiation_variables<3, valuef>(const valuef&, int);
