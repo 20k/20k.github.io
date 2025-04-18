@@ -235,7 +235,34 @@ struct hydrodynamic_concrete
         return -sum;
         #endif
 
-        #define VAN_LEER
+        #define WENO2
+        #ifdef WENO2
+
+        auto q_at = [&](int j)
+
+        auto flux_at = [&](int j)
+        {
+            std::array<valuef, 7> q_adj = get_differentiation_variables<7, valuef>(in, which);
+            std::array<valuef, 7> v_adj = get_differentiation_variables<7, valuef>(vi[which], which);
+
+            return q_adj.at(3 + j) * v_adj.at(3 + j);
+        };
+
+        std::array<float, 2> d_pos = {2.f/3.f, 1.f/3.f};
+        std::array<float, 2> d_neg = {1.f/3.f, 2.f/3.f};
+
+        auto get_B = [&](int j)
+        {
+            int k = 2;
+
+            return std::array<valuef, 2>{pow(}
+
+        };
+
+
+        #endif // WENO2
+
+        //#define VAN_LEER
         #ifdef VAN_LEER
         ///https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2012/Chapter_4.pdf 4.38
         auto get_delta = [&](valuef q, int which)
