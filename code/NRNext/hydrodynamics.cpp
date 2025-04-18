@@ -238,7 +238,8 @@ struct hydrodynamic_concrete
         #define WENO2
         #ifdef WENO2
 
-        auto get_delta = [&](valuef q, int which)
+        ///https://github.com/HugoMVale/HR-WENO/tree/b9224528a4fa8efc031f933225149794926df0bd
+        auto get_limits = [&](int root, int which)
         {
             auto q_at = [&](int j)
             {
@@ -255,19 +256,25 @@ struct hydrodynamic_concrete
                 return q_adj.at(3 + j) * v_adj.at(3 + j);
             };
 
-            std::array<float, 2> d_pos = {2.f/3.f, 1.f/3.f};
-            std::array<float, 2> d_neg = {1.f/3.f, 2.f/3.f};
+            tensor<float, 2> d_pos = {2.f/3.f, 1.f/3.f};
+            tensor<float, 2> d_neg = {1.f/3.f, 2.f/3.f};
 
             auto get_B = [&](int j)
             {
                 int k = 2;
 
-                return std::array<valuef, 2>{pow(q_at(j+1) - q_at(j), k), pow(q_at(j) - q_at(j - 1), k)};
+                return tensor<valuef, 2>{pow(q_at(j+1) - q_at(j), k), pow(q_at(j) - q_at(j - 1), k)};
             };
 
             float e = 1e-8;
             int m = 2;
 
+            auto f_half = [&](int j)
+            {
+                return std::array<valuef, 2>{0.5f * flux_at(j) + 0.5f * flux_at(j + 1), -0.5f * flux_at(j-1) + (3.f/2.f) * flux_at(j)};
+            };
+
+            #if 0
             auto p_ar = [&](int j, int r)
             {
                 return d_pos[r] / pow(e + get_B(j)[r], m);
@@ -286,16 +293,22 @@ struct hydrodynamic_concrete
                 return n_ar(j, r) / (n_ar(j, 0) + n_ar(j, 1));
             };
 
-            auto f_half = [&](int j)
-            {
-                return std::array<valuef, 2>{0.5f * flux_at(j) + 0.5f * flux_at(j + 1), -0.5f * flux_at(j-1) + (3.f/2.f) * flux_at(j)};
-            };
+            valuef p_part = w_pos(root + 0, 0) * f_half(root + 0)[0] + w_pos(root + 0, 1) * f_half(root + 0)[1];
+            valuef n_part = w_neg(root + 1, 0) * f_half(root + 1)[0] + w_neg(root + 1, 1) * f_half(root + 1)[1];
+            #endif
 
-            valuef p_part = w_pos(0, 0) * f_half(0)[0] + w_pos(0, 1) * f_half(0)[1];
-            valuef n_part = w_neg(-1, 0) * f_half(-1)[0] + w_neg(-1, 1) * f_half(-1)[1];
+            v2f vr = {f_half(root}
 
-            return n_part - p_part;
+            int k = 0;
+            auto B = get_B(root);
+
+            v2f pp1 = d_pos / pow(e + B, k);
+            v2f pp2 = d_neg / pow(e + B, k);
+
+            return v2f{n_part, p_part};
         };
+
+
 
         #endif // WENO2
 
