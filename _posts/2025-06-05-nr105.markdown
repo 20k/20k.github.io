@@ -6,7 +6,9 @@ categories: C++
 published: false
 ---
 
-Hi! Its finally time to smash some neutron stars together. We'll be discussing how relativistic hydrodynamics works, how it compares to regular hydrodynamics, and some of the various approaches present in the literature
+Hi! Its finally time to do something truly spectacular, and smash some neutron stars together. We'll be discussing how relativistic hydrodynamics works, how it compares to regular hydrodynamics, and some of the various approaches present in the literature
+
+If you're here simply for the montage of black holes eating neutron stars: good news, there's a compilation at the end of this article
 
 But first up: Some background
 
@@ -77,7 +79,7 @@ We have the following definitions:
 |$w$ | $\rho_* \alpha u^0$ | Must be calculated via an iterative procedure |
 |$v^i$ | $\frac{u^i}{u^0}$ | Represents a coordinate velocity |
 
-The notation in this article is harmonised with the previous one. $\rho_0$ is the rest-mass density, $\epsilon$ is the specific energy density, $u^0$ is the lorentz factor, and $\alpha$ is the lapse
+The notation in this article is harmonised with the previous one. $\rho_0$ is the rest-mass density, $\epsilon$ is the specific energy density, $u^0$ is the lorentz factor, and $\alpha$ is the lapse. I won't be fighting with the paper, and we'll be using a perfect fluid equation of state
 
 ## Initialising our variables
 
@@ -86,7 +88,7 @@ At the end of the previous article, we ended up with our fluid quantities: $\rho
 There are two pitfall traps here:
 
 1. The initial procedure we used last time appears to have assumed implicitly that $\alpha = 1$, and $\beta^i = 0$ - so use these when initialising regardless of what you actually pick for them
-2. $u_i = \beta^i u^0 + \gamma_{ik} u^k$. If you want to prove this, calculate $u_i = g_{i\nu} u^\nu$
+2. $u_i = \beta^i u^0 + \gamma_{ik} u^k$. If you want to prove this, calculate $u_i = g_{i\nu} u^\nu$. There's maths in the appendix
 
 We can now carry on immediately from our last article, which follows on as such:
 
@@ -180,9 +182,8 @@ In hydrodynamics there are things called *conserved quantities* - like rest mass
 Naively, you might think to discretise $\partial_i(p_* v^i)$ as something like this, like all our other derivatives:
 
 ```c++
-auto do_p_star = [&](valuef p_star, valuef v, int i)
-{
-    return diff1(p_star * v, i, d);
+auto do_p_star = [&](valuef p_star, v3f v, int i) {
+    return diff1(p_star * v[i], i, d);
 };
 
 valuef sum = 0;
@@ -239,13 +240,16 @@ where $\Delta x$ is the scale. This is the flux conserving form. Solving for the
 
 One really interesting fact is that its not possible to have an unconditionally stable method of higher than first order, spatially. All high resolution hydro methods mix between first order when near shocks, and higher order in smooth areas
 
-## Part 2
+## Part 2: Limiters
+
+In general, the amount of fluid that can be transported from one cell to the next is limited in some fashion. Different limiters have different properties - some introduce lots of diffusion, some accidentally introduce oscillations.
 
 https://arxiv.org/pdf/1705.10608
 
-The numerical flux has the general form:
+The 2nd order numerical flux has the general form:
 
 https://www.tevza.org/home/course/modelling-II_2016/books/Leveque%20-%20Finite%20Volume%20Methods%20for%20Hyperbolic%20Equations.pdf 6.30
+6.32
 
 $$\begin{align}
 u_{i - \frac{1}{2}} &>= 0 \\
@@ -256,15 +260,31 @@ F^n_{i - \frac{1}{2}} &= u_{i - \frac{1}{2}} q_{i} - \frac{1}{2} u_{i - \frac{1}
 \end{align}
 $$
 
-Or?
+This is the *slope* limited form, where $\sigma_i$ is a a slope limiter. There's also the flux limited form:
+
 
 $$\begin{align}
-F^n_{i - 1/2} = u_{i - 1/2}^- Q_i + u_{i - 1/2}^+ Q_{i - 1} + \frac{1}{2} \mid u \mid (1 - \mid \frac{u_{i - 1/2} \Delta t}{\Delta x} \mid) \delta_{i - 1/2}\\
+F^n_{i - 1/2} &= u_{i - 1/2}^- q_i + u_{i - 1/2}^+ q_{i - 1} + \frac{1}{2} \mid u \mid (1 - \mid \frac{u_{i - 1/2} \Delta t}{\Delta x} \mid) \delta_{i - 1/2}\\
 \\
+\Delta q_{i - 1/2} &= q_i - q_{i - 1}\\
+\delta_{i-1/2} &= \phi(\theta_{i - 1/2}) \Delta q_{i - 1/2}\\
+\bar{u}^+_{i-1/2} &= \mathrm{max}(\bar{u}_{i-1/2}, 0)\\
+\bar{u}^-_{i-1/2} &= \mathrm{min}(\bar{u}_{i-1/2}, 0)\\
+\\
+\theta_{i - 1/2} &= \frac{\Delta q_{I-1/2}}{\Delta q_{i-1/2}}\\
 \end{align}
 $$
 
-Where $\sigma_i$ is a *slope limiter*. We'll be back to this
+Where:
+
+$$
+u_{i - 1/2} > 0\\
+I = i-1\\
+u_{i - 1/2} < 0\\
+I = i + 1\\
+$$
+
+$\phi$ is a *flux* limiter. There's nothing different here to the slope limiting equations, its just a different way of limiting stuff
 
 
 Todo: Conventional third order is good https://ntrs.nasa.gov/api/citations/20080018695/downloads/20080018695.pdf
