@@ -246,7 +246,9 @@ struct hydrodynamic_concrete
                 std::array<valuef, 9> v_adj = get_differentiation_variables<9, valuef>(vi[which], which);
                 std::array<valuef, 9> q_adj = get_differentiation_variables<9, valuef>(in, which);
 
-                return v_adj.at(4 + j) * q_adj.at(4 + j);
+                valuef out = v_adj.at(4 + j) * q_adj.at(4 + j);
+                pin(out);
+                return out;
             };
 
             /*auto flux_parts = [&](int j){
@@ -294,7 +296,6 @@ struct hydrodynamic_concrete
                 };
 
                 std::array<valuef, 6> fluxes = {flux_at(-1 + j), flux_at(-2 + j), flux_at(j), flux_at(j + 1), flux_at(j + 2), flux_at(j + 3)};
-
 
                 std::array<valuef, 4> out;
 
@@ -352,6 +353,8 @@ struct hydrodynamic_concrete
                 auto ds = get_d();
                 auto ts = get_tau(j);
                 auto bs = get_B(j);
+
+                pin(ts);
 
                 std::array<valuef, 4> out;
 
