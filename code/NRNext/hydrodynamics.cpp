@@ -238,27 +238,64 @@ struct hydrodynamic_concrete
         #define WENO2
         #ifdef WENO2
 
-        auto q_at = [&](int j)
-
-        auto flux_at = [&](int j)
+        auto get_delta = [&](valuef q, int which)
         {
-            std::array<valuef, 7> q_adj = get_differentiation_variables<7, valuef>(in, which);
-            std::array<valuef, 7> v_adj = get_differentiation_variables<7, valuef>(vi[which], which);
+            auto q_at = [&](int j)
+            {
+                std::array<valuef, 7> q_adj = get_differentiation_variables<7, valuef>(in, which);
 
-            return q_adj.at(3 + j) * v_adj.at(3 + j);
+                return q_adj.at(3 + j);
+            };
+
+            auto flux_at = [&](int j)
+            {
+                std::array<valuef, 7> q_adj = get_differentiation_variables<7, valuef>(in, which);
+                std::array<valuef, 7> v_adj = get_differentiation_variables<7, valuef>(vi[which], which);
+
+                return q_adj.at(3 + j) * v_adj.at(3 + j);
+            };
+
+            std::array<float, 2> d_pos = {2.f/3.f, 1.f/3.f};
+            std::array<float, 2> d_neg = {1.f/3.f, 2.f/3.f};
+
+            auto get_B = [&](int j)
+            {
+                int k = 2;
+
+                return std::array<valuef, 2>{pow(q_at(j+1) - q_at(j), k), pow(q_at(j) - q_at(j - 1), k)};
+            };
+
+            float e = 1e-8;
+            int m = 2;
+
+            auto p_ar = [&](int r)
+            {
+                return d_pos[r] / pow(e + get_B(0)[r], m);
+            };
+
+            auto n_ar = [&](int r)
+            {
+                return d_neg[r] / pow(e + get_B(-1)[r], m);
+            };
+
+            auto w_pos = [&](int r){
+                return p_ar(r) / (p_ar(0) + p_ar(1));
+            };
+
+            auto w_neg = [&](int r){
+                return n_ar(r) / (n_ar(0) + n_ar(1));
+            };
+
+            auto f_half = [&](int j)
+            {
+                return std::array<valuef, 2>{0.5f * flux_at(j) + 0.5f * flux_at(j + 1), -0.5f * flux_at(j-1) + (3.f/2.f) * flux_at(j)};
+            };
+
+            valuef p_part = w_pos(0) * f_half(0)[0] + w_pos(1) * f_half(0)[1];
+            valuef n_part = w_neg(0) * f_half(-1)[0] + w_neg(1) * f_half(-1)[1];
+
+            return n_part - p_part;
         };
-
-        std::array<float, 2> d_pos = {2.f/3.f, 1.f/3.f};
-        std::array<float, 2> d_neg = {1.f/3.f, 2.f/3.f};
-
-        auto get_B = [&](int j)
-        {
-            int k = 2;
-
-            return std::array<valuef, 2>{pow(}
-
-        };
-
 
         #endif // WENO2
 
@@ -320,8 +357,8 @@ struct hydrodynamic_concrete
             return f_mhalf - f_phalf;
         };
 
-        return (get_delta(in, 0) + get_delta(in, 1) + get_delta(in, 2)) / d.scale;
         #endif
+        return (get_delta(in, 0) + get_delta(in, 1) + get_delta(in, 2)) / d.scale;
     }
 
     v3f advect_rhs(v3f in, v3f vi, const derivative_data& d, valuef timestep)
