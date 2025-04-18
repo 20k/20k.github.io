@@ -251,6 +251,13 @@ struct hydrodynamic_concrete
                 return out;
             };
 
+            auto u_at = [&](int j)
+            {
+                std::array<valuef, 9> q_adj = get_differentiation_variables<9, valuef>(in, which);
+
+                return q_adj.at(4 + j);
+            };
+
             /*auto flux_parts = [&](int j){
                 std::array<std::array<float, 4>, 3> cs
                 {{0.5f * -1, 0.5f * 3, 0, 0},
@@ -319,10 +326,10 @@ struct hydrodynamic_concrete
             auto get_B = [&](int j)
             {
                 return std::array<valuef, 4>{
-                    (13.f/12.f) * pow(flux_at(j-2) - 2 * flux_at(j-1) + flux_at(j), 2.f) + (1.f/4.f) * pow(flux_at(j - 2) - 4 * flux_at(j - 1) + 3 * flux_at(j), 2.f),
-                    (13.f/12.f) * pow(flux_at(j-1) - 2 * flux_at(j) + flux_at(j+1), 2.f) + (1.f/4.f) * pow(flux_at(j - 1) - flux_at(j + 1), 2.f),
-                    (13.f/12.f) * pow(flux_at(j) - 2 * flux_at(j+1) + flux_at(j+2), 2.f) + (1.f/4.f) * pow(3 * flux_at(j) - 4 * flux_at(j+1) + flux_at(j + 2), 2.f),
-                    (13.f/12.f) * pow(flux_at(j+1) - 2 * flux_at(j+2) + flux_at(j+3), 2.f) + (1.f/4.f) * pow(-5 * flux_at(j+1) + 8 * flux_at(j+2) - 3 * flux_at(j + 3), 2.f)
+                    (13.f/12.f) * pow(u_at(j-2) - 2 * u_at(j-1) + u_at(j), 2.f) + (1.f/4.f) * pow(u_at(j - 2) - 4 * u_at(j - 1) + 3 * u_at(j), 2.f),
+                    (13.f/12.f) * pow(u_at(j-1) - 2 * u_at(j) + u_at(j+1), 2.f) + (1.f/4.f) * pow(u_at(j - 1) - u_at(j + 1), 2.f),
+                    (13.f/12.f) * pow(u_at(j) - 2 * u_at(j+1) + u_at(j+2), 2.f) + (1.f/4.f) * pow(3 * u_at(j) - 4 * u_at(j+1) + u_at(j + 2), 2.f),
+                    (13.f/12.f) * pow(u_at(j+1) - 2 * u_at(j+2) + u_at(j+3), 2.f) + (1.f/4.f) * pow(-5 * u_at(j+1) + 8 * u_at(j+2) - 3 * u_at(j + 3), 2.f)
                 };
             };
 
