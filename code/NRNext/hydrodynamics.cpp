@@ -295,7 +295,7 @@ struct hydrodynamic_concrete
                     std::array<int, 6>{0, 0, 0, 11, -7, 2}
                 };
 
-                std::array<valuef, 6> fluxes = {flux_at(-1 + j), flux_at(-2 + j), flux_at(j), flux_at(j + 1), flux_at(j + 2), flux_at(j + 3)};
+                std::array<valuef, 6> fluxes = {flux_at(-2 + j), flux_at(-1 + j), flux_at(j), flux_at(j + 1), flux_at(j + 2), flux_at(j + 3)};
 
                 std::array<valuef, 4> out;
 
