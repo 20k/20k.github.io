@@ -235,179 +235,7 @@ struct hydrodynamic_concrete
         return -sum;
         #endif
 
-        #define WENO
-        #ifdef WENO
-        auto get_delta = [&](valuef q, int which)
-        {
-            valuef scale = d.scale;
-
-            auto flux_at = [&](int j)
-            {
-                std::array<valuef, 9> v_adj = get_differentiation_variables<9, valuef>(vi[which], which);
-                std::array<valuef, 9> q_adj = get_differentiation_variables<9, valuef>(in, which);
-
-                valuef out = v_adj.at(4 + j) * q_adj.at(4 + j);
-                pin(out);
-                return out;
-            };
-
-            /*auto flux_parts = [&](int j){
-                std::array<std::array<float, 4>, 3> cs
-                {{0.5f * -1, 0.5f * 3, 0, 0},
-                {0, 0.5f * 1, 0.5f * 1, 0},
-                {0, 0, 0.5f * 3, 0.5f * -1}};
-
-                std::array<valuef, 4> fluxes = {flux_at(-1 + j), flux_at(j), flux_at(j + 1), flux_at(j + 2)};
-
-                std::array<valuef, 3> out;
-
-                for(int i=0; i < 3; i++)
-                {
-                    valuef sum = 0;
-
-                    for(int k=0; k < 4; k++)
-                    {
-                        sum += cs[i][k] * fluxes[k];
-                    }
-
-                    out[i] = sum;
-                }
-
-                return out;
-            }
-
-            auto get_t3 = [&](int j)
-            {
-                float phi = 0;
-
-                if(phi == 0)
-                    return pow(flux_at(j - 1) - 2 * flux_at(j) + flux_at(j + 1), 2.f);
-                else
-                    return pow(-flux_at(j - 1) + 3 * flux_at(j) - 3 * flux_at(j + 1) + flux_at(j + 2), 2.f);
-            };*/
-
-            auto flux_parts = [&](int j)
-            {
-                std::array<std::array<int, 6>, 4> cs {
-                    std::array<int, 6>{2, -7, 11, 0, 0, 0},
-                    std::array<int, 6>{0, -1, 5, 2, 0, 0},
-                    std::array<int, 6>{0, 0, 2, 5, -1, 0},
-                    std::array<int, 6>{0, 0, 0, 11, -7, 2}
-                };
-
-                std::array<valuef, 6> fluxes = {flux_at(-2 + j), flux_at(-1 + j), flux_at(j), flux_at(j + 1), flux_at(j + 2), flux_at(j + 3)};
-
-                std::array<valuef, 4> out;
-
-                for(int i=0; i < out.size(); i++)
-                {
-                    valuef sum = 0;
-
-                    for(int k=0; k < fluxes.size(); k++)
-                    {
-                        sum += cs[i][k] * (1.f/6.f) * fluxes[k];
-                    }
-
-                    out[i] = sum;
-                }
-
-                return out;
-            };
-
-            float phi = 1.f/20.f;
-
-            auto get_B = [&](int j)
-            {
-                return std::array<valuef, 4>{
-                    (13.f/12.f) * pow(flux_at(j-2) - 2 * flux_at(j-1) + flux_at(j), 2.f) + (1.f/4.f) * pow(flux_at(j - 2) - 4 * flux_at(j - 1) + 3 * flux_at(j), 2.f),
-                    (13.f/12.f) * pow(flux_at(j-1) - 2 * flux_at(j) + flux_at(j+1), 2.f) + (1.f/4.f) * pow(flux_at(j - 1) - flux_at(j + 1), 2.f),
-                    (13.f/12.f) * pow(flux_at(j) - 2 * flux_at(j+1) + flux_at(j+2), 2.f) + (1.f/4.f) * pow(3 * flux_at(j) - 4 * flux_at(j+1) + flux_at(j + 2), 2.f),
-                    (13.f/12.f) * pow(flux_at(j+1) - 2 * flux_at(j+2) + flux_at(j+3), 2.f) + (1.f/4.f) * pow(-5 * flux_at(j+1) + 8 * flux_at(j+2) - 3 * flux_at(j + 3), 2.f)
-                };
-            };
-
-
-            auto get_tau = [&](int j) -> valuef
-            {
-                float phi = 0;
-
-                if(phi == 0)
-                    return pow(flux_at(j - 2) - 4 * flux_at(j - 1) + 6 * flux_at(j) - 4 * flux_at(j + 1) + flux_at(j + 2), 2.f);
-                else
-                    return pow(-flux_at(j - 2) + 5 * flux_at(j - 1) - 10 * flux_at(j) + 10 * flux_at(j + 1) - 5 * flux_at(j + 2) + flux_at(j + 3), 2.f);
-            };
-
-            auto get_d = [&]{
-                return std::array<valuef, 4>{
-                    1/10.f - phi,
-                    6/10.f - 3 * phi,
-                    (3/10.f) + 3 * phi,
-                    phi
-                };
-            };
-
-            auto get_a = [&](int j)
-            {
-                valuef epsilon = 1e-8;
-
-                auto ds = get_d();
-                valuef ts = get_tau(j);
-                auto bs = get_B(j);
-
-                pin(ts);
-
-                std::array<valuef, 4> out;
-
-                for(int i=0; i < 4; i++)
-                {
-                    out[i] = ds[i] * (1 + ts / (epsilon + bs[i]));
-                }
-
-                return out;
-            };
-
-            auto get_ws = [&](int j)
-            {
-                auto as = get_a(j);
-
-                valuef sum = 0;
-
-                for(auto& i : as)
-                    sum += i;
-
-                std::array<valuef, 4> out;
-
-                for(int i=0; i < 4; i++)
-                {
-                    out[i] = as[i] / sum;
-                }
-
-                return out;
-            };
-
-            auto eval_f = [&](int j)
-            {
-                std::array<valuef, 4> ws = get_ws(j);
-                std::array<valuef, 4> fs = flux_parts(j);
-
-                valuef sum = 0;
-
-                for(int i=0; i < 4; i++)
-                {
-                    sum += ws[i] * fs[i];
-                }
-
-                return sum;
-            };
-
-            valuef f_p_half = eval_f(0);
-            valuef f_m_half = eval_f(-1);
-
-            return (f_m_half - f_p_half);
-        };
-        #endif // WENO
-
-        //#define VAN_LEER
+        #define VAN_LEER
         #ifdef VAN_LEER
         ///https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2012/Chapter_4.pdf 4.38
         auto get_delta = [&](valuef q, int which)
@@ -464,9 +292,9 @@ struct hydrodynamic_concrete
 
             return f_mhalf - f_phalf;
         };
-        #endif
 
         return (get_delta(in, 0) + get_delta(in, 1) + get_delta(in, 2)) / d.scale;
+        #endif
     }
 
     v3f advect_rhs(v3f in, v3f vi, const derivative_data& d, valuef timestep)
@@ -1112,7 +940,7 @@ void calculate_w_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     d.dim = dim;
     d.scale = scale.get();
 
-    /*if_e(p_star <= min_p_star, [&]{
+    if_e(p_star <= min_p_star, [&]{
         valuef dp_sum = 0;
 
         for(int i=0; i < 3; i++)
@@ -1124,7 +952,7 @@ void calculate_w_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             as_ref(w_out[pos, dim]) = valuef(0);
             return_e();
         });
-    });*/
+    });
 
     bssn_args args(pos, dim, in);
 
@@ -1162,7 +990,7 @@ void calculate_Q_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     d.dim = dim;
     d.scale = scale.get();
 
-    /*if_e(p_star <= min_p_star, [&]{
+    if_e(p_star <= min_p_star, [&]{
         valuef dp_sum = 0;
 
         for(int i=0; i < 3; i++)
@@ -1174,7 +1002,7 @@ void calculate_Q_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             as_ref(Q_out[pos, dim]) = valuef(0);
             return_e();
         });
-    });*/
+    });
 
     bssn_args args(pos, dim, in);
 
@@ -1308,7 +1136,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     };
 
     //early terminate
-    /*if_e(hydro_args.p_star <= min_p_star, [&]{
+    if_e(hydro_args.p_star <= min_p_star, [&]{
         valuef dp_sum = 0;
 
         for(int i=0; i < 3; i++)
@@ -1321,7 +1149,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
             return_e();
         });
-    });*/
+    });
 
     //we're in a black hole, damp away the material
     if_e(args.gA < MIN_LAPSE, [&]{
