@@ -299,11 +299,11 @@ struct hydrodynamic_concrete
 
                 std::array<valuef, 4> out;
 
-                for(int i=0; i < 3; i++)
+                for(int i=0; i < out.size(); i++)
                 {
                     valuef sum = 0;
 
-                    for(int k=0; k < 4; k++)
+                    for(int k=0; k < fluxes.size(); k++)
                     {
                         sum += cs[i][k] * (1.f/6.f) * fluxes[k];
                     }
@@ -314,7 +314,7 @@ struct hydrodynamic_concrete
                 return out;
             };
 
-            float phi = 1.f/20.f;
+            float phi = 0;
 
             auto get_B = [&](int j)
             {
@@ -348,7 +348,7 @@ struct hydrodynamic_concrete
 
             auto get_a = [&](int j)
             {
-                valuef epsilon = 0.1f * scale * scale;
+                valuef epsilon = 0.01f * scale * scale;
 
                 auto ds = get_d();
                 auto ts = get_tau(j);
@@ -396,7 +396,7 @@ struct hydrodynamic_concrete
             valuef f_p_half = eval_f(0);
             valuef f_m_half = eval_f(-1);
 
-            return (f_m_half - f_p_half) / scale;
+            return (f_m_half - f_p_half);
         };
         #endif // WENO
 
