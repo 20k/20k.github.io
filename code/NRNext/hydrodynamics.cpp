@@ -314,7 +314,7 @@ struct hydrodynamic_concrete
                 return out;
             };
 
-            float phi = 0;
+            float phi = 1.f/20.f;
 
             auto get_B = [&](int j)
             {
@@ -1112,7 +1112,7 @@ void calculate_w_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     d.dim = dim;
     d.scale = scale.get();
 
-    if_e(p_star <= min_p_star, [&]{
+    /*if_e(p_star <= min_p_star, [&]{
         valuef dp_sum = 0;
 
         for(int i=0; i < 3; i++)
@@ -1124,7 +1124,7 @@ void calculate_w_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             as_ref(w_out[pos, dim]) = valuef(0);
             return_e();
         });
-    });
+    });*/
 
     bssn_args args(pos, dim, in);
 
@@ -1162,7 +1162,7 @@ void calculate_Q_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     d.dim = dim;
     d.scale = scale.get();
 
-    if_e(p_star <= min_p_star, [&]{
+    /*if_e(p_star <= min_p_star, [&]{
         valuef dp_sum = 0;
 
         for(int i=0; i < 3; i++)
@@ -1174,7 +1174,7 @@ void calculate_Q_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             as_ref(Q_out[pos, dim]) = valuef(0);
             return_e();
         });
-    });
+    });*/
 
     bssn_args args(pos, dim, in);
 
@@ -1308,7 +1308,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     };
 
     //early terminate
-    if_e(hydro_args.p_star <= min_p_star, [&]{
+    /*if_e(hydro_args.p_star <= min_p_star, [&]{
         valuef dp_sum = 0;
 
         for(int i=0; i < 3; i++)
@@ -1321,7 +1321,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
             return_e();
         });
-    });
+    });*/
 
     //we're in a black hole, damp away the material
     if_e(args.gA < MIN_LAPSE, [&]{
