@@ -348,10 +348,10 @@ struct hydrodynamic_concrete
 
             auto get_a = [&](int j)
             {
-                valuef epsilon = 0.01f * scale * scale;
+                valuef epsilon = 1e-8;
 
                 auto ds = get_d();
-                auto ts = get_tau(j);
+                valuef ts = get_tau(j);
                 auto bs = get_B(j);
 
                 pin(ts);
@@ -390,7 +390,14 @@ struct hydrodynamic_concrete
                 std::array<valuef, 4> ws = get_ws(j);
                 std::array<valuef, 4> fs = flux_parts(j);
 
-                return ws[0] * fs[0] + ws[1] * fs[1] + ws[2] * fs[2] + ws[3] * fs[3];
+                valuef sum = 0;
+
+                for(int i=0; i < 4; i++)
+                {
+                    sum += ws[i] * fs[i];
+                }
+
+                return sum;
             };
 
             valuef f_p_half = eval_f(0);
