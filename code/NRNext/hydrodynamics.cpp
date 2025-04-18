@@ -268,22 +268,22 @@ struct hydrodynamic_concrete
             float e = 1e-8;
             int m = 2;
 
-            auto p_ar = [&](int r)
+            auto p_ar = [&](int j, int r)
             {
-                return d_pos[r] / pow(e + get_B(0)[r], m);
+                return d_pos[r] / pow(e + get_B(j)[r], m);
             };
 
-            auto n_ar = [&](int r)
+            auto n_ar = [&](int j, int r)
             {
-                return d_neg[r] / pow(e + get_B(-1)[r], m);
+                return d_neg[r] / pow(e + get_B(j)[r], m);
             };
 
-            auto w_pos = [&](int r){
-                return p_ar(r) / (p_ar(0) + p_ar(1));
+            auto w_pos = [&](int j, int r){
+                return p_ar(j, r) / (p_ar(j, 0) + p_ar(j, 1));
             };
 
-            auto w_neg = [&](int r){
-                return n_ar(r) / (n_ar(0) + n_ar(1));
+            auto w_neg = [&](int j, int r){
+                return n_ar(j, r) / (n_ar(j, 0) + n_ar(j, 1));
             };
 
             auto f_half = [&](int j)
@@ -291,8 +291,8 @@ struct hydrodynamic_concrete
                 return std::array<valuef, 2>{0.5f * flux_at(j) + 0.5f * flux_at(j + 1), -0.5f * flux_at(j-1) + (3.f/2.f) * flux_at(j)};
             };
 
-            valuef p_part = w_pos(0) * f_half(0)[0] + w_pos(1) * f_half(0)[1];
-            valuef n_part = w_neg(0) * f_half(-1)[0] + w_neg(1) * f_half(-1)[1];
+            valuef p_part = w_pos(0, 0) * f_half(0)[0] + w_pos(0, 1) * f_half(0)[1];
+            valuef n_part = w_neg(-1, 0) * f_half(-1)[0] + w_neg(-1, 1) * f_half(-1)[1];
 
             return n_part - p_part;
         };
