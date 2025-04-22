@@ -220,29 +220,107 @@ Good techniques for solving this have the following properties:
 | Total Variation Dimishing (TVD) | The discretisation method doesn't produce increasing oscillations near discontinuities |
 | High resolution | Has a higher spatial order of 2+ in smooth parts of the solution. Currently, we're a 4th order NR sim |
 
-In numerical relativity, 'shocks' are handled via Kreiss-Oliger dissipation[^ramble], but this isn't a conservative solution. This is fine there, but will result in hydro people making frowny faces at you. Its more socially acceptable to smooth out spacetime - less so a fluid
+In numerical relativity, 'shocks' are partially handled via Kreiss-Oliger dissipation[^ramble] - but the equations don't tend to produce the kinds of errors you can get with hydrodynamics. Kreiss-Oliger isn't really appropriate to hydrodynamics, as it is not a conservative solution - we'll end up with a fluctuating mass or something
 
-[^ramble]: Kreiss-Oliger dissipation is only intended to handle problems that build up as a result of finite difference truncation errors. These can cause oscillations. It is however implicitly - perhaps unintentionally - used to smooth the grid in general. Particularly, singularities (being a discontinuity) are smoothed out by Kreiss-Oliger, which damps it. I don't know that this multipurpose function of Kreiss-Oliger is intended, but its common. Shocks in NR are also uncommon due to the properties of the solutions we find, whereas they are very common in fluid dynamics necessitating different solving techniques
+[^ramble]: Kreiss-Oliger dissipation is only intended to handle problems that build up as a result of finite difference truncation errors. These can cause oscillations. It is however implicitly - perhaps unintentionally - used to smooth the grid in general. Particularly, singularities (being a discontinuity, ie a shock) are smoothed out by Kreiss-Oliger, which damps it. I don't know that this multipurpose function of Kreiss-Oliger is strictly intended, but it appears to be common. Shocks in NR also appear to be uncommon in practice, whereas they are very common in fluid dynamics necessitating different solving techniques
 
 [Appendix A](https://arxiv.org/pdf/gr-qc/0209102) in the paper we're looking at describes a hydro treatment: but as far as I can tell, it does not work at all. We're going to have to come up with something different, which means: learning
 
-## Part 1
+## Discretisation
 
 The basic form of these discretisations is as follows. First off, we define a *flux* as the following quantity:
 
-$$F_i = v_i q_i$$
+$$f_i = v_i q_i$$
 
 $_i$ is a grid cell offset - I'm not going to try and fight hydro notation, its just going to clash terribly with tensor index notation and we'll live with it. The basic discretisation scheme is then as follows:
 
+https://www.tevza.org/home/course/modelling-II_2016/books/Leveque%20-%20Finite%20Volume%20Methods%20for%20Hyperbolic%20Equations.pdf 4.4
+
 $$\partial_t q = \frac{1}{\Delta x} (F^n_{i-\frac{1}{2}} - F^n_{i+\frac{1}{2}})$$
 
-where $\Delta x$ is the scale. This is the flux conserving form. Solving for the *half* grid cell points at the boundary between our grid cells, is the joy of hydrodynamics
+where $\Delta x$ is the scale. This is the flux conserving form. Solving for the half grid cell flux at the boundary between our grid cells is the joy of hydrodynamics
 
-One really interesting fact is that its not possible to have an unconditionally stable method of higher than first order, spatially. All high resolution hydro methods mix between first order when near shocks, and higher order in smooth areas
+High resolution schemes often mix and match between different orders in different smoothness areas - having a lower order in less smooth areas. There's some interesting [theoretical reasons](https://en.wikipedia.org/wiki/Godunov%27s_theorem) as to why
 
-## Part 2: Limiters
+I'm not going to attempt to document hydrodynamics in general here, so its time to look at a specific form of solving this equation. It fulfills all the requirements for a 'good' technique, as well as the major requirement which is having a workable set of equations that I can implement[^implement]
 
-In general, the amount of fluid that can be transported from one cell to the next is limited in some fashion. Different limiters have different properties - some introduce lots of diffusion, some accidentally introduce oscillations.
+$F^n$ is actually an integral in time, ie its meant to be the total movement of material though the cell boundary between steps: $n$ and $n+1$:
+
+https://www.tevza.org/home/course/modelling-II_2016/books/Leveque%20-%20Finite%20Volume%20Methods%20for%20Hyperbolic%20Equations.pdf 4.5
+
+$$F^n_{i - 1/2} = \frac{1}{\Delta t} \int^{t_{n+1}}_{t_n} f(q(x_{i-1/2}, t)) dt $$
+
+6.12
+
+$$x_i = x_{i - 1/2} + \frac{1}{2} \Delta x$$
+
+Notating this as $F^n$ is a little sketchy and sometimes instead I've seen it be called $F^{n + 1/2}$, so keep this in mind
+
+[^implement]: Going for a dig through the hydrodynamics literature is surprising. Every field develops its own notation and language, and hydrodynamics appears to have developed its own convention for which steps are omitted when describing a particular scheme. Finding documentation on those omitted steps is surprisingly challenging. That's the core reason why these articles come with a working, testable implementation that you can dig through, and why code often makes much better documentation than papers in my experience
+
+## Cracking out the integral
+
+One feature of many derivations is that it assumes that the velocity in the integral above is constant, or that we have to perform a very rough approximation. Because we'll be implicitly solving this equation, we'll have our velocities both at the current time $n$, and the next timestep $n+1$
+
+The common approximation made is as follows:
+
+$$q^n(x, t_{n+1}) = q^n(x - v \Delta t, t_n)$$
+
+But we have the quantity on the left hand side available in later steps. We can consider a general piecewise limited flux scheme to be as follows:
+
+https://www.tevza.org/home/course/modelling-II_2016/books/Leveque%20-%20Finite%20Volume%20Methods%20for%20Hyperbolic%20Equations.pdf 6.10
+
+$$F_{i - 1/2} = F_L(q_{i - 1}, q_i) + \phi^n_{i - 1/2}(F_H(q_{i-1}, q_i) - F_L(q_i-1, q_i))$$
+
+Note that this is only one side of the advection equation, and I'll spell this out in full (todo?)
+
+If we want to calculate $q(x, t_n)$, we have to piecewise interpolate as follows:
+
+$q(x, t_n) = Q_i^n + \sigma_i^n(x - x_i)$
+
+todo: don't need that
+
+Lets get cracking.
+
+$$
+\Delta x = x_{i + 1} - x_i\\
+\\
+F^n_{i - 1/2} = \frac{1}{\Delta t} \int^{t_{n+1}}_{t_n} f(x_{i-1/2}, t) dt \\
+\frac{(t_{n + 1} - t_n)}{\Delta t} \frac{1}{2} (f(x_{i - 1/2}, t_n) + f(x_{i - 1/2}, t_{n+1}))\\
+\frac{1}{2} (f(x_{i - 1/2}, t_n) + f(x_{i - 1/2}, t_{n+1}))\\
+f(x_{i - 1/2}) = f_i + \sigma_i (x_{i - 1/2} - x_i) \\
+f(x_{i - 1/2}, t_n ) = f_i^n - \sigma_i \Delta x / 2 \\
+f(x_{i - 1/2}, t_{n+1} ) = f_i^{n+1} - \sigma_i \Delta x / 2 \\
+\frac{1}{2} (f_i^n - \sigma_i \Delta x / 2 + f_i^{n+1} - \sigma_i \Delta x / 2)\\
+F^n_{i - 1/2} = \frac{1}{2} (f_i^n+  f_i^{n+1} - \sigma_i \Delta x)\\
+\\
+\\
+\\$$
+
+And
+
+$$F^n_{i + 1/2} = \frac{1}{2} (f_i^n +  f_i^{n+1} + \sigma_i \Delta x)$$
+
+## Upwinding
+
+The way that this works is: if our velocity is > 0, we take the right limit of the left interface. If our velocity is < 0, we take the left limit of the right interface. This is confusing, so here's what it looks like:
+
+$$
+v^{n + 1/2}_{i - 1/2} > 0\\
+F^n_{i - 1/2} = \frac{1}{2} (f_{i-1}^n +  f_{i-1}^{n+1} + \sigma_{i-1} \Delta x)\\
+v^{n + 1/2}_{i - 1/2} < 0\\
+F^n_{i - 1/2} = \frac{1}{2} (f_{i}^n +  f_{i}^{n+1} - \sigma_i \Delta x)\\
+$$
+
+## A specific scheme: MUSCL
+
+This scheme swaps betwen second order, and first order, by using a limiter function on how much fluid can be transported from one cell to the next. Different limiters have different properties - some introduce lots of diffusion, some accidentally introduce oscillations. The most common, least diffusive limiter, appears to be known as superbee. Todo: Superbee
+
+There's two different forms of this equation, slope limited, and flux limited
+
+Todo: I might be able to give a compositional form between an advected scheme, and this flux limited scheme
+
+### Slope limited
 
 https://arxiv.org/pdf/1705.10608
 
@@ -260,8 +338,11 @@ F^n_{i - \frac{1}{2}} &= u_{i - \frac{1}{2}} q_{i} - \frac{1}{2} u_{i - \frac{1}
 \end{align}
 $$
 
-This is the *slope* limited form, where $\sigma_i$ is a a slope limiter. There's also the flux limited form:
+$\sigma_i$ is a a slope limiter
 
+### Flux limited
+
+There's also the flux limited form:
 
 $$\begin{align}
 F^n_{i - 1/2} &= u_{i - 1/2}^- q_i + u_{i - 1/2}^+ q_{i - 1} + \frac{1}{2} \mid u \mid (1 - \mid \frac{u_{i - 1/2} \Delta t}{\Delta x} \mid) \delta_{i - 1/2}\\
@@ -284,7 +365,9 @@ u_{i - 1/2} < 0\\
 I = i + 1\\
 $$
 
-$\phi$ is a *flux* limiter. There's nothing different here to the slope limiting equations, its just a different way of limiting stuff
+$\phi$ is a *flux* limiter. There's nothing different here to the slope limiting equations, its just a different way of limiting stuff. We'll be using the suerbee limiter:
+
+
 
 
 Todo: Conventional third order is good https://ntrs.nasa.gov/api/citations/20080018695/downloads/20080018695.pdf
