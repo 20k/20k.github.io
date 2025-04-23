@@ -226,7 +226,47 @@ In numerical relativity, 'shocks' are partially handled via Kreiss-Oliger dissip
 
 [Appendix A](https://arxiv.org/pdf/gr-qc/0209102) in the paper we're looking at describes a hydro treatment: but as far as I can tell, it does not work at all. We're going to have to come up with something different, which means: learning
 
+https://en.wikipedia.org/wiki/MUSCL_scheme do this
+
+REDOING AGAIN
+
+https://en.wikipedia.org/wiki/MUSCL_scheme
+
+The basic form of a hydrodynamics scheme is as follows:
+
+$$\frac{du}{dt}  = \frac{1}{\Delta x}( F(u^*_{i + 1/2}) - F(u^*_{i + 1/2}) )$$
+
+$F$ is our flux, and $i$ is the grid cell. Here, $F_i = v_i q_i$. The half fluxes $F_{i - 1/2}$ and $F_{i + 1/2}$ are the complexity of hydrodynamics. $u^*$ is actually a function
+
+$$u^*_{i + 1/2} = \mathrm{pick}(u^L_{i + 1/2}, u^R_{i + 1/2})\\
+u^*_{i - 1/2} = \mathrm{pick}(u^L_{i - 1/2}, u^R_{i - 1/2})\\
+$$
+
+$$\begin{align}
+u^L_{i + 1/2} &= u_i + 0.5 \phi(r_i)(u_{i + 1} - u_i)\\
+u^R_{i + 1/2} &= u_{i + 1} - 0.5 \phi(r_{i + 1})(u_{i + 2} - u_{i + 1})\\
+u^L_{i - 1/2} &= u_{i - 1} + 0.5 \phi(r_{i - 1})(u_i - u_{i-1})\\
+u^R_{i - 1/2} &= u_i - 0.5 \phi(r_i)(u_{i+1} - u_i)\\
+\\
+r_i &= \frac{u_i - u_{i - 1}}{u_{i + 1} - u_i}\\
+\end{align}
+$$
+
+
+
+fdafsf
+
+f
+f
+f
+f
+f
+f
+f
+
 ## Discretisation
+
+https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2012/Chapter_4.pdf
 
 The basic form of these discretisations is as follows. First off, we define a *flux* as the following quantity:
 
@@ -311,6 +351,14 @@ F^n_{i - 1/2} = \frac{1}{2} (f_{i-1}^n +  f_{i-1}^{n+1} + \sigma_{i-1} \Delta x)
 v^{n + 1/2}_{i - 1/2} < 0\\
 F^n_{i - 1/2} = \frac{1}{2} (f_{i}^n +  f_{i}^{n+1} - \sigma_i \Delta x)\\
 $$
+
+## The half velocity
+
+Todo: I'm going to have to find a proper advection source
+
+There are two ways that I've seen to calculate this half velocity:
+
+1. $v^{n + 1/2}_{i - 1/2} = \frac{v^{n + 1/2}_{i} + v^{n + 1/2}_{i - 1}}{2}$
 
 ## A specific scheme: MUSCL
 
