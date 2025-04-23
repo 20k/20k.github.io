@@ -236,7 +236,7 @@ The basic form of a hydrodynamics scheme is as follows:
 
 $$\frac{du}{dt}  = \frac{1}{\Delta x}( F(u^*_{i + 1/2}) - F(u^*_{i + 1/2}) )$$
 
-$F$ is our flux, and $i$ is the grid cell. Here, $F_i = v_i q_i$. The half fluxes $F_{i - 1/2}$ and $F_{i + 1/2}$ are the complexity of hydrodynamics. $u^*$ is actually a function
+$F$ is our flux, and $i$ is the grid cell. For us, $F_i = v_i q_i$. The half fluxes $F_{i - 1/2}$ and $F_{i + 1/2}$ are the complexity of hydrodynamics. $u^*$ is actually a function defined as follows:
 
 $$u^*_{i + 1/2} = \mathrm{pick}(u^L_{i + 1/2}, u^R_{i + 1/2})\\
 u^*_{i - 1/2} = \mathrm{pick}(u^L_{i - 1/2}, u^R_{i - 1/2})\\
@@ -252,6 +252,36 @@ r_i &= \frac{u_i - u_{i - 1}}{u_{i + 1} - u_i}\\
 \end{align}
 $$
 
+## $F$
+
+Next up, we need to go from our interface quantity $u_{i \pm 1/2}$, to $F_{i \pm 1/2}$
+
+https://www.tevza.org/home/course/modelling-II_2016/books/Leveque%20-%20Finite%20Volume%20Methods%20for%20Hyperbolic%20Equations.pdf 4.5
+
+$$F^n_{i - 1/2} = \frac{1}{\Delta t} \int^{t_{n+1}}_{t_n} f(q(x_{i-1/2}, t)) dt $$
+
+Derivation:
+
+This is wrong. Need to do sigma again, and split out the half velocity, and the half quantity u
+
+$$
+\Delta x = x_{i + 1} - x_i\\
+\\
+F^n_{i - 1/2} = \frac{1}{\Delta t} \int^{t_{n+1}}_{t_n} f(x_{i-1/2}, t) dt \\
+\frac{(t_{n + 1} - t_n)}{\Delta t} \frac{1}{2} (f(x_{i - 1/2}, t_n) + f(x_{i - 1/2}, t_{n+1}))\\
+\frac{1}{2} (f(x_{i - 1/2}, t_n) + f(x_{i - 1/2}, t_{n+1}))\\
+f(x_{i - 1/2}) = f_i + \sigma_i (x_{i - 1/2} - x_i) \\
+f(x_{i - 1/2}, t_n ) = f_i^n - \sigma_i \Delta x / 2 \\
+f(x_{i - 1/2}, t_{n+1} ) = f_i^{n+1} - \sigma_i \Delta x / 2 \\
+\frac{1}{2} (f_i^n - \sigma_i \Delta x / 2 + f_i^{n+1} - \sigma_i \Delta x / 2)\\
+F^n_{i - 1/2} = \frac{1}{2} (f_i^n+  f_i^{n+1} - \sigma_i \Delta x)\\
+\\
+\\
+\\$$
+
+And
+
+$$F^n_{i + 1/2} = \frac{1}{2} (f_i^n +  f_i^{n+1} + \sigma_i \Delta x)$$
 
 
 fdafsf
