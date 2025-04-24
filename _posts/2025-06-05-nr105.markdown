@@ -226,74 +226,6 @@ In numerical relativity, 'shocks' are partially handled via Kreiss-Oliger dissip
 
 [Appendix A](https://arxiv.org/pdf/gr-qc/0209102) in the paper we're looking at describes a hydro treatment: but as far as I can tell, it does not work at all. We're going to have to come up with something different, which means: learning
 
-https://en.wikipedia.org/wiki/MUSCL_scheme do this
-
-REDOING AGAIN
-
-https://en.wikipedia.org/wiki/MUSCL_scheme
-
-The basic form of a hydrodynamics scheme is as follows:
-
-$$\frac{du}{dt}  = \frac{1}{\Delta x}( F(u^*_{i + 1/2}) - F(u^*_{i + 1/2}) )$$
-
-$F$ is our flux, and $i$ is the grid cell. For us, $F_i = v_i q_i$. The half fluxes $F_{i - 1/2}$ and $F_{i + 1/2}$ are the complexity of hydrodynamics. $u^*$ is actually a function defined as follows:
-
-$$u^*_{i + 1/2} = \mathrm{pick}(u^L_{i + 1/2}, u^R_{i + 1/2})\\
-u^*_{i - 1/2} = \mathrm{pick}(u^L_{i - 1/2}, u^R_{i - 1/2})\\
-$$
-
-$$\begin{align}
-u^L_{i + 1/2} &= u_i + 0.5 \phi(r_i)(u_{i + 1} - u_i)\\
-u^R_{i + 1/2} &= u_{i + 1} - 0.5 \phi(r_{i + 1})(u_{i + 2} - u_{i + 1})\\
-u^L_{i - 1/2} &= u_{i - 1} + 0.5 \phi(r_{i - 1})(u_i - u_{i-1})\\
-u^R_{i - 1/2} &= u_i - 0.5 \phi(r_i)(u_{i+1} - u_i)\\
-\\
-r_i &= \frac{u_i - u_{i - 1}}{u_{i + 1} - u_i}\\
-\end{align}
-$$
-
-## $F$
-
-Next up, we need to go from our interface quantity $u_{i \pm 1/2}$, to $F_{i \pm 1/2}$
-
-https://www.tevza.org/home/course/modelling-II_2016/books/Leveque%20-%20Finite%20Volume%20Methods%20for%20Hyperbolic%20Equations.pdf 4.5
-
-$$F^n_{i - 1/2} = \frac{1}{\Delta t} \int^{t_{n+1}}_{t_n} f(q(x_{i-1/2}, t)) dt $$
-
-Derivation:
-
-This is wrong. Need to do sigma again, and split out the half velocity, and the half quantity u
-
-$$
-\Delta x = x_{i + 1} - x_i\\
-\\
-F^n_{i - 1/2} = \frac{1}{\Delta t} \int^{t_{n+1}}_{t_n} f(x_{i-1/2}, t) dt \\
-\frac{(t_{n + 1} - t_n)}{\Delta t} \frac{1}{2} (f(x_{i - 1/2}, t_n) + f(x_{i - 1/2}, t_{n+1}))\\
-\frac{1}{2} (f(x_{i - 1/2}, t_n) + f(x_{i - 1/2}, t_{n+1}))\\
-f(x_{i - 1/2}) = f_i + \sigma_i (x_{i - 1/2} - x_i) \\
-f(x_{i - 1/2}, t_n ) = f_i^n - \sigma_i \Delta x / 2 \\
-f(x_{i - 1/2}, t_{n+1} ) = f_i^{n+1} - \sigma_i \Delta x / 2 \\
-\frac{1}{2} (f_i^n - \sigma_i \Delta x / 2 + f_i^{n+1} - \sigma_i \Delta x / 2)\\
-F^n_{i - 1/2} = \frac{1}{2} (f_i^n+  f_i^{n+1} - \sigma_i \Delta x)\\
-\\
-\\
-\\$$
-
-And
-
-$$F^n_{i + 1/2} = \frac{1}{2} (f_i^n +  f_i^{n+1} + \sigma_i \Delta x)$$
-
-
-fdafsf
-
-f
-f
-f
-f
-f
-f
-f
-
 ## Discretisation
 
 https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2012/Chapter_4.pdf
@@ -308,95 +240,27 @@ https://www.tevza.org/home/course/modelling-II_2016/books/Leveque%20-%20Finite%2
 
 $$\partial_t q = \frac{1}{\Delta x} (F^n_{i-\frac{1}{2}} - F^n_{i+\frac{1}{2}})$$
 
-where $\Delta x$ is the scale. This is the flux conserving form. Solving for the half grid cell flux at the boundary between our grid cells is the joy of hydrodynamics
+where $\Delta x$ is the scale. This is the flux conserving form, and is generic across any hydrodynamics scheme. Solving for the half grid cell flux at the boundary between our grid cells is the joy of hydrodynamics
 
 High resolution schemes often mix and match between different orders in different smoothness areas - having a lower order in less smooth areas. There's some interesting [theoretical reasons](https://en.wikipedia.org/wiki/Godunov%27s_theorem) as to why
 
 I'm not going to attempt to document hydrodynamics in general here, so its time to look at a specific form of solving this equation. It fulfills all the requirements for a 'good' technique, as well as the major requirement which is having a workable set of equations that I can implement[^implement]
 
-$F^n$ is actually an integral in time, ie its meant to be the total movement of material though the cell boundary between steps: $n$ and $n+1$:
+[^implement]: Going for a dig through the hydrodynamics literature is surprising. Every field develops its own notation and language, and hydrodynamics appears to have developed its own convention for which steps are omitted when describing a particular scheme. Finding documentation on those omitted steps is surprisingly challenging. That's the core reason why these articles come with a working, testable implementation that you can dig through, and why code often makes much better documentation than papers in my experience
 
-https://www.tevza.org/home/course/modelling-II_2016/books/Leveque%20-%20Finite%20Volume%20Methods%20for%20Hyperbolic%20Equations.pdf 4.5
+$F^n$ is actually an integral in time, ie its meant to be the total movement of material though the cell boundary between steps: $n$ and $n+1$:
 
 $$F^n_{i - 1/2} = \frac{1}{\Delta t} \int^{t_{n+1}}_{t_n} f(q(x_{i-1/2}, t)) dt $$
 
-6.12
+This equation may be falling out of a specific approximation - I'll hold my hands up here and say I'm not incredibly sure
 
-$$x_i = x_{i - 1/2} + \frac{1}{2} \Delta x$$
-
-Notating this as $F^n$ is a little sketchy and sometimes instead I've seen it be called $F^{n + 1/2}$, so keep this in mind
-
-[^implement]: Going for a dig through the hydrodynamics literature is surprising. Every field develops its own notation and language, and hydrodynamics appears to have developed its own convention for which steps are omitted when describing a particular scheme. Finding documentation on those omitted steps is surprisingly challenging. That's the core reason why these articles come with a working, testable implementation that you can dig through, and why code often makes much better documentation than papers in my experience
-
-## Cracking out the integral
-
-One feature of many derivations is that it assumes that the velocity in the integral above is constant, or that we have to perform a very rough approximation. Because we'll be implicitly solving this equation, we'll have our velocities both at the current time $n$, and the next timestep $n+1$
-
-The common approximation made is as follows:
-
-$$q^n(x, t_{n+1}) = q^n(x - v \Delta t, t_n)$$
-
-But we have the quantity on the left hand side available in later steps. We can consider a general piecewise limited flux scheme to be as follows:
-
-https://www.tevza.org/home/course/modelling-II_2016/books/Leveque%20-%20Finite%20Volume%20Methods%20for%20Hyperbolic%20Equations.pdf 6.10
-
-$$F_{i - 1/2} = F_L(q_{i - 1}, q_i) + \phi^n_{i - 1/2}(F_H(q_{i-1}, q_i) - F_L(q_i-1, q_i))$$
-
-Note that this is only one side of the advection equation, and I'll spell this out in full (todo?)
-
-If we want to calculate $q(x, t_n)$, we have to piecewise interpolate as follows:
-
-$q(x, t_n) = Q_i^n + \sigma_i^n(x - x_i)$
-
-todo: don't need that
-
-Lets get cracking.
-
-$$
-\Delta x = x_{i + 1} - x_i\\
-\\
-F^n_{i - 1/2} = \frac{1}{\Delta t} \int^{t_{n+1}}_{t_n} f(x_{i-1/2}, t) dt \\
-\frac{(t_{n + 1} - t_n)}{\Delta t} \frac{1}{2} (f(x_{i - 1/2}, t_n) + f(x_{i - 1/2}, t_{n+1}))\\
-\frac{1}{2} (f(x_{i - 1/2}, t_n) + f(x_{i - 1/2}, t_{n+1}))\\
-f(x_{i - 1/2}) = f_i + \sigma_i (x_{i - 1/2} - x_i) \\
-f(x_{i - 1/2}, t_n ) = f_i^n - \sigma_i \Delta x / 2 \\
-f(x_{i - 1/2}, t_{n+1} ) = f_i^{n+1} - \sigma_i \Delta x / 2 \\
-\frac{1}{2} (f_i^n - \sigma_i \Delta x / 2 + f_i^{n+1} - \sigma_i \Delta x / 2)\\
-F^n_{i - 1/2} = \frac{1}{2} (f_i^n+  f_i^{n+1} - \sigma_i \Delta x)\\
-\\
-\\
-\\$$
-
-And
-
-$$F^n_{i + 1/2} = \frac{1}{2} (f_i^n +  f_i^{n+1} + \sigma_i \Delta x)$$
-
-## Upwinding
-
-The way that this works is: if our velocity is > 0, we take the right limit of the left interface. If our velocity is < 0, we take the left limit of the right interface. This is confusing, so here's what it looks like:
-
-$$
-v^{n + 1/2}_{i - 1/2} > 0\\
-F^n_{i - 1/2} = \frac{1}{2} (f_{i-1}^n +  f_{i-1}^{n+1} + \sigma_{i-1} \Delta x)\\
-v^{n + 1/2}_{i - 1/2} < 0\\
-F^n_{i - 1/2} = \frac{1}{2} (f_{i}^n +  f_{i}^{n+1} - \sigma_i \Delta x)\\
-$$
-
-## The half velocity
-
-Todo: I'm going to have to find a proper advection source
-
-There are two ways that I've seen to calculate this half velocity:
-
-1. $v^{n + 1/2}_{i - 1/2} = \frac{v^{n + 1/2}_{i} + v^{n + 1/2}_{i - 1}}{2}$
+https://www.tevza.org/home/course/modelling-II_2016/books/Leveque%20-%20Finite%20Volume%20Methods%20for%20Hyperbolic%20Equations.pdf 4.5
 
 ## A specific scheme: MUSCL
 
-This scheme swaps betwen second order, and first order, by using a limiter function on how much fluid can be transported from one cell to the next. Different limiters have different properties - some introduce lots of diffusion, some accidentally introduce oscillations. The most common, least diffusive limiter, appears to be known as superbee. Todo: Superbee
+This scheme swaps between second order, and first order, by using a limiter function on how much fluid can be transported from one cell to the next. Different limiters have different properties - some introduce lots of diffusion, some accidentally introduce oscillations. The most common, least diffusive limiter, appears to be known as superbee. Todo: Superbee
 
-There's two different forms of this equation, slope limited, and flux limited
-
-Todo: I might be able to give a compositional form between an advected scheme, and this flux limited scheme
+These limited functions then have upwinding applied to them, to result in a stable scheme. There's two different forms of these equations, slope limited, and flux limited
 
 ### Slope limited
 
@@ -443,10 +307,15 @@ u_{i - 1/2} < 0\\
 I = i + 1\\
 $$
 
-$\phi$ is a *flux* limiter. There's nothing different here to the slope limiting equations, its just a different way of limiting stuff. We'll be using the suerbee limiter:
+$\phi$ is a *flux* limiter. There's nothing different here to the slope limiting equations, its just a different way of limiting stuff. We'll be using the superbee limiter: todo
 
+## The half velocity
 
+Todo: I'm going to have to find a proper advection source
 
+There are two ways that I've seen to calculate this half velocity:
+
+1. $v^{n}_{i - 1/2} = \frac{v^{n}_{i} + v^{n}_{i - 1}}{2}$
 
 Todo: Conventional third order is good https://ntrs.nasa.gov/api/citations/20080018695/downloads/20080018695.pdf
 
