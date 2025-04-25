@@ -235,7 +235,54 @@ struct hydrodynamic_concrete
         return -sum;
         #endif
 
-        #define VAN_LEER
+        auto get_delta = [&](valuef q, int which)
+        {
+            std::array<valuef, 5> v_adj = get_differentiation_variables<5, valuef>(vi[which], which);
+            std::array<valuef, 5> q_adj = get_differentiation_variables<5, valuef>(in, which);
+
+            valuef v_phalf = (v_adj[2] + v_adj[3]) / 2;
+            valuef v_mhalf = (v_adj[1] + v_adj[2]) / 2;
+
+            auto pos_r_of = [&](valuef s1, valuef s, valuef sm1){
+                return safe_divide(s1 - s, s - sm1);
+            };
+
+            auto neg_r_of = [&](valuef s2, valuef s1, valuef s){
+                return safe_divide(s - s1, s1 - s2);
+            };
+
+            auto phi = [&](valuef r)
+            {
+                return max(valuef(0.f), min(2 * r, min(1.f/3.f + (2.f/3.f) * r, valuef(2.f))));
+            };
+
+            auto f_at = [&](int i)
+            {
+                return q_adj.at(i + 2);
+                //return v_adj.at(i + 2) * q_adj.at(i + 2);
+            };
+
+            auto pos_interp = [&](int i)
+            {
+                valuef r = pos_r_of(f_at(i + 1), f_at(i), f_at(i - 1));
+
+                return f_at(i) + 0.5f * phi(r) * (f_at(i) - f_at(i - 1));
+            };
+
+            auto neg_interp = [&](int i)
+            {
+                valuef r = neg_r_of(f_at(i + 2), f_at(i + 1), f_at(i));
+
+                return f_at(i + 1) + 0.5f * phi(r) * (f_at(i + 1) - f_at(i + 2));
+            };
+
+            valuef p_half = v_phalf * ternary(v_phalf >= 0, pos_interp(0), neg_interp(0));
+            valuef m_half = v_mhalf * ternary(v_mhalf >= 0, pos_interp(-1), neg_interp(-1));
+
+            return m_half - p_half;
+        };
+
+        //#define VAN_LEER
         #ifdef VAN_LEER
         ///https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2012/Chapter_4.pdf 4.38
         auto get_delta = [&](valuef q, int which)
@@ -245,7 +292,10 @@ struct hydrodynamic_concrete
             std::array<valuef, 3> p_adj = get_differentiation_variables<3, valuef>(p_star, which);
 
             valuef v_phalf = safe_divide(p_adj[1] * v_adj[1] + p_adj[2] * v_adj[2], p_adj[1] + p_adj[2]);
-            valuef v_mhalf = safe_divide(p_adj[1] * v_adj[1] + p_adj[0] * v_adj[0], p_adj[1] + p_adj[0]);
+            valuef v_mhalf = safe_divide(p_adj[0] * v_adj[0] + p_adj[1] * v_adj[1], p_adj[0] + p_adj[1]);
+
+            //valuef v_phalf = (v_adj[1] + v_adj[2]) / 2;
+            //valuef v_mhalf = (v_adj[1] + v_adj[0]) / 2;
 
             valuef theta_mhalf = ternary(v_mhalf >= 0, valuef(1), valuef(-1));
             valuef theta_phalf = ternary(v_phalf >= 0, valuef(1), valuef(-1));
@@ -293,8 +343,9 @@ struct hydrodynamic_concrete
             return f_mhalf - f_phalf;
         };
 
-        return (get_delta(in, 0) + get_delta(in, 1) + get_delta(in, 2)) / d.scale;
         #endif
+
+        return (get_delta(in, 0) + get_delta(in, 1) + get_delta(in, 2)) / d.scale;
     }
 
     v3f advect_rhs(v3f in, v3f vi, const derivative_data& d, valuef timestep)

@@ -248,25 +248,17 @@ I'm not going to attempt to document hydrodynamics in general here, so its time 
 
 [^implement]: Going for a dig through the hydrodynamics literature is surprising. Every field develops its own notation and language, and hydrodynamics appears to have developed its own convention for which steps are omitted when describing a particular scheme. Finding documentation on those omitted steps is surprisingly challenging. That's the core reason why these articles come with a working, testable implementation that you can dig through, and why code often makes much better documentation than papers in my experience
 
-$F^n$ is actually an integral in time, ie its meant to be the total movement of material though the cell boundary between steps: $n$ and $n+1$:
-
-$$F^n_{i - 1/2} = \frac{1}{\Delta t} \int^{t_{n+1}}_{t_n} f(q(x_{i-1/2}, t)) dt $$
-
-This equation may be falling out of a specific approximation - I'll hold my hands up here and say I'm not incredibly sure
-
-https://www.tevza.org/home/course/modelling-II_2016/books/Leveque%20-%20Finite%20Volume%20Methods%20for%20Hyperbolic%20Equations.pdf 4.5
+https://www.astro.uzh.ch/~stadel/lib/exe/fetch.php?media=spin:compastro_godunov.pdf todo: contains a note on flux
 
 ## A specific scheme: MUSCL
 
-This scheme swaps between second order, and first order, by using a limiter function on how much fluid can be transported from one cell to the next. Different limiters have different properties - some introduce lots of diffusion, some accidentally introduce oscillations. The most common, least diffusive limiter, appears to be known as superbee. Todo: Superbee
+This scheme swaps between second order, and first order, by using a limiter function on how much fluid can be transported from one cell to the next. Different limiters have different properties - some introduce lots of diffusion, some accidentally introduce oscillations. The most common, least diffusive limiter, appears to be known as 'superbee', which we'll be using
 
 These limited functions then have upwinding applied to them, to result in a stable scheme. There's two different forms of these equations, slope limited, and flux limited
 
 ### Slope limited
 
 https://arxiv.org/pdf/1705.10608
-
-The 2nd order numerical flux has the general form:
 
 https://www.tevza.org/home/course/modelling-II_2016/books/Leveque%20-%20Finite%20Volume%20Methods%20for%20Hyperbolic%20Equations.pdf 6.30
 6.32
@@ -283,8 +275,6 @@ $$
 $\sigma_i$ is a a slope limiter
 
 ### Flux limited
-
-There's also the flux limited form:
 
 $$\begin{align}
 F^n_{i - 1/2} &= u_{i - 1/2}^- q_i + u_{i - 1/2}^+ q_{i - 1} + \frac{1}{2} \mid u \mid (1 - \mid \frac{u_{i - 1/2} \Delta t}{\Delta x} \mid) \delta_{i - 1/2}\\
@@ -307,7 +297,7 @@ u_{i - 1/2} < 0\\
 I = i + 1\\
 $$
 
-$\phi$ is a *flux* limiter. There's nothing different here to the slope limiting equations, its just a different way of limiting stuff. We'll be using the superbee limiter: todo
+$\phi$ is a *flux* limiter. There's nothing fundamentally that different here to the slope limiting equations, its just a different way of limiting stuff. We'll be using the superbee limiter: todo
 
 ## The half velocity
 
@@ -756,3 +746,14 @@ For $\Gamma=2$, there are approximations that can be used from eg [here (page 3)
 ## I think there's an error in one of the equations
 
 I'm 80% sure that (82) is incorrect, and that the leading factor of $2 \pi$ should be $4 \pi$. It gives exactly half the expected ADM mass for me
+
+## Appendix
+
+
+$F^n$ is actually an integral in time, ie its meant to be the total movement of material though the cell boundary between steps: $n$ and $n+1$:
+
+$$F^n_{i - 1/2} = \frac{1}{\Delta t} \int^{t_{n+1}}_{t_n} f(q(x_{i-1/2}, t)) dt $$
+
+This equation may be falling out of a specific approximation - I'll hold my hands up here and say I'm not incredibly sure
+
+https://www.tevza.org/home/course/modelling-II_2016/books/Leveque%20-%20Finite%20Volume%20Methods%20for%20Hyperbolic%20Equations.pdf 4.5
