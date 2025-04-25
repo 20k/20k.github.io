@@ -237,11 +237,19 @@ struct hydrodynamic_concrete
 
         auto get_delta = [&](valuef q, int which)
         {
-            std::array<valuef, 5> v_adj = get_differentiation_variables<5, valuef>(vi[which], which);
+            std::array<valuef, 7> v_adj = get_differentiation_variables<7, valuef>(vi[which], which);
             std::array<valuef, 5> q_adj = get_differentiation_variables<5, valuef>(in, which);
 
-            valuef v_phalf = (v_adj[2] + v_adj[3]) / 2;
-            valuef v_mhalf = (v_adj[1] + v_adj[2]) / 2;
+            //valuef v_phalf = (v_adj[3] + v_adj[4]) / 2;
+            //valuef v_mhalf = (v_adj[2] + v_adj[3]) / 2;
+
+            /*auto interp = [&](valuef vp2, valuef vp1, valuef v, vm1)
+            {
+
+            };*/
+
+            valuef v_phalf = (-0.0625 * v_adj[2] + 0.5625 * v_adj[3] + 0.5625 * v_adj[4] - 0.0625 * v_adj[5]);
+            valuef v_mhalf = (-0.0625 * v_adj[1] + 0.5625 * v_adj[2] + 0.5625 * v_adj[3] - 0.0625 * v_adj[4]);
 
             auto pos_r_of = [&](valuef s1, valuef s, valuef sm1){
                 return safe_divide(s1 - s, s - sm1);
@@ -259,7 +267,7 @@ struct hydrodynamic_concrete
             auto f_at = [&](int i)
             {
                 return q_adj.at(i + 2);
-                //return v_adj.at(i + 2) * q_adj.at(i + 2);
+                //return v_adj.at(i + 3) * q_adj.at(i + 2);
             };
 
             auto pos_interp = [&](int i)
