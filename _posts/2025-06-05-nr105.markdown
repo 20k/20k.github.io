@@ -79,7 +79,7 @@ We have the following definitions:
 |$w$ | $\rho_* \alpha u^0$ | Must be calculated via an iterative procedure |
 |$v^i$ | $\frac{u^i}{u^0}$ | Represents a coordinate velocity |
 
-The notation in this article is harmonised with the previous one. $\rho_0$ is the rest-mass density, $\epsilon$ is the specific energy density, $u^0$ is the lorentz factor, and $\alpha$ is the lapse. I also won't be fighting with the paper, and we'll be using a perfect fluid equation of state - for reasons that we'll get into
+The notation in this article is harmonised with the previous one. $\rho_0$ is the rest-mass density, $\epsilon$ is the specific energy density, $u^0$ is the lorentz factor, and $\alpha$ is the lapse. I also won't be fighting with the paper, and we'll be using a perfect fluid equation of state - because its unclear how a numerical one would work here
 
 ## Initialising our variables
 
@@ -620,6 +620,39 @@ This issue is actually the major reason which motivated the development of the g
 In the next article (and into the future[^preon]), we'll be adding even more matter sources as well, so if you're implementing this - now's the time to get this to work correctly. Its far too long to go into here, but check out here (todo: plugin) if you want to see the details of how this works implementation-wise
 
 [^preon]: I might simulate some exotic objects like preon stars eventually, but I'm very likely to come back here with a more modern hydro formalism
+
+## Integration
+
+I use Crank-Nicolson for the hydrodynamics part of this. Backwards-Euler has bad theoretical properties when it comes to fluid dynamics, and it shows - its very dissipative. For people who want to experiment with this, I've included both a relaxation parameter, and a configurable implicitness parameter. The paper that we're looking at weights the integration a little towards the implicit side (and uses a value of $0.6$), but I haven't found this useful
+
+A very interesting and related result I came across when researching this is that you should [never use more than two iterations](https://scispace.com/pdf/stability-of-the-iterated-crank-nicholson-method-in-1jb7vdqz8u.pdf) for Crank-Nicolson. Its not actually strictly true - while higher iteration values don't improve the accuracy, they *do* increase the CFL limit - but the part about the method being unstable for various iteration values is interesting
+
+## Performance
+
+The vast majority of our grid has no fluid in it, so simulating the evolution equations there is completely pointless. Because we're limited solely by memory bandwidth - if we early-out via some condition, we can avoid any extra memory reads, and write out only $0$s, which is pretty great in general
+
+The correct condition to use is as follows:
+
+```c++
+if_e(p_star <= min_p_star, [&]{
+    valuef dp_sum = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        dp_sum += fabs(diff1(p_star, i, d));
+    }
+
+    if_e(dp_sum == 0, [&]{
+        //or whatever fields are applicable
+        as_ref(Q_out[pos, dim]) = valuef(0);
+        return_e();
+    });
+});
+```
+
+I do this for all kernels, ie $w$, $Q$, and the evolution equations themselves. This results in the entire hydrodynamics formalism becoming virtually free to simulate, as 95% of our grid is empty and can be early-outed with effectively a single memory read + corresponding writes
+
+Overall, the performance of this method has a roughly 0% overhead compared to a vacuum simulation. This is because GPU compilers hate me, and the BSSN evolution equations themselves run *slightly* faster when hydro is turned on for no discernable reason. The hydrodynamic equations take only a few ms out of an ~80ms/tick runtime, so its pretty fantastic overall
 
 # Testing
 
