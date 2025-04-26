@@ -332,13 +332,15 @@ More advanced solvers I believe use a Riemann solver instead of upwinding (?), w
 
 In theory, the hydrodynamics is now done
 
-Here's where there's a small kick in the teeth: Despite our equations looking like a conservative hydrodynamics equation, they actually are not. While I believe that $p_*$ *is* in conservative form, $e_*$ is not and is not a conserved quantity across shocks - so we'll have to artificially dissipate them despite this being a shock capturing formalism. I have absolutely no idea about $\tilde{S}_k$
+Here's where there's a small kick in the teeth: Despite our equations looking like a conservative hydrodynamics equation, they actually are not. While I believe that $p_*$ *is* in conservative form, $e_*$ is not and is not a conserved quantity across shocks - so we'll have to artificially dissipate them despite using a shock capturing formalism. I have absolutely no idea about $\tilde{S}_k$
 
-In general, this is one of the reasons why this formalism was abandoned - more modern formalisms are expressed purely in terms of conserved quantities, which makes their hydro treatment more theoretically rigorous. I'll get more to this point in the discussion
+In general, this is one of the reasons why this formalism was abandoned fairly quickly - more modern formalisms are expressed purely in terms of conserved quantities, which makes their hydro treatment more theoretically rigorous with only some minor performance downsides. I'll get more to this point in the discussion
 
 # Evolution Equations
 
-With that, we can implement the above scheme for all the $\partial_i(q v^i)$ terms, which works great. There's two other nontrivial terms to talk about now: $v^i$ and $w$
+With that, we can implement the above scheme for all the $\partial_i(q v^i)$ terms, which works great. You can just add the source terms on afterwards, and sum each different direction for the hydro scheme (this is technically an 'unsplit' method)
+
+There's two other nontrivial terms to talk about now: $v^i$ and $w$
 
 ## $v^i$
 
@@ -352,7 +354,7 @@ $$
 \begin{align}
 u_k &= \frac{\tilde{S}_k}{p_* h}\\
 u^i &= g^{i\nu} u_{\nu}\\
-v^i = \frac{u^i}{u^0}
+v^i &= \frac{u^i}{u^0}
 \end{align}
 $$
 
@@ -415,9 +417,9 @@ S_{ij} &= \frac{W^3}{wh}\tilde{S}_i \tilde{S}_j + P \gamma_{ij}\\
 S &= \gamma^{ij} S_{ij} = W^2 \tilde{\gamma}^{ij} S_{ij} \\
 \end{align}$$
 
-There's a minor problem: $S_{ij}$ is singular at the singularity. The issue is that $\gamma^{ij}$ is undefined
+There's a minor problem: $S_{ij}$ is singular at the singularity. The issue is that $\gamma_{ij}$ is undefined
 
-Luckily, we can skip to the future, and discover that the form of our $S_{ij}$ source term is actually: $-W^2 8 \pi \alpha S_{ij}$[^alttechnique]. Given that $$W^2 \gamma_{ij} = \tilde{\gamma}_{ij}$$, we can instead re-format our equation like this:
+Luckily, we can skip to the future, and discover that the form of our $S_{ij}$ source term is actually: $-W^2 8 \pi \alpha S_{ij}$[^alttechnique]. Given that $$W^2 \gamma_{ij} = \tilde{\gamma}_{ij}$$, we can instead re-format our equations like this:
 
 [^alttechnique]: Calculating the pressure involves calculating the quantity $\rho_0 \epsilon$: we could scavenge one of the $W^2$ terms from that calculation to instead remove the $\gamma_{ij}$ term. However, the construction presented is a slightly more general approach that we can use in other methods, rather than relying on the *specific* form of the source terms, so we'll stick with it
 
@@ -428,7 +430,7 @@ S &=\tilde{\gamma}^{ij} \tilde{S}_{ij} \\
 \end{align}
 $$
 
-We'll have to modify our BSSN source term to match the absorbed $W^2$ term (ie $\tilde{\gamma}^{ij} S_{ij}$), but now our source terms become regular at the metric tensor. This is a minor improvement over the standard arrangement
+We'll have to modify our BSSN source term to match the absorbed $W^2$ term (ie $-8 \pi \alpha S_{ij}$), but now our source terms become regular at the metric tensor. This is a minor improvement over the standard arrangement
 
 ## The BSSN equations
 
@@ -446,7 +448,7 @@ The source terms conspire very conveniently to avoid having to calculate infinit
 
 # Artificial Viscosity
 
-One of the big problems with our equations is that they actually aren't conservative. When I picked these equations I wasn't super aware of the importance of this: one key thing is that $e^*$ isn't actually conserved in the presence of shocks. To combat this, this scheme introduces artificial viscosity - luckily, in a fairly small way
+One of the big problems with our equations is that they actually aren't conservative: one key thing is that $e^*$ isn't actually conserved in the presence of shocks. To combat this, this scheme introduces a small amount of artificial viscosity to dissipate shocks away
 
 A lot of papers here are quite vague as to how exactly to modify the viscosity. A complete description of this scheme requires us to go all the way back to [1984](https://adsabs.harvard.edu/full/1984ApJS...55..211H), where the extra viscous pressure is called $Q$. This is used in two places:
 
@@ -495,7 +497,7 @@ $$C_{Lvis} = e^{-\frac{t^2}{2 T^2}}$$
 
 $T$ is a constant that represents a damping timescale for the linear viscosity, as it is generally only useful in the early parts of the simulation to iron out the star's oscillations. Leaving it on too long will result in a loss of velocity, and $T=200$ seems to work well
 
-I don't have a clue what $n$ is and have never been able to find a single piece of discussion on it, so I set it to $1$
+I don't have a clue what $n$ is and have never been able to find a single shred of discussion on what it represents, so I set it to $1$
 
 ## Viscosity $e_*$
 
@@ -505,7 +507,7 @@ $$\partial_t e_* += -(\rho_0 \epsilon)^{(-1 + \frac{1}{\Gamma})} \;\; \frac{Q}{\
 
 ## Viscosity conclusion
 
-In general, linear viscosity is good for large scale damping and significantly improves the simulations stability. Our initial conditions are quite approximate, so damping this initial relaxation improves the simulation a lot. Quadratic viscosity is less applicable, as shocks aren't common in these simulations and so it has minimal effect - I also have a feeling that the much higher resolution, and somewhat more modern hydro approach significantly helps here
+In general, linear viscosity is good for large scale damping and significantly improves the simulations stability. Our initial conditions are quite approximate and the stars relax into their final form, so damping this initial relaxation improves the simulation a lot. Quadratic viscosity is less applicable, as shocks aren't common in these simulations and so it has minimal effect - I also have a feeling that the much higher resolution, and somewhat more modern hydro approach significantly helps here
 
 The viscosity scheme documented in this paper is actually not consistent - its an ad-hoc modification to fix up shocks. There is, in theory, a full hydro formalism which includes a consistent treatment of viscosity which works for ultrarelativistic matter - but unfortunately its behind a paywall Todo, link
 
@@ -531,9 +533,7 @@ auto safe_divide(const auto& top, const T& bottom, float tol = 1e-7f)
 }
 ```
 
-## Stability
-
-### Non atmospheric hydrodynamics
+## Non atmospheric hydrodynamics
 
 One of the key aspects of this paper is the non-atmospheric aspect of it. The idea here is that when $\rho_* < \rho_{min}$, you flush all your evolution variables to $0$ for a true vacuum. This is a tad unusual as hydrodynamics goes, but it does leave a few questions about exactly how and when to flush your evolution variables to zero
 
@@ -545,13 +545,15 @@ If our cell value is just below $\rho_{min}$, and our neighbours are above, in t
 
 Instead, I copy the current cell value over if $\rho_* < \rho_{min}$, and only perform a flush after the whole backwards euler substep is resolved
 
+Because some matter is flushed to vacuum proportional to the grid surface area of the star, there is a small loss of mass as the simulation progresses. This is unfortunate
+
 ## Operator Splitting
 
 Our equations are of the form:
 
-$$\partial_t X + \partial_i (X v^i) = \mathrm{rhs}$$
+$$\partial_t X + \partial_i (X v^i) = \mathrm{source}$$
 
-Operator splitting means that you update all the advection terms first, and then evaluate the rhs post advection - which smells a bit like a backwards Euler step
+Operator splitting means that you update all the advection terms first, and then evaluate all source terms post advection - which smells a bit like a backwards Euler step
 
 I did some fairly extensive testing of various operator splitting methods vs treating these as regular evolution equations for this article, and was not able to find any stability difference at all. Operator splitting requires a few extra buffers for storage of intermediate variables, so in this case it was strictly worse. It may be because we're using an implicit scheme with much higher resolution - I know it isn't because of the hydrodynamics however
 
@@ -562,7 +564,7 @@ Matter within a black hole in the set of equations I'm presenting here is only m
 1. Disable all viscosity in the vicinity of an event horizon
 2. Dissipate all the matter fields to zero when within an event horizon
 
-In general, the lapse $\alpha$ is a good surrogate variable for being near an event horizon. I use a conservative $0.45$ for disabling viscosity, and $0.15$ for dissipating matter fields. The latter constraint imposes a minimum simulation resolution to successfully simulate a black hole collapse
+In general, the lapse $\alpha$ is a good surrogate variable for being near an event horizon. I use a conservative $0.45$ for disabling viscosity, and $0.15$ for dissipating matter fields. The latter constraint imposes a minimum simulation resolution to successfully simulate a black hole collapse, as the simulation will eventually fail if matter is not damped within an event horizon
 
 ## Boundaries
 
@@ -603,11 +605,13 @@ Both of these are quite important to reducing simulation errors. I use the follo
 
 $$\partial_t W \; \mathrel{+}= \; C \; \Delta t \;\alpha W \mathcal{H}$$
 
-$C$ is a damping strength, set to $0.15$. It is $0$ when the distance to the simulation's boundary is $<10$ in grid cells. The prefix term of $C \Delta t$ is derived from [this](https://arxiv.org/pdf/2404.01137) paper, note that we're using $\mathcal{H}_-$ in that paper's notation
+$C$ is a damping strength, set to $0.15$. It is $0$ when the distance to the simulation's boundary is $<10$ in grid cells
+
+The prefix term of $C \Delta t$ is derived from [this](https://arxiv.org/pdf/2404.01137) paper, note that we're using $\mathcal{H}_-$ in that paper's notation
 
 The factor of $- W$ (that simplifies to $W$) comes from transforming this modification from the $\phi$ conformal factor, to our $W$ conformal factor
 
-The near-boundary modification has the effect of significantly reducing constraint contamination of the simulation, compare below: todo
+The near-boundary modification has the effect of significantly reducing boundary constraint contamination of the simulation, compare below: todo
 
 ## Source terms
 
