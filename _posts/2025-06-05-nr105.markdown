@@ -230,7 +230,7 @@ In numerical relativity, 'shocks' are partially handled via Kreiss-Oliger dissip
 
 [Appendix A](https://arxiv.org/pdf/gr-qc/0209102) in the paper we're looking at describes a hydro treatment: but as far as I can tell, the description is significantly incomplete. We're going to have to come up with something different, which means: learning
 
-## Flux conservative discretisation
+## Conservative discretisation
 
 https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2012/Chapter_4.pdf
 
@@ -238,9 +238,7 @@ The basic form of these discretisations is as follows. First off, we define a *f
 
 $$f_i = v_i q_i$$
 
-$_i$ is a grid cell offset - I'm not going to try and fight hydro notation, its just going to clash terribly with tensor index notation and we'll live with it. The conservative discretisation scheme is then as follows:
-
-https://www.tevza.org/home/course/modelling-II_2016/books/Leveque%20-%20Finite%20Volume%20Methods%20for%20Hyperbolic%20Equations.pdf 4.4
+$_i$ is a grid cell offset - I'm not going to try and fight hydro notation, its just going to clash terribly with tensor index notation and we'll live with it. The conservative discretisation scheme is then as follows [4.4](https://www.tevza.org/home/course/modelling-II_2016/books/Leveque%20-%20Finite%20Volume%20Methods%20for%20Hyperbolic%20Equations.pdf):
 
 $$\partial_t q = \frac{1}{\Delta x} (F^n_{i-\frac{1}{2}} - F^n_{i+\frac{1}{2}})$$
 
@@ -262,50 +260,50 @@ This scheme swaps between second order, and first order, by using a limiter func
 
 These limited functions then have upwinding applied to them, to result in a stable scheme
 
-There's two different forms of these equations, slope limited, and flux limited
+There's two different forms of these equations, slope limited, and flux limited. A good explicit reference is [here](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2012/Chapter_4.pdf)
 
 ### Slope limited
 
 https://arxiv.org/pdf/1705.10608
 
-https://www.tevza.org/home/course/modelling-II_2016/books/Leveque%20-%20Finite%20Volume%20Methods%20for%20Hyperbolic%20Equations.pdf 6.30
-6.32
+[4.33](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2012/Chapter_4.pdf)
 
-$$\begin{align}
-u_{i - \frac{1}{2}} &>= 0 \\
-F^n_{i - \frac{1}{2}} &= u_{i - \frac{1}{2}} q_{i - 1} + \frac{1}{2} u_{i - \frac{1}{2}} (\Delta x - u_{i - \frac{1}{2}} \Delta t) \sigma_{i-1}\\
-\\
-u_{i - \frac{1}{2}} &<= 0 \\
-F^n_{i - \frac{1}{2}} &= u_{i - \frac{1}{2}} q_{i} - \frac{1}{2} u_{i - \frac{1}{2}} (\Delta x + u_{i - \frac{1}{2}} \Delta t) \sigma_{i}\\
+$$
+F^n_{i - \frac{1}{2}} =
+\begin{cases}
+\begin{align}
+&u_{i - \frac{1}{2}} q_{i - 1} + \frac{1}{2} u_{i - \frac{1}{2}} (\Delta x - u_{i - \frac{1}{2}} \Delta t) \sigma_{i-1}  \;\; &\mathrm{if}\;\; u_{i - \frac{1}{2}} >= 0 \\
+&u_{i - \frac{1}{2}} q_{i} - \frac{1}{2} u_{i - \frac{1}{2}} (\Delta x + u_{i - \frac{1}{2}} \Delta t) \sigma_{i} \;\; &\mathrm{if}\;\; u_{i - \frac{1}{2}} <= 0 \\
 \end{align}
+\end{cases}
 $$
 
-$\sigma_i$ is a a slope limiter
+$\sigma_i$ is a a slope limiter, see [4.4.2](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2012/Chapter_4.pdf) for examples
 
 ### Flux limited
+
+[6.30](https://www.tevza.org/home/course/modelling-II_2016/books/Leveque%20-%20Finite%20Volume%20Methods%20for%20Hyperbolic%20Equations.pdf) and [4.38](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2012/Chapter_4.pdf) are equivalent:
 
 $$\begin{align}
 F^n_{i - 1/2} &= u_{i - 1/2}^- q_i + u_{i - 1/2}^+ q_{i - 1} + \frac{1}{2} \mid u \mid (1 - \mid \frac{u_{i - 1/2} \Delta t}{\Delta x} \mid) \delta_{i - 1/2}\\
 \\
-\Delta q_{i - 1/2} &= q_i - q_{i - 1}\\
-\delta_{i-1/2} &= \phi(\theta_{i - 1/2}) \Delta q_{i - 1/2}\\
-\bar{u}^+_{i-1/2} &= \mathrm{max}(\bar{u}_{i-1/2}, 0)\\
-\bar{u}^-_{i-1/2} &= \mathrm{min}(\bar{u}_{i-1/2}, 0)\\
-\\
-\theta_{i - 1/2} &= \frac{\Delta q_{I-1/2}}{\Delta q_{i-1/2}}\\
+\delta_{i-1/2} &= \phi(\theta_{i - 1/2}) (q_i - q_{i - 1})\\
+\bar{u}^+_{i-1/2} &= \mathrm{max}(u_{i-1/2}, 0)\\
+\bar{u}^-_{i-1/2} &= \mathrm{min}(u_{i-1/2}, 0)\\
 \end{align}
 $$
 
-Where:
+Where [(4.37)](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2012/Chapter_4.pdf):
 
-$$
-u_{i - 1/2} > 0\\
-I = i-1\\
-u_{i - 1/2} < 0\\
-I = i + 1\\
+$$\begin{cases}
+\begin{align}
+\theta_{i - 1/2} &= \frac{q_{i - 1} - q_{i - 2}}{q_i - q_{i - 1}} \;\; &\mathrm{if} \;\; u_{i - 1/2} >= 0\\
+\theta_{i - 1/2} &= \frac{q_{i + 1} - q_i}{q_i - q_{i - 1}} \;\; &\mathrm{if} \;\; u_{i - 1/2} <= 0 \\
+\end{align}
+\end{cases}
 $$
 
-$\phi$ is a *flux* limiter. There's nothing fundamentally that different here to the slope limiting equations - this form seems to be largely to avoid the selection operator in the slope limited version. We'll be using the superbee limiter:
+$\phi$ is a *flux* limiter. There's nothing fundamentally that different here to the slope limiting equations - this form seems to be largely to avoid the selection operator that you see in the slope limited version. We'll be using the superbee limiter:
 
 $$\phi(r) = \mathrm{max}(0, \mathrm{min}(1, 2r), \mathrm{min}(2, r))$$
 
@@ -332,7 +330,7 @@ More advanced solvers I believe use a Riemann solver instead of upwinding (?), w
 
 In theory, the hydrodynamics is now done
 
-Here's where there's a small kick in the teeth: Despite our equations looking like a conservative hydrodynamics equation, they actually are not. While I believe that $p_*$ *is* in conservative form, $e_*$ is not and is not a conserved quantity across shocks - so we'll have to artificially dissipate them despite using a shock capturing formalism. I have absolutely no idea about $\tilde{S}_k$
+Here's where there's a small problem: Despite our equations looking like a conservative hydrodynamics equation, they actually are not. While I believe that $p_*$ *is* in conservative form, $e_*$ is not and is not a conserved quantity across shocks - so we'll have to artificially dissipate them despite using a shock capturing formalism. I have absolutely no idea about $\tilde{S}_k$
 
 In general, this is one of the reasons why this formalism was abandoned fairly quickly - more modern formalisms are expressed purely in terms of conserved quantities, which makes their hydro treatment more theoretically rigorous with only some minor performance downsides. I'll get more to this point in the discussion
 
@@ -373,7 +371,7 @@ There are two problems:
 
 We can solve #1 by using fixed point iteration with the initial guess $w=\rho_*$ as this is a lorentz factor multiplied by density terms. Simply plug in your guess into the right hand side, calculate the new value of $w$, and rinse and repeat. #2 is more of a pain
 
-The way this equation is structured is mildly unimplementable. Lets rearrange it a bit:
+The way this equation is structured out of the box is slightly cursed. Lets rearrange it a bit:
 
 $$\begin{align}
 A &= (W^3)^{\Gamma-1}\\
@@ -480,7 +478,7 @@ A &= e_*^\Gamma (W^3)^{\Gamma-1} \frac{p_*^{\Gamma-1}}{w^{\Gamma-1}}\\
 
 And $$\Delta h$$ is the scale. $C_{Qvis}$ is a damping constant, which I set to $0.1$, and this paper recommends the range $[0.1, 1]$
 
-Quadratic viscosity is generally left on throughout a simulation, but is disabled near a singularity
+Quadratic viscosity is generally left on throughout a simulation, but is disabled near a singularity. In theory, you could probably derive the strength of the quadratic viscosity from a hydrodynamic smoothness estimate to remove dissipation in unsmooth parts of the solution, but I have no information on if that's worthwhile
 
 ## Linear viscosity
 
@@ -499,6 +497,8 @@ $T$ is a constant that represents a damping timescale for the linear viscosity, 
 
 I don't have a clue what $n$ is and have never been able to find a single shred of discussion on what it represents, so I set it to $1$
 
+Todo: Show off the linear damping
+
 ## Viscosity $e_*$
 
 When using viscosity, you have to modify the evolution equation of $e_*$. The term to add is:
@@ -507,9 +507,9 @@ $$\partial_t e_* += -(\rho_0 \epsilon)^{(-1 + \frac{1}{\Gamma})} \;\; \frac{Q}{\
 
 ## Viscosity conclusion
 
-In general, linear viscosity is good for large scale damping and significantly improves the simulations stability. Our initial conditions are quite approximate and the stars relax into their final form, so damping this initial relaxation improves the simulation a lot. Quadratic viscosity is less applicable, as shocks aren't common in these simulations and so it has minimal effect - I also have a feeling that the much higher resolution, and somewhat more modern hydro approach significantly helps here
+In general, linear viscosity is good for large scale damping and significantly improves the simulations stability. Our initial conditions are quite approximate and the stars relax into their final form, so damping this initial relaxation improves the simulation a lot, and produces stable non oscillating neutron stars. Quadratic viscosity is less applicable, as shocks aren't common in these simulations and so it has minimal effect - I also have a feeling that the much higher resolution, and somewhat more modern hydro approach significantly helps here
 
-The viscosity scheme documented in this paper is actually not consistent - its an ad-hoc modification to fix up shocks. There is, in theory, a full hydro formalism which includes a consistent treatment of viscosity which works for ultrarelativistic matter - but unfortunately its behind a paywall Todo, link
+The viscosity scheme documented in this paper is actually not consistent - its an ad-hoc modification to fix up shocks. There is, in theory, a full hydro formalism which includes a consistent treatment of viscosity which works for ultrarelativistic matter - but unfortunately its behind a paywall Todo, link. Given that nobody really uses this formalism anymore, its likely not worth worry about - and instead simply using a newer formalism
 
 # Implementation Details
 
@@ -635,7 +635,7 @@ A very interesting and related result I came across when researching this is tha
 
 ## Performance
 
-The vast majority of our grid has no fluid in it, so simulating the evolution equations there is completely pointless. Because we're limited solely by memory bandwidth - if we early-out via some condition, we can avoid any extra memory reads, and write out only $0$s, which is pretty great in general
+The vast majority of our grid has no fluid in it, so simulating the evolution equations there is completely pointless. Because we're limited solely by memory bandwidth - if we early-out via some condition, we can avoid reading a whole lot of memory. This is great for performance
 
 The correct condition to use is as follows:
 
@@ -656,9 +656,17 @@ if_e(p_star <= min_p_star, [&]{
 });
 ```
 
+This relies on your stencil widths for your derivatives being the same or greater than your maximum stencil width for the hydro implementation
+
 I do this for all kernels, ie $w$, $Q$, and the evolution equations themselves. This results in the entire hydrodynamics formalism becoming virtually free to simulate, as 95% of our grid is empty and can be early-outed with effectively a single memory read + corresponding writes
 
 Overall, the performance of this method has a roughly 0% overhead compared to a vacuum simulation. This is because GPU compilers hate me, and the BSSN evolution equations themselves run *slightly* faster when hydro is turned on for no discernable reason. The hydrodynamic equations take only a few ms out of an ~80ms/tick runtime, so its pretty fantastic overall
+
+In the past, I used a much more complex system to track active fluid around the grid, but this is strictly better by every metric
+
+# Hydro Discussion
+
+Before we get to the results, and overall discussion, its worth talking about this hydro formalism a bit more generally. This was
 
 # Testing
 
