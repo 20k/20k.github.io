@@ -197,7 +197,9 @@ This kind of discretisation makes no guarantees about conservation. While it wil
 
 # Hydrodynamics 101: A crash course
 
-This is one of the few times we'll be chatting about something which isn't directly general relativity, which puts this outside my expertise. If you do hydrodynamics and know cool things about fancy high resolution schemes: please get in touch
+This is one of the few times we'll be chatting about something which isn't directly general relativity, which puts this outside my expertise. If you do hydrodynamics and know cool things about fancy high resolution schemes: please get in touch[^anything]
+
+[^anything]: In general, I'll implement anything I can get my hands on which has a complete set of equations for it
 
 Eularian hydrodynamics in general is concerned with solving equations of this form:
 
@@ -320,9 +322,9 @@ $p_*$ is our rest mass. I've also tested a second order interpolation:
 
 $$v^{n}_{i - 1/2} = -0.0625 v^n_{i - 2} + 0.5625 v^n_{i - 1}+ 0.5625 v^n_i - 0.0625 v^n_{i + 1}$$
 
-In general, these options seem to be fairly identical, so you may as well use the first
+In general, these options seem to be fairly identical, so you may as well use the first. I've been using the second purely for commonality with the referenced implementation
 
-If you're wondering why we don't just reconstruct the flux directly, and limit that without using a half velocity at all: The answer seems to be because of the upwinding scheme. If you try and approach like this, the reconstructed flux's velocity, and the velocity you use to toggle the upwind direction will differ - which leads to an incorrect solution
+If you're wondering why we don't just reconstruct the flux directly, and limit that without using a half velocity at all: The answer seems to be because of the upwinding scheme. If you try and approach it like this, the reconstructed flux's velocity, and the velocity you use to toggle the upwind direction will differ - which leads to an incorrect solution - I think
 
 More advanced solvers I believe use a Riemann solver instead of upwinding (?), which renders this unnecessary
 
