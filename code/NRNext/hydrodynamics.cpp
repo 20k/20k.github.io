@@ -340,7 +340,7 @@ struct hydrodynamic_concrete
 
     v3f Si_rhs(valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY, valuef Q_vis, v3f vi, const derivative_data& d)
     {
-        valuef P = max(eos(W) + Q, 0.f);
+        valuef P = max(eos(W) + Q_vis, 0.f);
 
         valuef h = calculate_h_with_eos(W);
 
