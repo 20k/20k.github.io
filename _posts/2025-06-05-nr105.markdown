@@ -297,15 +297,20 @@ u_{i - 1/2} < 0\\
 I = i + 1\\
 $$
 
-$\phi$ is a *flux* limiter. There's nothing fundamentally that different here to the slope limiting equations, its just a different way of limiting stuff. We'll be using the superbee limiter: todo
+$\phi$ is a *flux* limiter. There's nothing fundamentally that different here to the slope limiting equations, its just a different way of limiting stuff. We'll be using the superbee limiter:
+
+$$\phi(r) = \mathrm{max}(0, \mathrm{min}(1, 2r), \mathrm{min}(2, r))$$
 
 ## The half velocity
-
-Todo: I'm going to have to find a proper advection source
 
 There are two ways that I've seen to calculate this half velocity:
 
 1. $v^{n}_{i - 1/2} = \frac{v^{n}_{i} + v^{n}_{i - 1}}{2}$
+2. $v^{n}_{i - 1/2} = \frac{p^*_i v_i + p^*_{i-1} v_{i-1}}{p^*_i + p^*_{i-1}}$
+
+$p^*$ is our rest mass. I've also tested a second order interpolation
+
+In general, these options seem to all be the same
 
 Todo: Conventional third order is good https://ntrs.nasa.gov/api/citations/20080018695/downloads/20080018695.pdf
 
