@@ -264,6 +264,24 @@ struct hydrodynamic_concrete
                 return max(valuef(0.f), min(2 * r, min(1.f/3.f + (2.f/3.f) * r, valuef(2.f))));
             };
 
+            //superbee
+            /*auto phi = [&](valuef r)
+            {
+                auto max3 = [&](valuef v1, valuef v2, valuef v3)
+                {
+                    return max(max(v1, v2), v3);
+                };
+
+                auto min3 = [&](valuef v1, valuef v2, valuef v3)
+                {
+                    return min(min(v1, v2), v3);
+                };
+
+                return max3(0.f, min(valuef(1.f), 2 * r), min(valuef(2), r));
+                //return max(valuef(0.f), min3((1 + r)/2, 2, 2 * r));
+            };*/
+
+
             auto f_at = [&](int i)
             {
                 return q_adj.at(i + 2);
