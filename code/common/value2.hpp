@@ -1741,14 +1741,14 @@ namespace value_impl
 
     template<typename T>
     inline
-    value<T> min(std::type_identity<T> v1, const value<T>& v2)
+    value<T> min(std::type_identity_t<T> v1, const value<T>& v2)
     {
         return from_base<T>(optimise(make_op<value<T>>(op::MIN, {value<T>(v1), v2})));
     }
 
     template<typename T>
     inline
-    value<T> max(std::type_identity<T> v1, const value<T>& v2)
+    value<T> max(std::type_identity_t<T> v1, const value<T>& v2)
     {
         return from_base<T>(optimise(make_op<value<T>>(op::MAX, {value<T>(v1), v2})));
     }

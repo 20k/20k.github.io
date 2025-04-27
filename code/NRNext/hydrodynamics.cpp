@@ -275,7 +275,7 @@ struct hydrodynamic_concrete
                     return min(min(v1, v2), v3);
                 };
 
-                return max3(0.f, min(valuef(1.f), 2 * r), min(valuef(2), r));
+                return max3(0.f, min(1.f, 2 * r), min(2.f, r));
                 //return max(valuef(0.f), min3((1 + r)/2, 2, 2 * r));
             };
 
