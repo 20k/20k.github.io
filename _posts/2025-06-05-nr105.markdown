@@ -147,8 +147,6 @@ That's it, no other surprises
 
 So far, so good. Lets look into the basic set of evolution equations [(26-28)](https://arxiv.org/pdf/gr-qc/0209102):
 
-
-
 $$\begin{align}
 \partial_t p_* + \partial_i(p_* v^i) &= 0\\
 \partial_t e_* + \partial_i(e_* v^i) &= 0\\
@@ -545,7 +543,7 @@ auto safe_divide(const auto& top, const T& bottom, float tol = 1e-7f)
 
 ## Non atmospheric hydrodynamics
 
-One of the key aspects of this paper is the non-atmospheric aspect of it. The idea here is that when $\rho_* < \rho_{min}$, you flush all your evolution variables to $0$ for a true vacuum. This is a tad unusual as hydrodynamics goes, but it does leave a few questions about exactly how and when to flush your evolution variables to zero
+One of the key aspects of this paper is the non-atmospheric aspect of it. The idea here is that when $\rho_* < \rho_{min}$, you flush all your evolution variables to $0$ for a true vacuum. This leaves a few questions about exactly how and when to flush your evolution variables to zero
 
 We're using a pretty different integration scheme (backwards Euler + Crank-Nicolson) compared to the paper. To take a pure backwards Euler scheme as an example, you may be tempted to flush variables to zero at the end of a backwards Euler substep - this is actually the wrong choice. Consider that the next backwards Euler iteration is calculated as:
 
@@ -553,9 +551,9 @@ $$next = base + f(in)$$
 
 If our cell value is just below $\rho_{min}$, and our neighbours are above, in the next iteration there'll be effectively a hole in the simulation grid which fluid will rush into. Because $base$ is nonzero, this means that we'll end up with too much fluid in our current cell. This can cause an oscillatory behaviour which doesn't converge very well
 
-Instead, I copy the current cell value over if $\rho_* < \rho_{min}$, and only perform a flush after the whole backwards euler substep is resolved
+Instead, I copy the current cell value over if $\rho_* < \rho_{min}$, and only perform a flush after the whole step is resolved
 
-Because some matter is flushed to vacuum proportional to the grid surface area of the star, there is a small loss of mass as the simulation progresses. This is unfortunate
+Because the amount of matter flushed to vaccum is proportional to the grid surface area of the star, there is a small loss of mass as the simulation progresses. This is unfortunate
 
 ## Operator Splitting
 
@@ -565,7 +563,7 @@ $$\partial_t X + \partial_i (X v^i) = \mathrm{source}$$
 
 Operator splitting means that you update all the advection terms first, and then evaluate all source terms post advection - which smells a bit like a backwards Euler step
 
-I did some fairly extensive testing of various operator splitting methods vs treating these as regular evolution equations for this article, and was not able to find any stability difference at all. Operator splitting requires a few extra buffers for storage of intermediate variables, so in this case it was strictly worse. It may be because we're using an implicit scheme with much higher resolution - I know it isn't because of the hydrodynamics however
+I did some fairly extensive testing of various operator splitting methods vs treating these as regular evolution equations for this article, and was not able to find any stability difference at all. Operator splitting requires a few extra buffers for storage of intermediate variables, so in this case it was strictly worse. It may be because we're using an implicit scheme with much higher resolution
 
 ## Black Hole Collapse
 
@@ -584,13 +582,13 @@ The Sommerfeld boundary conditions I find tend to be a bit unstable with matter.
 
 Kreiss-Oliger is not applied to any fields as it would upset the conservation. The hydro scheme being TVD means that it is unnecessary. If you do not use a TVD hydro scheme, you'll want to switch Kreiss-Oliger on, with the obvious ramifications of non conservation of your quantities
 
-## e_* blows up
+## $e_*$ blows up
 
 One documented consequence of the atmosphere-free formulation is that a thin (resolution dependent) shell of material drifts away from the star, and remains suspended around it. This thin shell in theory can end up superheating, causing unfun code times
 
 This paper fixes it by clamping $$e_* = min(e_*, 10 \rho_*)$$. I do this when $\rho_* < 10\rho_{min}$
 
-I haven't found this modification to be at all important in practice, so its disabled by default
+I haven't found this modification to be at all important in practice, so its disabled by default. There's a little more detail about this issue when we discuss the vacuum boundary conditions for $v^i$
 
 ## $v^i$ blows up
 
@@ -603,6 +601,8 @@ This paper says that when the atmosphere is classed as a vacuum, $v^i = 0$. This
 $$v^i = -\beta^i + \frac{W^2 \alpha \tilde{\gamma}^{ij} \tilde{S}_j}{w h}$$
 
 probably tends to $-\beta^i$ when $p^* = 0$, not $0$. I've included this as a configurable tweak (todo) in the code, and it does affect inspiral significantly
+
+Interestingly, the paper we're looking at uses a rotating coordinate frame, which is essentially a velocity applied to the gauge conditions initially (ie $\beta^i$). This possible limit error in combination with the rotating coordinate frame (which results in a strongly non zero $\beta^i$), could lead to a significant discontinuity in the velocity at the edge of the star. This may be the root cause behind this paper's thin shell of material drifting away from the surface, as a significant derivative in the velocity will be generated at the boundary which may fling material away
 
 ## Hamiltonian constraint damping
 
@@ -627,7 +627,7 @@ The near-boundary modification has the effect of significantly reducing boundary
 
 Actually generating the stress energy tensor with its 10 components is a mistake - its much better to directly express the source terms from the underlying formalism, as it saves a huge amount of memory bandwidth. I rarely go into application-level architectural details because it normally isn't relevant, but this is the major exception
 
-Implementign this correctly is extremely difficult to do in a standard programming language in a high performance way, because the BSSN equation implementation itself needs generic, direct access to whatever buffers can derive our source terms (including $w$)
+Implementing this correctly is extremely difficult to do in a standard programming language in a high performance way, because the BSSN equation implementation itself needs generic, direct access to whatever buffers can derive our source terms (including $w$)
 
 Runtime branching is horrendously expensive here - as in the non hydro case we'll end up with a lot of extra instructions being generated which are unused. The limited instruction cache space is a strong performance bottleneck, as well as VGPR usage (which we push right up against) - and conditional memory accesses are always bad
 
@@ -670,13 +670,26 @@ This relies on your stencil widths for your derivatives being the same or greate
 
 I do this for all kernels, ie $w$, $Q$, and the evolution equations themselves. This results in the entire hydrodynamics formalism becoming virtually free to simulate, as 95% of our grid is empty and can be early-outed with effectively a single memory read + corresponding writes
 
-Overall, the performance of this method has a roughly 0% overhead compared to a vacuum simulation. This is because GPU compilers hate me, and the BSSN evolution equations themselves run *slightly* faster when hydro is turned on for no discernable reason. The hydrodynamic equations take only a few ms out of an ~80ms/tick runtime, so its pretty fantastic overall
+Overall, the performance of this method has a roughly 0% overhead compared to a vacuum simulation. This is because GPU compilers have a long standing personal vendetta against me, and the BSSN evolution equations themselves run *slightly* faster when hydro is turned on for no discernable reason. The hydrodynamic equations take only a few ms out of an ~80ms/tick runtime, so its pretty fantastic overall
 
 In the past, I used a much more complex system to track active fluid around the grid, but this is strictly better by every metric
 
 # Hydro Discussion
 
-Before we get to the results, and overall discussion, its worth talking about this hydro formalism a bit more generally. This was
+Before we get to the results, and overall discussion, its worth talking about this hydro formalism a bit more generally. Digging into a past project again equipped with much more knowledge and a critical eye was absolutely fascinating, and I learnt a lot about hydrodynamics along the way
+
+The formalism I'm talking about today was relatively quickly abandoned in favour of a different approach, which I'll very likely get around to implementing in the near future. All the actual hard parts are done, so plugging in a new formalism is relatively straightforward
+
+As far as I can tell, there's the following issues with this approach:
+
+1. The non atmospheric approach isn't super good in general. Material gets deleted, resulting in mass loss
+2. When $\rho_*$ is of the same order of magnitude as $\rho_{min}$, you have to be extremely careful with floating point accuracy. There's a significant amount of error due to precision issues, and some quantities are very poorly behaved
+3. The non conservative nature of the equations means that conventional hydrodynamic solutions only have limited applicability
+4. The mass-shell-drift problem, although I think that may be a problem with the specific implementation
+5. Significant ambiguities exist with how to implement the equations numerically
+6. The viscosity treatment is ad-hoc
+
+This - in theory - would all be solved by a newer formalism. This formalism isn't 'bad', and its an extremely interesting test-case on modern hardware compared to what they could get away with in 2002
 
 # Testing
 
