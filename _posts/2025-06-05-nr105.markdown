@@ -676,7 +676,7 @@ In the past, I used a much more complex system to track active fluid around the 
 
 # Hydro Discussion
 
-Before we get to the results, and overall discussion, its worth talking about this hydro formalism a bit more generally. Digging into a past project again equipped with much more knowledge and a critical eye was absolutely fascinating, and I learnt a lot about hydrodynamics along the way
+Before we get to the results, and overall discussion, its worth talking about this hydro formalism a bit more critically. Digging into a past project again equipped with much more knowledge and a critical eye was absolutely fascinating, and I learnt a lot about hydrodynamics along the way
 
 The formalism I'm talking about today was relatively quickly abandoned in favour of a different approach, which I'll very likely get around to implementing in the near future. All the actual hard parts are done, so plugging in a new formalism is relatively straightforward
 
@@ -688,8 +688,11 @@ As far as I can tell, there's the following issues with this approach:
 4. The mass-shell-drift problem, although I think that may be a problem with the specific implementation
 5. Significant ambiguities exist with how to implement the equations numerically
 6. The viscosity treatment is ad-hoc
+7. Its unclear how to use a numerical equation of state here
 
-This - in theory - would all be solved by a newer formalism. This formalism isn't 'bad', and its an extremely interesting test-case on modern hardware compared to what they could get away with in 2002
+This - in theory - would all be solved by a newer formalism. This formalism isn't 'bad' - and it certainly works - and its an extremely interesting test-case on modern hardware compared to what they could get away with in 2002
+
+Another thing to add is: We're using an implicit scheme for both the BSSN equations, and the hydrodynamic equations. As mentioned before, simulating the hydrodynamic equations has virtually no performance overhead at all - which means that we should be able to get away with a *much* more expensive formalism for all of the hydrodynamics in this article. Some kind of super duper high resolution predictor-corrector scheme would likely work extremely well, which I'll do as soon as I can find one
 
 # Testing
 
