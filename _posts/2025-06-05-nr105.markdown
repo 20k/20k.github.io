@@ -513,7 +513,7 @@ With linear viscosity:
 
 When using viscosity, you have to modify the evolution equation of $e_*$. The term to add is:
 
-$$\partial_t e_* += -(\rho_0 \epsilon)^{(-1 + \frac{1}{\Gamma})} \;\; \frac{Q}{\Gamma} \; \partial_k (\frac{w W^{-3} v^k}{p_*})$$
+$$\partial_t e_* += -(\rho_0 \epsilon)^{(-1 + \frac{1}{\Gamma})} \;\; \frac{Q}{\Gamma} \; \partial_k (w W^{-3} v^k p_*^{-1})$$
 
 ## Viscosity conclusion
 
