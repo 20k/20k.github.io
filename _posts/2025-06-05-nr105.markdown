@@ -604,8 +604,6 @@ Interestingly, the paper we're looking at uses a rotating coordinate frame, whic
 
 ## Hamiltonian constraint damping
 
-Todo: Chop out at least a paragraph
-
 There are two new major features that I implemented since we last simulated black holes together:
 
 1. Hamiltonian constraint damping
@@ -615,13 +613,28 @@ Both of these are quite important to reducing simulation errors. I use the follo
 
 $$\partial_t W \; \mathrel{+}= \; C \; \Delta t \;\alpha W \mathcal{H}$$
 
-$C$ is a damping strength, set to $0.15$. It is $0$ when the distance to the simulation's boundary is $<10$ in grid cells
+$C$ is a damping strength, set to $0.15$. It is $0$[^smooth] when the distance to the simulation's boundary is $<10$ in grid cells
 
-The prefix term of $C \Delta t$ is derived from [this](https://arxiv.org/pdf/2404.01137) paper, note that we're using $\mathcal{H}_-$ in that paper's notation
+[^smooth]: A smoother cutoff might further improve the boundary behaviour
 
-The factor of $- W$ (that simplifies to $W$) comes from transforming this modification from the $\phi$ conformal factor, to our $W$ conformal factor
+1. The prefix term of $C \Delta t$ is derived from [this](https://arxiv.org/pdf/2404.01137) paper
+2. We're using $\mathcal{H}_-$
+3. The lapse (ie $\alpha$) term improves the behaviour of this modification for BBH collisions
+4. The extra factor of $- W$ comes from transforming this modification from the $\phi$ conformal factor, to the $W$ conformal factor
 
-The near-boundary modification has the effect of significantly reducing boundary constraint contamination of the simulation, compare below: todo
+The near-boundary modification has the effect of significantly reducing boundary constraint contamination of the simulation, compare below. Keep an eye on the top left box, which is the constraint error
+
+No damping:
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/PLMRsU3Qh9o?si=Rr1Ov4wnNXtrCtE7" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Damping everywhere:
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/MDc_y1IVKlU?si=5bc9qxm7iBCJIJcb" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Damping excludes boundary:
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/doS85Mh78Vc?si=ylrxTYz_wWZ5oo5f" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ## Source terms
 
@@ -674,8 +687,6 @@ I do this for all kernels, ie $w$, $Q$, and the evolution equations themselves. 
 
 Overall, the performance of this method has a roughly 0% overhead compared to a vacuum simulation. This is because GPU compilers have a long standing personal vendetta against me, and the BSSN evolution equations themselves run *slightly* faster when hydro is turned on for no discernable reason. The hydrodynamic equations take only a few ms out of an ~80ms/tick runtime, so its pretty fantastic overall
 
-In the past, I used a much more complex system to track active fluid around the grid, but this is strictly better by every metric
-
 # Hydro Discussion
 
 Before we get to the results, and overall discussion, its worth talking about this hydro formalism a bit more critically. Digging into a past project again equipped with much more knowledge and a critical eye was absolutely fascinating, and I learnt a lot about hydrodynamics along the way
@@ -692,7 +703,7 @@ As far as I can tell, there's the following issues with this approach:
 6. The viscosity treatment is ad-hoc
 7. Its unclear how to use a numerical equation of state here
 
-This - in theory - would all be solved by a newer formalism. This formalism isn't 'bad' - and it certainly works. It makes an extremely interesting test-case on modern hardware compared to what they could get away with in 2002
+This - in theory - would all be solved by a newer formalism. This formalism isn't 'bad' - and it certainly works. It makes for an extremely interesting test-case on modern hardware compared to what they could get away with in 2002
 
 Another thing to add is: We're using an implicit scheme for both the BSSN equations, and the hydrodynamic equations. As mentioned before, simulating the hydrodynamic equations has virtually no performance overhead at all - which means that we should be able to get away with a *much* more expensive formalism for all of the hydrodynamics in this article. Some kind of super duper high resolution predictor-corrector scheme would likely work extremely well, which I'll do as soon as I can find one
 

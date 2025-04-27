@@ -66,10 +66,7 @@ valuef eos(valuef W, valuef w, valuef p_star, valuef e_star)
     return calculate_p0e(p_star, e_star, W, w) * (Gamma - 1);
 }
 
-//todo: I may need to set vi to 0 here manually
-//or, I may need to remove the leibnitz that I'm doing
 //this function is numerically unstable
-//todo: try setting this to zero where appropriate
 v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, const unit_metric<valuef, 3, 3>& cY, valuef p_star, bool viscosity)
 {
     valuef h = calculate_h_from_epsilon(epsilon);
