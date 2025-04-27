@@ -320,13 +320,15 @@ $p_*$ is our rest mass. I've also tested a second order interpolation:
 
 $$v^{n}_{i - 1/2} = -0.0625 v^n_{i - 2} + 0.5625 v^n_{i - 1}+ 0.5625 v^n_i - 0.0625 v^n_{i + 1}$$
 
-In general, these options seem to be fairly identical, so you may as well use the first. I've been using the second purely for commonality with the referenced implementation
+In general, these options seem to be fairly identical, so you may as well use the first. I've been using the second purely for commonality with the referenced paper
 
 If you're wondering why we don't just reconstruct the flux directly, and limit that without using a half velocity at all: The answer seems to be because of the upwinding scheme. If you try and approach it like this, the reconstructed flux's velocity, and the velocity you use to toggle the upwind direction will differ - which leads to an incorrect solution - I think
 
-More advanced solvers I believe use a Riemann solver instead of upwinding (?), which renders this unnecessary
+More advanced solvers I believe use a Riemann solver instead of upwinding (?), which renders this unnecessary, but requires more information
 
 ## Relativistic hydrodynamics
+
+https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2009/Chapter_6.pdf
 
 In theory, the hydrodynamics is now done
 
@@ -463,8 +465,9 @@ You can sum these
 ## Quadratic Viscosity
 
 $$\begin{align}
+Q_{Qvis} =
 \begin{cases}
-Q_{Qvis} = C_{Qvis}A(\delta v)^2\;\;&\mathrm{for} \;\delta v < 0\\
+C_{Qvis}A(\delta v)^2\;\;&\mathrm{for} \;\delta v < 0\\
 0 \; &\mathrm{otherwise}
 \end{cases}
 \end{align}$$
@@ -483,8 +486,9 @@ Quadratic viscosity is generally left on throughout a simulation, but is disable
 ## Linear viscosity
 
 $$\begin{align}
+Q_{Lvis} =
 \begin{cases}
-Q_{Lvis} = -C_{Lvis}\sqrt{(\Gamma/n) p_* A}\;\;&\mathrm{for} \;\delta v < 0\\
+-C_{Lvis}\sqrt{(\Gamma/n) p_* A}\;\;&\mathrm{for} \;\delta v < 0\\
 0 \; &\mathrm{otherwise}
 \end{cases}
 \end{align}$$
@@ -497,7 +501,13 @@ $T$ is a constant that represents a damping timescale for the linear viscosity, 
 
 I don't have a clue what $n$ is and have never been able to find a single shred of discussion on what it represents, so I set it to $1$
 
-Todo: Show off the linear damping
+Without linear viscosity:
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/2oUI7VQ8aN0?si=nyjyIqzv1RC0tcEC" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+With linear viscosity:
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/YS4AoDqNOe4?si=4NY-GpvEqy2VY9zh" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 ## Viscosity $e_*$
 
