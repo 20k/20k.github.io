@@ -1257,6 +1257,71 @@ initial_params get_initial_params()
 
     #endif // INSPIRAL_2
 
+    #define TEST_CASES
+    #ifdef TEST_CASES
+
+    //#define C1
+    #ifdef C1
+    neutron_star::parameters p1;
+    p1.position = {0, 0, 0};
+    p1.K.msols = 123.641;
+    p1.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
+
+    initial_params init;
+    init.N = 0.2;
+
+    init.dim = {199, 199, 199};
+    init.simulation_width = 120;
+
+    init.add(p1);
+
+    init.linear_viscosity_timescale = 200;
+    init.time_between_snapshots = 15;
+    init.lapse_damp_timescale = 0;
+    #endif
+
+    //#define C2
+    #ifdef C2
+    neutron_star::parameters p1;
+    p1.position = {0, 0, 0};
+    p1.K.msols = 100;
+    p1.mass.p0_msols = 1.28 * pow(10., -3.);
+
+    initial_params init;
+    init.N = 0.2;
+
+    init.dim = {199, 199, 199};
+    init.simulation_width = 120;
+
+    init.add(p1);
+
+    init.linear_viscosity_timescale = 200;
+    init.time_between_snapshots = 15;
+    init.lapse_damp_timescale = 0;
+    #endif
+
+    //#define C3
+    #ifdef C3
+    neutron_star::parameters p1;
+    p1.position = {0, 0, 0};
+    p1.K.msols = 100;
+    p1.mass.p0_msols = 8 * pow(10., -3.);
+
+    initial_params init;
+    init.N = 0.2;
+
+    init.dim = {199, 199, 199};
+    init.simulation_width = 120;
+
+    init.add(p1);
+
+    init.linear_viscosity_timescale = 200;
+    init.time_between_snapshots = 15;
+    init.lapse_damp_timescale = 0;
+    #endif
+
+    #endif
+
     #define INSPIRAL
     #ifdef INSPIRAL
     neutron_star::parameters p1;

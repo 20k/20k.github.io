@@ -1127,6 +1127,12 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, const initi
         valuef should_damp = ternary(distance_to_boundary(pos, dim) >= valuei(10), valuef(1.f), valuef(0.f));
         pin(should_damp);
 
+        //seems no better
+        #ifdef GRADUAL_DAMP
+        valuef should_damp = clamp(((valuef)distance_to_boundary(pos, dim) - 10.f) / 10.f, valuef(0.f), valuef(1.f));
+        pin(should_damp);
+        #endif
+
         bssn_args args(pos, dim, in);
         bssn_derivatives derivs(pos, dim, derivatives);
 
