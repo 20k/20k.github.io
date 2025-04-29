@@ -553,21 +553,27 @@ void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cq
         {
             v3f world_pos = grid_to_world((v3f)pos, dim, scale);
 
-            return params.colour_func.value()(world_pos).x();
+            v3f scaled = (world_pos - (v3f)params.position) / sol.R_iso_msol();
+
+            return ternary(scaled.length() <= 1, params.colour_func.value()(scaled).x(), valuef(0.f));
         };
 
         auto col_g = [&](v3i pos, v3i dim, valuef scale)
         {
             v3f world_pos = grid_to_world((v3f)pos, dim, scale);
 
-            return params.colour_func.value()(world_pos).y();
+            v3f scaled = (world_pos - (v3f)params.position) / sol.R_iso_msol();
+
+            return ternary(scaled.length() <= 1, params.colour_func.value()(scaled).y(), valuef(0.f));
         };
 
         auto col_b = [&](v3i pos, v3i dim, valuef scale)
         {
             v3f world_pos = grid_to_world((v3f)pos, dim, scale);
 
-            return params.colour_func.value()(world_pos).z();
+            v3f scaled = (world_pos - (v3f)params.position) / sol.R_iso_msol();
+
+            return ternary(scaled.length() <= 1, params.colour_func.value()(scaled).z(), valuef(0.f));
         };
 
         std::array<cl::buffer, 3> buf = {

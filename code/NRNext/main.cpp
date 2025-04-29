@@ -1335,7 +1335,7 @@ initial_params get_initial_params()
         valuef theta = acos(in.z() / r);
         valuef phi = atan2(in.y(), in.x());
 
-        return (v3f){1,0,0};
+        return (v3f){theta,phi,0};
     };
 
     initial_params init;
