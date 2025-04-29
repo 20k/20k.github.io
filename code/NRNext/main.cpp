@@ -1346,7 +1346,7 @@ initial_params get_initial_params()
 
     init.add(p1);
 
-    init.linear_viscosity_timescale = 200;
+    init.linear_viscosity_timescale = 800;
     init.time_between_snapshots = 15;
     init.lapse_damp_timescale = 20;
     #endif
