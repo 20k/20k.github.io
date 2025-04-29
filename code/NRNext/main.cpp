@@ -1257,9 +1257,6 @@ initial_params get_initial_params()
 
     #endif // INSPIRAL_2
 
-    #define TEST_CASES
-    #ifdef TEST_CASES
-
     //#define C1
     #ifdef C1
     neutron_star::parameters p1;
@@ -1310,8 +1307,8 @@ initial_params get_initial_params()
     initial_params init;
     init.N = 0.2;
 
-    init.dim = {199, 199, 199};
-    init.simulation_width = 120;
+    init.dim = {213, 213, 213};
+    init.simulation_width = 50;
 
     init.add(p1);
 
@@ -1320,9 +1317,32 @@ initial_params get_initial_params()
     init.lapse_damp_timescale = 0;
     #endif
 
+    #define C1_SPIN
+    #ifdef C1_SPIN
+    neutron_star::dimensionless_angular_momentum dam;
+    dam.axis = {0, 0, 1};
+    dam.x = 0.5f;
+
+    neutron_star::parameters p1;
+    p1.position = {0, 0, 0};
+    p1.K.msols = 123.641;
+    p1.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
+    p1.angular_momentum.dimensionless = dam;
+
+    initial_params init;
+    init.N = 0.2;
+
+    init.dim = {199, 199, 199};
+    init.simulation_width = 120;
+
+    init.add(p1);
+
+    init.linear_viscosity_timescale = 200;
+    init.time_between_snapshots = 15;
+    init.lapse_damp_timescale = 20;
     #endif
 
-    #define INSPIRAL
+    //#define INSPIRAL
     #ifdef INSPIRAL
     neutron_star::parameters p1;
 
