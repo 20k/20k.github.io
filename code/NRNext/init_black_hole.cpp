@@ -3,6 +3,7 @@
 #include "bssn.hpp"
 #include "../common/single_source.hpp"
 #include "value_alias.hpp"
+#include "init_general.hpp"
 
 ///todo: do it the way the paper says, even though it maketh a sad me
 tensor<valuef, 3, 3> get_aIJ(v3f world_pos, v3f bh_pos, v3f angular_momentum, v3f momentum)
@@ -60,45 +61,6 @@ valuef get_conformal_guess(v3f world_pos, v3f bh_pos, valuef bare_mass)
     return bare_mass / (2 * (world_pos - bh_pos).length());
 }
 
-template<typename Type, typename Func>
-cl::buffer discretise(cl::context& ctx, cl::command_queue& cqueue, Func&& func, tensor<int, 3> cdim, float scale)
-{
-    auto kern = [func](execution_context& ctx, buffer_mut<value<Type>> out, literal<v3i> dim)
-    {
-        using namespace single_source;
-
-        valuei lid = value_impl::get_global_id(0);
-
-        pin(lid);
-
-        if_e(lid >= dim.get().x() * dim.get().y() * dim.get().z(), [&]{
-            return_e();
-        });
-
-        v3i pos = get_coordinate(lid, {dim.get().x(), dim.get().y(), dim.get().z()});
-
-        as_ref(out[pos, dim.get()]) = func(pos);
-    };
-
-    std::string str = value_impl::make_function(kern, "discretise");
-
-    cl::program prog = cl::build_program_with_cache(ctx, {str}, false);
-
-    cl::kernel k(prog, "discretise");
-
-    cl::buffer buf(ctx);
-    buf.alloc(sizeof(Type) * cdim.x() * cdim.y() * cdim.z());
-
-    cl::args args;
-    args.push_back(buf, cdim);
-
-    k.set_args(args);
-
-    cqueue.exec(k, {cdim.x() * cdim.y() * cdim.z()}, {128});
-
-    return buf;
-}
-
 black_hole_data init_black_hole(cl::context& ctx, cl::command_queue& cqueue, black_hole_params params, tensor<int, 3> dim, float scale)
 {
     black_hole_data dat(ctx);
@@ -114,7 +76,7 @@ black_hole_data init_black_hole(cl::context& ctx, cl::command_queue& cqueue, bla
     {
         tensor<int, 2> idx = index_table[i];
 
-        auto func = [&](v3i pos)
+        auto func = [&](v3i pos, v3i dim, valuef scale)
         {
             using namespace single_source;
 
@@ -136,7 +98,7 @@ black_hole_data init_black_hole(cl::context& ctx, cl::command_queue& cqueue, bla
         dat.aij[i] = discretise<float>(ctx, cqueue, func, dim, scale);
     }
 
-    auto cfl = [&](v3i pos)
+    auto cfl = [&](v3i pos, v3i dim, valuef scale)
     {
         v3f world_pos = grid_to_world((v3f)pos, dim, scale);
 

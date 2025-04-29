@@ -5,6 +5,7 @@
 #include <vector>
 #include <libtov/tov.hpp>
 #include <toolkit/opencl.hpp>
+#include "value_alias.hpp"
 
 struct discretised_initial_data;
 using t3f = tensor<float, 3>;
@@ -69,7 +70,7 @@ namespace neutron_star
     {
         //linear colour
         std::optional<t3f> colour;
-        std::optional<std::function<float(tensor<float, 3>)>> colour_func;
+        std::optional<std::function<v3f(v3f)>> colour_func;
 
         tensor<float, 3> position;
         param_linear_momentum linear_momentum;

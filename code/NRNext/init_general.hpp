@@ -7,6 +7,46 @@
 #include "init_neutron_star.hpp"
 #include "plugin.hpp"
 
+template<typename Type, typename Func>
+inline
+cl::buffer discretise(cl::context& ctx, cl::command_queue& cqueue, Func&& func, tensor<int, 3> cdim, float cscale)
+{
+    auto kern = [func](execution_context& ctx, buffer_mut<value<Type>> out, literal<v3i> dim, literal<valuef> scale)
+    {
+        using namespace single_source;
+
+        valuei lid = value_impl::get_global_id(0);
+
+        pin(lid);
+
+        if_e(lid >= dim.get().x() * dim.get().y() * dim.get().z(), [&]{
+            return_e();
+        });
+
+        v3i pos = get_coordinate(lid, {dim.get().x(), dim.get().y(), dim.get().z()});
+
+        as_ref(out[pos, dim.get()]) = func(pos, dim.get(), scale.get());
+    };
+
+    std::string str = value_impl::make_function(kern, "discretise");
+
+    cl::program prog = cl::build_program_with_cache(ctx, {str}, false);
+
+    cl::kernel k(prog, "discretise");
+
+    cl::buffer buf(ctx);
+    buf.alloc(sizeof(Type) * cdim.x() * cdim.y() * cdim.z());
+
+    cl::args args;
+    args.push_back(buf, cdim, cscale);
+
+    k.set_args(args);
+
+    cqueue.exec(k, {cdim.x() * cdim.y() * cdim.z()}, {128});
+
+    return buf;
+}
+
 ///this initial setup is horrendous
 struct discretised_initial_data
 {
@@ -15,8 +55,9 @@ struct discretised_initial_data
     std::array<cl::buffer, 6> AIJ_cfl;
     std::array<cl::buffer, 3> Si_cfl;
     cl::buffer star_indices;
+    std::array<cl::buffer, 3> col;
 
-    discretised_initial_data(cl::context& ctx) : mu_h_cfl(ctx), cfl(ctx), AIJ_cfl{ctx, ctx, ctx, ctx, ctx, ctx}, Si_cfl{ctx, ctx, ctx}, star_indices(ctx){}
+    discretised_initial_data(cl::context& ctx) : mu_h_cfl(ctx), cfl(ctx), AIJ_cfl{ctx, ctx, ctx, ctx, ctx, ctx}, Si_cfl{ctx, ctx, ctx}, star_indices(ctx), col{ctx, ctx, ctx}{}
 
     void init(cl::command_queue& cqueue, t3i dim);
 };

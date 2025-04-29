@@ -23,6 +23,12 @@ void discretised_initial_data::init(cl::command_queue& cqueue, t3i dim)
         i.alloc(sizeof(cl_float) * cells);
         i.set_to_zero(cqueue);
     }
+
+    for(auto& i : col)
+    {
+        i.alloc(sizeof(cl_float) * cells);
+        i.set_to_zero(cqueue);
+    }
 }
 
 struct all_laplace_args : value_impl::single_source::argument_pack
@@ -299,7 +305,7 @@ bool initial_params::hydrodynamics_wants_colour()
 {
     for(const neutron_star::data& i : params_ns)
     {
-        if(i.params.colour.has_value())
+        if(i.params.colour.has_value() || i.params.colour_func.has_value())
             return true;
     }
 

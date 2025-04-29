@@ -546,6 +546,46 @@ void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cq
 
         cqueue.exec("matter_accum", args, {dim.x(), dim.y(), dim.z()}, {8,8,1});
     }
+
+    if(params.colour_func.has_value())
+    {
+        auto col_r = [&](v3i pos, v3i dim, valuef scale)
+        {
+            v3f world_pos = grid_to_world((v3f)pos, dim, scale);
+
+            return params.colour_func.value()(world_pos).x();
+        };
+
+        auto col_g = [&](v3i pos, v3i dim, valuef scale)
+        {
+            v3f world_pos = grid_to_world((v3f)pos, dim, scale);
+
+            return params.colour_func.value()(world_pos).y();
+        };
+
+        auto col_b = [&](v3i pos, v3i dim, valuef scale)
+        {
+            v3f world_pos = grid_to_world((v3f)pos, dim, scale);
+
+            return params.colour_func.value()(world_pos).z();
+        };
+
+        std::array<cl::buffer, 3> buf = {
+            discretise<float>(ctx, cqueue, col_r, dim, scale),
+            discretise<float>(ctx, cqueue, col_g, dim, scale),
+            discretise<float>(ctx, cqueue, col_b, dim, scale)
+        };
+
+        for(int i=0; i < 3; i++)
+        {
+            cl::args args;
+            args.push_back(dsol.col[i]);
+            args.push_back(buf[i]);
+            args.push_back(dim);
+
+            cqueue.exec("sum_buffers", args, {dim.x()*dim.y()*dim.z()}, {256});
+        }
+    }
 }
 
 neutron_star::data::data(const parameters& p) : params(p)

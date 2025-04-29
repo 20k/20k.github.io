@@ -628,7 +628,7 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef
 
 void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_hydrodynamic_args<buffer_mut<valuef>> hydro, literal<v3i> ldim, literal<valuef> scale,
                 buffer<valuef> mu_h_cfl_b, buffer<valuef> cfl_b, buffer<valuef> u_correction_b, std::array<buffer<valuef>, 3> Si_cfl_b,
-                buffer<valuei> indices, eos_gpu eos_data, buffer<v3f> colour_in, bool use_colour)
+                buffer<valuei> indices, eos_gpu eos_data, std::array<buffer<valuef>, 3> colour_in, bool use_colour)
 {
     using namespace single_source;
 
@@ -851,7 +851,7 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     if(use_colour)
     {
         for(int i=0; i < (int)hydro.colour.size(); i++)
-            as_ref(hydro.colour[i][pos, dim]) = colour_in[index][i] * p_star;
+            as_ref(hydro.colour[i][pos, dim]) = colour_in[i][pos, dim] * p_star;
     }
 }
 
@@ -1393,7 +1393,7 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
     neutron_star::all_numerical_eos_gpu neos(ctx);
     neos.init(cqueue, pack.stored_eos);
 
-    std::vector<t3f> lin_cols;
+    /*std::vector<t3f> lin_cols;
 
     for(auto& i : pack.ns_colours)
         lin_cols.push_back(i.value_or((t3f){1,1,1}));
@@ -1403,7 +1403,7 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
     lin_buf.alloc(sizeof(cl_float3) * lin_cols.size());
     lin_buf.write(cqueue, lin_cols);
 
-    assert(lin_cols.size() == pack.stored_eos.size());
+    assert(lin_cols.size() == pack.stored_eos.size());*/
 
     hydrodynamic_buffers& bufs = *dynamic_cast<hydrodynamic_buffers*>(to_init);
     hydrodynamic_utility_buffers& ubufs = *dynamic_cast<hydrodynamic_utility_buffers*>(to_init_utility);
@@ -1432,7 +1432,7 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
         args.push_back(pack.disc.Si_cfl[2]);
         args.push_back(pack.disc.star_indices);
         args.push_back(neos.pressures, neos.max_densities, neos.mu_to_p0, neos.max_mus, neos.stride, neos.count);
-        args.push_back(lin_buf);
+        args.push_back(pack.disc.col[0], pack.disc.col[1], pack.disc.col[2]);
 
         cqueue.exec("init_hydro", args, {dim.x(), dim.y(), dim.z()}, {8,8,1});
     }
