@@ -752,7 +752,7 @@ void trace3(execution_context& ectx, literal<v2i> screen_sizel,
             colour = {1, 1, 1};
         }
 
-        density = rho * 1000;
+        density = rho * 10000;
 
         /*if_e(screen_position.x() == screen_size.x()/2 && screen_position.y() == screen_size.y()/2, [&]{
             valuef S = function_trilinear(get_dbg, grid_position);

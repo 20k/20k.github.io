@@ -10,6 +10,8 @@ Hi! Its finally time to do something truly spectacular, and smash some neutron s
 
 If you're here simply for the montage of black holes eating neutron stars: good news, there's a compilation at the end of this article
 
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/rw9mKFwo4Ds?si=XAcRtXyLKmMBpL_x" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
 But first up: Some background
 
 # What is hydrodynamics?
@@ -25,7 +27,7 @@ So today's article is going to contain a fair bit of information about regular h
 There are three primary kinds of hydrodynamic formalisms:
 
 1. Lagrangian. This involves tracking particles around your space, and figuring out what properties a fluid derived from those particles would have
-2. Semi Lagrangian. This is what most programmers are familiar with - you have grid cells, and trace your velocity backward through the grid cells to find out where your fluid originated from
+2. Semi Lagrangian. This is what most programmers are familiar with - you have grid cells, and trace your velocity backward through the grid to find out where your fluid originated from
 3. Eularian. Here, we have grid cells, and the velocity is estimated from the derivatives of those grid cells
 
 Today we'll be using a purely Eularian scheme. We'll get to the differences between the hydrodynamic techniques for solving Eularian equations, and regular PDE solving, after we get to the relativistic portions of this article. There are a bunch of other techniques as well like lattice Boltzmann if you're interested, this is just the major schemes
@@ -46,7 +48,7 @@ Note that there was a significant shift in approach from the first paper, to the
 |$e_*$| Energy |
 |$\tilde{S}_k$ | Momentum (ish) |
 
-This is what we'll be evolving directly. I've translated the paper's old-style conformal factor $\phi$, into our newer conformal factor $W$. A table of conversions is provided at the end of this article
+This is what we'll be evolving directly. I've also translated the paper's old-style conformal factor $\phi$, into our newer conformal factor $W$. A table of conversions is provided at the end of this article for convenience
 
 We have the following definitions:
 
@@ -59,7 +61,7 @@ We have the following definitions:
 |$w$ | $\rho_* \alpha u^0$ | Must be calculated via an iterative procedure |
 |$v^i$ | $\frac{u^i}{u^0}$ | Represents a coordinate velocity |
 
-The notation in this article is harmonised with the previous one. $\rho_0$ is the rest-mass density, $\epsilon$ is the specific energy density, $u^0$ is the lorentz factor, and $\alpha$ is the lapse. I also won't be fighting with the paper, and we'll be using a perfect fluid equation of state - because its unclear how a numerical one would work here
+The notation in this article is harmonised with the previous one. $\rho_0$ is the rest-mass density, $\epsilon$ is the specific energy density, $u^0$ is the lorentz factor, and $\alpha$ is the lapse. I also won't be fighting with the paper, and we'll be using a $\Gamma = 2$ perfect fluid equation of state - because its unclear how a numerical one would work here
 
 ## Initialising our variables
 
@@ -181,15 +183,15 @@ This is one of the few times we'll be chatting about something which isn't direc
 
 [^anything]: In general, I'll implement anything I can get my hands on which has a complete set of equations for it. This article is explicitly intended to give people who know hydrodynamics, but not GR, enough room to work with to say "aha, I know how to solve that kind of equation!"
 
-Eularian hydrodynamics in general is concerned with solving equations of this form:
+Eularian hydrodynamics in general is concerned with solving a slightly more general set of equations of the form:
 
-$$\partial_t q + \nabla (q \textbf{v}) = \mathrm{Source}$$
+$$\partial_t q + \nabla f(q) = \mathrm{Source}$$
 
-This is generally[^generally] broken up into three 1D problems (which are summed):
+This is generally[^generally] broken up into three 1D problems (which are summed). For us, this is:
 
 [^generally]: We're using an 'unsplit' scheme where you just sum the individual problems. There are other ways of doing this, eg one dimension at a time
 
-$$\partial_t q + \partial_x(q v_x) = \mathrm{Source}$$
+$$\partial_t q + \partial_x (q v_x) = \mathrm{Source}$$
 
 Good techniques for solving this have the following properties:
 
@@ -238,7 +240,7 @@ This scheme uses a limiter function to smoothly swap between first order and sec
 
 [^notes]: This is one of the reasons why higher order fluid simulations are less useful than they might appear. High order in smooth areas only is all well and good, but that's also precisely where we need the least resolution
 
-These limited functions then have upwinding applied to them, to result in a stable scheme. On a technical note, this upwinding is actually a solution to the [Riemann problem](https://en.wikipedia.org/wiki/Riemann_problem). There's some good notes over [here](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2009/Chapter_6.pdf)
+These limited functions then have upwinding applied to them, to result in a stable scheme. On a technical note, this upwinding is actually a solution to the [Riemann problem](https://en.wikipedia.org/wiki/Riemann_problem) - which works because of the simple advection we're solving for. There's some good notes over [here](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2009/Chapter_6.pdf)
 
 There's two different forms of these equations, slope limited, and flux limited. A good explicit reference is [here](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2012/Chapter_4.pdf)
 
@@ -526,11 +528,11 @@ Another thing to add is: We're using an implicit scheme for both the BSSN equati
 
 In our last article, we had these test cases:
 
-| Case | $\rho_c$ | $K$ | $\Gamma$ | Expected $M$ | Expected $R$ | Notes |
-|-|-|-|-|-|-|-|
-| [C1](https://arxiv.org/pdf/1606.04881) (section VII) | $6.235 \times 10^{17}\; \mathrm{kg}\;\mathrm{m}^{-3}$ |  $123.641 M_{\odot}^2$ where $c=G=1$ | $2$ |$1.543 M_\odot$ | $13.4 \; \mathrm{km}$ where $c=G=1$ in Isotropic coordinates | |
-| [C2](https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html) (see after interior) | $1.28 \times 10^{-3} \; \mathrm{m^{-2}}$ where $c=G=M_{\odot} = 1$ | $100$ where $c=G=M_{\odot} = 1$ | $2$ | $1.4 M_{\odot}$ | $14.15\; \mathrm{km}$ where $c=G=1$ in Schwarzschild coordinates | |
-| [C3](https://arxiv.org/pdf/gr-qc/0110047) (see: C) | $8.0 \times 10^{-3}$ where $c=G=M_{\odot}=1$ | $100$ where $c=G=M_{\odot} = 1$ | $2$ | $1.447 M_{\odot}$ | unclear | The paper mixes up rest and gravitational mass frequently |
+| Case | $\rho_c$ | $K$ | $\Gamma$ | Expected $M$ | Expected $R$ |
+|-|-|-|-|-|-|
+| [C1](https://arxiv.org/pdf/1606.04881) (section VII) | $6.235 \times 10^{17}\; \mathrm{kg}\;\mathrm{m}^{-3}$ |  $123.641 M_{\odot}^2$ where $c=G=1$ | $2$ |$1.543 M_\odot$ | $13.4 \; \mathrm{km}$ where $c=G=1$ in Isotropic coordinates |
+| [C2](https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html) (see after interior) | $1.28 \times 10^{-3} \; \mathrm{m^{-2}}$ where $c=G=M_{\odot} = 1$ | $100$ where $c=G=M_{\odot} = 1$ | $2$ | $1.4 M_{\odot}$ | $14.15\; \mathrm{km}$ where $c=G=1$ in Schwarzschild coordinates |
+| [C3](https://arxiv.org/pdf/gr-qc/0110047) (see: C) | $8.0 \times 10^{-3}$ where $c=G=M_{\odot}=1$ | $100$ where $c=G=M_{\odot} = 1$ | $2$ | $1.447 M_{\odot}$ | unclear |
 
 Test cases 1 and 2 work fine with no tweaks. Test case 3 is slightly more interesting: I didn't realise that it was specifically a test of unstable neutron stars migrating to a stable branch. According to the [original paper](https://arxiv.org/pdf/gr-qc/0110047), oscillations introduced by finite difference errors cause a pertubation which either causes it to grow to a regular neutron star, or collapse to a black hole
 
@@ -577,7 +579,7 @@ mrow. I spent way too long on all this for no reason. Here's a less memey look a
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/-iemn0MzBQk?si=1kRiyzRPGYZksiDh" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-You can see that the star settles into a stable oblate shape (or at least, stable enough). This test uses a much longer linear viscosity timescale, of $T=800$
+You can see that the star settles into a stable oblate shape (or at least, stable enough). This test uses a much longer linear viscosity timescale of $T=800$
 
 # Merger
 
@@ -652,7 +654,7 @@ Because the amount of matter flushed to vaccum is proportional to the grid surfa
 
 Our equations are of the form:
 
-$$\partial_t X + \partial_i (X v^i) = \mathrm{source}$$
+$$\partial_t q + \partial_i (q v^i) = \mathrm{Source}$$
 
 Operator splitting means that you update all the advection terms first, and then evaluate all source terms post advection - which smells a bit like a backwards Euler step
 
