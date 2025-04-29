@@ -81,9 +81,7 @@ namespace neutron_star
         void set_colour(v3f col)
         {
             colour_aux_data dat;
-
-            dat.func = [col](v3f _, single_source::read_only_image<2> _2)
-            {
+            dat.func = [col](v3f, single_source::read_only_image<2>) {
                 return col;
             };
 
@@ -94,8 +92,7 @@ namespace neutron_star
         void set_colour_func(T&& func)
         {
             colour_aux_data aux;
-            aux.func = [func](v3f in, single_source::read_only_image<2> _)
-            {
+            aux.func = [func](v3f in, single_source::read_only_image<2>) {
                 return func(in);
             };
 
