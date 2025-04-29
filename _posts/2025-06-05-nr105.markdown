@@ -567,13 +567,21 @@ Then, we can advect our $\mathrm{c}_*$ quantities using the advection equation, 
 
 $$\partial_t r_* = -\partial_i (r_* v^i)$$
 
-This is actually a catastrophic amount of implementation work, and I spent way too long on it for no reason. Here's what it looks like:
+Creating an arbitrary colour distribution can be done either as a function, or if you're willing to put an absolutely cat-astrophic amount of implementation work in: as a texture
+
+ I spent way too long on all this for no reason. Here's what it looks like:
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/-iemn0MzBQk?si=1kRiyzRPGYZksiDh" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Or, if you're willing to put in a truly ludicrous amount of effort, you can even use a texture:
+Or the unreasonably high effort texture stuff:
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/YTKKFn2mGU0?si=qiLBK_OaL4J8LoCV" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Don't do this. There's literally no point. It does look pretty though
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/oVL34-Mu8jU?si=MtA73_lXazNQPTd2" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+mrow
 
 # Merger
 
