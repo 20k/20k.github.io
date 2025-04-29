@@ -81,8 +81,11 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
     //return real_value;
 
     //returning -gB seems more proper to me as that's the limit as p* -> 0, but the paper specifically says to set vi = 0
-    //return ternary(p_star <= min_evolve_p_star, -gB, real_value);
+    #ifdef GB_LIMIT_CHANGE
+    return ternary(p_star <= min_evolve_p_star, -gB, real_value);
+    #else
     return ternary(p_star <= min_evolve_p_star, {}, real_value);
+    #endif
 }
 
 v3f calculate_ui(valuef p_star, valuef epsilon, v3f Si, valuef w, valuef gA, v3f gB, const unit_metric<valuef, 3, 3>& cY)
@@ -241,11 +244,23 @@ struct hydrodynamic_concrete
             std::array<valuef, 7> q_adj = get_differentiation_variables<7, valuef>(in, which);
             std::array<valuef, 3> p_adj = get_differentiation_variables<3, valuef>(p_star, which);
 
+            for(auto& i : v_adj)
+                pin(i);
+
+            for(auto& i : p_adj)
+                pin(i);
+
+            for(auto& i : q_adj)
+                pin(i);
+
             valuef v_phalf = safe_divide(p_adj[1] * v_adj[1] + p_adj[2] * v_adj[2], p_adj[1] + p_adj[2]);
             valuef v_mhalf = safe_divide(p_adj[0] * v_adj[0] + p_adj[1] * v_adj[1], p_adj[0] + p_adj[1]);
 
             //valuef v_phalf = (v_adj[1] + v_adj[2]) / 2;
             //valuef v_mhalf = (v_adj[1] + v_adj[0]) / 2;
+
+            pin(v_phalf);
+            pin(v_mhalf);
 
             valuef theta_mhalf = ternary(v_mhalf >= 0, valuef(1), valuef(-1));
             valuef theta_phalf = ternary(v_phalf >= 0, valuef(1), valuef(-1));
@@ -258,6 +273,9 @@ struct hydrodynamic_concrete
 
             valuef r_mhalf = ternary(v_mhalf >= 0, safe_divide(qm1 - qm2, q0 - qm1), safe_divide(q1 - q0, q0 - qm1));
             valuef r_phalf = ternary(v_phalf >= 0, safe_divide(q0 - qm1, q1 - q0), safe_divide(q2 - q1, q1 - q0));
+
+            pin(r_mhalf);
+            pin(r_phalf);
 
             //superbee
             auto phi_r = [&](valuef r)
