@@ -546,7 +546,7 @@ In our case, it collapses to a black hole[^discussion]:
 
 ## Stationary Spinning Test
 
-This is just test case C1, with dimensionless spin $\chi = 0.5$:
+This is test case C1, with dimensionless spin $\chi = 0.5$:
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/nl-IWvttSnA?si=Dq3FLCIOrglz2FnI" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
@@ -554,7 +554,7 @@ Now.. while its clear that a spinning neutron star is a lot more wobbly than a r
 
 ### Advecting arbitrary fields
 
-So, lets define an initial colour distribution ${r, g, b}$, and map it to our stars density as follows:
+This step is more for fun. Lets define an initial colour distribution ${r, g, b}$, and map it to our stars density as follows:
 
 $$\begin{align}
 r_* &= r \rho_* \\
@@ -563,27 +563,25 @@ b_* &= b \rho_* \\
 \end{align}
 $$
 
-Then, we can advect our $\mathrm{c}_*$ quantities using the advection equation, ie:
+Then, we can advect our $\mathrm{rgb}_*$ quantities using the advection equation, ie:
 
 $$\partial_t r_* = -\partial_i (r_* v^i)$$
 
-Creating an arbitrary colour distribution can be done either as a function, or if you're willing to put an absolutely cat-astrophic amount of implementation work in: as a texture
+Creating an arbitrary[^arbitrary] initial colour distribution can be done either as a function, or if you're willing to put an absolutely cat-astrophic amount of implementation work in: as a texture. If you've been following this series, its pretty obvious what I'm going to put in here:
 
- I spent way too long on all this for no reason. Here's what it looks like:
+[^arbitrary]: I don't *think* an arbitrary colour distribution actually reproduces $\rho_*$ and the correct motion of an advected quantity, so its at best illustrative. A constant colour however would do. Ideally you'd calculate the flux of $\rho_*$, and then apply that to your colours in some fashion, but this step isn't too serious
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/5pi4XzE-keE?si=UekikwPEgi_n3mCy" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+mrow. I spent way too long on all this for no reason. Here's a less memey look at the spinning:
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/-iemn0MzBQk?si=1kRiyzRPGYZksiDh" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Or the unreasonably high effort texture stuff:
-
-\<iframe width="560" height="315" src="https://www.youtube.com/embed/YTKKFn2mGU0?si=qiLBK_OaL4J8LoCV" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-
-Don't do this. There's literally no point. It does look pretty though
-
-\<iframe width="560" height="315" src="https://www.youtube.com/embed/oVL34-Mu8jU?si=MtA73_lXazNQPTd2" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-
-mrow
+You can see that the star settles into a stable oblate shape (or at least, stable enough). This test uses a much longer linear viscosity timescale, of $T=800$
 
 # Merger
+
+
 
 # Appendix
 

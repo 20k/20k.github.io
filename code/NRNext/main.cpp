@@ -1317,23 +1317,10 @@ initial_params get_initial_params()
     init.lapse_damp_timescale = 0;
     #endif
 
-    #define C1_SPIN
-    #ifdef C1_SPIN
-    neutron_star::dimensionless_angular_momentum dam;
-    dam.axis = {0, 0, 1};
-    dam.x = 0.5f;
-
-    neutron_star::parameters p1;
-    p1.position = {0, 0, 0};
-    p1.K.msols = 123.641;
-    p1.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
-    p1.angular_momentum.dimensionless = dam;
-
-    //#define CAT
-    #ifdef CAT
+    auto default_texture_mapping = [](std::string file)
     {
         sf::Image img;
-        img.loadFromFile("../common/catola.jpg");
+        img.loadFromFile(file);
 
         std::vector<t3f> cols;
         cols.resize(img.getSize().x * img.getSize().y);
@@ -1384,7 +1371,25 @@ initial_params get_initial_params()
             return (v3f){col.x(), col.y(), col.z()};
         };
 
-        p1.colour_aux = cdata;
+        return cdata;
+    };
+
+    #define C1_SPIN
+    #ifdef C1_SPIN
+    neutron_star::dimensionless_angular_momentum dam;
+    dam.axis = {0, 0, 1};
+    dam.x = 0.5f;
+
+    neutron_star::parameters p1;
+    p1.position = {0, 0, 0};
+    p1.K.msols = 123.641;
+    p1.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
+    p1.angular_momentum.dimensionless = dam;
+
+    #define CAT
+    #ifdef CAT
+    {
+        p1.colour_aux = default_texture_mapping("../common/weslr.png");
     }
     #else
     p1.set_colour_func([](v3f in)
