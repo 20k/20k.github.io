@@ -1393,18 +1393,6 @@ void hydrodynamic_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_b
     neutron_star::all_numerical_eos_gpu neos(ctx);
     neos.init(cqueue, pack.stored_eos);
 
-    /*std::vector<t3f> lin_cols;
-
-    for(auto& i : pack.ns_colours)
-        lin_cols.push_back(i.value_or((t3f){1,1,1}));
-
-    //buffer for storing our stars colours in
-    cl::buffer lin_buf(ctx);
-    lin_buf.alloc(sizeof(cl_float3) * lin_cols.size());
-    lin_buf.write(cqueue, lin_cols);
-
-    assert(lin_cols.size() == pack.stored_eos.size());*/
-
     hydrodynamic_buffers& bufs = *dynamic_cast<hydrodynamic_buffers*>(to_init);
     hydrodynamic_utility_buffers& ubufs = *dynamic_cast<hydrodynamic_utility_buffers*>(to_init_utility);
 
