@@ -1374,7 +1374,7 @@ initial_params get_initial_params()
         return cdata;
     };
 
-    #define C1_SPIN
+    //#define C1_SPIN
     #ifdef C1_SPIN
     neutron_star::dimensionless_angular_momentum dam;
     dam.axis = {0, 0, 1};
@@ -1415,7 +1415,7 @@ initial_params get_initial_params()
     init.lapse_damp_timescale = 20;
     #endif
 
-    //#define INSPIRAL
+    #define INSPIRAL
     #ifdef INSPIRAL
     neutron_star::parameters p1;
 

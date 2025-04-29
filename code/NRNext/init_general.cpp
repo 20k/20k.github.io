@@ -263,6 +263,8 @@ std::vector<float> extract_adm_masses(cl::context& ctx, cl::command_queue& cqueu
     return ret;
 }
 
+float get_scale(float simulation_width, t3i dim);
+
 std::pair<cl::buffer, initial_pack> initial_params::build(cl::context& ctx, cl::command_queue& cqueue, float simulation_width, bssn_buffer_pack& to_fill)
 {
     auto [u_found, pack] = get_laplace_solver(ctx).solve(ctx, cqueue, simulation_width, dim,
@@ -279,6 +281,11 @@ std::pair<cl::buffer, initial_pack> initial_params::build(cl::context& ctx, cl::
         pack.finalise(cqueue);
         return pack;
     });
+
+    for(neutron_star::data& dat : params_ns)
+    {
+        dat.finalise(ctx, cqueue, pack.disc, dim, get_scale(simulation_width, dim));
+    }
 
     {
         cl::args args;

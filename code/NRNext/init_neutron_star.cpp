@@ -546,7 +546,10 @@ void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cq
 
         cqueue.exec("matter_accum", args, {dim.x(), dim.y(), dim.z()}, {8,8,1});
     }
+}
 
+void neutron_star::data::finalise(cl::context& ctx, cl::command_queue& cqueue, discretised_initial_data& dsol, tensor<int, 3> dim, float scale)
+{
     if(params.colour_aux.has_value())
     {
         auto discretise2 = [&]<typename Func>(cl::context& ctx, cl::command_queue& cqueue, Func&& func)

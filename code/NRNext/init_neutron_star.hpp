@@ -155,6 +155,10 @@ namespace neutron_star
                              discretised_initial_data& dsol,
                              tensor<int, 3> dim, float scale, int star_index);
 
+        void finalise(cl::context& ctx, cl::command_queue& cqueue,
+                      discretised_initial_data& dsol,
+                      tensor<int, 3> dim, float scale);
+
         numerical_eos get_eos();
     };
 }
