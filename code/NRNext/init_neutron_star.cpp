@@ -547,45 +547,12 @@ void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cq
         cqueue.exec("matter_accum", args, {dim.x(), dim.y(), dim.z()}, {8,8,1});
     }
 
-    if(params.colour_func.has_value())
+    if(params.colour_aux.has_value())
     {
-        /*auto col_r = [&](v3i pos, v3i dim, valuef scale)
-        {
-            v3f world_pos = grid_to_world((v3f)pos, dim, scale);
-
-            v3f scaled = (world_pos - (v3f)params.position) / sol.R_iso_msol();
-
-            return ternary(scaled.length() <= 1, params.colour_func.value()(scaled).x(), valuef(0.f));
-        };
-
-        auto col_g = [&](v3i pos, v3i dim, valuef scale)
-        {
-            v3f world_pos = grid_to_world((v3f)pos, dim, scale);
-
-            v3f scaled = (world_pos - (v3f)params.position) / sol.R_iso_msol();
-
-            return ternary(scaled.length() <= 1, params.colour_func.value()(scaled).y(), valuef(0.f));
-        };
-
-        auto col_b = [&](v3i pos, v3i dim, valuef scale)
-        {
-            v3f world_pos = grid_to_world((v3f)pos, dim, scale);
-
-            v3f scaled = (world_pos - (v3f)params.position) / sol.R_iso_msol();
-
-            return ternary(scaled.length() <= 1, params.colour_func.value()(scaled).z(), valuef(0.f));
-        };
-
-        std::array<cl::buffer, 3> buf = {
-            discretise<float>(ctx, cqueue, col_r, dim, scale),
-            discretise<float>(ctx, cqueue, col_g, dim, scale),
-            discretise<float>(ctx, cqueue, col_b, dim, scale)
-        };*/
-
         auto discretise2 = [&]<typename Func>(cl::context& ctx, cl::command_queue& cqueue, Func&& func)
         {
             vec<3, size_t> origin = {0, 0, 0};
-            vec<3, size_t> region = {params.colour_aux->width, params.colour_aux->height, 1};
+            vec<3, size_t> region = {std::max(params.colour_aux->width, 1), std::max(params.colour_aux->height, 1), 1};
 
             std::vector<vec<4, cl_uchar>> to_write;
 
@@ -594,11 +561,14 @@ void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cq
                 to_write.push_back({i.x() * 255, i.y() * 255, i.z() * 255, 255});
             }
 
+            if(to_write.size() < 16)
+                to_write.resize(16);
+
             cl::image img(ctx);
             img.alloc((vec3i){region[0], region[1], 1}, {CL_RGBA, CL_UNORM_INT8}, cl::image_flags::NONE);
             img.write(cqueue, (char*)to_write.data(), origin, region);
 
-            auto kern = [func](execution_context& ctx, buffer_mut<valuef> out, literal<v3i> dim, literal<valuef> scale, read_only_image<2> colours)
+            auto kern = [func](execution_context& ctx, buffer_mut<valuef> out_r, buffer_mut<valuef> out_g, buffer_mut<valuef> out_b, literal<v3i> dim, literal<valuef> scale, read_only_image<2> colours)
             {
                 using namespace single_source;
 
@@ -612,7 +582,11 @@ void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cq
 
                 v3i pos = get_coordinate(lid, {dim.get().x(), dim.get().y(), dim.get().z()});
 
-                as_ref(out[pos, dim.get()]) = func(pos, dim.get(), scale.get(), colours);
+                v3f val = func(pos, dim.get(), scale.get(), colours);
+
+                as_ref(out_r[pos, dim.get()]) = val.x();
+                as_ref(out_g[pos, dim.get()]) = val.y();
+                as_ref(out_b[pos, dim.get()]) = val.z();
             };
 
             std::string str = value_impl::make_function(kern, "discretise");
@@ -621,51 +595,33 @@ void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cq
 
             cl::kernel k(prog, "discretise");
 
-            cl::buffer buf(ctx);
-            buf.alloc(sizeof(float) * dim.x() * dim.y() * dim.z());
+            cl::buffer buf0(ctx);
+            buf0.alloc(sizeof(float) * dim.x() * dim.y() * dim.z());
+            cl::buffer buf1(ctx);
+            buf1.alloc(sizeof(float) * dim.x() * dim.y() * dim.z());
+            cl::buffer buf2(ctx);
+            buf2.alloc(sizeof(float) * dim.x() * dim.y() * dim.z());
 
             cl::args args;
-            args.push_back(buf, dim, scale, img);
+            args.push_back(buf0, buf1, buf2, dim, scale, img);
 
             k.set_args(args);
 
             cqueue.exec(k, {dim.x() * dim.y() * dim.z()}, {128});
 
-            return buf;
+            return std::array<cl::buffer, 3>{buf0, buf1, buf2};
         };
 
-        auto col_r = [&](v3i pos, v3i dim, valuef scale, read_only_image<2> colours)
+        auto col = [&](v3i pos, v3i dim, valuef scale, read_only_image<2> colours)
         {
             v3f world_pos = grid_to_world((v3f)pos, dim, scale);
 
             v3f scaled = (world_pos - (v3f)params.position) / sol.R_iso_msol();
 
-            return ternary(scaled.length() <= 1, params.colour_func.value()(scaled, colours).x(), valuef(0.f));
+            return ternary(scaled.length() <= 1, params.colour_aux.value().func(scaled, colours), (v3f){0,0,0});
         };
 
-        auto col_g = [&](v3i pos, v3i dim, valuef scale, read_only_image<2> colours)
-        {
-            v3f world_pos = grid_to_world((v3f)pos, dim, scale);
-
-            v3f scaled = (world_pos - (v3f)params.position) / sol.R_iso_msol();
-
-            return ternary(scaled.length() <= 1, params.colour_func.value()(scaled, colours).y(), valuef(0.f));
-        };
-
-        auto col_b = [&](v3i pos, v3i dim, valuef scale, read_only_image<2> colours)
-        {
-            v3f world_pos = grid_to_world((v3f)pos, dim, scale);
-
-            v3f scaled = (world_pos - (v3f)params.position) / sol.R_iso_msol();
-
-            return ternary(scaled.length() <= 1, params.colour_func.value()(scaled, colours).z(), valuef(0.f));
-        };
-
-        std::array<cl::buffer, 3> buf = {
-            discretise2(ctx, cqueue, col_r),
-            discretise2(ctx, cqueue, col_g),
-            discretise2(ctx, cqueue, col_b)
-        };
+        std::array<cl::buffer, 3> buf = discretise2(ctx, cqueue, col);
 
         for(int i=0; i < 3; i++)
         {

@@ -1329,59 +1329,73 @@ initial_params get_initial_params()
     p1.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
     p1.angular_momentum.dimensionless = dam;
 
-    p1.colour_func = [](v3f in, read_only_image<2> aux)
+    //#define CAT
+    #ifdef CAT
     {
-        float pi = std::numbers::pi_v<float>;
+        sf::Image img;
+        img.loadFromFile("../common/catola.jpg");
 
-        using namespace single_source;
+        std::vector<t3f> cols;
+        cols.resize(img.getSize().x * img.getSize().y);
 
-        valuef r = in.length();
-        valuef a0 = acos(in.z() / r);
-        valuef a1 = atan2(in.y(), in.x());
-
-        mut<valuef> thetaf = declare_mut_e(fmod(a0, valuef(2 * pi)));
-        mut<valuef> phif = declare_mut_e(a1);
-
-        if_e(thetaf >= pi, [&]
+        for(int j=0; j < img.getSize().y; j++)
         {
-            as_ref(phif) = phif + pi;
-            as_ref(thetaf) = thetaf - pi;
-        });
+            for(int i=0; i < img.getSize().x; i++)
+            {
+                sf::Color col = img.getPixel(i, j);
 
-        as_ref(phif) = fmod(phif, valuef(2 * pi));
-
-        valuef sxf = phif / (2 * pi);
-        valuef syf = thetaf / pi;
-
-        sxf += 0.5f;
-
-        v3f col = aux.read<float, 3>((v2f){sxf, syf}, {"normalized_coords_true", "address_repeat", "filter_linear"});
-
-        return (v3f){col.x(), col.y(), col.z()};
-    };
-
-    sf::Image img;
-    img.loadFromFile("../common/catola.jpg");
-
-    std::vector<t3f> cols;
-    cols.resize(img.getSize().x * img.getSize().y);
-
-    for(int j=0; j < img.getSize().y; j++)
-    {
-        for(int i=0; i < img.getSize().x; i++)
-        {
-            sf::Color col = img.getPixel(i, j);
-
-            cols[j * img.getSize().x + i] = (t3f){col.r / 255.f, col.g / 255.f, col.b / 255.f};
+                cols[j * img.getSize().x + i] = (t3f){col.r / 255.f, col.g / 255.f, col.b / 255.f};
+            }
         }
+
+        neutron_star::colour_aux_data cdata;
+        cdata.width = img.getSize().x;
+        cdata.height = img.getSize().y;
+        cdata.data = cols;
+
+        cdata.func = [](v3f in, read_only_image<2> aux)
+        {
+            float pi = std::numbers::pi_v<float>;
+
+            using namespace single_source;
+
+            valuef r = in.length();
+            valuef a0 = acos(in.z() / r);
+            valuef a1 = atan2(in.y(), in.x());
+
+            mut<valuef> thetaf = declare_mut_e(fmod(a0, valuef(2 * pi)));
+            mut<valuef> phif = declare_mut_e(a1);
+
+            if_e(thetaf >= pi, [&]
+            {
+                as_ref(phif) = phif + pi;
+                as_ref(thetaf) = thetaf - pi;
+            });
+
+            as_ref(phif) = fmod(phif, valuef(2 * pi));
+
+            valuef sxf = phif / (2 * pi);
+            valuef syf = thetaf / pi;
+
+            sxf += 0.5f;
+
+            v3f col = aux.read<float, 3>((v2f){sxf, syf}, {"normalized_coords_true", "address_repeat", "filter_linear"});
+
+            return (v3f){col.x(), col.y(), col.z()};
+        };
+
+        p1.colour_aux = cdata;
     }
+    #else
+    p1.set_colour_func([](v3f in)
+    {
+        valuef r = in.length();
+        valuef theta = acos(in.z() / r);
+        valuef phi = atan2(in.y(), in.x());
 
-    neutron_star::colour_aux_data cdata;
-    cdata.width = img.getSize().x;
-    cdata.height = img.getSize().y;
-    cdata.data = cols;
-
-    p1.colour_aux = cdata;
+        return (v3f){theta,phi,0};
+    });
+    #endif
 
     initial_params init;
     init.N = 0.2;

@@ -305,7 +305,7 @@ bool initial_params::hydrodynamics_wants_colour()
 {
     for(const neutron_star::data& i : params_ns)
     {
-        if(i.params.colour.has_value() || i.params.colour_func.has_value())
+        if(i.params.colour_aux.has_value())
             return true;
     }
 

@@ -69,6 +69,8 @@ namespace neutron_star
 
     struct colour_aux_data
     {
+        std::function<v3f(v3f, single_source::read_only_image<2>)> func;
+
         int width = 0;
         int height = 0;
         std::vector<t3f> data;
@@ -76,9 +78,30 @@ namespace neutron_star
 
     struct parameters
     {
-        //linear colour
-        std::optional<t3f> colour;
-        std::optional<std::function<v3f(v3f, single_source::read_only_image<2>)>> colour_func;
+        void set_colour(v3f col)
+        {
+            colour_aux_data dat;
+
+            dat.func = [col](v3f _, single_source::read_only_image<2> _2)
+            {
+                return col;
+            };
+
+            colour_aux = dat;
+        }
+
+        template<typename T>
+        void set_colour_func(T&& func)
+        {
+            colour_aux_data aux;
+            aux.func = [func](v3f in, single_source::read_only_image<2> _)
+            {
+                return func(in);
+            };
+
+            colour_aux = aux;
+        };
+
         std::optional<colour_aux_data> colour_aux;
 
         tensor<float, 3> position;
