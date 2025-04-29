@@ -569,7 +569,7 @@ $$\partial_t r_* = -\partial_i (r_* v^i)$$
 
 Creating an arbitrary[^arbitrary] initial colour distribution can be done either as a function, or if you're willing to put an absolutely cat-astrophic amount of implementation work in: as a texture. If you've been following this series, its pretty obvious what I'm going to put in here:
 
-[^arbitrary]: I don't *think* an arbitrary colour distribution actually reproduces $\rho_*$ and the correct motion of an advected quantity, so its at best illustrative. A constant colour however would do. Ideally you'd calculate the flux of $\rho_*$, and then apply that to your colours in some fashion, but this step isn't too serious
+[^arbitrary]: I don't *think* an arbitrary colour distribution actually reproduces $\rho_*$ and the correct motion of an advected quantity, so this may simply be illustrative. A constant colour however would do
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/5pi4XzE-keE?si=UekikwPEgi_n3mCy" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
