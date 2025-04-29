@@ -522,6 +522,8 @@ Another thing to add is: We're using an implicit scheme for both the BSSN equati
 
 # Testing
 
+## Stationary tests
+
 In our last article, we had these test cases:
 
 | Case | $\rho_c$ | $K$ | $\Gamma$ | Expected $M$ | Expected $R$ | Notes |
@@ -530,6 +532,19 @@ In our last article, we had these test cases:
 | [C2](https://einsteintoolkit.org/thornguide/EinsteinInitialData/TOVSolver/documentation.html) (see after interior) | $1.28 \times 10^{-3} \; \mathrm{m^{-2}}$ where $c=G=M_{\odot} = 1$ | $100$ where $c=G=M_{\odot} = 1$ | $2$ | $1.4 M_{\odot}$ | $14.15\; \mathrm{km}$ where $c=G=1$ in Schwarzschild coordinates | |
 | [C3](https://arxiv.org/pdf/gr-qc/0110047) (see: C) | $8.0 \times 10^{-3}$ where $c=G=M_{\odot}=1$ | $100$ where $c=G=M_{\odot} = 1$ | $2$ | $1.447 M_{\odot}$ | unclear | The paper mixes up rest and gravitational mass frequently |
 
+Test cases 1 and 2 work fine with no tweaks. Test case 3 is slightly more interesting: I didn't realise that it was specifically a test of unstable neutron stars migrating to a stable branch. According to the [original paper](https://arxiv.org/pdf/gr-qc/0110047), oscillations introduced by finite difference errors cause a pertubation which either causes it to grow to a regular neutron star, or collapse to a black hole
+
+In our case, it collapses to a black hole[^discussion]:
+
+[^discussion]: While the TOV code produces the exact correct rest mass of $M_0 = 1.535$, after the procedure to insert it into the simulation and correct for the hamiltonian constraint, our rest mass is higher at $M_0 = ~1.54$. It isn't a case of the laplacian solving step being incorrect, and may be a feature of our relatively small simulation area + close in boundary condition leading to a slight error for the rest mass. I had to shrink the simulation area to get enough resolution to successfully resolve the black hole while not dying of old age
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/VGyCgomuJgE?si=BJ3zIEg7JGg7u8SF" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/HgsTbPsNP3M?si=hkZ9mB7ZtAmrcM2S" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/YCckygeH9II?si=rlbwZtzFdaera0nI" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+## Stationary Spinning Test
 
 # Its hard to see the spinning
 

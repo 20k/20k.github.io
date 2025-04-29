@@ -1329,6 +1329,15 @@ initial_params get_initial_params()
     p1.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
     p1.angular_momentum.dimensionless = dam;
 
+    p1.colour_func = [](t3f in)
+    {
+        valuef r = in.length();
+        valuef theta = acos(in.z() / r);
+        valuef phi = atan2(in.y(), in.x());
+
+        return 0.f;
+    };
+
     initial_params init;
     init.N = 0.2;
 

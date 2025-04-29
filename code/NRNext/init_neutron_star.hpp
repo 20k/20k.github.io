@@ -69,6 +69,8 @@ namespace neutron_star
     {
         //linear colour
         std::optional<t3f> colour;
+        std::optional<std::function<float(tensor<float, 3>)>> colour_func;
+
         tensor<float, 3> position;
         param_linear_momentum linear_momentum;
         param_angular_momentum angular_momentum;
