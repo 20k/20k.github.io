@@ -1499,6 +1499,26 @@ initial_params get_initial_params()
 
     #define SPINNING_TEST
     #ifdef SPINNING_TEST
+    #if 0
+    std::cout << "REAL DIST " << msol_to_geometric(37.534, 1) << std::endl;
+
+    ///in meters
+    double real_dist = msol_to_geometric(37.534, 1);
+
+    double angular_speed = (1.78 * 1000.) * real_dist;
+
+    double mass_adm = 1.51496;
+    double mass_geom = msol_to_geometric(mass_adm, 1);
+    double mass_si = geometric_to_si(mass_geom, 1, 0);
+
+    double momentum = mass_si * angular_speed;
+
+    double momentum_geom = si_to_geometric(momentum, 1, -1);
+    double momentum_msol = geometric_to_msol(momentum_geom, 1);
+
+    std::cout << "MOMENTUM " << momentum_msol << std::endl;
+    #endif
+
     neutron_star::param_adm_mass mass;
     mass.mass = 1.51496;
 
