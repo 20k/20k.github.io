@@ -1504,7 +1504,7 @@ initial_params get_initial_params()
 
     neutron_star::parameters p1;
 
-    float radial_pos = geometric_to_msol(1000 * 54.6/2, 1);
+    float radial_pos = geometric_to_msol(1000 * 59./2, 1);
 
     printf("Radial pos %f\n", radial_pos);
 
@@ -1514,7 +1514,7 @@ initial_params get_initial_params()
     p1.position = {-radial_pos, 0, 0};
     ///was 0.23
     ///0.265 was reasonable
-    //p1.linear_momentum.momentum = {0, -0.25, 0};
+    p1.linear_momentum.momentum = {0, -0.25, 0};
     p1.angular_momentum.momentum = {0, 0, 0};
     p1.K.msols = 123.6489;
     p1.mass.adm_mass = mass;
@@ -1524,7 +1524,7 @@ initial_params get_initial_params()
 
     //p2.colour = {0, 0, 1};
     p2.position = {radial_pos, 0, 0};
-    //p2.linear_momentum.momentum = {0, 0.25, 0};
+    p2.linear_momentum.momentum = {0, 0.25, 0};
     p2.angular_momentum.momentum = {0, 0, 0};
     p2.K.msols = 123.6489;
     p2.mass.adm_mass = mass;
@@ -1535,6 +1535,9 @@ initial_params get_initial_params()
 
     init.dim = {199, 199, 199};
     init.simulation_width = radial_pos * 6 * 1.5;
+
+    p1.colour_aux = default_texture_mapping("../common/weslr.png");
+    p2.colour_aux = default_texture_mapping("../common/esalr.png");
 
     init.add(p1);
     init.add(p2);
