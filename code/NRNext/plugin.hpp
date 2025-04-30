@@ -26,24 +26,6 @@ struct buffer_descriptor
     int dissipation_order = 4;
 };
 
-///hmm. What if we stick a bssn buffer pack in here? or even inherit?
-///this project is in a unique position where I don't have to be so
-///careless about passing in all-buffers due to the hideousousness of opencl
-///lets think about this. We have a bssn_buffer_pack, which contains our named bssn args
-///we also have our individual structs for each of our sim parts, eg we'll have a hydro_buffer_pack
-///so: problem one. The bssn kernel will have to accept an unlimited number of arguments
-///this is because it has to take in hydro components
-///taking in tonnes of buffers may be slower than accumulating into the default ones, except a priori for a fact
-///the #1 use case is neutron stars, when it is DEFINITELY faster not to do this due to Sij
-///for particle dynamics, it may be better to accumulate directly into sij. There's no way to do this generically, except if i use heuristics (?)
-///but eh maybe this isn't worth worrying about
-
-///decision: bssn buffers are their own thing. Nobody is going to attach new buffers to the bssn variables
-///decision: no plugin can accept adm matter variables in, I think, because its inherently ill formed. If matter mutually interacts, I'll shim it on
-///adm variables: composite of N+ buffers. So the adm buffer set will be tricky to bolt on
-
-///I need to pass in the BSSN buffers by *value*, as well as our buffer struct by *value*, or at least by pointer
-///make build a virtual fucntion, overload, and add an overloaded push
 struct adm_args_mem : virtual value_impl::single_source::argument_pack
 {
     virtual void build(value_impl::type_storage& store){assert(false);}
@@ -85,22 +67,6 @@ struct all_adm_args_mem : value_impl::single_source::argument_pack
         for(auto& i : all_mem)
             i->build(in);
     }
-
-    ///ok. So actually if we have multiple streams of
-    ///interacting fluid, its kind of non trivial
-    ///to construct these quantities. Density is easy, but
-    ///energy? Velocity? Am I sure that's valid?
-    ///I don't really want to construct a final effective fluid
-    ///because that involves more GR than I think is neccessarily good hmm
-    ///I do need summed density for raytracing occlusion, that's fine
-    ///want individual: colour, velocity, and energy for raytracing, so I can calculate
-    ///redshifted colours per-plugin, then sum them
-
-    ///haha! Turns out I'm screwed, because surprise it'd be too
-    ///memory intensive to store all plugin data. So gotta figure it out
-    ///maybe its just correct to density weight everything eh
-
-    ///remember: energy is *specific* energy
 
     v4f get_4_velocity(bssn_args& args, const derivative_data& d);
     v4f get_4_momentum(bssn_args& args, const derivative_data& d);

@@ -1416,8 +1416,7 @@ initial_params get_initial_params()
     init.lapse_damp_timescale = 20;
     #endif
 
-
-    #define LOW_MASS_INSPIRAL
+    //#define LOW_MASS_INSPIRAL
     #ifdef LOW_MASS_INSPIRAL
     neutron_star::dimensionless_angular_momentum dam;
     dam.axis = {0, 0, 1};
@@ -1431,7 +1430,7 @@ initial_params get_initial_params()
     p1.K.msols = 123.641;
     p1.mass.p0_kg_m3 = 3.235 * pow(10., 17.);
     p1.angular_momentum.dimensionless = dam;
-    p1.colour_aux = default_texture_mapping("../common/weslr.png");
+    //p1.colour_aux = default_texture_mapping("../common/weslr.png");
 
     neutron_star::parameters p2;
     p2.position = {radial_pos, 0, 0};
@@ -1439,7 +1438,7 @@ initial_params get_initial_params()
     p2.K.msols = 123.641;
     p2.mass.p0_kg_m3 = 3.235 * pow(10., 17.);
     p2.angular_momentum.dimensionless = dam;
-    p2.colour_aux = default_texture_mapping("../common/esalr.png");
+    //p2.colour_aux = default_texture_mapping("../common/esalr.png");
 
 
     initial_params init;
@@ -1456,7 +1455,7 @@ initial_params get_initial_params()
     init.lapse_damp_timescale = 20;
     #endif
 
-    //#define INSPIRAL
+    #define INSPIRAL
     #ifdef INSPIRAL
     neutron_star::parameters p1;
 
