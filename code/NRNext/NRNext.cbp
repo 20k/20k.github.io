@@ -22,11 +22,11 @@
 				<Option type="1" />
 				<Option compiler="gcc-msys2-mingw64" />
 				<Compiler>
-					<Add option="-O2" />
+					<Add option="-O3" />
 					<Add option="-march=native" />
 				</Compiler>
 				<Linker>
-					<Add option="-O2" />
+					<Add option="-O3" />
 				</Linker>
 			</Target>
 			<Target title="GPUProfile">
@@ -40,6 +40,20 @@
 				</Compiler>
 				<Linker>
 					<Add option="-O3" />
+				</Linker>
+			</Target>
+			<Target title="Profile">
+				<Option output="bin/Profile/NRNext" prefix_auto="1" extension_auto="1" />
+				<Option object_output="obj/Profile/" />
+				<Option type="1" />
+				<Option compiler="gcc-msys2-mingw64" />
+				<Compiler>
+					<Add option="-pg" />
+					<Add option="-g" />
+				</Compiler>
+				<Linker>
+					<Add option="-pg -lgmon" />
+					<Add option="-pg" />
 				</Linker>
 			</Target>
 		</Build>

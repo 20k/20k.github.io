@@ -599,6 +599,12 @@ With this in mind, the two tests are to check that things are working well enoug
 |I1, Similar to [A.](https://arxiv.org/pdf/1606.04881) | $6.235 \times 10^{17} \; \mathrm{kg}\;{m^{-3}}$| $123.641$ | $2$ | $54.6 \mathrm{km}$ | $\pm 0.25$ | $0$ | |
 |I2| $3.235 \times 10^{17} \; \mathrm{kg}\;{m^{-3}}$| $123.641$ | $2$ | $54.6 \mathrm{km}$ | $\pm 0.14$ | $0.25$, perpendicular to the orbital plane (and cospinning) | |
 
+https://arxiv.org/pdf/1311.4443
+
+0.000960296 p0c
+
+Don't just list M like a butt even though you'll get to this point in the article and go mmkay but what if i just did that though
+
 # Appendix
 
 $F^n$ is actually an integral in time, ie its meant to be the total movement of material though the cell boundary between steps: $n$ and $n+1$:

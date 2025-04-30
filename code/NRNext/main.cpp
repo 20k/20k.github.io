@@ -1508,13 +1508,14 @@ initial_params get_initial_params()
 
     printf("Radial pos %f\n", radial_pos);
 
+    //verified that this spin choice is antialigned. Is that what I want?
     neutron_star::dimensionless_angular_momentum dam;
     dam.x = -0.0499;
 
     p1.position = {-radial_pos, 0, 0};
     ///was 0.23
     ///0.265 was reasonable
-    p1.linear_momentum.momentum = {0, -0.25, 0};
+    p1.linear_momentum.momentum = {0, -0.24, 0};
     p1.angular_momentum.momentum = {0, 0, 0};
     p1.K.msols = 123.6489;
     p1.mass.adm_mass = mass;
@@ -1524,7 +1525,7 @@ initial_params get_initial_params()
 
     //p2.colour = {0, 0, 1};
     p2.position = {radial_pos, 0, 0};
-    p2.linear_momentum.momentum = {0, 0.25, 0};
+    p2.linear_momentum.momentum = {0, 0.24, 0};
     p2.angular_momentum.momentum = {0, 0, 0};
     p2.K.msols = 123.6489;
     p2.mass.adm_mass = mass;
@@ -1533,8 +1534,8 @@ initial_params get_initial_params()
     initial_params init;
     init.N = 0.2;
 
-    init.dim = {199, 199, 199};
-    init.simulation_width = radial_pos * 6 * 1.5;
+    init.dim = {213, 213, 213};
+    init.simulation_width = radial_pos * 6 * 1.4;
 
     p1.colour_aux = default_texture_mapping("../common/weslr.png");
     p2.colour_aux = default_texture_mapping("../common/esalr.png");
@@ -1775,8 +1776,9 @@ int main()
     cl::context& ctx = win.clctx->ctx;
     std::cout << cl::get_extensions(ctx) << std::endl;
 
-    initial_params params = get_initial_params();
     boot_initial_kernels(ctx);
+
+    initial_params params = get_initial_params();
 
     t3i dim = params.dim;
 
