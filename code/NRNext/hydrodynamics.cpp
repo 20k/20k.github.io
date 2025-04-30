@@ -1,12 +1,13 @@
 #include "hydrodynamics.hpp"
 #include "init_general.hpp"
 
-constexpr float min_p_star = 1e-8f;
-constexpr float min_evolve_p_star = 1e-8f;
+constexpr float min_p_star = 5e-8f;
+constexpr float min_evolve_p_star = 5e-8f;
+constexpr float min_p_for_visco = 1e-7;
 
 template<typename T>
 inline
-auto safe_divide(const auto& top, const T& bottom, float tol = 1e-8f)
+auto safe_divide(const auto& top, const T& bottom, float tol = min_p_star)
 {
     valuef bsign = ternary(bottom >= 0, valuef(1.f), valuef(-1.f));
 
@@ -73,7 +74,7 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
 
     v3f Si_upper = cY.invert().raise(Si);
 
-    float bound = viscosity ? 1e-8f : 1e-8f;
+    float bound = viscosity ? min_p_star : min_p_star;
 
     //note to self, actually hand derived this and am sure its correct
     v3f real_value = -gB + (W*W * gA / h) * safe_divide(Si_upper, w, bound);
@@ -81,7 +82,7 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
     //return real_value;
 
     //returning -gB seems more proper to me as that's the limit as p* -> 0, but the paper specifically says to set vi = 0
-    #define GB_LIMIT_CHANGE
+    //#define GB_LIMIT_CHANGE
     #ifdef GB_LIMIT_CHANGE
     return ternary(p_star <= min_evolve_p_star, -gB, real_value);
     #else
@@ -1030,7 +1031,7 @@ void calculate_Q_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
     as_ref(Q_out[pos, dim]) = valuef(0.f);
 
-    if_e(args.gA >= MIN_VISCOSITY_LAPSE, [&]{
+    if_e(args.gA >= MIN_VISCOSITY_LAPSE && p_star >= min_p_for_visco, [&]{
         valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
         v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY, p_star, true);
 
@@ -1205,7 +1206,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         as_ref(dSi) += hydro_args.Si_rhs(args.gA, args.gB, args.W, args.cY, Q, vi, d);
 
         //adds the e* viscosity term. Unstable near or in a black hole
-        if_e(args.gA >= MIN_VISCOSITY_LAPSE, [&]{
+        if_e(args.gA >= MIN_VISCOSITY_LAPSE && hydro_args.p_star >= min_p_for_visco, [&]{
             //it can be helpful to calculate the velocity with slightly more restrictive tolerances
             //because the viscosity is a more unstable term
             //i don't use this property currently, but if you're finding that more visosity leads to blowups
