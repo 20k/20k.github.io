@@ -30,6 +30,13 @@ namespace neutron_star
         int result_index = 0;
     };
 
+    struct param_rest_mass
+    {
+        ///in msols
+        double mass = 0;
+        int result_index = 0;
+    };
+
     struct param_mass
     {
         std::optional<double> p0_kg_m3;
@@ -37,6 +44,7 @@ namespace neutron_star
         std::optional<double> p0_msols;
 
         std::optional<param_adm_mass> adm_mass;
+        std::optional<param_rest_mass> rest_mass;
     };
 
     struct dimensionless_linear_momentum

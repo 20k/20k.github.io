@@ -577,7 +577,7 @@ Creating an arbitrary[^arbitrary] initial colour distribution can be done either
 
 I genuinely have no idea why I spent so much time implementing this[^fishies], and you absolutely shouldn't do this. Here's a less memey look at the spinning:
 
-[^fishies]: This is an accurate depicion of my brain's internal task prioritisation process: <iframe width="560" height="315" src="https://www.youtube.com/embed/RR-g4vuCtog?si=bNlOPuKV1oAUzojx" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+[^fishies]: This is an accurate depicion of my brain's internal task prioritisation process: \<iframe width="560" height="315" src="https://www.youtube.com/embed/RR-g4vuCtog?si=bNlOPuKV1oAUzojx" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/-iemn0MzBQk?si=1kRiyzRPGYZksiDh" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 

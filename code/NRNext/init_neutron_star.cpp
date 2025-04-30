@@ -674,12 +674,28 @@ neutron_star::data::data(const parameters& p) : params(p)
         assert(masses.size() > 0 && mass.result_index >= 0 && mass.result_index < (int)masses.size());
 
         p0_msols = masses.at(mass.result_index);
+
+        std::cout << "Found p0 " << p0_msols << std::endl;
+    }
+    else if(params.mass.rest_mass)
+    {
+        param_rest_mass mass = params.mass.rest_mass.value();
+
+        std::vector<double> masses = tov::search_for_rest_mass(mass.mass, *tov_params);
+
+        assert(masses.size() > 0 && mass.result_index >= 0 && mass.result_index < (int)masses.size());
+
+        p0_msols = masses.at(mass.result_index);
+
+        std::cout << "Found p0 " << p0_msols << std::endl;
     }
     else
         assert(false);
 
     start = tov::make_integration_state(p0_msols, 1e-6, *tov_params);
     sol = tov::solve_tov(start, *tov_params, 1e-6, 0).value();
+
+    std::cout << "Star has gravitational mass " << sol.M_msol << " Rest mass " << sol.M0_msol() << std::endl;
 
     total_mass = sol.M_msol;
     stored = get_eos();
