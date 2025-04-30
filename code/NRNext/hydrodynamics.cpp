@@ -3,7 +3,7 @@
 
 constexpr float min_p_star = 5e-8f;
 constexpr float min_evolve_p_star = 5e-8f;
-constexpr float min_p_for_visco = 1e-7;
+constexpr float min_p_for_visco = 1e-7f;
 
 template<typename T>
 inline
