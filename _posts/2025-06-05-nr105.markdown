@@ -569,21 +569,35 @@ Then, we can advect our $\mathrm{rgb}_*$ quantities using the advection equation
 
 $$\partial_t r_* = -\partial_i (r_* v^i)$$
 
-Creating an arbitrary[^arbitrary] initial colour distribution can be done either as a function, or if you're willing to put an absolutely cat-astrophic amount of implementation work in: as a texture. If you've been following this series, its pretty obvious what I'm going to put in here:
+Creating an arbitrary[^arbitrary] initial colour distribution can be done either as a function, or if you're willing to put an absolutely cat-astrophic amount of implementation work in: as a texture
 
-[^arbitrary]: I don't *think* an arbitrary colour distribution actually reproduces $\rho_*$ and the correct motion of an advected quantity, so this may simply be illustrative. A constant colour however would do
+[^arbitrary]: I don't *think* an arbitrary colour distribution actually reproduces $\rho_*$ and the correct motion of an advected quantity, so its good to treat this as illustrative of the velocity flow
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/5pi4XzE-keE?si=UekikwPEgi_n3mCy" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-mrow. I spent way too long on all this for no reason. Here's a less memey look at the spinning:
+I genuinely have no idea why I spent so much time implementing this[^fishies], and you absolutely shouldn't do this. Here's a less memey look at the spinning:
+
+[^fishies]: This is an accurate depicion of my brain's internal task prioritisation process: <iframe width="560" height="315" src="https://www.youtube.com/embed/RR-g4vuCtog?si=bNlOPuKV1oAUzojx" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/-iemn0MzBQk?si=1kRiyzRPGYZksiDh" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 You can see that the star settles into a stable oblate shape (or at least, stable enough). This test uses a much longer linear viscosity timescale of $T=800$
 
-# Merger
+# Inspiral
 
+Finding good test cases is tricky. A particular set of initial conditions in the literature is very widely used, and I'm not incredibly sure how to translate it to our initial condition set - or if it'd be valid to do so
 
+There's a few issues:
+
+1. The total ADM mass of the system is dependent on the spin, and momentum of the neutron stars. The rest mass is also nonlinearly dependent on the initial conditions, because of the hamiltonian correction
+2. Can you directly convert a quantity like an orbital period, into an angular momentum in general relativity? We're clearly deep into the relativistic regime, so it may not help us
+
+With this in mind, the two tests are to check that things are working well enough. I've deliberately used a neutron star that we've have previously, to help cross checking
+
+| Name | $\rho_c$ | $K$ | $\Gamma$ | Central Separation ($\mathrm{km}$) | Linear momentum | $\chi$ | Notes |
+|-|-|-|-|-|-|-|-|
+|I1, Similar to [A.](https://arxiv.org/pdf/1606.04881) | $6.235 \times 10^{17} \; \mathrm{kg}\;{m^{-3}}$| $123.641$ | $2$ | $54.6 \mathrm{km}$ | $\pm 0.25$ | $0$ | |
+|I2| $3.235 \times 10^{17} \; \mathrm{kg}\;{m^{-3}}$| $123.641$ | $2$ | $54.6 \mathrm{km}$ | $\pm 0.14$ | $0.25$, perpendicular to the orbital plane (and cospinning) | |
 
 # Appendix
 
@@ -687,11 +701,11 @@ I haven't found this modification to be at all important in practice, so its dis
 
 ## $v^i$'s vacuum boundary is inconsistent
 
-This paper says that when the atmosphere is classed as a vacuum, $v^i = 0$. This is a *very* strange limit: we can see that our equation for $v^i$:
+This paper says that when the atmosphere is classed as a vacuum, $v^i = 0$. This is a *very* strange limit: we can see that our equation for $v^i$
 
 $$v^i = -\beta^i + \frac{W^2 \alpha \tilde{\gamma}^{ij} \tilde{S}_j}{w h}$$
 
-probably tends to $-\beta^i$ when $p^* = 0$, not $0$. I've included this as a configurable tweak (todo) in the code, and it does affect inspiral significantly
+probably tends to $-\beta^i$ when $p^* = 0$, not $0$. I've included this as a configurable tweak in the code, and it does affect inspiral
 
 Interestingly, the paper we're looking at uses a rotating coordinate frame, which is essentially a velocity applied to the gauge conditions initially (ie $\beta^i$). This possible limit error in combination with the rotating coordinate frame (which results in a strongly non zero $\beta^i$), could lead to a significant discontinuity in the velocity at the edge of the star. This may be the root cause behind this paper's thin shell of material drifting away from the surface, as a significant derivative in the velocity will be generated at the boundary which may fling material away
 
