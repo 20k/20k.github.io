@@ -1508,6 +1508,9 @@ initial_params get_initial_params()
 
     printf("Radial pos %f\n", radial_pos);
 
+    neutron_star::dimensionless_angular_momentum dam;
+    dam.x = -0.0499;
+
     p1.position = {-radial_pos, 0, 0};
     ///was 0.23
     ///0.265 was reasonable
@@ -1515,7 +1518,7 @@ initial_params get_initial_params()
     p1.angular_momentum.momentum = {0, 0, 0};
     p1.K.msols = 123.6489;
     p1.mass.adm_mass = mass;
-    p1.angular_momentum.dimensionless = -0.0499;
+    p1.angular_momentum.dimensionless = dam;
 
     neutron_star::parameters p2;
 
@@ -1525,7 +1528,7 @@ initial_params get_initial_params()
     p2.angular_momentum.momentum = {0, 0, 0};
     p2.K.msols = 123.6489;
     p2.mass.adm_mass = mass;
-    p2.angular_momentum.dimensionless = -0.0499;
+    p2.angular_momentum.dimensionless = dam;
 
     initial_params init;
     init.N = 0.2;
