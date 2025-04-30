@@ -49,7 +49,7 @@
 				<Option compiler="gcc-msys2-mingw64" />
 				<Compiler>
 					<Add option="-pg" />
-					<Add option="-g" />
+					<Add option="-no-pie" />
 				</Compiler>
 				<Linker>
 					<Add option="-pg -lgmon" />
