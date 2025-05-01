@@ -1415,7 +1415,7 @@ initial_params get_initial_params()
     #endif
 
     //I1
-    //#define INSPIRAL
+    #define INSPIRAL
     #ifdef INSPIRAL
     neutron_star::parameters p1;
 
@@ -1574,47 +1574,6 @@ initial_params get_initial_params()
     init.lapse_damp_timescale = 0;
     #endif
 
-    #define PAPER_M50_145B
-    #ifdef PAPER_M50_145B
-
-    float D_m = 8.78;
-    float M_msol = 9.26;
-    float D_msol = D_m * M_msol;
-
-    neutron_star::param_adm_mass mass;
-    mass.mass = 1.54;
-
-    neutron_star::parameters p1;
-
-    float radial_pos = D_msol/2;
-
-    printf("Radial pos %f\n", radial_pos);
-
-    float offset = radial_pos / 1.25f;
-
-    p1.position = {radial_pos + offset, 0, 0};
-    p1.linear_momentum.momentum = {0.000821827 * M_msol, -0.0592790 * M_msol, 0};
-    p1.K.msols = 123.641;
-    p1.mass.adm_mass = mass;
-
-    black_hole_params p2;
-    p2.bare_mass = 0.824968 * M_msol;
-    p2.position = {-radial_pos + offset, 0, 0};
-    p2.linear_momentum = {-0.000821827 * M_msol, 0.0592790 * M_msol, 0};
-
-    initial_params init;
-    init.N = 0.15;
-
-    init.dim = {233, 233, 233};
-    init.simulation_width = radial_pos * 6 * 1.4;
-
-    init.add(p1);
-    init.add(p2);
-
-    init.linear_viscosity_timescale = 800;
-    init.time_between_snapshots = 15;
-    init.lapse_damp_timescale = 20;
-    #endif
 
     ///maybe the initial conditions are wrong
     //#define INSPIRAL2
@@ -1651,39 +1610,6 @@ initial_params get_initial_params()
     init.lapse_damp_timescale = 0;
     #endif
 
-    //#define RACE
-    #ifdef RACE
-    neutron_star::parameters p1;
-
-    float radial_pos = geometric_to_msol(1000 * 54.6/2, 1);
-
-    printf("Radial pos %f\n", radial_pos);
-
-    ///hang on
-    ///i'm in units of c=g=msol=1
-    ///so 1 unit of distance isn't 1km
-    //p1.colour = {1, 0, 0};
-    p1.position = {0, 0, 0};
-    ///was 0.23
-    ///0.265 was reasonable
-    //p1.linear_momentum.momentum = {0.25, 0, 0};
-    p1.angular_momentum.momentum = {0.f, 0.f, 0.9f};
-    p1.K.msols = 123.641;
-    p1.mass.p0_kg_m3 = 6.235 * pow(10., 17.);
-
-
-    initial_params init;
-    init.N = 0.2;
-
-    init.dim = {199, 199, 199};
-    init.simulation_width = radial_pos * 6;
-
-    init.add(p1);
-
-    init.linear_viscosity_timescale = 200;
-    init.time_between_snapshots = 15;
-    init.lapse_damp_timescale = 0;
-    #endif
 
     //#define STATIONARY
     #ifdef STATIONARY
@@ -1783,33 +1709,6 @@ initial_params get_initial_params()
     init.add(p2);
     #endif
 
-    #if 0
-    neutron_star::parameters p1;
-
-    p1.colour = {1, 0, 0};
-    p1.position = {-15, 0, 0};
-    p1.linear_momentum.momentum = {0, -0.125f*0.5f, 0};
-    p1.K.msols = 123.6;
-    p1.mass.p0_kg_m3 = 1.91 * pow(10., 17.);
-
-    neutron_star::parameters p2;
-
-    p2.colour = {0, 0, 1};
-    p2.position = {15, 0, 0};
-    p2.linear_momentum.momentum = {0, 0.125f*0.5f, 0};
-    p2.K.msols = 123.6;
-    p2.mass.p0_kg_m3 = 1.91 * pow(10., 17.);
-
-    initial_params init;
-
-    ///minimum resolution is currently 210 width / 255 grid res
-
-    init.dim = {155, 155, 155};
-    init.simulation_width = 90;
-
-    init.add(p1);
-    init.add(p2);
-    #endif
     #endif
 
     #ifdef SINGLE
