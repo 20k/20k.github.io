@@ -6,11 +6,14 @@ categories: C++
 published: false
 ---
 
-Hi! Its finally time to do something truly spectacular, and smash some neutron stars together. We'll be discussing how relativistic hydrodynamics works, how it compares to regular hydrodynamics, and some of the various approaches present in the literature. I've also extensively documented a lot of the issues you'll run into in practice if you try and implement this kind of thing
+Hi!
 
-If you're here simply for the montage of black holes eating neutron stars: good news, there's a compilation at the end of this article
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/rw9mKFwo4Ds?si=XAcRtXyLKmMBpL_x" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Its finally time to do something truly spectacular, and smash some neutron stars together. We'll be discussing how relativistic hydrodynamics works, how it compares to regular hydrodynamics, and some of the various approaches present in the literature. I've also extensively documented a lot of the issues you'll run into in practice if you try and implement this kind of thing
+
+If you're here simply for the montage of black holes eating neutron stars: good news, there's a compilation at the end of this article
 
 But first up: Some background
 
@@ -585,25 +588,42 @@ You can see that the star settles into a stable oblate shape (or at least, stabl
 
 # Inspiral
 
-Finding good test cases is tricky. A particular set of initial conditions in the literature is very widely used, and I'm not incredibly sure how to translate it to our initial condition set - or if it'd be valid to do so
+Todo: Redo this segment, do this:
 
-There's a few issues:
+https://repository.gatech.edu/server/api/core/bitstreams/f5e116da-ebff-4380-96e8-027304d9db82/content
 
-1. The total ADM mass of the system is dependent on the spin, and momentum of the neutron stars. The rest mass is also nonlinearly dependent on the initial conditions, because of the hamiltonian correction
-2. Can you directly convert a quantity like an orbital period, into an angular momentum in general relativity? We're clearly deep into the relativistic regime, so it may not help us
+Finding good test cases is tricky. Because we're mainly visually debuggings things so far, we don't produce gravitational waveforms to match against other results. On top of that, it seems that the literature around neutron stars isn't quite as explicit with the initial conditions and testable results as it is for black holes, so there's often quantities which are left unspecified
 
-With this in mind, the two tests are to check that things are working well enough. I've deliberately used a neutron star that we've have previously, to help cross checking
+Here's two ad-hoc test cases:
 
-| Name | $\rho_c$ | $K$ | $\Gamma$ | Central Separation ($\mathrm{km}$) | Linear momentum | $\chi$ | Notes |
+| Name | $\rho_c$ | $K$ | $\Gamma$ | Central Separation ($\mathrm{km}$) | Linear momentum | $\chi$ (dimensionless spin) | $N$ (gauge damping) |
 |-|-|-|-|-|-|-|-|
-|I1, Similar to [A.](https://arxiv.org/pdf/1606.04881) | $6.235 \times 10^{17} \; \mathrm{kg}\;{m^{-3}}$| $123.641$ | $2$ | $54.6 \mathrm{km}$ | $\pm 0.25$ | $0$ | |
-|I2| $3.235 \times 10^{17} \; \mathrm{kg}\;{m^{-3}}$| $123.641$ | $2$ | $54.6 \mathrm{km}$ | $\pm 0.14$ | $0.25$, perpendicular to the orbital plane (and cospinning) | |
+|I1, Similar to [A.](https://arxiv.org/pdf/1606.04881) | $6.235 \times 10^{17} \; \mathrm{kg}\;{m^{-3}}$| $123.641$ | $2$ | $54.6 \mathrm{km}$ | $\pm 0.25$ | $0$ | $0.2$ |
+|I2| $3.235 \times 10^{17} \; \mathrm{kg}\;{m^{-3}}$| $123.641$ | $2$ | $54.6 \mathrm{km}$ | $\pm 0.14$ | $0.25$, perpendicular to the orbital plane (and cospinning) | $0.05$ |
 
-https://arxiv.org/pdf/1311.4443
+Where $\chi = \frac{J_{adm}}{M_{adm}^2}$
 
-0.000960296 p0c
+These look like this:
 
-Don't just list M like a butt even though you'll get to this point in the article and go mmkay but what if i just did that though
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/VYmEpiLY_hY?si=FyXcn08-O4ObLkYT" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/HKB8THFWLdk?si=Y60LwVSLNBqLrmGq" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+This isn't terribly scientific, though it confirms that everything doesn't look like complete nonsense. Ideally we'd have an initial condition with all fixed parameters and rigorously check our results, but its very common for initial conditions to be derived from post newtonian data, or from an energy minimisation criteria, which leaves these parameters implicit
+
+Case $\Gamma^{--}_{050}$ [has the following parameters](https://arxiv.org/pdf/1311.4443)
+
+| $\rho_c$ | $K$ | $\Gamma$ | Central Separation | Linear momentum | $\chi$ | $N$ | Notes |
+|-|-|-|-|-|-|-|-|
+|$0.000960296$ | $123.6489$ | $2$ | $59 \mathrm{km}$ | Unspecified, $\approx \pm 0.24$ | $-0.0499$ | $0.2$ | The spin direction is *against* the orbital direction |
+
+Which gives this:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/czDYhdyuMO0?si=YodMhX4B9llOyX6L" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Without an exact value for linear momentum, we cannot precisely attempt to replicate the original paper, but we appear to get a reasonable inspiral. Its a bit unsatisfying
+
+Overall, this scheme does appear to work. Exactly how energy conserving it is is up for grabs, but there's nothing obviously unphysical going on. The hamiltonian constraint errors appear to stay low and bounded which is great as well. More resolution or a coordinate transform would likely help here significantly too, but that's a topic for the future
 
 # Appendix
 

@@ -1168,53 +1168,6 @@ initial_params get_initial_params()
     #define NEUTRON_STAR_TEST
     #ifdef NEUTRON_STAR_TEST
 
-    /*//double K = 123.641;
-    //double p0_c_kg_m3 = 6.235 * pow(10., 17.);*/
-
-    /*neutron_star::parameters p1;
-    p1.position = {-15, 0, 0};
-    p1.angular_momentum = {0, 0, 0};
-    p1.linear_momentum = {0, -0.05, 0};
-    p1.p0_c_kg_m3 = 6.235 * pow(10., 17.);
-
-    neutron_star::parameters p2;
-    p2.position = {15, 0, 0};
-    p2.angular_momentum = {0, 0, 0};
-    p2.linear_momentum = {0, 0.05, 0};
-    p2.p0_c_kg_m3 = 6.235 * pow(10., 17.);
-
-    initial_conditions init(ctx, cqueue, dim);
-
-    init.add(p1);
-    init.add(p2);*/
-
-    #if 0
-    neutron_star::parameters p1;
-    p1.position = {0, 0, 0};
-    p1.angular_momentum = {0, 0, 1.25};
-    p1.linear_momentum = {0, 0, 0};
-    p1.p0_c_kg_m3 = 6.235 * pow(10., 17.);
-    #endif
-
-    #if 0
-    neutron_star::parameters p1;
-
-    /*neutron_star::dimensionless_linear_momentum lin;
-    lin.x = 0.1;
-    lin.axis = {1, 0, 0};*/
-
-    p1.position = {0, 0, 0};
-    p1.angular_momentum.momentum = {0, 0, 1.25};
-    //p1.linear_momentum.momentum = {0.25, 0, 0};
-    //p1.linear_momentum.dimensionless = lin;
-    p1.K.msols = 123.6;
-    p1.mass.p0_kg_m3 = 5.91 * pow(10., 17.);
-
-    initial_conditions init(ctx, cqueue, dim);
-
-    init.add(p1);
-    #endif // 0
-
     //#define HEADON_COLLAPSE
     #ifdef HEADON_COLLAPSE
     neutron_star::parameters p1;
@@ -1421,6 +1374,7 @@ initial_params get_initial_params()
     init.lapse_damp_timescale = 20;
     #endif
 
+    //I2
     //#define LOW_MASS_INSPIRAL
     #ifdef LOW_MASS_INSPIRAL
     neutron_star::dimensionless_angular_momentum dam;
@@ -1460,7 +1414,8 @@ initial_params get_initial_params()
     init.lapse_damp_timescale = 20;
     #endif
 
-    #define INSPIRAL
+    //I1
+    //#define INSPIRAL
     #ifdef INSPIRAL
     neutron_star::parameters p1;
 
@@ -1569,6 +1524,8 @@ initial_params get_initial_params()
 
     #endif
 
+    //https://arxiv.org/pdf/1311.4443 -- 050
+    //I3
     //#define SPINNING_TEST
     #ifdef SPINNING_TEST
     neutron_star::param_adm_mass mass;
@@ -1585,8 +1542,6 @@ initial_params get_initial_params()
     dam.x = -0.0499;
 
     p1.position = {-radial_pos, 0, 0};
-    ///was 0.23
-    ///0.265 was reasonable
     p1.linear_momentum.momentum = {0, -0.24, 0};
     p1.angular_momentum.momentum = {0, 0, 0};
     p1.K.msols = 123.6489;
@@ -1595,7 +1550,6 @@ initial_params get_initial_params()
 
     neutron_star::parameters p2;
 
-    //p2.colour = {0, 0, 1};
     p2.position = {radial_pos, 0, 0};
     p2.linear_momentum.momentum = {0, 0.24, 0};
     p2.angular_momentum.momentum = {0, 0, 0};
@@ -1618,6 +1572,48 @@ initial_params get_initial_params()
     init.linear_viscosity_timescale = 200;
     init.time_between_snapshots = 15;
     init.lapse_damp_timescale = 0;
+    #endif
+
+    #define PAPER_M50_145B
+    #ifdef PAPER_M50_145B
+
+    float D_m = 8.78;
+    float M_msol = 9.26;
+    float D_msol = D_m * M_msol;
+
+    neutron_star::param_adm_mass mass;
+    mass.mass = 1.54;
+
+    neutron_star::parameters p1;
+
+    float radial_pos = D_msol/2;
+
+    printf("Radial pos %f\n", radial_pos);
+
+    float offset = radial_pos / 1.25f;
+
+    p1.position = {radial_pos + offset, 0, 0};
+    p1.linear_momentum.momentum = {0.000821827 * M_msol, -0.0592790 * M_msol, 0};
+    p1.K.msols = 123.641;
+    p1.mass.adm_mass = mass;
+
+    black_hole_params p2;
+    p2.bare_mass = 0.824968 * M_msol;
+    p2.position = {-radial_pos + offset, 0, 0};
+    p2.linear_momentum = {-0.000821827 * M_msol, 0.0592790 * M_msol, 0};
+
+    initial_params init;
+    init.N = 0.15;
+
+    init.dim = {233, 233, 233};
+    init.simulation_width = radial_pos * 6 * 1.4;
+
+    init.add(p1);
+    init.add(p2);
+
+    init.linear_viscosity_timescale = 800;
+    init.time_between_snapshots = 15;
+    init.lapse_damp_timescale = 20;
     #endif
 
     ///maybe the initial conditions are wrong
