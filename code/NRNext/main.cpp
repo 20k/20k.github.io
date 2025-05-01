@@ -1134,7 +1134,12 @@ neutron_star::colour_aux_data default_texture_mapping(std::string file)
     };
 
     return cdata;
-};
+}
+
+double angular_velocity_to_velocity(double rad_ps, double radius_distance_m)
+{
+    return rad_ps * radius_distance_m;
+}
 
 initial_params get_initial_params()
 {
@@ -1497,28 +1502,73 @@ initial_params get_initial_params()
     init.lapse_damp_timescale = 0;
     #endif
 
-    #define SPINNING_TEST
-    #ifdef SPINNING_TEST
-    #if 0
-    std::cout << "REAL DIST " << msol_to_geometric(37.534, 1) << std::endl;
+    #define PAPER_146_45
+    #ifdef PAPER_146_45
+    double d_adm = 12.2;
+    double m_adm = 2.982;
+    double rad_ms = 1.85;
+    double rad_s = rad_ms * 1000;
 
-    ///in meters
-    double real_dist = msol_to_geometric(37.534, 1);
+    double d_msol = d_adm * m_adm;
+    double d_m = msol_to_geometric(d_msol, 1);
 
-    double angular_speed = (1.78 * 1000.) * real_dist;
+    double velocity_m_s = angular_velocity_to_velocity(rad_s, d_m/2);
 
-    double mass_adm = 1.51496;
-    double mass_geom = msol_to_geometric(mass_adm, 1);
-    double mass_si = geometric_to_si(mass_geom, 1, 0);
+    tov::eos::polytrope poly(2, 123.6);
+    //double central = tov::search_for_rest_mass(1.625, poly).at(0);
+    double cdensity = 0.000960878;
 
-    double momentum = mass_si * angular_speed;
+    auto st = tov::make_integration_state(cdensity, 1e-6, poly);
 
-    double momentum_geom = si_to_geometric(momentum, 1, -1);
+    auto sol = tov::solve_tov(st, poly, 1e-6, 0);
+    double star_adm_kg = geometric_to_si(sol.value().M_geom(), 1, 0);
+
+    double momentum_kg_m_ps = star_adm_kg * velocity_m_s;
+
+    double momentum_geom = si_to_geometric(momentum_kg_m_ps, 1, -1);
     double momentum_msol = geometric_to_msol(momentum_geom, 1);
 
     std::cout << "MOMENTUM " << momentum_msol << std::endl;
+
+    neutron_star::parameters p1;
+
+    float radial_pos = d_msol/2;
+
+    p1.position = {-radial_pos, 0, 0};
+    ///was 0.23
+    ///0.265 was reasonable
+    p1.linear_momentum.momentum = {0, -momentum_msol, 0};
+    p1.K.msols = 123.6;
+    p1.mass.p0_msols = cdensity;
+
+    neutron_star::parameters p2;
+
+    //p2.colour = {0, 0, 1};
+    p2.position = {radial_pos, 0, 0};
+    p2.linear_momentum.momentum = {0, momentum_msol, 0};
+    p2.K.msols = 123.6;
+    p2.mass.p0_msols = cdensity;
+
+    initial_params init;
+    init.N = 0.1;
+
+    init.dim = {213, 213, 213};
+    init.simulation_width = radial_pos * 6 * 1.4;
+
+    //p1.colour_aux = default_texture_mapping("../common/weslr.png");
+    //p2.colour_aux = default_texture_mapping("../common/esalr.png");
+
+    init.add(p1);
+    init.add(p2);
+
+    init.linear_viscosity_timescale = 200;
+    init.time_between_snapshots = 15;
+    init.lapse_damp_timescale = 0;
+
     #endif
 
+    //#define SPINNING_TEST
+    #ifdef SPINNING_TEST
     neutron_star::param_adm_mass mass;
     mass.mass = 1.51496;
 

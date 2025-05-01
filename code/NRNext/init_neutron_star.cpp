@@ -695,7 +695,7 @@ neutron_star::data::data(const parameters& p) : params(p)
     start = tov::make_integration_state(p0_msols, 1e-6, *tov_params);
     sol = tov::solve_tov(start, *tov_params, 1e-6, 0).value();
 
-    std::cout << "Star has gravitational mass " << sol.M_msol << " Rest mass " << sol.M0_msol() << std::endl;
+    std::cout << "Star has gravitational mass " << sol.M_msol << " Rest mass " << sol.M0_msol() << " Iso radius km " << sol.R_iso_geom() / 1000. << std::endl;
 
     total_mass = sol.M_msol;
     stored = get_eos();
