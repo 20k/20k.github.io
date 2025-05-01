@@ -1460,7 +1460,7 @@ initial_params get_initial_params()
     init.lapse_damp_timescale = 20;
     #endif
 
-    //#define INSPIRAL
+    #define INSPIRAL
     #ifdef INSPIRAL
     neutron_star::parameters p1;
 
@@ -1502,8 +1502,10 @@ initial_params get_initial_params()
     init.lapse_damp_timescale = 0;
     #endif
 
-    #define PAPER_146_45
-    #ifdef PAPER_146_45
+    ///https://arxiv.org/pdf/0804.0594
+    ///98% sure the neutron stars are spinning, which explains the 0.96 parameter
+    //#define PAPER_162_45
+    #ifdef PAPER_162_45
     double d_adm = 12.2;
     double m_adm = 2.982;
     double rad_ms = 1.85;
@@ -1526,7 +1528,7 @@ initial_params get_initial_params()
     double momentum_kg_m_ps = star_adm_kg * velocity_m_s;
 
     double momentum_geom = si_to_geometric(momentum_kg_m_ps, 1, -1);
-    double momentum_msol = geometric_to_msol(momentum_geom, 1);
+    double momentum_msol = geometric_to_msol(momentum_geom, 1) * 0.96;
 
     std::cout << "MOMENTUM " << momentum_msol << std::endl;
 
@@ -1550,9 +1552,9 @@ initial_params get_initial_params()
     p2.mass.p0_msols = cdensity;
 
     initial_params init;
-    init.N = 0.1;
+    init.N = 0.2;
 
-    init.dim = {213, 213, 213};
+    init.dim = {199, 199, 199};
     init.simulation_width = radial_pos * 6 * 1.4;
 
     //p1.colour_aux = default_texture_mapping("../common/weslr.png");
