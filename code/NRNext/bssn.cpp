@@ -277,7 +277,7 @@ tensor<valuef, 3, 3> calculate_W2Rij(bssn_args& args, bssn_derivatives& derivs, 
     {
         for(int j=0; j < 3; j++)
         {
-            valuef v1 = didjW[i, j];
+            valuef v1 = args.W * didjW[i, j];
             valuef v2 = 0;
 
             {
@@ -290,7 +290,7 @@ tensor<valuef, 3, 3> calculate_W2Rij(bssn_args& args, bssn_derivatives& derivs, 
                     sum += raised[l, l];
                 }
 
-                v2 = args.cY[i, j] * sum;
+                v2 = args.W * sum;
             }
 
             valuef v3 = 0;
@@ -303,10 +303,10 @@ tensor<valuef, 3, 3> calculate_W2Rij(bssn_args& args, bssn_derivatives& derivs, 
                     sum += icY.raise(derivs.dW)[l] * derivs.dW[l];
                 }
 
-                v3 = -2 * args.cY[i, j] * sum;
+                v3 = -2 * sum;
             }
 
-            w2Rphiij[i, j] = args.W * (v1 + v2) + v3;
+            w2Rphiij[i, j] = v1 + args.cY[i, j] * (v2 + v3);
         }
     }
 
@@ -645,7 +645,7 @@ valuef get_dtW(bssn_args& args, bssn_derivatives& derivs, const derivative_data&
         dibiw += args.gB[i] * diff1(args.W, i, d);
     }
 
-    return (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw + should_damp * 0.15f * timestep * args.gA * args.W * calculate_hamiltonian_constraint(args, derivs, d, adm_p);
+    return (1/3.f) * args.W * (args.gA * args.K - dibi) + dibiw + should_damp * 0.25f * timestep * args.gA * args.W * calculate_hamiltonian_constraint(args, derivs, d, adm_p);
 }
 
 tensor<valuef, 3, 3> calculate_W2DiDja(bssn_args& args, bssn_derivatives& derivs, const derivative_data& d)
