@@ -664,7 +664,7 @@ void trace3(execution_context& ectx, literal<v2i> screen_sizel,
     mut_v3f accumulated_colour = declare_mut_e((v3f){0,0,0});
     mut<valuef> accumulated_occlusion = declare_mut_e(valuef());
 
-    for_e(idx < 512, assign_b(idx, idx + 1), [&]
+    for_e(idx < 2048, assign_b(idx, idx + 1), [&]
     {
         v3f cposition = declare_e(ctx.position);
         v3f cvelocity = declare_e(ctx.velocity);
