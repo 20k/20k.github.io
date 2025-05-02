@@ -489,6 +489,7 @@ tensor<valuef, 3> get_dtgB(bssn_args& args, bssn_derivatives& derivs, const deri
 
     //#define VARIABLE_DAMP
     #ifdef VARIABLE_DAMP
+    //https://arxiv.org/pdf/1009.0292
     {
         N = 0.05f;
 
