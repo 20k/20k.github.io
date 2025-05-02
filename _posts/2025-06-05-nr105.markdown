@@ -591,7 +591,7 @@ I genuinely have no idea why I spent so much time implementing this[^fishies], a
 
 You can see that the star settles into a stable oblate shape (or at least, stable enough). This test uses a much longer linear viscosity timescale of $T=800$. The grid resolution for all tests is $199^3$
 
-# Inspiral
+## Inspiral
 
 Finding good test cases is tricky. It seems that the literature around neutron stars isn't quite as explicit with the initial conditions and testable results as it is for black holes, so there's often quantities which are left unspecified. It seems that a particular initial conditions solver is widely used, and so people just use that and don't necessarily specify everything else explicitly
 
@@ -628,7 +628,7 @@ With that significant caveat in mind, this scheme does appear to work. Exactly h
 
 # Performance
 
-The performance is pretty good - at $199^3$ it takes 81 ms/tick with the hydro on, and ~69 ms/tick with it off. Some of that is because there's a few extra copies here and there, so I'd expect to be able to shave about 5ms off
+The performance is pretty good - at $199^3$ it takes 81 ms/tick with the hydro on, and ~69 ms/tick with it off. Some of that is because there's a few extra copies here and there, so I'd expect to be able to shave about 5ms off. Most of these videos took about 15 minutes of compute time on a 6700xt, which is a lot faster than I've heard is common in the industry
 
 The main overhead is actually the amount of extra buffers required. We have $5$ variable buffers, which we have to store $3$ copies of - and on top of that, for the Crank-Nicolson, there's another $5$ for the intermediate state (which could be eliminated). This limits the maximum resolution size quite a bit on a $12\;\mathrm{GB}$ GPU sadly!
 
@@ -990,7 +990,7 @@ This relies on your stencil widths for your derivatives being the same or greate
 
 I do this for all kernels, ie $w$, $Q$, and the evolution equations themselves. This results in the entire hydrodynamics formalism becoming very cheap to simulate, as 95% of our grid is empty and can be early-outed with effectively a single memory read + corresponding writes. There's still a reasonable amount of overhead in the BSSN kernel itself however, as we still must read the hydro quantities
 
-Overall, the performance of this method has a roughly ~20% overhead compared to a vacuum simulation - roughly 80ms/tick, from 67ms/tick for an equivalent vacuum simulation. The hydrodynamic equations *themselves* take only a few ms out of an ~80ms/tick runtime, so its largely just extra memory read overhead
+Overall, the performance of this method has a ~20% overhead compared to a vacuum simulation - roughly 80ms/tick, from 67ms/tick for an equivalent vacuum simulation. The hydrodynamic equations *themselves* take only a few ms out of an ~80ms/tick runtime, so there's some optimisation potential
 
 ## $v^i$ derivation
 
@@ -1072,3 +1072,7 @@ Interesting paper about tov/spinning models [https://arxiv.org/pdf/gr-qc/0403029
 Neutron star merger paper, which includes a WENO scheme [https://arxiv.org/pdf/1509.08804](https://arxiv.org/pdf/1509.08804)
 
 A truly baffling paper that use this hydrodynamics formalism [https://arxiv.org/pdf/2203.05149](https://arxiv.org/pdf/2203.05149)
+
+A Lagrangian approach [https://arxiv.org/pdf/2205.08130](https://arxiv.org/pdf/2205.08130)
+
+Equations of state for neutron stars [https://arxiv.org/pdf/0812.2163](https://arxiv.org/pdf/0812.2163)
