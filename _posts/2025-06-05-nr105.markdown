@@ -8,7 +8,6 @@ published: false
 
 Hi!
 
-
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/rw9mKFwo4Ds?si=XAcRtXyLKmMBpL_x" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 Its finally time to do something truly spectacular, and smash some neutron stars together. We'll be discussing how relativistic hydrodynamics works, how it compares to regular hydrodynamics, and some of the various approaches present in the literature. I've also extensively documented a lot of the issues you'll run into in practice if you try and implement this kind of thing
@@ -505,6 +504,18 @@ In general, linear viscosity is good for large scale damping and significantly i
 
 The viscosity scheme documented in this paper is actually not consistent - its an ad-hoc modification to fix up shocks. There is, in theory, a full hydro formalism which includes a consistent treatment of viscosity which works for ultrarelativistic matter - but unfortunately its behind a paywall Todo, link
 
+## Final equation set
+
+$$\begin{align}
+\partial_t \rho_* + \partial_i(\rho_* v^i) &= 0\\
+\partial_t e_* + \partial_i(e_* v^i) &= -(\rho_0 \epsilon)^{(-1 + \frac{1}{\Gamma})} \;\; \frac{Q}{\Gamma} \; \partial_k (w W^{-3} v^k p_*^{-1})\\
+\partial_t \tilde{S}_k + \partial_i(\tilde{S}_k v^i) &=
+                       - \alpha \frac{1}{W^3} \partial_k (P + Q) - w h \partial_k \alpha \\
+                       &-\tilde{S}_j \partial_k \beta^j + \frac{\alpha W^2\tilde{S}_i \tilde{S}_j}{2wh} \partial_k \tilde{\gamma}^{ij}\\
+                       &+ \frac{\alpha h(w^2 - p_*^2)}{w} \frac{\partial_k W}{W}
+\end{align}
+$$
+
 # Relativistic Hydrodynamics Discussion
 
 Before we get to the results, and overall discussion, its worth talking about this hydro formalism a bit more critically. Digging into a past project again equipped with much more knowledge and a critical eye was absolutely fascinating, and I learnt a lot about hydrodynamics along the way
@@ -513,13 +524,14 @@ The formalism I'm talking about today was relatively quickly abandoned in favour
 
 As far as I can tell, there's the following issues with this approach:
 
-1. The non atmospheric approach isn't super good in general. Material gets deleted, resulting in mass loss of a few %
+1. The non atmospheric approach's conservation is heavily dependent on our minimum value of $\rho_*$, which has to be higher than i would like due to floating point imprecision. There's a mass loss of a few % with safe bounds
 2. When $\rho_*$ is of the same order of magnitude as $\rho_{min}$, you have to be extremely careful with floating point accuracy. There's a significant amount of error due to precision issues, and some quantities are very poorly behaved
 3. The non conservative nature of the equations means that conventional hydrodynamic solutions only have limited applicability
 4. The mass-shell-drift problem, although I think that may be a problem with the specific implementation
 5. Significant ambiguities exist with how to implement the equations numerically
 6. The viscosity treatment is ad-hoc
 7. Its unclear how to use a numerical equation of state here
+8. There isn't much literature on this formalism
 
 This - in theory - would all be solved by a newer formalism. This formalism isn't 'bad' however, and it seems to work. It makes for an extremely interesting test-case on modern hardware compared to what they could get away with in 2002
 
@@ -559,7 +571,7 @@ Now.. while its clear that a spinning neutron star is a lot more wobbly than a r
 
 ### Advecting arbitrary fields
 
-This step is more for fun. Lets define an initial colour distribution ${r, g, b}$, and map it to our stars density as follows:
+This step is more for fun. Lets define an initial colour distribution ${r, g, b}$, and map it to our star's density as follows:
 
 $$\begin{align}
 r_* &= r \rho_* \\
@@ -584,15 +596,11 @@ I genuinely have no idea why I spent so much time implementing this[^fishies], a
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/-iemn0MzBQk?si=1kRiyzRPGYZksiDh" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-You can see that the star settles into a stable oblate shape (or at least, stable enough). This test uses a much longer linear viscosity timescale of $T=800$
+You can see that the star settles into a stable oblate shape (or at least, stable enough). This test uses a much longer linear viscosity timescale of $T=800$. The grid resolution for all tests is $199^3$
 
 # Inspiral
 
-Todo: Redo this segment, do this:
-
-https://repository.gatech.edu/server/api/core/bitstreams/f5e116da-ebff-4380-96e8-027304d9db82/content
-
-Finding good test cases is tricky. Because we're mainly visually debuggings things so far, we don't produce gravitational waveforms to match against other results. On top of that, it seems that the literature around neutron stars isn't quite as explicit with the initial conditions and testable results as it is for black holes, so there's often quantities which are left unspecified
+Finding good test cases is tricky. It seems that the literature around neutron stars isn't quite as explicit with the initial conditions and testable results as it is for black holes, so there's often quantities which are left unspecified. It seems that a particular initial conditions solver is widely used, and so people just use that and don't necessarily specify everything else explicitly
 
 Here's two ad-hoc test cases:
 
@@ -619,11 +627,55 @@ Case $\Gamma^{--}_{050}$ [has the following parameters](https://arxiv.org/pdf/13
 
 Which gives this:
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/czDYhdyuMO0?si=YodMhX4B9llOyX6L" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/czDYhdyuMO0?si=YodMhX4B9llOyX6L" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Without an exact value for linear momentum, we cannot precisely attempt to replicate the original paper, but we appear to get a reasonable inspiral. Its a bit unsatisfying
+Without an exact value for linear momentum, we cannot precisely attempt to replicate the original paper, but we appear to get a reasonable inspiral. Its a little unsatisfying - I've been searching around for test cases which give exact values, but in general people tend to miss out one or more key parameters. Really though, within a few articles we'll be producing gravitational waves together, which is likely when I'll be investing in a post newtonian expansion + energy minimisation scheme, as that makes this very directly testable. This is a much better approach than trying to replicate things by staring at graphs in papers, because we can quantitively determine the accuracy then
 
-Overall, this scheme does appear to work. Exactly how energy conserving it is is up for grabs, but there's nothing obviously unphysical going on. The hamiltonian constraint errors appear to stay low and bounded which is great as well. More resolution or a coordinate transform would likely help here significantly too, but that's a topic for the future
+With that significant caveat in mind, this scheme does appear to work. Exactly how energy conserving it is is up for grabs, but there's nothing obviously unphysical going on. The hamiltonian constraint errors appear to stay low and bounded which is great as well. More resolution or a coordinate transform would likely help here significantly too, but that's a topic for the future
+
+# Performance
+
+The performance is pretty good - at $199^3$ it takes 81 ms/tick with the hydro on, and ~69 ms/tick with it off. Some of that is because there's a few extra copies here and there, so I'd expect to be able to shave about 5ms off
+
+The main overhead is actually the amount of extra buffers required. We have $5$ variable buffers, which we have to store $3$ copies of - and on top of that, for the Crank-Nicolson, there's another $5$ for the intermediate state (which could be eliminated). This limits the maximum resolution size quite significantly which is unfortunate
+
+# Discussion
+
+I've discussed the relativistic hydrodynamics formalism specifically in depth up above, so this is a general review of this project
+
+Overall, this has gone pretty well. I'm not *super* jazzed at the lack of rigorous testing here, but this makes a very good stepping stone on the way to more advanced techniques and new ideas like post newtonian formalisms - so I think this is perfect as a hydro introduction. I'm also not super convinced on the actual hydrodynamics solver I've implemented - but hey that just means we've got more work ahead of us
+
+We're really *really* pushing the limits of single precision with this technique as well, its right on the boundary of what is acceptable: if you're interested in novel precision techniques, like unums, or projective reals, this would be a great playground for you
+
+In general though, I think this more than serves its purpose, which is to be a good base to build on. Which we absolutely will, soon
+
+# Next time
+
+The next article is going to be N-body particle dynamics, because I need to take a break from more serious articles like this, and go do something incredibly silly and fun. It'll be great!
+
+# Montage
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/EMyjmlRYh-A?si=iuS68cJYS6TYVDxA" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+This next one is a video of a failed test case:
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/TrSo_bUgAvI?si=7U5arwIbMmY5Ib5W" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+This is before the scheme was conservative:
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/EOQ4q_6Y3d0?si=RBNli4B3uUodnoz3" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+This is painstakingly accurately rendered with redshift, and a 4d voxelisation. Its tricky to get good quality with this technique due to memory pressure, so I haven't shown it off here
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/ZT3COBsAXRE?si=LjI_co6PcNx5YGPq" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Basic head on collision:
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/1obG7N9xIZ0?si=uQFtLE5StLanrx6V" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Binary black hole collision:
+
+\<iframe width="560" height="315" src="https://www.youtube.com/embed/WcBaiJHgyak?si=F5qwyMtoolM5GJi0" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 # Appendix
 
