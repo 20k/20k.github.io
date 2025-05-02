@@ -1026,7 +1026,7 @@ And we need this definition:
 
 $$u^0 = \frac{w}{\rho_* \alpha}$$
 
-Now lets derive $v^i$ from $u^i$:
+Now lets derive $v^i$:
 $$\begin{align}
 u^i &= g^{i0} u_0 + g^{ij} u_j\\
 u^i &= \alpha^{-2} \beta^i u_0 + (\gamma^{ij} - \alpha^{-2} \beta^i \beta^j) u_j\\
