@@ -943,19 +943,13 @@ Damping excludes boundary:
 
 ## Source terms
 
-Todo: This is too long
+Generating the full stress energy tensor with its 10 components is a mistake - its much better to directly express the source terms from the underlying formalism for performance. Implementing this correctly is quite difficult in a standard programming language, because the BSSN equation implementation itself needs generic, direct access to whatever buffers can derive our source terms (including $w$)
 
-Actually generating the stress energy tensor with its 10 components is a mistake - its much better to directly express the source terms from the underlying formalism, as it saves a huge amount of memory bandwidth. I rarely go into application-level architectural details because it normally isn't relevant, but this is the major exception
+If you want good performance, I would highly recommend using code generation to specialise your evolution kernel to different features that are enabled - generating the accesses directly, instead of literally constructing the stress-energy tensor
 
-Implementing this correctly is extremely difficult to do in a standard programming language in a high performance way, because the BSSN equation implementation itself needs generic, direct access to whatever buffers can derive our source terms (including $w$)
+In the next article (and into the future[^preon]), we'll be adding even more matter sources as well, so if you're implementing this - now's the time to get this to work correctly. Its far too long to go into here, but check out the linked source code (todo: plugin) if you want to see the details of how this works implementation-wise
 
-Runtime branching is horrendously expensive here - as in the non hydro case we'll end up with a lot of extra instructions being generated which are unused. The limited instruction cache space is a strong performance bottleneck, as well as VGPR usage (which we push right up against) - and conditional memory accesses are always bad
-
-This issue is actually the major reason which motivated the development of the generated language I use in these articles - as it allows you to generate different kernels depending on what features are enabled, while composing together all the individual sources via a plugin architecture. If you want good performance, I would highly recommend something similar - and a lot of development of this toolkit since the last article has been around getting the plugin architecture to work right. In older approaches, I used a hybrid of OpenCL and generated kernel arguments + macro helpers to fetch the source terms, and it was a nightmare
-
-In the next article (and into the future[^preon]), we'll be adding even more matter sources as well, so if you're implementing this - now's the time to get this to work correctly. Its far too long to go into here, but check out here (todo: plugin) if you want to see the details of how this works implementation-wise
-
-[^preon]: I might simulate some exotic objects like preon stars eventually, but I'm very likely to come back here with a more modern hydro formalism
+[^preon]: The next article is N body. After that, it might be more modern hydrodynamics, or even preon stars or something
 
 ## Integration
 
