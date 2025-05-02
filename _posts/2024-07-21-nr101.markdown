@@ -234,7 +234,7 @@ $$
 \partial_t K &= \beta^m \partial_m K - W^2 \tilde{\gamma}^{mn} D_m D_n \alpha + \alpha \tilde{A}^{mn} \tilde{A}_{mn} + \frac{1}{3} \alpha K^2\\
 \partial_t \tilde{A}_{ij} &= \beta^m \partial_m \tilde{A}_{ij}+ 2 \tilde{A}_{m(i} \partial_{j)} \beta^m - \frac{2}{3} \tilde{A}_{ij} \partial_m \beta^m + \alpha K \tilde{A}_{ij} \\&- 2 \alpha \tilde{A}_{im} \tilde{A}^m_{\;\;j} + W^2 (\alpha \mathcal{R}_{ij} - D_i D_j \alpha)^{TF} \\
 \partial_t \tilde{\Gamma}^i &= \beta^m \partial_m \tilde{\Gamma}^i + \frac{2}{3} \tilde{\Gamma}^i \partial_m \beta^m - \tilde{\Gamma}^m \partial_m \beta^i + \tilde{\gamma}^{mn} \partial_m \partial_n \beta^i + \frac{1}{3} \tilde{\gamma}^{im} \partial_m \partial_n \beta^n \\
-&-\tilde{A}^{im}(6\alpha \frac{\partial_m W}{W} + 2 \partial_m \alpha) + 2 \alpha \tilde{\Gamma}^i_{mn} - \frac{4}{3} \alpha \tilde{\gamma}^{im} \partial_m K
+&-\tilde{A}^{im}(6\alpha \frac{\partial_m W}{W} + 2 \partial_m \alpha) + 2 \alpha \tilde{\Gamma}^i_{mn}\tilde{A}^{mn} - \frac{4}{3} \alpha \tilde{\gamma}^{im} \partial_m K
 \end{align}
 $$
 
