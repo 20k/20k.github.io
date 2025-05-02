@@ -739,23 +739,21 @@ $$\begin{align}
 
 Gauge conditions:
 
-$$\partial_t \alpha = -2 \alpha K + \beta^i \partial_i \alpha$$
+$$\begin{align}
+\partial_t \alpha &= -2 \alpha K + \beta^i \partial_i \alpha\\
+\partial_t \beta^i &= \frac{3}{4} \tilde{\Gamma}^i + \beta^j \partial_j \beta^i - N \beta^i
+\end{align}$$
 
-$$\partial_t \beta^i = \frac{3}{4} \tilde{\Gamma}^i + \beta^j \partial_j \beta^i - N \beta^i$$
-
+$N$ is generally between $0.05$ and $2$, and is technically $\frac{2}{M}$ where $M$ is the total ADM mass of the system
 
 Constraints:
 
 $$\begin{align}
 \mathcal{M_i} &= \partial_j \tilde{A}_i^j - \frac{1}{2} \tilde{\gamma}^{jk} \tilde{A}_{jk,i} + 6 \partial_j \phi \tilde{A}_i^j - \frac{2}{3} \partial_i K \\
 \partial_i \phi &= -\frac{\partial_i W}{2 W} \\
+\mathcal{H} &= \mathcal{R} + \frac{2}{3} K^2 - \tilde{A}^{mn} \tilde{A}_{mn} = 0\\
+\mathcal{G}^i &= \tilde{\Gamma}^i - \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn} = 0
 \end{align}$$
-
-$$\mathcal{H} = \mathcal{R} + \frac{2}{3} K^2 - \tilde{A}^{mn} \tilde{A}_{mn} = 0$$
-
-$$\mathcal{G}^i = \tilde{\Gamma}^i - \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn} = 0$$
-
-Where $\chi = W^2$
 
 Constraint damping:
 
@@ -763,11 +761,14 @@ $$\begin{align}
 \partial_t \tilde{A}_{ij} \;+= k_m \alpha \tilde{D}_{(i}\mathcal{M}_{j)} \\
 \end{align}$$
 
+$k_m = 0.04 * \mathrm{should\_damp}$, as described earlier
+
 $$
 \begin{align}
 s &= \mathrm{step}(\partial_m \beta^m)\\
 \\
 \partial_t \Gamma^i\; &+=\; - (\chi s + \frac{2}{3}) \mathcal{G}^i \partial_m \beta^m\\
+\partial_t W \; &\mathrel{+}= \; C \; \Delta t \;\alpha W \mathcal{H}\\
 \end{align}
 $$
 
@@ -775,9 +776,15 @@ $$\begin{align}
 \partial_t \tilde{\gamma}_{ij} \; += \;k_{\gamma} \alpha \tilde{\gamma}_{k(i} \tilde{D}_{j)} \mathcal{G}^k
 \end{align}$$
 
+Where $\chi = 0.9$, $k_{\gamma} = -0.18$, and $C = 0.15$
+
 Gauge damping:
 
 $$\partial_t \alpha \; += \; - W (h e^{-\frac{t^2}{2 \sigma^2}}) (\alpha - W)$$
+
+Where $h = \frac{4}{5}$ and $\sigma = 20$
+
+Details are available in NR101 and NR102
 
 # Implementation Details
 
