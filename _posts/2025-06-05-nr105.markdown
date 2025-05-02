@@ -72,7 +72,7 @@ At the end of the previous article, we ended up with our fluid quantities: $\rho
 There are two pitfall traps here:
 
 1. The initial procedure we used last time appears to have assumed implicitly that $\alpha = 1$, and $\beta^i = 0$ - so use these when initialising regardless of what you actually pick for them
-2. $u_i = \beta^i u^0 + \gamma_{ik} u^k$. If you want to prove this, calculate $u_i = g_{i\nu} u^\nu$. There's maths in the appendix
+2. $u_i = \beta^i u^0 + \gamma_{ik} u^k$. If you want to prove this, calculate $u_i = g_{i\nu} u^\nu$
 
 We can now carry on immediately from our last article, which follows on as such:
 
@@ -765,7 +765,7 @@ s &= \mathrm{step}(\partial_m \beta^m)\\
 \partial_t \tilde{\gamma}_{ij} \; &\mathrel{+}= \;k_{\gamma} \alpha \tilde{\gamma}_{k(i} \tilde{D}_{j)} \mathcal{G}^k
 \end{align}$$
 
-Where $\chi = 0.9$, $k_{\gamma} = -0.18$, and $C = 0.15$
+Where $\chi = 0.9$, $k_{\gamma} = -0.18$, $C = 0.15$, and $\mathrm{step}(x) = x \geq 0 \;?\; 1 : 0$
 
 Gauge damping:
 
@@ -868,7 +868,9 @@ $$\partial_t q + \partial_i (q v^i) = \mathrm{Source}$$
 
 Operator splitting means that you update all the advection terms first, and then evaluate all source terms post advection - which smells a bit like a backwards Euler step
 
-I did some fairly extensive testing of various operator splitting methods vs treating these as regular evolution equations for this article, and was not able to find any stability difference at all. Operator splitting requires a few extra buffers of storage for intermediate variables, so in this case it was strictly worse
+I did some fairly extensive testing of various operator splitting methods vs treating these as regular evolution equations for this article, and was not able to find any stability difference. Operator splitting requires a few extra buffers of storage for intermediate variables, so in this case it was strictly worse
+
+That said, its possible that more extreme test cases would benefit from this, so I'll be giving it more testing eventually
 
 ## Black Hole Collapse
 
@@ -877,11 +879,11 @@ Matter within a black hole in the set of equations I'm presenting here is only m
 1. Disable all viscosity in the vicinity of an event horizon
 2. Dissipate all the matter fields to zero when within an event horizon
 
-In general, the lapse $\alpha$ is a good surrogate variable for being near an event horizon. I use a conservative $0.45$ for disabling viscosity, and $0.15$ for dissipating matter fields. The latter constraint imposes a minimum simulation resolution to successfully simulate a black hole collapse, as the simulation will eventually fail if matter is not damped within an event horizon
+In general, the lapse $\alpha$ is a good surrogate variable for being near an event horizon. I use a conservative $0.45$ for disabling viscosity, and $0.15$ for dissipating matter fields. The latter constraint imposes a minimum simulation resolution to successfully simulate a black hole collapse, as the simulation will eventually fail if matter is not damped within an event horizon. Luckily, that's about the same minimum resolution that you need to simulate a black hole *anyway*
 
 ## Boundaries
 
-The Sommerfeld boundary conditions I find tend to be a bit unstable with matter. Simply damping the fields away to zero as they approach the boundary works very well. This means you can turn the usual radiative boundary condition off
+The Sommerfeld boundary conditions I find tend to be a bit unstable with matter. Simply damping the fields away to zero as they approach the boundary works very well. This means you can turn the usual radiative boundary condition off. This is technically a sponge boundary condition
 
 ## Kreiss-Oliger
 
@@ -897,7 +899,7 @@ I haven't found this modification to be at all important in practice, so its dis
 
 ## $v^i$'s vacuum boundary is inconsistent
 
-This paper says that when the atmosphere is classed as a vacuum, $v^i = 0$. This is a *very* strange limit: Here's the equation for $v^i$:
+This paper says that when the atmosphere is classed as a vacuum, $v^i = 0$. This is a very strange limit: Here's the equation for $v^i$:
 
 $$v^i = -\beta^i + \frac{W^2 \alpha \tilde{\gamma}^{ij} \tilde{S}_j}{w h}$$
 
@@ -925,7 +927,7 @@ $C$ is a damping strength, set to $0.15$. It is $0$[^smooth] when the distance t
 3. The lapse ($\alpha$) term improves the behaviour of this modification for BBH collisions
 4. The extra factor of $- W$ comes from transforming this modification from the $\phi$ conformal factor, to the $W$ conformal factor
 
-The near-boundary modification has the effect of significantly reducing boundary constraint contamination of the simulation, compare below. Keep an eye on the top left box, which is the constraint error
+The near-boundary modification has the effect of significantly reducing boundary constraint contamination of the simulation, compare below. Keep an eye on the top left box, which is the Hamiltonian constraint error
 
 No damping:
 
@@ -992,6 +994,8 @@ Overall, the performance of this method has a roughly ~20% overhead compared to 
 
 ## $v^i$ derivation
 
+$$v^i = -\beta^i + \frac{W^2 \alpha \tilde{\gamma}^{ij} \tilde{S}_j}{w h}$$
+
 This can either be worked out from [2.12](https://arxiv.org/pdf/gr-qc/9908027) and converting their variables, or by calculating:
 
 $$
@@ -1002,4 +1006,69 @@ v^i &= \frac{u^i}{u^0}
 \end{align}
 $$
 
-You'll also have to work out the quantity $u_0$ if you're deriving this by hand. Todo: Do this
+I'll run through this. We'll need the form of $g^{\mu\nu}$
+
+|.|0|j|
+|-|-|-|
+|0|$-\alpha^{-2}$| $\alpha^{-2} \beta^j$ |
+|i|$\alpha^{-2} \beta^i$ | $\gamma^{ij} - \alpha^{-2} \beta^i \beta^j$ |
+
+First, we need to calculate $u_0$:
+
+$$\begin{align}
+u^0 &=  g^{0\mu} u_\mu\\
+u^0 &= g^{00} u_0 + g^{0i} u_i\\
+u^0 &= -\alpha^{-2} u_0 + \alpha^{-2} \beta^i u_i \\
+u_0 &= \frac{u^0 - \alpha^{-2} \beta^i u_i}{-\alpha^{-2}}
+\end{align}$$
+
+And we need this definition:
+
+$$u^0 = \frac{w}{\rho_* \alpha}$$
+
+Now lets derive $v^i$ from $u^i$:
+$$\begin{align}
+u^i &= g^{i0} u_0 + g^{ij} u_j\\
+u^i &= \alpha^{-2} \beta^i u_0 + (\gamma^{ij} - \alpha^{-2} \beta^i \beta^j) u_j\\
+u^i &= \alpha^{-2} \beta^i \frac{u^0 - \alpha^{-2} \beta^j u_j}{-\alpha^{-2}} + (\gamma^{ij} - \alpha^{-2} \beta^i \beta^j) u_j\\
+u^i &= -\beta^i (u^0 - \alpha^{-2} \beta^j u_j) + (\gamma^{ij} - \alpha^{-2} \beta^i \beta^j) u_j\\
+u^i &= -\beta^i u^0 + \alpha^{-2} \beta^i \beta^j u_j + \gamma^{ij} u_j - \alpha^{-2} \beta^i \beta^j u_j\\
+u^i &= -\beta^i u^0 + \gamma^{ij} u_j \\
+u^i &= -\beta^i u^0 + \gamma^{ij} \frac{\tilde{S}_j}{\rho_* h}\\
+v^i &= -\beta^i + \frac{\gamma^{ij}  \frac{\tilde{S}_j}{\rho_* h}}{u^0}\\
+v^i &= -\beta^i + \frac{\gamma^{ij}  \frac{\tilde{S}_j}{\rho_* h}}{\frac{w}{\rho_* \alpha}}\\
+v^i &= -\beta^i + \frac{\gamma^{ij}  \tilde{S}_j \alpha}{h w}\\
+v^i &= -\beta^i + \frac{W^2 \tilde{\gamma}^{ij} \tilde{S}_j \alpha}{h w}\\
+\end{align}$$
+
+Bob's your uncle
+
+## Papers
+
+Equations of state [https://arxiv.org/pdf/1108.1189](https://arxiv.org/pdf/1108.1189)
+
+Fluid dynamics [https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2011/Chapter_8.pdf](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2011/Chapter_8.pdf)
+
+Ye olde fluid dynamics paper [https://articles.adsabs.harvard.edu/full/seri/ApJS./0055//0000246.000.html](https://articles.adsabs.harvard.edu/full/seri/ApJS./0055//0000246.000.html)
+
+Relativistic hydrodynamics [https://academic.oup.com/ptp/article/82/3/535/1851751](https://academic.oup.com/ptp/article/82/3/535/1851751)
+
+Stability paper [https://arxiv.org/pdf/2404.01137](https://arxiv.org/pdf/2404.01137)
+
+Initial conditions [https://arxiv.org/pdf/1606.04881](https://arxiv.org/pdf/1606.04881)
+
+Primary paper of this article [https://arxiv.org/pdf/gr-qc/0209102](https://arxiv.org/pdf/gr-qc/0209102)
+
+Setup paper [https://arxiv.org/pdf/gr-qc/9908027](https://arxiv.org/pdf/gr-qc/9908027)
+
+Followup paper by the same authors, which partially discusses the limitations of this method [https://arxiv.org/pdf/astro-ph/0503420](https://arxiv.org/pdf/astro-ph/0503420)
+
+Contains some interesting models [https://arxiv.org/pdf/0804.0594](https://arxiv.org/pdf/0804.0594)
+
+Modern reference for artificial viscosity [https://arxiv.org/pdf/2202.11084](https://arxiv.org/pdf/2202.11084)
+
+Interesting paper about tov/spinning models [https://arxiv.org/pdf/gr-qc/0403029](https://arxiv.org/pdf/gr-qc/0403029)
+
+Neutron star merger paper, which includes a WENO scheme [https://arxiv.org/pdf/1509.08804](https://arxiv.org/pdf/1509.08804)
+
+A truly baffling paper that use this hydrodynamics formalism [https://arxiv.org/pdf/2203.05149](https://arxiv.org/pdf/2203.05149)
