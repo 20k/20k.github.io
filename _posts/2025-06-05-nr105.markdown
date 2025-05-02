@@ -746,9 +746,12 @@ $$\partial_t \beta^i = \frac{3}{4} \tilde{\Gamma}^i + \beta^j \partial_j \beta^i
 
 Constraints:
 
-$$\mathcal{M}_i = \tilde{\gamma}^{mn} \tilde{D}_m \tilde{A}_{ni} - \frac{2}{3} \partial_i K - \frac{3}{2} \tilde{A}^m_{\;\;i} \frac{\partial_m \chi}{\chi} = 0$$
+$$\begin{align}
+\mathcal{M_i} &= \partial_j \tilde{A}_i^j - \frac{1}{2} \tilde{\gamma}^{jk} \tilde{A}_{jk,i} + 6 \partial_j \phi \tilde{A}_i^j - \frac{2}{3} \partial_i K \\
+\partial_i \phi &= -\frac{\partial_i W}{2 W} \\
+\end{align}$$
 
-$$H = \mathcal{R} + \frac{2}{3} K^2 - \tilde{A}^{mn} \tilde{A}_{mn} = 0$$
+$$\mathcal{H} = \mathcal{R} + \frac{2}{3} K^2 - \tilde{A}^{mn} \tilde{A}_{mn} = 0$$
 
 $$\mathcal{G}^i = \tilde{\Gamma}^i - \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn} = 0$$
 
@@ -756,7 +759,25 @@ Where $\chi = W^2$
 
 Constraint damping:
 
+$$\begin{align}
+\partial_t \tilde{A}_{ij} \;+= k_m \alpha \tilde{D}_{(i}\mathcal{M}_{j)} \\
+\end{align}$$
 
+$$
+\begin{align}
+s &= \mathrm{step}(\partial_m \beta^m)\\
+\\
+\partial_t \Gamma^i\; &+=\; - (\chi s + \frac{2}{3}) \mathcal{G}^i \partial_m \beta^m\\
+\end{align}
+$$
+
+$$\begin{align}
+\partial_t \tilde{\gamma}_{ij} \; += \;k_{\gamma} \alpha \tilde{\gamma}_{k(i} \tilde{D}_{j)} \mathcal{G}^k
+\end{align}$$
+
+Gauge damping:
+
+$$\partial_t \alpha \; += \; - W (h e^{-\frac{t^2}{2 \sigma^2}}) (\alpha - W)$$
 
 # Implementation Details
 
