@@ -705,6 +705,58 @@ This is basic, but it saves a lot of time looking things up when you check the r
 
 ## BSSN Equations with source terms
 
+$$
+\begin{align}
+\partial_t W &= \beta^m \partial_m W + \frac{1}{3} W (\alpha K - \partial_m \beta^m) \\
+\partial_t \tilde{\gamma}_{ij} &= \beta^m \partial_m \tilde{\gamma}_{ij}+ 2 \tilde{\gamma}_{m(i} \partial_{j)} \beta^m - \frac{2}{3} \tilde{\gamma}_{ij} \partial_m \beta^m - 2 \alpha \tilde{A}_{ij} \\
+\partial_t K &= \beta^m \partial_m K - W^2 \tilde{\gamma}^{mn} D_m D_n \alpha + \alpha \tilde{A}^{mn} \tilde{A}_{mn} + \frac{1}{3} \alpha K^2\\
+\partial_t \tilde{A}_{ij} &= \beta^m \partial_m \tilde{A}_{ij}+ 2 \tilde{A}_{m(i} \partial_{j)} \beta^m - \frac{2}{3} \tilde{A}_{ij} \partial_m \beta^m + \alpha K \tilde{A}_{ij} \\&- 2 \alpha \tilde{A}_{im} \tilde{A}^m_{\;\;j} + W^2 (\alpha \mathcal{R}_{ij} - D_i D_j \alpha)^{TF} \\
+\partial_t \tilde{\Gamma}^i &= \beta^m \partial_m \tilde{\Gamma}^i + \frac{2}{3} \tilde{\Gamma}^i \partial_m \beta^m - \tilde{\Gamma}^m \partial_m \beta^i + \tilde{\gamma}^{mn} \partial_m \partial_n \beta^i + \frac{1}{3} \tilde{\gamma}^{im} \partial_m \partial_n \beta^n \\
+&-\tilde{A}^{im}(6\alpha \frac{\partial_m W}{W} + 2 \partial_m \alpha) + 2 \alpha \tilde{\Gamma}^i_{mn} - \frac{4}{3} \alpha \tilde{\gamma}^{im} \partial_m K
+\end{align}
+$$
+
+With the secondary expressions:
+
+$$
+\begin{align}
+\mathcal{R}_{ij} &= \tilde{\mathcal{R}}_{ij} + \mathcal{R}^W_{ij}\\
+\mathcal{R}^W_{ij} &= \frac{1}{W^2} (W (\tilde{D}_i \tilde{D}_j W + \tilde{\gamma}_{ij} \tilde{D}^m \tilde{D}_m W) - 2 \tilde{\gamma}_{ij} \partial^m W \partial_m W)\\
+\tilde{\mathcal{R}}_{ij} &= -\frac{1}{2} \tilde{\gamma}^{mn} \partial_m \partial_n \tilde{\gamma}_{ij} + \tilde{\gamma}_{m(i} \partial _{j)} \tilde{\Gamma}^m + \tilde{\Gamma}^m \tilde{\Gamma}_{(ij)m}+ \tilde{\gamma}^{mn} (2 \tilde{\Gamma}^k_{m(i} \tilde{\Gamma}_{j)kn} + \tilde{\Gamma}^k_{im} \tilde{\Gamma}_{kjn})\\
+D_iD_j\alpha &= \tilde{D}_i \tilde{D}_j \alpha + \frac{2}{W} \partial_{(i} W \partial_{j)} \alpha\ - \frac{1}{W} \tilde{\gamma}_{ij} \tilde{\gamma}^{mn} \partial_m W \partial_n \alpha
+\end{align}
+$$
+
+And source terms:
+
+$$\begin{align}
+\partial_t K &\mathrel{+}= 4 \pi \alpha (S + \rho_H)\\
+\partial_t \tilde{A}_{ij} &\mathrel{+}= -8 \pi \alpha \tilde{S}_{ij}^{TF}\\
+\partial_t \tilde{\Gamma}^i &\mathrel{+}= -16 \pi \alpha \tilde{\gamma}^{ij} S_j\\
+\mathcal{H} &\mathrel{+}= -16 \pi \rho_H\\
+\mathcal{M}_i &\mathrel{+}= -8 \pi S_i\\
+\end{align}$$
+
+Gauge conditions:
+
+$$\partial_t \alpha = -2 \alpha K + \beta^i \partial_i \alpha$$
+
+$$\partial_t \beta^i = \frac{3}{4} \tilde{\Gamma}^i + \beta^j \partial_j \beta^i - N \beta^i$$
+
+
+Constraints:
+
+$$\mathcal{M}_i = \tilde{\gamma}^{mn} \tilde{D}_m \tilde{A}_{ni} - \frac{2}{3} \partial_i K - \frac{3}{2} \tilde{A}^m_{\;\;i} \frac{\partial_m \chi}{\chi} = 0$$
+
+$$H = \mathcal{R} + \frac{2}{3} K^2 - \tilde{A}^{mn} \tilde{A}_{mn} = 0$$
+
+$$\mathcal{G}^i = \tilde{\Gamma}^i - \tilde{\gamma}^{mn} \tilde{\Gamma}^i_{mn} = 0$$
+
+Where $\chi = W^2$
+
+Constraint damping:
+
+
 
 # Implementation Details
 
