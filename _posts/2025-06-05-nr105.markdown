@@ -818,6 +818,80 @@ pin(icY);
 
 This isn't used for any of the tests in this article, but I've found it works reliably for binary neutron stars, I avoided it purely for commonality with the paper we're replicating (and to avoid an extensive set of discussions/tests on it)
 
+## Rasterisation
+
+I've skipped past this a little because the rasterisation isn't especially physical in this article, so its not really something to 'present'. I might do something more proper in the near future - but until then, I'll just highlight what I did here without alleging that its correct
+
+```c++
+v3f grid_position = world_to_grid(cposition, dim.get(), scale.get());
+
+grid_position = clamp(grid_position, (v3f){3,3,3}, (v3f)dim.get() - (v3f){4,4,4});
+pin(grid_position);
+
+v3f colour = {0,0,0};
+valuef density = 0.f;
+
+auto get_rho = [&](v3i pos)
+{
+    derivative_data d;
+    d.pos = pos;
+    d.dim = dim.get();
+    d.scale = scale.get();
+
+    bssn_args args = bssn_at(pos, dim.get(), in);
+
+    valuef p = plugin_data.adm_p(args, d);
+    pin(p);
+
+    return p;
+};
+
+valuef rho = function_trilinear(get_rho, grid_position);
+
+if(use_colour)
+{
+    auto get_col = [&](v3i pos)
+    {
+        derivative_data d;
+        d.pos = pos;
+        d.dim = dim.get();
+        d.scale = scale.get();
+
+        bssn_args args = bssn_at(pos, dim.get(), in);
+
+        v3f c = plugin_data.get_colour(args, d);
+        pin(c);
+
+        return c;
+    };
+
+    colour = function_trilinear(get_col, grid_position) * 1;
+}
+else
+
+    colour = {1, 1, 1};
+
+density = rho * 10000;
+
+valuef sample_length = diff.length();
+
+as_ref(accumulated_occlusion) += density * sample_length;
+
+valuef transparency = exp(-as_constant(accumulated_occlusion));
+
+///assuming that the intrinsic brightness is a function of density
+as_ref(accumulated_colour) += density * colour * sample_length * transparency;
+
+if_e(transparency <= 0.001f, [&]{
+    as_ref(result) = valuei(3);
+    break_e();
+});
+```
+
+This is a simple exponential accumulator. Its been a while since I've done volumetric rendering, so you may want to double check this as its based off of code I wrote quite a few years ago
+
+If you want to go digging for a fully accurate rasterisation scheme, a good starting point is [here](https://www.ita.uni-heidelberg.de/~dullemond/lectures/radtrans_2013/index.shtml), and especially [here](https://arxiv.org/pdf/1207.4234). I might spend some time making this more rigorous and present it as a separate article, so its debugging quality for now
+
 # Implementation Details
 
 There are a variety of implementation details that tend not to be discussed, that I will now dig into
@@ -1065,8 +1139,10 @@ Interesting paper about tov/spinning models [https://arxiv.org/pdf/gr-qc/0403029
 
 Neutron star merger paper, which includes a WENO scheme [https://arxiv.org/pdf/1509.08804](https://arxiv.org/pdf/1509.08804)
 
-A truly baffling paper that use this hydrodynamics formalism [https://arxiv.org/pdf/2203.05149](https://arxiv.org/pdf/2203.05149)
+A truly baffling paper that uses this hydrodynamics formalism [https://arxiv.org/pdf/2203.05149](https://arxiv.org/pdf/2203.05149)
 
 A Lagrangian approach [https://arxiv.org/pdf/2205.08130](https://arxiv.org/pdf/2205.08130)
 
 Equations of state for neutron stars [https://arxiv.org/pdf/0812.2163](https://arxiv.org/pdf/0812.2163)
+
+Radiative transfer: [https://arxiv.org/pdf/1207.4234](https://arxiv.org/pdf/1207.4234)
