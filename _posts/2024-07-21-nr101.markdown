@@ -197,7 +197,7 @@ Where $$\tilde{D}_i$$ is the covariant derivative associated with $$\tilde{\gamm
 
 ### Hamiltonian
 
-$$H = \mathcal{R} + \frac{2}{3} K^2 - \tilde{A}^{mn} \tilde{A}_{mn} = 0$$
+$$\mathcal{H} = \mathcal{R} + \frac{2}{3} K^2 - \tilde{A}^{mn} \tilde{A}_{mn} = 0$$
 
 Where $\mathcal{R}$ is the trace of $$\mathcal{R}_{ij}$$ with respect to $$\gamma_{ij}$$ (ie $$\mathcal{R}_{ij} \gamma^{ij}$$), and will be introduced in full later
 

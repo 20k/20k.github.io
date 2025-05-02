@@ -1154,19 +1154,19 @@ Fixing up this constraint is much more important to the long running of our sim.
 
 $$
 \begin{align}
-s &= step(\partial_m \beta^m)\\
+s &= \mathrm{step}(\partial_m \beta^m)\\
 \\
-\partial_t \alpha &= \partial_t \alpha - (\chi s + \frac{2}{3}) \mathcal{G}^i \partial_m \beta^m\\
+\partial_t \Gamma^i &= \partial_t \Gamma^i - (\chi s + \frac{2}{3}) \mathcal{G}^i \partial_m \beta^m\\
 \end{align}
 $$
 
 or a similar modification: [(2.22)](https://arxiv.org/pdf/0711.3575v2)
 
 $$
-\partial_t \alpha = \partial_t \alpha + k_g \alpha \mathcal{G}^i \\
+\partial_t \Gamma^i = \partial_t \Gamma^i + k_g \alpha \mathcal{G}^i \\
 $$
 
-Where $\chi$ > 0, and $k_g$ < 0. $step$ is a function that returns $1$ if its argument is $> 0$, otherwise $0$[^slightlysubtle]. We'll be looking at the first equation primarily
+Where $\chi$ > 0, and $k_g$ < 0. $\mathrm{step}$ is a function that returns $1$ if its argument is $> 0$, otherwise $0$[^slightlysubtle]. We'll be looking at the first equation primarily
 
 [^slightlysubtle]: There are a few possible choices of modification here. The reason for the step function choice, is that the equations are only inherently unstable when $$\partial_m \beta^m > 0$$, and $$\chi$$ must have the same sign as that. I've also seen this implemented as a flat constant. You could also use $s = \chi > 0 ? 1 : -1$. In practice I've found it makes almost no difference
 
