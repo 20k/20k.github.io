@@ -45,6 +45,14 @@ valuef calculate_p0e(valuef p_star, valuef e_star, valuef W, valuef w)
     return pow(max(e_star * e_m6phi * iv_au0, 0.f), Gamma);
 }
 
+valuef calculate_p0e_no_pow_interior(valuef p_star, valuef e_star, valuef W, valuef w)
+{
+    valuef e_m6phi = W*W*W;
+    valuef iv_au0 = safe_divide(p_star, w);
+
+    return e_star * e_m6phi * iv_au0;
+}
+
 valuef calculate_p0(valuef p_star, valuef W, valuef w)
 {
     valuef iv_au0 = safe_divide(p_star, w);
@@ -299,8 +307,8 @@ struct hydrodynamic_concrete
 
             //uses the average flux approximation (?)
             //ideally, I wouldn't use that, the sole blocker is the lack of a good equation source
-            valuef f_mhalf_2 = (1.f/2.f) * fabs(v_mhalf) * (1 - fabs(v_mhalf * timestep / d.scale)) * phi_mhalf * (q0 - qm1);
-            valuef f_phalf_2 = (1.f/2.f) * fabs(v_phalf) * (1 - fabs(v_phalf * timestep / d.scale)) * phi_phalf * (q1 - q0);
+            valuef f_mhalf_2 = (1.f/2.f) * fabs(v_mhalf) * (1 - fabs(v_mhalf * (timestep / d.scale))) * phi_mhalf * (q0 - qm1);
+            valuef f_phalf_2 = (1.f/2.f) * fabs(v_phalf) * (1 - fabs(v_phalf * (timestep / d.scale))) * phi_phalf * (q1 - q0);
 
             valuef f_mhalf = f_mhalf_1 + f_mhalf_2;
             valuef f_phalf = f_phalf_1 + f_phalf_2;
@@ -336,16 +344,20 @@ struct hydrodynamic_concrete
 
         for(int k=0; k < 3; k++)
         {
-            value to_diff = safe_divide(w, p_star) * vi[k] * e_6phi;
+            value to_diff = safe_divide(vi[k], p_star) * w * e_6phi;
 
             sum_interior_rhs += diff1(to_diff, k, d);
         }
 
         valuef Gamma = get_Gamma();
 
-        valuef p0e = calculate_p0e(W);
+        ///the usual calculation
+        //valuef p0e = calculate_p0e(W);
+        //valuef degenerate = safe_divide(valuef{1}, pow(p0e, 1 - 1/Gamma));
 
-        valuef degenerate = safe_divide(valuef{1}, pow(p0e, 1 - 1/Gamma));
+        ///https://herbie.uwplse.org/demo/52581ebe88144c24f862a2121f196a594ce8656d.1a83c9f5186db102b678a2d5f869f99992469071/graph.html
+        valuef p0e_interior = calculate_p0e_no_pow_interior(p_star, e_star, W, w);
+        valuef degenerate = safe_divide(p0e_interior, pow(p0e_interior, Gamma));
 
         return -degenerate * (Q_vis / Gamma) * sum_interior_rhs;
     }
