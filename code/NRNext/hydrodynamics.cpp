@@ -887,21 +887,7 @@ valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev)
 
 valuef calculate_w_constant(valuef W, const inverse_metric<valuef, 3, 3>& icY, v3f Si)
 {
-    valuef cst = 0;
-
-    for(int i=0; i < 3; i++)
-    {
-        valuef sum = 0;
-
-        for(int j=0; j < 3; j++)
-        {
-            sum += icY[i, j] * Si[j];
-        }
-
-        cst += Si[i] * sum;
-    }
-
-    return W*W * cst;
+    return W*W * icY.length_sq(Si);
 }
 
 valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef, 3, 3> icY, v3f Si)
