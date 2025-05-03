@@ -120,7 +120,7 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
     valuef littledv = dkvk * d.scale;
     valuef Gamma = get_Gamma();
 
-    valuef A = pow(e_star, Gamma) * pow(e_m6phi, Gamma - 1) * safe_divide(pow(p_star, Gamma - 1), pow(w, Gamma - 1));
+    valuef A = pow(e_star, Gamma) * pow(e_m6phi, Gamma - 1) * pow(safe_divide(p_star, w), Gamma - 1);
 
     ///[0.1, 1.0]
     valuef CQvis = quadratic_strength;
