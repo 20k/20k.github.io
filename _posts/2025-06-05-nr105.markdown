@@ -10,9 +10,9 @@ Hi!
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/rw9mKFwo4Ds?si=XAcRtXyLKmMBpL_x" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Its finally time to do something truly spectacular, and smash some neutron stars together. We'll be discussing how relativistic hydrodynamics works, how it compares to regular hydrodynamics, and some of the various approaches present in the literature. I've also extensively documented a lot of the issues you'll run into in practice if you try and implement this kind of thing
+Its finally time to do something truly spectacular, and smash some neutron stars together. We'll be discussing how relativistic hydrodynamics works, how it compares to regular hydrodynamics, and some of the various approaches present in the literature. I've also extensively documented many of the issues you'll run into in practice if you try and implement this kind of thing
 
-If you're here simply for the montage of things smashing into each other: good news, there's a tonnes in here
+If you're here simply for the montage of things smashing into each other: good news, there's a tonnes of videos in here
 
 But first up: Some background
 
@@ -20,7 +20,7 @@ But first up: Some background
 
 If you're like me, at some point you might not even really have known why hydrodynamics is a separate area of inquiry to just solving PDEs in general. Or, you might just think its an umbrella term for people who apply the same techniques we've been using already, but simply to fluids
 
-This is incorrect. A fair chunk of this article is going to be explaining what hydrodynamics is, why we need to use different solving methods, and how that fits into general relativity. A lot of programmers' experience of fluid dynamics is the incompressible Navier-Stokes equations, so you might be wondering how similar that it is to what we're trying to do today (disclaimer: not very)
+This is incorrect. A fair chunk of this article is going to be explaining what hydrodynamics is, why we need to use different solving methods, and how that fits into general relativity. A lot of programmers' experience of fluid dynamics is the incompressible Navier-Stokes equations, so you might be wondering how similar that it is to what we're doing today (disclaimer: not very)
 
 So today's article is going to contain a fair bit of information about regular hydrodynamics
 
@@ -32,7 +32,7 @@ There are three primary kinds of hydrodynamic formalisms:
 2. Semi Lagrangian. This is what most programmers are familiar with - you have grid cells, and trace your velocity backward through the grid to find out where your fluid originated from (and what properties it had)
 3. Eularian. Here, we have grid cells, and only deal with quantities locally in terms of their values and derivatives
 
-Today we'll be using a purely Eularian scheme. We'll get to the differences between the hydrodynamic techniques for solving Eularian equations, and regular PDE solving, after we get to the relativistic portions of this article. There are a bunch of other techniques as well like lattice Boltzmann if you're interested, this is just the major schemes
+Today we'll be using a purely Eularian scheme. We'll get to the differences between the hydrodynamic techniques for solving Eularian equations, and regular differential equation solving, after we get to the relativistic portions of this article
 
 # Relativistic Eularian Hydrodynamics - 2002 style
 
@@ -508,6 +508,74 @@ $$
 
 ### Implementation
 
+To keep all derivatives first order, we have to split our equations into three parts
+
+1. $w$
+2. $Q$
+3. Everything else
+
+#### $w$
+
+```c++
+valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev)
+{
+    valuef Gamma = get_Gamma();
+
+    valuef A = pow(max(W, 0.001f), 3.f * Gamma - 3.f);
+    valuef wG = pow(w_prev, Gamma - 1);
+
+    return safe_divide(wG, wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, min_p_star), Gamma - 2));
+}
+
+valuef calculate_w_constant(valuef W, const inverse_metric<valuef, 3, 3>& icY, v3f Si)
+{
+    valuef cst = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        valuef sum = 0;
+
+        for(int j=0; j < 3; j++)
+        {
+            sum += icY[i, j] * Si[j];
+        }
+
+        cst += Si[i] * sum;
+    }
+
+    return W*W * cst;
+}
+
+valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef, 3, 3> icY, v3f Si)
+{
+    using namespace single_source;
+
+    valuef w = p_star;
+
+    valuef p_sq = p_star * p_star;
+
+    valuef cst = calculate_w_constant(W, icY, Si);
+
+    //pin(p_sq);
+    pin(cst);
+
+    for(int i=0; i < 140; i++)
+    {
+        valuef D = w_next_interior(p_star, e_star, W, w);
+
+        valuef w_next = sqrt(max(p_sq + cst * D*D, 0.f));
+
+        pin(w_next);
+
+        ///relaxation. Its not really necessary
+        w = mix(w, w_next, valuef(0.9f));
+        pin(w);
+    }
+
+    return w;
+}
+```
+
 # Relativistic Hydrodynamics Discussion
 
 Before we get to the results, and overall discussion, its worth talking about this hydro formalism a bit more critically. Digging into a past project again equipped with much more knowledge and a critical eye was absolutely fascinating, and I learnt a lot about hydrodynamics along the way
@@ -781,7 +849,7 @@ There was no good place to stick this in the article, but having to manually twe
 
 $$N = R_0 \frac{\sqrt{\tilde{\gamma}^{ij} \partial_i W \partial_j W}}{(1 - W^a)^b}$$
 
-I use $a = 2, b = 2$, and implement is as follows:
+I use $a = 2, b = 2$, and implement it as follows:
 
 ```c++
 //https://arxiv.org/pdf/1009.0292
@@ -816,7 +884,7 @@ pin(icY);
 }
 ```
 
-This isn't used for any of the tests in this article, but I've found it works reliably for binary neutron stars, I avoided it purely for commonality with the paper we're replicating (and to avoid an extensive set of discussions/tests on it)
+This isn't used for any of the tests in this article, but I've found it works reliably for binary neutron stars - I avoided it purely for commonality with the paper we're replicating (and to avoid an extensive set of discussions/tests on it)
 
 ## Rasterisation
 
@@ -894,7 +962,7 @@ If you want to go digging for a fully accurate rasterisation scheme, a good star
 
 # Implementation Details
 
-There are a variety of implementation details that tend not to be discussed, that I will now dig into
+There are a variety of implementation details and other things that tend not to be discussed, that I will now dig into
 
 ## Divisions by zero
 
