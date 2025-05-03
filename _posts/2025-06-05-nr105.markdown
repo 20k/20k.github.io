@@ -527,27 +527,20 @@ The odd fraction at the end is for floating point reasons[^herbie]
 
     valuef e_star_rhs(valuef W, valuef Q_vis, v3f vi, const derivative_data& d)
     {
-        valuef e_6phi = pow(max(W, 0.1f), -3.f);
-
         valuef sum_interior_rhs = 0;
 
         for(int k=0; k < 3; k++)
         {
-            value to_diff = safe_divide(vi[k], p_star) * w * e_6phi;
+            value to_diff = safe_divide(vi[k], p_star) * w * pow(max(W, 0.1f), -3.f);
 
             sum_interior_rhs += diff1(to_diff, k, d);
         }
 
         valuef Gamma = get_Gamma();
 
-        ///the usual calculation
-        //valuef p0e = calculate_p0e(W);
-        //valuef degenerate = safe_divide(valuef{1}, pow(p0e, 1 - 1/Gamma));
-
         valuef iv_au0 = safe_divide(p_star, w);
         valuef p0e_interior = e_star * (W*W*W) * iv_au0;
 
-        ///https://herbie.uwplse.org/demo/52581ebe88144c24f862a2121f196a594ce8656d.1a83c9f5186db102b678a2d5f869f99992469071/graph.html
         valuef degenerate = safe_divide(p0e_interior, pow(p0e_interior, Gamma));
 
         return -degenerate * (Q_vis / Gamma) * sum_interior_rhs;

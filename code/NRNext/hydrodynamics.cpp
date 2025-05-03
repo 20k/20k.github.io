@@ -328,13 +328,11 @@ struct hydrodynamic_concrete
 
     valuef e_star_rhs(valuef W, valuef Q_vis, v3f vi, const derivative_data& d)
     {
-        valuef e_6phi = pow(max(W, 0.1f), -3.f);
-
         valuef sum_interior_rhs = 0;
 
         for(int k=0; k < 3; k++)
         {
-            value to_diff = safe_divide(vi[k], p_star) * w * e_6phi;
+            value to_diff = safe_divide(vi[k], p_star) * w * pow(max(W, 0.1f), -3.f);
 
             sum_interior_rhs += diff1(to_diff, k, d);
         }
