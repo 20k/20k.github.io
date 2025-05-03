@@ -233,7 +233,7 @@ struct hydrodynamic_concrete
         auto get_delta = [&](valuef q, int which)
         {
             std::array<valuef, 3> v_adj = get_differentiation_variables<3, valuef>(vi[which], which);
-            std::array<valuef, 5> q_adj = get_differentiation_variables<5, valuef>(in, which);
+            std::array<valuef, 5> q_adj = get_differentiation_variables<5, valuef>(q, which);
             std::array<valuef, 3> p_adj = get_differentiation_variables<3, valuef>(p_star, which);
 
             for(auto& i : v_adj)
@@ -270,9 +270,9 @@ struct hydrodynamic_concrete
             pin(r_phalf);
 
             //superbee
-            auto phi_r = [&](valuef r)
+            auto phi_r = [](valuef r)
             {
-                auto max3 = [&](valuef v1, valuef v2, valuef v3)
+                auto max3 = [](valuef v1, valuef v2, valuef v3)
                 {
                     return max(max(v1, v2), v3);
                 };
@@ -883,7 +883,7 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef
         valuef w_next = sqrt(max(p_sq + cst * D*D, 0.f));
         pin(w_next);
 
-        ///relaxation. Its not really necessary
+        //relaxation
         w = mix(w, w_next, valuef(0.9f));
         pin(w);
     }

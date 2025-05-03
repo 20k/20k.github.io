@@ -322,7 +322,7 @@ valuef advect_rhs(valuef in, v3f vi, const derivative_data& d, valuef timestep)
     auto get_delta = [&](valuef q, int which)
     {
         std::array<valuef, 3> v_adj = get_differentiation_variables<3, valuef>(vi[which], which);
-        std::array<valuef, 5> q_adj = get_differentiation_variables<5, valuef>(in, which);
+        std::array<valuef, 5> q_adj = get_differentiation_variables<5, valuef>(q, which);
         std::array<valuef, 3> p_adj = get_differentiation_variables<3, valuef>(p_star, which);
 
         for(auto& i : v_adj)
@@ -359,9 +359,9 @@ valuef advect_rhs(valuef in, v3f vi, const derivative_data& d, valuef timestep)
         pin(r_phalf);
 
         //superbee
-        auto phi_r = [&](valuef r)
+        auto phi_r = [](valuef r)
         {
-            auto max3 = [&](valuef v1, valuef v2, valuef v3)
+            auto max3 = [](valuef v1, valuef v2, valuef v3)
             {
                 return max(max(v1, v2), v3);
             };
@@ -465,7 +465,7 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef
     valuef cst = W*W * icY.length_sq(Si);
     pin(cst);
 
-    //140 iterations out to be enough for anybody
+    //140 iterations ought to be enough for anybody
     for(int i=0; i < 140; i++)
     {
         valuef A = pow(max(W, 0.001f), 3.f * Gamma - 3.f);
@@ -475,7 +475,7 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef
         valuef w_next = sqrt(max(p_sq + cst * D*D, 0.f));
         pin(w_next);
 
-        ///relaxation. Its not really necessary
+        //relaxation
         w = mix(w, w_next, valuef(0.9f));
         pin(w);
     }
@@ -483,6 +483,8 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef
     return w;
 }
 ```
+
+Iterating $w$ is extremely cheap. $140$ iterations is way more than necessary here. Because we can get away with such a high number of iterations, I apply a small amount of relaxation to the solution - just to make sure that this function can never cause us any problems
 
 Its worth noting here that when $\Gamma = 2$, the factor of $\rho_*$ drops out in $D$
 
@@ -506,49 +508,7 @@ h &= 1 + \Gamma \epsilon
 \end{align}
 $$
 
-## ADM Source terms
-
-The way matter integrates into the BSSN equations is via something known as source terms. These make up the components of the stress-energy tensor - which up until now, has been 0. This is fed into our BSSN equations, to enable matter to affect spacetime
-
-There are four standard ADM source terms, representing the ADM projections of the 4d stress-energy tensor. We can calculate them from our matter variables as follows:
-
-$$\begin{align}
-\rho_H &= h w W^3 - P\\
-S_i &= W^3\tilde{S}_i\\
-S_{ij} &= \frac{W^3}{wh}\tilde{S}_i \tilde{S}_j + P \gamma_{ij}\\
-S &= \gamma^{ij} S_{ij} = W^2 \tilde{\gamma}^{ij} S_{ij} \\
-\end{align}$$
-
-In this form, they're less useful than they could be: $S_{ij}$ is singular at the singularity. The issue is that $\gamma_{ij}$ is undefined
-
-Luckily, we can skip to the future, and discover that the form of our $S_{ij}$ source term is actually: $-W^2 8 \pi \alpha S_{ij}$[^alttechnique]. Given that $$W^2 \gamma_{ij} = \tilde{\gamma}_{ij}$$, we can instead re-format our equations like this:
-
-[^alttechnique]: Calculating the pressure involves calculating the quantity $\rho_0 \epsilon$: we could scavenge one of the $W^2$ terms from that calculation to instead remove the $\gamma_{ij}$ term. However, the construction presented is a slightly more general approach that we can use in other methods, rather than relying on the *specific* form of the source terms, so we'll stick with it
-
-$$
-\begin{align}
-\tilde{S}_{ij} &= \frac{W^5}{wh} \tilde{S}_i \tilde{S}_j + P \tilde{\gamma}_{ij}\\
-S &=\tilde{\gamma}^{ij} \tilde{S}_{ij} \\
-\end{align}
-$$
-
-We'll have to modify our BSSN source term to match the absorbed $W^2$ term (ie $-8 \pi \alpha S_{ij}$), but now our source terms become regular at the metric tensor. This is a free win, at the expense of non standard notation that we'll have to keep in mind into the future
-
-## The BSSN equations
-
-The additions are straightforward:
-
-$$\begin{align}
-\partial_t K &\mathrel{+}= 4 \pi \alpha (S + \rho_H)\\
-\partial_t \tilde{A}_{ij} &\mathrel{+}= -8 \pi \alpha \tilde{S}_{ij}^{TF}\\
-\partial_t \tilde{\Gamma}^i &\mathrel{+}= -16 \pi \alpha \tilde{\gamma}^{ij} S_j\\
-\mathcal{H} &\mathrel{+}= -16 \pi \rho_H\\
-\mathcal{M}_i &\mathrel{+}= -8 \pi S_i\\
-\end{align}$$
-
-The source terms conspire very conveniently to avoid having to calculate infinite quantities at the singularity which is great. The only infinities we have to worry about are in the actual hydrodynamic evolution equations themselves
-
-# Artificial Viscosity
+## Artificial Viscosity
 
 One of the big problems with our equations is that they actually aren't conservative: one key thing is that $e^*$ isn't actually conserved in the presence of shocks. To combat this, this scheme introduces a small amount of artificial viscosity to dissipate shocks away
 
@@ -564,7 +524,7 @@ There are two complementary ways to calculate this additional pressure term $Q$
 
 You can sum these. On a technical note, these are both only enabled when the fluid is being compressed - which is why there's a branch in the definitions
 
-## Quadratic Viscosity
+### Quadratic Viscosity
 
 $$\begin{align}
 Q_{Qvis} =
@@ -599,7 +559,7 @@ valuef PQvis = ternary(littledv < 0, CQvis * A * pow(littledv, 2), valuef{0.f});
 
 Quadratic viscosity is generally left on throughout a simulation, but is disabled near a singularity. In theory, you could probably derive the strength of the quadratic viscosity from a hydrodynamic smoothness estimate to enable dissipation in unsmooth parts of the solution, but I have no information on if that's worthwhile
 
-## Linear viscosity
+### Linear viscosity
 
 $$\begin{align}
 Q_{Lvis} =
@@ -625,7 +585,6 @@ valuef n = 1;
 
 valuef PLvis = ternary(littledv < 0, -CLvis * sqrt((get_Gamma()/n) * p_star * A) * littledv, valuef(0.f));
 ```
-
 
 Without linear viscosity:
 
@@ -672,7 +631,7 @@ I &= e_* W^3 \frac{\rho_*}{w}\\
     }
 ```
 
-## Viscosity conclusion
+### Conclusion
 
 In general, linear viscosity is good for large scale damping and significantly improves the simulations stability. Our initial conditions are quite approximate and the stars relax into their final form, so damping this initial relaxation improves the simulation a lot, and produces more stable, less oscillating, neutron stars. Quadratic viscosity seems to be less applicable here, and hasn't produced significant changes to the simulation, but it also may be just the tests that I've performed
 
@@ -700,47 +659,8 @@ To keep all derivatives first order, we have to split our equations into three k
 
 #### $w$
 
-```c++
-valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev)
-{
-    valuef Gamma = get_Gamma();
 
-    valuef A = pow(max(W, 0.001f), 3.f * Gamma - 3.f);
-    valuef wG = pow(w_prev, Gamma - 1);
 
-    return safe_divide(wG, wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, min_p_star), Gamma - 2));
-}
-
-valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef, 3, 3> icY, v3f Si)
-{
-    using namespace single_source;
-
-    valuef w = p_star;
-
-    valuef p_sq = p_star * p_star;
-
-    valuef cst = W*W * icY.length_sq(Si);
-
-    pin(cst);
-
-    for(int i=0; i < 140; i++)
-    {
-        valuef D = w_next_interior(p_star, e_star, W, w);
-
-        valuef w_next = sqrt(max(p_sq + cst * D*D, 0.f));
-
-        pin(w_next);
-
-        ///relaxation. Its not really necessary
-        w = mix(w, w_next, valuef(0.9f));
-        pin(w);
-    }
-
-    return w;
-}
-```
-
-Iterating $w$ is extremely cheap. 140 iterations is way more than necessary here. Because we can get away with such a high number of iterations, I apply a small amount of relaxation to the solution - just to make sure that this function can never cause us any problems
 
 #### $Q$
 
@@ -832,6 +752,48 @@ if_e(hydro_args.p_star >= min_evolve_p_star, [&]{
 ```
 
 There's nothing terribly exciting here. There's an option to not evolve the right hand sides when $\rho_*$ is low for experimental purposes. The right hand side of $e_*$ is also not evolved under the same conditions that $Q$ is not calculated
+
+## ADM Source terms
+
+Now that the evolution equations are done, we need to figure out how to integrate this into the BSSN equations. The way matter terms work is via something known as source terms - these make up the components of the stress-energy tensor - which up until now, has been 0. This is fed into our BSSN equations, to enable matter to affect spacetime
+
+There are four standard ADM source terms, representing the ADM projections of the 4d stress-energy tensor. We can calculate them from our matter variables as follows:
+
+$$\begin{align}
+\rho_H &= h w W^3 - P\\
+S_i &= W^3\tilde{S}_i\\
+S_{ij} &= \frac{W^3}{wh}\tilde{S}_i \tilde{S}_j + P \gamma_{ij}\\
+S &= \gamma^{ij} S_{ij} = W^2 \tilde{\gamma}^{ij} S_{ij} \\
+\end{align}$$
+
+In this form, they're less useful than they could be: $S_{ij}$ is singular at the singularity, as $\gamma_{ij}$ is undefined
+
+Luckily, we can skip to the future, and discover that the form of our $S_{ij}$ source term is actually: $-W^2 8 \pi \alpha S_{ij}$[^alttechnique]. Given that $$W^2 \gamma_{ij} = \tilde{\gamma}_{ij}$$, we can instead re-format our equations like this:
+
+[^alttechnique]: Calculating the pressure involves calculating the quantity $\rho_0 \epsilon$: we could scavenge one of the $W^2$ terms from that calculation to instead remove the $\gamma_{ij}$ term. However, the construction presented is a slightly more general approach that we can use in other methods, rather than relying on the *specific* form of the source terms, so we'll stick with it
+
+$$
+\begin{align}
+\tilde{S}_{ij} &= \frac{W^5}{wh} \tilde{S}_i \tilde{S}_j + P \tilde{\gamma}_{ij}\\
+S &=\tilde{\gamma}^{ij} \tilde{S}_{ij} \\
+\end{align}
+$$
+
+We'll have to modify our BSSN source term to match the absorbed $W^2$ term (ie $-8 \pi \alpha S_{ij}$), but now our source terms become regular at the metric tensor. This is a free win, at the expense of non standard notation that we'll have to keep in mind into the future
+
+## The BSSN equations
+
+The additions are straightforward:
+
+$$\begin{align}
+\partial_t K &\mathrel{+}= 4 \pi \alpha (S + \rho_H)\\
+\partial_t \tilde{A}_{ij} &\mathrel{+}= -8 \pi \alpha \tilde{S}_{ij}^{TF}\\
+\partial_t \tilde{\Gamma}^i &\mathrel{+}= -16 \pi \alpha \tilde{\gamma}^{ij} S_j\\
+\mathcal{H} &\mathrel{+}= -16 \pi \rho_H\\
+\mathcal{M}_i &\mathrel{+}= -8 \pi S_i\\
+\end{align}$$
+
+The source terms conspire very conveniently to avoid having to calculate infinite quantities at the singularity, which is great
 
 # Relativistic Hydrodynamics Discussion
 
