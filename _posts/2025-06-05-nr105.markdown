@@ -516,12 +516,8 @@ The term $(\rho_0 \epsilon)^{-1 + \frac{1}{\Gamma}}$ is numerically bad to calcu
 
 $$\begin{align}
 I &= e_* W^3 \frac{\rho_*}{w}\\
-(\rho_0 \epsilon)^{-1 + \frac{1}{\Gamma}} &= \frac{I}{I^\Gamma}
+(\rho_0 \epsilon)^{-1 + \frac{1}{\Gamma}} &= \frac{1}{I^{\Gamma - 1}}
 \end{align}$$
-
-The odd fraction at the end is for floating point reasons[^herbie]
-
-[^herbie]: Specifically, because herbie says its better [link](https://herbie.uwplse.org/demo/52581ebe88144c24f862a2121f196a594ce8656d.1a83c9f5186db102b678a2d5f869f99992469071/graph.html)
 
 ```c++
 
@@ -541,7 +537,7 @@ The odd fraction at the end is for floating point reasons[^herbie]
         valuef iv_au0 = safe_divide(p_star, w);
         valuef p0e_interior = e_star * (W*W*W) * iv_au0;
 
-        valuef degenerate = safe_divide(p0e_interior, pow(p0e_interior, Gamma));
+        valuef degenerate = safe_divide(1.f, pow(p0e_interior, Gamma - 1));
 
         return -degenerate * (Q_vis / Gamma) * sum_interior_rhs;
     }
@@ -637,74 +633,11 @@ if_e(args.gA >= MIN_VISCOSITY_LAPSE && p_star >= min_p_for_visco, [&]{
 });
 ```
 
-The actual viscosity calculation itself:
-
-```c++
-
-valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, const derivative_data& d,
-                      valuef total_elapsed, valuef linear_damping_timescale,
-                      float linear_strength, float quadratic_strength)
-{
-    valuef e_m6phi = pow(W, 3.f);
-
-    valuef dkvk = 0;
-
-    for(int k=0; k < 3; k++)
-    {
-        dkvk += 2 * diff1(vi[k], k, d);
-    }
-
-    valuef littledv = dkvk * d.scale;
-    valuef Gamma = get_Gamma();
-
-    valuef A = pow(e_star, Gamma) * pow(e_m6phi, Gamma - 1) * safe_divide(pow(p_star, Gamma - 1), pow(w, Gamma - 1));
-
-    ///[0.1, 1.0]
-    valuef CQvis = quadratic_strength;
-
-    ///the littledv ?: is to only turn on viscosity when the flow is compressive
-    valuef PQvis = ternary(littledv < 0, CQvis * A * pow(littledv, 2), valuef{0.f});
-
-    valuef linear_damping = exp(-(total_elapsed * total_elapsed) / (2 * linear_damping_timescale * linear_damping_timescale));
-
-    ///https://arxiv.org/pdf/gr-qc/0209102 only turns on viscosity inside a star, ie p > pcrit. We could calculate a crit value
-    ///but really its easier to make it time variable
-    valuef CLvis = linear_strength * linear_damping;
-    valuef n = 1;
-
-    valuef PLvis = ternary(littledv < 0, -CLvis * sqrt((get_Gamma()/n) * p_star * A) * littledv, valuef(0.f));
-
-    return ternary(linear_damping_timescale <= 0.f, PQvis, PQvis + PLvis);
-}
-```
-
 #### Everything else
 
-I've already shown off the advection equation portion, so this is just the RHS's now:
+I've already shown off the advection equation portion and $e_*$'s rhs, so this is just $\tilde{S}_k$ now:
 
 ```c++
-valuef e_star_rhs(valuef W, valuef Q_vis, v3f vi, const derivative_data& d)
-{
-    valuef e_6phi = pow(max(W, 0.1f), -3.f);
-
-    valuef sum_interior_rhs = 0;
-
-    for(int k=0; k < 3; k++)
-    {
-        value to_diff = safe_divide(w, p_star) * vi[k] * e_6phi;
-
-        sum_interior_rhs += diff1(to_diff, k, d);
-    }
-
-    valuef Gamma = get_Gamma();
-
-    valuef p0e = calculate_p0e(W);
-
-    valuef degenerate = safe_divide(valuef{1}, pow(p0e, 1 - 1/Gamma));
-
-    return -degenerate * (Q_vis / Gamma) * sum_interior_rhs;
-}
-
 v3f Si_rhs(valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY, valuef Q_vis, v3f vi, const derivative_data& d)
 {
     valuef P = max(eos(W) + Q_vis, 0.f);

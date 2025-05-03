@@ -348,7 +348,7 @@ struct hydrodynamic_concrete
         valuef p0e_interior = e_star * (W*W*W) * iv_au0;
 
         ///https://herbie.uwplse.org/demo/52581ebe88144c24f862a2121f196a594ce8656d.1a83c9f5186db102b678a2d5f869f99992469071/graph.html
-        valuef degenerate = safe_divide(p0e_interior, pow(p0e_interior, Gamma));
+        valuef degenerate = safe_divide(1.f, pow(p0e_interior, Gamma - 1));
 
         return -degenerate * (Q_vis / Gamma) * sum_interior_rhs;
     }
