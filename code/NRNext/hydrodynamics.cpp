@@ -45,14 +45,6 @@ valuef calculate_p0e(valuef p_star, valuef e_star, valuef W, valuef w)
     return pow(max(e_star * e_m6phi * iv_au0, 0.f), Gamma);
 }
 
-valuef calculate_p0e_no_pow_interior(valuef p_star, valuef e_star, valuef W, valuef w)
-{
-    valuef e_m6phi = W*W*W;
-    valuef iv_au0 = safe_divide(p_star, w);
-
-    return e_star * e_m6phi * iv_au0;
-}
-
 valuef calculate_p0(valuef p_star, valuef W, valuef w)
 {
     valuef iv_au0 = safe_divide(p_star, w);
@@ -116,8 +108,6 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
                       valuef total_elapsed, valuef linear_damping_timescale,
                       float linear_strength, float quadratic_strength)
 {
-    valuef e_m6phi = pow(W, 3.f);
-
     valuef dkvk = 0;
 
     for(int k=0; k < 3; k++)
@@ -128,7 +118,7 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
     valuef littledv = dkvk * d.scale;
     valuef Gamma = get_Gamma();
 
-    valuef A = pow(e_star, Gamma) * pow(e_m6phi, Gamma - 1) * pow(safe_divide(p_star, w), Gamma - 1);
+    valuef A = pow(e_star, Gamma) * pow(pow(W, 3.f), Gamma - 1) * pow(safe_divide(p_star, w), Gamma - 1);
 
     ///[0.1, 1.0]
     valuef CQvis = quadratic_strength;
@@ -355,8 +345,11 @@ struct hydrodynamic_concrete
         //valuef p0e = calculate_p0e(W);
         //valuef degenerate = safe_divide(valuef{1}, pow(p0e, 1 - 1/Gamma));
 
+        valuef iv_au0 = safe_divide(p_star, w);
+
+        valuef p0e_interior = e_star * (W*W*W) * iv_au0;
+
         ///https://herbie.uwplse.org/demo/52581ebe88144c24f862a2121f196a594ce8656d.1a83c9f5186db102b678a2d5f869f99992469071/graph.html
-        valuef p0e_interior = calculate_p0e_no_pow_interior(p_star, e_star, W, w);
         valuef degenerate = safe_divide(p0e_interior, pow(p0e_interior, Gamma));
 
         return -degenerate * (Q_vis / Gamma) * sum_interior_rhs;

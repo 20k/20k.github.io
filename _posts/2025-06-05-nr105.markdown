@@ -454,6 +454,20 @@ A &= e_*^\Gamma (W^3)^{\Gamma-1} \frac{p_*^{\Gamma-1}}{w^{\Gamma-1}}\\
 
 And $$\Delta h$$ is the scale. $C_{Qvis}$ is a damping constant, which I set to $0.1$, and this paper recommends the range $[0.1, 1]$
 
+```c++
+valuef dkvk = 0;
+
+for(int k=0; k < 3; k++)
+    dkvk += 2 * diff1(vi[k], k, d);
+
+valuef littledv = dkvk * d.scale;
+valuef Gamma = get_Gamma();
+
+valuef A = pow(e_star, Gamma) * pow(pow(W, 3.f), Gamma - 1) * pow(safe_divide(p_star, w), Gamma - 1);
+
+valuef PQvis = ternary(littledv < 0, CQvis * A * pow(littledv, 2), valuef{0.f});
+```
+
 Quadratic viscosity is generally left on throughout a simulation, but is disabled near a singularity. In theory, you could probably derive the strength of the quadratic viscosity from a hydrodynamic smoothness estimate to enable dissipation in unsmooth parts of the solution, but I have no information on if that's worthwhile
 
 ## Linear viscosity
@@ -468,11 +482,21 @@ Q_{Lvis} =
 
 $C_{Lvis}$ is a damping constant in the range $[0, 1]$. In my case, I set this damping constant as follows:
 
-$$C_{Lvis} = e^{-\frac{t^2}{2 T^2}}$$
+$$C_{Lvis} = K e^{-\frac{t^2}{2 T^2}}$$
 
-$t$ is the total elapsed simulation time, and $T$ is a constant that represents a damping timescale for the linear viscosity, as it is generally only useful in the early parts of the simulation to iron out the star's oscillations. Leaving it on too long will result in a loss of velocity, and $T=200$ seems to work well
+$t$ is the total elapsed simulation time, $K$ is a constant (which I set to $0.1$), and $T$ is a constant that represents a damping timescale for the linear viscosity, as it is generally only useful in the early parts of the simulation to iron out the star's oscillations. Leaving it on too long will result in a loss of velocity, and $T=200$ seems to work well
 
 I don't have a clue what $n$ is and I have never been able to find a single shred of discussion on what it represents, so I set it to $1$
+
+```c++
+valuef linear_damping = exp(-(total_elapsed * total_elapsed) / (2 * linear_damping_timescale * linear_damping_timescale));
+
+valuef CLvis = linear_strength * linear_damping;
+valuef n = 1;
+
+valuef PLvis = ternary(littledv < 0, -CLvis * sqrt((get_Gamma()/n) * p_star * A) * littledv, valuef(0.f));
+```
+
 
 Without linear viscosity:
 
@@ -487,6 +511,48 @@ With linear viscosity:
 When using viscosity, you have to modify the evolution equation of $e_*$. The term to add is:
 
 $$\partial_t e_* \mathrel{+}= -(\rho_0 \epsilon)^{(-1 + \frac{1}{\Gamma})} \;\; \frac{Q}{\Gamma} \; \partial_k (w W^{-3} v^k \rho_*^{-1})$$
+
+The term $(\rho_0 \epsilon)^{-1 + \frac{1}{\Gamma}}$ is numerically bad to calculate directly, and really you should calculate this term as:
+
+$$\begin{align}
+I &= e_* W^3 \frac{\rho_*}{w}\\
+(\rho_0 \epsilon)^{-1 + \frac{1}{\Gamma}} &= \frac{I}{I^\Gamma}
+\end{align}$$
+
+The odd fraction at the end is for floating point reasons[^herbie]
+
+[^herbie]: Specifically, because herbie says its better [link](https://herbie.uwplse.org/demo/52581ebe88144c24f862a2121f196a594ce8656d.1a83c9f5186db102b678a2d5f869f99992469071/graph.html)
+
+```c++
+
+    valuef e_star_rhs(valuef W, valuef Q_vis, v3f vi, const derivative_data& d)
+    {
+        valuef e_6phi = pow(max(W, 0.1f), -3.f);
+
+        valuef sum_interior_rhs = 0;
+
+        for(int k=0; k < 3; k++)
+        {
+            value to_diff = safe_divide(vi[k], p_star) * w * e_6phi;
+
+            sum_interior_rhs += diff1(to_diff, k, d);
+        }
+
+        valuef Gamma = get_Gamma();
+
+        ///the usual calculation
+        //valuef p0e = calculate_p0e(W);
+        //valuef degenerate = safe_divide(valuef{1}, pow(p0e, 1 - 1/Gamma));
+
+        valuef iv_au0 = safe_divide(p_star, w);
+        valuef p0e_interior = e_star * (W*W*W) * iv_au0;
+
+        ///https://herbie.uwplse.org/demo/52581ebe88144c24f862a2121f196a594ce8656d.1a83c9f5186db102b678a2d5f869f99992469071/graph.html
+        valuef degenerate = safe_divide(p0e_interior, pow(p0e_interior, Gamma));
+
+        return -degenerate * (Q_vis / Gamma) * sum_interior_rhs;
+    }
+```
 
 ## Viscosity conclusion
 
