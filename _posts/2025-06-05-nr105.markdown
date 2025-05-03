@@ -512,7 +512,7 @@ $$
 
 One of the big problems with our equations is that they actually aren't conservative: one key thing is that $e^*$ isn't actually conserved in the presence of shocks. To combat this, this scheme introduces a small amount of artificial viscosity to dissipate shocks away
 
-A lot of papers here are quite vague as to how exactly to modify the viscosity. A complete description of this scheme requires us to go all the way back to [1984](https://adsabs.harvard.edu/full/1984ApJS...55..211H), where the extra viscous pressure is called $Q$. This is used in two places:
+Papers here can be quite vague as to how exactly to modify the viscosity. A complete description of this scheme requires us to go all the way back to [1984](https://adsabs.harvard.edu/full/1984ApJS...55..211H), where the extra viscous pressure is called $Q$. This is used in two places:
 
 1. It is added to the pressure on the right hand side of $\partial_t \tilde{S}_k$, ie $\partial_k (P + Q)$
 2. We have a new rhs for $e^*$, which we'll get into shortly
@@ -537,7 +537,7 @@ C_{Qvis}A(\delta v)^2\;\;&\mathrm{for} \;\delta v < 0\\
 Where:
 
 $$\begin{align}
-A &= e_*^\Gamma (W^3)^{\Gamma-1} \frac{p_*^{\Gamma-1}}{w^{\Gamma-1}}\\
+A &= e_*^\Gamma (W^3)^{\Gamma-1} (\frac{\rho_*}{w})^{\Gamma-1}\\
 \delta v &= 2 \partial_k v^k \Delta h
 \end{align}$$
 
@@ -557,7 +557,7 @@ valuef A = pow(e_star, Gamma) * pow(pow(W, 3.f), Gamma - 1) * pow(safe_divide(p_
 valuef PQvis = ternary(littledv < 0, CQvis * A * pow(littledv, 2), valuef{0.f});
 ```
 
-Quadratic viscosity is generally left on throughout a simulation, but is disabled near a singularity. In theory, you could probably derive the strength of the quadratic viscosity from a hydrodynamic smoothness estimate to enable dissipation in unsmooth parts of the solution, but I have no information on if that's worthwhile
+Quadratic viscosity is generally left on throughout a simulation, but is disabled near a singularity. In theory, you could probably derive the strength of the quadratic viscosity from a hydrodynamic smoothness estimate to enable dissipation in unsmooth parts of the solution only, but I have no information on if that's worthwhile
 
 ### Linear viscosity
 
@@ -659,12 +659,61 @@ To keep all derivatives first order, we have to split our equations into three k
 
 #### $w$
 
+I've already shown how to calculate $w$ itself, so this is the general form of one of the hydro kernels:
 
+```c++
+void calculate_w_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, hydrodynamic_base_args<buffer<valuef>> hydro, buffer_mut<valuef> w_out,
+                      literal<v3i> idim, literal<valuef> scale,
+                      literal<valuei> positions_length)
+{
+    using namespace single_source;
 
+    valuei lid = value_impl::get_global_id(0);
+    pin(lid);
+
+    v3i dim = idim.get();
+
+    if_e(lid >= positions_length.get(), []{
+        return_e();
+    });
+
+    v3i pos = get_coordinate_including_boundary(lid, dim);
+    pin(pos);
+
+    valuef p_star = hydro.p_star[pos, dim];
+    valuef e_star = hydro.e_star[pos, dim];
+    v3f Si = {hydro.Si[0][pos, dim], hydro.Si[1][pos, dim], hydro.Si[2][pos, dim]};
+
+    derivative_data d;
+    d.pos = pos;
+    d.dim = dim;
+    d.scale = scale.get();
+
+    if_e(p_star <= min_p_star, [&]{
+        valuef dp_sum = 0;
+
+        for(int i=0; i < 3; i++)
+        {
+            dp_sum += fabs(diff1(p_star, i, d));
+        }
+
+        if_e(dp_sum == 0, [&]{
+            as_ref(w_out[pos, dim]) = valuef(0);
+            return_e();
+        });
+    });
+
+    bssn_args args(pos, dim, in);
+
+    as_ref(w_out[pos, dim]) = calculate_w(p_star, e_star, args.W, args.cY.invert(), Si);
+}
+```
+
+The other two have an identical structure
 
 #### $Q$
 
-Viscosity is conditionally enabled on two conditions:
+Viscosity is only enabled on two conditions:
 
 1. The lapse is high enough
 2. The density of matter is high enough, generally slightly higher than $\rho_{min}$
@@ -740,10 +789,6 @@ if_e(hydro_args.p_star >= min_evolve_p_star, [&]{
 
     //adds the e* viscosity term. Unstable near or in a black hole
     if_e(args.gA >= MIN_VISCOSITY_LAPSE && hydro_args.p_star >= min_p_for_visco, [&]{
-        //it can be helpful to calculate the velocity with slightly more restrictive tolerances
-        //because the viscosity is a more unstable term
-        //i don't use this property currently, but if you're finding that more visosity leads to blowups
-        //in the halo around a star, it can be useful to tweak the tol inside calculate_vi for visco = true
         v3f vi2 = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY, true);
 
         as_ref(de_star) += hydro_args.e_star_rhs(args.W, Q, vi2, d);
@@ -757,7 +802,7 @@ There's nothing terribly exciting here. There's an option to not evolve the righ
 
 Now that the evolution equations are done, we need to figure out how to integrate this into the BSSN equations. The way matter terms work is via something known as source terms - these make up the components of the stress-energy tensor - which up until now, has been 0. This is fed into our BSSN equations, to enable matter to affect spacetime
 
-There are four standard ADM source terms, representing the ADM projections of the 4d stress-energy tensor. We can calculate them from our matter variables as follows:
+There are four standard ADM source terms, representing the ADM projections of the 4D stress-energy tensor. We can calculate them from our matter variables as follows:
 
 $$\begin{align}
 \rho_H &= h w W^3 - P\\
@@ -833,7 +878,7 @@ Test cases 1 and 2 work fine with no tweaks. Test case 3 is slightly more intere
 
 In our case, it collapses to a black hole[^discussion]:
 
-[^discussion]: While the TOV code produces the exact correct rest mass of $M_0 = 1.535$, after the procedure to insert it into the simulation and correct for the hamiltonian constraint, our rest mass is higher at $M_0 = ~1.54$. It isn't a case of the laplacian solving step being incorrect, and may be a feature of our relatively small simulation area + close in boundary condition leading to a slight error for the rest mass. I had to shrink the simulation area to get enough resolution to successfully resolve the black hole while not dying of old age
+[^discussion]: While the TOV code produces the exact correct rest mass of $M_0 = 1.535$, after the procedure to insert it into the simulation and correct for the hamiltonian constraint, our rest mass is higher at $M_0 = ~1.54$. It isn't a case of the laplacian solving step being incorrect, and may be a feature of our relatively small simulation area + close in boundary condition leading to a slight error for the rest mass. I had to shrink the simulation area to get enough resolution to successfully resolve the black hole while not dying of old age. I need a better GPU for a lot of this really
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/VGyCgomuJgE?si=BJ3zIEg7JGg7u8SF" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
@@ -1242,9 +1287,49 @@ Matter within a black hole in the set of equations I'm presenting here is only m
 
 In general, the lapse $\alpha$ is a good surrogate variable for being near an event horizon. I use a conservative $0.45$ for disabling viscosity, and $0.15$ for dissipating matter fields. The latter constraint imposes a minimum simulation resolution to successfully simulate a black hole collapse, as the simulation will eventually fail if matter is not damped within an event horizon. Luckily, that's about the same minimum resolution that you need to simulate a black hole *anyway*
 
+```c++
+//we're in a black hole, damp away the material
+if_e(args.gA < MIN_LAPSE, [&]{
+    valuef damp = 0.1f;
+
+    valuef dt_p_star = damp * (0 - h_in.p_star[pos, dim]);
+    valuef dt_e_star = damp * (0 - h_in.e_star[pos, dim]);
+
+    valuef dt_s0 = damp * (0 - h_in.Si[0][pos, dim]);
+    valuef dt_s1 = damp * (0 - h_in.Si[1][pos, dim]);
+    valuef dt_s2 = damp * (0 - h_in.Si[2][pos, dim]);
+
+    valuef dt_col0 = damp * (0 - h_in.colour[0][pos, dim]);
+    valuef dt_col1 = damp * (0 - h_in.colour[1][pos, dim]);
+    valuef dt_col2 = damp * (0 - h_in.colour[2][pos, dim]);
+
+    write_result(dt_p_star, dt_e_star, {dt_s0, dt_s1, dt_s2}, {dt_col0, dt_col1, dt_col2});
+
+    return_e();
+});
+```
+
 ## Boundaries
 
-The Sommerfeld boundary conditions I find tend to be a bit unstable with matter. Simply damping the fields away to zero as they approach the boundary works very well. This means you can turn the usual radiative boundary condition off. This is technically a sponge boundary condition
+The Sommerfeld boundary conditions I find tend to be a bit unstable with matter. Simply damping the fields away to zero as they approach the boundary works very well. This means you can turn the usual radiative boundary condition off. This is technically a sponge boundary condition:
+
+```c++
+valuef boundary_damp = 0.25f;
+
+dp_star += ternary(boundary_dist <= 15, -hydro_args.p_star * boundary_damp, {});
+de_star += ternary(boundary_dist <= 15, -hydro_args.e_star * boundary_damp, {});
+as_ref(dSi) += ternary(boundary_dist <= 15, -hydro_args.Si * boundary_damp, {});
+
+v3f dt_col;
+
+if(use_colour)
+{
+    v3f col = h_in.index_colour(pos, dim);
+
+    dt_col = hydro_args.advect_rhs(col, vi, d, timestep.get());
+    dt_col += ternary(boundary_dist <= 15, -col * boundary_damp, {});
+}
+```
 
 ## Kreiss-Oliger
 
