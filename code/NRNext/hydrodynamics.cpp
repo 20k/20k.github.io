@@ -33,7 +33,7 @@ valuef calculate_epsilon(valuef p_star, valuef e_star, valuef W, valuef w)
     ///p*^(Gamma - 2) * W^3^Gamma-1 * e*^Gamma / w^(Gamma - 1)
     ///p*^(Gamma - 2) * W^3^Gamma-1 * e* * e*^Gamma-1 / w^(Gamma - 1)
 
-    return pow(p_star, Gamma - 2) * pow(e_m6phi, Gamma - 1) * e_star * safe_divide(pow(e_star, Gamma - 1), pow(w, Gamma - 1));
+    return pow(p_star, Gamma - 2) * (pow(e_m6phi, Gamma - 1) * e_star) * pow(safe_divide(e_star, w), Gamma - 1);
 }
 
 valuef calculate_p0e(valuef p_star, valuef e_star, valuef W, valuef w)
