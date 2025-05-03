@@ -74,10 +74,7 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
 
     v3f Si_upper = cY.invert().raise(Si);
 
-    float bound = viscosity ? min_p_star : min_p_star;
-
-    //note to self, actually hand derived this and am sure its correct
-    v3f real_value = -gB + (W * (gA / h)) * (W * safe_divide(Si_upper, w, bound));
+    v3f real_value = -gB + (W * (gA / h)) * (W * safe_divide(Si_upper, w));
 
     //return real_value;
 
@@ -236,7 +233,7 @@ struct hydrodynamic_concrete
         auto get_delta = [&](valuef q, int which)
         {
             std::array<valuef, 3> v_adj = get_differentiation_variables<3, valuef>(vi[which], which);
-            std::array<valuef, 7> q_adj = get_differentiation_variables<7, valuef>(in, which);
+            std::array<valuef, 5> q_adj = get_differentiation_variables<5, valuef>(in, which);
             std::array<valuef, 3> p_adj = get_differentiation_variables<3, valuef>(p_star, which);
 
             for(auto& i : v_adj)
@@ -260,11 +257,11 @@ struct hydrodynamic_concrete
             valuef theta_mhalf = ternary(v_mhalf >= 0, valuef(1), valuef(-1));
             valuef theta_phalf = ternary(v_phalf >= 0, valuef(1), valuef(-1));
 
-            valuef qm2 = q_adj.at(3 - 2);
-            valuef qm1 = q_adj.at(3 - 1);
-            valuef q0 = q_adj.at(3);
-            valuef q1 = q_adj.at(3 + 1);
-            valuef q2 = q_adj.at(3 + 2);
+            valuef qm2 = q_adj.at(2 - 2);
+            valuef qm1 = q_adj.at(2 - 1);
+            valuef q0 = q_adj.at(2);
+            valuef q1 = q_adj.at(2 + 1);
+            valuef q2 = q_adj.at(2 + 2);
 
             valuef r_mhalf = ternary(v_mhalf >= 0, safe_divide(qm1 - qm2, q0 - qm1), safe_divide(q1 - q0, q0 - qm1));
             valuef r_phalf = ternary(v_phalf >= 0, safe_divide(q0 - qm1, q1 - q0), safe_divide(q2 - q1, q1 - q0));
@@ -280,13 +277,7 @@ struct hydrodynamic_concrete
                     return max(max(v1, v2), v3);
                 };
 
-                auto min3 = [&](valuef v1, valuef v2, valuef v3)
-                {
-                    return min(min(v1, v2), v3);
-                };
-
                 return max3(0.f, min(1.f, 2 * r), min(2.f, r));
-                //return max(valuef(0.f), min3((1 + r)/2, 2, 2 * r));
             };
 
             valuef phi_mhalf = phi_r(r_mhalf);
@@ -642,8 +633,6 @@ struct eos_gpu : value_impl::single_source::argument_pack
     }
 };
 
-valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef, 3, 3> icY, v3f Si);
-
 void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_hydrodynamic_args<buffer_mut<valuef>> hydro, literal<v3i> ldim, literal<valuef> scale,
                 buffer<valuef> mu_h_cfl_b, buffer<valuef> cfl_b, buffer<valuef> u_correction_b, std::array<buffer<valuef>, 3> Si_cfl_b,
                 buffer<valuei> indices, eos_gpu eos_data, std::array<buffer<valuef>, 3> colour_in, bool use_colour)
@@ -873,34 +862,25 @@ void init_hydro(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, full_
     }
 }
 
-valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev)
-{
-    valuef Gamma = get_Gamma();
-
-    valuef A = pow(max(W, 0.001f), 3.f * Gamma - 3.f);
-    valuef wG = pow(w_prev, Gamma - 1);
-
-    return safe_divide(wG, wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, min_p_star), Gamma - 2));
-}
-
 valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef, 3, 3> icY, v3f Si)
 {
     using namespace single_source;
 
+    valuef Gamma = get_Gamma();
     valuef w = p_star;
 
     valuef p_sq = p_star * p_star;
 
     valuef cst = W*W * icY.length_sq(Si);
-
     pin(cst);
 
     for(int i=0; i < 140; i++)
     {
-        valuef D = w_next_interior(p_star, e_star, W, w);
+        valuef A = pow(max(W, 0.001f), 3.f * Gamma - 3.f);
+        valuef D = safe_divide(pow(w, Gamma - 1),
+                               pow(w, Gamma - 1) + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, min_p_star), Gamma - 2));
 
         valuef w_next = sqrt(max(p_sq + cst * D*D, 0.f));
-
         pin(w_next);
 
         ///relaxation. Its not really necessary
