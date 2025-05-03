@@ -271,6 +271,8 @@ struct mesh
         {
             auto kreiss_individual = [&](cl::buffer inb, cl::buffer outb, float eps, int order)
             {
+                float modified_eps = eps * (timestep / std::pow(scale, order));
+
                 if(inb.alloc_size == 0)
                     return;
 
@@ -286,8 +288,7 @@ struct mesh
                 args.push_back(outb);
                 args.push_back(buffers[in].W);
                 args.push_back(dim);
-                args.push_back(scale);
-                args.push_back(eps);
+                args.push_back(modified_eps);
 
                 cqueue.exec("kreiss_oliger" + std::to_string(order), args, {dim.x() * dim.y() * dim.z()}, {128});
             };
@@ -307,7 +308,7 @@ struct mesh
 
             for(int i=0; i < (int)linear_in.size(); i++)
             {
-                kreiss_individual(linear_in[i], linear_out[i], 0.05f, 4);
+                kreiss_individual(linear_in[i], linear_out[i], 0.1f, 4);
             }
 
             for(int i=0; i < (int)plugin_buffers[in].size(); i++)

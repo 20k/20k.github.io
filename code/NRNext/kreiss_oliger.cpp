@@ -40,7 +40,7 @@ void make_kreiss_oliger(cl::context ctx)
 {
     for(int Order = 1; Order <= 5; Order++)
     {
-        auto func = [Order](execution_context&, buffer<valuef> in, buffer_mut<valuef> out, buffer<valuef> W, literal<v3i> ldim, literal<valuef> scale, literal<valuef> eps) {
+        auto func = [Order](execution_context&, buffer<valuef> in, buffer_mut<valuef> out, buffer<valuef> W, literal<v3i> ldim, literal<valuef> eps) {
             using namespace single_source;
 
             valuei lid = value_impl::get_global_id(0);
