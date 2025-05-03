@@ -508,7 +508,7 @@ $$
 
 ### Implementation
 
-To keep all derivatives first order, we have to split our equations into three parts
+To keep all derivatives first order, we have to split our equations into three kernels
 
 1. $w$
 2. $Q$
@@ -527,25 +527,6 @@ valuef w_next_interior(valuef p_star, valuef e_star, valuef W, valuef w_prev)
     return safe_divide(wG, wG + A * Gamma * pow(e_star, Gamma) * pow(max(p_star, min_p_star), Gamma - 2));
 }
 
-valuef calculate_w_constant(valuef W, const inverse_metric<valuef, 3, 3>& icY, v3f Si)
-{
-    valuef cst = 0;
-
-    for(int i=0; i < 3; i++)
-    {
-        valuef sum = 0;
-
-        for(int j=0; j < 3; j++)
-        {
-            sum += icY[i, j] * Si[j];
-        }
-
-        cst += Si[i] * sum;
-    }
-
-    return W*W * cst;
-}
-
 valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef, 3, 3> icY, v3f Si)
 {
     using namespace single_source;
@@ -554,9 +535,8 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef
 
     valuef p_sq = p_star * p_star;
 
-    valuef cst = calculate_w_constant(W, icY, Si);
+    valuef cst = W*W * icY.length_sq(Si);
 
-    //pin(p_sq);
     pin(cst);
 
     for(int i=0; i < 140; i++)
@@ -575,6 +555,162 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef
     return w;
 }
 ```
+
+Iterating $w$ is extremely cheap. 140 iterations is way more than necessary here. Because we can get away with such a high number of iterations, I apply a small amount of relaxation to the solution - just to make sure that this function can never cause us any problems
+
+#### $Q$
+
+Viscosity is conditionally enabled on two conditions:
+
+1. The lapse is high enough
+2. The density of matter is high enough, generally slightly higher than $\rho_{min}$
+
+Viscosity is more numerically unstable than the rest of the evolution scheme, so toggling it off is important for stability
+
+```c++
+as_ref(Q_out[pos, dim]) = valuef(0.f);
+
+if_e(args.gA >= MIN_VISCOSITY_LAPSE && p_star >= min_p_for_visco, [&]{
+    valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
+    v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY, p_star, true);
+
+    as_ref(Q_out[pos, dim]) = calculate_Pvis(args.W, vi, p_star, e_star, w, d, total_elapsed.get(), damping_timescale.get(), linear_strength, quadratic_strength);
+});
+```
+
+The actual viscosity calculation itself:
+
+```c++
+
+valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, const derivative_data& d,
+                      valuef total_elapsed, valuef linear_damping_timescale,
+                      float linear_strength, float quadratic_strength)
+{
+    valuef e_m6phi = pow(W, 3.f);
+
+    valuef dkvk = 0;
+
+    for(int k=0; k < 3; k++)
+    {
+        dkvk += 2 * diff1(vi[k], k, d);
+    }
+
+    valuef littledv = dkvk * d.scale;
+    valuef Gamma = get_Gamma();
+
+    valuef A = pow(e_star, Gamma) * pow(e_m6phi, Gamma - 1) * safe_divide(pow(p_star, Gamma - 1), pow(w, Gamma - 1));
+
+    ///[0.1, 1.0]
+    valuef CQvis = quadratic_strength;
+
+    ///the littledv ?: is to only turn on viscosity when the flow is compressive
+    valuef PQvis = ternary(littledv < 0, CQvis * A * pow(littledv, 2), valuef{0.f});
+
+    valuef linear_damping = exp(-(total_elapsed * total_elapsed) / (2 * linear_damping_timescale * linear_damping_timescale));
+
+    ///https://arxiv.org/pdf/gr-qc/0209102 only turns on viscosity inside a star, ie p > pcrit. We could calculate a crit value
+    ///but really its easier to make it time variable
+    valuef CLvis = linear_strength * linear_damping;
+    valuef n = 1;
+
+    valuef PLvis = ternary(littledv < 0, -CLvis * sqrt((get_Gamma()/n) * p_star * A) * littledv, valuef(0.f));
+
+    return ternary(linear_damping_timescale <= 0.f, PQvis, PQvis + PLvis);
+}
+```
+
+#### Everything else
+
+I've already shown off the advection equation portion, so this is just the RHS's now:
+
+```c++
+valuef e_star_rhs(valuef W, valuef Q_vis, v3f vi, const derivative_data& d)
+{
+    valuef e_6phi = pow(max(W, 0.1f), -3.f);
+
+    valuef sum_interior_rhs = 0;
+
+    for(int k=0; k < 3; k++)
+    {
+        value to_diff = safe_divide(w, p_star) * vi[k] * e_6phi;
+
+        sum_interior_rhs += diff1(to_diff, k, d);
+    }
+
+    valuef Gamma = get_Gamma();
+
+    valuef p0e = calculate_p0e(W);
+
+    valuef degenerate = safe_divide(valuef{1}, pow(p0e, 1 - 1/Gamma));
+
+    return -degenerate * (Q_vis / Gamma) * sum_interior_rhs;
+}
+
+v3f Si_rhs(valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY, valuef Q_vis, v3f vi, const derivative_data& d)
+{
+    valuef P = max(eos(W) + Q_vis, 0.f);
+
+    valuef h = calculate_h_with_eos(W);
+
+    v3f dSi;
+
+    for(int k=0; k < 3; k++)
+    {
+        valuef p1 = (-gA * pow(max(W, 0.1f), -3.f)) * diff1(P, k, d);
+        valuef p2 = -w * h * diff1(gA, k, d);
+
+        valuef p3;
+
+        for(int j=0; j < 3; j++)
+        {
+            p3 += -Si[j] * diff1(gB[j], k, d) ;
+        }
+
+        valuef p4;
+
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                valuef deriv = diff1(cY.invert()[i,j], k, d);
+
+                valuef l1 = Si[i] / h;
+                valuef l2 = safe_divide(Si[j], w);
+
+                p4 += 0.5f * gA * W * W * l1 * l2 * deriv;
+            }
+        }
+
+        valuef p5 = gA * h * (w - p_star * safe_divide(p_star, w)) * (diff1(W, k, d) / max(W, 0.1f));
+
+        dSi[k] = p1 + p2 + p3 + p4 + p5;
+    }
+
+    return dSi;
+}
+```
+
+```c++
+//only apply advection terms for matter which is not ~0
+if_e(hydro_args.p_star >= min_evolve_p_star, [&]{
+    valuef Q = hydro_args.Q;
+
+    as_ref(dSi) += hydro_args.Si_rhs(args.gA, args.gB, args.W, args.cY, Q, vi, d);
+
+    //adds the e* viscosity term. Unstable near or in a black hole
+    if_e(args.gA >= MIN_VISCOSITY_LAPSE && hydro_args.p_star >= min_p_for_visco, [&]{
+        //it can be helpful to calculate the velocity with slightly more restrictive tolerances
+        //because the viscosity is a more unstable term
+        //i don't use this property currently, but if you're finding that more visosity leads to blowups
+        //in the halo around a star, it can be useful to tweak the tol inside calculate_vi for visco = true
+        v3f vi2 = hydro_args.calculate_vi(args.gA, args.gB, args.W, args.cY, true);
+
+        as_ref(de_star) += hydro_args.e_star_rhs(args.W, Q, vi2, d);
+    });
+});
+```
+
+There's nothing terribly exciting here. There's an option to not evolve the right hand sides when $\rho_*$ is low for experimental purposes. The right hand side of $e_*$ is also not evolved under the same conditions that $Q$ is not calculated
 
 # Relativistic Hydrodynamics Discussion
 

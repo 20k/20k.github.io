@@ -125,18 +125,13 @@ valuef calculate_Pvis(valuef W, v3f vi, valuef p_star, valuef e_star, valuef w, 
     ///[0.1, 1.0]
     valuef CQvis = quadratic_strength;
 
-    ///it looks like the littledv ?: is to only turn on viscosity when the flow is compressive
-    #define COMPRESSIVE_VISCOSITY
-    #ifdef COMPRESSIVE_VISCOSITY
+    ///the littledv ?: is to only turn on viscosity when the flow is compressive
     valuef PQvis = ternary(littledv < 0, CQvis * A * pow(littledv, 2), valuef{0.f});
-    #else
-    valuef PQvis = CQvis * A * pow(littledv, 2);
-    #endif
 
     valuef linear_damping = exp(-(total_elapsed * total_elapsed) / (2 * linear_damping_timescale * linear_damping_timescale));
 
-    ///paper i'm looking at only turns on viscosity inside a star, ie p > pcrit. We could calculate a crit value
-    ///or, we could simply make this time variable, though that's kind of annoying
+    ///https://arxiv.org/pdf/gr-qc/0209102 only turns on viscosity inside a star, ie p > pcrit. We could calculate a crit value
+    ///but really its easier to make it time variable
     valuef CLvis = linear_strength * linear_damping;
     valuef n = 1;
 
@@ -1015,9 +1010,7 @@ void calculate_Q_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         valuef epsilon = calculate_epsilon(p_star, e_star, args.W, w);
         v3f vi = calculate_vi(args.gA, args.gB, args.W, w, epsilon, Si, args.cY, p_star, true);
 
-        valuef Q = calculate_Pvis(args.W, vi, p_star, e_star, w, d, total_elapsed.get(), damping_timescale.get(), linear_strength, quadratic_strength);
-
-        as_ref(Q_out[pos, dim]) = Q;
+        as_ref(Q_out[pos, dim]) = calculate_Pvis(args.W, vi, p_star, e_star, w, d, total_elapsed.get(), damping_timescale.get(), linear_strength, quadratic_strength);
     });
 }
 
@@ -1179,7 +1172,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     mut<valuef> de_star = declare_mut_e(hydro_args.advect_rhs(hydro_args.e_star, vi, d, timestep.get()));
     mut_v3f dSi = declare_mut_e(hydro_args.advect_rhs(hydro_args.Si, vi, d, timestep.get()));
 
-    //only apply advection terms for matter which is ~0
+    //only apply advection terms for matter which is not ~0
     if_e(hydro_args.p_star >= min_evolve_p_star, [&]{
         valuef Q = hydro_args.Q;
 
