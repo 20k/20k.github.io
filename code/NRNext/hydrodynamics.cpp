@@ -77,7 +77,7 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
     float bound = viscosity ? min_p_star : min_p_star;
 
     //note to self, actually hand derived this and am sure its correct
-    v3f real_value = -gB + (W*W * gA / h) * safe_divide(Si_upper, w, bound);
+    v3f real_value = -gB + (W * (gA / h)) * (W * safe_divide(Si_upper, w, bound));
 
     //return real_value;
 
