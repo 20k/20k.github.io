@@ -1011,17 +1011,38 @@ This is painstakingly accurately rendered with redshift, and a 4d voxelisation. 
 
 # Appendix
 
-## Notes on flux
+## Hydrodynamics theory
 
-In this article I dodged some of the technical aspects of fluid dynamics. It took me a bit to dig up what was actually going on and how everything worked
+In this article I dodged some of the technical aspects of fluid dynamics, because I don't have a crystal clear overview of how everything works in detail. It took me a bit to dig up some references on what's going on, to at least get an intuitive understanding of the process by which these methods are solving these equations. It seems like there are multiple overlapping techniques which take different underlying views of the same process, and on top of that, people seem to use Godunov in the same way my mum uses Nintendo
 
-$F^n$ is actually an integral in time, ie its meant to be the total movement of material though the cell boundary between steps: $n$ and $n+1$:
+Lets take $3$ grid cells: ${i-1}, i, {i+1}$. The general form of the conservation equation is this:
 
-$$F^n_{i - 1/2} = \frac{1}{\Delta t} \int^{t_{n+1}}_{t_n} f(q(x_{i-1/2}, t)) dt $$
+$$\partial_t q = \frac{1}{\Delta x} (F^n_{i-\frac{1}{2}} - F^n_{i+\frac{1}{2}})$$
 
-This equation may be falling out of a specific approximation - I'll hold my hands up here and say I'm not incredibly sure
+Now we'll deal with a specific point: $F^n_{i - \frac{1}{2}}$. This represents the flux at the cell edge between $i$, and $i-1$. Its also implicitly an integral in time, and it has the following form [(4.5)](https://www.tevza.org/home/course/modelling-II_2016/books/Leveque%20-%20Finite%20Volume%20Methods%20for%20Hyperbolic%20Equations.pdf):
 
-https://www.tevza.org/home/course/modelling-II_2016/books/Leveque%20-%20Finite%20Volume%20Methods%20for%20Hyperbolic%20Equations.pdf 4.5
+$$F^n_{i - 1/2} = \frac{1}{\Delta t} \int^{t_{n+1}}_{t_n} f(x_{i-1/2}, t) dt $$
+
+We know that $f(x_i) = v_i q_i$ for us, and we could sub that in:
+
+$$F^n_{i - 1/2} = \frac{1}{\Delta t} \int^{t_{n+1}}_{t_n} v(x_{i -1/2}, t) q(x_{i - 1/2}, t) dt $$
+
+Here's where things get a tad unfortunate. Its common in these articles for the assumption that $v$ is *constant* to get made, which is an approximation, I think. [8.2](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2011/Chapter_8.pdf) spells out the issue in more detail
+
+We can solve this at $x_{i - 1/2}$ for cell $i$, and at $x_{i + 1/2}$ for cell $i - 1$, to get two solutions for a single interface (ie $F^n_{i - 1/2}$)
+
+1. The solution rightwards for cell $i-1$ - $R_{i-1}$
+2. The solution leftwards for cell $i$ - $L_i$
+
+These aren't necessarily the same. Figuring out $F^n_{i - 1/2}$ from these two disparate solutions (ie $R_{i-1}$ and $L_{i}$), defines a Riemann problem
+
+One way of solving the Riemann problem is the upwinding scheme [(6.45)](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2009/Chapter_6.pdf), by applying Godunovs method:
+
+$$F^n_{i - 1/2} = v_{i - 1/2} > 0\; ?\; R_{i - 1} : L_{i}$$
+
+There's a much more detailed explanation in the linked text, that's more generalised. As far as I can tell, you need specific assumptions to end up with the simple Riemann solver above, so its approximate to some degree, and this scheme seemingly isn't generally referred to as a Riemann solver. To use it for nonlinear fluxes instead of simple velocities like we have, you need to do eigenvectors/values, as they appear to take the role of velocity in a slightly abstract form
+
+That for the moment is my best understanding of how to build hydrodynamic schemes, and piece together some of this
 
 ## Conformal decomposition
 
