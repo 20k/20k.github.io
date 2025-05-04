@@ -232,17 +232,18 @@ https://www.astro.uzh.ch/~stadel/lib/exe/fetch.php?media=spin:compastro_godunov.
 
 ## A specific scheme: MUSCL
 
-Todo: This segment sucks up until slope limited
+We're trying to calculate the two half fluxes defined above. A first order scheme is stable, but too low order for us. Second order schemes are stable in smooth regions of fluid, but unstable near discontinuities
 
-This scheme uses a limiter function to smoothly swap between first order and second order. As the fluid gradient gets too high, the scheme decays to first order[^notes]. Different limiters have different properties - some introduce lots of diffusion, some accidentally introduce oscillations. The most common, least diffusive, non broken limiter appears to be known as 'superbee', which we'll be using
+The solution then is fairly straightforward: You use some kind of function to swap between first order, and second order, depending on how smooth the underlying fluid is[^notes]. These are called limiters, and come in two forms:
+
+1. Slope limiters, denoted $\sigma$
+2. Flux limiters, denoted $\phi$
+
+Check out [here](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2012/Chapter_4.pdf) for an explicit reference. Flux limiters are much more common in the literature (and so we'll be using the flux limited scheme), but I'll give you both forms of this scheme. These are used to construct limited half fluxes - which then have upwinding applied to them, to result in a stable scheme
 
 [^notes]: This is one of the reasons why higher order fluid simulations are less useful than they might appear. High order in smooth areas only is all well and good, but that's also precisely where we need the least resolution. There's some interesting [theoretical reasons](https://en.wikipedia.org/wiki/Godunov%27s_theorem) as to why this kind of order decay is necessary
 
-These limited functions then have upwinding applied to them, to result in a stable scheme. On a technical note, this upwinding is actually a solution to the [Riemann problem](https://en.wikipedia.org/wiki/Riemann_problem) - which works because of the simple advection equation we're solving. There's some good notes over [here](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2009/Chapter_6.pdf)
-
-There's two different forms of these equations, slope limited, and flux limited. A good explicit reference is [here](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2012/Chapter_4.pdf)
-
-Todo: Why am I presenting the slope limited form?
+I've gone through some of the technical details of hydrodynamics more in depth in the appendix, to avoid chucking a huge chunk of mildly relevant theory in the middle of this
 
 ### Slope limited
 
@@ -286,7 +287,7 @@ $$
 
 $\phi$ is a flux limiter. There's nothing fundamentally that different here to the slope limiting equations - this form seems to be largely to avoid the selection operator that you see in the slope limited version
 
-The flux limiting form appears to be more widely used, so that's what I've picked. We'll be using the superbee limiter:
+We'll be using the superbee flux limiter:
 
 $$\phi(r) = \mathrm{max}(0, \mathrm{min}(1, 2r), \mathrm{min}(2, r))$$
 
@@ -304,12 +305,6 @@ $\rho_*$ is our rest mass. I've also tested a second order interpolation:
 $$v^{n}_{i - 1/2} = -0.0625 v^n_{i - 2} + 0.5625 v^n_{i - 1}+ 0.5625 v^n_i - 0.0625 v^n_{i + 1}$$
 
 In general, these options seem to be fairly identical, so you may as well use the first. I've been using the second purely for commonality with the referenced paper
-
-Todo: The following paragraph is a bit imprecise. Its an issue with riemann solving. Move this into the appendix
-
-If you're wondering why we don't just reconstruct the flux directly, and limit that without using a half velocity at all: The answer seems to be because of the upwinding scheme. If you try and approach it like this, the reconstructed flux's velocity, and the velocity you use to toggle the upwind direction will differ - which leads to an incorrect solution
-
-There's a more detailed analysis of the theory behind this in the appendix
 
 ### Implementation
 
@@ -1031,12 +1026,12 @@ Here's where things get a tad unfortunate. Its common in these articles for the 
 
 We can solve this at $x_{i - 1/2}$ for cell $i$, and at $x_{i + 1/2}$ for cell $i - 1$, to get two solutions for a single interface (ie $F^n_{i - 1/2}$)
 
-1. The solution rightwards for cell $i-1$ - $R_{i-1}$
-2. The solution leftwards for cell $i$ - $L_i$
+1. The solution rightwards for cell $i-1$: $R_{i-1}$
+2. The solution leftwards for cell $i$: $L_i$
 
 These aren't necessarily the same. Figuring out $F^n_{i - 1/2}$ from these two disparate solutions (ie $R_{i-1}$ and $L_{i}$), defines a Riemann problem
 
-One way of solving the Riemann problem is the upwinding scheme [(6.45)](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2009/Chapter_6.pdf), by applying Godunovs method:
+One way of solving the Riemann problem is the upwinding scheme [(6.45)](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2009/Chapter_6.pdf) by applying Godunovs method:
 
 $$F^n_{i - 1/2} = v_{i - 1/2} > 0\; ?\; R_{i - 1} : L_{i}$$
 
