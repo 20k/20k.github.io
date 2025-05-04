@@ -10,29 +10,27 @@ Hi!
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/rw9mKFwo4Ds?si=XAcRtXyLKmMBpL_x" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Its finally time to do something truly spectacular, and smash some neutron stars together. We'll be discussing how relativistic hydrodynamics works, how it compares to regular hydrodynamics, and some of the various approaches present in the literature. I've also extensively documented many of the issues you'll run into in practice if you try and implement this kind of thing
+Its finally time to do something truly spectacular, and smash some neutron stars together. We'll be discussing how relativistic hydrodynamics works, how it compares to regular hydrodynamics, and examining a specific approach in the literature. I've also extensively documented many of the issues you'll run into in practice if you try and implement this kind of thing
 
 If you're here simply for the montage of things smashing into each other: good news, there's a tonnes of videos in here
 
-But first up: Some background
+First up: Some background
 
 # What is hydrodynamics?
 
-If you're like me, at some point you might not even really have known why hydrodynamics is a separate area of inquiry to just solving PDEs in general. Or, you might just think its an umbrella term for people who apply the same techniques we've been using already, but simply to fluids
+If you're like me, at some point you might not even really have known why hydrodynamics is a separate area of inquiry to solving differential equations in general. Or, you might think its an umbrella term for people who solve PDEs which just so happen involve fluids, but that its pretty much the same as anything else
 
 This is incorrect. A fair chunk of this article is going to be explaining what hydrodynamics is, why we need to use different solving methods, and how that fits into general relativity. A lot of programmers' experience of fluid dynamics is the incompressible Navier-Stokes equations, so you might be wondering how similar that it is to what we're doing today (disclaimer: not very)
-
-So today's article is going to contain a fair bit of information about regular hydrodynamics
 
 ## Hydrodynamic Formalisms
 
 There are three primary kinds of hydrodynamic formalisms:
 
 1. Lagrangian. This involves tracking particles around your space, and figuring out what properties a fluid derived from those particles would have
-2. Semi Lagrangian. This is what most programmers are familiar with - you have grid cells, and trace your velocity backward through the grid to find out where your fluid originated from (and what properties it had)
+2. Semi Lagrangian. This is what most programmers are familiar with - you have grid cells, and trace your velocity backward through the grid to find out where your fluid originated from (and what properties it had there)
 3. Eularian. Here, we have grid cells, and only deal with quantities locally in terms of their values and derivatives
 
-Today we'll be using a purely Eularian scheme. We'll get to the differences between the hydrodynamic techniques for solving Eularian equations, and regular differential equation solving, after we get to the relativistic portions of this article
+Today we'll be using a purely Eularian scheme. We'll need a set of equations to look at before we get into the hydrodynamics, so its now time to take an overview of a specific relativistic hydrodynamics scheme
 
 # Relativistic Eularian Hydrodynamics - 2002 style
 
@@ -57,10 +55,10 @@ We have the following definitions:
 |Variable |Definition | Notes |
 |-|-|-|
 |$\rho_*$ | $\rho_0 \alpha u^0 W^{-3} $ | Rest mass |
-|$e_*$ | $(\rho_0 \epsilon)^\frac{1}{\Gamma} \alpha u^0 W^{-3}$ | Unclear how a numerical equation of state would work, or if a piecewise $\Gamma$ is valid. Represents energy |
+|$e_*$ | $(\rho_0 \epsilon)^\frac{1}{\Gamma} \alpha u^0 W^{-3}$ | Unclear how a numerical equation of state would work. Represents energy |
 |$\tilde{S}_k$ | $\rho_* h u_k$ | Some kind of momentum term |
-| $h$ | $1 + \epsilon + \frac{P}{\rho_0}$ | $1 + \Gamma \epsilon$ with the perfect fluid equation of state, $P = (\Gamma - 1) \rho_0 \epsilon$ |
-|$w$ | $\rho_* \alpha u^0$ | Must be calculated via an iterative procedure |
+| $h$ | $1 + \epsilon + \frac{P}{\rho_0}$ | Enthalpy. $1 + \Gamma \epsilon$ with the perfect fluid equation of state, $P = (\Gamma - 1) \rho_0 \epsilon$ |
+|$w$ | $\rho_* \alpha u^0$ | Densitised lorentz factor. Must be calculated via an iterative procedure |
 |$v^i$ | $\frac{u^i}{u^0}$ | Represents a coordinate velocity |
 
 The notation in this article is harmonised with the previous one. $\rho_0$ is the rest-mass density, $\epsilon$ is the specific energy density, $u^0$ is the lorentz factor, and $\alpha$ is the lapse. I also won't be fighting with the paper, and we'll be using a $\Gamma = 2$ perfect fluid equation of state - because its unclear how a numerical one would work here
@@ -72,7 +70,7 @@ At the end of the previous article, we ended up with our fluid quantities: $\rho
 There are two pitfall traps here:
 
 1. The initial procedure we used last time appears to have assumed implicitly that $\alpha = 1$, and $\beta^i = 0$ - so use these when initialising regardless of what you actually pick for them
-2. $u_i = \beta^i u^0 + \gamma_{ik} u^k$. If you want to prove this, calculate $u_i = g_{i\nu} u^\nu$
+2. $u_i = \beta^i u^0 + \gamma_{ik} u^k$
 
 We can now carry on immediately from our last article, which follows on as such:
 
@@ -143,7 +141,7 @@ $$
 
 ### The reason why hydrodynamics is a thing
 
-We'll get around to some implementing soon. But first: lets talk about these equations in a generic form:
+We can transform these to a form which is more familiar to regular hydrodynamics:
 
 $$\begin{align}
 \partial_t \rho_* &+ \nabla  (\rho_* \textbf{v}) = 0\\
@@ -157,11 +155,11 @@ $$
 \partial_t q + \nabla (q \textbf{v}) = \mathrm{Source}
 $$
 
-This is the standard representation in hydrodynamics of advection equations, with the right hand side being called a source term (which you shouldn't confuse with an ADM source term). In general, the source terms are split out, and no special treatment is given to their solving[^solving], so we're going to now unceremoniously ignore them
+This is the standard representation in hydrodynamics of advection equations, with the right hand side being called a source term (which you shouldn't confuse with an ADM source term). Here the source terms are split out, and no special treatment is given to their solving[^solving], so we're going to now unceremoniously ignore them
 
 [^solving]: We'll just be literally adding them afterwards
 
-In hydrodynamics there are things called *conserved quantities* - like rest mass, energy, and momentum for a fluid dynamics simulation. The idea behind a conserved quantity is that we want it to be conserved (unsurprisingly), eg a good simulation should keep the total rest mass exact
+In hydrodynamics there are things called *conserved quantities* - like rest mass, energy, and momentum for a fluid dynamics simulation. The idea behind a conserved quantity is that eg a good simulation should keep the total rest mass exact, instead of drifting
 
 Naively, you might think to discretise $\partial_i(p_* v^i)$ as something like this, like all our other derivatives:
 
@@ -201,7 +199,7 @@ Good techniques for solving this have the following properties:
 2. They handle 'shocks', ie discontinuities in $q$
 3. They don't produce oscillations that build up and cause everything to break
 
-These are expressed as more technical requirements:
+These are expressed as more technical requirements
 
 | Term | Meaning|
 |-|-|
@@ -220,7 +218,7 @@ In numerical relativity, 'shocks' are partially handled via Kreiss-Oliger dissip
 
 ## Conservative discretisation
 
-The basic form of these discretisations is as follows. First off, we define a *flux* as the following quantity:
+The basic form of these discretisations is as follows. First off, we define a flux as the following quantity:
 
 $$f_i = v_i q_i$$
 
@@ -230,23 +228,25 @@ $$\partial_t q = \frac{1}{\Delta x} (F^n_{i-\frac{1}{2}} - F^n_{i+\frac{1}{2}})$
 
 where $\Delta x$ is the scale. This is the flux conserving form, and it is generic across any hydrodynamics scheme. Solving for the half grid cell flux at the boundary between our grid cells is the joy of hydrodynamics
 
-High resolution schemes often mix and match between different orders in different smoothness areas - having a lower order in less smooth areas. There's some interesting [theoretical reasons](https://en.wikipedia.org/wiki/Godunov%27s_theorem) as to why
-
 I'm not going to attempt to document hydrodynamics in general here, so its time to look at a specific form of solving this equation. It fulfills all the requirements for a 'good' technique, as well as the major requirement which is having a workable set of equations that I can implement[^implement]
 
-[^implement]: Going for a dig through the hydrodynamics literature is surprising. Every field develops its own notation and language, and hydrodynamics appears to have developed its own convention for which steps are omitted when describing a particular scheme. Finding documentation on those omitted steps is surprisingly challenging. That's the core reason why these articles come with a working, testable implementation that you can dig through, and why code often makes much better documentation than papers in my experience
+[^implement]: Going for a dig through the hydrodynamics literature is surprising. Every field develops its own notation and language, and hydrodynamics appears to have developed its own convention for which steps are omitted when describing a particular scheme. Finding documentation on those omitted steps is surprisingly challenging
 
 https://www.astro.uzh.ch/~stadel/lib/exe/fetch.php?media=spin:compastro_godunov.pdf todo: contains a note on flux
 
 ## A specific scheme: MUSCL
 
+Todo: This segment sucks up until slope limited
+
 This scheme uses a limiter function to smoothly swap between first order and second order. As the fluid gradient gets too high, the scheme decays to first order[^notes]. Different limiters have different properties - some introduce lots of diffusion, some accidentally introduce oscillations. The most common, least diffusive, non broken limiter appears to be known as 'superbee', which we'll be using
 
-[^notes]: This is one of the reasons why higher order fluid simulations are less useful than they might appear. High order in smooth areas only is all well and good, but that's also precisely where we need the least resolution
+[^notes]: This is one of the reasons why higher order fluid simulations are less useful than they might appear. High order in smooth areas only is all well and good, but that's also precisely where we need the least resolution. There's some interesting [theoretical reasons](https://en.wikipedia.org/wiki/Godunov%27s_theorem) as to why this kind of order decay is necessary
 
 These limited functions then have upwinding applied to them, to result in a stable scheme. On a technical note, this upwinding is actually a solution to the [Riemann problem](https://en.wikipedia.org/wiki/Riemann_problem) - which works because of the simple advection equation we're solving. There's some good notes over [here](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2009/Chapter_6.pdf)
 
 There's two different forms of these equations, slope limited, and flux limited. A good explicit reference is [here](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2012/Chapter_4.pdf)
+
+Todo: Why am I presenting the slope limited form?
 
 ### Slope limited
 
@@ -307,9 +307,11 @@ $$v^{n}_{i - 1/2} = -0.0625 v^n_{i - 2} + 0.5625 v^n_{i - 1}+ 0.5625 v^n_i - 0.0
 
 In general, these options seem to be fairly identical, so you may as well use the first. I've been using the second purely for commonality with the referenced paper
 
+Todo: The following paragraph is a bit imprecise. Its an issue with riemann solving
+
 If you're wondering why we don't just reconstruct the flux directly, and limit that without using a half velocity at all: The answer seems to be because of the upwinding scheme. If you try and approach it like this, the reconstructed flux's velocity, and the velocity you use to toggle the upwind direction will differ - which leads to an incorrect solution
 
-In the future, we'll have to calculate eigenvectors to produce a full Riemann solver when we get around to more advanced hydrodynamics
+There's a more detailed analysis of the theory behind this in the appendix
 
 ### Implementation
 
@@ -388,14 +390,6 @@ valuef advect_rhs(valuef in, v3f vi, const derivative_data& d, valuef timestep)
 }
 ```
 
-## 2002 Relativistic hydrodynamics - specifically
-
-In theory, the hydrodynamics portion of this article is now done
-
-Despite our equations looking like a conservative hydrodynamics equation, they actually are not in this formalism. While I believe that $\rho_*$ *is* in conservative form, $e_*$ is not and is not a conserved quantity across shocks - so we'll have to artificially dissipate them despite using a shock capturing formalism. I have absolutely no idea about $\tilde{S}_k$. We'll be getting to numerical dissipation soon
-
-More modern formalisms are expressed purely in terms of conserved quantities, which makes their hydro treatment more rigorous at the expense of complexity
-
 # Evolution Equations
 
 There's two other nontrivial terms to talk about now: $v^i$ and $w$
@@ -462,7 +456,7 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef
 
     valuef p_sq = p_star * p_star;
 
-    valuef cst = W*W * icY.length_sq(Si);
+    valuef cst = W*W * icY.dot(Si, Si);
     pin(cst);
 
     //140 iterations ought to be enough for anybody
@@ -508,14 +502,22 @@ h &= 1 + \Gamma \epsilon
 \end{align}
 $$
 
-## Artificial Viscosity
+## 2002 Relativistic hydrodynamics - specifically
 
-One of the big problems with our equations is that they actually aren't conservative: one key thing is that $e^*$ isn't actually conserved in the presence of shocks. To combat this, this scheme introduces a small amount of artificial viscosity to dissipate shocks away
+In theory with a more modern formalism, we'd be done. Unfortunately, we come to the major problem with this paper
 
-Papers here can be quite vague as to how exactly to modify the viscosity. A complete description of this scheme requires us to go all the way back to [1984](https://adsabs.harvard.edu/full/1984ApJS...55..211H), where the extra viscous pressure is called $Q$. This is used in two places:
+Despite our equations looking like a conservative hydrodynamics equation, they actually are not in this formalism. While I believe that $\rho_*$ *is* in conservative form, $e_*$ is not and is not a conserved quantity across shocks - so we'll have to artificially dissipate them despite using a shock capturing formalism. I have absolutely no idea about $\tilde{S}_k$. We'll be getting to numerical dissipation soon
 
-1. It is added to the pressure on the right hand side of $\partial_t \tilde{S}_k$, ie $\partial_k (P + Q)$
-2. We have a new rhs for $e^*$, which we'll get into shortly
+More modern formalisms are expressed purely in terms of conserved quantities, which makes their hydro treatment more rigorous at the expense of complexity
+
+### Artificial Viscosity
+
+To combat the lack of conservation of $e_*$ across shocks, this scheme introduces a small amount of artificial viscosity to dissipate shocks away
+
+Papers can be quite vague as to how exactly to modify the equations here. A complete description of this scheme requires us to go all the way back to [1984](https://adsabs.harvard.edu/full/1984ApJS...55..211H), where the extra viscous pressure is called $Q$. There are two new modifications:
+
+1. $Q$ is added to the pressure on the right hand side of $\partial_t \tilde{S}_k$, ie $\partial_k (P + Q)$
+2. We have a new source term for $e^*$ (involving $Q$)
 
 There are two complementary ways to calculate this additional pressure term $Q$
 
@@ -524,7 +526,7 @@ There are two complementary ways to calculate this additional pressure term $Q$
 
 You can sum these. On a technical note, these are both only enabled when the fluid is being compressed - which is why there's a branch in the definitions
 
-### Quadratic Viscosity
+#### Quadratic Viscosity
 
 $$\begin{align}
 Q_{Qvis} =
@@ -559,7 +561,7 @@ valuef PQvis = ternary(littledv < 0, CQvis * A * pow(littledv, 2), valuef{0.f});
 
 Quadratic viscosity is generally left on throughout a simulation, but is disabled near a singularity. In theory, you could probably derive the strength of the quadratic viscosity from a hydrodynamic smoothness estimate to enable dissipation in unsmooth parts of the solution only, but I have no information on if that's worthwhile
 
-### Linear viscosity
+#### Linear viscosity
 
 $$\begin{align}
 Q_{Lvis} =
@@ -573,7 +575,7 @@ $C_{Lvis}$ is a damping constant in the range $[0, 1]$. In my case, I set this d
 
 $$C_{Lvis} = K e^{-\frac{t^2}{2 T^2}}$$
 
-$t$ is the total elapsed simulation time, $K$ is a constant (which I set to $0.1$), and $T$ is a constant that represents a damping timescale for the linear viscosity, as it is generally only useful in the early parts of the simulation to iron out the star's oscillations. Leaving it on too long will result in a loss of velocity, and $T=200$ seems to work well
+$t$ is the total elapsed simulation time, $K$ is a constant (which I set to $0.1$), and $T$ is a constant that represents a damping timescale for the linear viscosity, as it is generally only useful in the early parts of the simulation to iron out the star's oscillations. $T=200$ seems to work well
 
 I don't have a clue what $n$ is and I have never been able to find a single shred of discussion on what it represents, so I set it to $1$
 
@@ -594,7 +596,7 @@ With linear viscosity:
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/YS4AoDqNOe4?si=4NY-GpvEqy2VY9zh" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-## Viscosity $e_*$
+#### Viscosity for $e_*$
 
 When using viscosity, you have to modify the evolution equation of $e_*$. The term to add is:
 
@@ -631,9 +633,9 @@ I &= e_* W^3 \frac{\rho_*}{w}\\
     }
 ```
 
-### Conclusion
+#### Conclusion
 
-In general, linear viscosity is good for large scale damping and significantly improves the simulations stability. Our initial conditions are quite approximate and the stars relax into their final form, so damping this initial relaxation improves the simulation a lot, and produces more stable, less oscillating, neutron stars. Quadratic viscosity seems to be less applicable here, and hasn't produced significant changes to the simulation, but it also may be just the tests that I've performed
+In general, linear viscosity is good for large scale damping and significantly improves the simulations stability. Our initial conditions are quite approximate, and the stars oscillate while relaxing into their final form - and linear visocosity damps those oscillations. Quadratic viscosity seems to be less applicable here, and hasn't produced significant changes to the simulation, but it also may be just the tests that I've performed
 
 The viscosity scheme documented in this paper is actually not consistent - its an ad-hoc modification to fix up shocks. There is, in theory, an extension of this formalism which includes a consistent treatment of viscosity and works for ultrarelativistic matter - but unfortunately its behind a paywall so I can't implement it today Todo, link
 
@@ -781,7 +783,12 @@ v3f Si_rhs(valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY, val
 ```
 
 ```c++
-//only apply advection terms for matter which is not ~0
+valuef dp_star = hydro_args.advect_rhs(hydro_args.p_star, vi, d, timestep.get());
+
+mut<valuef> de_star = declare_mut_e(hydro_args.advect_rhs(hydro_args.e_star, vi, d, timestep.get()));
+mut_v3f dSi = declare_mut_e(hydro_args.advect_rhs(hydro_args.Si, vi, d, timestep.get()));
+
+//only apply advection terms for matter which is ~0
 if_e(hydro_args.p_star >= min_evolve_p_star, [&]{
     valuef Q = hydro_args.Q;
 
@@ -796,7 +803,7 @@ if_e(hydro_args.p_star >= min_evolve_p_star, [&]{
 });
 ```
 
-There's nothing terribly exciting here. There's an option to not evolve the right hand sides when $\rho_*$ is low for experimental purposes. The right hand side of $e_*$ is also not evolved under the same conditions that $Q$ is not calculated
+There's nothing terribly exciting here. There's an option to not evolve the right hand sides when $\rho_*$ is low for experimental purposes, which does make this a bit messy. The right hand side of $e_*$ is also not evolved under the same conditions that $Q$ is not calculated, to avoid NaNs propagating
 
 ## ADM Source terms
 
@@ -811,7 +818,7 @@ S_{ij} &= \frac{W^3}{wh}\tilde{S}_i \tilde{S}_j + P \gamma_{ij}\\
 S &= \gamma^{ij} S_{ij} = W^2 \tilde{\gamma}^{ij} S_{ij} \\
 \end{align}$$
 
-In this form, they're less useful than they could be: $S_{ij}$ is singular at the singularity, as $\gamma_{ij}$ is undefined
+In this form, they're less useful than they could be: $S_{ij}$ is infinite at the singularity, as $\gamma_{ij}$ is undefined
 
 Luckily, we can skip to the future, and discover that the form of our $S_{ij}$ source term is actually: $-W^2 8 \pi \alpha S_{ij}$[^alttechnique]. Given that $$W^2 \gamma_{ij} = \tilde{\gamma}_{ij}$$, we can instead re-format our equations like this:
 
@@ -858,9 +865,7 @@ As far as I can tell, there's the following issues with this approach:
 
 [^real]: I only encountered this when using a non conservative discretisation of the equations. It may be a product of the specific hydrodynamic scheme, and/or related to the $-\beta^i$ limit issue before
 
-This - in theory - would all be solved by a newer formalism. This formalism isn't 'bad' however, and it seems to work. It makes for an extremely interesting test-case on modern hardware compared to what they could get away with in 2002
-
-Another thing to add is: We're using an implicit scheme for both the BSSN equations, and the hydrodynamic equations. Simulating the hydrodynamic equations has fairly low performance overhead - which means that we should be able to get away with a *much* more expensive formalism for all of the hydrodynamics in this article. Some kind of super duper high resolution predictor-corrector scheme would likely work extremely well, which I'll do as soon as I can find one
+This - in theory - would all be solved by a newer formalism. This formalism isn't 'bad' however, and it seems to work. It makes for an extremely interesting test-case on modern hardware compared to what they could get away with in 2002. Some kind of super duper high resolution predictor-corrector scheme would likely work extremely well here as well, which I'll likely do as soon as I can find one
 
 # Testing
 
@@ -954,29 +959,29 @@ Which gives this:
 
 \<iframe width="560" height="315" src="https://www.youtube.com/embed/czDYhdyuMO0?si=YodMhX4B9llOyX6L" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Without an exact value for linear momentum, we cannot precisely attempt to replicate the original paper, but we appear to get a reasonable inspiral. Its a little unsatisfying - I've been searching around for test cases which give exact values, but in general people tend to miss out one or more key parameters. Within a few articles we'll be producing gravitational waves together, which is likely when I'll be investing in a post newtonian expansion + energy minimisation scheme, as that makes this very directly testable. This is a much better approach than trying to replicate things by staring at graphs in papers, because we can quantitively determine the accuracy then
+Without an exact value for linear momentum, I can't precisely attempt to replicate the original paper, but this appears to produce a reasonable inspiral. Its a little unsatisfying - I've been searching around for test cases which give exact values, but many are missing key parameters. Within a few articles I'll probably get around to gravitational waves, which is when I'll be investing in a post newtonian expansion or energy minimisation scheme, and then we can find out precisely how physically accurate this is
 
-With that significant caveat in mind, this scheme does appear to work. Exactly how energy conserving it is is up for grabs, but there's nothing obviously unphysical going on. The hamiltonian constraint errors appear to stay low and bounded which is great as well. More resolution or a coordinate transform would likely help here significantly too, but that's a topic for the future
+With that significant caveat in mind, this scheme does appear to work, and there's nothing obviously unphysical going on. The hamiltonian constraint errors appear to stay low and bounded which is great as well
 
 # Performance
 
 The performance is pretty good - at $199^3$ it takes 81 ms/tick with the hydro on, and ~69 ms/tick with it off. Some of that is because there's a few extra copies here and there, so I'd expect to be able to shave about 5ms off. Most of these videos took about 15 minutes of compute time on a 6700xt, which is a lot faster than I've heard is common in the industry
 
-The main overhead is actually the amount of extra buffers required. We have $5$ variable buffers, which we have to store $3$ copies of - and on top of that, for the Crank-Nicolson, there's another $5$ for the intermediate state (which could be eliminated). This limits the maximum resolution size quite a bit on a $12\;\mathrm{GB}$ GPU sadly!
+The main overhead is actually the amount of extra buffers required. We have $5$ variable buffers, which we have to store $3$ copies of - and on top of that, for the Crank-Nicolson, there's another $5$ for the intermediate state (which could be eliminated). This limits the maximum resolution size quite a bit on a $12\;\mathrm{GB}$ GPU sadly
 
 # Discussion
 
 I've discussed the relativistic hydrodynamics formalism specifically in depth up above, so this is a general review of this project
 
-Overall, this has gone pretty well. I'm not *super* jazzed at the lack of rigorous testing here, but this makes a very good stepping stone on the way to more advanced techniques and new ideas like post newtonian formalisms - so I think this is perfect as a hydro introduction. I'm also not super convinced on the actual hydrodynamics solver I've implemented - but hey that just means we've got more work ahead of us
+Overall, this has gone pretty well. I'm not *super* jazzed at the lack of rigorous testing here, but this makes a very good stepping stone on the way to more advanced techniques and new ideas like post newtonian formalisms - so I think this is perfect as an introduction. I'm also not super convinced on the actual hydrodynamics solver I've implemented - but hey that just means we've got more work ahead of us
 
-We're really *really* pushing the limits of single precision with this technique as well, its right on the boundary of what is acceptable: if you're interested in novel precision techniques, like unums, or projective reals, this would be a great playground for you
+We're really *really* pushing the limits of single precision with this technique as well, its right on the boundary of what is acceptable: if you're interested in novel precision techniques, like unums, or projective reals, this would be a great playground
 
-In general though, I think this more than serves its purpose, which is to be a good base to build on. Which we absolutely will, soon
+Its clear though seeing that we easily can get multiple orbits, collapse neutron stars into stable black holes, and produce visible gravitational waves, that this is working pretty well. So I'm very happy with it overall, and its a great base to build off of
 
 # Next time
 
-The next article is going to be N-body particle dynamics, because this hydrodynamics implementation took a tremendous amount of work, and I need to go do something incredibly silly and fun. It'll be great!
+The next article is going to be N-body particle dynamics, because that should be a lot easier than hydrodynamics. It'll be great!
 
 # Montage
 
@@ -1005,6 +1010,8 @@ Binary black hole collision:
 # Appendix
 
 ## Notes on flux
+
+In this article I dodged some of the technical aspects of fluid dynamics. It took me a bit to dig up what was actually going on and how everything worked
 
 $F^n$ is actually an integral in time, ie its meant to be the total movement of material though the cell boundary between steps: $n$ and $n+1$:
 
@@ -1285,7 +1292,7 @@ Matter within a black hole in the set of equations I'm presenting here is only m
 1. Disable all viscosity in the vicinity of an event horizon
 2. Dissipate all the matter fields to zero when within an event horizon
 
-In general, the lapse $\alpha$ is a good surrogate variable for being near an event horizon. I use a conservative $0.45$ for disabling viscosity, and $0.15$ for dissipating matter fields. The latter constraint imposes a minimum simulation resolution to successfully simulate a black hole collapse, as the simulation will eventually fail if matter is not damped within an event horizon. Luckily, that's about the same minimum resolution that you need to simulate a black hole *anyway*
+In general, the lapse $\alpha$ is a good surrogate variable for being near an event horizon. I use a conservative $0.4$ for disabling viscosity, and $0.15$ for dissipating matter fields. The latter constraint imposes a minimum simulation resolution to successfully simulate a black hole collapse, as the simulation will eventually fail if matter is not damped within an event horizon. Luckily, that's about the same minimum resolution that you need to simulate a black hole *anyway*
 
 ```c++
 //we're in a black hole, damp away the material

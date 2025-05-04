@@ -871,7 +871,7 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef
 
     valuef p_sq = p_star * p_star;
 
-    valuef cst = W*W * icY.length_sq(Si);
+    valuef cst = W*W * icY.dot(Si, Si);
     pin(cst);
 
     for(int i=0; i < 140; i++)
@@ -1155,7 +1155,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     mut<valuef> de_star = declare_mut_e(hydro_args.advect_rhs(hydro_args.e_star, vi, d, timestep.get()));
     mut_v3f dSi = declare_mut_e(hydro_args.advect_rhs(hydro_args.Si, vi, d, timestep.get()));
 
-    //only apply advection terms for matter which is not ~0
+    //only apply advection terms for matter which is ~0
     if_e(hydro_args.p_star >= min_evolve_p_star, [&]{
         valuef Q = hydro_args.Q;
 
