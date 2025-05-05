@@ -1060,7 +1060,7 @@ void make_momentum_constraint(cl::context ctx, const std::vector<plugin*>& plugi
             return_e();
         });
 
-        v3i pos = get_coordinate_including_boundary(lid, dim);
+        v3i pos = get_coordinate_including_boundary(lid, dim, constraint_deadzone - 2);
         pin(pos);
 
         valuei idx = pos.z() * dim.y() * dim.x() + pos.y() * dim.x() + pos.x();

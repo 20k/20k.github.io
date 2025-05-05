@@ -451,6 +451,8 @@ struct mesh
 
         auto calculate_momentum_constraint_for = [&](int pack_idx)
         {
+            int momentum_evolve_size = get_evolve_size_with_boundary(dim, constraint_deadzone - 2);
+
             cl::args args;
             buffers[pack_idx].append_to(args);
 
@@ -461,9 +463,9 @@ struct mesh
 
             args.push_back(dim);
             args.push_back(scale);
-            args.push_back(evolve_length);
+            args.push_back(momentum_evolve_size);
 
-            cqueue.exec("momentum_constraint", args, {evolve_length}, {128});
+            cqueue.exec("momentum_constraint", args, {momentum_evolve_size}, {128});
         };
 
         auto evolve_step = [&](int base_idx, int in_idx, int out_idx)

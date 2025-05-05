@@ -9,6 +9,8 @@
 #include "value_alias.hpp"
 
 #define MOMENTUM_CONSTRAINT_DAMPING
+///the number of cells we simply don't damp
+constexpr int constraint_deadzone = 10;
 
 template<typename T>
 struct bssn_args_mem : value_impl::single_source::argument_pack
