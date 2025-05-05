@@ -970,7 +970,7 @@ With that significant caveat in mind, this scheme does appear to work, and there
 
 The performance is pretty good - at $199^3$ it takes 81 ms/tick with the hydro on, and ~69 ms/tick with it off. Some of that is because there's a few extra copies here and there, so I'd expect to be able to shave about 5ms off. Most of these videos took about 15 minutes of compute time on a 6700xt, which is a lot faster than I've heard is common in the industry
 
-The main overhead is actually the amount of extra buffers required. We have $5$ variable buffers, which we have to store $3$ copies of - and on top of that, for the Crank-Nicolson, there's another $5$ for the intermediate state (which could be eliminated). This limits the maximum resolution size quite a bit on a $12\;\mathrm{GB}$ GPU sadly
+The main overhead is actually the amount of extra buffers required. We have $5$ variable buffers, which we have to store $3$ copies of. This limits the maximum resolution size quite a bit on a $12\;\mathrm{GB}$ GPU sadly
 
 # Discussion
 
@@ -1478,31 +1478,26 @@ I use Crank-Nicolson for the hydrodynamics part of this. Backwards-Euler has bad
 
 A very interesting and related result I came across when researching this is that you should [never use more than two iterations](https://scispace.com/pdf/stability-of-the-iterated-crank-nicholson-method-in-1jb7vdqz8u.pdf) for Crank-Nicolson. Its not actually strictly true - while higher iteration values don't improve the accuracy, they *do* increase the CFL limit - but the part about the method being unstable for various iteration values is interesting
 
-The implementation of this isn't super trivial:
+The implementation of this is a bit complex. To avoid an extra set of buffers for Crank-Nicolson, I unconditionally recalculate the F(base) term every iteration in a preparation kernel before the main kernel execution, as it is very cheap to do so (and we're more limited by memory usage)
 
 ```c++
 //crank nicolson
 auto write_result = [&](valuef dt_p_star, valuef dt_e_star, v3f dt_Si, v3f dt_col)
 {
-    //predictor, ie euler
-    if_e(iteration.get() == 0, [&]{
+    if(is_prep_kernel)
+    {
+        //write deltas out
         valuef fin_p_star = h_base.p_star[pos, dim] + dt_p_star * timestep.get();
         valuef fin_e_star = h_base.e_star[pos, dim] + dt_e_star * timestep.get();
 
         fin_p_star = max(fin_p_star, 0.f);
         fin_e_star = max(fin_e_star, 0.f);
 
-        as_ref(dt_inout.p_star[pos, dim]) = (fin_p_star - h_base.p_star[pos, dim]) / timestep.get();
-        as_ref(dt_inout.e_star[pos, dim]) = (fin_e_star - h_base.e_star[pos, dim]) / timestep.get();
+        as_ref(h_out.p_star[pos, dim]) = (fin_p_star - h_base.p_star[pos, dim]) / timestep.get();
+        as_ref(h_out.e_star[pos, dim]) = (fin_e_star - h_base.e_star[pos, dim]) / timestep.get();
 
         for(int i=0; i < 3; i++)
-            as_ref(dt_inout.Si[i][pos, dim]) = dt_Si[i];
-
-        as_ref(h_out.p_star[pos, dim]) = fin_p_star;
-        as_ref(h_out.e_star[pos, dim]) = fin_e_star;
-
-        for(int i=0; i < 3; i++)
-            as_ref(h_out.Si[i][pos, dim]) = h_base.Si[i][pos, dim] + dt_Si[i] * timestep.get();
+            as_ref(h_out.Si[i][pos, dim]) = dt_Si[i];
 
         if(use_colour)
         {
@@ -1511,56 +1506,70 @@ auto write_result = [&](valuef dt_p_star, valuef dt_e_star, v3f dt_Si, v3f dt_co
                 valuef fin_colour = h_base.colour[i][pos, dim] + dt_col[i] * timestep.get();
                 fin_colour = max(fin_colour, 0.f);
 
-                as_ref(dt_inout.colour[i][pos, dim]) = (fin_colour - h_base.colour[i][pos, dim]) / timestep.get();
-
-                as_ref(h_out.colour[i][pos, dim]) = fin_colour;
+                as_ref(h_out.colour[i][pos, dim]) = (fin_colour - h_base.colour[i][pos, dim]) / timestep.get();
             }
         }
-    });
-
-    //corrector, ie the next fixed point step for crank nicolson
-    if_e(iteration.get() != 0, [&]{
-        float relax = 0.f;
-
-        valuef root_dp_star = declare_e(dt_inout.p_star[pos, dim]);
-        valuef root_de_star = declare_e(dt_inout.e_star[pos, dim]);
-        v3f root_dSi = declare_e(dt_inout.index_Si(pos, dim));
-
-        v3f root_dcol;
-
-        if(use_colour)
-            root_dcol = declare_e(dt_inout.index_colour(pos, dim));
-
-        //impl = 1 == backwards euler, impl = 0 == fowards euler. impl = 0.5 == crank nicolson/implicit midpoint
-        float impl = 0.5;
-        float expl = 1 - impl;
-
-        auto apply = [&](auto x0, auto xi, auto f_x0, auto f_xi)
-        {
-            return relax * xi + (1 - relax) * (x0 + timestep.get() * (expl * f_x0 + impl * f_xi));
-        };
-
-        valuef fin_p_star = apply(h_base.p_star[pos, dim], h_in.p_star[pos, dim], root_dp_star, dt_p_star);
-        valuef fin_e_star = apply(h_base.e_star[pos, dim], h_in.e_star[pos, dim], root_de_star, dt_e_star);
-        v3f fin_Si = apply(h_base.index_Si(pos, dim), h_in.index_Si(pos, dim), root_dSi, dt_Si);
-
-        fin_p_star = max(fin_p_star, 0.f);
-        fin_e_star = max(fin_e_star, 0.f);
-
-        as_ref(h_out.p_star[pos, dim]) = fin_p_star;
-        as_ref(h_out.e_star[pos, dim]) = fin_e_star;
-
-        for(int i=0; i < 3; i++)
-            as_ref(h_out.Si[i][pos, dim]) = fin_Si[i];
-
-        if(use_colour)
-        {
-            v3f fin_col = apply(h_base.index_colour(pos, dim), h_in.index_colour(pos, dim), root_dcol, dt_col);
+    }
+    else
+    {
+        //predictor, ie euler
+        if_e(iteration.get() == 0, [&]{
+            as_ref(h_out.p_star[pos, dim]) = max(h_base.p_star[pos, dim] + dt_p_star * timestep.get(), 0.f);
+            as_ref(h_out.e_star[pos, dim]) = max(h_base.e_star[pos, dim] + dt_e_star * timestep.get(), 0.f);
 
             for(int i=0; i < 3; i++)
-                as_ref(h_out.colour[i][pos, dim]) = max(fin_col[i], 0.f);
-        }
-    });
+                as_ref(h_out.Si[i][pos, dim]) = h_base.Si[i][pos, dim] + dt_Si[i] * timestep.get();
+
+            if(use_colour)
+            {
+                for(int i=0; i < 3; i++)
+                {
+                    as_ref(h_out.colour[i][pos, dim]) = max(h_base.colour[i][pos, dim] + dt_col[i] * timestep.get(), 0.f);
+                }
+            }
+        });
+
+        //corrector, ie the next fixed point step for crank nicolson
+        if_e(iteration.get() != 0, [&]{
+            float relax = 0.f;
+
+            valuef root_dp_star = declare_e(h_out.p_star[pos, dim]);
+            valuef root_de_star = declare_e(h_out.e_star[pos, dim]);
+            v3f root_dSi = declare_e(h_out.index_Si(pos, dim));
+
+            v3f root_dcol;
+
+            if(use_colour)
+                root_dcol = declare_e(h_out.index_colour(pos, dim));
+
+            //impl = 1 == backwards euler, impl = 0 == fowards euler. impl = 0.5 == crank nicolson/implicit midpoint
+            float impl = 0.5;
+            float expl = 1 - impl;
+
+            auto apply = [&](auto x0, auto xi, auto f_x0, auto f_xi)
+            {
+                return relax * xi + (1 - relax) * (x0 + timestep.get() * (expl * f_x0 + impl * f_xi));
+            };
+
+            valuef fin_p_star = apply(h_base.p_star[pos, dim], h_in.p_star[pos, dim], root_dp_star, dt_p_star);
+            valuef fin_e_star = apply(h_base.e_star[pos, dim], h_in.e_star[pos, dim], root_de_star, dt_e_star);
+            v3f fin_Si = apply(h_base.index_Si(pos, dim), h_in.index_Si(pos, dim), root_dSi, dt_Si);
+
+            as_ref(h_out.p_star[pos, dim]) = max(fin_p_star, 0.f);
+            as_ref(h_out.e_star[pos, dim]) = max(fin_e_star, 0.f);
+
+            for(int i=0; i < 3; i++)
+                as_ref(h_out.Si[i][pos, dim]) = fin_Si[i];
+
+            if(use_colour)
+            {
+                v3f fin_col = apply(h_base.index_colour(pos, dim), h_in.index_colour(pos, dim), root_dcol, dt_col);
+
+                for(int i=0; i < 3; i++)
+                    as_ref(h_out.colour[i][pos, dim]) = max(fin_col[i], 0.f);
+            }
+        });
+    }
 };
 ```
 
