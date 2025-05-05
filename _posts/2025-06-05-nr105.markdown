@@ -234,8 +234,6 @@ I'm not going to attempt to document hydrodynamics in general here, so its time 
 
 [^implement]: Going for a dig through the hydrodynamics literature is surprising. Every field develops its own notation and language, and hydrodynamics appears to have developed its own convention for which steps are omitted when describing a particular scheme. Finding documentation on those omitted steps is surprisingly challenging
 
-https://www.astro.uzh.ch/~stadel/lib/exe/fetch.php?media=spin:compastro_godunov.pdf todo: contains a note on flux
-
 ## A specific scheme: MUSCL
 
 We're trying to calculate the two half fluxes defined above. A first order scheme is stable, but too low order for us. Second order schemes are stable in smooth regions of fluid, but unstable near discontinuities
@@ -1326,13 +1324,11 @@ As you may have noticed, these equations involve quite a bit of dividing by zero
 
 In general, this is pretty straightforward. For division by $W$, I clamp $W$ to $0.1$. This might seem quite large, but in general we don't really care about the hydrodynamics near the singularity of a black hole, and its more important for the equations to remain regular
 
-todo: exact tol
-
-For divisions by all other quantities, I use a division tolerance of $1e-7$, of the following form:
+For divisions by all other quantities, I use a division tolerance of $5e-8$, of the following form:
 
 ```c++
 template<typename T>
-auto safe_divide(const auto& top, const T& bottom, float tol = 1e-7f)
+auto safe_divide(const auto& top, const T& bottom, float tol = 5e-8f)
 {
     valuef bsign = ternary(bottom >= 0, valuef(1.f), valuef(-1.f));
 
