@@ -986,7 +986,6 @@ void calculate_Q_kern(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
 
 void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                   hydrodynamic_base_args<buffer<valuef>> h_base, hydrodynamic_base_args<buffer<valuef>> h_in, hydrodynamic_base_args<buffer_mut<valuef>> h_out,
-                  hydrodynamic_base_args<buffer_mut<valuef>> dt_inout,
                   hydrodynamic_utility_args<buffer<valuef>> util,
                   literal<v3i> idim, literal<valuef> scale, literal<valuef> timestep, literal<valuef> total_elapsed, literal<valuef> damping_timescale,
                   literal<valuei> positions_length,
@@ -1029,11 +1028,11 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             fin_p_star = max(fin_p_star, 0.f);
             fin_e_star = max(fin_e_star, 0.f);
 
-            as_ref(dt_inout.p_star[pos, dim]) = (fin_p_star - h_base.p_star[pos, dim]) / timestep.get();
-            as_ref(dt_inout.e_star[pos, dim]) = (fin_e_star - h_base.e_star[pos, dim]) / timestep.get();
+            as_ref(h_out.p_star[pos, dim]) = (fin_p_star - h_base.p_star[pos, dim]) / timestep.get();
+            as_ref(h_out.e_star[pos, dim]) = (fin_e_star - h_base.e_star[pos, dim]) / timestep.get();
 
             for(int i=0; i < 3; i++)
-                as_ref(dt_inout.Si[i][pos, dim]) = dt_Si[i];
+                as_ref(h_out.Si[i][pos, dim]) = dt_Si[i];
 
             if(use_colour)
             {
@@ -1042,7 +1041,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                     valuef fin_colour = h_base.colour[i][pos, dim] + dt_col[i] * timestep.get();
                     fin_colour = max(fin_colour, 0.f);
 
-                    as_ref(dt_inout.colour[i][pos, dim]) = (fin_colour - h_base.colour[i][pos, dim]) / timestep.get();
+                    as_ref(h_out.colour[i][pos, dim]) = (fin_colour - h_base.colour[i][pos, dim]) / timestep.get();
                 }
             }
         }
@@ -1078,14 +1077,14 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             if_e(iteration.get() != 0, [&]{
                 float relax = 0.f;
 
-                valuef root_dp_star = declare_e(dt_inout.p_star[pos, dim]);
-                valuef root_de_star = declare_e(dt_inout.e_star[pos, dim]);
-                v3f root_dSi = declare_e(dt_inout.index_Si(pos, dim));
+                valuef root_dp_star = declare_e(h_out.p_star[pos, dim]);
+                valuef root_de_star = declare_e(h_out.e_star[pos, dim]);
+                v3f root_dSi = declare_e(h_out.index_Si(pos, dim));
 
                 v3f root_dcol;
 
                 if(use_colour)
-                    root_dcol = declare_e(dt_inout.index_colour(pos, dim));
+                    root_dcol = declare_e(h_out.index_colour(pos, dim));
 
                 //impl = 1 == backwards euler, impl = 0 == fowards euler. impl = 0.5 == crank nicolson/implicit midpoint
                 float impl = 0.5;
