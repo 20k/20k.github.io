@@ -158,6 +158,7 @@ struct plugin_step_data
     std::array<buffer_provider*, 3> buffers;
     buffer_provider* utility_buffers;
 
+    std::vector<cl::buffer> base_bssn_buffers;
     std::vector<cl::buffer> bssn_buffers;
 
     cl_int evolve_length = 0;

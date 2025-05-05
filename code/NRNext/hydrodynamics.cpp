@@ -990,7 +990,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                   hydrodynamic_utility_args<buffer<valuef>> util,
                   literal<v3i> idim, literal<valuef> scale, literal<valuef> timestep, literal<valuef> total_elapsed, literal<valuef> damping_timescale,
                   literal<valuei> positions_length,
-                  literal<int> iteration, bool use_colour)
+                  literal<int> iteration, bool use_colour, bool is_prep_kernel)
 {
     using namespace single_source;
 
@@ -1020,8 +1020,9 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     //crank nicolson
     auto write_result = [&](valuef dt_p_star, valuef dt_e_star, v3f dt_Si, v3f dt_col)
     {
-        //predictor, ie euler
-        if_e(iteration.get() == 0, [&]{
+        if(is_prep_kernel)
+        {
+            ///write deltas out
             valuef fin_p_star = h_base.p_star[pos, dim] + dt_p_star * timestep.get();
             valuef fin_e_star = h_base.e_star[pos, dim] + dt_e_star * timestep.get();
 
@@ -1034,12 +1035,6 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
             for(int i=0; i < 3; i++)
                 as_ref(dt_inout.Si[i][pos, dim]) = dt_Si[i];
 
-            as_ref(h_out.p_star[pos, dim]) = fin_p_star;
-            as_ref(h_out.e_star[pos, dim]) = fin_e_star;
-
-            for(int i=0; i < 3; i++)
-                as_ref(h_out.Si[i][pos, dim]) = h_base.Si[i][pos, dim] + dt_Si[i] * timestep.get();
-
             if(use_colour)
             {
                 for(int i=0; i < 3; i++)
@@ -1048,55 +1043,81 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                     fin_colour = max(fin_colour, 0.f);
 
                     as_ref(dt_inout.colour[i][pos, dim]) = (fin_colour - h_base.colour[i][pos, dim]) / timestep.get();
-
-                    as_ref(h_out.colour[i][pos, dim]) = fin_colour;
                 }
             }
-        });
+        }
+        else
+        {
+            //predictor, ie euler
+            if_e(iteration.get() == 0, [&]{
+                valuef fin_p_star = h_base.p_star[pos, dim] + dt_p_star * timestep.get();
+                valuef fin_e_star = h_base.e_star[pos, dim] + dt_e_star * timestep.get();
 
-        //corrector, ie the next fixed point step for crank nicolson
-        if_e(iteration.get() != 0, [&]{
-            float relax = 0.f;
+                fin_p_star = max(fin_p_star, 0.f);
+                fin_e_star = max(fin_e_star, 0.f);
 
-            valuef root_dp_star = declare_e(dt_inout.p_star[pos, dim]);
-            valuef root_de_star = declare_e(dt_inout.e_star[pos, dim]);
-            v3f root_dSi = declare_e(dt_inout.index_Si(pos, dim));
-
-            v3f root_dcol;
-
-            if(use_colour)
-                root_dcol = declare_e(dt_inout.index_colour(pos, dim));
-
-            //impl = 1 == backwards euler, impl = 0 == fowards euler. impl = 0.5 == crank nicolson/implicit midpoint
-            float impl = 0.5;
-            float expl = 1 - impl;
-
-            auto apply = [&](auto x0, auto xi, auto f_x0, auto f_xi)
-            {
-                return relax * xi + (1 - relax) * (x0 + timestep.get() * (expl * f_x0 + impl * f_xi));
-            };
-
-            valuef fin_p_star = apply(h_base.p_star[pos, dim], h_in.p_star[pos, dim], root_dp_star, dt_p_star);
-            valuef fin_e_star = apply(h_base.e_star[pos, dim], h_in.e_star[pos, dim], root_de_star, dt_e_star);
-            v3f fin_Si = apply(h_base.index_Si(pos, dim), h_in.index_Si(pos, dim), root_dSi, dt_Si);
-
-            fin_p_star = max(fin_p_star, 0.f);
-            fin_e_star = max(fin_e_star, 0.f);
-
-            as_ref(h_out.p_star[pos, dim]) = fin_p_star;
-            as_ref(h_out.e_star[pos, dim]) = fin_e_star;
-
-            for(int i=0; i < 3; i++)
-                as_ref(h_out.Si[i][pos, dim]) = fin_Si[i];
-
-            if(use_colour)
-            {
-                v3f fin_col = apply(h_base.index_colour(pos, dim), h_in.index_colour(pos, dim), root_dcol, dt_col);
+                as_ref(h_out.p_star[pos, dim]) = fin_p_star;
+                as_ref(h_out.e_star[pos, dim]) = fin_e_star;
 
                 for(int i=0; i < 3; i++)
-                    as_ref(h_out.colour[i][pos, dim]) = max(fin_col[i], 0.f);
-            }
-        });
+                    as_ref(h_out.Si[i][pos, dim]) = h_base.Si[i][pos, dim] + dt_Si[i] * timestep.get();
+
+                if(use_colour)
+                {
+                    for(int i=0; i < 3; i++)
+                    {
+                        valuef fin_colour = h_base.colour[i][pos, dim] + dt_col[i] * timestep.get();
+                        fin_colour = max(fin_colour, 0.f);
+
+                        as_ref(h_out.colour[i][pos, dim]) = fin_colour;
+                    }
+                }
+            });
+
+            //corrector, ie the next fixed point step for crank nicolson
+            if_e(iteration.get() != 0, [&]{
+                float relax = 0.f;
+
+                valuef root_dp_star = declare_e(dt_inout.p_star[pos, dim]);
+                valuef root_de_star = declare_e(dt_inout.e_star[pos, dim]);
+                v3f root_dSi = declare_e(dt_inout.index_Si(pos, dim));
+
+                v3f root_dcol;
+
+                if(use_colour)
+                    root_dcol = declare_e(dt_inout.index_colour(pos, dim));
+
+                //impl = 1 == backwards euler, impl = 0 == fowards euler. impl = 0.5 == crank nicolson/implicit midpoint
+                float impl = 0.5;
+                float expl = 1 - impl;
+
+                auto apply = [&](auto x0, auto xi, auto f_x0, auto f_xi)
+                {
+                    return relax * xi + (1 - relax) * (x0 + timestep.get() * (expl * f_x0 + impl * f_xi));
+                };
+
+                valuef fin_p_star = apply(h_base.p_star[pos, dim], h_in.p_star[pos, dim], root_dp_star, dt_p_star);
+                valuef fin_e_star = apply(h_base.e_star[pos, dim], h_in.e_star[pos, dim], root_de_star, dt_e_star);
+                v3f fin_Si = apply(h_base.index_Si(pos, dim), h_in.index_Si(pos, dim), root_dSi, dt_Si);
+
+                fin_p_star = max(fin_p_star, 0.f);
+                fin_e_star = max(fin_e_star, 0.f);
+
+                as_ref(h_out.p_star[pos, dim]) = fin_p_star;
+                as_ref(h_out.e_star[pos, dim]) = fin_e_star;
+
+                for(int i=0; i < 3; i++)
+                    as_ref(h_out.Si[i][pos, dim]) = fin_Si[i];
+
+                if(use_colour)
+                {
+                    v3f fin_col = apply(h_base.index_colour(pos, dim), h_in.index_colour(pos, dim), root_dcol, dt_col);
+
+                    for(int i=0; i < 3; i++)
+                        as_ref(h_out.colour[i][pos, dim]) = max(fin_col[i], 0.f);
+                }
+            });
+        }
     };
 
     //early terminate
@@ -1324,8 +1345,12 @@ hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx, float _linear_viscosit
     }, {"calculate_w"});
 
     cl::async_build_and_cache(ctx, [&]{
-        return value_impl::make_function(evolve_hydro_all, "evolve_hydro_all", use_colour);
+        return value_impl::make_function(evolve_hydro_all, "evolve_hydro_all", use_colour, false);
     }, {"evolve_hydro_all"});
+
+    cl::async_build_and_cache(ctx, [&]{
+        return value_impl::make_function(evolve_hydro_all, "evolve_hydro_all_prep", use_colour, true);
+    }, {"evolve_hydro_all_prep"});
 
     cl::async_build_and_cache(ctx, [&]{
         return value_impl::make_function(enforce_hydro_constraints, "enforce_hydro_constraints", use_colour);
@@ -1446,6 +1471,44 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
 
     //evolve the hydrodynamics
     {
+        if(sdata.iteration != 0)
+        {
+            std::vector<cl::buffer> cl_in = bufs_base.get_buffers();
+            std::vector<cl::buffer> cl_out = bufs_out.get_buffers();
+
+            calc_intermediates(bufs_base);
+
+            cl::args args;
+
+            for(auto& i : sdata.base_bssn_buffers)
+                args.push_back(i);
+
+            for(auto& i : cl_base)
+                args.push_back(i);
+
+            for(auto& i : cl_in)
+                args.push_back(i);
+
+            for(auto& i : cl_out)
+                args.push_back(i);
+
+            for(auto& i : cl_out)
+                args.push_back(i);
+
+            for(auto& i : utility_buffers)
+                args.push_back(i);
+
+            args.push_back(sdata.dim);
+            args.push_back(sdata.scale);
+            args.push_back(sdata.timestep);
+            args.push_back(sdata.total_elapsed);
+            args.push_back(damping_timescale);
+            args.push_back(elen);
+            args.push_back(sdata.iteration);
+
+            cqueue.exec("evolve_hydro_all_prep", args, {elen}, {128});
+        }
+
         std::vector<cl::buffer> cl_in = bufs_in.get_buffers();
         std::vector<cl::buffer> cl_out = bufs_out.get_buffers();
 
@@ -1465,7 +1528,7 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
         for(auto& i : cl_out)
             args.push_back(i);
 
-        for(auto& i : ubufs.intermediate)
+        for(auto& i : cl_out)
             args.push_back(i);
 
         for(auto& i : utility_buffers)

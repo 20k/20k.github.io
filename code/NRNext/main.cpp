@@ -425,6 +425,10 @@ struct mesh
 
                 step_data.utility_buffers = plugin_utility_buffers.at(kk);
 
+                buffers[base_idx].for_each([&](cl::buffer in){
+                    step_data.base_bssn_buffers.push_back(in);
+                });
+
                 buffers[in_idx].for_each([&](cl::buffer in){
                     step_data.bssn_buffers.push_back(in);
                 });
