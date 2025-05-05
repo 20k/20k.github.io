@@ -12,7 +12,11 @@ Hi!
 
 Its time to do something truly spectacular, and smash some neutron stars together. We'll be discussing how relativistic hydrodynamics works, how it compares to regular hydrodynamics, and examining a specific approach in the literature. I've also extensively documented many of the issues you'll run into in practice if you try and implement this kind of thing
 
-If you're here simply for the montage of things smashing into each other: good news, there's a tonnes of videos in here
+If you're here simply for the montage of things smashing into each other: good news, I've put together a tonne of videos for this article
+
+As always, the code is available over [here](https://github.com/20k/20k.github.io/blob/master/code/NR5). If you’re looking for someone with a lot of enthusiasm for GPU programming, and who’d rather love to do a PhD in numerical relativity - please give me a shout![^contact]
+
+[^contact]: My email is icedshot@gmail.com, or if you’d like - follow my bluesky at [@spacejames.bsky.social](https://bsky.app/profile/spacejames.bsky.social). Please feel free to contact me for any reason at all, even if you want to just chit chat or nerd out about space
 
 First up: Some background
 
@@ -30,7 +34,7 @@ There are three primary kinds of hydrodynamic formalisms:
 2. Semi Lagrangian. This is what most programmers are familiar with - you have grid cells, and trace your velocity backward through the grid to find out where your fluid originated from (and what properties it had there)
 3. Eularian. Here, we have grid cells, and only deal with quantities locally in terms of their values and derivatives
 
-Today we'll be using a purely Eularian scheme. We'll need a set of equations to look at before we get into the hydrodynamics, so its now time to take an overview of a specific relativistic hydrodynamics scheme
+Today's scheme is purely Eularian. We'll need a set of equations to look at before we get into the interesting hydrodynamics stuff, so its now time to take an overview of a specific relativistic hydrodynamics scheme
 
 # Relativistic Eularian Hydrodynamics - 2002 style
 
@@ -61,7 +65,7 @@ We have the following definitions:
 |$w$ | $\rho_* \alpha u^0$ | Densitised lorentz factor. Must be calculated via an iterative procedure |
 |$v^i$ | $\frac{u^i}{u^0}$ | Represents a coordinate velocity |
 
-The notation in this article is harmonised with the previous one. $\rho_0$ is the rest-mass density, $\epsilon$ is the specific energy density, $u^0$ is the lorentz factor, $\alpha$ is the lapse, and $W$ is the conformal factor. We'll be using a $\Gamma = 2$ perfect fluid equation of state - because its unclear how a numerical one would work here
+The notation in this article is harmonised with the previous one. $\rho_0$ is the rest-mass density, $\epsilon$ is the specific energy density, $u^0$ is the lorentz factor, and $\alpha$ is the lapse. We'll be using a $\Gamma = 2$ perfect fluid equation of state - because its unclear how a numerical one would work here
 
 ## Initialising our variables
 
@@ -214,7 +218,7 @@ In numerical relativity, 'shocks' are partially handled via Kreiss-Oliger dissip
 
 ## Conservative discretisation
 
-The basic form of these discretisations is as follows. First off, the flux in these relativistic hydrodynamic equations is as follows:
+The basic form of these discretisations is as follows. For us in this 2002 paper, the flux in these hydrodynamic equations is as follows:
 
 $$f_i = v_i q_i$$
 
@@ -222,7 +226,7 @@ $_i$ is a grid cell offset - I'm not going to try and fight hydro notation, its 
 
 $$\partial_t q = \frac{1}{\Delta x} (F^n_{i-\frac{1}{2}} - F^n_{i+\frac{1}{2}})$$
 
-where $\Delta x$ is the scale. This is the flux conserving form, and it is generic across any hydrodynamics scheme. Solving for the half grid cell flux at the boundary between grid cells is the joy of hydrodynamics
+where $\Delta x$ is the scale.This form is generic across any hydrodynamics scheme - and solving for the half grid cell flux at the boundary between grid cells is the joy of hydrodynamics
 
 I'm not going to attempt to document hydrodynamics in general here, so its time to look at a specific form of solving this equation. It fulfills all the requirements for a 'good' technique, as well as the major requirement which is having a workable set of equations that I can implement[^implement]
 
@@ -239,11 +243,11 @@ The solution then is fairly straightforward: You use some kind of function to sw
 1. Slope limiters, denoted $\sigma$
 2. Flux limiters, denoted $\phi$
 
-Check out [here](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2012/Chapter_4.pdf) for an explicit reference. Flux limiters are much more common in the literature (and so we'll be using the flux limited scheme), but I'll give you both forms of this scheme. These are used to construct limited half fluxes - which then have upwinding applied to them, to result in a stable scheme
+Check out [here](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2012/Chapter_4.pdf) for an explicit reference. Flux limiters are much more common in the literature (and so we'll be using the flux limited scheme), but I'll give you both forms of this in case you want to go experimenting. These are used to construct limited half fluxes - which then have upwinding applied to them, to result in a stable scheme
 
 [^notes]: This is one of the reasons why higher order fluid simulations are less useful than they might appear. High order in smooth areas only is all well and good, but that's also precisely where we need the least resolution. There's some interesting [theoretical reasons](https://en.wikipedia.org/wiki/Godunov%27s_theorem) as to why this kind of order decay is necessary
 
-I've gone through some of the technical details of hydrodynamics more in depth in the appendix, to avoid chucking a huge chunk of mildly relevant theory in the middle of this
+I've gone through some of the technical details of hydrodynamics more in depth in the appendix, to avoid a huge chunk of theory in the middle of this
 
 ### Slope limited
 
@@ -285,7 +289,7 @@ $$\theta_{i - 1/2} =
 \end{cases}
 $$
 
-$\phi$ is a flux limiter. There's nothing fundamentally that different here to the slope limiting equations - this form seems to be largely to avoid the selection operator that you see in the slope limited version
+$\phi$ is a flux limiter. There's nothing fundamentally different here to the slope limiting equations, its just that the form of the limiter is different
 
 We'll be using the superbee flux limiter:
 
@@ -297,8 +301,8 @@ The calculation for $F^n_{i + 1/2} $ is identical, just with $i$ incremented
 
 There are two ways that I've seen to calculate this half velocity:
 
-1. $$v^{n}_{i - 1/2} = \frac{v^{n}_{i} + v^{n}_{i - 1}}{2}$$
-2. $$v^{n}_{i - 1/2} = \frac{\rho_{*i} v_i + \rho_{*i-1} v_{i-1}}{\rho_{*i} + \rho_{*i-1}}$$
+1. $$v^{n}_{i - 1/2} = \frac{v^{n}_{i} + v^{n}_{i - 1}}{2}$$ 
+2. $$v^{n}_{i - 1/2} = \frac{\rho_{*i} v_i + \rho_{*i-1} v_{i-1}}{\rho_{*i} + \rho_{*i-1}}$$ [(A3)](https://arxiv.org/pdf/gr-qc/0209102)
 
 $\rho_*$ is our rest mass. I've also tested a second order interpolation:
 
@@ -387,9 +391,9 @@ valuef advect_rhs(valuef in, v3f vi, const derivative_data& d, valuef timestep)
 
 There's two other nontrivial terms to talk about now: $v^i$ and $w$
 
-## $v^i$
+## $$v^i$$
 
-The quantity $v^i$ is as follows:
+This quantity is as follows:
 
 $$v^i = -\beta^i + \frac{W^2 \alpha \tilde{\gamma}^{ij} \tilde{S}_j}{w h}$$
 
@@ -411,11 +415,11 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
 }
 ```
 
-I've listed a derivation in the appendix. Note that the order of floating point operations has been optimised for accuracy
+I've listed a derivation in the appendix, and there's some discussion about the limit there as well. Note that the order of floating point operations has been optimised for accuracy
 
-## $w$
+## $$w$$
 
-This quantity is a bit less trivial. It has the following form (29):
+This quantity is a bit less trivial. It has the following form [(29)](https://arxiv.org/pdf/gr-qc/0209102):
 
 $$w^2 = p_*^2+ W^2 \tilde{\gamma}^{ij}\tilde{S}_i \tilde{S}_j \left[1 + \frac{\Gamma e_*^{\Gamma}}{p_*(w \frac{e^{6\phi}}{p_*})^{\Gamma-1}} \right]^{-2}$$
 
@@ -424,11 +428,11 @@ There are two problems:
 1. There is no analytic solution
 2. It divides by zero a fair bit
 
-We can solve #1 by using fixed point iteration with the initial guess $w=\rho_*$[^anyguess] as this is a lorentz factor multiplied by density terms. Simply plug in your guess into the right hand side, calculate the new value of $w$, and rinse and repea
+We can solve #1 by using fixed point iteration with the initial guess $w=\rho_*$[^anyguess] as this is a lorentz factor multiplied by density terms. Simply plug in an initial guess into the right hand side, calculate the new value of $w$, and rinse and repeat
 
 [^anyguess]: Really, anything reasonable will work here, and you can use $w=1$ if you want
 
-#2 is more of a pain. The way this equation is structured out of the box is slightly cursed. Lets rearrange it a bit:
+#2 is more of a pain - the way this equation is structured out of the box is slightly cursed. Lets rearrange it a bit:
 
 $$\begin{align}
 A &= (W^3)^{\Gamma-1}\\
@@ -499,7 +503,7 @@ $$
 
 In theory with a more modern formalism, we'd be done. Unfortunately, we come to the major problem with this paper
 
-Despite our equations looking like a conservative hydrodynamics equation, they actually are not in this formalism. While $ \rho_* $ is in conservative form, $e_*$ is not and isn't conserved across shocks - we'll have to artificially dissipate them despite using a shock capturing formalism. I have absolutely no idea about $\tilde{S}_k$
+Despite these equations looking like a conservative hydrodynamics equation, they actually are not in this formalism. While $ \rho_* $ is in conservative form, $e_*$ is not and isn't conserved across shocks - we'll have to artificially dissipate them despite using a shock capturing formalism. I have absolutely no idea about $\tilde{S}_k$
 
 More modern formalisms are expressed purely in terms of conserved quantities, which makes their hydro treatment more rigorous at the expense of complexity
 
@@ -824,7 +828,7 @@ S &=\tilde{\gamma}^{ij} \tilde{S}_{ij} \\
 \end{align}
 $$
 
-We'll have to modify our BSSN source term to match the absorbed $W^2$ term (ie $-8 \pi \alpha S_{ij}$), but now the source terms become regular at the singularity. This is a free win, at the expense of some minor non standard notation[^minor]
+We'll have to modify the BSSN source term to match the absorbed $W^2$ term (ie $-8 \pi \alpha S_{ij}$), but now the source terms become regular at the singularity. This is a free win, at the expense of some minor non standard notation[^minor]
 
 [^minor]: I've seen some other schemes do similar things, so its not that weird
 
@@ -846,7 +850,7 @@ The source terms conspire very conveniently to avoid having to calculate infinit
 
 Before we get to the results, and overall discussion, its worth talking about this hydro formalism a bit more critically. Digging into a past project again equipped with much more knowledge and a critical eye was absolutely fascinating, and I learnt a lot about hydrodynamics along the way
 
-The formalism I'm talking about today was relatively quickly abandoned in favour of a different approach, which I'll very likely get around to implementing in the near future. All the actual hard parts are done, so plugging in a new formalism is relatively straightforward (though we'll need a Riemann solver for reals)
+The formalism I'm talking about today was relatively quickly abandoned in favour of a conservative approach, which I'll very likely get around to implementing in the near future. All the actual hard parts are done, so plugging in a new formalism is relatively straightforward (though we'll need a Riemann solver for reals)
 
 As far as I can tell, there's the following issues with this approach:
 
@@ -980,7 +984,7 @@ Its clear though seeing that we easily can get multiple orbits, collapse neutron
 
 # Next time
 
-The next article is going to be N-body particle dynamics, because that should be a lot easier than hydrodynamics. It'll be fun!
+The next article is going to be N-body particle dynamics, because that should be a lot easier than hydrodynamics. This has taken a very large amount of work to put together, and there's still a lot to come back to and iron out. It'll be fun!
 
 # Montage
 
@@ -1022,7 +1026,7 @@ We know that $f(x_i) = v_i q_i$ for us, and we could sub that in:
 
 $$F^n_{i - 1/2} = \frac{1}{\Delta t} \int^{t_{n+1}}_{t_n} v(x_{i -1/2}, t) q(x_{i - 1/2}, t) dt $$
 
-Here's where things get a tad unfortunate. Its common in these articles for the assumption that $v$ is *constant* to get made, which is an approximation, I think. [8.2](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2011/Chapter_8.pdf) spells out the issue in more detail
+Here's where things get a tad unfortunate. Its common in these articles for the assumption that $v$ is *constant* to get made, which isn't really a necessary approximation, I think. [8.2](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2011/Chapter_8.pdf) spells out the issue in more detail
 
 We can solve this at $x_{i - 1/2}$ for cell $i$, and at $x_{i + 1/2}$ for cell $i - 1$, to get two solutions for a single interface (ie $F^n_{i - 1/2}$)
 
@@ -1284,6 +1288,7 @@ And we need this definition:
 $$u^0 = \frac{w}{\rho_* \alpha}$$
 
 Now lets derive $v^i$:
+
 $$\begin{align}
 u^i &= g^{i0} u_0 + g^{ij} u_j\\
 u^i &= \alpha^{-2} \beta^i u_0 + (\gamma^{ij} - \alpha^{-2} \beta^i \beta^j) u_j\\
@@ -1582,9 +1587,9 @@ if_e(p_star <= min_p_star, [&]{
 });
 ```
 
-This relies on ytheour stencil widths for the derivatives being the same or greater than the maximum stencil width for the hydro implementation
+This relies on the stencil widths for the derivatives being the same or greater than the maximum stencil width for the hydro implementation
 
-I do this for all kernels, ie $w$, $Q$, and the evolution equations themselves. This results in the entire hydrodynamics formalism becoming very cheap to simulate, as 95% of our grid is empty and can be early-outed with effectively a single memory read + corresponding writes. There's still a reasonable amount of overhead in the BSSN kernel itself however, as you still must read the hydro quantities. There's probably a branchy way of avoiding some of those reads by testing a single stress energy tensor component, which would be interesting to explore
+I do this for all kernels, ie $w$, $Q$, and the evolution equations themselves. This results in the entire hydrodynamics formalism becoming very cheap to simulate, as the majority of the grid is empty and can be early-outed with effectively a single memory read + corresponding writes. There's still a reasonable amount of overhead in the BSSN kernel itself however, as you still must read the hydro quantities. There's probably a branchy way of avoiding some of those reads by testing a single stress energy tensor component, which would be interesting to explore
 
 Overall, the performance of this method has a ~20% overhead compared to a vacuum simulation - roughly 80ms/tick, from 67ms/tick for an equivalent vacuum simulation. The hydrodynamic equations *themselves* take only a few ms out of an ~80ms/tick runtime, so there's some optimisation potential
 
@@ -1623,3 +1628,5 @@ A Lagrangian approach [https://arxiv.org/pdf/2205.08130](https://arxiv.org/pdf/2
 Equations of state for neutron stars [https://arxiv.org/pdf/0812.2163](https://arxiv.org/pdf/0812.2163)
 
 Radiative transfer: [https://arxiv.org/pdf/1207.4234](https://arxiv.org/pdf/1207.4234)
+
+Intersting notes on Godunov's scheme [https://www.astro.uzh.ch/~stadel/lib/exe/fetch.php?media=spin:compastro_godunov.pdf](https://www.astro.uzh.ch/~stadel/lib/exe/fetch.php?media=spin:compastro_godunov.pdf)
