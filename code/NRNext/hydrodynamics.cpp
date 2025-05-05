@@ -1049,14 +1049,8 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
         {
             //predictor, ie euler
             if_e(iteration.get() == 0, [&]{
-                valuef fin_p_star = h_base.p_star[pos, dim] + dt_p_star * timestep.get();
-                valuef fin_e_star = h_base.e_star[pos, dim] + dt_e_star * timestep.get();
-
-                fin_p_star = max(fin_p_star, 0.f);
-                fin_e_star = max(fin_e_star, 0.f);
-
-                as_ref(h_out.p_star[pos, dim]) = fin_p_star;
-                as_ref(h_out.e_star[pos, dim]) = fin_e_star;
+                as_ref(h_out.p_star[pos, dim]) = max(h_base.p_star[pos, dim] + dt_p_star * timestep.get(), 0.f);
+                as_ref(h_out.e_star[pos, dim]) = max(h_base.e_star[pos, dim] + dt_e_star * timestep.get(), 0.f);
 
                 for(int i=0; i < 3; i++)
                     as_ref(h_out.Si[i][pos, dim]) = h_base.Si[i][pos, dim] + dt_Si[i] * timestep.get();
@@ -1065,10 +1059,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                 {
                     for(int i=0; i < 3; i++)
                     {
-                        valuef fin_colour = h_base.colour[i][pos, dim] + dt_col[i] * timestep.get();
-                        fin_colour = max(fin_colour, 0.f);
-
-                        as_ref(h_out.colour[i][pos, dim]) = fin_colour;
+                        as_ref(h_out.colour[i][pos, dim]) = max(h_base.colour[i][pos, dim] + dt_col[i] * timestep.get(), 0.f);
                     }
                 }
             });
@@ -1099,11 +1090,8 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
                 valuef fin_e_star = apply(h_base.e_star[pos, dim], h_in.e_star[pos, dim], root_de_star, dt_e_star);
                 v3f fin_Si = apply(h_base.index_Si(pos, dim), h_in.index_Si(pos, dim), root_dSi, dt_Si);
 
-                fin_p_star = max(fin_p_star, 0.f);
-                fin_e_star = max(fin_e_star, 0.f);
-
-                as_ref(h_out.p_star[pos, dim]) = fin_p_star;
-                as_ref(h_out.e_star[pos, dim]) = fin_e_star;
+                as_ref(h_out.p_star[pos, dim]) = max(fin_p_star, 0.f);
+                as_ref(h_out.e_star[pos, dim]) = max(fin_e_star, 0.f);
 
                 for(int i=0; i < 3; i++)
                     as_ref(h_out.Si[i][pos, dim]) = fin_Si[i];
@@ -1470,6 +1458,7 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
 
     //evolve the hydrodynamics
     {
+        //recalculate F(base) every time, to avoid allocating more memory
         if(sdata.iteration != 0)
         {
             std::vector<cl::buffer> cl_in = bufs_base.get_buffers();
