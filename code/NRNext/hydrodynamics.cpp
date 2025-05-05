@@ -1021,7 +1021,7 @@ void evolve_hydro_all(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
     {
         if(is_prep_kernel)
         {
-            ///write deltas out
+            //write deltas out
             valuef fin_p_star = h_base.p_star[pos, dim] + dt_p_star * timestep.get();
             valuef fin_e_star = h_base.e_star[pos, dim] + dt_e_star * timestep.get();
 
@@ -1491,9 +1491,6 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
             for(auto& i : cl_out)
                 args.push_back(i);
 
-            for(auto& i : cl_out)
-                args.push_back(i);
-
             for(auto& i : utility_buffers)
                 args.push_back(i);
 
@@ -1522,9 +1519,6 @@ void hydrodynamic_plugin::step(cl::context ctx, cl::command_queue cqueue, const 
             args.push_back(i);
 
         for(auto& i : cl_in)
-            args.push_back(i);
-
-        for(auto& i : cl_out)
             args.push_back(i);
 
         for(auto& i : cl_out)
