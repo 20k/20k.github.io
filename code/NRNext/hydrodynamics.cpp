@@ -488,40 +488,27 @@ std::vector<buffer_descriptor> hydrodynamic_buffers::get_description()
 {
     buffer_descriptor p;
     p.name = "p*";
-    p.dissipation_coeff = 0;
-    p.dissipation_order = 4;
 
     buffer_descriptor e;
     e.name = "e*";
-    e.dissipation_coeff = 0;
-    e.dissipation_order = 4;
 
     buffer_descriptor s0;
     s0.name = "cs0";
-    s0.dissipation_coeff = 0;
-    s0.dissipation_order = 4;
 
     buffer_descriptor s1;
     s1.name = "cs1";
-    s1.dissipation_coeff = 0;
-    s1.dissipation_order = 4;
 
     buffer_descriptor s2;
     s2.name = "cs2";
-    s2.dissipation_coeff = 0;
-    s2.dissipation_order = 4;
 
     buffer_descriptor c0;
     c0.name = "c0";
-    c0.dissipation_coeff = p.dissipation_coeff;
 
     buffer_descriptor c1;
     c1.name = "c1";
-    c1.dissipation_coeff = p.dissipation_coeff;
 
     buffer_descriptor c2;
     c2.name = "c2";
-    c2.dissipation_coeff = p.dissipation_coeff;
 
     return {p, e, s0, s1, s2, c0, c1, c2};
 }
@@ -1247,12 +1234,7 @@ void enforce_hydro_constraints(execution_context& ectx, bssn_args_mem<buffer<val
     //currently it seems unimportant for the van-leer scheme, but the evolution of Si can be unstable
     //#define CLAMP_VELOCITY
     #ifdef CLAMP_VELOCITY
-    //test bound
-    mut<valuef> bound = declare_mut_e(valuef(0.9f));
-
-    /*if_e((hydro.e_star[pos, dim] <= hydro.p_star[pos, dim]) || (hydro.p_star[pos, dim] <= min_p_star * 10), [&]{
-        as_ref(bound) = valuef(0.2f);
-    });*/
+    valuef bound = 0.9f;
 
     bssn_args args(pos, dim, in);
 
@@ -1273,11 +1255,11 @@ void enforce_hydro_constraints(execution_context& ectx, bssn_args_mem<buffer<val
     ///sqrt = a * sqrt(b^2 + c^2 + d^2)`
     valuef length = sqrt(dot(Si, Si));
 
-    valuef clamped_length = min(length, p_star * h * as_constant(bound));
+    valuef clamped_length = min(length, p_star * h * bound);
     v3f clamped = Si * (clamped_length / length);
 
     #else
-    valuef cst = p_star * as_constant(bound) * h;
+    valuef cst = p_star * bound * h;
     v3f clamped = clamp(Si, -cst, cst);
     #endif
 
