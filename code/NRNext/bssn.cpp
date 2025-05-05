@@ -1169,7 +1169,6 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, const initi
             }
         }
 
-
         tensor<valuef, 3, 3> dtcA = get_dtcA(args, derivs, (v3f)Mi, d, W2_Sij, should_damp);
 
         tensor<int, 2> index_table[6] = {{0, 0}, {0, 1}, {0, 2}, {1, 1}, {1, 2}, {2, 2}};

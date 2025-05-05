@@ -634,7 +634,7 @@ I &= e_* W^3 \frac{\rho_*}{w}\\
 
 In general, linear viscosity is good for large scale damping and significantly improves the simulations stability. Initial conditions for neutron stars are generally quite approximate, and the stars oscillate while relaxing into their final form, so linear damping helps a lot. Quadratic viscosity seems to be less applicable here, and hasn't produced significant changes to the simulation, but it also may be just the tests that I've performed
 
-The viscosity scheme documented in this paper is actually not consistent - its an ad-hoc modification to fix up shocks. There is, in theory, an extension of this formalism which includes a consistent treatment of viscosity and works for ultrarelativistic matter - but unfortunately its behind a paywall so I can't implement it today Todo, link
+The viscosity scheme documented in this paper is actually not consistent - its an ad-hoc modification to fix up shocks. There is, in theory, an extension of this formalism which includes a consistent treatment of viscosity and works for ultrarelativistic matter - see the discussion around [(26)](https://link.springer.com/content/pdf/10.12942/lrr-2008-7.pdf) for details
 
 ## Final equation set
 
@@ -850,7 +850,7 @@ The source terms conspire very conveniently to avoid having to calculate infinit
 
 Before we get to the results, and overall discussion, its worth talking about this hydro formalism a bit more critically. Digging into a past project again equipped with much more knowledge and a critical eye was absolutely fascinating, and I learnt a lot about hydrodynamics along the way
 
-The formalism I'm talking about today was relatively quickly abandoned in favour of a conservative approach, which I'll very likely get around to implementing in the near future. All the actual hard parts are done, so plugging in a new formalism is relatively straightforward (though we'll need a Riemann solver for reals)
+The formalism I'm talking about today is generally not quite as good as a fully conservative approach, which I'll very likely get around to implementing in the near future. All the actual hard parts are done, so plugging in a new formalism is relatively straightforward (though we'll need a Riemann solver for reals)
 
 As far as I can tell, there's the following issues with this approach:
 
@@ -860,11 +860,10 @@ As far as I can tell, there's the following issues with this approach:
 4. The thin-mass-shell-drift problem, though i haven't run into it that much[^real]
 5. The viscosity treatment is ad-hoc
 6. Its unclear how to use a numerical equation of state here
-7. There isn't much literature on this formalism
 
 [^real]: I only encountered this when using a non conservative discretisation of the equations. It may be a product of the specific hydrodynamic scheme, and/or related to the $-\beta^i$ limit issue before
 
-This - in theory - would all be solved by a newer formalism. This formalism isn't 'bad' however, and it seems to work. It makes for an extremely interesting test-case on modern hardware compared to what they could get away with in 2002. Some kind of super duper high resolution predictor-corrector scheme would likely work extremely well here as well, which I'll likely do at some point soon
+This - in theory - would all be solved by a newer formalism. There's a lot of interesting discussion [here (2.1.2)](https://link.springer.com/content/pdf/10.12942/lrr-2008-7.pdf) around the limitations of this formalism. This formalism isn't 'bad' however, and it seems to work. It makes for an extremely interesting test-case on modern hardware compared to what they could get away with in 2002. Some kind of super duper high resolution predictor-corrector scheme would likely work extremely well here as well, which I'll likely do at some point soon
 
 # Testing
 
