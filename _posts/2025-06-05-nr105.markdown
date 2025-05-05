@@ -44,7 +44,9 @@ We're going to be looking at two papers today, primarily the latter:
 
 [Hydrodynamic Simulations in 3+1 General Relativity](https://arxiv.org/pdf/gr-qc/0209102)
 
-Note that there was a significant shift in approach from the first paper, to the second, and we'll be using the second's notation and equations. In this approach, we have the following variables for our fluid dynamics:
+Note that there was a significant shift[^schwifty] in approach from the first paper, to the second, and we'll be using the second's notation and equations. In this approach, we have the following variables for our fluid dynamics:
+
+[^schwifty]: There's actually a number of different forms of these equations, I think at some point I'm going to test some of the more recent ones and see how they compare
 
 |Notation | What it represents |
 |-|-|
