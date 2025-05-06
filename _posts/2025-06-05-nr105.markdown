@@ -20,7 +20,9 @@ As always, the code is available over [here](https://github.com/20k/20k.github.i
 
 [^contact]: My email is icedshot@gmail.com, or if you’d like - follow my bluesky at [@spacejames.bsky.social](https://bsky.app/profile/spacejames.bsky.social). Please feel free to contact me for any reason at all, even if you want to just chit chat or nerd out about space
 
-First up: Some background
+First up: Some background (and a dog)
+
+![cat](/assets/nr5_cat.jpeg)
 
 # What is hydrodynamics?
 
@@ -186,6 +188,8 @@ for(int i=0; i < 3; i++) {
 ```
 
 This kind of discretisation unfortunately makes no guarantees about conservation. While it will work to some degree, the physical accuracy of the simulation will drift negatively over time, and in general the hydro people will start to make very unhappy noises. What's the alternative?
+
+![cat2](/assets/nr5_cat2.jpg)
 
 # Hydrodynamics 101: A crash course
 
@@ -650,6 +654,8 @@ In general, linear viscosity is good for large scale damping and significantly i
 
 The viscosity scheme documented in this paper is actually not consistent - its an ad-hoc modification to fix up shocks. There is, in theory, an extension of this formalism which includes a consistent treatment of viscosity and works for ultrarelativistic matter - see the discussion around [(26)](https://link.springer.com/content/pdf/10.12942/lrr-2008-7.pdf) for details
 
+![cat3](/assets/nr5_cat3.jpg)
+
 ## Final equation set
 
 $$\begin{align}
@@ -880,6 +886,8 @@ As far as I can tell, there's the following issues with this approach:
 
 This - in theory - would all be solved by a different formalism - there's a lot of interesting discussion [here (2.1.2)](https://link.springer.com/content/pdf/10.12942/lrr-2008-7.pdf) around the limitations of this approach. This formalism isn't 'bad' however, and it seems to work quite well - apparently it has seen fairly widespread use in various forms
 
+![catty](/assets/nr5_cat4.jpg)
+
 # Testing
 
 ## Stationary tests
@@ -999,6 +1007,8 @@ Its clear though seeing that we easily can get multiple orbits, collapse neutron
 # Next time
 
 The next article is going to be N-body particle dynamics, because that should be a lot easier than hydrodynamics. This has taken a very large amount of work to put together, and there's still a lot to come back to and iron out. It'll be fun!
+
+![catend](/assets/nr5_catend.jpg)
 
 # Montage
 
