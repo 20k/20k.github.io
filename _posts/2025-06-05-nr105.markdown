@@ -1480,7 +1480,7 @@ Generating the full stress energy tensor with its 10 components is a mistake - i
 
 If you want good performance, I would highly recommend using code generation to specialise your evolution kernel to different features that are enabled - generating the accesses directly, instead of literally constructing the stress-energy tensor
 
-In the next article (and into the future[^preon]), we'll be adding even more matter sources as well, so if you're implementing this - now's the time to get this to work correctly. Its far too long to go into here, but check out the linked source code (todo: plugin) if you want to see the details of how this works implementation-wise
+In the next article (and into the future[^preon]), we'll be adding even more matter sources as well, so if you're implementing this - now's the time to get this to work correctly. Its far too long to go into here, but check out the [linked source code](https://github.com/20k/20k.github.io/blob/master/code/NR5/plugin.hpp) if you want to see the details of how this works implementation-wise
 
 [^preon]: The next article is N body. After that, it might be more modern hydrodynamics, or even preon stars or something
 
