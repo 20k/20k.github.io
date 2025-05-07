@@ -24,9 +24,9 @@ First up: Some background (and a dog)
 
 # What is hydrodynamics?
 
-If you're like me, at some point you might not even really have known why hydrodynamics is a separate area of inquiry to solving differential equations in general. Or, you might think it's an umbrella term for people who solve PDEs which just so happen involve fluids, but that it's pretty much the same as anything else
+If you're like me, at some point you might not even really have known why hydrodynamics is a separate area of inquiry to solving differential equations in general. Or, you might think it's an umbrella term for people who solve PDEs which just so happen to involve fluids - but that it's pretty much the same as anything else
 
-As it turns out, there's good reason to treat the equations we're dealing with differently to regular differential equations. A fair chunk of this article is going to be explaining what hydrodynamics is, why we need to use different solving methods, and how that fits into general relativity. A lot of programmers' experience of fluid dynamics is the incompressible Navier-Stokes equations, so you might be wondering how similar that it is to what we're doing today (disclaimer: not very)
+As it turns out, there's good reason to treat the equations we're dealing with differently to regular differential equations. A fair chunk of this article is going to be explaining what hydrodynamics is, why we need to use different solving methods, and how that fits into general relativity. A lot of programmers' experience of fluid dynamics is the Navier-Stokes equations, so you might be wondering how similar that it is to what we're doing today (disclaimer: not very)
 
 ## Hydrodynamic Formalisms
 
@@ -66,15 +66,15 @@ In this scheme, there are the following definitions for the various quantities w
 |$e_*$ | $(\rho_0 \epsilon)^\frac{1}{\Gamma} \alpha u^0 W^{-3}$ | Unclear how a numerical equation of state would work. Represents energy |
 |$\tilde{S}_k$ | $\rho_* h u_k$ | Some kind of momentum term |
 | $h$ | $1 + \epsilon + \frac{P}{\rho_0}$ | Enthalpy. $1 + \Gamma \epsilon$ with the perfect fluid equation of state, $P = (\Gamma - 1) \rho_0 \epsilon$ |
-|$w$ | $\rho_* \alpha u^0$ | Densitised lorentz factor. Must be calculated via an iterative procedure |
+|$w$ | $\rho_* \alpha u^0$ | Densitised lorentz factor. Must be calculated via an iterative procedure in general |
 |$v^i$ | $\frac{u^i}{u^0}$ | Represents a coordinate velocity |
-| $P$ | Equation of state, $P=(\Gamma - 1) \rho_0 \epsilon$ here | Perfect fluid equation of state |
+| $P$ | Equation of state, $P=(\Gamma - 1) \rho_0 \epsilon$ here | Pressure with the perfect fluid equation of state |
 
 The notation in this article is harmonised with the previous one. $\rho_0$ is the rest-mass density, $\epsilon$ is the specific energy density, $u^0$ is the lorentz factor, and $\alpha$ is the lapse. We'll be using a $\Gamma = 2$ perfect fluid equation of state - because it's unclear how a numerical one would work here
 
 ## Initial conditions
 
-At the end of the previous article, we ended up with the fluid quantities: $\rho_0$, $\epsilon$, $u^i$, and $u^0$. These are the same variables as used in the definitions up above, there's nothing weird going on
+At the end of the previous article, we ended up with the fluid quantities $\rho_0$, $\epsilon$, $u^i$, and $u^0$. These are the same variables used in the definitions up above, there's nothing weird going on
 
 There are two pitfall traps here:
 
@@ -83,7 +83,7 @@ There are two pitfall traps here:
 
 [^check]: You can check this from the hamiltonian constraint definition, and doing a roundtrip from the source terms. It only works out if $\alpha = 1$
 
-We can now carry on immediately from our last article, which follows on as such:
+We can now carry on immediately from the last article, which follows on as such:
 
 ```c++
 valuef pressure = mu_to_P(mu);
@@ -134,7 +134,7 @@ valuef calculate_h_from_epsilon(valuef epsilon)
 }
 ```
 
-That's it, no other surprises
+That's it, no other surprises - the initial conditions are done
 
 ## Evolution equations
 
@@ -150,7 +150,7 @@ $$\begin{align}
 \end{align}
 $$
 
-I'll get into what everything means in detail soon -  the most important piece is that $v^i$ is a velocity
+I'll get into what everything means in detail soon -  the most important piece is that $v^i$ is the coordinate velocity
 
 ### The reason why hydrodynamics is a thing
 
@@ -168,7 +168,7 @@ $$
 \partial_t q + \nabla (q \textbf{v}) = \mathrm{Source}
 $$
 
-This is the standard representation in hydrodynamics of advection equations, with the right hand side being called a source term (which you shouldn't confuse with an ADM source term). Here the source terms are split out, and no special treatment is given to their solving[^solving], so we're going to now unceremoniously ignore them
+This is the standard representation in hydrodynamics of an advection equation, with the right hand side being called a source term (which you shouldn't confuse with an ADM source term). Here the source terms are split out, and no special treatment is given to their solving[^solving], so we're going to now unceremoniously ignore them
 
 [^solving]: We'll just be literally adding them afterwards
 
@@ -231,7 +231,7 @@ In numerical relativity, 'shocks' are partially handled via Kreiss-Oliger dissip
 
 ## Conservative discretisation
 
-A better discretisation of these equations is the flux conservative form, which guarantees conservation of your quantities when solved correctly ([4.4](https://www.tevza.org/home/course/modelling-II_2016/books/Leveque%20-%20Finite%20Volume%20Methods%20for%20Hyperbolic%20Equations.pdf) or [4.9](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2012/Chapter_4.pdf)):
+A better discretisation of these equations compared to the naive form, is the flux conservative form. This guarantees conservation of your quantity when solved correctly ([4.4](https://www.tevza.org/home/course/modelling-II_2016/books/Leveque%20-%20Finite%20Volume%20Methods%20for%20Hyperbolic%20Equations.pdf) or [4.9](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2012/Chapter_4.pdf)):
 
 $$\partial_t q = \frac{1}{\Delta x} (F^n_{i-\frac{1}{2}} - F^n_{i+\frac{1}{2}})$$
 
@@ -486,26 +486,6 @@ Iterating $w$ is extremely cheap, and the iteration count is way more than neces
 
 It's worth noting that when $\Gamma = 2$, the factor of $\rho_*$ drops out in $D$
 
-## Recovering the primitive variables
-
-$\rho_0$ and $\epsilon$ are called the primitive hydrodynamic variables, and recovering them requires $w$. Once you have that, you can calculate:
-
-$$\begin{align}
-\rho_0 &= \frac{W^3 \rho_*^2}{w}\\
-\epsilon &= e_*^\Gamma \rho_*^{\Gamma - 2} (\frac{W^3}{w})^{\Gamma - 1}
-\end{align}
-$$
-
-In general, it's a good idea to avoid calculating $\rho_0$ if possible, as calculating $\rho_*^2$ is numerically suspect[^sus]. Some usefully optimised quantities are:
-
-[^sus]: It's also better to calculate quantities of the form $\frac{a^2}{b}$ as $a \frac{a}{b}$ if you have to do this
-
-$$\begin{align}
-\rho_0 \epsilon &= \left (e_* W^3 \frac{\rho_*}{w} \right)^\Gamma\\
-h &= 1 + \Gamma \epsilon
-\end{align}
-$$
-
 ## 2002 Relativistic hydrodynamics - specifically
 
 In theory with a more modern formalism (eg the [Valencia](https://arxiv.org/pdf/1309.7808) form, [here](https://iopscience.iop.org/article/10.1086/303604/pdf), and [2.1.3](https://link.springer.com/content/pdf/10.12942/lrr-2008-7.pdf)), we'd be done. Unfortunately, we come to the major problem with this paper
@@ -544,10 +524,10 @@ Where:
 
 $$\begin{align}
 A &= e_*^\Gamma (W^3)^{\Gamma-1} (\frac{\rho_*}{w})^{\Gamma-1}\\
-\delta v &= 2 \partial_k v^k \Delta h
+\delta v &= 2 \partial_k v^k \Delta x
 \end{align}$$
 
-And $$\Delta h$$ is the scale. $C_{Qvis}$ is a damping constant, which I set to $0.1$, and this paper recommends the range $[0.1, 1]$
+And $$\Delta x$$ is the scale. $C_{Qvis}$ is a damping constant, which I set to $0.1$, and this paper recommends the range $[0.1, 1]$
 
 ```c++
 valuef dkvk = 0;
@@ -604,11 +584,11 @@ The radial oscillations are damped quite a bit
 
 #### Viscosity for $e_*$
 
-When using viscosity, you have to modify the evolution equation of $e_*$. The term to add is:
+When using viscosity, $e_*$ gains a source term on the right hand side. The term to add is:
 
 $$\partial_t e_* \mathrel{+}= -(\rho_0 \epsilon)^{(-1 + \frac{1}{\Gamma})} \;\; \frac{Q}{\Gamma} \; \partial_k (w W^{-3} v^k \rho_*^{-1})$$
 
-The term $(\rho_0 \epsilon)^{-1 + \frac{1}{\Gamma}}$ is numerically bad to calculate directly, and a better form is this:
+$(\rho_0 \epsilon)^{-1 + \frac{1}{\Gamma}}$ is very numerically inaccurate to calculate the direct route, and a better form is this:
 
 $$\begin{align}
 I &= e_* W^3 \frac{\rho_*}{w}\\
@@ -816,7 +796,7 @@ There's nothing terribly exciting here. There's an option to not calculate sourc
 
 # ADM Source terms
 
-The evolution equations are now done, so next up is how this integrates into the BSSN equations. The way that matter interacts with general relativity is via the 4x4 symmetric [stress-energy tensor](https://en.wikipedia.org/wiki/Stress%E2%80%93energy_tensor). In the ADM formalism, this is broken up into a number of components - which are frequently collectively called source terms. These source terms are then plugged into the BSSN equations, and this enables matter to directly act on spacetime
+The evolution equations are now done! Next up is how this integrates into the BSSN equations. The way that matter interacts with general relativity is via the 4x4 symmetric [stress-energy tensor](https://en.wikipedia.org/wiki/Stress%E2%80%93energy_tensor). In the ADM formalism, this is broken up into a number of components - which are frequently collectively called source terms. These source terms are then plugged into the BSSN equations, and this enables matter to directly act on spacetime
 
 There are four standard ADM source terms, representing the ADM projections of the 4D stress-energy tensor. They are calculated from the matter variables as follows:
 
@@ -871,7 +851,7 @@ Before we get to the results, and overall discussion, it's worth talking about t
 
 [^real]: I only encountered this when using a non conservative discretisation of the equations. It may be a product of the specific hydrodynamic scheme, and/or related to the $-\beta^i$ limit issue mentioned in the appendix
 
-This - in theory - would all be solved by a fully conservative formalism - there's a lot of interesting discussion [here (2.1.2)](https://link.springer.com/content/pdf/10.12942/lrr-2008-7.pdf) around the limitations of this approach. This formalism isn't 'bad' however, and it seems to work quite well - and apparently it has seen fairly widespread use in various forms. This is probably going to be a future project for me, as it shouldn't be too much work now that there's a solid base here
+This - in theory - would all be solved by a fully conservative formalism. There's a lot of interesting discussion [here (2.1.2)](https://link.springer.com/content/pdf/10.12942/lrr-2008-7.pdf) around the limitations of this approach. This formalism isn't 'bad' however - it seems to work quite well - and apparently it has seen fairly widespread use in various forms. This is probably going to be a future project for me, as it shouldn't be too much work now that there's a solid base here (..famous last words)
 
 ![catty](/assets/nr5_cat4.jpg)
 
@@ -899,6 +879,8 @@ In our case, it collapses to a black hole[^discussion]:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/YCckygeH9II?si=rlbwZtzFdaera0nI" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
+See the implementation details ('black hole collapse') section for how to manage neutron stars turning into black holes
+
 ## Stationary Spinning Test
 
 This is test case C1, with dimensionless spin $\chi = 0.5$:
@@ -922,7 +904,7 @@ These $\mathrm{rgb}_*$ quantities can then be advected using the advection equat
 
 $$\partial_t r_* = -\partial_i (r_* v^i)$$
 
-Creating an arbitrary[^arbitrary] initial colour distribution can be done either as a function, or if you're willing to put an absolutely cat-astrophic amount of implementation work in: as a texture
+Creating an arbitrary[^arbitrary] initial colour distribution can be done either as a function, or if you're willing to put an absolutely cat-astrophic amount of implementation work in: as a [texture](https://github.com/20k/20k.github.io/blob/master/code/common/weslr.png)
 
 [^arbitrary]: I don't *think* an arbitrary colour distribution actually reproduces $\rho_*$ and the correct motion of an advected quantity, so it's good to treat this as illustrative of the velocity flow
 
@@ -971,7 +953,7 @@ Which gives this:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/czDYhdyuMO0?si=YodMhX4B9llOyX6L" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Without an exact value for linear momentum, I can't precisely attempt to replicate[^testability] the original paper, but this appears to produce a reasonable inspiral. With the caveat around testing in mind, this scheme does appear to work, and there's nothing obviously unphysical going on. The hamiltonian constraint errors (top left) appear to stay low and bounded which is great as well
+Without an exact value for linear momentum, I can't precisely attempt to replicate[^testability] the original paper, but this appears to produce a reasonable inspiral. With the caveats around testing in mind, this scheme does appear to work, and there's nothing obviously unphysical going on. The hamiltonian constraint errors (top left) appear to stay low and bounded which is great as well
 
 [^testability]: It's a little unsatisfying - I've been searching around for test cases which give exact values, but many if not most are missing key parameters. It seems like a particular initial conditions solver is used in the literature, and so papers frequently omit key details. Within a few articles I'll probably get around to gravitational waves, which is when I'll be investing in a post Newtonian expansion or energy minimisation scheme, and then we can find out precisely how physically accurate this is
 
@@ -985,7 +967,7 @@ The main overhead is actually the amount of extra buffers required. There are $5
 
 I've discussed the relativistic hydrodynamics formalism specifically in depth up above, so this is a general review of this project
 
-Overall, this has gone pretty well. I'm not *super* jazzed at the lack of rigorous testing here, but this makes a very good stepping stone on the way to more advanced techniques and new ideas like post Newtonian formalisms - so I think this is perfect as an introduction. I'm also not super convinced on the actual hydrodynamics solver I've implemented - but that just means more work to implement something snazzy
+Overall, this has gone pretty well. I'm not *super* jazzed at the lack of rigorous testing here, but this makes a very good stepping stone on the way to more advanced techniques and new ideas like post Newtonian formalisms - so I think this is perfect as an introduction. I'm also not super convinced on the actual hydrodynamics solver I've implemented as it may be slightly too basic - but that just means more work to implement something snazzy
 
 This also pushing the limits of single precision here as well, it's right on the boundary of what's acceptable: if you're interested in novel precision techniques, like unums, or projective reals, this would be a good playground
 
@@ -993,7 +975,7 @@ It's clear though seeing that we easily can get multiple orbits, collapse neutro
 
 # Next time
 
-The next article is going to be N-body particle dynamics, because that should be a lot easier than hydrodynamics. This has taken a very large amount of work to put together, and there's still a lot to come back to and iron out. It'll be fun!
+The next article is going to be N-body particle dynamics, because that should be a lot easier than hydrodynamics. This article has taken a very large amount of work to put together, and there's still a lot to come back to and iron out. It'll be fun!
 
 ![catend](/assets/nr5_catend.jpg)
 
@@ -1639,4 +1621,6 @@ Equations of state for neutron stars [https://arxiv.org/pdf/0812.2163](https://a
 
 Radiative transfer: [https://arxiv.org/pdf/1207.4234](https://arxiv.org/pdf/1207.4234)
 
-Intersting notes on Godunov's scheme [https://www.astro.uzh.ch/~stadel/lib/exe/fetch.php?media=spin:compastro_godunov.pdf](https://www.astro.uzh.ch/~stadel/lib/exe/fetch.php?media=spin:compastro_godunov.pdf)
+Interesting notes on Godunov's scheme [https://www.astro.uzh.ch/~stadel/lib/exe/fetch.php?media=spin:compastro_godunov.pdf](https://www.astro.uzh.ch/~stadel/lib/exe/fetch.php?media=spin:compastro_godunov.pdf)
+
+2008 hydro review paper with some good comparative information [https://link.springer.com/content/pdf/10.12942/lrr-2008-7.pdf](https://link.springer.com/content/pdf/10.12942/lrr-2008-7.pdf)
