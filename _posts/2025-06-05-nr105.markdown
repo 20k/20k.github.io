@@ -1,16 +1,16 @@
 ---
 layout: post
 title:  "Numerical Relativity 105: Smashing neutron stars together like its 2002"
-date:   2026-02-02 12:33:23 +0000
+date:   2025-05-07 12:33:23 +0000
 categories: C++
 published: true
 ---
 
-Hi! Its time to do something spectacular today, and crash some neutron stars into each other:
+Hi! It's time to do something spectacular today, and crash some neutron stars into each other:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/rw9mKFwo4Ds?si=XAcRtXyLKmMBpL_x" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-This article is a direct continuation of the [previous](https://20k.github.io/c++/2025/04/15/nr104.html), which runs through how to construct and build a neutron star. Its time to take those stars, and simulate exactly what happens when they smash into each other at high speeds, in a fully general relativistic way
+This article is a direct continuation of the [previous](https://20k.github.io/c++/2025/04/15/nr104.html), which runs through how to construct and build a neutron star. It's time to take those stars, and simulate exactly what happens when they smash into each other at high speeds, in a fully general relativistic way
 
 I'll be going through how to connect relativistic fluid dynamics to regular hydrodynamics, and examining a specific approach in the literature. I've also extensively documented many of the technical issues you'll run into in practice if you try and implement this kind of thing
 
@@ -24,7 +24,7 @@ First up: Some background (and a dog)
 
 # What is hydrodynamics?
 
-If you're like me, at some point you might not even really have known why hydrodynamics is a separate area of inquiry to solving differential equations in general. Or, you might think its an umbrella term for people who solve PDEs which just so happen involve fluids, but that its pretty much the same as anything else
+If you're like me, at some point you might not even really have known why hydrodynamics is a separate area of inquiry to solving differential equations in general. Or, you might think it's an umbrella term for people who solve PDEs which just so happen involve fluids, but that it's pretty much the same as anything else
 
 As it turns out, there's good reason to treat the equations we're dealing with differently to regular differential equations. A fair chunk of this article is going to be explaining what hydrodynamics is, why we need to use different solving methods, and how that fits into general relativity. A lot of programmers' experience of fluid dynamics is the incompressible Navier-Stokes equations, so you might be wondering how similar that it is to what we're doing today (disclaimer: not very)
 
@@ -36,7 +36,7 @@ There are three primary kinds of hydrodynamic formalisms:
 2. Semi Lagrangian. This is what most programmers are familiar with - you have grid cells, and trace your velocity backward through the grid to find out where the fluid originated from (and what properties it had there)
 3. Eularian. Here, you have grid cells, and only deal with quantities locally in terms of their values and derivatives
 
-Today's scheme is purely Eularian. We'll need a set of equations to look at before we get into the interesting hydrodynamics stuff, so its now time to take an overview of a specific relativistic hydrodynamics scheme
+Today's scheme is purely Eularian. We'll need a set of equations to look at before we get into the interesting hydrodynamics stuff, so it's now time to take an overview of a specific relativistic hydrodynamics scheme
 
 # Relativistic Eularian Hydrodynamics - 2002 style
 
@@ -70,7 +70,7 @@ In this scheme, there are the following definitions for the various quantities w
 |$v^i$ | $\frac{u^i}{u^0}$ | Represents a coordinate velocity |
 | $P$ | Equation of state, $P=(\Gamma - 1) \rho_0 \epsilon$ here | Perfect fluid equation of state |
 
-The notation in this article is harmonised with the previous one. $\rho_0$ is the rest-mass density, $\epsilon$ is the specific energy density, $u^0$ is the lorentz factor, and $\alpha$ is the lapse. We'll be using a $\Gamma = 2$ perfect fluid equation of state - because its unclear how a numerical one would work here
+The notation in this article is harmonised with the previous one. $\rho_0$ is the rest-mass density, $\epsilon$ is the specific energy density, $u^0$ is the lorentz factor, and $\alpha$ is the lapse. We'll be using a $\Gamma = 2$ perfect fluid equation of state - because it's unclear how a numerical one would work here
 
 ## Initial conditions
 
@@ -154,7 +154,7 @@ I'll get into what everything means in detail soon -  the most important piece i
 
 ### The reason why hydrodynamics is a thing
 
-With an actual set of equations in hand, its time to bridge the gap over to regular hydrodynamics, and look at them in that field's notation:
+With an actual set of equations in hand, it's time to bridge the gap over to regular hydrodynamics, and look at them in that field's notation:
 
 $$\begin{align}
 \partial_t \rho_* &+ \nabla  (\rho_* \textbf{v}) = 0\\
@@ -237,7 +237,7 @@ $$\partial_t q = \frac{1}{\Delta x} (F^n_{i-\frac{1}{2}} - F^n_{i+\frac{1}{2}})$
 
 where $_i$ is a grid cell offset (and the 'half' index is the wall between two cells), and $\Delta x$ is the scale. This form is generic across any hydrodynamics scheme - and solving for the half grid cell flux at the boundary between grid cells is the joy of hydrodynamics
 
-I'm not going to attempt to document hydrodynamics in general here, so its time to look at a specific form of solving this equation. It fulfills all the requirements for a 'good' technique, as well as the major requirement which is having a workable set of equations that I can implement[^implement]
+I'm not going to attempt to document hydrodynamics in general here, so it's time to look at a specific form of solving this equation. It fulfills all the requirements for a 'good' technique, as well as the major requirement which is having a workable set of equations that I can implement[^implement]
 
 [^implement]: Going for a dig through the hydrodynamics literature is surprising. Every field develops its own notation and language, and hydrodynamics appears to have developed its own convention for which steps are omitted when describing a particular scheme. Finding documentation on those omitted steps is surprisingly challenging
 
@@ -252,7 +252,7 @@ The solution then is fairly straightforward: You use some kind of function to sw
 
 Check out [here](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2012/Chapter_4.pdf) for an explicit reference. Flux limiters are much more common in the literature (and so we'll be using the flux limited scheme), but I'll give you both forms of this in case you want to go experimenting. These are used to construct estimates of the flux at the half cell boundary (eg $F_{i - 1/2}$)
 
-This actually gives two separate estimates of the flux at the half cell boundary. Eg, for $F_{i - 1/2}$, we have one in the rightwards direction for the cell $_{i-1}$, and one leftwards for the cell $_i$. While a general solver for this is complex (and is called a Riemann solver), in the simple case its sufficient pick the solution based on the sign of the fluid velocity at the half cell boundary. There's more detail and links to references on all of this in the appendix, as I'm simplifying a bit
+This actually gives two separate estimates of the flux at the half cell boundary. Eg, for $F_{i - 1/2}$, we have one in the rightwards direction for the cell $_{i-1}$, and one leftwards for the cell $_i$. While a general solver for this is complex (and is called a Riemann solver), in the simple case it's sufficient to pick the solution based on the sign of the fluid velocity at the half cell boundary. There's more detail and links to references on all of this in the appendix, as I'm simplifying a bit
 
 [^notes]: This is one of the reasons why higher order fluid simulations are less useful than they might appear. High order in smooth areas only is all well and good, but that's also precisely where we need the least resolution. There's some interesting [theoretical reasons](https://en.wikipedia.org/wiki/Godunov%27s_theorem) as to why this kind of order decay is necessary
 
@@ -296,7 +296,7 @@ $$\theta_{i - 1/2} =
 \end{cases}
 $$
 
-$\phi$ is a flux limiter. There's nothing fundamentally different here to the slope limiting equations, its just that the form of the limiter is different
+$\phi$ is a flux limiter. There's nothing fundamentally different here to the slope limiting equations, it's just that the form of the limiter is different
 
 We'll be using the superbee flux limiter, as it seems minimally diffusive:
 
@@ -484,7 +484,7 @@ valuef calculate_w(valuef p_star, valuef e_star, valuef W, inverse_metric<valuef
 
 Iterating $w$ is extremely cheap, and the iteration count is way more than necessary. Because you can get away with such a high number of iterations, I apply a small amount of relaxation to the solution - just to make sure that this function can never cause any problems
 
-Its worth noting that when $\Gamma = 2$, the factor of $\rho_*$ drops out in $D$
+It's worth noting that when $\Gamma = 2$, the factor of $\rho_*$ drops out in $D$
 
 ## Recovering the primitive variables
 
@@ -496,9 +496,9 @@ $$\begin{align}
 \end{align}
 $$
 
-In general, its a good idea to avoid calculating $\rho_0$ if possible, as calculating $\rho_*^2$ is numerically suspect[^sus]. Some usefully optimised quantities are:
+In general, it's a good idea to avoid calculating $\rho_0$ if possible, as calculating $\rho_*^2$ is numerically suspect[^sus]. Some usefully optimised quantities are:
 
-[^sus]: Its also better to calculate quantities of the form $\frac{a^2}{b}$ as $a \frac{a}{b}$ if you have to do this
+[^sus]: It's also better to calculate quantities of the form $\frac{a^2}{b}$ as $a \frac{a}{b}$ if you have to do this
 
 $$\begin{align}
 \rho_0 \epsilon &= \left (e_* W^3 \frac{\rho_*}{w} \right)^\Gamma\\
@@ -643,7 +643,7 @@ I &= e_* W^3 \frac{\rho_*}{w}\\
 
 In general, linear viscosity is good for large scale damping and significantly improves the simulations stability. Initial conditions for neutron stars are generally quite approximate, and the stars oscillate while relaxing into their final form, so linear damping helps a lot. Quadratic viscosity seems to be less applicable here, and hasn't produced significant changes to the simulation, but it also may be just the tests that I've performed
 
-The viscosity scheme documented in this paper is actually not consistent - its an ad-hoc modification to fix up shocks. There is, in theory, an extension of this formalism which includes a consistent treatment of viscosity and works for ultrarelativistic matter - see the discussion around [(26)](https://link.springer.com/content/pdf/10.12942/lrr-2008-7.pdf) for details
+The viscosity scheme documented in this paper is actually not consistent - it's an ad-hoc modification to fix up shocks. There is, in theory, an extension of this formalism which includes a consistent treatment of viscosity and works for ultrarelativistic matter - see the discussion around [(26)](https://link.springer.com/content/pdf/10.12942/lrr-2008-7.pdf) for details
 
 ![cat3](/assets/nr5_cat3.jpg)
 
@@ -842,7 +842,7 @@ $$
 
 We'll have to modify the BSSN source term to match the absorbed $W^2$ term (ie $-8 \pi \alpha S_{ij}$), but now the source terms become regular at the singularity. This is a free win, at the expense of some minor non standard notation[^minor]
 
-[^minor]: I've seen some other schemes do similar things, so its not that weird
+[^minor]: I've seen some other schemes do similar things, so it's not that weird
 
 ## The BSSN equations
 
@@ -860,14 +860,14 @@ The source terms conspire very conveniently to avoid having to calculate infinit
 
 # Relativistic Hydrodynamics Discussion
 
-Before we get to the results, and overall discussion, its worth talking about this hydro formalism a bit more critically. As far as I can tell, there's the following issues with this approach:
+Before we get to the results, and overall discussion, it's worth talking about this hydro formalism a bit more critically. As far as I can tell, there's the following issues with this approach:
 
 1. The non atmospheric approach's conservation is heavily dependent on the minimum value of $\rho_*$, which has to be higher than I would like due to single precision floating point. There's a mass loss of a few % over the course of a simulation
 2. When $\rho_*$ is of the same order of magnitude as $\rho_{min}$, you have to be extremely careful with floating point accuracy. There's a significant amount of error due to precision issues, and some quantities (like viscosity) are poorly behaved
 3. The non conservative nature of the equations means that conventional hydrodynamic solutions only have limited applicability (even if it seems to work well in practice)
 4. The thin-mass-shell-drift problem, though i haven't run into it that much[^real]
 5. The viscosity is super ad-hoc
-6. Its unclear how to use a numerical equation of state here, though it looks like there might be extensions that support this
+6. It's unclear how to use a numerical equation of state here, though it looks like there might be extensions that support this
 
 [^real]: I only encountered this when using a non conservative discretisation of the equations. It may be a product of the specific hydrodynamic scheme, and/or related to the $-\beta^i$ limit issue mentioned in the appendix
 
@@ -905,7 +905,7 @@ This is test case C1, with dimensionless spin $\chi = 0.5$:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/nl-IWvttSnA?si=Dq3FLCIOrglz2FnI" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Now.. while its clear that a spinning neutron star is a lot more wobbly than a regular neutron star, its very hard to tell if its actually spinning or not
+Now.. while it's clear that a spinning neutron star is a lot more wobbly than a regular neutron star, it's very hard to tell if it's actually spinning or not
 
 ### Advecting arbitrary fields
 
@@ -924,7 +924,7 @@ $$\partial_t r_* = -\partial_i (r_* v^i)$$
 
 Creating an arbitrary[^arbitrary] initial colour distribution can be done either as a function, or if you're willing to put an absolutely cat-astrophic amount of implementation work in: as a texture
 
-[^arbitrary]: I don't *think* an arbitrary colour distribution actually reproduces $\rho_*$ and the correct motion of an advected quantity, so its good to treat this as illustrative of the velocity flow
+[^arbitrary]: I don't *think* an arbitrary colour distribution actually reproduces $\rho_*$ and the correct motion of an advected quantity, so it's good to treat this as illustrative of the velocity flow
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/5pi4XzE-keE?si=UekikwPEgi_n3mCy" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
@@ -934,11 +934,11 @@ I genuinely have no idea why I spent so much time implementing this[^fishies], a
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/-iemn0MzBQk?si=1kRiyzRPGYZksiDh" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-You can see that the star is tending towards a settled shape (in the first video its easier to see). This test uses a much longer linear viscosity timescale of $T=800$. The grid resolution for all tests is $199^3$
+You can see that the star is tending towards a settled shape (in the first video it's easier to see). This test uses a much longer linear viscosity timescale of $T=800$. The grid resolution for all tests is $199^3$
 
 According to the original paper, their oscillations appear to increase as time goes on, but these are ruled out because they're late time problems. I read a fairly curt critique suggesting that a lot of people are doing these mergers incorrectly, because unsurprisingly neutron star oscillations are very unphysical - apparently you need to let them stabilise over a few orbits first. This makes late time behaviour quite important
 
-Allegedly, real neutron star mergers are expected to be of low spin bodies (because the universe isn't old enough for high spin ones to merge yet, or something) so its somewhat less of a problem. Though really the formation, and merger of bodies like these seems to be extremely up in the air currently, so I wouldn't bank on that personally - it smells a bit like we're just hoping the computational power isn't horrendous, like with eccentricity
+Allegedly, real neutron star mergers are expected to be of low spin bodies (because the universe isn't old enough for high spin ones to merge yet, or something) so it's somewhat less of a problem. Though really the formation, and merger of bodies like these seems to be extremely up in the air currently, so I wouldn't bank on that personally - it smells a bit like we're just hoping the computational power isn't horrendous, like with eccentricity
 
 ## Inspiral
 
@@ -973,7 +973,7 @@ Which gives this:
 
 Without an exact value for linear momentum, I can't precisely attempt to replicate[^testability] the original paper, but this appears to produce a reasonable inspiral. With the caveat around testing in mind, this scheme does appear to work, and there's nothing obviously unphysical going on. The hamiltonian constraint errors (top left) appear to stay low and bounded which is great as well
 
-[^testability]: Its a little unsatisfying - I've been searching around for test cases which give exact values, but many if not most are missing key parameters. It seems like a particular initial conditions solver is used in the literature, and so papers frequently omit key details. Within a few articles I'll probably get around to gravitational waves, which is when I'll be investing in a post newtonian expansion or energy minimisation scheme, and then we can find out precisely how physically accurate this is
+[^testability]: It's a little unsatisfying - I've been searching around for test cases which give exact values, but many if not most are missing key parameters. It seems like a particular initial conditions solver is used in the literature, and so papers frequently omit key details. Within a few articles I'll probably get around to gravitational waves, which is when I'll be investing in a post Newtonian expansion or energy minimisation scheme, and then we can find out precisely how physically accurate this is
 
 # Performance
 
@@ -985,11 +985,11 @@ The main overhead is actually the amount of extra buffers required. There are $5
 
 I've discussed the relativistic hydrodynamics formalism specifically in depth up above, so this is a general review of this project
 
-Overall, this has gone pretty well. I'm not *super* jazzed at the lack of rigorous testing here, but this makes a very good stepping stone on the way to more advanced techniques and new ideas like post newtonian formalisms - so I think this is perfect as an introduction. I'm also not super convinced on the actual hydrodynamics solver I've implemented - but that just means more work to implement something snazzy
+Overall, this has gone pretty well. I'm not *super* jazzed at the lack of rigorous testing here, but this makes a very good stepping stone on the way to more advanced techniques and new ideas like post Newtonian formalisms - so I think this is perfect as an introduction. I'm also not super convinced on the actual hydrodynamics solver I've implemented - but that just means more work to implement something snazzy
 
-This also pushing the limits of single precision here as well, its right on the boundary of what's acceptable: if you're interested in novel precision techniques, like unums, or projective reals, this would be a good playground
+This also pushing the limits of single precision here as well, it's right on the boundary of what's acceptable: if you're interested in novel precision techniques, like unums, or projective reals, this would be a good playground
 
-Its clear though seeing that we easily can get multiple orbits, collapse neutron stars into stable black holes, and produce visible gravitational waves, that this is working well enough. So I'm very happy with it overall, and its a solid base to build on. And importantly: it doesn't take 6 months to get a result back
+It's clear though seeing that we easily can get multiple orbits, collapse neutron stars into stable black holes, and produce visible gravitational waves, that this is working well enough. So I'm very happy with it overall, and it's a solid base to build on. And importantly: it doesn't take 6 months to get a result back
 
 # Next time
 
@@ -1013,7 +1013,7 @@ This is before the scheme was conservative:
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/EOQ4q_6Y3d0?si=RBNli4B3uUodnoz3" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-This is painstakingly accurately rendered with redshift, and a 4d voxelisation. Its tricky to get good quality with this technique due to memory pressure, so I haven't shown it off here
+This is painstakingly accurately rendered with redshift, and a 4d voxelisation. It's tricky to get good quality with this technique due to memory pressure, so I haven't shown it off here
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/ZT3COBsAXRE?si=LjI_co6PcNx5YGPq" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
@@ -1029,7 +1029,7 @@ Lets take $3$ grid cells: ${i-1}, i, {i+1}$. The general form of the conservatio
 
 $$\partial_t q = \frac{1}{\Delta x} (F^n_{i-\frac{1}{2}} - F^n_{i+\frac{1}{2}})$$
 
-Now we'll deal with a specific point: $F^n_{i - \frac{1}{2}}$. This represents the flux at the cell edge between $i$, and $i-1$. Its also implicitly an integral in time, and it has the following form [(4.5)](https://www.tevza.org/home/course/modelling-II_2016/books/Leveque%20-%20Finite%20Volume%20Methods%20for%20Hyperbolic%20Equations.pdf):
+Now we'll deal with a specific point: $F^n_{i - \frac{1}{2}}$. This represents the flux at the cell edge between $i$, and $i-1$. It's also implicitly an integral in time, and it has the following form [(4.5)](https://www.tevza.org/home/course/modelling-II_2016/books/Leveque%20-%20Finite%20Volume%20Methods%20for%20Hyperbolic%20Equations.pdf):
 
 $$F^n_{i - 1/2} = \frac{1}{\Delta t} \int^{t_{n+1}}_{t_n} f(x_{i-1/2}, t) dt $$
 
@@ -1037,7 +1037,7 @@ We know that $f(x_i) = v_i q_i$ for us, and we could sub that in:
 
 $$F^n_{i - 1/2} = \frac{1}{\Delta t} \int^{t_{n+1}}_{t_n} v(x_{i -1/2}, t) q(x_{i - 1/2}, t) dt $$
 
-Here's where things get a tad unfortunate. Its common in these articles for the assumption that $v$ is *constant* to get made, which isn't really a necessary approximation, I think. [8.2](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2011/Chapter_8.pdf) spells out the issue in more detail
+Here's where things get a tad unfortunate. It's common in these articles for the assumption that $v$ is *constant* to get made, which isn't really a necessary approximation, I think. [8.2](https://www.ita.uni-heidelberg.de/~dullemond/lectures/num_fluid_2011/Chapter_8.pdf) spells out the issue in more detail
 
 We can solve this at $x_{i - 1/2}$ for cell $i$, and at $x_{i + 1/2}$ for cell $i - 1$, to get two solutions for a single interface (ie $F^n_{i - 1/2}$)
 
@@ -1050,7 +1050,7 @@ One way of solving the Riemann problem here is the upwinding scheme [(6.45)](htt
 
 $$F^n_{i - 1/2} = v_{i - 1/2} > 0\; ?\; R_{i - 1} : L_{i}$$
 
-There's a much more detailed explanation in the linked text, that's more generalised. As far as I can tell, you need specific assumptions to end up with the simple Riemann solver above, so its approximate to some degree, and this scheme seemingly isn't generally referred to as a Riemann solver. To use it for nonlinear fluxes instead of simple velocities like we have, you need to do eigenvectors/values, as they appear to take the role of velocity in a slightly abstract form
+There's a much more detailed explanation in the linked text, that's more generalised. As far as I can tell, you need specific assumptions to end up with the simple Riemann solver above, so it's approximate to some degree, and this scheme seemingly isn't generally referred to as a Riemann solver. To use it for nonlinear fluxes instead of simple velocities like we have, you need to do eigenvectors/values, as they appear to take the role of velocity in a slightly abstract form
 
 That for the moment is my best understanding of how to build hydrodynamic schemes, and piece together some of this
 
@@ -1192,7 +1192,7 @@ This isn't used for any of the tests in this article, but I've found it works re
 
 ## Rasterisation
 
-I've skipped past this a little because the rasterisation isn't especially physical in this article, so its not really something to 'present'. I might do something more proper in the near future - but until then, I'll just highlight what I did here without alleging that its correct
+I've skipped past this a little because the rasterisation isn't especially physical in this article, so it's not really something to 'present'. I might do something more proper in the near future - but until then, I'll just highlight what I did here without alleging that it's correct
 
 ```c++
 v3f grid_position = world_to_grid(cposition, dim.get(), scale.get());
@@ -1260,9 +1260,9 @@ if_e(transparency <= 0.001f, [&]{
 });
 ```
 
-This is a simple exponential accumulator. Its been a while since I've done volumetric rendering, so you may want to double check this as its based off of code I wrote quite a few years ago
+This is a simple exponential accumulator. It's been a while since I've done volumetric rendering, so you may want to double check this as it's based off of code I wrote quite a few years ago
 
-If you want to go digging for a fully accurate rasterisation scheme, a good starting point is [here](https://www.ita.uni-heidelberg.de/~dullemond/lectures/radtrans_2013/index.shtml), and especially [here](https://arxiv.org/pdf/1207.4234). I might spend some time making this more rigorous and present it as a separate article, so its debugging quality for now
+If you want to go digging for a fully accurate rasterisation scheme, a good starting point is [here](https://www.ita.uni-heidelberg.de/~dullemond/lectures/radtrans_2013/index.shtml), and especially [here](https://arxiv.org/pdf/1207.4234). I might spend some time making this more rigorous and present it as a separate article, so it's debugging quality for now
 
 ## $v^i$ derivation
 
@@ -1334,7 +1334,7 @@ There are a variety of implementation details and other things that tend not to 
 
 As you may have noticed, these equations involve quite a bit of dividing by zero. In general, there are many instances of divisions by $w$, or $W$, which we'll have to deal with
 
-In general, this is pretty straightforward. For division by $W$, I clamp $W$ to $0.1$. This might seem quite large, but in general we don't really care about the hydrodynamics near the singularity of a black hole, and its more important for the equations to remain regular
+In general, this is pretty straightforward. For division by $W$, I clamp $W$ to $0.1$. This might seem quite large, but in general we don't really care about the hydrodynamics near the singularity of a black hole, and it's more important for the equations to remain regular
 
 For divisions by all other quantities, I use a division tolerance of $5e-8$, of the following form:
 
@@ -1366,7 +1366,7 @@ Operator splitting means that you update all the advection terms first, and then
 
 I did some fairly extensive testing of various operator splitting methods vs treating these as regular evolution equations for this article, and was not able to find any stability difference. Operator splitting requires a few extra buffers of storage for intermediate variables, so in this case it was strictly worse
 
-That said, its possible that more extreme test cases would benefit from this, so I'll be giving it more testing eventually
+That said, it's possible that more extreme test cases would benefit from this, so I'll be giving it more testing eventually
 
 ## Black Hole Collapse
 
@@ -1421,7 +1421,7 @@ One documented consequence of the atmosphere-free formulation is that a thin (re
 
 This paper fixes it by clamping $$e_* = min(e_*, 10 \rho_*)$$. I do this when $\rho_* < 10\rho_{min}$
 
-I haven't found this modification to be at all important in practice, so its disabled by default
+I haven't found this modification to be at all important in practice, so it's disabled by default
 
 ## Hamiltonian constraint damping
 
@@ -1465,19 +1465,19 @@ This makes a significant difference to black hole, and neutron star inspiral, as
 
 ## Source terms
 
-Generating the full stress energy tensor with its 10 components is a mistake - its much better to directly express the source terms from the underlying formalism for performance. Implementing this correctly is quite difficult in a standard programming language, because the BSSN equation implementation itself needs generic, direct access to whatever buffers can derive our source terms (including $w$)
+Generating the full stress energy tensor with it's 10 components is a mistake - it's much better to directly express the source terms from the underlying formalism for performance. Implementing this correctly is quite difficult in a standard programming language, because the BSSN equation implementation itself needs generic, direct access to whatever buffers can derive our source terms (including $w$)
 
 If you want good performance, I would highly recommend using code generation to specialise your evolution kernel to different features that are enabled - generating the accesses directly, instead of literally constructing the stress-energy tensor
 
-In the next article (and into the future[^preon]), we'll be adding even more matter sources as well, so if you're implementing this - now's the time to get this to work correctly. Its far too long to go into here, but check out the [linked source code](https://github.com/20k/20k.github.io/blob/master/code/NR5/plugin.hpp) if you want to see the details of how this works implementation-wise
+In the next article (and into the future[^preon]), we'll be adding even more matter sources as well, so if you're implementing this - now's the time to get this to work correctly. It's far too long to go into here, but check out the [linked source code](https://github.com/20k/20k.github.io/blob/master/code/NR5/plugin.hpp) if you want to see the details of how this works implementation-wise
 
 [^preon]: The next article is N body. After that, it might be more modern hydrodynamics, or even preon stars or something
 
 ## Integration
 
-I use Crank-Nicolson for the hydrodynamics part of this. Backwards-Euler has bad theoretical properties when it comes to fluid dynamics, and it shows - its very dissipative. For people who want to experiment with this, I've included both a relaxation parameter, and a configurable implicitness parameter. The paper that we're looking at weights the integration a little towards the implicit side (and uses a value of $0.6$) - in general this serves to accelerate inspiral
+I use Crank-Nicolson for the hydrodynamics part of this. Backwards-Euler has bad theoretical properties when it comes to fluid dynamics, and it shows - it's very dissipative. For people who want to experiment with this, I've included both a relaxation parameter, and a configurable implicitness parameter. The paper that we're looking at weights the integration a little towards the implicit side (and uses a value of $0.6$) - in general this serves to accelerate inspiral
 
-A very interesting and related result I came across when researching this is that you should [never use more than two iterations](https://scispace.com/pdf/stability-of-the-iterated-crank-nicholson-method-in-1jb7vdqz8u.pdf) for Crank-Nicolson. Its not actually strictly true - while higher iteration values don't improve the accuracy, they *do* increase the CFL limit - but the part about the method being unstable for various iteration values is interesting
+A very interesting and related result I came across when researching this is that you should [never use more than two iterations](https://scispace.com/pdf/stability-of-the-iterated-crank-nicholson-method-in-1jb7vdqz8u.pdf) for Crank-Nicolson. It's not actually strictly true - while higher iteration values don't improve the accuracy, they *do* increase the CFL limit - but the part about the method being unstable for various iteration values is interesting
 
 The implementation of this is a bit complex. To avoid an extra set of buffers for Crank-Nicolson, I unconditionally recalculate the F(base) term every iteration in a preparation kernel before the main kernel execution, as it is very cheap to do so (and we're more limited by memory usage)
 
