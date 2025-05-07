@@ -56,7 +56,7 @@ Note that there was a significant shift[^schwifty] in approach from the first pa
 |$e_*$| Energy |
 |$\tilde{S}_k$ | Momentum (ish) |
 
-These are the evolution variables. I've translated the paper's old-style conformal factor $\phi$, into the newer conformal factor $W$ - and a table of conversions is provided at the end of this article
+(If the symbols aren't rendering, try a force refresh). These are the evolution variables. I've translated the paper's old-style conformal factor $\phi$, into the newer conformal factor $W$ - and a table of conversions is provided at the end of this article
 
 In this scheme, there are the following definitions for the various quantities we'll need:
 
