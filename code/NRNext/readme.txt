@@ -1,0 +1,1 @@
+A sample build system via xmake has been provided. It should be as simple as running `xmake`
