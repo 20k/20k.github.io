@@ -74,6 +74,8 @@ The notation in this article is harmonised with the previous one. $\rho_0$ is th
 
 ## Initial conditions
 
+The code for the hydrodynamics is available over [here](https://github.com/20k/20k.github.io/blob/master/code/NR5/hydrodynamics.cpp)
+
 At the end of the previous article, we ended up with the fluid quantities $\rho_0$, $\epsilon$, $u^i$, and $u^0$. These are the same variables used in the definitions up above, there's nothing weird going on
 
 There are two pitfall traps here:
