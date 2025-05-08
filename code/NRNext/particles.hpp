@@ -7,6 +7,34 @@
 #include "plugin.hpp"
 
 //https://arxiv.org/abs/2404.03722 - star cluster
+//https://arxiv.org/pdf/1208.3927.pdf - eom
+
+//relevant resources, copied over from old project
+//https://arxiv.org/pdf/1611.07906.pdf 16
+//https://artscimedia.case.edu/wp-content/uploads/sites/213/2018/08/18010345/Mertens_SestoGR18.pdf
+//https://scholarworks.rit.edu/cgi/viewcontent.cgi?article=11286&context=theses 3.81
+//https://einsteinrelativelyeasy.com/index.php/fr/einstein/9-general-relativity/78-the-energy-momentum-tensor
+//https://arxiv.org/pdf/1905.08890.pdf
+//https://en.wikipedia.org/wiki/Stress%E2%80%93energy_tensor#Stress%E2%80%93energy_in_special_situations
+//https://arxiv.org/pdf/1904.07841.pdf so, have to discretise the dirac delta. This paper gives explicit version
+
+/**
+Old design: In the original particle dynamics design
+Each particle loops over its dirac discretisation, and then accumulates the fact that it exists there
+Then, for every cell, I loop over the constituents and sum them
+Suboptimal parts:
+1. The giant linear memory allocator, requires huge amounts of memory. Allocation itself was fast
+Solution: Could do it in chunks?
+Solution: Fixed point accumulation? Removes the need for allocation entirely
+2. Particles iterating over dirac discretisation is slow, because its entirely random
+Solution: GPU sorting
+
+Possible combo solution: Imagine we divvy up the larger cube into 8 smaller chunks, and assign particles. Then do that recursively
+hmm. not the best memory locality. Could use that to do sorting though?
+In fact, could do the memory allocator technique for sorting particles into cubes, then dirac delta iterate *afterwards*
+hmmmm that has a perf factor of ~25x better than the older particle technique, which i like. we could directly iterate over the cells and accumulate fixed point
+or could write out and then do another pass to accumulate in flops at the expense of memory
+*/
 template<typename T>
 struct particle_base_args : virtual value_impl::single_source::argument_pack
 {
@@ -35,6 +63,7 @@ struct particle_base_args : virtual value_impl::single_source::argument_pack
 
         add(pos);
         add(vel);
+        add(mass);
     }
 };
 
