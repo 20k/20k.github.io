@@ -34,6 +34,20 @@ hmm. not the best memory locality. Could use that to do sorting though?
 In fact, could do the memory allocator technique for sorting particles into cubes, then dirac delta iterate *afterwards*
 hmmmm that has a perf factor of ~25x better than the older particle technique, which i like. we could directly iterate over the cells and accumulate fixed point
 or could write out and then do another pass to accumulate in flops at the expense of memory
+
+bam, sold to the highest bidder
+
+Integration: Verlet? Is there any need for an implicit integrator? I could
+
+1. Step forwards in time verlet style
+2. Interpolate
+
+Or
+
+1. Unconditionally step in lockstep
+
+#2 has the benefit of absolute correctness. #1 has the benefit of perf. But the perf tradeoff may already have been semi solved
+
 */
 template<typename T>
 struct particle_base_args : virtual value_impl::single_source::argument_pack
