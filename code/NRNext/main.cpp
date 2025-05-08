@@ -19,6 +19,7 @@
 #include "init_neutron_star.hpp"
 #include "plugin.hpp"
 #include "hydrodynamics.hpp"
+#include "particles.hpp"
 
 float get_scale(float simulation_width, t3i dim)
 {

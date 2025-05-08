@@ -39,10 +39,6 @@ struct hydrodynamic_base_args : virtual value_impl::single_source::argument_pack
     }
 };
 
-///the only way to do a strongly typed colour system
-///would be more inheritance
-///could also just.. do it badly rite?
-
 template<typename T>
 struct hydrodynamic_utility_args : virtual value_impl::single_source::argument_pack
 {
