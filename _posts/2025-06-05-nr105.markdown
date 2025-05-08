@@ -8,7 +8,7 @@ published: true
 
 Hi! It's time to do something spectacular today, and crash some neutron stars into each other:
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/rw9mKFwo4Ds?si=XAcRtXyLKmMBpL_x" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/rw9mKFwo4Ds?si=XAcRtXyLKmMBpL_x" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 This article is a direct continuation of the [previous](https://20k.github.io/c++/2025/04/15/nr104.html), which runs through how to construct and build a neutron star. It's time to take those stars, and simulate exactly what happens when they smash into each other at high speeds, in a fully general relativistic way
 
@@ -912,7 +912,7 @@ Creating an arbitrary[^arbitrary] initial colour distribution can be done either
 
 [^arbitrary]: I don't *think* an arbitrary colour distribution actually reproduces $\rho_*$ and the correct motion of an advected quantity, so it's good to treat this as illustrative of the velocity flow
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/5pi4XzE-keE?si=UekikwPEgi_n3mCy" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/5pi4XzE-keE?si=UekikwPEgi_n3mCy" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 I genuinely have no idea why I spent so much time implementing this[^fishies], and you absolutely shouldn't do this. Here's a less memey look at the spinning:
 
@@ -941,9 +941,9 @@ Where $\chi = \frac{J_{adm}}{M_{adm}^2}$
 
 These look like this:
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/VYmEpiLY_hY?si=FyXcn08-O4ObLkYT" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/VYmEpiLY_hY?si=FyXcn08-O4ObLkYT" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/HKB8THFWLdk?si=Y60LwVSLNBqLrmGq" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/HKB8THFWLdk?si=Y60LwVSLNBqLrmGq" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 This isn't terribly scientific, though it confirms that everything doesn't look like complete nonsense
 
@@ -955,7 +955,7 @@ Case $\Gamma^{--}_{050}$ [has the following parameters](https://arxiv.org/pdf/13
 
 Which gives this:
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/czDYhdyuMO0?si=YodMhX4B9llOyX6L" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/czDYhdyuMO0?si=YodMhX4B9llOyX6L" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 Without an exact value for linear momentum, I can't precisely attempt to replicate[^testability] the original paper, but this appears to produce a reasonable inspiral. With the caveats around testing in mind, this scheme does appear to work, and there's nothing obviously unphysical going on. The hamiltonian constraint errors (top left) appear to stay low and bounded which is great as well
 
