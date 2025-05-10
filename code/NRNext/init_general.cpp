@@ -29,6 +29,9 @@ void discretised_initial_data::init(cl::command_queue& cqueue, t3i dim)
         i.alloc(sizeof(cl_float) * cells);
         i.set_to_zero(cqueue);
     }
+
+    particles_contrib.alloc(sizeof(cl_float) * cells);
+    particles_contrib.set_to_zero(cqueue);
 }
 
 struct all_laplace_args : value_impl::single_source::argument_pack
@@ -63,7 +66,6 @@ laplace_solver get_laplace_solver_impl(cl::context ctx)
 
     return laplace;
 }
-
 
 laplace_solver& get_laplace_solver(cl::context ctx)
 {
@@ -267,6 +269,14 @@ float get_scale(float simulation_width, t3i dim);
 
 std::pair<cl::buffer, initial_pack> initial_params::build(cl::context& ctx, cl::command_queue& cqueue, float simulation_width, bssn_buffer_pack& to_fill)
 {
+    std::optional<particle_data> gpu_particles;
+
+    if(particles.positions.size() > 0)
+    {
+        particle_data& dat = gpu_particles.emplace(ctx);
+        dat.add(cqueue, particles);
+    }
+
     auto [u_found, pack] = get_laplace_solver(ctx).solve(ctx, cqueue, simulation_width, dim,
                                                          [&ctx, &cqueue, this](t3i idim, float iscale)
     {

@@ -57,8 +57,9 @@ struct discretised_initial_data
     std::array<cl::buffer, 3> Si_cfl;
     cl::buffer star_indices;
     std::array<cl::buffer, 3> col;
+    cl::buffer particles_contrib;
 
-    discretised_initial_data(cl::context& ctx) : mu_h_cfl(ctx), cfl(ctx), AIJ_cfl{ctx, ctx, ctx, ctx, ctx, ctx}, Si_cfl{ctx, ctx, ctx}, star_indices(ctx), col{ctx, ctx, ctx}{}
+    discretised_initial_data(cl::context& ctx) : mu_h_cfl(ctx), cfl(ctx), AIJ_cfl{ctx, ctx, ctx, ctx, ctx, ctx}, Si_cfl{ctx, ctx, ctx}, star_indices(ctx), col{ctx, ctx, ctx}, particles_contrib{ctx}{}
 
     void init(cl::command_queue& cqueue, t3i dim);
 };
