@@ -47,8 +47,45 @@ Or
 1. Unconditionally step in lockstep
 
 #2 has the benefit of absolute correctness. #1 has the benefit of perf. But the perf tradeoff may already have been semi solved
-
 */
+
+//todo: split out into particles_init
+struct particle_params
+{
+    //laid out as v4f to ease writing to gpu
+    std::vector<v4f> positions;
+    std::vector<v4f> velocities;
+    std::vector<float> masses;
+
+    void add(v3f position, v3f velocity, float mass)
+    {
+        positions.push_back({position.x(), position.y(), position.z()});
+        velocities.push_back({velocity.x(), velocity.y(), velocity.z()});
+        masses.push_back(mass);
+    }
+};
+
+struct particle_data
+{
+    cl::buffer positions;
+    cl::buffer velocities;
+    cl::buffer masses;
+
+    particle_data(cl::context& ctx) : positions(ctx), velocities(ctx), masses(ctx){}
+
+    void add(cl::command_queue& cqueue, const particle_params& params)
+    {
+        positions.alloc(sizeof(cl_float4) * params.positions.size());
+        positions.write(cqueue, params.positions);
+
+        velocities.alloc(sizeof(cl_float4) * params.velocities.size());
+        velocities.write(cqueue, params.velocities);
+
+        masses.alloc(sizeof(cl_float) * params.masses.size());
+        masses.write(cqueue, params.masses);
+    }
+};
+
 template<typename T>
 struct particle_base_args : virtual value_impl::single_source::argument_pack
 {
@@ -82,7 +119,7 @@ struct particle_base_args : virtual value_impl::single_source::argument_pack
 };
 
 template<typename T>
-struct particle_utility : virtual value_impl::single_source::argument_pack
+struct particle_utility_args : virtual value_impl::single_source::argument_pack
 {
 
 };
@@ -106,14 +143,14 @@ struct particle_utility_buffers :  buffer_provider
 };
 
 template<typename T>
-struct full_particle_args : adm_args_mem, particle_base_args<T>, particle_utility<T>
+struct full_particle_args : adm_args_mem, particle_base_args<T>, particle_utility_args<T>
 {
     virtual void build(value_impl::type_storage& in) override
     {
         using namespace value_impl::builder;
 
-        hydrodynamic_base_args<T>::build(in);
-        hydrodynamic_utility_args<T>::build(in);
+        particle_base_args<T>::build(in);
+        particle_utility_args<T>::build(in);
     }
 
     virtual valuef adm_p(bssn_args& args, const derivative_data& d) override;

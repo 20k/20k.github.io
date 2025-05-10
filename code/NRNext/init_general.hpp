@@ -6,6 +6,7 @@
 #include "laplace.hpp"
 #include "init_neutron_star.hpp"
 #include "plugin.hpp"
+#include "particles.hpp"
 
 template<typename Type, typename Func>
 inline
@@ -135,21 +136,6 @@ struct initial_pack
         args.push_back(disc.mu_h_cfl);
     }
 };
-
-struct particle_params
-{
-    std::vector<v3f> positions;
-    std::vector<v3f> velocities;
-    std::vector<float> masses;
-
-    void add(v3f position, v3f velocity, float mass)
-    {
-        positions.push_back(position);
-        velocities.push_back(velocity);
-        masses.push_back(mass);
-    }
-};
-
 struct initial_params
 {
     float N = 2;
@@ -179,11 +165,9 @@ struct initial_params
         params_bh.push_back(bh);
     }
 
-    void add(const particle_params& parts)
+    void add(particle_params&& parts)
     {
-        particles.positions.insert(particles.positions.end(), parts.positions.begin(), parts.positions.end());
-        particles.velocities.insert(particles.velocities.end(), parts.velocities.begin(), parts.velocities.end());
-        particles.masses.insert(particles.masses.end(), parts.masses.begin(), parts.masses.end());
+        particles = std::move(parts);
     }
 
     std::pair<cl::buffer, initial_pack> build(cl::context& ctx, cl::command_queue& cqueue, float simulation_width, bssn_buffer_pack& to_fill);
