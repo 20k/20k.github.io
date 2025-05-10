@@ -136,6 +136,20 @@ struct initial_pack
     }
 };
 
+struct particle_params
+{
+    std::vector<v3f> positions;
+    std::vector<v3f> velocities;
+    std::vector<float> masses;
+
+    void add(v3f position, v3f velocity, float mass)
+    {
+        positions.push_back(position);
+        velocities.push_back(velocity);
+        masses.push_back(mass);
+    }
+};
+
 struct initial_params
 {
     float N = 2;
@@ -150,6 +164,7 @@ struct initial_params
 
     std::vector<neutron_star::data> params_ns;
     std::vector<black_hole_params> params_bh;
+    particle_params particles;
 
     void add(const neutron_star::parameters& ns)
     {
@@ -162,6 +177,13 @@ struct initial_params
     void add(const black_hole_params& bh)
     {
         params_bh.push_back(bh);
+    }
+
+    void add(const particle_params& parts)
+    {
+        particles.positions.insert(particles.positions.end(), parts.positions.begin(), parts.positions.end());
+        particles.velocities.insert(particles.velocities.end(), parts.velocities.begin(), parts.velocities.end());
+        particles.masses.insert(particles.masses.end(), parts.masses.begin(), parts.masses.end());
     }
 
     std::pair<cl::buffer, initial_pack> build(cl::context& ctx, cl::command_queue& cqueue, float simulation_width, bssn_buffer_pack& to_fill);
