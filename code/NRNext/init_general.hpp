@@ -136,6 +136,7 @@ struct initial_pack
         args.push_back(disc.mu_h_cfl);
     }
 };
+
 struct initial_params
 {
     float N = 2;

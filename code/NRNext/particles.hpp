@@ -49,6 +49,96 @@ Or
 #2 has the benefit of absolute correctness. #1 has the benefit of perf. But the perf tradeoff may already have been semi solved
 */
 
+/*
+///https://arxiv.org/pdf/1611.07906.pdf (20)
+value dirac_distribution(const value& r, const value& radius)
+{
+    value frac = r / radius;
+
+    value mult = 1/(M_PI * pow(radius, 3.f));
+
+    value result = 0;
+
+    value branch_1 = (1.f/4.f) * pow(2.f - frac, 3.f);
+    value branch_2 = 1.f - (3.f/2.f) * pow(frac, 2.f) + (3.f/4.f) * pow(frac, 3.f);
+
+    result = if_v(frac <= 2, mult * branch_1, value{0});
+    result = if_v(frac <= 1, mult * branch_2, result);
+
+    return result;
+}
+
+value dirac_xyz(const value& x, const value& y, const value& z, const value& radius)
+{
+    return dirac_distribution(sqrt(x*x + y*y + z*z), radius);
+}
+
+void build_dirac_sample(equation_context& ctx)
+{
+    value x = "world_x";
+    value y = "world_y";
+    value z = "world_z";
+    value radius = "world_radius";
+    value scale = "world_cell_size";
+
+    v3f pos = {x, y, z};
+
+    v3f upper = pos + scale/2.f;
+    v3f lower = pos - scale/2.f;
+
+    auto to_integrate = [&](const value& x, const value& y, const value& z)
+    {
+        return dirac_xyz(x, y, z, radius);
+    };
+
+    value out = integrate_3d_trapezoidal(to_integrate, 2, upper, lower);
+
+    ctx.add("DIRAC_DISC_OUT", out);
+}
+
+template<typename T, typename U>
+inline
+auto integrate_1d_trapezoidal(const T& func, int n, const U& upper, const U& lower)
+{
+    using variable_type = decltype(func(0.f));
+
+    variable_type sum = 0;
+
+    for(int k=1; k < n; k++)
+    {
+        auto coordinate = lower + k * (upper - lower) / n;
+
+        auto val = func(coordinate);
+
+        sum += val;
+    }
+
+    return ((upper - lower) / n) * (func(lower)/2.f + sum + func(upper)/2.f);
+}
+
+template<typename T, typename U>
+inline
+auto integrate_3d_trapezoidal(const T& func, int n, const U& upper, const U& lower)
+{
+    auto z_integral = [&](auto z)
+    {
+        auto y_integral = [&](auto y)
+        {
+            auto x_integral = [&](auto x)
+            {
+                return func(x,y,z);
+            };
+
+            return integrate_1d_trapezoidal(x_integral, n, upper[0], lower[0]);
+        };
+
+        return integrate_1d_trapezoidal(y_integral, n, upper[1], lower[1]);
+    };
+
+    return integrate_1d_trapezoidal(z_integral, n, upper[2], lower[2]);
+}
+*/
+
 //todo: split out into particles_init
 struct particle_params
 {

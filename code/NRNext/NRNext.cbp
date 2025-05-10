@@ -131,6 +131,7 @@
 		<Unit filename="kreiss_oliger.hpp" />
 		<Unit filename="laplace.hpp" />
 		<Unit filename="main.cpp" />
+		<Unit filename="particles.hpp" />
 		<Unit filename="plugin.cpp" />
 		<Unit filename="plugin.hpp" />
 		<Unit filename="raytrace.cpp" />
