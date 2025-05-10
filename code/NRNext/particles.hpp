@@ -52,34 +52,40 @@ Or
 //todo: split out into particles_init
 struct particle_params
 {
-    //laid out as v4f to ease writing to gpu
-    std::vector<v4f> positions;
-    std::vector<v4f> velocities;
+    std::array<std::vector<float>, 3> positions;
+    std::array<std::vector<float>, 3> velocities;
     std::vector<float> masses;
 
-    void add(v3f position, v3f velocity, float mass)
+    void add(t3f position, t3f velocity, float mass)
     {
-        positions.push_back({position.x(), position.y(), position.z()});
-        velocities.push_back({velocity.x(), velocity.y(), velocity.z()});
+        for(int i=0; i < 3; i++)
+        {
+            positions[i].push_back(position[i]);
+            velocities[i].push_back(velocity[i]);
+        }
+
         masses.push_back(mass);
     }
 };
 
 struct particle_data
 {
-    cl::buffer positions;
-    cl::buffer velocities;
+    std::array<cl::buffer, 3> positions;
+    std::array<cl::buffer, 3> velocities;
     cl::buffer masses;
 
-    particle_data(cl::context& ctx) : positions(ctx), velocities(ctx), masses(ctx){}
+    particle_data(cl::context& ctx) : positions{ctx, ctx, ctx}, velocities{ctx, ctx, ctx}, masses(ctx){}
 
     void add(cl::command_queue& cqueue, const particle_params& params)
     {
-        positions.alloc(sizeof(cl_float4) * params.positions.size());
-        positions.write(cqueue, params.positions);
+        for(int i=0; i < 3; i++)
+        {
+            positions[i].alloc(sizeof(cl_float4) * params.positions.size());
+            velocities[i].alloc(sizeof(cl_float4) * params.velocities.size());
 
-        velocities.alloc(sizeof(cl_float4) * params.velocities.size());
-        velocities.write(cqueue, params.velocities);
+            positions[i].write(cqueue, params.positions[i]);
+            velocities[i].write(cqueue, params.velocities[i]);
+        }
 
         masses.alloc(sizeof(cl_float) * params.masses.size());
         masses.write(cqueue, params.masses);
