@@ -39,6 +39,7 @@ struct all_laplace_args : value_impl::single_source::argument_pack
     buffer<valuef> cfl;
     buffer<valuef> aij_aIJ;
     buffer<valuef> mu_h_cfl;
+    buffer<valuef> particles_contrib;
 
     void build(auto& in)
     {
@@ -47,6 +48,7 @@ struct all_laplace_args : value_impl::single_source::argument_pack
         add(cfl, in);
         add(aij_aIJ, in);
         add(mu_h_cfl, in);
+        add(particles_contrib, in);
     }
 };
 
@@ -271,7 +273,7 @@ std::pair<cl::buffer, initial_pack> initial_params::build(cl::context& ctx, cl::
 {
     std::optional<particle_data> gpu_particles;
 
-    if(particles.positions.size() > 0)
+    if(particles.size() > 0)
     {
         particle_data& dat = gpu_particles.emplace(ctx);
         dat.add(cqueue, particles);
@@ -295,6 +297,11 @@ std::pair<cl::buffer, initial_pack> initial_params::build(cl::context& ctx, cl::
     for(neutron_star::data& dat : params_ns)
     {
         dat.finalise(ctx, cqueue, pack.disc, dim, get_scale(simulation_width, dim));
+    }
+
+    if(particles.size() > 0)
+    {
+        pack.gpu_particles = std::move(gpu_particles);
     }
 
     {

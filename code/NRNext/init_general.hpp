@@ -73,6 +73,7 @@ struct initial_pack
     tensor<int, 3> dim;
     float scale = 0.f;
     cl::buffer aij_aIJ_buf;
+    std::optional<particle_data> gpu_particles;
 
     initial_pack(cl::context& ctx, cl::command_queue& cqueue, tensor<int, 3> _dim, float _scale) : disc(ctx), aij_aIJ_buf(ctx)
     {
@@ -135,6 +136,7 @@ struct initial_pack
         args.push_back(disc.cfl);
         args.push_back(aij_aIJ_buf);
         args.push_back(disc.mu_h_cfl);
+        args.push_back(disc.particles_contrib);
     }
 };
 

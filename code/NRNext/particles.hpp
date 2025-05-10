@@ -146,6 +146,11 @@ struct particle_params
     std::array<std::vector<float>, 3> velocities;
     std::vector<float> masses;
 
+    int size()
+    {
+        return positions[0].size();
+    }
+
     void add(t3f position, t3f velocity, float mass)
     {
         for(int i=0; i < 3; i++)
