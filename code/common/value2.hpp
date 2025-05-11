@@ -523,6 +523,14 @@ namespace value_impl
             PROPAGATE_BASE2(DIVIDE, op_divide);
             PROPAGATE_BASE1(UMINUS, op_unary_minus);
 
+            PROPAGATE_BASE2(LT, op_lt);
+            PROPAGATE_BASE2(LTE, op_lte);
+            PROPAGATE_BASE2(EQ, op_eq);
+            PROPAGATE_BASE2(NEQ, op_neq);
+            PROPAGATE_BASE2(GT, op_gt);
+            PROPAGATE_BASE2(GTE, op_gte);
+            PROPAGATE_BASE1(NOT, op_not);
+
             PROPAGATE_BASE3(FMA, ufma);
 
             PROPAGATE_BASE1(SIN, usin);

@@ -96,6 +96,12 @@ namespace stdmath
     };
 
     constexpr
+    auto op_not = []<typename T>(const T& v1)
+    {
+        return !v1;
+    };
+
+    constexpr
     auto usign = []<typename T>(T in)
     {
         if constexpr(std::is_same_v<T, bool>)
