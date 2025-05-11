@@ -569,6 +569,9 @@ namespace value_impl
             PROPAGATE_BASE2(MAX, umax);
             PROPAGATE_BASE3(CLAMP, uclamp);
 
+            //hmm. I can't replay ternary, because the types aren't the same
+            //PROPAGATE_BASE3(TERNARY, uternary);
+
             if(out)
                 return out.value();
         }
