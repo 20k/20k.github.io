@@ -71,7 +71,7 @@ void dirac_test()
     float dirac_location = 0.215f;
 
     int grid_size = 101;
-    float world_width = 10;
+    float world_width = 3;
     float scale = (world_width / (grid_size - 1));
 
     std::vector<float> values;
@@ -93,7 +93,9 @@ void dirac_test()
     {
         float world = g2w(i);
 
-        float dirac = dirac_delta2(world - dirac_location);
+        float dirac = dirac_delta2(fabs(world - dirac_location));
+
+        //printf("")
 
         values[i] = dirac;
     }

@@ -1,0 +1,51 @@
+---
+layout: post
+title:  "Numerical Relativity 106: There are some particles and we're going to simulate them innit"
+date:   2025-06-14 12:33:23 +0000
+categories: C++
+published: false
+---
+
+Fdfdf intro
+
+# The Dirac Delta Function $\delta$
+
+This article is going to contain a lot of information on the dirac delta function, so buckle up. The dirac delta function has a very obtuse and non useful definition:
+
+$$\delta(x) =
+\begin{align}
+\begin{cases}
+0, \; &x \neq 0 \\
+\infty, \; &x = 0
+\end{cases}
+\end{align}
+$$
+
+For all intents and purposes, this definition can be completely disregarded. The more useful definition of the dirac delta function is as follows:
+
+$$\int^\infty_{-\infty} \delta(x) \; dx = 1$$
+
+This is the key property of the dirac delta function. It has an integral of $1$, and yet it only applies to a single infinitesimal point, with no area. This may seem very curious, but take the example a pointlike particle's contribution to gravity. We know that it has infinitesimal extent as it is pointlike, and so where it interacts with the stress energy tensor must also be an infinitesimal area
+
+This still seems clearly absurd, but the maths works out - and its often described more as an integration trick. People will frequently say, you never actually need to implement this, because it'll disappear. Unfortunately, ours doesn't!
+
+## Implementing the dirac delta function
+
+Numerically, its clear that this function is unworkable. So instead, we want to implement something that approximates the dirac delta function - in essence, you smear it out over a small area. We might demand that this new function has a few properties:
+
+1. It is compactly supported, ie it has finite extent
+2. It is smooth-ish
+3. This function has an integral of 1
+
+Lets examine a basic dirac delta discretisation, as a triangle:
+
+$$\Delta(x) =
+\begin{align}
+\begin{cases}
+1 - x, \; &\mid x\mid < 1 \\
+0, \; \mathrm{otherwise}
+\end{cases}
+\end{align}
+$$
+
+This function spans the range $-1$ to $1$. The integral of $1-x$ from $0$ to $1$ is $0.5$, so its area is correct. This is a valid, albeit not very smooth, discretisation
