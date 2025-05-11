@@ -49,3 +49,9 @@ $$\Delta(x) =
 $$
 
 This function spans the range $-1$ to $1$. The integral of $1-x$ from $0$ to $1$ is $0.5$, so its area is correct. This is a valid, albeit not very smooth, discretisation
+
+So we can just swap $\delta(x)$ to $\Delta(x)$ right? Right?
+
+## Low grid resolutions
+
+Todo: I think I figured out the problem. When its like, 5 grid cells across, its too inaccurate

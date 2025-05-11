@@ -70,7 +70,7 @@ void dirac_test()
 
     float dirac_location = 0.215f;
 
-    int grid_size = 101;
+    int grid_size = 5;
     float world_width = 3;
     float scale = (world_width / (grid_size - 1));
 
@@ -93,7 +93,15 @@ void dirac_test()
     {
         float world = g2w(i);
 
+        float im1 = world - scale / 2.f;
+        float ip1 = world + scale / 2.f;
+
         float dirac = dirac_delta2(fabs(world - dirac_location));
+
+        /*float dirac = integrate_1d_trapezoidal([&](float in)
+        {
+            return dirac_delta2(fabs(in - dirac_location));
+        }, 10, ip1, im1) / scale;*/
 
         //printf("")
 

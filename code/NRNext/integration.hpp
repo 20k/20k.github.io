@@ -1,6 +1,7 @@
 #ifndef INTEGRATION_HPP_INCLUDED
 #define INTEGRATION_HPP_INCLUDED
 
+///todo: fixme args
 template<typename T, typename U>
 inline
 auto integrate_1d_trapezoidal(const T& func, int n, const U& upper, const U& lower)
