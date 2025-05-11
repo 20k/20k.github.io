@@ -5,7 +5,6 @@
 #include "../common/single_source.hpp"
 #include <array>
 #include "plugin.hpp"
-#include "integration.hpp"
 #include "value_alias.hpp"
 
 //https://arxiv.org/abs/2404.03722 - star cluster
@@ -69,42 +68,7 @@ valuef dirac_delta(const valuef& r, const valuef& radius)
     return result;
 }
 
-inline
-float dirac_delta(const float& r, const float& radius)
-{
-    float frac = r / radius;
-
-    float mult = 1/(M_PI * pow(radius, 3.f));
-
-    float result = 0;
-
-    float branch_1 = (1.f/4.f) * pow(2.f - frac, 3.f);
-    float branch_2 = 1.f - (3.f/2.f) * pow(frac, 2.f) + (3.f/4.f) * pow(frac, 3.f);
-
-    result = frac <= 2 ? mult * branch_1 : 0.f;
-    result = frac <= 1 ? mult * branch_2 : result;
-
-    return result;
-}
-
-inline
-void dirac_test()
-{
-    float radius = 0.1f;
-    float dirac_location = 0.5f;
-
-    auto func = [&](float in)
-    {
-        return dirac_delta(in - dirac_location, radius);
-    };
-
-    //valuef result = integrate_1d_trapezoidal(func, 100, 0.f, 1.f);
-    float result = integrate_1d_trapezoidal(func, 100, 0.f, 1.f);
-
-    std::cout << "Result " << result << std::endl;
-
-    //std::cout << value_to_string(result) << std::endl;
-}
+void dirac_test();
 
 /*
 ///https://arxiv.org/pdf/1611.07906.pdf (20)
