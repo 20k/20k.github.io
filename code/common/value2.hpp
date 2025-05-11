@@ -569,9 +569,6 @@ namespace value_impl
             PROPAGATE_BASE2(MAX, umax);
             PROPAGATE_BASE3(CLAMP, uclamp);
 
-            //hmm. I can't replay ternary, because the types aren't the same
-            //PROPAGATE_BASE3(TERNARY, uternary);
-
             if(out)
                 return out.value();
         }
@@ -808,6 +805,15 @@ namespace value_impl
 
             if(equivalent(in.args[1], in.args[1].make_constant_of_type(-5.f)))
                 return in.args[0].make_constant_of_type(1)/((in.args[0] * in.args[0]) * (in.args[0] * in.args[0]) * in.args[0]);
+        }
+
+        if(in.type == op::TERNARY)
+        {
+            if(equivalent(in.args[0], in.args[0].make_constant_of_type(true)))
+                return in.args[1];
+
+            if(equivalent(in.args[0], in.args[0].make_constant_of_type(false)))
+                return in.args[2];
         }
 
         return in;
