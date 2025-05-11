@@ -963,47 +963,46 @@ namespace value_impl
             return from_base<T>(optimise(result));
         }
 
-
         friend value<bool> operator<(const value<T>& v1, const value<T>& v2) {
             value<bool> result;
             result.type = op::LT;
             result.args = {v1, v2};
-            return result;
+            return from_base<bool>(optimise(result));
         }
 
         friend value<bool> operator<=(const value<T>& v1, const value<T>& v2) {
             value<bool> result;
             result.type = op::LTE;
             result.args = {v1, v2};
-            return result;
+            return from_base<bool>(optimise(result));
         }
 
         friend value<bool> operator==(const value<T>& v1, const value<T>& v2) {
             value<bool> result;
             result.type = op::EQ;
             result.args = {v1, v2};
-            return result;
+            return from_base<bool>(optimise(result));
         }
 
         friend value<bool> operator!=(const value<T>& v1, const value<T>& v2) {
             value<bool> result;
             result.type = op::NEQ;
             result.args = {v1, v2};
-            return result;
+            return from_base<bool>(optimise(result));
         }
 
         friend value<bool> operator>(const value<T>& v1, const value<T>& v2) {
             value<bool> result;
             result.type = op::GT;
             result.args = {v1, v2};
-            return result;
+            return from_base<bool>(optimise(result));
         }
 
         friend value<bool> operator>=(const value<T>& v1, const value<T>& v2) {
             value<bool> result;
             result.type = op::GTE;
             result.args = {v1, v2};
-            return result;
+            return from_base<bool>(optimise(result));
         }
 
         friend value<T>& operator+=(value<T>& v1, const value<T>& v2) {
@@ -1034,7 +1033,7 @@ namespace value_impl
             value<bool> result;
             result.type = op::NOT;
             result.args = {v1};
-            return result;
+            return from_base<bool>(optimise(result));
         }
 
         template<typename U>

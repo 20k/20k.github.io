@@ -483,7 +483,9 @@ namespace value_impl
     template<typename T>
     std::string to_string_s(T v)
     {
-        if constexpr(std::is_integral_v<T>)
+        if constexpr(std::is_same_v<T, bool>)
+            return v ? "true" : "false";
+        else if constexpr(std::is_integral_v<T>)
             return std::to_string(v);
         else
         {
