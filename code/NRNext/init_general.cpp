@@ -52,6 +52,8 @@ struct all_laplace_args : value_impl::single_source::argument_pack
     }
 };
 
+//https://arxiv.org/pdf/1905.08890 2.11 particle initial conditions, 2.28 and 2.26
+//past me alleges that this boils down to pow(phi, -1), as its phi^5 * the conformal factor in p's calculation
 laplace_solver get_laplace_solver_impl(cl::context ctx)
 {
     laplace_solver laplace;

@@ -1686,6 +1686,20 @@ namespace value_impl
         return from_base<T>(optimise(make_op<value<T>>(op::TERNARY, {condition, if_true, if_false})));
     }
 
+    template<typename T>
+    inline
+    value<T> ternary(const value<bool>& condition, const value<T>& if_true, std::type_identity_t<T> if_false)
+    {
+        return from_base<T>(optimise(make_op<value<T>>(op::TERNARY, {condition, if_true, value<T>(if_false)})));
+    }
+
+    template<typename T>
+    inline
+    value<T> ternary(const value<bool>& condition, std::type_identity_t<T> if_true, const value<T>& if_false)
+    {
+        return from_base<T>(optimise(make_op<value<T>>(op::TERNARY, {condition, value<T>(if_true), if_false})));
+    }
+
     template<typename T, int N>
     inline
     tensor<value<T>, N> ternary(const value<bool>& condition, const tensor<value<T>, N>& if_true, const tensor<value<T>, N>& if_false)

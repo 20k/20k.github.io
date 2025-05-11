@@ -5,6 +5,8 @@
 #include "../common/single_source.hpp"
 #include <array>
 #include "plugin.hpp"
+#include "integration.hpp"
+#include "value_alias.hpp"
 
 //https://arxiv.org/abs/2404.03722 - star cluster
 //https://arxiv.org/pdf/1208.3927.pdf - eom
@@ -48,6 +50,24 @@ Or
 
 #2 has the benefit of absolute correctness. #1 has the benefit of perf. But the perf tradeoff may already have been semi solved
 */
+
+inline
+valuef dirac_delta(const valuef& r, const valuef& radius)
+{
+    valuef frac = r / radius;
+
+    valuef mult = 1/(M_PI * pow(radius, 3.f));
+
+    valuef result = 0;
+
+    valuef branch_1 = (1.f/4.f) * pow(2.f - frac, 3.f);
+    valuef branch_2 = 1.f - (3.f/2.f) * pow(frac, 2.f) + (3.f/4.f) * pow(frac, 3.f);
+
+    result = ternary(frac <= 2, mult * branch_1, 0.f);
+    result = ternary(frac <= 1, mult * branch_2, result);
+
+    return result;
+}
 
 /*
 ///https://arxiv.org/pdf/1611.07906.pdf (20)
@@ -96,47 +116,8 @@ void build_dirac_sample(equation_context& ctx)
     ctx.add("DIRAC_DISC_OUT", out);
 }
 
-template<typename T, typename U>
-inline
-auto integrate_1d_trapezoidal(const T& func, int n, const U& upper, const U& lower)
-{
-    using variable_type = decltype(func(0.f));
 
-    variable_type sum = 0;
-
-    for(int k=1; k < n; k++)
-    {
-        auto coordinate = lower + k * (upper - lower) / n;
-
-        auto val = func(coordinate);
-
-        sum += val;
-    }
-
-    return ((upper - lower) / n) * (func(lower)/2.f + sum + func(upper)/2.f);
-}
-
-template<typename T, typename U>
-inline
-auto integrate_3d_trapezoidal(const T& func, int n, const U& upper, const U& lower)
-{
-    auto z_integral = [&](auto z)
-    {
-        auto y_integral = [&](auto y)
-        {
-            auto x_integral = [&](auto x)
-            {
-                return func(x,y,z);
-            };
-
-            return integrate_1d_trapezoidal(x_integral, n, upper[0], lower[0]);
-        };
-
-        return integrate_1d_trapezoidal(y_integral, n, upper[1], lower[1]);
-    };
-
-    return integrate_1d_trapezoidal(z_integral, n, upper[2], lower[2]);
-}
+ - 2 * (float)M_PI * pow(phi, -1) * cached_non_conformal_pH
 */
 
 //todo: split out into particles_init
