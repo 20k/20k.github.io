@@ -1735,6 +1735,8 @@ initial_params get_initial_params()
 
 int main()
 {
+    dirac_test();
+
     render_settings sett;
     sett.width = 1280;
     sett.height = 720;
