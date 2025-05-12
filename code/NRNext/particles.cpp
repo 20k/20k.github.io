@@ -108,8 +108,9 @@ T get_dirac(auto&& func, tensor<T, 3> world_pos, tensor<T, 3> dirac_location, T 
 
 //https://arxiv.org/pdf/1611.07906 16
 void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_args<buffer<valuef>> in,
-                                       buffer<valuei64> nonconformal_E_out,
-                                       literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count)
+                                       buffer_mut<valuei64> nonconformal_E_out,
+                                       literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count,
+                                       literal<valued> fixed_scale)
 {
     using namespace single_source;
 
@@ -122,7 +123,7 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
     int radius_cells = 3;
     valuef radius_world = radius_cells * scale.get();
 
-    valuef dirac_prefix = 1/(M_PI * pow(radius_world, 3.f));
+    //valuef dirac_prefix = 1/(M_PI * pow(radius_world, 3.f));
 
     valuef lorentz = 1;
     valuef mass = in.get_mass(id);
@@ -141,14 +142,6 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
         {
             for(int x = -spread; x <= spread; x++)
             {
-                t3f offset_cpu = {x, y, z};
-                float dirac_len = offset_cpu.length();
-
-                float dirac_suffix = dirac_delta_cells_without_prefix(dirac_len, radius_cells);
-
-                if(dirac_suffix == 0)
-                    continue;
-
                 v3i offset = {x, y, z};
                 offset += cell;
 
@@ -156,7 +149,22 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
 
                 v3f world_offset = (v3f)offset * scale.get();
 
-                valuef dirac = dirac_prefix * dirac_suffix;
+                valuef dirac = dirac_delta_v((world_offset - pos).length(), radius_world);
+
+                if_e(dirac > 0, [&]{
+                    //the mass may be extremely small
+                    //E might be absolutely tiny
+                    valued E_d = (valued)E;
+                    valued E_scaled = E_d * fixed_scale.get();
+
+                    valuei64 as_i64 = (valuei64)E_scaled;
+
+                    ///[offset, dim.get()]
+
+                    valuei idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
+
+                    nonconformal_E_out.atom_add_e(idx, as_i64);
+                });
             }
         }
     }
