@@ -184,9 +184,9 @@ struct particle_base_args : virtual value_impl::single_source::argument_pack
     {
         using namespace value_impl::builder;
 
-        add(pos);
-        add(vel);
-        add(mass);
+        add(pos, in);
+        add(vel, in);
+        add(mass, in);
     }
 };
 

@@ -193,11 +193,13 @@ void fixed_to_float(execution_context& ectx, buffer<valuei64> in, buffer<valuef>
 
 void boot_particle_kernels(cl::context ctx)
 {
-    /*
     cl::async_build_and_cache(ctx, [&]{
-        return value_impl::make_function(init_hydro, "init_hydro", use_colour);
-    }, {"init_hydro"});
-    */
+        return value_impl::make_function(calculate_particle_nonconformal_E, "calculate_particle_nonconformal_E");
+    }, {"calculate_particle_nonconformal_E"});
+
+    cl::async_build_and_cache(ctx, [&]{
+        return value_impl::make_function(fixed_to_float, "fixed_to_float");
+    }, {"fixed_to_float"});
 }
 
 //so. I need to calculate E, without the conformal factor
