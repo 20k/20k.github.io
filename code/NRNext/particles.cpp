@@ -1,7 +1,26 @@
 #include "particles.hpp"
 #include "integration.hpp"
 
-float dirac_delta(const float& r, const float& radius)
+//3d
+valuef dirac_delta_v(const valuef& r, const valuef& radius)
+{
+    valuef frac = r / radius;
+
+    valuef mult = 1/(M_PI * pow(radius, 3.f));
+
+    valuef result = 0;
+
+    valuef branch_1 = (1.f/4.f) * pow(2.f - frac, 3.f);
+    valuef branch_2 = 1.f - (3.f/2.f) * pow(frac, 2.f) + (3.f/4.f) * pow(frac, 3.f);
+
+    result = ternary(frac <= 2, mult * branch_1, 0.f);
+    result = ternary(frac <= 1, mult * branch_2, result);
+
+    return result;
+}
+
+//3d
+float dirac_delta_f(const float& r, const float& radius)
 {
     float frac = r / radius;
 
@@ -23,27 +42,39 @@ float dirac_delta(const float& r, const float& radius)
     return 0.f;
 }
 
-float dirac_delta2(float x, float dx)
-{
-    if(x <= 0.5f * dx)
-    {
-        return 3.f/4.f + pow(x / dx, 2.f);
-    }
-
-    if(x <= (3.f/2.f) * dx)
-    {
-        return 0.5f * pow(3.f/2.f - x/dx, 2.f);
-    }
-
-    return 0.f;
-}
-
+//1d
 float dirac_delta_1d(const float& r)
 {
     if(r >= 1)
         return 0.f;
 
     return 1 - r;
+}
+
+template<typename T>
+inline
+T get_dirac(auto&& func, tensor<T, 3> world_pos, tensor<T, 3> dirac_location, T radius, T scale)
+{
+    T r = (world_pos - dirac_location).length();
+
+    #ifdef GET_DIRAC_STANDARD
+    return func(r, radius);
+    #endif // GET_DIRAC_STANDARD
+
+    #define GET_DIRAC_CORRECTED
+    #ifdef GET_DIRAC_CORRECTED
+    tensor<T, 3> scale3 = {scale, scale, scale};
+
+    auto im1 = world_pos - scale3 / 2;
+    auto ip1 = world_pos + scale3 / 2;
+
+    return integrate_3d_trapezoidal([&](T x, T y, T z)
+    {
+        tensor<T, 3> pos = {x, y, z};
+
+        return func((pos - dirac_location).length(), radius);
+    }, 10, ip1, im1) / (scale*scale*scale);
+    #endif // GET_DIRAC_CORRECTED
 }
 
 void dirac_test()
@@ -78,23 +109,7 @@ void dirac_test()
                 t3i gpos = {x, y, z};
                 t3f wpos = g2w((t3f)gpos);
 
-                #ifdef DIRAC_STANDARD
-                t3f rel = wpos - dirac_location;
-                float dirac = dirac_delta(rel.length(), 1.f);
-                #endif
-
-                #define DIRAC_EXACT
-                #ifdef DIRAC_EXACT
-                t3f im1 = wpos - (t3f){scale/2, scale/2, scale/2};
-                t3f ip1 = wpos + (t3f){scale/2, scale/2, scale/2};
-
-                float dirac = integrate_3d_trapezoidal([&](float x, float y, float z)
-                {
-                    t3f pos = {x, y, z};
-
-                    return dirac_delta((pos - dirac_location).length(), 1.f);
-                }, 100, ip1, im1) / (scale*scale*scale);
-                #endif
+                float dirac = get_dirac(dirac_delta_f, wpos, dirac_location, 1.f, scale);
 
                 values[z * grid_size * grid_size + y * grid_size + x] = dirac;
             }

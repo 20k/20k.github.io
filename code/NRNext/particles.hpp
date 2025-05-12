@@ -50,24 +50,6 @@ Or
 #2 has the benefit of absolute correctness. #1 has the benefit of perf. But the perf tradeoff may already have been semi solved
 */
 
-inline
-valuef dirac_delta(const valuef& r, const valuef& radius)
-{
-    valuef frac = r / radius;
-
-    valuef mult = 1/(M_PI * pow(radius, 3.f));
-
-    valuef result = 0;
-
-    valuef branch_1 = (1.f/4.f) * pow(2.f - frac, 3.f);
-    valuef branch_2 = 1.f - (3.f/2.f) * pow(frac, 2.f) + (3.f/4.f) * pow(frac, 3.f);
-
-    result = ternary(frac <= 2, mult * branch_1, 0.f);
-    result = ternary(frac <= 1, mult * branch_2, result);
-
-    return result;
-}
-
 void dirac_test();
 
 /*
