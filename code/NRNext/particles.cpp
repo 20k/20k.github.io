@@ -204,8 +204,6 @@ void calculate_particle_intermediates(execution_context& ectx,
     int radius_cells = 3;
     valuef radius_world = radius_cells * scale.get();
 
-    //valuef dirac_prefix = 1/(M_PI * pow(radius_world, 3.f));
-
     valuef lorentz = particles_in.get_lorentz(id) + 1;
     valuef mass = particles_in.get_mass(id);
     v3f pos = particles_in.get_position(id);
@@ -390,6 +388,10 @@ void boot_particle_kernels(cl::context ctx)
     cl::async_build_and_cache(ctx, [&]{
         return value_impl::make_function(calculate_particle_properties, "calculate_particle_properties");
     }, {"calculate_particle_properties"});
+
+    cl::async_build_and_cache(ctx, [&]{
+        return value_impl::make_function(calculate_particle_intermediates, "calculate_particle_intermediates");
+    }, {"calculate_particle_intermediates"});
 }
 
 //so. I need to calculate E, without the conformal factor
