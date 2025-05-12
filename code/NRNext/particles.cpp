@@ -140,7 +140,7 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
 
     v3i cell = (v3i)floor(world_to_grid(pos, dim.get(), scale.get()));
 
-    valuef E = in.mass[id] * lorentz;
+    valuef E = mass * lorentz;
 
     int spread = radius_cells + 1;
 
@@ -458,23 +458,27 @@ std::vector<buffer_descriptor> particle_buffers::get_description()
     mass.name = "mass";
     mass.sommerfeld_enabled = false;
 
-    return {p0, p1, p2, v0, v1, v2, mass};
+    buffer_descriptor lorentz;
+    lorentz.name = "lorentz";
+    lorentz.sommerfeld_enabled = false;
+
+    return {p0, p1, p2, v0, v1, v2, mass, lorentz};
 }
 
 std::vector<cl::buffer> particle_buffers::get_buffers()
 {
-    return {pos[0], pos[1], pos[2], vel[0], vel[1], vel[2], mass};
+    return {positions[0], positions[1], positions[2], velocities[0], velocities[1], velocities[2], masses, lorentzs};
 }
 
 void particle_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t3i size)
 {
     for(int i=0; i < 3; i++)
     {
-        pos[i].alloc(sizeof(cl_float) * particle_count);
-        vel[i].alloc(sizeof(cl_float) * particle_count);
+        positions[i].alloc(sizeof(cl_float) * particle_count);
+        velocities[i].alloc(sizeof(cl_float) * particle_count);
     }
 
-    mass.alloc(sizeof(cl_float) * particle_count);
+    masses.alloc(sizeof(cl_float) * particle_count);
 };
 
 void particle_plugin::add_args_provider(all_adm_args_mem& mem)
@@ -522,5 +526,30 @@ tensor<valuef, 3, 3> full_particle_args<T>::adm_W2_Sij(bssn_args& args, const de
 
 void particle_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, cl::buffer u, buffer_provider* to_init, buffer_provider* to_init_utility)
 {
+    assert(pack.gpu_particles);
 
+    particle_buffers& p_out = *dynamic_cast<particle_buffers*>(to_init);
+
+    particle_data& p_in = pack.gpu_particles.value();
+
+    {
+        cl_ulong count = particle_count;
+
+        cl::args args;
+        in.append_to(args);
+        args.push_back(p_in.positions[0], p_in.positions[1], p_in.positions[2]);
+        args.push_back(p_in.velocities[0], p_in.velocities[1], p_in.velocities[2]);
+        args.push_back(p_out.velocities[0], p_out.velocities[1], p_out.velocities[2]);
+        args.push_back(p_out.lorentzs);
+        args.push_back(count);
+        args.push_back(pack.dim);
+        args.push_back(pack.scale);
+
+        cqueue.exec("calculate_particle_properties", args, {count}, {128});
+    }
+
+    cl::copy(cqueue, p_in.positions[0], p_out.positions[0]);
+    cl::copy(cqueue, p_in.positions[1], p_out.positions[1]);
+    cl::copy(cqueue, p_in.positions[2], p_out.positions[2]);
+    cl::copy(cqueue, p_in.masses, p_out.masses);
 }

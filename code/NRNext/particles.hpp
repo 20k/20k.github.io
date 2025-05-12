@@ -161,32 +161,39 @@ struct particle_data
 template<typename T>
 struct particle_base_args : virtual value_impl::single_source::argument_pack
 {
-    std::array<T, 3> pos;
-    std::array<T, 3> vel;
-    T mass;
+    std::array<T, 3> positions;
+    std::array<T, 3> velocities;
+    T masses;
+    T lorentzs;
 
     v3f get_position(value<size_t> idx)
     {
-        return {pos[0][idx], pos[1][idx], pos[2][idx]};
+        return {positions[0][idx], positions[1][idx], positions[2][idx]};
     }
 
     v3f get_velocity(value<size_t> idx)
     {
-        return {vel[0][idx], vel[1][idx], vel[2][idx]};
+        return {velocities[0][idx], velocities[1][idx], velocities[2][idx]};
     }
 
     valuef get_mass(value<size_t> idx)
     {
-        return mass[idx];
+        return masses[idx];
+    }
+
+    valuef get_lorentz(value<size_t> idx)
+    {
+        return lorentzs[idx];
     }
 
     void build(value_impl::type_storage& in)
     {
         using namespace value_impl::builder;
 
-        add(pos, in);
-        add(vel, in);
-        add(mass, in);
+        add(positions, in);
+        add(velocities, in);
+        add(masses, in);
+        add(lorentzs, in);
     }
 };
 
@@ -201,12 +208,13 @@ struct particle_utility_args : virtual value_impl::single_source::argument_pack
 
 struct particle_buffers : buffer_provider
 {
-    std::array<cl::buffer, 3> pos;
-    std::array<cl::buffer, 3> vel;
-    cl::buffer mass;
+    std::array<cl::buffer, 3> positions;
+    std::array<cl::buffer, 3> velocities;
+    cl::buffer masses;
+    cl::buffer lorentzs;
     uint64_t particle_count = 0;
 
-    particle_buffers(cl::context ctx, uint64_t _particle_count) : pos{ctx, ctx, ctx}, vel{ctx, ctx, ctx}, mass{ctx}, particle_count(_particle_count){}
+    particle_buffers(cl::context ctx, uint64_t _particle_count) : positions{ctx, ctx, ctx}, velocities{ctx, ctx, ctx}, masses{ctx}, lorentzs{ctx}, particle_count(_particle_count){}
 
     virtual std::vector<buffer_descriptor> get_description() override;
     virtual std::vector<cl::buffer> get_buffers() override;
