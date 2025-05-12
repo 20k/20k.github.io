@@ -113,8 +113,15 @@ T get_dirac(auto&& func, tensor<T, 3> world_pos, tensor<T, 3> dirac_location, T 
 //sqrt(det(Y_ij)) = phi^12^0.5 = phi^6
 //E = non_cfl_E  phi^-6
 
+//det(cA) = c^n det(A). For us, c^3
+//Yij = W^2 cY
+//det(Yij) = det(W^2 cY)
+//det(Yij) = W^6 det(cY)
+//sqrt(det(Yij)) = W^6^0.5
+//= W^3
+
 //https://arxiv.org/pdf/1611.07906 16
-void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_args<buffer<valuef>> in,
+void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_args<buffer<valuef>> particles_in,
                                        buffer_mut<valuei64> nonconformal_E_out,
                                        literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count,
                                        literal<valued> fixed_scale)
@@ -134,9 +141,9 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
     //valuef dirac_prefix = 1/(M_PI * pow(radius_world, 3.f));
 
     valuef lorentz = 1;
-    valuef mass = in.get_mass(id);
-    v3f pos = in.get_position(id);
-    v3f vel = in.get_velocity(id);
+    valuef mass = particles_in.get_mass(id);
+    v3f pos = particles_in.get_position(id);
+    v3f vel = particles_in.get_velocity(id);
 
     v3i cell = (v3i)floor(world_to_grid(pos, dim.get(), scale.get()));
 
@@ -162,7 +169,7 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
                 if_e(dirac > 0, [&]{
                     //the mass may be extremely small
                     //E might be absolutely tiny
-                    valued E_d = (valued)E;
+                    valued E_d = (valued)(E * dirac);
                     valued E_scaled = E_d * fixed_scale.get();
 
                     valuei64 as_i64 = (valuei64)E_scaled;
@@ -172,6 +179,113 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
                     valuei idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
 
                     nonconformal_E_out.atom_add_e(idx, as_i64);
+                });
+            }
+        }
+    }
+}
+
+void calculate_particle_intermediates(execution_context& ectx,
+                                      bssn_args_mem<buffer<valuef>> in,
+                                      particle_base_args<buffer<valuef>> particles_in,
+                                      particle_utility_args<buffer_mut<valuei64>> out,
+                                      literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count,
+                                      literal<valued> fixed_scale)
+{
+    using namespace single_source;
+
+    value<size_t> id = value_impl::get_global_id_us(0);
+    pin(id);
+
+    if_e(id >= particle_count.get(), [&]{
+        return_e();
+    });
+
+    int radius_cells = 3;
+    valuef radius_world = radius_cells * scale.get();
+
+    //valuef dirac_prefix = 1/(M_PI * pow(radius_world, 3.f));
+
+    valuef lorentz = particles_in.get_lorentz(id) + 1;
+    valuef mass = particles_in.get_mass(id);
+    v3f pos = particles_in.get_position(id);
+    v3f vel = particles_in.get_velocity(id);
+
+    pin(pos);
+    pin(vel);
+    pin(mass);
+    pin(lorentz);
+
+    v3i cell = (v3i)floor(world_to_grid(pos, dim.get(), scale.get()));
+
+    int spread = radius_cells + 1;
+
+    for(int z = -spread; z <= spread; z++)
+    {
+        for(int y = -spread; y <= spread; y++)
+        {
+            for(int x = -spread; x <= spread; x++)
+            {
+                v3i offset = {x, y, z};
+                offset += cell;
+
+                offset = clamp(offset, (v3i){0,0,0}, dim.get() - 1);
+
+                bssn_args args(offset, dim.get(), in);
+
+                valuef sqrt_det_Gamma = pow(max(args.W, 0.1f), 3);
+
+                v3f world_offset = (v3f)offset * scale.get();
+
+                valuef dirac = dirac_delta_v((world_offset - pos).length(), radius_world);
+
+                if_e(dirac > 0, [&] {
+                    valuef fin_E = mass * lorentz * dirac / sqrt_det_Gamma;
+                    v3f Si_raised = (mass * lorentz * dirac / sqrt_det_Gamma) * vel;
+
+                    tensor<valuef, 3, 3> Sij_raised;
+
+                    for(int i=0; i < 3; i++)
+                    {
+                        for(int j=0; j < 3; j++)
+                        {
+                            Sij_raised[i, j] = (mass * lorentz * dirac / sqrt_det_Gamma) * vel[i] * vel[j];
+                        }
+                    }
+
+                    std::array<valuef, 6> Sij_sym = extract_symmetry(Sij_raised);
+
+                    auto scale = [&](valuef in)
+                    {
+                        valued in_d = (valued)in;
+                        valued in_scaled = in_d * fixed_scale.get();
+
+                        return (valuei64)in_scaled;
+                    };
+
+                    valuei64 E_scaled = scale(fin_E);
+
+                    tensor<valuei64, 3> Si_scaled;
+
+                    for(int i=0; i < 3; i++)
+                        Si_scaled[i] = scale(Si_raised[i]);
+
+                    std::array<valuei64, 6> Sij_scaled;
+
+                    for(int i=0; i < 6; i++)
+                        Sij_scaled[i] = scale(Sij_sym[i]);
+
+                    ///[offset, dim.get()]
+
+                    valuei idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
+
+                    out.E.atom_add_e(idx, E_scaled);
+
+                    for(int i=0; i < 3; i++)
+                        out.Si_raised[i].atom_add_e(idx, Si_scaled[i]);
+
+                    for(int i=0; i < 6; i++)
+                        out.Sij_raised[i].atom_add_e(idx, Sij_scaled[i]);
                 });
             }
         }
@@ -580,6 +694,7 @@ void particle_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffe
     assert(pack.gpu_particles);
 
     particle_buffers& p_out = *dynamic_cast<particle_buffers*>(to_init);
+    particle_utility_buffers& util_out = *dynamic_cast<particle_utility_buffers*>(to_init_utility);
 
     particle_data& p_in = pack.gpu_particles.value();
 
