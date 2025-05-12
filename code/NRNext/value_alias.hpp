@@ -8,6 +8,7 @@ using valuef = value<float>;
 using valued = value<double>;
 using valuei = value<int>;
 using valueh = value<float16>;
+using valuei64 = value<std::int64_t>;
 
 using v2f = tensor<valuef, 2>;
 using v3f = tensor<valuef, 3>;

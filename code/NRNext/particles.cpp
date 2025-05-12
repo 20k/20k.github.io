@@ -84,6 +84,13 @@ T get_dirac(auto&& func, tensor<T, 3> world_pos, tensor<T, 3> dirac_location, T 
                     literal<valuei> positions_length,
                     literal<valuef> scale, buffer_mut<value<std::int64_t>> sum)*/
 
+//https://arxiv.org/pdf/1611.07906 16
+void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_args<buffer<valuef>> in,
+                                       literal<v3i> idim, literal<valuef> scale, literal<valuei64> particle_count)
+{
+
+}
+
 void boot_particle_kernels(cl::context ctx)
 {
     /*
