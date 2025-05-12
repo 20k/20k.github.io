@@ -165,17 +165,17 @@ struct particle_base_args : virtual value_impl::single_source::argument_pack
     std::array<T, 3> vel;
     T mass;
 
-    v3f get_pos(valuei idx)
+    v3f get_position(value<size_t> idx)
     {
         return {pos[0][idx], pos[1][idx], pos[2][idx]};
     }
 
-    v3f get_vel(valuei idx)
+    v3f get_velocity(value<size_t> idx)
     {
         return {vel[0][idx], vel[1][idx], vel[2][idx]};
     }
 
-    valuef get_mass(valuei idx)
+    valuef get_mass(value<size_t> idx)
     {
         return mass[idx];
     }

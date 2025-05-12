@@ -1,5 +1,6 @@
 #include "particles.hpp"
 #include "integration.hpp"
+#include "bssn.hpp"
 
 //3d
 valuef dirac_delta_v(const valuef& r, const valuef& radius)
@@ -38,6 +39,27 @@ float dirac_delta_f(const float& r, const float& radius)
         return mult * branch_2;
     if(frac <= 2)
         return mult * branch_1;
+
+    return 0.f;
+}
+
+//3d
+float dirac_delta_cells_without_prefix(const float& r_cells, const float& radius_cells)
+{
+    float frac = r_cells / radius_cells;
+
+    float result = 0;
+
+    float branch_1 = (1.f/4.f) * pow(2.f - frac, 3.f);
+    float branch_2 = 1.f - (3.f/2.f) * pow(frac, 2.f) + (3.f/4.f) * pow(frac, 3.f);
+
+    //result = frac <= 2 ? mult * branch_1 : 0.f;
+    //result = frac <= 1 ? mult * branch_2 : result;
+
+    if(frac <= 1)
+        return branch_2;
+    if(frac <= 2)
+        return branch_1;
 
     return 0.f;
 }
@@ -87,7 +109,7 @@ T get_dirac(auto&& func, tensor<T, 3> world_pos, tensor<T, 3> dirac_location, T 
 //https://arxiv.org/pdf/1611.07906 16
 void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_args<buffer<valuef>> in,
                                        buffer<valuei64> nonconformal_E_out,
-                                       literal<v3i> idim, literal<valuef> scale, literal<value<size_t>> particle_count)
+                                       literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count)
 {
     using namespace single_source;
 
@@ -97,6 +119,47 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
         return_e();
     });
 
+    int radius_cells = 3;
+    valuef radius_world = radius_cells * scale.get();
+
+    valuef dirac_prefix = 1/(M_PI * pow(radius_world, 3.f));
+
+    valuef lorentz = 1;
+    valuef mass = in.get_mass(id);
+    v3f pos = in.get_position(id);
+    v3f vel = in.get_velocity(id);
+
+    v3i cell = (v3i)floor(world_to_grid(pos, dim.get(), scale.get()));
+
+    valuef E = in.mass[id] * lorentz;
+
+    int spread = radius_cells + 1;
+
+    for(int z = -spread; z <= spread; z++)
+    {
+        for(int y = -spread; y <= spread; y++)
+        {
+            for(int x = -spread; x <= spread; x++)
+            {
+                t3f offset_cpu = {x, y, z};
+                float dirac_len = offset_cpu.length();
+
+                float dirac_suffix = dirac_delta_cells_without_prefix(dirac_len, radius_cells);
+
+                if(dirac_suffix == 0)
+                    continue;
+
+                v3i offset = {x, y, z};
+                offset += cell;
+
+                offset = clamp(offset, (v3i){0,0,0}, dim.get() - 1);
+
+                v3f world_offset = (v3f)offset * scale.get();
+
+                valuef dirac = dirac_prefix * dirac_suffix;
+            }
+        }
+    }
 }
 
 void boot_particle_kernels(cl::context ctx)
