@@ -119,6 +119,7 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
     using namespace single_source;
 
     value<size_t> id = value_impl::get_global_id_us(0);
+    pin(id);
 
     if_e(id >= particle_count.get(), [&]{
         return_e();
@@ -172,6 +173,22 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
             }
         }
     }
+}
+
+void fixed_to_float(execution_context& ectx, buffer<valuei64> in, buffer<valuef> out, literal<valued> fixed_scale, literal<valuei> count)
+{
+    using namespace single_source;
+
+    valuei id = value_impl::get_global_id(0);
+    pin(id);
+
+    if_e(id >= count.get(), [&]{
+        return_e();
+    });
+
+    valued as_double = (valued)in[id] / fixed_scale.get();
+
+    out[id] = (valuef)as_double;
 }
 
 void boot_particle_kernels(cl::context ctx)
