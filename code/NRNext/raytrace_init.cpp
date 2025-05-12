@@ -26,55 +26,6 @@ v4f normalise(v4f in, m44f m)
     return in / sqrt(fabs(d));
 }
 
-struct inverse_tetrad
-{
-    std::array<v4f, 4> v_lo;
-
-    v4f into_frame_of_reference(v4f in)
-    {
-        v4f out;
-
-        for(int i=0; i < 4; i++)
-            out[i] = dot(in, v_lo[i]);
-
-        return out;
-    }
-};
-
-struct tetrad
-{
-    std::array<v4f, 4> v;
-
-    v4f into_coordinate_space(v4f in)
-    {
-        return v[0] * in.x() + v[1] * in.y() + v[2] * in.z() + v[3] * in.w();
-    }
-
-    inverse_tetrad invert()
-    {
-        inverse_tetrad invert;
-
-        tensor<valuef, 4, 4> as_matrix;
-
-        for(int i=0; i < 4; i++)
-        {
-            for(int j=0; j < 4; j++)
-            {
-                as_matrix[i, j] = v[i][j];
-            }
-        }
-
-        tensor<valuef, 4, 4> inv = as_matrix.asymmetric_invert();
-
-        invert.v_lo[0] = {inv[0, 0], inv[0, 1], inv[0, 2], inv[0, 3]};
-        invert.v_lo[1] = {inv[1, 0], inv[1, 1], inv[1, 2], inv[1, 3]};
-        invert.v_lo[2] = {inv[2, 0], inv[2, 1], inv[2, 2], inv[2, 3]};
-        invert.v_lo[3] = {inv[3, 0], inv[3, 1], inv[3, 2], inv[3, 3]};
-
-        return invert;
-    }
-};
-
 tetrad gram_schmidt(v4f v0, v4f v1, v4f v2, v4f v3, m44f m)
 {
     using namespace single_source;
@@ -256,24 +207,14 @@ std::array<v3f, 3> orthonormalise(v3f i1, v3f i2, v3f i3)
     return {u1, u2, u3};
 };
 
-
-template<auto GetMetric, typename... T>
-void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
-                           literal<v3f> local_velocity,
-                           buffer_mut<v4f> position_out,
-                           buffer_mut<v4f> e0_out, buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out,
-                           T... extra)
+tetrad calculate_tetrad(m44f metric, v3f local_velocity, bool should_orient)
 {
     using namespace single_source;
-
-    as_ref(position_out[0]) = position.get();
 
     v4f v0 = {1, 0, 0, 0};
     v4f v1 = {0, 1, 0, 0};
     v4f v2 = {0, 0, 1, 0};
     v4f v3 = {0, 0, 0, 1};
-
-    m44f metric = GetMetric(position.get(), extra...);
 
     //these are actually the column vectors of the metric tensor
     v4f lv0 = metric.lower(v0);
@@ -328,12 +269,8 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
     tetrad tet;
     tet.v = {declare_e(tetrad_array[0]), declare_e(tetrad_array[1]), declare_e(tetrad_array[2]), declare_e(tetrad_array[3])};
 
-    bool should_orient = true;
-
     if(should_orient)
     {
-        v3f cart = position.get().yzw();
-
         v4f dx = (v4f){0, 1, 0, 0};
         v4f dy = (v4f){0, 0, 1, 0};
         v4f dz = (v4f){0, 0, 0, 1};
@@ -375,7 +312,25 @@ void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
         tet.v[3] = z_out;
     }
 
-    tetrad boosted = boost_tetrad(local_velocity.get(), tet, metric);
+    tetrad boosted = boost_tetrad(local_velocity, tet, metric);
+
+    return boosted;
+}
+
+template<auto GetMetric, typename... T>
+void build_initial_tetrads(execution_context& ectx, literal<v4f> position,
+                           literal<v3f> local_velocity,
+                           buffer_mut<v4f> position_out,
+                           buffer_mut<v4f> e0_out, buffer_mut<v4f> e1_out, buffer_mut<v4f> e2_out, buffer_mut<v4f> e3_out,
+                           T... extra)
+{
+    using namespace single_source;
+
+    as_ref(position_out[0]) = position.get();
+
+    m44f metric = GetMetric(position.get(), extra...);
+
+    tetrad boosted = calculate_tetrad(metric, local_velocity.get(), true);
 
     as_ref(e0_out[0]) = boosted.v[0];
     as_ref(e1_out[0]) = boosted.v[1];

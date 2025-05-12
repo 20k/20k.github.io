@@ -192,6 +192,32 @@ void fixed_to_float(execution_context& ectx, buffer<valuei64> in, buffer<valuef>
     out[id] = (valuef)as_double;
 }
 
+/*
+///https://arxiv.org/pdf/0904.4184.pdf 1.4.18
+float4 get_timelike_vector(float3 cartesian_basis_speed, float time_direction,
+                           float4 e0, float4 e1, float4 e2, float4 e3)
+{
+
+    float v2 = dot(cartesian_basis_speed, cartesian_basis_speed);
+
+    float Y = 1 / sqrt(1 - v2);
+
+    float4 bT = time_direction * Y * e0;
+    float4 bX = Y * cartesian_basis_speed.x * e1;
+    float4 bY = Y * cartesian_basis_speed.y * e2;
+    float4 bZ = Y * cartesian_basis_speed.z * e3;
+
+    return bT + bX + bY + bZ;
+}
+*/
+
+//screw it. Do the whole tetrad spiel from raytrace_init, I've already done it. Return a tetrad
+
+void calculate_velocities(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, std::array<buffer<valuef>, 3> vel_in, std::array<buffer<valuef>, 3> vel_out, literal<value<size_t>> count)
+{
+
+}
+
 void boot_particle_kernels(cl::context ctx)
 {
     cl::async_build_and_cache(ctx, [&]{
@@ -201,6 +227,10 @@ void boot_particle_kernels(cl::context ctx)
     cl::async_build_and_cache(ctx, [&]{
         return value_impl::make_function(fixed_to_float, "fixed_to_float");
     }, {"fixed_to_float"});
+
+    cl::async_build_and_cache(ctx, [&]{
+        return value_impl::make_function(calculate_velocities, "calculate_velocities");
+    }, {"calculate_velocities"});
 }
 
 //so. I need to calculate E, without the conformal factor
@@ -443,4 +473,9 @@ template<typename T>
 tensor<valuef, 3, 3> full_particle_args<T>::adm_W2_Sij(bssn_args& args, const derivative_data& d)
 {
     return {};
+}
+
+void particle_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, cl::buffer u, buffer_provider* to_init, buffer_provider* to_init_utility)
+{
+
 }

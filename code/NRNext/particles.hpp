@@ -246,7 +246,7 @@ struct particle_plugin : plugin
     virtual buffer_provider* get_buffer_factory(cl::context ctx) override;
     ///you only get one copy of this
     virtual buffer_provider* get_utility_buffer_factory(cl::context ctx) override;
-    virtual void init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, cl::buffer u, buffer_provider* to_init, buffer_provider* to_init_utility) override{}
+    virtual void init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, cl::buffer u, buffer_provider* to_init, buffer_provider* to_init_utility) override;
     virtual void step(cl::context ctx, cl::command_queue cqueue, const plugin_step_data& sdata) override{}
     virtual void finalise(cl::context ctx, cl::command_queue cqueue, const finalise_data& sdata) override{}
 
