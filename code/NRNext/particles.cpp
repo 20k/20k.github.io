@@ -23,7 +23,7 @@ float dirac_delta(const float& r, const float& radius)
     return 0.f;
 }
 
-float dirac_delta3(float x, float dx)
+float dirac_delta2(float x, float dx)
 {
     if(x <= 0.5f * dx)
     {
@@ -38,12 +38,7 @@ float dirac_delta3(float x, float dx)
     return 0.f;
 }
 
-float test_dirac1(float r)
-{
-    return (4.f/3.f) * M_PI * dirac_delta(r, 1);
-}
-
-float dirac_delta2(const float& r)
+float dirac_delta_1d(const float& r)
 {
     if(r >= 1)
         return 0.f;
