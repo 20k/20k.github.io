@@ -2,6 +2,8 @@
 #include "integration.hpp"
 #include "bssn.hpp"
 #include "init_general.hpp"
+#include "formalisms.hpp"
+#include "raytrace_init.hpp"
 
 //3d
 valuef dirac_delta_v(const valuef& r, const valuef& radius)
@@ -211,11 +213,54 @@ float4 get_timelike_vector(float3 cartesian_basis_speed, float time_direction,
 }
 */
 
-//screw it. Do the whole tetrad spiel from raytrace_init, I've already done it. Return a tetrad
-
-void calculate_velocities(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, std::array<buffer<valuef>, 3> vel_in, std::array<buffer<valuef>, 3> vel_out, literal<value<size_t>> count)
+v4f get_timelike_vector(v3f speed, tetrad tet)
 {
+    valuef v2 = dot(speed, speed);
 
+    valuef Y = 1 / sqrt(1 - v2);
+
+    v4f bT = Y * tet.v[0];
+    v4f bX = Y * speed.x() * tet.v[1];
+    v4f bY = Y * speed.y() * tet.v[2];
+    v4f bZ = Y * speed.z() * tet.v[3];
+
+    return bT + bX + bY + bZ;
+}
+
+//screw it. Do the whole tetrad spiel from raytrace_init, I've already done it. Return a tetrad
+void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, std::array<buffer<valuef>, 3> pos_in, std::array<buffer<valuef>, 3> vel_in, std::array<buffer_mut<valuef>, 3> vel_out, buffer_mut<valuef> lorentz_out, literal<value<size_t>> count, literal<v3i> dim, literal<valuef> scale)
+{
+    using namespace single_source;
+
+    value<size_t> id = value_impl::get_global_id_us(0);
+
+    if_e(id >= count.get(), [&]{
+        return_e();
+    });
+
+    v3f world_pos = {pos_in[0][id], pos_in[1][id], pos_in[2][id]};
+
+    v3f cell_pos = world_to_grid(world_pos, dim.get(), scale.get());
+
+    adm_variables vars = admf_at(cell_pos, dim.get(), in);
+
+    m44f metric = calculate_real_metric(vars.Yij, vars.gA, vars.gB);
+
+    tetrad tet = calculate_tetrad(metric, {0,0,0}, false);
+
+    v3f speed_in = {vel_in[0][id], vel_in[1][id], vel_in[2][id]};
+
+    v4f velocity4 = get_timelike_vector(speed_in, tet);
+
+    valuef lorentz = 1 / sqrt(1 - dot(speed_in, speed_in));
+
+    v4f projected = (velocity4 / lorentz) - get_adm_hypersurface_normal_raised(vars.gA, vars.gB);
+
+    as_ref(vel_out[0][id]) = projected[1];
+    as_ref(vel_out[1][id]) = projected[2];
+    as_ref(vel_out[2][id]) = projected[3];
+    //always store the lorentz factor as lorentz - 1
+    as_ref(lorentz_out[id]) = lorentz - 1;
 }
 
 void boot_particle_kernels(cl::context ctx)
@@ -229,8 +274,8 @@ void boot_particle_kernels(cl::context ctx)
     }, {"fixed_to_float"});
 
     cl::async_build_and_cache(ctx, [&]{
-        return value_impl::make_function(calculate_velocities, "calculate_velocities");
-    }, {"calculate_velocities"});
+        return value_impl::make_function(calculate_particle_properties, "calculate_particle_properties");
+    }, {"calculate_particle_properties"});
 }
 
 //so. I need to calculate E, without the conformal factor
