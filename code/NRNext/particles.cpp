@@ -99,12 +99,16 @@ T get_dirac(auto&& func, tensor<T, 3> world_pos, tensor<T, 3> dirac_location, T 
     #endif // GET_DIRAC_CORRECTED
 }
 
-/*void sum_rest_mass(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
-                    hydrodynamic_base_args<buffer<valuef>> hydro,
-                    hydrodynamic_utility_args<buffer<valuef>> util,
-                    literal<v3i> idim,
-                    literal<valuei> positions_length,
-                    literal<valuef> scale, buffer_mut<value<std::int64_t>> sum)*/
+//so. det(cA) = c^n det(A). For us, c^3
+//in a conformally flat spacetime, det(cfl) = 1
+//we have the quantity E = mass dirac lorentz / sqrt(det(Y))
+//we're calculating the quantity E * sqrt(det(Y))
+//need to calculate what sqrt(det(Y)) is in terms of phis
+//Y_ij = phi^4 cfl_flat
+//det(Y_ij) = det(phi^4 cfl_flat)
+//det(Y_ij) = (phi^4)^3 = phi^12?
+//sqrt(det(Y_ij)) = phi^12^0.5 = phi^6
+//E = non_cfl_E  phi^-6
 
 //https://arxiv.org/pdf/1611.07906 16
 void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_args<buffer<valuef>> in,
