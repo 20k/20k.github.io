@@ -569,7 +569,10 @@ struct mesh
 
                 for(int kk=0; kk < (int)p_base.size(); kk++)
                 {
-                    sommerfeld_buffer(p_base[kk], p_in[kk], p_out[kk], desc[kk].asymptotic_value, desc[kk].wave_speed);
+                    if(desc[kk].sommerfeld_enabled)
+                        sommerfeld_buffer(p_base[kk], p_in[kk], p_out[kk], desc[kk].asymptotic_value, desc[kk].wave_speed);
+                    else
+                        cl::copy(cqueue, p_in[kk], p_out[kk]);
                 }
             }
         };
@@ -1760,11 +1763,15 @@ int main()
     t3i dim = params.dim;
 
     hydrodynamic_plugin* hydro = new hydrodynamic_plugin(ctx, params.linear_viscosity_timescale, params.hydrodynamics_wants_colour(), params.linear_viscosity_strength, params.quadratic_viscosity_strength);
+    particle_plugin* particles = new particle_plugin(ctx, params.particles.size());
 
     std::vector<plugin*> plugins;
 
     if(params.hydrodynamics_enabled())
         plugins.push_back(hydro);
+
+    if(params.particles_enabled())
+        plugins.push_back(particles);
 
     make_derivatives(ctx);
     make_bssn(ctx, plugins, params);
@@ -1822,7 +1829,9 @@ int main()
 
     cqueue.block();
 
-    raytrace_manager rt_bssn(ctx, plugins, params.hydrodynamics_wants_colour(), params.hydrodynamics_enabled(), params.time_between_snapshots);
+    bool matter_enabled = params.hydrodynamics_enabled() || params.particles_enabled();
+
+    raytrace_manager rt_bssn(ctx, plugins, params.hydrodynamics_wants_colour(), matter_enabled, params.time_between_snapshots);
 
     cl::image background = load_background(ctx, cqueue, "../common/esa.png");
 

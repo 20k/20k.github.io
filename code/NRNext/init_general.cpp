@@ -346,3 +346,8 @@ bool initial_params::hydrodynamics_enabled()
 {
     return params_ns.size() > 0;
 }
+
+bool initial_params::particles_enabled()
+{
+    return particles.size() > 0;
+}

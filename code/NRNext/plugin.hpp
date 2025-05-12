@@ -24,6 +24,7 @@ struct buffer_descriptor
     float wave_speed = 1;
     bool has_boundary_condition = true;
     int dissipation_order = 4;
+    bool sommerfeld_enabled = true;
 };
 
 struct adm_args_mem : virtual value_impl::single_source::argument_pack

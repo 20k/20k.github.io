@@ -353,9 +353,63 @@ void dirac_test()
     #endif
 }
 
+std::vector<buffer_descriptor> particle_buffers::get_description()
+{
+    buffer_descriptor p0;
+    p0.name = "p0";
+    p0.sommerfeld_enabled = false;
+
+    buffer_descriptor p1;
+    p1.name = "p1";
+    p1.sommerfeld_enabled = false;
+
+    buffer_descriptor p2;
+    p2.name = "p2";
+    p2.sommerfeld_enabled = false;
+
+    buffer_descriptor v0;
+    v0.name = "v0";
+    v0.sommerfeld_enabled = false;
+
+    buffer_descriptor v1;
+    v1.name = "v1";
+    v1.sommerfeld_enabled = false;
+
+    buffer_descriptor v2;
+    v2.name = "v2";
+    v2.sommerfeld_enabled = false;
+
+    buffer_descriptor mass;
+    mass.name = "mass";
+    mass.sommerfeld_enabled = false;
+
+    return {p0, p1, p2, v0, v1, v2, mass};
+}
+
+std::vector<cl::buffer> particle_buffers::get_buffers()
+{
+    return {pos[0], pos[1], pos[2], vel[0], vel[1], vel[2], mass};
+}
+
+void particle_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t3i size)
+{
+    for(int i=0; i < 3; i++)
+    {
+        pos[i].alloc(sizeof(cl_float) * particle_count);
+        vel[i].alloc(sizeof(cl_float) * particle_count);
+    }
+
+    mass.alloc(sizeof(cl_float) * particle_count);
+};
+
+void particle_plugin::add_args_provider(all_adm_args_mem& mem)
+{
+    mem.add(full_particle_args<buffer<valuef>>());
+}
+
 buffer_provider* particle_plugin::get_buffer_factory(cl::context ctx)
 {
-    return new particle_buffers(ctx);
+    return new particle_buffers(ctx, particle_count);
 }
 
 buffer_provider* particle_plugin::get_utility_buffer_factory(cl::context ctx)
@@ -363,7 +417,29 @@ buffer_provider* particle_plugin::get_utility_buffer_factory(cl::context ctx)
     return new particle_utility_buffers;
 }
 
-particle_plugin::particle_plugin(cl::context ctx)
+particle_plugin::particle_plugin(cl::context ctx, uint64_t _particle_count) : particle_count(_particle_count)
 {
     boot_particle_kernels(ctx);
+}
+
+
+template struct full_particle_args<buffer<valuef>>;
+template struct full_particle_args<buffer_mut<valuef>>;
+
+template<typename T>
+valuef full_particle_args<T>::adm_p(bssn_args& args, const derivative_data& d)
+{
+    return 0.f;
+}
+
+template<typename T>
+tensor<valuef, 3> full_particle_args<T>::adm_Si(bssn_args& args, const derivative_data& d)
+{
+    return {};
+}
+
+template<typename T>
+tensor<valuef, 3, 3> full_particle_args<T>::adm_W2_Sij(bssn_args& args, const derivative_data& d)
+{
+    return {};
 }

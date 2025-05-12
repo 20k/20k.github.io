@@ -193,7 +193,10 @@ struct particle_base_args : virtual value_impl::single_source::argument_pack
 template<typename T>
 struct particle_utility_args : virtual value_impl::single_source::argument_pack
 {
+    void build(value_impl::type_storage& in)
+    {
 
+    }
 };
 
 struct particle_buffers : buffer_provider
@@ -201,8 +204,9 @@ struct particle_buffers : buffer_provider
     std::array<cl::buffer, 3> pos;
     std::array<cl::buffer, 3> vel;
     cl::buffer mass;
+    uint64_t particle_count = 0;
 
-    particle_buffers(cl::context ctx) : pos{ctx, ctx, ctx}, vel{ctx, ctx, ctx}, mass{ctx}{}
+    particle_buffers(cl::context ctx, uint64_t _particle_count) : pos{ctx, ctx, ctx}, vel{ctx, ctx, ctx}, mass{ctx}, particle_count(_particle_count){}
 
     virtual std::vector<buffer_descriptor> get_description() override;
     virtual std::vector<cl::buffer> get_buffers() override;
@@ -212,7 +216,7 @@ struct particle_buffers : buffer_provider
 struct particle_utility_buffers :  buffer_provider
 {
     virtual std::vector<buffer_descriptor> get_description() override{return {};}
-    virtual std::vector<cl::buffer> get_buffers() override{ return {};}
+    virtual std::vector<cl::buffer> get_buffers() override{return {};}
     virtual void allocate(cl::context ctx, cl::command_queue cqueue, t3i size) override{}
 };
 
@@ -234,7 +238,9 @@ struct full_particle_args : adm_args_mem, particle_base_args<T>, particle_utilit
 
 struct particle_plugin : plugin
 {
-    particle_plugin(cl::context ctx);
+    uint64_t particle_count = 0;
+
+    particle_plugin(cl::context ctx, uint64_t _particle_count);
 
     ///we get three copies of these
     virtual buffer_provider* get_buffer_factory(cl::context ctx) override;
@@ -244,7 +250,7 @@ struct particle_plugin : plugin
     virtual void step(cl::context ctx, cl::command_queue cqueue, const plugin_step_data& sdata) override{}
     virtual void finalise(cl::context ctx, cl::command_queue cqueue, const finalise_data& sdata) override{}
 
-    virtual void add_args_provider(all_adm_args_mem& mem) override{}
+    virtual void add_args_provider(all_adm_args_mem& mem) override;
 
     virtual ~particle_plugin(){}
 };
