@@ -294,7 +294,7 @@ std::pair<cl::buffer, initial_pack> initial_params::build(cl::context& ctx, cl::
             pack.add(ctx, cqueue, i);
 
         if(gpu_particles)
-            initialise_particles(ctx, cqueue, pack.disc, gpu_particles.value(), idim, iscale);
+            particle_initial_conditions(ctx, cqueue, pack.disc, gpu_particles.value(), idim, iscale);
 
         pack.finalise(cqueue);
         return pack;

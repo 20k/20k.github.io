@@ -55,7 +55,7 @@ struct discretised_initial_data;
 
 void dirac_test();
 //todo: split out into particles_init.cpp? only if sufficiently complicated
-void initialise_particles(cl::context& ctx, cl::command_queue& cqueue, discretised_initial_data& to_fill, particle_data& data,t3i dim, float scale);
+void particle_initial_conditions(cl::context& ctx, cl::command_queue& cqueue, discretised_initial_data& to_fill, particle_data& data,t3i dim, float scale);
 
 /*
 ///https://arxiv.org/pdf/1611.07906.pdf (20)

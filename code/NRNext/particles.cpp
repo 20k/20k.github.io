@@ -205,7 +205,7 @@ void boot_particle_kernels(cl::context ctx)
 
 //so. I need to calculate E, without the conformal factor
 //https://arxiv.org/pdf/1611.07906 16
-void initialise_particles(cl::context& ctx, cl::command_queue& cqueue, discretised_initial_data& to_fill, particle_data& data, t3i dim, float scale)
+void particle_initial_conditions(cl::context& ctx, cl::command_queue& cqueue, discretised_initial_data& to_fill, particle_data& data, t3i dim, float scale)
 {
     cl::buffer intermediate(ctx);
     intermediate.alloc(sizeof(cl_long) * dim.x() * dim.y() * dim.z());
@@ -422,6 +422,7 @@ particle_plugin::particle_plugin(cl::context ctx, uint64_t _particle_count) : pa
     boot_particle_kernels(ctx);
 }
 
+//consider implementing 3.2 https://arxiv.org/pdf/1905.08890
 
 template struct full_particle_args<buffer<valuef>>;
 template struct full_particle_args<buffer_mut<valuef>>;
