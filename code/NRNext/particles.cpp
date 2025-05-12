@@ -38,6 +38,11 @@ float dirac_delta3(float x, float dx)
     return 0.f;
 }
 
+float test_dirac1(float r)
+{
+    return (4.f/3.f) * M_PI * dirac_delta(r, 1);
+}
+
 float dirac_delta2(const float& r)
 {
     if(r >= 1)
@@ -68,10 +73,59 @@ void dirac_test()
 
     assert(false);*/
 
+    t3f dirac_location = {0, 0, 0.215f};
+
+    int grid_size = 5;
+    float world_width = 5;
+    float scale = (world_width / (grid_size - 1));
+
+    std::vector<float> values;
+    values.resize(grid_size * grid_size * grid_size);
+
+    int centre = (grid_size - 1)/2;
+
+    auto w2g = [&](t3f world)
+    {
+        return (world / scale) + (t3f){centre, centre, centre};
+    };
+
+    auto g2w = [&](t3f grid)
+    {
+        return (grid - (t3f){centre, centre, centre}) * scale;
+    };
+
+    for(int z=0; z < grid_size; z++)
+    {
+        for(int y=0; y < grid_size; y++)
+        {
+            for(int x=0; x < grid_size; x++)
+            {
+                t3i gpos = {x, y, z};
+                t3f wpos = g2w((t3f)gpos);
+
+                t3f rel = wpos - dirac_location;
+
+                float dirac = dirac_delta(rel.length(), 1.f);
+
+                values[z * grid_size * grid_size + y * grid_size + x] = dirac;
+            }
+        }
+    }
+
+    float integrated = 0.f;
+
+    for(auto& i : values)
+    {
+        integrated += i * scale * scale * scale;
+    }
+
+    std::cout << "Integrated " << integrated << std::endl;
+
+    #ifdef DIRAC_1D
     float dirac_location = 0.215f;
 
     int grid_size = 5;
-    float world_width = 3;
+    float world_width = 5;
     float scale = (world_width / (grid_size - 1));
 
     std::vector<float> values;
@@ -96,14 +150,21 @@ void dirac_test()
         float im1 = world - scale / 2.f;
         float ip1 = world + scale / 2.f;
 
-        float dirac = dirac_delta2(fabs(world - dirac_location));
+        //float dirac = dirac_delta2(fabs(world - dirac_location));
 
         /*float dirac = integrate_1d_trapezoidal([&](float in)
         {
             return dirac_delta2(fabs(in - dirac_location));
         }, 10, ip1, im1) / scale;*/
 
-        //printf("")
+        float dirac = test_dirac1(fabs(world - dirac_location));
+
+        printf("Dirac %f\n", dirac);
+
+        /*float dirac = integrate_1d_trapezoidal([&](float in)
+        {
+            return test_dirac1(fabs(in - dirac_location));
+        }, 100, ip1, im1) / scale;*/
 
         values[i] = dirac;
     }
@@ -116,6 +177,7 @@ void dirac_test()
     }
 
     std::cout << "Integrated " << integrated << std::endl;
+    #endif
 
     //std::cout << value_to_string(result) << std::endl;
 }

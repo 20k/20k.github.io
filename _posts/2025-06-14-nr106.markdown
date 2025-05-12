@@ -21,7 +21,7 @@ $$\delta(x) =
 \end{align}
 $$
 
-For all intents and purposes, this definition can be completely disregarded. The more useful definition of the dirac delta function is as follows:
+For all intents and purposes, this definition can be largely disregarded. The more useful definition of the dirac delta function is as follows:
 
 $$\int^\infty_{-\infty} \delta(x) \; dx = 1$$
 
