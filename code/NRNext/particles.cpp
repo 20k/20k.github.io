@@ -77,6 +77,29 @@ T get_dirac(auto&& func, tensor<T, 3> world_pos, tensor<T, 3> dirac_location, T 
     #endif // GET_DIRAC_CORRECTED
 }
 
+/*void sum_rest_mass(execution_context& ectx, bssn_args_mem<buffer<valuef>> in,
+                    hydrodynamic_base_args<buffer<valuef>> hydro,
+                    hydrodynamic_utility_args<buffer<valuef>> util,
+                    literal<v3i> idim,
+                    literal<valuei> positions_length,
+                    literal<valuef> scale, buffer_mut<value<std::int64_t>> sum)*/
+
+void boot_particle_kernels(cl::context ctx)
+{
+    /*
+    cl::async_build_and_cache(ctx, [&]{
+        return value_impl::make_function(init_hydro, "init_hydro", use_colour);
+    }, {"init_hydro"});
+    */
+}
+
+//so. I need to calculate E, without the conformal factor
+//https://arxiv.org/pdf/1611.07906 16
+void initialise_particles(discretised_initial_data& to_fill, particle_data& data, cl::command_queue& cqueue, t3i dim, float scale)
+{
+
+}
+
 void dirac_test()
 {
     t3f dirac_location = {0, 0, 0.215f};
@@ -182,4 +205,9 @@ void dirac_test()
 
     std::cout << "Integrated " << integrated << std::endl;
     #endif
+}
+
+particle_plugin::particle_plugin(cl::context ctx)
+{
+    boot_particle_kernels(ctx);
 }

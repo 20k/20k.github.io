@@ -50,7 +50,12 @@ Or
 #2 has the benefit of absolute correctness. #1 has the benefit of perf. But the perf tradeoff may already have been semi solved
 */
 
+struct particle_data;
+struct discretised_initial_data;
+
 void dirac_test();
+//todo: split out into particles_init.cpp? only if sufficiently complicated
+void initialise_particles(discretised_initial_data& to_fill, particle_data& data, cl::command_queue& cqueue, t3i dim, float scale);
 
 /*
 ///https://arxiv.org/pdf/1611.07906.pdf (20)
@@ -103,14 +108,13 @@ void build_dirac_sample(equation_context& ctx)
  - 2 * (float)M_PI * pow(phi, -1) * cached_non_conformal_pH
 */
 
-//todo: split out into particles_init
 struct particle_params
 {
     std::array<std::vector<float>, 3> positions;
     std::array<std::vector<float>, 3> velocities;
     std::vector<float> masses;
 
-    int size()
+    int64_t size() const
     {
         return positions[0].size();
     }
@@ -129,6 +133,7 @@ struct particle_params
 
 struct particle_data
 {
+    int64_t count = 0;
     std::array<cl::buffer, 3> positions;
     std::array<cl::buffer, 3> velocities;
     cl::buffer masses;
@@ -137,6 +142,8 @@ struct particle_data
 
     void add(cl::command_queue& cqueue, const particle_params& params)
     {
+        count = params.size();
+
         for(int i=0; i < 3; i++)
         {
             positions[i].alloc(sizeof(cl_float4) * params.positions.size());
@@ -228,14 +235,16 @@ struct particle_plugin : plugin
     particle_plugin(cl::context ctx);
 
     ///we get three copies of these
-    virtual buffer_provider* get_buffer_factory(cl::context ctx) override;
+    virtual buffer_provider* get_buffer_factory(cl::context ctx) override{}
     ///you only get one copy of this
-    virtual buffer_provider* get_utility_buffer_factory(cl::context ctx) override;
-    virtual void init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, cl::buffer u, buffer_provider* to_init, buffer_provider* to_init_utility) override;
-    virtual void step(cl::context ctx, cl::command_queue cqueue, const plugin_step_data& sdata) override;
-    virtual void finalise(cl::context ctx, cl::command_queue cqueue, const finalise_data& sdata) override;
+    virtual buffer_provider* get_utility_buffer_factory(cl::context ctx) override{}
+    virtual void init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, cl::buffer u, buffer_provider* to_init, buffer_provider* to_init_utility) override{}
+    virtual void step(cl::context ctx, cl::command_queue cqueue, const plugin_step_data& sdata) override{}
+    virtual void finalise(cl::context ctx, cl::command_queue cqueue, const finalise_data& sdata) override{}
 
-    virtual void add_args_provider(all_adm_args_mem& mem) override;
+    virtual void add_args_provider(all_adm_args_mem& mem) override{}
+
+    virtual ~particle_plugin(){}
 };
 
 #endif // PARTICLES_HPP_INCLUDED
