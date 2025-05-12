@@ -86,8 +86,16 @@ T get_dirac(auto&& func, tensor<T, 3> world_pos, tensor<T, 3> dirac_location, T 
 
 //https://arxiv.org/pdf/1611.07906 16
 void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_args<buffer<valuef>> in,
-                                       literal<v3i> idim, literal<valuef> scale, literal<valuei64> particle_count)
+                                       buffer<valuei64> nonconformal_E_out,
+                                       literal<v3i> idim, literal<valuef> scale, literal<value<size_t>> particle_count)
 {
+    using namespace single_source;
+
+    value<size_t> id = value_impl::get_global_id_us(0);
+
+    if_e(id >= particle_count.get(), [&]{
+        return_e();
+    });
 
 }
 

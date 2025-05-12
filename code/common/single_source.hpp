@@ -513,6 +513,16 @@ namespace value_impl
         return v;
     }
 
+    inline
+    value<size_t> get_global_id_us(const value<int>& idx)
+    {
+        value<size_t> v;
+        v.type = op::GET_GLOBAL_ID;
+        v.args = {idx};
+
+        return v;
+    }
+
     namespace single_source
     {
         using ::value_impl::get_global_id;
