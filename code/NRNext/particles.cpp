@@ -493,7 +493,7 @@ buffer_provider* particle_plugin::get_buffer_factory(cl::context ctx)
 
 buffer_provider* particle_plugin::get_utility_buffer_factory(cl::context ctx)
 {
-    return new particle_utility_buffers;
+    return new particle_utility_buffers(ctx);
 }
 
 particle_plugin::particle_plugin(cl::context ctx, uint64_t _particle_count) : particle_count(_particle_count)
@@ -506,6 +506,9 @@ particle_plugin::particle_plugin(cl::context ctx, uint64_t _particle_count) : pa
 template struct full_particle_args<buffer<valuef>>;
 template struct full_particle_args<buffer_mut<valuef>>;
 
+//going to evaluate the metric at the cell centre
+//so: to do this, we need to discretise everything onto a grid, which means: fixed point
+//may or may not benefit from downscaling to floats
 template<typename T>
 valuef full_particle_args<T>::adm_p(bssn_args& args, const derivative_data& d)
 {
@@ -522,6 +525,54 @@ template<typename T>
 tensor<valuef, 3, 3> full_particle_args<T>::adm_W2_Sij(bssn_args& args, const derivative_data& d)
 {
     return {};
+}
+
+void particle_utility_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t3i size)
+{
+    E.alloc(sizeof(cl_float) * size.x() * size.y() * size.z());
+
+    for(auto& i : Si_raised)
+        i.alloc(sizeof(cl_float) * size.x() * size.y() * size.z());
+
+    for(auto& i : Sij_raised)
+        i.alloc(sizeof(cl_float) * size.x() * size.y() * size.z());
+}
+
+//hmm
+std::vector<buffer_descriptor> particle_utility_buffers::get_description()
+{
+    buffer_descriptor bE;
+    bE.name = "E";
+
+    buffer_descriptor bs0, bs1, bs2;
+    bs0.name = "s0";
+    bs1.name = "s1";
+    bs2.name = "s2";
+
+    buffer_descriptor bss0, bss1, bss2, bss3, bss4, bss5;
+    bss0.name = "ss0";
+    bss1.name = "ss1";
+    bss2.name = "ss2";
+    bss3.name = "ss3";
+    bss4.name = "ss4";
+    bss5.name = "ss5";
+
+    return {bE, bs0, bs1, bs2, bss0, bss1, bss2, bss3, bss4, bss5};
+}
+
+std::vector<cl::buffer> particle_utility_buffers::get_buffers()
+{
+    std::vector<cl::buffer> out;
+
+    out.push_back(E);
+
+    for(auto& i : Si_raised)
+        out.push_back(i);
+
+    for(auto& i : Sij_raised)
+        out.push_back(i);
+
+    return out;
 }
 
 void particle_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, cl::buffer u, buffer_provider* to_init, buffer_provider* to_init_utility)

@@ -200,9 +200,17 @@ struct particle_base_args : virtual value_impl::single_source::argument_pack
 template<typename T>
 struct particle_utility_args : virtual value_impl::single_source::argument_pack
 {
+    T E;
+    std::array<T, 3> Si_raised;
+    std::array<T, 6> Sij_raised;
+
     void build(value_impl::type_storage& in)
     {
+        using namespace value_impl::builder;
 
+        add(E, in);
+        add(Si_raised, in);
+        add(Sij_raised, in);
     }
 };
 
@@ -223,9 +231,15 @@ struct particle_buffers : buffer_provider
 
 struct particle_utility_buffers :  buffer_provider
 {
-    virtual std::vector<buffer_descriptor> get_description() override{return {};}
-    virtual std::vector<cl::buffer> get_buffers() override{return {};}
-    virtual void allocate(cl::context ctx, cl::command_queue cqueue, t3i size) override{}
+    cl::buffer E;
+    std::array<cl::buffer, 3> Si_raised;
+    std::array<cl::buffer, 6> Sij_raised;
+
+    particle_utility_buffers(cl::context ctx) : E{ctx}, Si_raised{ctx, ctx, ctx}, Sij_raised{ctx, ctx, ctx, ctx, ctx, ctx}{}
+
+    virtual std::vector<buffer_descriptor> get_description() override;
+    virtual std::vector<cl::buffer> get_buffers() override;
+    virtual void allocate(cl::context ctx, cl::command_queue cqueue, t3i size) override;
 };
 
 template<typename T>
