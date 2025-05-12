@@ -50,8 +50,22 @@ $$
 
 This function spans the range $-1$ to $1$. The integral of $1-x$ from $0$ to $1$ is $0.5$, so its area is correct. This is a valid, albeit not very smooth, discretisation
 
-So we can just swap $\delta(x)$ to $\Delta(x)$ right? Right?
-
 ## Low grid resolutions
 
-Todo: I think I figured out the problem. When its like, 5 grid cells across, its too inaccurate
+One of the things we most want with the dirac delta function - when discretised - is to preserve the *volume*. That means that this sum:
+
+$$\sum_1^n \Delta(x_n) \; h$$
+
+Should evaluate to exactly $1$, where $h$ is the grid spacing. Now, our naive discretisation like this doesn't actually guarantee that - it only guarantees in the limit as $h \mathrel{-}> 0$. The accuracy of our integral is dependent on the size of the dirac delta discretisation having a sufficient number of grid cells, but the accuracy of our simulation goes down as the number of grid cells covered by the discretisation goes up (as it less accurately approximates the dirac delta function)
+
+One trick we can do is as follows:
+
+$$\sigma = \frac{\int_{x - \frac{dx}{2}}^{x + \frac{dx}{2}} \Delta(y) dy}{h}$$
+
+Where $y$ is our integration variable between the bounds $x - \frac{dx}{2}$ and $x + \frac{dx}{2}$. This leads to an exact conservation of the dirac delta
+
+This also generalises to $n$ dimensions: the integral becomes $n$ integrals, and you divide by $h^n$
+
+## The actual dirac delta discretisation
+
+We'll be using xyz
