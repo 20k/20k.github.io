@@ -53,26 +53,6 @@ float dirac_delta2(const float& r)
 
 void dirac_test()
 {
-    //float radius = 2.f;
-    /*float dirac_location = 0.215f;
-
-    float h = (10 / 1000.);
-
-    auto func = [&](float in)
-    {
-        float x = fabs(in - dirac_location);
-
-        return dirac_delta(x, 1.f);
-        //return dirac_delta3(x, h);
-    };
-
-    //valuef result = integrate_1d_trapezoidal(func, 100, 0.f, 1.f);
-    float result = integrate_1d_trapezoidal(func, 1000, 5.f, -5.f);
-
-    std::cout << "Result " << result << std::endl;
-
-    assert(false);*/
-
     t3f dirac_location = {0, 0, 0.215f};
 
     int grid_size = 5;
@@ -103,9 +83,23 @@ void dirac_test()
                 t3i gpos = {x, y, z};
                 t3f wpos = g2w((t3f)gpos);
 
+                #ifdef DIRAC_STANDARD
                 t3f rel = wpos - dirac_location;
-
                 float dirac = dirac_delta(rel.length(), 1.f);
+                #endif
+
+                #define DIRAC_EXACT
+                #ifdef DIRAC_EXACT
+                t3f im1 = wpos - (t3f){scale/2, scale/2, scale/2};
+                t3f ip1 = wpos + (t3f){scale/2, scale/2, scale/2};
+
+                float dirac = integrate_3d_trapezoidal([&](float x, float y, float z)
+                {
+                    t3f pos = {x, y, z};
+
+                    return dirac_delta((pos - dirac_location).length(), 1.f);
+                }, 100, ip1, im1) / (scale*scale*scale);
+                #endif
 
                 values[z * grid_size * grid_size + y * grid_size + x] = dirac;
             }
@@ -178,6 +172,4 @@ void dirac_test()
 
     std::cout << "Integrated " << integrated << std::endl;
     #endif
-
-    //std::cout << value_to_string(result) << std::endl;
 }
