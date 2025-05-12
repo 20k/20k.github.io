@@ -1,6 +1,7 @@
 #include "particles.hpp"
 #include "integration.hpp"
 #include "bssn.hpp"
+#include "init_general.hpp"
 
 //3d
 valuef dirac_delta_v(const valuef& r, const valuef& radius)
@@ -204,9 +205,45 @@ void boot_particle_kernels(cl::context ctx)
 
 //so. I need to calculate E, without the conformal factor
 //https://arxiv.org/pdf/1611.07906 16
-void initialise_particles(discretised_initial_data& to_fill, particle_data& data, cl::command_queue& cqueue, t3i dim, float scale)
+void initialise_particles(cl::context& ctx, cl::command_queue& cqueue, discretised_initial_data& to_fill, particle_data& data, t3i dim, float scale)
 {
+    cl::buffer intermediate(ctx);
+    intermediate.alloc(sizeof(cl_long) * dim.x() * dim.y() * dim.z());
 
+    ///assume that our total mass is K
+    ///to correctly sum it, we want the scale to be.. well, each particle's mass is K/N
+    ///and we want.. 3 digits ( = log2(10^3) = 10 bits) of precision? as many as possible?
+
+    double approx_total_mass = 1;
+    double fixed_scale = ((double)data.count / approx_total_mass) * pow(10., 4.);
+
+    {
+        cl_ulong count = data.count;
+
+        cl::args args;
+        args.push_back(data.positions[0], data.positions[1], data.positions[2]);
+        args.push_back(data.velocities[0], data.velocities[1], data.velocities[2]);
+        args.push_back(data.masses);
+        args.push_back(intermediate);
+        args.push_back(dim);
+        args.push_back(scale);
+        args.push_back(count);
+        args.push_back(fixed_scale);
+
+        cqueue.exec("calculate_particle_nonconformal_E", args, {dim.x(), dim.y(), dim.z()}, {8, 8, 1});
+    }
+
+    {
+        int size = dim.x() * dim.y() * dim.z();
+
+        cl::args args;
+        args.push_back(intermediate);
+        args.push_back(to_fill.particles_contrib);
+        args.push_back(fixed_scale);
+        args.push_back(size);
+
+        cqueue.exec("fixed_to_float", args, {size}, {128});
+    }
 }
 
 void dirac_test()
