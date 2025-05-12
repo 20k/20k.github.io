@@ -283,7 +283,7 @@ std::pair<cl::buffer, initial_pack> initial_params::build(cl::context& ctx, cl::
     }
 
     auto [u_found, pack] = get_laplace_solver(ctx).solve(ctx, cqueue, simulation_width, dim,
-                                                         [&ctx, &cqueue, this](t3i idim, float iscale)
+                                                         [&ctx, &cqueue, this, &gpu_particles](t3i idim, float iscale)
     {
         initial_pack pack(ctx, cqueue, idim, iscale);
 
@@ -292,6 +292,9 @@ std::pair<cl::buffer, initial_pack> initial_params::build(cl::context& ctx, cl::
 
         for(auto& i : params_ns)
             pack.add(ctx, cqueue, i);
+
+        if(gpu_particles)
+            initialise_particles(ctx, cqueue, pack.disc, gpu_particles.value(), idim, iscale);
 
         pack.finalise(cqueue);
         return pack;
