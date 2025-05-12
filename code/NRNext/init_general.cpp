@@ -53,7 +53,7 @@ struct all_laplace_args : value_impl::single_source::argument_pack
 };
 
 //https://arxiv.org/pdf/1905.08890 2.11 particle initial conditions, 2.28 and 2.26
-//past me alleges that this boils down to pow(phi, -1), as its phi^5 * the conformal factor in p's calculation
+//for the last term, I convert a 1/sqrt(det(Y)) -> phi^-6
 laplace_solver get_laplace_solver_impl(cl::context ctx)
 {
     laplace_solver laplace;
@@ -64,8 +64,9 @@ laplace_solver get_laplace_solver_impl(cl::context ctx)
         v3i dim = params.dim;
         auto cfl = args.cfl[pos, dim] + params.u[pos, dim];
         auto mu_h = args.mu_h_cfl[pos, dim];
+        auto particles = args.particles_contrib[pos, dim];
 
-        return -(1.f/8.f) * pow(cfl, -7) * args.aij_aIJ[pos, dim] - 2 * M_PI * pow(cfl, -3) * mu_h;
+        return -(1.f/8.f) * pow(cfl, -7) * args.aij_aIJ[pos, dim] - 2 * M_PI * pow(cfl, -3) * mu_h - 2 * M_PI * pow(cfl, -1) * particles;
     }, all_laplace_args(), "laplace_rb_mg");
 
     return laplace;
