@@ -353,6 +353,16 @@ void dirac_test()
     #endif
 }
 
+buffer_provider* particle_plugin::get_buffer_factory(cl::context ctx)
+{
+    return new particle_buffers(ctx);
+}
+
+buffer_provider* particle_plugin::get_utility_buffer_factory(cl::context ctx)
+{
+    return new particle_utility_buffers;
+}
+
 particle_plugin::particle_plugin(cl::context ctx)
 {
     boot_particle_kernels(ctx);
