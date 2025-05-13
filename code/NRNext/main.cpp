@@ -1426,7 +1426,7 @@ initial_params get_initial_params()
     #endif
 
     //I1
-    #define INSPIRAL
+    //#define INSPIRAL
     #ifdef INSPIRAL
     neutron_star::parameters p1;
 
@@ -1732,6 +1732,26 @@ initial_params get_initial_params()
 
     init.add(p1);
     #endif
+
+    #define PARTICLE_TESTS
+    #ifdef PARTICLE_TESTS
+    float radial_pos = geometric_to_msol(1000 * 54.6/2, 1);
+
+    particle_params part;
+    part.add({0,0,0}, {0,0,0}, 0.1);
+
+    initial_params init;
+    init.N = 2;
+
+    init.dim = {199, 199, 199};
+    init.simulation_width = radial_pos * 6 * 1.5;
+
+    init.add(std::move(part));
+
+    init.linear_viscosity_timescale = 200;
+    init.time_between_snapshots = 15;
+    init.lapse_damp_timescale = 20;
+    #endif // PARTICLE_TESTS
 
     return init;
 }

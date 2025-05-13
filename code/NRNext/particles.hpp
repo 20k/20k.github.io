@@ -6,6 +6,7 @@
 #include <array>
 #include "plugin.hpp"
 #include "value_alias.hpp"
+#include "bssn.hpp"
 
 //https://arxiv.org/abs/2404.03722 - star cluster
 //https://arxiv.org/pdf/1208.3927.pdf - eom
@@ -203,6 +204,28 @@ struct particle_utility_args : virtual value_impl::single_source::argument_pack
     T E;
     std::array<T, 3> Si_raised;
     std::array<T, 6> Sij_raised;
+
+    T::value_type get_E(v3i pos, v3i dim)
+    {
+        return E[pos, dim];
+    }
+
+    tensor<typename T::value_type, 3> get_Si(v3i pos, v3i dim)
+    {
+        return {Si_raised[0][pos, dim], Si_raised[1][pos, dim], Si_raised[2][pos, dim]};
+    }
+
+    tensor<typename T::value_type, 3, 3> get_Sij(v3i pos, v3i dim)
+    {
+        std::array<typename T::value_type, 6> indexed;
+
+        for(int i=0; i < 6; i++)
+        {
+            indexed[i] = Sij_raised[i][pos, dim];
+        }
+
+        return make_symmetry(indexed);
+    }
 
     void build(value_impl::type_storage& in)
     {

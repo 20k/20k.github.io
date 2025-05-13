@@ -143,9 +143,14 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
     valuef lorentz = 1;
     valuef mass = particles_in.get_mass(id);
     v3f pos = particles_in.get_position(id);
-    v3f vel = particles_in.get_velocity(id);
+    //v3f vel = particles_in.get_velocity(id);
+
+    pin(mass);
+    pin(pos);
+    //pin(vel);
 
     v3i cell = (v3i)floor(world_to_grid(pos, dim.get(), scale.get()));
+    pin(cell);
 
     valuef E = mass * lorentz;
 
@@ -162,9 +167,13 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
 
                 offset = clamp(offset, (v3i){0,0,0}, dim.get() - 1);
 
-                v3f world_offset = (v3f)offset * scale.get();
+                v3f world_pos = grid_to_world((v3f)offset, dim.get(), scale.get());
+                pin(world_pos);
 
-                valuef dirac = dirac_delta_v((world_offset - pos).length(), radius_world);
+                //v3f world_offset = (v3f)offset * scale.get();
+
+                valuef dirac = dirac_delta_v((world_pos - pos).length(), radius_world);
+                pin(dirac);
 
                 if_e(dirac > 0, [&]{
                     //the mass may be extremely small
@@ -215,6 +224,7 @@ void calculate_particle_intermediates(execution_context& ectx,
     pin(lorentz);
 
     v3i cell = (v3i)floor(world_to_grid(pos, dim.get(), scale.get()));
+    pin(cell);
 
     int spread = radius_cells + 1;
 
@@ -233,9 +243,13 @@ void calculate_particle_intermediates(execution_context& ectx,
 
                 valuef sqrt_det_Gamma = pow(max(args.W, 0.1f), 3);
 
-                v3f world_offset = (v3f)offset * scale.get();
+                v3f world_pos = grid_to_world((v3f)offset, dim.get(), scale.get());
+                pin(world_pos);
 
-                valuef dirac = dirac_delta_v((world_offset - pos).length(), radius_world);
+                //v3f world_offset = (v3f)offset * scale.get();
+
+                valuef dirac = dirac_delta_v((world_pos - pos).length(), radius_world);
+                pin(dirac);
 
                 if_e(dirac > 0, [&] {
                     valuef fin_E = mass * lorentz * dirac / sqrt_det_Gamma;
@@ -421,6 +435,7 @@ void particle_initial_conditions(cl::context& ctx, cl::command_queue& cqueue, di
         args.push_back(data.positions[0], data.positions[1], data.positions[2]);
         args.push_back(data.velocities[0], data.velocities[1], data.velocities[2]);
         args.push_back(data.masses);
+        args.push_back(nullptr);
         args.push_back(intermediate);
         args.push_back(dim);
         args.push_back(scale);
@@ -601,6 +616,7 @@ void particle_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t3i s
     }
 
     masses.alloc(sizeof(cl_float) * particle_count);
+    lorentzs.alloc(sizeof(cl_float) * particle_count);
 };
 
 void particle_plugin::add_args_provider(all_adm_args_mem& mem)
@@ -634,30 +650,46 @@ template struct full_particle_args<buffer_mut<valuef>>;
 template<typename T>
 valuef full_particle_args<T>::adm_p(bssn_args& args, const derivative_data& d)
 {
-    return 0.f;
+    return this->E[d.pos, d.dim];
 }
 
 template<typename T>
 tensor<valuef, 3> full_particle_args<T>::adm_Si(bssn_args& args, const derivative_data& d)
 {
-    return {};
+    //todo: fixme
+    auto Yij = args.cY / pow(max(args.W, 0.1f), 2.f);
+
+    v3f Ji = this->get_Si(d.pos, d.dim);
+
+    return Yij.lower(Ji);
 }
 
 template<typename T>
 tensor<valuef, 3, 3> full_particle_args<T>::adm_W2_Sij(bssn_args& args, const derivative_data& d)
 {
-    return {};
+    auto Yij = args.cY / pow(max(args.W, 0.1f), 2.f);
+
+    tensor<valuef, 3, 3> Sij = this->get_Sij(d.pos, d.dim);
+
+    return args.W * args.W * Yij.lower(Yij.lower(Sij, 0), 1);
 }
 
 void particle_utility_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t3i size)
 {
     E.alloc(sizeof(cl_float) * size.x() * size.y() * size.z());
+    E.set_to_zero(cqueue);
 
     for(auto& i : Si_raised)
+    {
         i.alloc(sizeof(cl_float) * size.x() * size.y() * size.z());
+        i.set_to_zero(cqueue);
+    }
 
     for(auto& i : Sij_raised)
+    {
         i.alloc(sizeof(cl_float) * size.x() * size.y() * size.z());
+        i.set_to_zero(cqueue);
+    }
 }
 
 //hmm
@@ -718,7 +750,6 @@ void calculate_intermediates(cl::context ctx, cl::command_queue cqueue, bssn_buf
     double fixed_scale = get_fixed_scale(count);
 
     {
-
         cl::args args;
         in.append_to(args);
         args.push_back(p_in.positions[0], p_in.positions[1], p_in.positions[2]);
