@@ -711,6 +711,59 @@ struct particle_temp
     }
 };
 
+void calculate_intermediates(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, particle_buffers& p_in, particle_utility_buffers& util_out, t3i dim, float scale, cl_ulong count)
+{
+    particle_temp tmp(ctx, cqueue, dim);
+
+    double fixed_scale = get_fixed_scale(count);
+
+    {
+
+        cl::args args;
+        in.append_to(args);
+        args.push_back(p_in.positions[0], p_in.positions[1], p_in.positions[2]);
+        args.push_back(p_in.velocities[0], p_in.velocities[1], p_in.velocities[2]);
+        args.push_back(p_in.lorentzs);
+
+        for(auto& i : tmp.bufs)
+            args.push_back(i);
+
+        args.push_back(dim);
+        args.push_back(scale);
+        args.push_back(count);
+        args.push_back(fixed_scale);
+
+        cqueue.exec("calculate_particle_intermediates", args, {count}, {128});
+    }
+
+    //void fixed_to_float(execution_context& ectx, buffer<valuei64> in, buffer<valuef> out, literal<valued> fixed_scale, literal<valuei> count)
+    {
+        auto fix = [&](cl::buffer b1, cl::buffer b2)
+        {
+            int linear_cnt = dim.x() * dim.y() * dim.z();
+
+            cl::args args;
+            args.push_back(b1);
+            args.push_back(b2);
+            args.push_back(fixed_scale);
+            args.push_back(linear_cnt);
+
+            cqueue.exec("fixed_to_float", args, {linear_cnt}, {128});
+        };
+
+        fix(tmp.bufs[0], util_out.E);
+        fix(tmp.bufs[1], util_out.Si_raised[0]);
+        fix(tmp.bufs[2], util_out.Si_raised[1]);
+        fix(tmp.bufs[3], util_out.Si_raised[2]);
+        fix(tmp.bufs[4], util_out.Sij_raised[0]);
+        fix(tmp.bufs[5], util_out.Sij_raised[1]);
+        fix(tmp.bufs[6], util_out.Sij_raised[2]);
+        fix(tmp.bufs[7], util_out.Sij_raised[3]);
+        fix(tmp.bufs[8], util_out.Sij_raised[4]);
+        fix(tmp.bufs[9], util_out.Sij_raised[5]);
+    }
+}
+
 void particle_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, cl::buffer u, buffer_provider* to_init, buffer_provider* to_init_utility)
 {
     assert(pack.gpu_particles);
@@ -741,60 +794,5 @@ void particle_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffe
     cl::copy(cqueue, p_in.positions[2], p_out.positions[2]);
     cl::copy(cqueue, p_in.masses, p_out.masses);
 
-    particle_temp tmp(ctx, cqueue, pack.dim);
-
-    double fixed_scale = get_fixed_scale(count);
-
-    {
-
-        cl::args args;
-        in.append_to(args);
-        args.push_back(p_out.positions[0], p_out.positions[1], p_out.positions[2]);
-        args.push_back(p_out.velocities[0], p_out.velocities[1], p_out.velocities[2]);
-        args.push_back(p_out.lorentzs);
-        /*args.push_back(util_out.E);
-
-        for(auto& i : util_out.Si_raised)
-            args.push_back(i);
-
-        for(auto& i : util_out.Sij_raised)
-            args.push_back(i);*/
-
-        for(auto& i : tmp.bufs)
-            args.push_back(i);
-
-        args.push_back(pack.dim);
-        args.push_back(pack.scale);
-        args.push_back(count);
-        args.push_back(fixed_scale);
-
-        cqueue.exec("calculate_particle_intermediates", args, {count}, {128});
-    }
-
-    //void fixed_to_float(execution_context& ectx, buffer<valuei64> in, buffer<valuef> out, literal<valued> fixed_scale, literal<valuei> count)
-    {
-        auto fix = [&](cl::buffer b1, cl::buffer b2)
-        {
-            int linear_cnt = pack.dim.x() * pack.dim.y() * pack.dim.z();
-
-            cl::args args;
-            args.push_back(b1);
-            args.push_back(b2);
-            args.push_back(fixed_scale);
-            args.push_back(linear_cnt);
-
-            cqueue.exec("fixed_to_float", args, {linear_cnt}, {128});
-        };
-
-        fix(tmp.bufs[0], util_out.E);
-        fix(tmp.bufs[1], util_out.Si_raised[0]);
-        fix(tmp.bufs[2], util_out.Si_raised[1]);
-        fix(tmp.bufs[3], util_out.Si_raised[2]);
-        fix(tmp.bufs[4], util_out.Sij_raised[0]);
-        fix(tmp.bufs[5], util_out.Sij_raised[1]);
-        fix(tmp.bufs[6], util_out.Sij_raised[2]);
-        fix(tmp.bufs[7], util_out.Sij_raised[3]);
-        fix(tmp.bufs[8], util_out.Sij_raised[4]);
-        fix(tmp.bufs[9], util_out.Sij_raised[5]);
-    }
+    calculate_intermediates(ctx, cqueue, in, p_out, util_out, pack.dim, pack.scale, count);
 }
