@@ -754,6 +754,7 @@ void calculate_intermediates(cl::context ctx, cl::command_queue cqueue, bssn_buf
         in.append_to(args);
         args.push_back(p_in.positions[0], p_in.positions[1], p_in.positions[2]);
         args.push_back(p_in.velocities[0], p_in.velocities[1], p_in.velocities[2]);
+        args.push_back(p_in.masses);
         args.push_back(p_in.lorentzs);
 
         for(auto& i : tmp.bufs)
