@@ -147,8 +147,8 @@ struct particle_data
 
         for(int i=0; i < 3; i++)
         {
-            positions[i].alloc(sizeof(cl_float4) * params.positions.size());
-            velocities[i].alloc(sizeof(cl_float4) * params.velocities.size());
+            positions[i].alloc(sizeof(cl_float) * params.positions[i].size());
+            velocities[i].alloc(sizeof(cl_float) * params.velocities[i].size());
 
             positions[i].write(cqueue, params.positions[i]);
             velocities[i].write(cqueue, params.velocities[i]);
