@@ -551,8 +551,10 @@ void evolve_particles(execution_context& ctx,
     v3f pos_next = p_in.get_position(id);
     v3f vel_base = p_base.get_velocity(id);
     v3f vel_next = p_in.get_velocity(id);
+    valuef lorentz_base = p_base.get_lorentz(id);
+    valuef lorentz_next = p_in.get_lorentz(id);
 
-    valuef lorentz = (p_base.get_lorentz(id) + p_in.get_lorentz(id)) * 0.5f + 1;
+    valuef lorentz = (lorentz_base + lorentz_next) * 0.5f + 1;
     v3f vel = (vel_base + vel_next) * 0.5f;
 
     evolve_vars b_evolve(base, pos_base, dim.get(), scale.get());
@@ -622,7 +624,13 @@ void evolve_particles(execution_context& ctx,
         }
     }
 
+    for(int i=0; i < 3; i++)
+        as_ref(p_out.positions[i][id]) = pos_base[i] + timestep.get() * dX[i];
 
+    for(int i=0; i < 3; i++)
+        as_ref(p_out.velocities[i][id]) = vel_base[i] + timestep.get() * dV[i];
+
+    as_ref(p_out.lorentzs[id]) = lorentz_base + timestep.get() * dlorentz;
 }
 
 void boot_particle_kernels(cl::context ctx)
