@@ -22,17 +22,21 @@ auto function_trilinear(T&& func, v3f pos)
     auto c011 = func(ipos + (v3i){0,1,1});
     auto c111 = func(ipos + (v3i){1,1,1});
 
-    ///numerically symmetric across the centre of dim
-    auto c00 = c000 - frac.x() * (c000 - c100);
-    auto c01 = c001 - frac.x() * (c001 - c101);
+    auto lmix = [&](auto& i1, auto& i2, auto& a)
+    {
+        return i1 * (1-a) + i2 * a;
+    };
 
-    auto c10 = c010 - frac.x() * (c010 - c110);
-    auto c11 = c011 - frac.x() * (c011 - c111);
+    auto c00 = lmix(c000, c100, frac.x());
+    auto c01 = lmix(c010, c110, frac.x());
 
-    auto c0 = c00 - frac.y() * (c00 - c10);
-    auto c1 = c01 - frac.y() * (c01 - c11);
+    auto c10 = lmix(c001, c101, frac.x());
+    auto c11 = lmix(c011, c111, frac.x());
 
-    return c0 - frac.z() * (c0 - c1);
+    auto c0 = lmix(c00, c01, frac.y());
+    auto c1 = lmix(c10, c11, frac.y());
+
+    return lmix(c0, c1, frac.z());
 }
 
 template<typename T>
