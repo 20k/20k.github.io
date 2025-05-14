@@ -378,7 +378,7 @@ struct evolve_vars
         pin(fpos);
 
         fpos = clamp(fpos, (v3f){3,3,3}, (v3f)dim - 4.);
-        //pin(fpos);
+        pin(fpos);
 
         auto gA_at = [&](v3i pos)
         {
@@ -540,12 +540,16 @@ void evolve_particles(execution_context& ctx,
     valuef lorentz_base = p_base.get_lorentz(id);
     valuef lorentz_next = p_in.get_lorentz(id);
 
+    v3f grid_base = world_to_grid(pos_base, dim.get(), scale.get());
+    v3f grid_next = world_to_grid(pos_next, dim.get(), scale.get());
+
+    #define MID
     #ifdef MID
     valuef lorentz = (lorentz_base + lorentz_next) * 0.5f + 1;
     v3f vel = (vel_base + vel_next) * 0.5f;
 
-    evolve_vars b_evolve(base, pos_base, dim.get(), scale.get());
-    evolve_vars i_evolve(in, pos_next, dim.get(), scale.get());
+    evolve_vars b_evolve(base, grid_base, dim.get(), scale.get());
+    evolve_vars i_evolve(in, grid_next, dim.get(), scale.get());
 
     auto cY = (b_evolve.cY + i_evolve.cY) * 0.5f;
     auto W = (b_evolve.W + i_evolve.W) * 0.5f;
@@ -560,7 +564,7 @@ void evolve_particles(execution_context& ctx,
     auto dcY = (b_evolve.dcY + i_evolve.dcY) * 0.5f;
     #else
 
-    evolve_vars i_evolve(in, pos_next, dim.get(), scale.get());
+    evolve_vars i_evolve(in, grid_next, dim.get(), scale.get());
 
     v3f vel = vel_next;
     v3f pos = pos_next;
@@ -622,7 +626,7 @@ void evolve_particles(execution_context& ctx,
         }
     }
 
-    print("dV %f %f %f\n", dV[0], dV[1], dV[2]);
+    //print("dV %f %f %f\n", dV[0], dV[1], dV[2]);
 
     valuef dlorentz = 0;
 
