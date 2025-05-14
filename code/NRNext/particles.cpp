@@ -5,6 +5,7 @@
 #include "formalisms.hpp"
 #include "raytrace_init.hpp"
 
+///https://arxiv.org/pdf/1611.07906.pdf (20)
 //3d
 valuef dirac_delta_v(const valuef& r, const valuef& radius)
 {

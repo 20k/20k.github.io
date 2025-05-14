@@ -58,57 +58,6 @@ void dirac_test();
 //todo: split out into particles_init.cpp? only if sufficiently complicated
 void particle_initial_conditions(cl::context& ctx, cl::command_queue& cqueue, discretised_initial_data& to_fill, particle_data& data,t3i dim, float scale);
 
-/*
-///https://arxiv.org/pdf/1611.07906.pdf (20)
-value dirac_distribution(const value& r, const value& radius)
-{
-    value frac = r / radius;
-
-    value mult = 1/(M_PI * pow(radius, 3.f));
-
-    value result = 0;
-
-    value branch_1 = (1.f/4.f) * pow(2.f - frac, 3.f);
-    value branch_2 = 1.f - (3.f/2.f) * pow(frac, 2.f) + (3.f/4.f) * pow(frac, 3.f);
-
-    result = if_v(frac <= 2, mult * branch_1, value{0});
-    result = if_v(frac <= 1, mult * branch_2, result);
-
-    return result;
-}
-
-value dirac_xyz(const value& x, const value& y, const value& z, const value& radius)
-{
-    return dirac_distribution(sqrt(x*x + y*y + z*z), radius);
-}
-
-void build_dirac_sample(equation_context& ctx)
-{
-    value x = "world_x";
-    value y = "world_y";
-    value z = "world_z";
-    value radius = "world_radius";
-    value scale = "world_cell_size";
-
-    v3f pos = {x, y, z};
-
-    v3f upper = pos + scale/2.f;
-    v3f lower = pos - scale/2.f;
-
-    auto to_integrate = [&](const value& x, const value& y, const value& z)
-    {
-        return dirac_xyz(x, y, z, radius);
-    };
-
-    value out = integrate_3d_trapezoidal(to_integrate, 2, upper, lower);
-
-    ctx.add("DIRAC_DISC_OUT", out);
-}
-
-
- - 2 * (float)M_PI * pow(phi, -1) * cached_non_conformal_pH
-*/
-
 struct particle_params
 {
     std::array<std::vector<float>, 3> positions;
