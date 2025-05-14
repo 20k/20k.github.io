@@ -547,23 +547,26 @@ void evolve_particles(execution_context& ctx,
         return_e();
     });
 
-    v3f pos = p_in.get_position(id);
-    v3f vel = p_in.get_velocity(id);
-    valuef lorentz = p_in.get_lorentz(id) + 1;
+    v3f pos_base = p_base.get_position(id);
+    v3f pos_next = p_in.get_position(id);
 
-    evolve_vars evolve(in, pos, dim.get(), scale.get());
+    valuef lorentz = (p_base.get_lorentz(id) + p_in.get_lorentz(id)) * 0.5f + 1;
+    v3f vel = (p_base.get_velocity(id) + p_in.get_velocity(id)) * 0.5f;
 
-    auto cY = evolve.cY;
-    auto W = evolve.W;
-    auto cA = evolve.cA;
-    auto gA = evolve.gA;
-    auto gB = evolve.gB;
-    auto K = evolve.K;
+    evolve_vars b_evolve(base, pos_base, dim.get(), scale.get());
+    evolve_vars i_evolve(in, pos_next, dim.get(), scale.get());
 
-    auto dW = evolve.dW;
-    auto dgA = evolve.dgA;
-    auto dgB = evolve.dgB;
-    auto dcY = evolve.dcY;
+    auto cY = (b_evolve.cY + i_evolve.cY) * 0.5f;
+    auto W = (b_evolve.W + i_evolve.W) * 0.5f;
+    auto cA = (b_evolve.cA + i_evolve.cA) * 0.5f;
+    auto gA = (b_evolve.gA + i_evolve.gA) * 0.5f;
+    auto gB = (b_evolve.gB + i_evolve.gB) * 0.5f;
+    auto K = (b_evolve.K + i_evolve.K) * 0.5f;
+
+    auto dW = (b_evolve.dW + i_evolve.dW) * 0.5f;
+    auto dgA = (b_evolve.dgA + i_evolve.dgA) * 0.5f;
+    auto dgB = (b_evolve.dgB + i_evolve.dgB) * 0.5f;
+    auto dcY = (b_evolve.dcY + i_evolve.dcY) * 0.5f;
 
     auto icY = cY.invert();
 
