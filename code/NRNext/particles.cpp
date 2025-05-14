@@ -360,7 +360,8 @@ void evolve_particles(execution_context& ctx,
                       particle_base_args<buffer<valuef>> p_base, particle_base_args<buffer<valuef>> p_in, particle_base_args<buffer_mut<valuef>> p_out,
                       literal<value<size_t>> count,
                       literal<v3i> dim,
-                      literal<valuef> scale)
+                      literal<valuef> scale,
+                      literal<valuef> timestep)
 {
     using namespace single_source;
 
