@@ -170,8 +170,6 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
                 v3f world_pos = grid_to_world((v3f)offset, dim.get(), scale.get());
                 pin(world_pos);
 
-                //v3f world_offset = (v3f)offset * scale.get();
-
                 valuef dirac = dirac_delta_v((world_pos - pos).length(), radius_world);
                 pin(dirac);
 
@@ -255,6 +253,8 @@ void calculate_particle_intermediates(execution_context& ectx,
                     valuef fin_E = mass * lorentz * dirac / sqrt_det_Gamma;
                     v3f Si_raised = (mass * lorentz * dirac / sqrt_det_Gamma) * vel;
 
+                    //print("cell %i %i %i E %f\n", cell.x(), cell.y(), cell.z(), fin_E);
+
                     tensor<valuef, 3, 3> Sij_raised;
 
                     for(int i=0; i < 3; i++)
@@ -291,6 +291,8 @@ void calculate_particle_intermediates(execution_context& ectx,
 
                     valuei idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
 
+                    //print("cell %i %i %i E2 %i\n", cell.x(), cell.y(), cell.z(), E_scaled);
+
                     out.E.atom_add_e(idx, E_scaled);
 
                     for(int i=0; i < 3; i++)
@@ -304,7 +306,7 @@ void calculate_particle_intermediates(execution_context& ectx,
     }
 }
 
-void fixed_to_float(execution_context& ectx, buffer<valuei64> in, buffer<valuef> out, literal<valued> fixed_scale, literal<valuei> count)
+void fixed_to_float(execution_context& ectx, buffer<valuei64> in, buffer_mut<valuef> out, literal<valued> fixed_scale, literal<valuei> count)
 {
     using namespace single_source;
 
@@ -315,9 +317,13 @@ void fixed_to_float(execution_context& ectx, buffer<valuei64> in, buffer<valuef>
         return_e();
     });
 
-    valued as_double = (valued)in[id] / fixed_scale.get();
+    valued as_double = ((valued)in[id]) / fixed_scale.get();
 
-    out[id] = (valuef)as_double;
+    /*if_e(as_double != valued(0.), [&]{
+        print("hi %f\n", as_double);
+    });*/
+
+    as_ref(out[id]) = (valuef)as_double;
 }
 
 /*
@@ -411,7 +417,7 @@ void boot_particle_kernels(cl::context ctx)
 double get_fixed_scale(int64_t particle_count)
 {
     double approx_total_mass = 1;
-    double fixed_scale = ((double)particle_count / approx_total_mass) * pow(10., 4.);
+    double fixed_scale = ((double)particle_count / approx_total_mass) * pow(10., 5.);
     return fixed_scale;
 }
 
