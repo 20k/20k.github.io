@@ -333,6 +333,13 @@ void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer
 
     tetrad tet = calculate_tetrad(metric, {0,0,0}, false);
 
+    /*print("Tet %f %f %f %f b %f %f %f %f c %f %f %f %f d %f %f %f %f\n",
+          tet.v[0][0], tet.v[0][1], tet.v[0][2], tet.v[0][3],
+          tet.v[1][0], tet.v[1][1], tet.v[1][2], tet.v[1][3],
+          tet.v[2][0], tet.v[2][1], tet.v[2][2], tet.v[2][3],
+          tet.v[3][0], tet.v[3][1], tet.v[3][2], tet.v[3][3]
+          );*/
+
     v3f speed_in = {vel_in[0][id], vel_in[1][id], vel_in[2][id]};
 
     v4f velocity4 = get_timelike_vector(speed_in, tet);
