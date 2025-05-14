@@ -679,7 +679,7 @@ void boot_particle_kernels(cl::context ctx)
 double get_fixed_scale(int64_t particle_count)
 {
     double approx_total_mass = 1;
-    double fixed_scale = ((double)particle_count / approx_total_mass) * pow(10., 5.);
+    double fixed_scale = ((double)particle_count / approx_total_mass) * pow(10., 6.);
     return fixed_scale;
 }
 
