@@ -46,27 +46,6 @@ float dirac_delta_f(const float& r, const float& radius)
     return 0.f;
 }
 
-//3d
-float dirac_delta_cells_without_prefix(const float& r_cells, const float& radius_cells)
-{
-    float frac = r_cells / radius_cells;
-
-    float result = 0;
-
-    float branch_1 = (1.f/4.f) * pow(2.f - frac, 3.f);
-    float branch_2 = 1.f - (3.f/2.f) * pow(frac, 2.f) + (3.f/4.f) * pow(frac, 3.f);
-
-    //result = frac <= 2 ? mult * branch_1 : 0.f;
-    //result = frac <= 1 ? mult * branch_2 : result;
-
-    if(frac <= 1)
-        return branch_2;
-    if(frac <= 2)
-        return branch_1;
-
-    return 0.f;
-}
-
 //1d
 float dirac_delta_1d(const float& r)
 {
