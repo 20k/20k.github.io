@@ -555,6 +555,7 @@ void evolve_particles(execution_context& ctx,
     valuef lorentz_base = p_base.get_lorentz(id);
     valuef lorentz_next = p_in.get_lorentz(id);
 
+    #ifdef MID
     valuef lorentz = (lorentz_base + lorentz_next) * 0.5f + 1;
     v3f vel = (vel_base + vel_next) * 0.5f;
 
@@ -572,6 +573,27 @@ void evolve_particles(execution_context& ctx,
     auto dgA = (b_evolve.dgA + i_evolve.dgA) * 0.5f;
     auto dgB = (b_evolve.dgB + i_evolve.dgB) * 0.5f;
     auto dcY = (b_evolve.dcY + i_evolve.dcY) * 0.5f;
+    #else
+
+    evolve_vars i_evolve(in, pos_next, dim.get(), scale.get());
+
+    v3f vel = vel_next;
+    v3f pos = pos_next;
+    valuef lorentz = lorentz_next + 1;
+
+    auto cY = (i_evolve.cY) ;
+    auto W = (i_evolve.W) ;
+    auto cA = (i_evolve.cA) ;
+    auto gA = (i_evolve.gA) ;
+    auto gB = (i_evolve.gB) ;
+    auto K = (i_evolve.K) ;
+
+    auto dW = (i_evolve.dW) ;
+    auto dgA = (i_evolve.dgA) ;
+    auto dgB = (i_evolve.dgB) ;
+    auto dcY = (i_evolve.dcY) ;
+
+    #endif
 
     auto icY = cY.invert();
 
@@ -614,6 +636,8 @@ void evolve_particles(execution_context& ctx,
                     - iYij[i, j] * dgA[j] - vel[j] * dgB[j, i];
         }
     }
+
+    print("dV %f %f %f\n", dV[0], dV[1], dV[2]);
 
     valuef dlorentz = 0;
 
