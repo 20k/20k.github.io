@@ -356,7 +356,182 @@ void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer
     as_ref(lorentz_out[id]) = lorentz - 1;
 }
 
+struct evolve_vars
+{
+    valuef gA;
+    v3f gB;
+    valuef W;
+
+    //interpolation no longer guarantees unit determinant
+    metric<valuef, 3, 3> cY;
+    tensor<valuef, 3, 3> cA;
+    valuef K;
+
+    v3f dgA;
+    v3f dW;
+    tensor<valuef, 3, 3> dgB;
+    tensor<valuef, 3, 3, 3> dcY;
+
+    evolve_vars(bssn_args_mem<buffer<valuef>> in, v3f fpos, v3i dim, valuef scale)
+    {
+        using namespace single_source;
+
+        auto gA_at = [&](v3i pos)
+        {
+            pos = clamp(pos, (v3i){1,1,1}, dim - 2);
+
+            bssn_args args(pos, dim, in);
+            //pin(args.gA);
+            return args.gA;
+        };
+
+        auto gB_at = [&](v3i pos)
+        {
+            pos = clamp(pos, (v3i){1,1,1}, dim - 2);
+
+            bssn_args args(pos, dim, in);
+            //pin(args.gA);
+            return args.gB;
+        };
+
+        auto W_at = [&](v3i pos)
+        {
+            pos = clamp(pos, (v3i){1,1,1}, dim - 2);
+
+            bssn_args args(pos, dim, in);
+            //pin(args.W);
+            return args.W;
+        };
+
+        auto cY_at = [&](v3i pos)
+        {
+            pos = clamp(pos, (v3i){1,1,1}, dim - 2);
+
+            bssn_args args(pos, dim, in);
+            //pin(args.cY);
+            return args.cY;
+        };
+
+        auto K_at = [&](v3i pos)
+        {
+            pos = clamp(pos, (v3i){1,1,1}, dim - 2);
+
+            bssn_args args(pos, dim, in);
+            return args.K;
+        };
+
+        auto cA_at = [&](v3i pos)
+        {
+            pos = clamp(pos, (v3i){1,1,1}, dim - 2);
+
+            bssn_args args(pos, dim, in);
+            return args.cA;
+        };
+
+        auto dgA_at = [&](v3i pos)
+        {
+            pos = clamp(pos, (v3i){1,1,1}, dim - 2);
+
+            derivative_data d;
+            d.pos = pos;
+            d.dim = dim;
+            d.scale = scale;
+
+            bssn_args args(pos, dim, in);
+
+            v3f dgA = (v3f){diff1(args.gA, 0, d), diff1(args.gA, 1, d), diff1(args.gA, 2, d)};
+            //pin(dgA);
+
+            return dgA;
+        };
+
+        auto dW_at = [&](v3i pos)
+        {
+            pos = clamp(pos, (v3i){1,1,1}, dim - 2);
+
+            derivative_data d;
+            d.pos = pos;
+            d.dim = dim;
+            d.scale = scale;
+
+            bssn_args args(pos, dim, in);
+
+            v3f dW = (v3f){diff1(args.W, 0, d), diff1(args.W, 1, d), diff1(args.W, 2, d)};
+            //pin(dW);
+
+            return dW;
+        };
+
+        auto dgB_at = [&](v3i pos)
+        {
+            pos = clamp(pos, (v3i){1,1,1}, dim - 2);
+
+            derivative_data d;
+            d.pos = pos;
+            d.dim = dim;
+            d.scale = scale;
+
+            bssn_args args(pos, dim, in);
+            tensor<valuef, 3, 3> dgB;
+
+            for(int i=0; i < 3; i++)
+                for(int j=0; j < 3; j++)
+                    dgB[i, j] = diff1(args.gB[j], i, d);
+
+            //pin(dgB);
+            return dgB;
+        };
+
+        auto dcY_at = [&](v3i pos)
+        {
+            pos = clamp(pos, (v3i){1,1,1}, dim - 2);
+
+            derivative_data d;
+            d.pos = pos;
+            d.dim = dim;
+            d.scale = scale;
+
+            bssn_args args(pos, dim, in);
+            tensor<valuef, 3, 3, 3> dcY;
+
+            for(int i=0; i < 3; i++)
+                for(int j=0; j < 3; j++)
+                    for(int k=0; k < 3; k++)
+                        dcY[i, j, k] = diff1(args.cY[j, k], i, d);
+
+            //pin(dcY);
+            return dcY;
+        };
+
+
+        gA = function_trilinear(gA_at, fpos);
+        gB = function_trilinear(gB_at, fpos);
+        cY = function_trilinear(cY_at, fpos);
+        cA = function_trilinear(cA_at, fpos);
+        K = function_trilinear(K_at, fpos);
+        W = function_trilinear(W_at, fpos);
+
+        pin(gA);
+        pin(gB);
+        pin(cY);
+        pin(cA);
+        pin(K);
+        pin(W);
+
+        dgA = function_trilinear(dgA_at, fpos);
+        dgB = function_trilinear(dgB_at, fpos);
+        dcY = function_trilinear(dcY_at, fpos);
+        dW = function_trilinear(dW_at, fpos);
+
+        pin(dgA);
+        pin(dgB);
+        pin(dcY);
+        pin(dW);
+    }
+};
+
 void evolve_particles(execution_context& ctx,
+                      bssn_args_mem<buffer<valuef>> base,
                       bssn_args_mem<buffer<valuef>> in,
                       particle_base_args<buffer<valuef>> p_base, particle_base_args<buffer<valuef>> p_in, particle_base_args<buffer_mut<valuef>> p_out,
                       literal<value<size_t>> count,
@@ -372,161 +547,23 @@ void evolve_particles(execution_context& ctx,
         return_e();
     });
 
-    auto gA_at = [&](v3i pos)
-    {
-        pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
-
-        bssn_args args(pos, dim.get(), in);
-        //pin(args.gA);
-        return args.gA;
-    };
-
-    auto gB_at = [&](v3i pos)
-    {
-        pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
-
-        bssn_args args(pos, dim.get(), in);
-        //pin(args.gA);
-        return args.gB;
-    };
-
-    auto W_at = [&](v3i pos)
-    {
-        pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
-
-        bssn_args args(pos, dim.get(), in);
-        //pin(args.W);
-        return args.W;
-    };
-
-    auto cY_at = [&](v3i pos)
-    {
-        pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
-
-        bssn_args args(pos, dim.get(), in);
-        //pin(args.cY);
-        return args.cY;
-    };
-
-    auto K_at = [&](v3i pos)
-    {
-        pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
-
-        bssn_args args(pos, dim.get(), in);
-        return args.K;
-    };
-
-    auto cA_at = [&](v3i pos)
-    {
-        pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
-
-        bssn_args args(pos, dim.get(), in);
-        return args.cA;
-    };
-
-    auto dgA_at = [&](v3i pos)
-    {
-        pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
-
-        derivative_data d;
-        d.pos = pos;
-        d.dim = dim.get();
-        d.scale = scale.get();
-
-        bssn_args args(pos, dim.get(), in);
-
-        v3f dgA = (v3f){diff1(args.gA, 0, d), diff1(args.gA, 1, d), diff1(args.gA, 2, d)};
-        //pin(dgA);
-
-        return dgA;
-    };
-
-    auto dW_at = [&](v3i pos)
-    {
-        pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
-
-        derivative_data d;
-        d.pos = pos;
-        d.dim = dim.get();
-        d.scale = scale.get();
-
-        bssn_args args(pos, dim.get(), in);
-
-        v3f dW = (v3f){diff1(args.W, 0, d), diff1(args.W, 1, d), diff1(args.W, 2, d)};
-        //pin(dW);
-
-        return dW;
-    };
-
-    auto dgB_at = [&](v3i pos)
-    {
-        pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
-
-        derivative_data d;
-        d.pos = pos;
-        d.dim = dim.get();
-        d.scale = scale.get();
-
-        bssn_args args(pos, dim.get(), in);
-        tensor<valuef, 3, 3> dgB;
-
-        for(int i=0; i < 3; i++)
-            for(int j=0; j < 3; j++)
-                dgB[i, j] = diff1(args.gB[j], i, d);
-
-        //pin(dgB);
-        return dgB;
-    };
-
-    auto dcY_at = [&](v3i pos)
-    {
-        pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
-
-        derivative_data d;
-        d.pos = pos;
-        d.dim = dim.get();
-        d.scale = scale.get();
-
-        bssn_args args(pos, dim.get(), in);
-        tensor<valuef, 3, 3, 3> dcY;
-
-        for(int i=0; i < 3; i++)
-            for(int j=0; j < 3; j++)
-                for(int k=0; k < 3; k++)
-                    dcY[i, j, k] = diff1(args.cY[j, k], i, d);
-
-        //pin(dcY);
-        return dcY;
-    };
-
     v3f pos = p_in.get_position(id);
     v3f vel = p_in.get_velocity(id);
     valuef lorentz = p_in.get_lorentz(id) + 1;
 
-    valuef gA = function_trilinear(gA_at, pos);
-    v3f gB = function_trilinear(gB_at, pos);
-    //interpolation no longer guarantees unit determinant
-    metric<valuef, 3, 3> cY = function_trilinear(cY_at, pos);
-    tensor<valuef, 3, 3> cA = function_trilinear(cA_at, pos);
-    valuef K = function_trilinear(K_at, pos);
-    valuef W = function_trilinear(W_at, pos);
+    evolve_vars evolve(in, pos, dim.get(), scale.get());
 
-    pin(gA);
-    pin(gB);
-    pin(cY);
-    pin(cA);
-    pin(K);
-    pin(W);
+    auto cY = evolve.cY;
+    auto W = evolve.W;
+    auto cA = evolve.cA;
+    auto gA = evolve.gA;
+    auto gB = evolve.gB;
+    auto K = evolve.K;
 
-    v3f dgA = function_trilinear(dgA_at, pos);
-    tensor<valuef, 3, 3> dgB = function_trilinear(dgB_at, pos);
-    tensor<valuef, 3, 3, 3> dcY = function_trilinear(dcY_at, pos);
-    v3f dW = function_trilinear(dW_at, pos);
-
-    pin(dgA);
-    pin(dgB);
-    pin(dcY);
-    pin(dW);
+    auto dW = evolve.dW;
+    auto dgA = evolve.dgA;
+    auto dgB = evolve.dgB;
+    auto dcY = evolve.dcY;
 
     auto icY = cY.invert();
 
@@ -574,13 +611,13 @@ void evolve_particles(execution_context& ctx,
 
     for(int i=0; i < 3; i++)
     {
-        valuef sum = 0;
-
         for(int j=0; j < 3; j++)
         {
             dlorentz += lorentz * vel[i] * (gA * Kij[i, j] * vel[j] - dgA[i]);
         }
     }
+
+
 }
 
 void boot_particle_kernels(cl::context ctx)
