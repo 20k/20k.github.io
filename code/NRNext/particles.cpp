@@ -375,6 +375,7 @@ struct evolve_vars
     evolve_vars(bssn_args_mem<buffer<valuef>> in, v3f fpos, v3i dim, valuef scale)
     {
         using namespace single_source;
+        pin(fpos);
 
         auto gA_at = [&](v3i pos)
         {
@@ -1076,4 +1077,50 @@ void particle_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffe
     cl::copy(cqueue, p_in.masses, p_out.masses);
 
     calculate_intermediates(ctx, cqueue, in, p_out, util_out, pack.dim, pack.scale, count);
+}
+
+void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plugin_step_data& sdata)
+{
+    /*void evolve_particles(execution_context& ctx,
+                      bssn_args_mem<buffer<valuef>> base,
+                      bssn_args_mem<buffer<valuef>> in,
+                      particle_base_args<buffer<valuef>> p_base, particle_base_args<buffer<valuef>> p_in, particle_base_args<buffer_mut<valuef>> p_out,
+                      literal<value<size_t>> count,
+                      literal<v3i> dim,
+                      literal<valuef> scale,
+                      literal<valuef> timestep)*/
+
+    {
+        cl::args args;
+
+        for(auto& i : sdata.base_bssn_buffers)
+            args.push_back(i);
+
+        for(auto& i : sdata.bssn_buffers)
+            args.push_back(i);
+
+        particle_buffers& base = *dynamic_cast<particle_buffers*>(sdata.buffers[sdata.base_idx]);
+        particle_buffers& in = *dynamic_cast<particle_buffers*>(sdata.buffers[sdata.in_idx]);
+        particle_buffers& out = *dynamic_cast<particle_buffers*>(sdata.buffers[sdata.out_idx]);
+
+        auto base_bufs = base.get_buffers();
+        auto in_bufs = in.get_buffers();
+        auto out_bufs = out.get_buffers();
+
+        for(auto& i : base_bufs)
+            args.push_back(i);
+        for(auto& i : in_bufs)
+            args.push_back(i);
+        for(auto& i : out_bufs)
+            args.push_back(i);
+
+        cl_ulong count = particle_count;
+
+        args.push_back(count);
+        args.push_back(sdata.dim);
+        args.push_back(sdata.scale);
+        args.push_back(sdata.timestep);
+
+        cqueue.exec("evolve_particles", args, {count}, {128});
+    }
 }
