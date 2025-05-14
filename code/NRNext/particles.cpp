@@ -549,9 +549,11 @@ void evolve_particles(execution_context& ctx,
 
     v3f pos_base = p_base.get_position(id);
     v3f pos_next = p_in.get_position(id);
+    v3f vel_base = p_base.get_velocity(id);
+    v3f vel_next = p_in.get_velocity(id);
 
     valuef lorentz = (p_base.get_lorentz(id) + p_in.get_lorentz(id)) * 0.5f + 1;
-    v3f vel = (p_base.get_velocity(id) + p_in.get_velocity(id)) * 0.5f;
+    v3f vel = (vel_base + vel_next) * 0.5f;
 
     evolve_vars b_evolve(base, pos_base, dim.get(), scale.get());
     evolve_vars i_evolve(in, pos_next, dim.get(), scale.get());
