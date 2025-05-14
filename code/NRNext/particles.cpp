@@ -152,7 +152,7 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
 {
     using namespace single_source;
 
-    int radius_cells = 3;
+    int radius_cells = 4;
     valuef radius_world = radius_cells * scale;
     pin(radius_world);
     int spread = radius_cells + 1;
@@ -233,36 +233,6 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
 
         nonconformal_E_out.atom_add_e(idx, as_i64);
     });
-
-    #if 0
-    for(int z = -spread; z <= spread; z++)
-    {
-        for(int y = -spread; y <= spread; y++)
-        {
-            for(int x = -spread; x <= spread; x++)
-            {
-                v3i offset = {x, y, z};
-                offset += cell;
-
-                offset = clamp(offset, (v3i){0,0,0}, dim.get() - 1);
-                pin(offset);
-
-                v3f world_pos = grid_to_world((v3f)offset, dim.get(), scale.get());
-                pin(world_pos);
-
-                //valuef dirac = dirac_delta_v((world_pos - pos).length(), radius_world);
-                //pin(dirac);
-
-                valuef dirac = get_dirac2(dirac_delta_v, world_pos, pos, radius_world, scale.get());
-                pin(dirac);
-
-                if_e(dirac > 0, [&]{
-
-                });
-            }
-        }
-    }
-    #endif
 }
 
 void calculate_particle_intermediates(execution_context& ectx,
@@ -353,36 +323,6 @@ void calculate_particle_intermediates(execution_context& ectx,
         for(int i=0; i < 6; i++)
             out.Sij_raised[i].atom_add_e(idx, Sij_scaled[i]);
     });
-
-    /*int spread = radius_cells + 1;
-
-    for(int z = -spread; z <= spread; z++)
-    {
-        for(int y = -spread; y <= spread; y++)
-        {
-            for(int x = -spread; x <= spread; x++)
-            {
-                v3i offset = {x, y, z};
-                offset += cell;
-
-                offset = clamp(offset, (v3i){0,0,0}, dim.get() - 1);
-                pin(offset);
-
-                bssn_args args(offset, dim.get(), in);
-
-                v3f world_pos = grid_to_world((v3f)offset, dim.get(), scale.get());
-                pin(world_pos);
-
-                //valuef dirac = dirac_delta_v((world_pos - pos).length(), radius_world);
-                valuef dirac = get_dirac2(dirac_delta_v, world_pos, pos, radius_world, scale.get());
-                pin(dirac);
-
-                if_e(dirac > 0, [&] {
-
-                });
-            }
-        }
-    }*/
 }
 
 void fixed_to_float(execution_context& ectx, buffer<valuei64> in, buffer_mut<valuef> out, literal<valued> fixed_scale, literal<valuei> count)
