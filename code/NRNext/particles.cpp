@@ -4,6 +4,7 @@
 #include "init_general.hpp"
 #include "formalisms.hpp"
 #include "raytrace_init.hpp"
+#include "interpolation.hpp"
 
 ///https://arxiv.org/pdf/1611.07906.pdf (20)
 //3d
@@ -371,6 +372,18 @@ void evolve_particles(execution_context& ctx,
         return_e();
     });
 
+    auto gA_at = [&](v3i pos)
+    {
+        pos = clamp(pos, (v3i){0,0,0}, dim.get() - 1);
+
+        bssn_args args(pos, dim.get(), in);
+
+        return args.gA;
+    };
+
+    v3f pos = p_in.get_position(id);
+
+    valuef gA = function_trilinear(gA_at, pos);
 }
 
 void boot_particle_kernels(cl::context ctx)
@@ -390,6 +403,10 @@ void boot_particle_kernels(cl::context ctx)
     cl::async_build_and_cache(ctx, [&]{
         return value_impl::make_function(calculate_particle_intermediates, "calculate_particle_intermediates");
     }, {"calculate_particle_intermediates"});
+
+    cl::async_build_and_cache(ctx, [&]{
+        return value_impl::make_function(evolve_particles, "evolve_particles");
+    }, {"evolve_particles"});
 }
 
 double get_fixed_scale(int64_t particle_count)
