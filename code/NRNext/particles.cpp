@@ -377,62 +377,53 @@ struct evolve_vars
         using namespace single_source;
         pin(fpos);
 
+        fpos = clamp(fpos, (v3f){3,3,3}, (v3f)dim - 4.);
+        //pin(fpos);
+
         auto gA_at = [&](v3i pos)
         {
-            pos = clamp(pos, (v3i){1,1,1}, dim - 2);
-
             bssn_args args(pos, dim, in);
-            //pin(args.gA);
+            pin(args.gA);
             return args.gA;
         };
 
         auto gB_at = [&](v3i pos)
         {
-            pos = clamp(pos, (v3i){1,1,1}, dim - 2);
-
             bssn_args args(pos, dim, in);
-            //pin(args.gA);
+            pin(args.gA);
             return args.gB;
         };
 
         auto W_at = [&](v3i pos)
         {
-            pos = clamp(pos, (v3i){1,1,1}, dim - 2);
-
             bssn_args args(pos, dim, in);
-            //pin(args.W);
+            pin(args.W);
             return args.W;
         };
 
         auto cY_at = [&](v3i pos)
         {
-            pos = clamp(pos, (v3i){1,1,1}, dim - 2);
-
             bssn_args args(pos, dim, in);
-            //pin(args.cY);
+            pin(args.cY);
             return args.cY;
         };
 
         auto K_at = [&](v3i pos)
         {
-            pos = clamp(pos, (v3i){1,1,1}, dim - 2);
-
             bssn_args args(pos, dim, in);
+            pin(args.K);
             return args.K;
         };
 
         auto cA_at = [&](v3i pos)
         {
-            pos = clamp(pos, (v3i){1,1,1}, dim - 2);
-
             bssn_args args(pos, dim, in);
+            pin(args.cA);
             return args.cA;
         };
 
         auto dgA_at = [&](v3i pos)
         {
-            pos = clamp(pos, (v3i){1,1,1}, dim - 2);
-
             derivative_data d;
             d.pos = pos;
             d.dim = dim;
@@ -441,15 +432,13 @@ struct evolve_vars
             bssn_args args(pos, dim, in);
 
             v3f dgA = (v3f){diff1(args.gA, 0, d), diff1(args.gA, 1, d), diff1(args.gA, 2, d)};
-            //pin(dgA);
+            pin(dgA);
 
             return dgA;
         };
 
         auto dW_at = [&](v3i pos)
         {
-            pos = clamp(pos, (v3i){1,1,1}, dim - 2);
-
             derivative_data d;
             d.pos = pos;
             d.dim = dim;
@@ -458,15 +447,13 @@ struct evolve_vars
             bssn_args args(pos, dim, in);
 
             v3f dW = (v3f){diff1(args.W, 0, d), diff1(args.W, 1, d), diff1(args.W, 2, d)};
-            //pin(dW);
+            pin(dW);
 
             return dW;
         };
 
         auto dgB_at = [&](v3i pos)
         {
-            pos = clamp(pos, (v3i){1,1,1}, dim - 2);
-
             derivative_data d;
             d.pos = pos;
             d.dim = dim;
@@ -479,14 +466,12 @@ struct evolve_vars
                 for(int j=0; j < 3; j++)
                     dgB[i, j] = diff1(args.gB[j], i, d);
 
-            //pin(dgB);
+            pin(dgB);
             return dgB;
         };
 
         auto dcY_at = [&](v3i pos)
         {
-            pos = clamp(pos, (v3i){1,1,1}, dim - 2);
-
             derivative_data d;
             d.pos = pos;
             d.dim = dim;
@@ -500,7 +485,7 @@ struct evolve_vars
                     for(int k=0; k < 3; k++)
                         dcY[i, j, k] = diff1(args.cY[j, k], i, d);
 
-            //pin(dcY);
+            pin(dcY);
             return dcY;
         };
 
