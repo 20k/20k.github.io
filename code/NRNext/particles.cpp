@@ -212,7 +212,7 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
     pin(pos);
     //pin(vel);
 
-    v3i cell = (v3i)floor(world_to_grid(pos, dim.get(), scale.get()));
+    v3i cell = (v3i)round(world_to_grid(pos, dim.get(), scale.get()));
     pin(cell);
 
     for_each_dirac(cell, dim.get(), scale.get(), pos, [&](v3i offset, valuef dirac)
@@ -251,10 +251,6 @@ void calculate_particle_intermediates(execution_context& ectx,
         return_e();
     });
 
-    int radius_cells = 3;
-    valuef radius_world = radius_cells * scale.get();
-    pin(radius_world);
-
     valuef lorentz = particles_in.get_lorentz(id) + 1;
     valuef mass = particles_in.get_mass(id);
     v3f pos = particles_in.get_position(id);
@@ -265,9 +261,8 @@ void calculate_particle_intermediates(execution_context& ectx,
     pin(mass);
     pin(lorentz);
 
-    v3i cell = (v3i)floor(world_to_grid(pos, dim.get(), scale.get()));
+    v3i cell = (v3i)round(world_to_grid(pos, dim.get(), scale.get()));
     pin(cell);
-
 
     for_each_dirac(cell, dim.get(), scale.get(), pos, [&](v3i offset, valuef dirac)
     {
