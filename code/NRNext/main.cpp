@@ -20,6 +20,7 @@
 #include "plugin.hpp"
 #include "hydrodynamics.hpp"
 #include "particles.hpp"
+#include "random.hpp"
 
 float get_scale(float simulation_width, t3i dim)
 {
@@ -1735,17 +1736,40 @@ initial_params get_initial_params()
 
     #define PARTICLE_TESTS
     #ifdef PARTICLE_TESTS
+    xoshiro256ss_state st = xoshiro256ss_init(432123452345ULL);
+
     float radial_pos = geometric_to_msol(1000 * 54.6/2, 1);
 
     particle_params part;
-    part.add({0.01,0,0}, {0,0,0}, 0.01);
+    //part.add({0.01,0,0}, {0,0,0}, 0.01);
     //part.add({10,0,0}, {0,-0.015,0}, 0.01);
     //part.add({10,0,0}, {0,-0.015,0}, 0.01);
+
+    int N = 20000;
+    double M = 1;
+
+    for(int i=0; i < N; i++)
+    {
+        double lM = M/N;
+
+        double x = uint64_to_double(xoshiro256ss(st));
+        double y = uint64_to_double(xoshiro256ss(st));
+        double z = uint64_to_double(xoshiro256ss(st));
+
+        t3f pos = {(x - 0.5f) * 2 * radial_pos, (y - 0.5f) * 2 * radial_pos, (z - 0.5f) * 2 * radial_pos};
+        pos.z() = pos.z() * 0.02f;
+
+        double vm = uint64_to_double(xoshiro256ss(st));
+
+        t3f vel = cross(pos, (t3f){0, 0, 1}).norm() * 0.1 * (vm + 0.5f);
+
+        part.add(pos, vel, lM);
+    }
 
     initial_params init;
     init.N = 2;
 
-    init.dim = {99, 99, 99};
+    init.dim = {199, 199, 199};
     init.simulation_width = radial_pos * 6;
 
     init.add(std::move(part));
@@ -2107,7 +2131,7 @@ int main()
 
         win.display();
 
-        //std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
+        std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
 
         if(step)
             elapsed_t += timestep;
