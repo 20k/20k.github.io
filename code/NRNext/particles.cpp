@@ -374,28 +374,154 @@ void evolve_particles(execution_context& ctx,
 
     auto gA_at = [&](v3i pos)
     {
-        pos = clamp(pos, (v3i){0,0,0}, dim.get() - 1);
+        pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
+
+        bssn_args args(pos, dim.get(), in);
+        //pin(args.gA);
+        return args.gA;
+    };
+
+    auto gB_at = [&](v3i pos)
+    {
+        pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
+
+        bssn_args args(pos, dim.get(), in);
+        //pin(args.gA);
+        return args.gB;
+    };
+
+    auto W_at = [&](v3i pos)
+    {
+        pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
+
+        bssn_args args(pos, dim.get(), in);
+        //pin(args.W);
+        return args.W;
+    };
+
+    auto cY_at = [&](v3i pos)
+    {
+        pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
+
+        bssn_args args(pos, dim.get(), in);
+        //pin(args.cY);
+        return args.cY;
+    };
+
+    auto K_at = [&](v3i pos)
+    {
+        pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
+
+        bssn_args args(pos, dim.get(), in);
+        return args.K;
+    };
+
+    auto cA_at = [&](v3i pos)
+    {
+        pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
+
+        bssn_args args(pos, dim.get(), in);
+        return args.cA;
+    };
+
+    auto dgA_at = [&](v3i pos)
+    {
+        pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
+
+        derivative_data d;
+        d.pos = pos;
+        d.dim = dim.get();
+        d.scale = scale.get();
 
         bssn_args args(pos, dim.get(), in);
 
-        return args.gA;
+        v3f dgA = (v3f){diff1(args.gA, 0, d), diff1(args.gA, 1, d), diff1(args.gA, 2, d)};
+        //pin(dgA);
+
+        return dgA;
+    };
+
+    auto dW_at = [&](v3i pos)
+    {
+        pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
+
+        derivative_data d;
+        d.pos = pos;
+        d.dim = dim.get();
+        d.scale = scale.get();
+
+        bssn_args args(pos, dim.get(), in);
+
+        v3f dW = (v3f){diff1(args.W, 0, d), diff1(args.W, 1, d), diff1(args.W, 2, d)};
+        //pin(dW);
+
+        return dW;
+    };
+
+    auto dgB_at = [&](v3i pos)
+    {
+        pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
+
+        derivative_data d;
+        d.pos = pos;
+        d.dim = dim.get();
+        d.scale = scale.get();
+
+        bssn_args args(pos, dim.get(), in);
+        tensor<valuef, 3, 3> dgB;
+
+        for(int i=0; i < 3; i++)
+            for(int j=0; j < 3; j++)
+                dgB[i, j] = diff1(args.gB[j], i, d);
+
+        //pin(dgB);
+        return dgB;
+    };
+
+    auto dcY_at = [&](v3i pos)
+    {
+        pos = clamp(pos, (v3i){1,1,1}, dim.get() - 2);
+
+        derivative_data d;
+        d.pos = pos;
+        d.dim = dim.get();
+        d.scale = scale.get();
+
+        bssn_args args(pos, dim.get(), in);
+        tensor<valuef, 3, 3, 3> dcY;
+
+        for(int i=0; i < 3; i++)
+            for(int j=0; j < 3; j++)
+                for(int k=0; k < 3; k++)
+                    dcY[i, j, k] = diff1(args.cY[j, k], i, d);
+
+        //pin(dcY);
+        return dcY;
     };
 
     v3f pos = p_in.get_position(id);
 
     valuef gA = function_trilinear(gA_at, pos);
-    v3f dgA;
+    v3f gB = function_trilinear(gB_at, pos);
+    unit_metric<valuef, 3, 3> cY = function_trilinear(cY_at, pos);
+    tensor<valuef, 3, 3> cA = function_trilinear(cA_at, pos);
+    valuef K = function_trilinear(K_at, pos);
 
-    for(int i=0; i < 3; i++)
-    {
-        v3i offset;
-        offset[i] = 1;
+    pin(gA);
+    pin(gB);
+    pin(cY);
+    pin(cA);
+    pin(K);
 
-        valuef p1 = function_trilinear(gA_at, pos + (v3f)offset);
-        valuef p2 = function_trilinear(gA_at, pos - (v3f)offset);
+    v3f dgA = function_trilinear(dgA_at, pos);
+    tensor<valuef, 3, 3> dgB = function_trilinear(dgB_at, pos);
+    tensor<valuef, 3, 3, 3> dcY = function_trilinear(dcY_at, pos);
+    v3f dW = function_trilinear(dW_at, pos);
 
-        dgA[i] = (p1 - p2) / (2 * scale.get());
-    }
+    pin(dgA);
+    pin(dgB);
+    pin(dcY);
+    pin(dW);
 }
 
 void boot_particle_kernels(cl::context ctx)
