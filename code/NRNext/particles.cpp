@@ -384,6 +384,18 @@ void evolve_particles(execution_context& ctx,
     v3f pos = p_in.get_position(id);
 
     valuef gA = function_trilinear(gA_at, pos);
+    v3f dgA;
+
+    for(int i=0; i < 3; i++)
+    {
+        v3i offset;
+        offset[i] = 1;
+
+        valuef p1 = function_trilinear(gA_at, pos + (v3f)offset);
+        valuef p2 = function_trilinear(gA_at, pos - (v3f)offset);
+
+        dgA[i] = (p1 - p2) / (2 * scale.get());
+    }
 }
 
 void boot_particle_kernels(cl::context ctx)
