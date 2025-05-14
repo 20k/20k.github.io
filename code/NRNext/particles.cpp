@@ -993,7 +993,7 @@ struct particle_temp
     }
 };
 
-void calculate_intermediates(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, particle_buffers& p_in, particle_utility_buffers& util_out, t3i dim, float scale, cl_ulong count)
+void calculate_intermediates(cl::context ctx, cl::command_queue cqueue, std::vector<cl::buffer> bssn_in, particle_buffers& p_in, particle_utility_buffers& util_out, t3i dim, float scale, cl_ulong count)
 {
     particle_temp tmp(ctx, cqueue, dim);
 
@@ -1001,7 +1001,10 @@ void calculate_intermediates(cl::context ctx, cl::command_queue cqueue, bssn_buf
 
     {
         cl::args args;
-        in.append_to(args);
+
+        for(auto& i : bssn_in)
+            args.push_back(i);
+
         args.push_back(p_in.positions[0], p_in.positions[1], p_in.positions[2]);
         args.push_back(p_in.velocities[0], p_in.velocities[1], p_in.velocities[2]);
         args.push_back(p_in.masses);
@@ -1076,7 +1079,14 @@ void particle_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffe
     cl::copy(cqueue, p_in.positions[2], p_out.positions[2]);
     cl::copy(cqueue, p_in.masses, p_out.masses);
 
-    calculate_intermediates(ctx, cqueue, in, p_out, util_out, pack.dim, pack.scale, count);
+    std::vector<cl::buffer> bssn;
+
+    in.for_each([&](cl::buffer buf)
+    {
+        bssn.push_back(buf);
+    });
+
+    calculate_intermediates(ctx, cqueue, bssn, p_out, util_out, pack.dim, pack.scale, count);
 }
 
 void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plugin_step_data& sdata)
@@ -1090,6 +1100,12 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
                       literal<valuef> scale,
                       literal<valuef> timestep)*/
 
+    particle_buffers& base = *dynamic_cast<particle_buffers*>(sdata.buffers[sdata.base_idx]);
+    particle_buffers& in = *dynamic_cast<particle_buffers*>(sdata.buffers[sdata.in_idx]);
+    particle_buffers& out = *dynamic_cast<particle_buffers*>(sdata.buffers[sdata.out_idx]);
+
+    cl_ulong count = particle_count;
+
     {
         cl::args args;
 
@@ -1099,9 +1115,6 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
         for(auto& i : sdata.bssn_buffers)
             args.push_back(i);
 
-        particle_buffers& base = *dynamic_cast<particle_buffers*>(sdata.buffers[sdata.base_idx]);
-        particle_buffers& in = *dynamic_cast<particle_buffers*>(sdata.buffers[sdata.in_idx]);
-        particle_buffers& out = *dynamic_cast<particle_buffers*>(sdata.buffers[sdata.out_idx]);
 
         auto base_bufs = base.get_buffers();
         auto in_bufs = in.get_buffers();
@@ -1114,8 +1127,6 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
         for(auto& i : out_bufs)
             args.push_back(i);
 
-        cl_ulong count = particle_count;
-
         args.push_back(count);
         args.push_back(sdata.dim);
         args.push_back(sdata.scale);
@@ -1123,4 +1134,8 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
 
         cqueue.exec("evolve_particles", args, {count}, {128});
     }
+
+    particle_utility_buffers& util_out = *dynamic_cast<particle_utility_buffers*>(sdata.utility_buffers);
+
+    calculate_intermediates(ctx, cqueue, sdata.bssn_buffers, in, util_out, sdata.dim, sdata.scale, count);
 }

@@ -1717,7 +1717,7 @@ initial_params get_initial_params()
     init.time_between_snapshots = 20;
 
     init.add(p1);
-    init.add(p2);
+    init.add(p2);s
     #endif
 
     #endif
@@ -1738,7 +1738,8 @@ initial_params get_initial_params()
     float radial_pos = geometric_to_msol(1000 * 54.6/2, 1);
 
     particle_params part;
-    part.add({0,0,0}, {0,0,0}, 0.01);
+    part.add({-10,0,0}, {0,0,0}, 0.1);
+    part.add({10,0,0}, {0,0,0}, 0.1);
 
     initial_params init;
     init.N = 2;
