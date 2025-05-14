@@ -8,7 +8,7 @@
 
 ///https://arxiv.org/pdf/1611.07906.pdf (20)
 //3d
-valuef dirac_delta_v(const valuef& r, const valuef& radius)
+valuef dirac_delta_impl(const valuef& r, const valuef& radius)
 {
     valuef frac = r / radius;
 
@@ -23,6 +23,11 @@ valuef dirac_delta_v(const valuef& r, const valuef& radius)
     result = ternary(frac <= 1, mult * branch_2, result);
 
     return result;
+}
+
+valuef dirac_delta_v(const valuef& r, const valuef& radius)
+{
+    return dirac_delta_impl(r, radius/2);
 }
 
 //3d
@@ -113,7 +118,7 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
         return_e();
     });
 
-    int radius_cells = 3;
+    int radius_cells = 4;
     valuef radius_world = radius_cells * scale.get();
 
     //valuef dirac_prefix = 1/(M_PI * pow(radius_world, 3.f));
@@ -188,7 +193,7 @@ void calculate_particle_intermediates(execution_context& ectx,
         return_e();
     });
 
-    int radius_cells = 3;
+    int radius_cells = 4;
     valuef radius_world = radius_cells * scale.get();
 
     valuef lorentz = particles_in.get_lorentz(id) + 1;
@@ -921,7 +926,7 @@ template<typename T>
 tensor<valuef, 3> full_particle_args<T>::adm_Si(bssn_args& args, const derivative_data& d)
 {
     //todo: fixme
-    auto Yij = args.cY / pow(max(args.W, 0.1f), 2.f);
+    auto Yij = args.cY / pow(max(args.W, 0.01f), 2.f);
 
     v3f Ji = this->get_Si(d.pos, d.dim);
 
@@ -931,7 +936,7 @@ tensor<valuef, 3> full_particle_args<T>::adm_Si(bssn_args& args, const derivativ
 template<typename T>
 tensor<valuef, 3, 3> full_particle_args<T>::adm_W2_Sij(bssn_args& args, const derivative_data& d)
 {
-    auto Yij = args.cY / pow(max(args.W, 0.1f), 2.f);
+    auto Yij = args.cY / pow(max(args.W, 0.01f), 2.f);
 
     tensor<valuef, 3, 3> Sij = this->get_Sij(d.pos, d.dim);
 
