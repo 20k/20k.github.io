@@ -1745,7 +1745,7 @@ initial_params get_initial_params()
     //part.add({10,0,0}, {0,-0.015,0}, 0.01);
     //part.add({10,0,0}, {0,-0.015,0}, 0.01);
 
-    int N = 20000;
+    int N = 80000;
     double M = 1;
 
     for(int i=0; i < N; i++)
@@ -1757,11 +1757,14 @@ initial_params get_initial_params()
         double z = uint64_to_double(xoshiro256ss(st));
 
         t3f pos = {(x - 0.5f) * 2 * radial_pos, (y - 0.5f) * 2 * radial_pos, (z - 0.5f) * 2 * radial_pos};
-        pos.z() = pos.z() * 0.02f;
+        pos.z() = pos.z() * 0.04f;
+
+        if(pos.xy().length() >= radial_pos)
+            continue;
 
         double vm = uint64_to_double(xoshiro256ss(st));
 
-        t3f vel = cross(pos, (t3f){0, 0, 1}).norm() * 0.1 * (vm + 0.5f);
+        t3f vel = cross(pos, (t3f){0, 0, 1}).norm() * 0.2 * (vm + 0.5f);
 
         part.add(pos, vel, lM);
     }
