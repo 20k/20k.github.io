@@ -144,15 +144,11 @@ valuef get_dirac2(auto&& func, const v3f& world_pos, const v3f& dirac_location, 
 //sqrt(det(Yij)) = W^6^0.5
 //= W^3
 
-/**
-I think the interpolation may be misaligned with the particle contribution
-*/
-
 void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
 {
     using namespace single_source;
 
-    int radius_cells = 4;
+    int radius_cells = 3;
     valuef radius_world = radius_cells * scale;
     pin(radius_world);
     int spread = radius_cells + 1;
@@ -542,6 +538,14 @@ struct evolve_vars
         pin(K);
         pin(W);
 
+        /*for(int i=0; i < 3; i++)
+        {
+            v3f offset;
+            offset[i] = 1;
+
+            dgA[i] = (function_trilinear(gA_at, fpos + offset) - function_trilinear(gA_at, fpos - offset)) / (2 * scale);
+        }*/
+
         dgA = function_trilinear(dgA_at, fpos);
         dgB = function_trilinear(dgB_at, fpos);
         dcY = function_trilinear(dcY_at, fpos);
@@ -598,7 +602,7 @@ void evolve_particles(execution_context& ctx,
 
     //this may not be correct
     auto dW = (b_evolve.dW + i_evolve.dW) * 0.5f;
-    auto dgA = (b_evolve.dgA + i_evolve.dgA) * 0.5f;
+    auto dgA = (b_evolve.dgA + i_evolve.dgA) * 0.5f; //this is the term causing drift
     auto dgB = (b_evolve.dgB + i_evolve.dgB) * 0.5f;
     auto dcY = (b_evolve.dcY + i_evolve.dcY) * 0.5f;
     #else
