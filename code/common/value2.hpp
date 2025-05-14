@@ -81,6 +81,7 @@ namespace value_impl
             SIGN,
             FLOOR,
             CEIL,
+            ROUND,
             TERNARY,
             POW,
             EXP,
@@ -437,6 +438,7 @@ namespace value_impl
     DECL_VALUE_FUNC1(SIGN, sign, stdmath::usign);
     DECL_VALUE_FUNC1(FLOOR, floor, stdmath::ufloor);
     DECL_VALUE_FUNC1(CEIL, ceil, stdmath::uceil);
+    DECL_VALUE_FUNC1(ROUND, round, stdmath::uround);
     DECL_VALUE_FUNC1(INVERSE_SQRT, inverse_sqrt, stdmath::uinverse_sqrt);
     DECL_VALUE_FUNC3_GEN(TERNARY, ternary, stdmath::uternary);
     DECL_VALUE_FUNC2(POW, pow, stdmath::upow);
@@ -561,6 +563,7 @@ namespace value_impl
             PROPAGATE_BASE1(SIGN, usign);
             PROPAGATE_BASE1(FLOOR, ufloor);
             PROPAGATE_BASE1(CEIL, uceil);
+            PROPAGATE_BASE1(ROUND, uround);
             PROPAGATE_BASE1(INVERSE_SQRT, uinverse_sqrt);
             PROPAGATE_BASE2(POW, upow);
             PROPAGATE_BASE1(EXP, uexp);
@@ -1693,6 +1696,13 @@ namespace value_impl
     value<T> ceil(const value<T>& v1)
     {
         return from_base<T>(optimise(make_op<value<T>>(op::CEIL, {v1})));
+    }
+
+    template<typename T>
+    inline
+    value<T> round(const value<T>& v1)
+    {
+        return from_base<T>(optimise(make_op<value<T>>(op::ROUND, {v1})));
     }
 
     template<typename T>

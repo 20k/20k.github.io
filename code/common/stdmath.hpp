@@ -158,6 +158,13 @@ namespace stdmath
     };
 
     constexpr
+    auto uround = []<typename T>(const T& in)
+    {
+        using std::round;
+        return round(in);
+    };
+
+    constexpr
     auto ufmod = []<typename T>(const T& v1, const T& v2)
     {
         using std::fmod;
