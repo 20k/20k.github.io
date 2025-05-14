@@ -296,25 +296,7 @@ void fixed_to_float(execution_context& ectx, buffer<valuei64> in, buffer_mut<val
     as_ref(out[id]) = (valuef)as_double;
 }
 
-/*
-///https://arxiv.org/pdf/0904.4184.pdf 1.4.18
-float4 get_timelike_vector(float3 cartesian_basis_speed, float time_direction,
-                           float4 e0, float4 e1, float4 e2, float4 e3)
-{
-
-    float v2 = dot(cartesian_basis_speed, cartesian_basis_speed);
-
-    float Y = 1 / sqrt(1 - v2);
-
-    float4 bT = time_direction * Y * e0;
-    float4 bX = Y * cartesian_basis_speed.x * e1;
-    float4 bY = Y * cartesian_basis_speed.y * e2;
-    float4 bZ = Y * cartesian_basis_speed.z * e3;
-
-    return bT + bX + bY + bZ;
-}
-*/
-
+//https://arxiv.org/pdf/0904.4184.pdf 1.4.18
 v4f get_timelike_vector(v3f speed, tetrad tet)
 {
     valuef v2 = dot(speed, speed);
