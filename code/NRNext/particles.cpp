@@ -10,9 +10,13 @@
 //3d
 valuef dirac_delta_impl(const valuef& r, const valuef& radius)
 {
+    using namespace single_source;
+
     valuef frac = r / radius;
+    pin(frac);
 
     valuef mult = 1/(M_PI * pow(radius, 3.f));
+    pin(mult);
 
     valuef result = 0;
 
@@ -20,8 +24,9 @@ valuef dirac_delta_impl(const valuef& r, const valuef& radius)
     valuef branch_2 = 1.f - (3.f/2.f) * pow(frac, 2.f) + (3.f/4.f) * pow(frac, 3.f);
 
     result = ternary(frac <= 2, mult * branch_1, 0.f);
+    pin(result);
     result = ternary(frac <= 1, mult * branch_2, result);
-
+    pin(result);
     return result;
 }
 
@@ -65,12 +70,12 @@ T get_dirac(auto&& func, tensor<T, 3> world_pos, tensor<T, 3> dirac_location, T 
 {
     T r = (world_pos - dirac_location).length();
 
-    #ifdef GET_DIRAC_STANDARD
+    #ifdef GET_DIRAC1_STANDARD
     return func(r, radius);
     #endif // GET_DIRAC_STANDARD
 
-    #define GET_DIRAC_CORRECTED
-    #ifdef GET_DIRAC_CORRECTED
+    #define GET_DIRAC1_CORRECTED
+    #ifdef GET_DIRAC1_CORRECTED
     tensor<T, 3> scale3 = {scale, scale, scale};
 
     auto im1 = world_pos - scale3 / 2;
@@ -82,6 +87,42 @@ T get_dirac(auto&& func, tensor<T, 3> world_pos, tensor<T, 3> dirac_location, T 
 
         return func((pos - dirac_location).length(), radius);
     }, 10, ip1, im1) / (scale*scale*scale);
+    #endif // GET_DIRAC_CORRECTED
+}
+
+inline
+valuef get_dirac2(auto&& func, const v3f& world_pos, const v3f& dirac_location, const valuef& radius, const valuef& scale)
+{
+    using namespace single_source;
+
+    //#define GET_DIRAC_STANDARD
+    #ifdef GET_DIRAC_STANDARD
+    valuef r = (world_pos - dirac_location).length();
+    //pin(r);
+    return func(r, radius);
+    #endif // GET_DIRAC_STANDARD
+
+    #define GET_DIRAC_CORRECTED
+    #ifdef GET_DIRAC_CORRECTED
+    tensor<valuef, 3> scale3 = {scale, scale, scale};
+
+    auto im1 = world_pos - scale3 / 2;
+    auto ip1 = world_pos + scale3 / 2;
+    pin(im1);
+    pin(ip1);
+
+    return integrate_3d_trapezoidal([&](const valuef& x, const valuef& y, const valuef& z)
+    {
+        tensor<valuef, 3> pos = {x, y, z};
+        pin(pos);
+
+        valuef r = (pos - dirac_location).length();
+        pin(r);
+
+        valuef out = func(r, radius);
+        pin(out);
+        return out;
+    }, 4, ip1, im1) / (scale*scale*scale);
     #endif // GET_DIRAC_CORRECTED
 }
 
@@ -103,6 +144,48 @@ T get_dirac(auto&& func, tensor<T, 3> world_pos, tensor<T, 3> dirac_location, T 
 //sqrt(det(Yij)) = W^6^0.5
 //= W^3
 
+/**
+I think the interpolation may be misaligned with the particle contribution
+*/
+
+void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
+{
+    using namespace single_source;
+
+    int radius_cells = 3;
+    valuef radius_world = radius_cells * scale;
+    pin(radius_world);
+    int spread = radius_cells + 1;
+
+    mut<valuei> z = declare_mut_e(valuei(-spread));
+
+    for_e(z <= spread, assign_b(z, z+1), [&]{
+        mut<valuei> y = declare_mut_e(valuei(-spread));
+
+        for_e(y <= spread, assign_b(y, y+1), [&]{
+            mut<valuei> x = declare_mut_e(valuei(-spread));
+
+            for_e(x <= spread, assign_b(x, x+1), [&]{
+                v3i offset = {declare_e(x), declare_e(y), declare_e(z)};
+                offset += cell;
+
+                offset = clamp(offset, (v3i){0,0,0}, dim - 1);
+                pin(offset);
+
+                v3f world_pos = grid_to_world((v3f)offset, dim, scale);
+                pin(world_pos);
+
+                valuef dirac = get_dirac2(dirac_delta_v, world_pos, dirac_pos, radius_world, scale);
+                pin(dirac);
+
+                if_e(dirac > 0, [&]{
+                    func(offset, dirac);
+                });
+            });
+        });
+    });
+}
+
 //https://arxiv.org/pdf/1611.07906 16
 void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_args<buffer<valuef>> particles_in,
                                        buffer_mut<valuei64> nonconformal_E_out,
@@ -118,9 +201,6 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
         return_e();
     });
 
-    int radius_cells = 4;
-    valuef radius_world = radius_cells * scale.get();
-
     //valuef dirac_prefix = 1/(M_PI * pow(radius_world, 3.f));
 
     valuef lorentz = 1;
@@ -135,8 +215,26 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
     v3i cell = (v3i)floor(world_to_grid(pos, dim.get(), scale.get()));
     pin(cell);
 
-    int spread = radius_cells + 1;
+    for_each_dirac(cell, dim.get(), scale.get(), pos, [&](v3i offset, valuef dirac)
+    {
+        valuef fin_E = mass * lorentz * dirac;
 
+        auto scale = [&](valuef in)
+        {
+            valued in_d = (valued)in;
+            valued in_scaled = in_d * fixed_scale.get();
+
+            return (valuei64)in_scaled;
+        };
+
+        valuei64 as_i64 = scale(fin_E);
+
+        valuei idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
+
+        nonconformal_E_out.atom_add_e(idx, as_i64);
+    });
+
+    #if 0
     for(int z = -spread; z <= spread; z++)
     {
         for(int y = -spread; y <= spread; y++)
@@ -152,29 +250,19 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
                 v3f world_pos = grid_to_world((v3f)offset, dim.get(), scale.get());
                 pin(world_pos);
 
-                valuef dirac = dirac_delta_v((world_pos - pos).length(), radius_world);
+                //valuef dirac = dirac_delta_v((world_pos - pos).length(), radius_world);
+                //pin(dirac);
+
+                valuef dirac = get_dirac2(dirac_delta_v, world_pos, pos, radius_world, scale.get());
                 pin(dirac);
 
                 if_e(dirac > 0, [&]{
-                    valuef fin_E = mass * lorentz * dirac;
 
-                    auto scale = [&](valuef in)
-                    {
-                        valued in_d = (valued)in;
-                        valued in_scaled = in_d * fixed_scale.get();
-
-                        return (valuei64)in_scaled;
-                    };
-
-                    valuei64 as_i64 = scale(fin_E);
-
-                    valuei idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
-
-                    nonconformal_E_out.atom_add_e(idx, as_i64);
                 });
             }
         }
     }
+    #endif
 }
 
 void calculate_particle_intermediates(execution_context& ectx,
@@ -193,8 +281,9 @@ void calculate_particle_intermediates(execution_context& ectx,
         return_e();
     });
 
-    int radius_cells = 4;
+    int radius_cells = 3;
     valuef radius_world = radius_cells * scale.get();
+    pin(radius_world);
 
     valuef lorentz = particles_in.get_lorentz(id) + 1;
     valuef mass = particles_in.get_mass(id);
@@ -209,7 +298,63 @@ void calculate_particle_intermediates(execution_context& ectx,
     v3i cell = (v3i)floor(world_to_grid(pos, dim.get(), scale.get()));
     pin(cell);
 
-    int spread = radius_cells + 1;
+
+    for_each_dirac(cell, dim.get(), scale.get(), pos, [&](v3i offset, valuef dirac)
+    {
+        bssn_args args(offset, dim.get(), in);
+
+        valuef sqrt_det_Gamma = pow(max(args.W, 0.1f), 3);
+        pin(sqrt_det_Gamma);
+
+        valuef fin_E = mass * lorentz * dirac / sqrt_det_Gamma;
+        v3f Si_raised = (mass * lorentz * dirac / sqrt_det_Gamma) * vel;
+
+        tensor<valuef, 3, 3> Sij_raised;
+
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                Sij_raised[i, j] = (mass * lorentz * dirac / sqrt_det_Gamma) * vel[i] * vel[j];
+            }
+        }
+
+        std::array<valuef, 6> Sij_sym = extract_symmetry(Sij_raised);
+
+        auto scale = [&](valuef in)
+        {
+            valued in_d = (valued)in;
+            valued in_scaled = in_d * fixed_scale.get();
+
+            return (valuei64)in_scaled;
+        };
+
+        valuei64 E_scaled = scale(fin_E);
+
+        tensor<valuei64, 3> Si_scaled;
+
+        for(int i=0; i < 3; i++)
+            Si_scaled[i] = scale(Si_raised[i]);
+
+        std::array<valuei64, 6> Sij_scaled;
+
+        for(int i=0; i < 6; i++)
+            Sij_scaled[i] = scale(Sij_sym[i]);
+
+        ///[offset, dim.get()]
+
+        valuei idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
+
+        out.E.atom_add_e(idx, E_scaled);
+
+        for(int i=0; i < 3; i++)
+            out.Si_raised[i].atom_add_e(idx, Si_scaled[i]);
+
+        for(int i=0; i < 6; i++)
+            out.Sij_raised[i].atom_add_e(idx, Sij_scaled[i]);
+    });
+
+    /*int spread = radius_cells + 1;
 
     for(int z = -spread; z <= spread; z++)
     {
@@ -228,63 +373,16 @@ void calculate_particle_intermediates(execution_context& ectx,
                 v3f world_pos = grid_to_world((v3f)offset, dim.get(), scale.get());
                 pin(world_pos);
 
-                valuef dirac = dirac_delta_v((world_pos - pos).length(), radius_world);
+                //valuef dirac = dirac_delta_v((world_pos - pos).length(), radius_world);
+                valuef dirac = get_dirac2(dirac_delta_v, world_pos, pos, radius_world, scale.get());
                 pin(dirac);
 
                 if_e(dirac > 0, [&] {
-                    valuef sqrt_det_Gamma = pow(max(args.W, 0.1f), 3);
-                    pin(sqrt_det_Gamma);
 
-                    valuef fin_E = mass * lorentz * dirac / sqrt_det_Gamma;
-                    v3f Si_raised = (mass * lorentz * dirac / sqrt_det_Gamma) * vel;
-
-                    tensor<valuef, 3, 3> Sij_raised;
-
-                    for(int i=0; i < 3; i++)
-                    {
-                        for(int j=0; j < 3; j++)
-                        {
-                            Sij_raised[i, j] = (mass * lorentz * dirac / sqrt_det_Gamma) * vel[i] * vel[j];
-                        }
-                    }
-
-                    std::array<valuef, 6> Sij_sym = extract_symmetry(Sij_raised);
-
-                    auto scale = [&](valuef in)
-                    {
-                        valued in_d = (valued)in;
-                        valued in_scaled = in_d * fixed_scale.get();
-
-                        return (valuei64)in_scaled;
-                    };
-
-                    valuei64 E_scaled = scale(fin_E);
-
-                    tensor<valuei64, 3> Si_scaled;
-
-                    for(int i=0; i < 3; i++)
-                        Si_scaled[i] = scale(Si_raised[i]);
-
-                    std::array<valuei64, 6> Sij_scaled;
-
-                    for(int i=0; i < 6; i++)
-                        Sij_scaled[i] = scale(Sij_sym[i]);
-
-                    ///[offset, dim.get()]
-
-                    valuei idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
-
-                    out.E.atom_add_e(idx, E_scaled);
-
-                    for(int i=0; i < 3; i++)
-                        out.Si_raised[i].atom_add_e(idx, Si_scaled[i]);
-
-                    for(int i=0; i < 6; i++)
-                        out.Sij_raised[i].atom_add_e(idx, Sij_scaled[i]);
                 });
             }
         }
-    }
+    }*/
 }
 
 void fixed_to_float(execution_context& ectx, buffer<valuei64> in, buffer_mut<valuef> out, literal<valued> fixed_scale, literal<valuei> count)
@@ -563,6 +661,7 @@ void evolve_particles(execution_context& ctx,
     auto gB = (b_evolve.gB + i_evolve.gB) * 0.5f;
     auto K = (b_evolve.K + i_evolve.K) * 0.5f;
 
+    //this may not be correct
     auto dW = (b_evolve.dW + i_evolve.dW) * 0.5f;
     auto dgA = (b_evolve.dgA + i_evolve.dgA) * 0.5f;
     auto dgB = (b_evolve.dgB + i_evolve.dgB) * 0.5f;
@@ -631,7 +730,7 @@ void evolve_particles(execution_context& ctx,
         }
     }
 
-    //print("dV %f %f %f\n", dV[0], dV[1], dV[2]);
+    print("id %i vel %f %f %f dV %f %f %f lorentz %f\n", id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
 
     valuef dlorentz = 0;
 
