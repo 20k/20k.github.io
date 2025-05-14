@@ -548,7 +548,7 @@ void evolve_particles(execution_context& ctx,
     v3f grid_base = world_to_grid(pos_base, dim.get(), scale.get());
     v3f grid_next = world_to_grid(pos_next, dim.get(), scale.get());
 
-    #define MID
+    //#define MID
     #ifdef MID
     valuef lorentz = (lorentz_base + lorentz_next) * 0.5f + 1;
     v3f vel = (vel_base + vel_next) * 0.5f;
