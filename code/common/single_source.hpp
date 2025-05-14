@@ -614,6 +614,7 @@ namespace value_impl
             {SIGN, "sign"},
             {FLOOR, "floor"},
             {CEIL, "ceil"},
+            {ROUND, "round"},
             {SINH, "sinh"},
             {COSH, "cosh"},
             {TANH, "tanh"},
