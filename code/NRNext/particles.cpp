@@ -548,7 +548,7 @@ void evolve_particles(execution_context& ctx,
     v3f grid_base = world_to_grid(pos_base, dim.get(), scale.get());
     v3f grid_next = world_to_grid(pos_next, dim.get(), scale.get());
 
-    //#define MID
+    #define MID
     #ifdef MID
     valuef lorentz = (lorentz_base + lorentz_next) * 0.5f + 1;
     v3f vel = (vel_base + vel_next) * 0.5f;
@@ -649,7 +649,7 @@ void evolve_particles(execution_context& ctx,
     for(int i=0; i < 3; i++)
         as_ref(p_out.velocities[i][id]) = vel_base[i] + timestep.get() * dV[i];
 
-    as_ref(p_out.lorentzs[id]) = lorentz_base + timestep.get() * dlorentz;
+    as_ref(p_out.lorentzs[id]) = max(lorentz_base + timestep.get() * dlorentz, 0.f);
     as_ref(p_out.masses[id]) = p_in.masses[id];
 }
 
