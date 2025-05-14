@@ -348,6 +348,23 @@ void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer
     as_ref(lorentz_out[id]) = lorentz - 1;
 }
 
+void evolve_particles(execution_context& ctx,
+                      bssn_args_mem<buffer<valuef>> in,
+                      particle_base_args<buffer<valuef>> p_base, particle_base_args<buffer<valuef>> p_in, particle_base_args<buffer_mut<valuef>> p_out,
+                      literal<value<size_t>> count,
+                      literal<v3i> dim,
+                      literal<valuef> scale)
+{
+    using namespace single_source;
+
+    value<size_t> id = value_impl::get_global_id_us(0);
+
+    if_e(id >= count.get(), [&]{
+        return_e();
+    });
+
+}
+
 void boot_particle_kernels(cl::context ctx)
 {
     cl::async_build_and_cache(ctx, [&]{
