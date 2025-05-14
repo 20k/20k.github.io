@@ -148,7 +148,7 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
 {
     using namespace single_source;
 
-    int radius_cells = 3;
+    int radius_cells = 5;
     valuef radius_world = radius_cells * scale;
     pin(radius_world);
     int spread = radius_cells + 1;
@@ -257,11 +257,15 @@ void calculate_particle_intermediates(execution_context& ectx,
     pin(mass);
     pin(lorentz);
 
-    v3i cell = (v3i)round(world_to_grid(pos, dim.get(), scale.get()));
+    v3f fcell = world_to_grid(pos, dim.get(), scale.get());
+    v3i cell = (v3i)round(fcell);
     pin(cell);
 
-    for_each_dirac(cell, dim.get(), scale.get(), pos, [&](v3i offset, valuef dirac)
-    {
+    for_each_dirac(cell, dim.get(), scale.get(), pos, [&](v3i offset, valuef dirac) {
+        /*if_e(offset.y() == cell.y() && offset.z() == cell.z(), [&]{
+            print("Offset %i %i %i dirac %f cell %f %f %f\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z());
+        });*/
+
         bssn_args args(offset, dim.get(), in);
 
         valuef sqrt_det_Gamma = pow(max(args.W, 0.1f), 3);
@@ -669,7 +673,7 @@ void evolve_particles(execution_context& ctx,
         }
     }
 
-    print("id %i vel %f %f %f dV %f %f %f lorentz %f\n", id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
+    //print("id %i vel %f %f %f dV %f %f %f lorentz %f\n", id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
 
     valuef dlorentz = 0;
 
