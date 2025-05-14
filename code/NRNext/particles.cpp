@@ -152,8 +152,6 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
     v3i cell = (v3i)floor(world_to_grid(pos, dim.get(), scale.get()));
     pin(cell);
 
-    valuef E = mass * lorentz;
-
     int spread = radius_cells + 1;
 
     for(int z = -spread; z <= spread; z++)
@@ -166,6 +164,7 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
                 offset += cell;
 
                 offset = clamp(offset, (v3i){0,0,0}, dim.get() - 1);
+                pin(offset);
 
                 v3f world_pos = grid_to_world((v3f)offset, dim.get(), scale.get());
                 pin(world_pos);
@@ -174,14 +173,17 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
                 pin(dirac);
 
                 if_e(dirac > 0, [&]{
-                    //the mass may be extremely small
-                    //E might be absolutely tiny
-                    valued E_d = (valued)(E * dirac);
-                    valued E_scaled = E_d * fixed_scale.get();
+                    valuef fin_E = mass * lorentz * dirac;
 
-                    valuei64 as_i64 = (valuei64)E_scaled;
+                    auto scale = [&](valuef in)
+                    {
+                        valued in_d = (valued)in;
+                        valued in_scaled = in_d * fixed_scale.get();
 
-                    ///[offset, dim.get()]
+                        return (valuei64)in_scaled;
+                    };
+
+                    valuei64 as_i64 = scale(fin_E);
 
                     valuei idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
 
@@ -236,15 +238,15 @@ void calculate_particle_intermediates(execution_context& ectx,
                 offset += cell;
 
                 offset = clamp(offset, (v3i){0,0,0}, dim.get() - 1);
+                pin(offset);
 
                 bssn_args args(offset, dim.get(), in);
 
                 valuef sqrt_det_Gamma = pow(max(args.W, 0.1f), 3);
+                pin(sqrt_det_Gamma);
 
                 v3f world_pos = grid_to_world((v3f)offset, dim.get(), scale.get());
                 pin(world_pos);
-
-                //v3f world_offset = (v3f)offset * scale.get();
 
                 valuef dirac = dirac_delta_v((world_pos - pos).length(), radius_world);
                 pin(dirac);
@@ -252,8 +254,6 @@ void calculate_particle_intermediates(execution_context& ectx,
                 if_e(dirac > 0, [&] {
                     valuef fin_E = mass * lorentz * dirac / sqrt_det_Gamma;
                     v3f Si_raised = (mass * lorentz * dirac / sqrt_det_Gamma) * vel;
-
-                    //print("cell %i %i %i E %f\n", cell.x(), cell.y(), cell.z(), fin_E);
 
                     tensor<valuef, 3, 3> Sij_raised;
 
@@ -291,8 +291,6 @@ void calculate_particle_intermediates(execution_context& ectx,
 
                     valuei idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
 
-                    //print("cell %i %i %i E2 %i\n", cell.x(), cell.y(), cell.z(), E_scaled);
-
                     out.E.atom_add_e(idx, E_scaled);
 
                     for(int i=0; i < 3; i++)
@@ -318,10 +316,6 @@ void fixed_to_float(execution_context& ectx, buffer<valuei64> in, buffer_mut<val
     });
 
     valued as_double = ((valued)in[id]) / fixed_scale.get();
-
-    /*if_e(as_double != valued(0.), [&]{
-        print("hi %f\n", as_double);
-    });*/
 
     as_ref(out[id]) = (valuef)as_double;
 }
@@ -427,6 +421,7 @@ void particle_initial_conditions(cl::context& ctx, cl::command_queue& cqueue, di
 {
     cl::buffer intermediate(ctx);
     intermediate.alloc(sizeof(cl_long) * dim.x() * dim.y() * dim.z());
+    intermediate.set_to_zero(cqueue);
 
     ///assume that our total mass is K
     ///to correctly sum it, we want the scale to be.. well, each particle's mass is K/N
@@ -448,7 +443,7 @@ void particle_initial_conditions(cl::context& ctx, cl::command_queue& cqueue, di
         args.push_back(count);
         args.push_back(fixed_scale);
 
-        cqueue.exec("calculate_particle_nonconformal_E", args, {dim.x(), dim.y(), dim.z()}, {8, 8, 1});
+        cqueue.exec("calculate_particle_nonconformal_E", args, {count}, {128});
     }
 
     {

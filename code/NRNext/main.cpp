@@ -1738,7 +1738,7 @@ initial_params get_initial_params()
     float radial_pos = geometric_to_msol(1000 * 54.6/2, 1);
 
     particle_params part;
-    part.add({0,0,0}, {0,0,0}, 0.1);
+    part.add({0,0,0}, {0,0,0}, 0.01);
 
     initial_params init;
     init.N = 2;
