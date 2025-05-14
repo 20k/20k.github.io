@@ -500,18 +500,23 @@ void evolve_particles(execution_context& ctx,
     };
 
     v3f pos = p_in.get_position(id);
+    v3f vel = p_in.get_velocity(id);
+    valuef lorentz = p_in.get_lorentz(id) + 1;
 
     valuef gA = function_trilinear(gA_at, pos);
     v3f gB = function_trilinear(gB_at, pos);
-    unit_metric<valuef, 3, 3> cY = function_trilinear(cY_at, pos);
+    //interpolation no longer guarantees unit determinant
+    metric<valuef, 3, 3> cY = function_trilinear(cY_at, pos);
     tensor<valuef, 3, 3> cA = function_trilinear(cA_at, pos);
     valuef K = function_trilinear(K_at, pos);
+    valuef W = function_trilinear(W_at, pos);
 
     pin(gA);
     pin(gB);
     pin(cY);
     pin(cA);
     pin(K);
+    pin(W);
 
     v3f dgA = function_trilinear(dgA_at, pos);
     tensor<valuef, 3, 3> dgB = function_trilinear(dgB_at, pos);
@@ -522,6 +527,60 @@ void evolve_particles(execution_context& ctx,
     pin(dgB);
     pin(dcY);
     pin(dW);
+
+    auto icY = cY.invert();
+
+    auto iYij = icY * (W*W);
+    tensor<valuef, 3, 3> Kij = (cA + cY.to_tensor() * (K/3.f)) / pow(max(W, 0.01f), 2.f);
+    pin(Kij);
+    pin(iYij);
+
+    auto christoff2_cfl = christoffel_symbols_2(icY, dcY);
+    pin(christoff2_cfl);
+
+    auto christoff2 = get_full_christoffel2(W, dW, cY, icY, christoff2_cfl);
+    pin(christoff2);
+
+    v3f dX = gA * vel - gB;
+
+    v3f dV;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            valuef kjvk = 0;
+
+            for(int k=0; k < 3; k++)
+            {
+                kjvk += Kij[j, k] * vel[k];
+            }
+
+            valuef christoffel_sum = 0;
+
+            for(int k=0; k < 3; k++)
+            {
+                christoffel_sum += christoff2[i, j, k] * vel[k];
+            }
+
+            valuef dlog_gA = dgA[j] / max(gA, 0.01f);
+
+            dV[i] += gA * vel[j] * (vel[i] * (dlog_gA - kjvk) + 2 * iYij.raise(Kij, 0)[i, j] - christoffel_sum)
+                    - iYij[i, j] * dgA[j] - vel[j] * dgB[j, i];
+        }
+    }
+
+    valuef dlorentz = 0;
+
+    for(int i=0; i < 3; i++)
+    {
+        valuef sum = 0;
+
+        for(int j=0; j < 3; j++)
+        {
+            dlorentz += lorentz * vel[i] * (gA * Kij[i, j] * vel[j] - dgA[i]);
+        }
+    }
 }
 
 void boot_particle_kernels(cl::context ctx)
