@@ -242,9 +242,6 @@ void calculate_particle_intermediates(execution_context& ectx,
 
                 bssn_args args(offset, dim.get(), in);
 
-                valuef sqrt_det_Gamma = pow(max(args.W, 0.1f), 3);
-                pin(sqrt_det_Gamma);
-
                 v3f world_pos = grid_to_world((v3f)offset, dim.get(), scale.get());
                 pin(world_pos);
 
@@ -252,6 +249,9 @@ void calculate_particle_intermediates(execution_context& ectx,
                 pin(dirac);
 
                 if_e(dirac > 0, [&] {
+                    valuef sqrt_det_Gamma = pow(max(args.W, 0.1f), 3);
+                    pin(sqrt_det_Gamma);
+
                     valuef fin_E = mass * lorentz * dirac / sqrt_det_Gamma;
                     v3f Si_raised = (mass * lorentz * dirac / sqrt_det_Gamma) * vel;
 
