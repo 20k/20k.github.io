@@ -632,6 +632,7 @@ void evolve_particles(execution_context& ctx,
         as_ref(p_out.velocities[i][id]) = vel_base[i] + timestep.get() * dV[i];
 
     as_ref(p_out.lorentzs[id]) = lorentz_base + timestep.get() * dlorentz;
+    as_ref(p_out.masses[id]) = p_in.masses[id];
 }
 
 void boot_particle_kernels(cl::context ctx)
@@ -1114,7 +1115,6 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
 
         for(auto& i : sdata.bssn_buffers)
             args.push_back(i);
-
 
         auto base_bufs = base.get_buffers();
         auto in_bufs = in.get_buffers();
