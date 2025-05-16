@@ -122,7 +122,7 @@ valuef get_dirac2(auto&& func, const v3f& world_pos, const v3f& dirac_location, 
         valuef out = func(r, radius);
         pin(out);
         return out;
-    }, 4, ip1, im1) / (scale*scale*scale);
+    }, 3, ip1, im1) / (scale*scale*scale);
     #endif // GET_DIRAC_CORRECTED
 }
 
@@ -148,7 +148,7 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
 {
     using namespace single_source;
 
-    int radius_cells = 5;
+    int radius_cells = 3;
     valuef radius_world = radius_cells * scale;
     pin(radius_world);
     int spread = radius_cells + 1;
@@ -260,6 +260,22 @@ void calculate_particle_intermediates(execution_context& ectx,
     v3f fcell = world_to_grid(pos, dim.get(), scale.get());
     v3i cell = (v3i)round(fcell);
     pin(cell);
+
+    #ifdef ITS_NOT_THE_INTERPOLATION
+    auto W_at = [&](v3i pos)
+    {
+        pos = clamp(pos, (v3i){0,0,0}, dim.get() - 1);
+
+        bssn_args args(pos, dim.get(), in);
+
+        return args.W;
+    };
+
+    auto Wf = function_trilinear(W_at, fcell);
+    pin(Wf);
+
+    valuef sqrt_det_Gamma = pow(max(Wf, 0.1f), 3);
+    #endif
 
     for_each_dirac(cell, dim.get(), scale.get(), pos, [&](v3i offset, valuef dirac) {
         /*if_e(offset.y() == cell.y() && offset.z() == cell.z(), [&]{
@@ -589,7 +605,7 @@ void evolve_particles(execution_context& ctx,
     v3f grid_base = world_to_grid(pos_base, dim.get(), scale.get());
     v3f grid_next = world_to_grid(pos_next, dim.get(), scale.get());
 
-    #define MID
+    //#define MID
     #ifdef MID
     valuef lorentz = (lorentz_base + lorentz_next) * 0.5f + 1;
     v3f vel = (vel_base + vel_next) * 0.5f;
@@ -673,7 +689,7 @@ void evolve_particles(execution_context& ctx,
         }
     }
 
-    //print("id %i vel %f %f %f dV %f %f %f lorentz %f\n", id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
+    print("id %i vel %f %f %f dV %f %f %f lorentz %f\n", id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
 
     valuef dlorentz = 0;
 

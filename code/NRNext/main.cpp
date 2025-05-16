@@ -1741,10 +1741,11 @@ initial_params get_initial_params()
     float radial_pos = geometric_to_msol(1000 * 54.6/2, 1);
 
     particle_params part;
-    //part.add({0.01,0,0}, {0,0,0}, 0.01);
-    //part.add({10,0,0}, {0,-0.015,0}, 0.01);
+    part.add({0.01,0,0}, {0,0,0}, 0.001);
+    //part.add({-10,0,0}, {0,0.015,0}, 0.01);
     //part.add({10,0,0}, {0,-0.015,0}, 0.01);
 
+    #if 0
     int N = 80000;
     double M = 1;
 
@@ -1768,6 +1769,7 @@ initial_params get_initial_params()
 
         part.add(pos, vel, lM);
     }
+    #endif
 
     initial_params init;
     init.N = 2;
@@ -2134,7 +2136,7 @@ int main()
 
         win.display();
 
-        std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
+        //std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
 
         if(step)
             elapsed_t += timestep;
