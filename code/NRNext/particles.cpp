@@ -95,14 +95,14 @@ valuef get_dirac2(auto&& func, const v3f& world_pos, const v3f& dirac_location, 
 {
     using namespace single_source;
 
-    #define GET_DIRAC_STANDARD
+    //#define GET_DIRAC_STANDARD
     #ifdef GET_DIRAC_STANDARD
     valuef r = (world_pos - dirac_location).length();
     //pin(r);
     return func(r, radius);
     #endif // GET_DIRAC_STANDARD
 
-    //#define GET_DIRAC_CORRECTED
+    #define GET_DIRAC_CORRECTED
     #ifdef GET_DIRAC_CORRECTED
     tensor<valuef, 3> scale3 = {scale, scale, scale};
 
@@ -764,7 +764,7 @@ void boot_particle_kernels(cl::context ctx)
 double get_fixed_scale(double total_mass, int64_t particle_count)
 {
     double approx_total_mass = total_mass;
-    double fixed_scale = ((double)particle_count / approx_total_mass) * pow(10., 6.);
+    double fixed_scale = ((double)particle_count / approx_total_mass) * pow(10., 8.);
     return fixed_scale;
 }
 
@@ -1004,6 +1004,8 @@ template struct full_particle_args<buffer_mut<valuef>>;
 template<typename T>
 valuef full_particle_args<T>::adm_p(bssn_args& args, const derivative_data& d)
 {
+    //return {};
+
     return this->E[d.pos, d.dim];
 }
 
