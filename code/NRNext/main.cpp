@@ -1731,6 +1731,7 @@ initial_params get_initial_params()
 
     initial_conditions init(ctx, cqueue, dim);
 
+
     init.add(p1);
     #endif
 

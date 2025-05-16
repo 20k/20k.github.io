@@ -95,14 +95,14 @@ valuef get_dirac2(auto&& func, const v3f& world_pos, const v3f& dirac_location, 
 {
     using namespace single_source;
 
-    //#define GET_DIRAC_STANDARD
+    #define GET_DIRAC_STANDARD
     #ifdef GET_DIRAC_STANDARD
     valuef r = (world_pos - dirac_location).length();
     //pin(r);
     return func(r, radius);
     #endif // GET_DIRAC_STANDARD
 
-    #define GET_DIRAC_CORRECTED
+    //#define GET_DIRAC_CORRECTED
     #ifdef GET_DIRAC_CORRECTED
     tensor<valuef, 3> scale3 = {scale, scale, scale};
 
@@ -136,6 +136,13 @@ valuef get_dirac2(auto&& func, const v3f& world_pos, const v3f& dirac_location, 
 //det(Y_ij) = (phi^4)^3 = phi^12?
 //sqrt(det(Y_ij)) = phi^12^0.5 = phi^6
 //E = non_cfl_E  phi^-6
+
+//ok I was just wrong
+//cY = W^2 Yij
+//det(Yij) = det(cY W^-2)
+//det(Yij) = det(cY) (W^-2)^3
+//= W^-6
+//sqrt(det(Yij)) = W^-3
 
 //det(cA) = c^n det(A). For us, c^3
 //Yij = W^2 cY
@@ -175,6 +182,10 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
                 pin(dirac);
 
                 if_e(dirac > 0, [&]{
+                    /*if_e(offset.x() == cell.x() && offset.y() == cell.y(), [&]{
+                        print("dbg %i %i %i wp %.23f %.23f %.23f dirac %.23f\n", offset.x(), offset.y(), offset.z(), world_pos[0], world_pos[1], world_pos[2], dirac);
+                    });*/
+
                     func(offset, dirac);
                 });
             });
@@ -274,17 +285,19 @@ void calculate_particle_intermediates(execution_context& ectx,
     auto Wf = function_trilinear(W_at, fcell);
     pin(Wf);
 
-    valuef sqrt_det_Gamma = pow(max(Wf, 0.1f), 3);
+    valuef sqrt_det_Gamma = pow(max(Wf, 0.1f), -3);
     #endif
 
     for_each_dirac(cell, dim.get(), scale.get(), pos, [&](v3i offset, valuef dirac) {
-        /*if_e(offset.y() == cell.y() && offset.z() == cell.z(), [&]{
-            print("Offset %i %i %i dirac %f cell %f %f %f\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z());
-        });*/
+        //if_e(offset.y() == cell.y() && offset.z() == cell.z(), [&]{
 
         bssn_args args(offset, dim.get(), in);
 
-        valuef sqrt_det_Gamma = pow(max(args.W, 0.1f), 3);
+        if_e(offset.x() == cell.x() && offset.y() == cell.y(), [&]{
+            print("Offset %i %i %i dirac %.23f cell %f %f %f gA %.23f\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z(), args.gA);
+        });
+
+        valuef sqrt_det_Gamma = pow(max(args.W, 0.1f), -3);
         pin(sqrt_det_Gamma);
 
         valuef fin_E = mass * lorentz * dirac / sqrt_det_Gamma;
@@ -689,7 +702,7 @@ void evolve_particles(execution_context& ctx,
         }
     }
 
-    print("id %i vel %f %f %f dV %f %f %f lorentz %f\n", id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
+    print("R pos %.24f %.24f %.24f grid %f %f %f id %i vel %f %f %f dV %f %f %f lorentz %f\n", pos_next[0], pos_next[1], pos_next[2], grid_next[0], grid_next[1], grid_next[2], id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
 
     valuef dlorentz = 0;
 
@@ -697,7 +710,7 @@ void evolve_particles(execution_context& ctx,
     {
         for(int j=0; j < 3; j++)
         {
-            dlorentz += lorentz * vel[i] * (gA * Kij[i, j] * vel[j] - dgA[i]);
+            //dlorentz += lorentz * vel[i] * (gA * Kij[i, j] * vel[j] - dgA[i]);
         }
     }
 
