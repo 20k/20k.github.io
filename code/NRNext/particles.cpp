@@ -293,9 +293,9 @@ void calculate_particle_intermediates(execution_context& ectx,
 
         bssn_args args(offset, dim.get(), in);
 
-        if_e(offset.x() == cell.x() && offset.y() == cell.y(), [&]{
+        /*if_e(offset.x() == cell.x() && offset.y() == cell.y(), [&]{
             print("Offset %i %i %i dirac %.23f cell %f %f %f gA %.23f\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z(), args.gA);
-        });
+        });*/
 
         valuef sqrt_det_Gamma = pow(max(args.W, 0.1f), -3);
         pin(sqrt_det_Gamma);
@@ -699,10 +699,16 @@ void evolve_particles(execution_context& ctx,
 
             dV[i] += gA * vel[j] * (vel[i] * (dlog_gA - kjvk) + 2 * iYij.raise(Kij, 0)[i, j] - christoffel_sum)
                     - iYij[i, j] * dgA[j] - vel[j] * dgB[j, i];
+
+            if(i == 2)
+            {
+                print("Dbg k %.23f a %.23f b %.23f\n", vel[j] * iYij.raise(Kij, 0)[i, j], iYij[i,j] * dgA[j], vel[j] * dgB[j, i]);
+            }
         }
     }
 
-    print("R pos %.24f %.24f %.24f grid %f %f %f id %i vel %f %f %f dV %f %f %f lorentz %f\n", pos_next[0], pos_next[1], pos_next[2], grid_next[0], grid_next[1], grid_next[2], id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
+    print("R grid %f %f %f id %i vel %.23f %.23f %.23f dV %.23f %.23f %.23f lorentz %f\n", grid_next[0], grid_next[1], grid_next[2], id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
+    //print("R pos %.24f %.24f %.24f grid %f %f %f id %i vel %.23f %.23f %.23f dV %.23f %.23f %.23f lorentz %f\n", pos_next[0], pos_next[1], pos_next[2], grid_next[0], grid_next[1], grid_next[2], id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
 
     valuef dlorentz = 0;
 
