@@ -63,6 +63,7 @@ struct particle_params
     std::array<std::vector<float>, 3> positions;
     std::array<std::vector<float>, 3> velocities;
     std::vector<float> masses;
+    double total_mass = 0;
 
     int64_t size() const
     {
@@ -78,11 +79,13 @@ struct particle_params
         }
 
         masses.push_back(mass);
+        total_mass += mass;
     }
 };
 
 struct particle_data
 {
+    double total_mass = 0;
     int64_t count = 0;
     std::array<cl::buffer, 3> positions;
     std::array<cl::buffer, 3> velocities;
@@ -92,6 +95,7 @@ struct particle_data
 
     void add(cl::command_queue& cqueue, const particle_params& params)
     {
+        total_mass = params.total_mass;
         count = params.size();
 
         for(int i=0; i < 3; i++)
@@ -232,6 +236,7 @@ struct full_particle_args : adm_args_mem, particle_base_args<T>, particle_utilit
 
 struct particle_plugin : plugin
 {
+    double total_mass = 0;
     uint64_t particle_count = 0;
 
     particle_plugin(cl::context ctx, uint64_t _particle_count);

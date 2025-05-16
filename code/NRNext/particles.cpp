@@ -293,7 +293,7 @@ void calculate_particle_intermediates(execution_context& ectx,
 
         bssn_args args(offset, dim.get(), in);
 
-        /*if_e(offset.x() == cell.x() && offset.y() == cell.y(), [&]{
+        /*if_e(offset.x() == (cell.x() + 1) && offset.y() == cell.y(), [&]{
             print("Offset %i %i %i dirac %.23f cell %f %f %f gA %.23f\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z(), args.gA);
         });*/
 
@@ -346,6 +346,12 @@ void calculate_particle_intermediates(execution_context& ectx,
 
         for(int i=0; i < 6; i++)
             out.Sij_raised[i].atom_add_e(idx, Sij_scaled[i]);
+
+        if_e(offset.x() == 100 && offset.y() == 99, [&]{
+            print("Offset %i %i %i dirac %.23f cell %f %f %f gA %.23f E %i Si %i %i %i Sij %i %i %i %i %i %i\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z(), args.gA,
+            E_scaled, Si_scaled[0], Si_scaled[1], Si_scaled[2], Sij_scaled[0], Sij_scaled[1], Sij_scaled[2], Sij_scaled[3], Sij_scaled[4], Sij_scaled[5]);
+        });
+
     });
 }
 
@@ -500,6 +506,8 @@ struct evolve_vars
 
             v3f dgA = (v3f){diff1(args.gA, 0, d), diff1(args.gA, 1, d), diff1(args.gA, 2, d)};
             pin(dgA);
+
+            print("dgA %.23f %.23f %.23f pos %i %i %i\n", dgA[0], dgA[1], dgA[2], pos.x(), pos.y(), pos.z());
 
             return dgA;
         };
@@ -716,7 +724,7 @@ void evolve_particles(execution_context& ctx,
     {
         for(int j=0; j < 3; j++)
         {
-            //dlorentz += lorentz * vel[i] * (gA * Kij[i, j] * vel[j] - dgA[i]);
+            dlorentz += lorentz * vel[i] * (gA * Kij[i, j] * vel[j] - dgA[i]);
         }
     }
 
@@ -753,9 +761,9 @@ void boot_particle_kernels(cl::context ctx)
     }, {"evolve_particles"});
 }
 
-double get_fixed_scale(int64_t particle_count)
+double get_fixed_scale(double total_mass, int64_t particle_count)
 {
-    double approx_total_mass = 1;
+    double approx_total_mass = total_mass;
     double fixed_scale = ((double)particle_count / approx_total_mass) * pow(10., 6.);
     return fixed_scale;
 }
@@ -772,7 +780,7 @@ void particle_initial_conditions(cl::context& ctx, cl::command_queue& cqueue, di
     ///to correctly sum it, we want the scale to be.. well, each particle's mass is K/N
     ///and we want.. 3 digits ( = log2(10^3) = 10 bits) of precision? as many as possible?
 
-    double fixed_scale = get_fixed_scale(data.count);
+    double fixed_scale = get_fixed_scale(data.total_mass, data.count);
 
     {
         cl_ulong count = data.count;
@@ -1089,11 +1097,11 @@ struct particle_temp
     }
 };
 
-void calculate_intermediates(cl::context ctx, cl::command_queue cqueue, std::vector<cl::buffer> bssn_in, particle_buffers& p_in, particle_utility_buffers& util_out, t3i dim, float scale, cl_ulong count)
+void calculate_intermediates(cl::context ctx, cl::command_queue cqueue, std::vector<cl::buffer> bssn_in, particle_buffers& p_in, particle_utility_buffers& util_out, t3i dim, float scale, double total_mass, cl_ulong count)
 {
     particle_temp tmp(ctx, cqueue, dim);
 
-    double fixed_scale = get_fixed_scale(count);
+    double fixed_scale = get_fixed_scale(total_mass, count);
 
     {
         cl::args args;
@@ -1148,6 +1156,7 @@ void calculate_intermediates(cl::context ctx, cl::command_queue cqueue, std::vec
 void particle_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffer_pack& in, initial_pack& pack, cl::buffer u, buffer_provider* to_init, buffer_provider* to_init_utility)
 {
     assert(pack.gpu_particles);
+    total_mass = pack.gpu_particles->total_mass;
 
     particle_buffers& p_out = *dynamic_cast<particle_buffers*>(to_init);
     particle_utility_buffers& util_out = *dynamic_cast<particle_utility_buffers*>(to_init_utility);
@@ -1182,7 +1191,7 @@ void particle_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffe
         bssn.push_back(buf);
     });
 
-    calculate_intermediates(ctx, cqueue, bssn, p_out, util_out, pack.dim, pack.scale, count);
+    calculate_intermediates(ctx, cqueue, bssn, p_out, util_out, pack.dim, pack.scale, total_mass, count);
 }
 
 void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plugin_step_data& sdata)
@@ -1232,5 +1241,5 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
 
     particle_utility_buffers& util_out = *dynamic_cast<particle_utility_buffers*>(sdata.utility_buffers);
 
-    calculate_intermediates(ctx, cqueue, sdata.bssn_buffers, in, util_out, sdata.dim, sdata.scale, count);
+    calculate_intermediates(ctx, cqueue, sdata.bssn_buffers, in, util_out, sdata.dim, sdata.scale, total_mass, count);
 }
