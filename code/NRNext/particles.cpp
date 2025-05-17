@@ -288,32 +288,30 @@ void calculate_particle_intermediates(execution_context& ectx,
     valuef sqrt_det_Gamma = pow(max(Wf, 0.1f), -3);
     #endif
 
-    for_each_dirac(cell, dim.get(), scale.get(), pos, [&](v3i offset, valuef dirac) {
-        //if_e(offset.y() == cell.y() && offset.z() == cell.z(), [&]{
+    valuef E_root = mass * lorentz;
+    pin(E_root);
 
+    v3f Si_root = mass * lorentz * vel;
+    pin(Si_root);
+
+    tensor<valuef, 3, 3> Sij_root;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            Sij_root[i, j] = mass * lorentz * vel[i] * vel[j];
+        }
+    }
+
+    pin(Sij_root);
+
+    for_each_dirac(cell, dim.get(), scale.get(), pos, [&](v3i offset, valuef dirac) {
         bssn_args args(offset, dim.get(), in);
 
-        /*if_e(offset.x() == (cell.x() + 1) && offset.y() == cell.y(), [&]{
-            print("Offset %i %i %i dirac %.23f cell %f %f %f gA %.23f\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z(), args.gA);
-        });*/
-
-        //valuef isqrt_det_Gamma = pow(args.W, 3);
-        //pin(isqrt_det_Gamma);
-
-        //isqrt_det_Gamma = 1;
-
-        valuef fin_E = mass * lorentz * dirac;
-        v3f Si_raised = (mass * lorentz * dirac) * vel;
-
-        tensor<valuef, 3, 3> Sij_raised;
-
-        for(int i=0; i < 3; i++)
-        {
-            for(int j=0; j < 3; j++)
-            {
-                Sij_raised[i, j] = (mass * lorentz * dirac) * vel[i] * vel[j];
-            }
-        }
+        valuef fin_E = E_root * dirac;
+        v3f Si_raised = Si_root * dirac;
+        tensor<valuef, 3, 3> Sij_raised = Sij_root * dirac;
 
         std::array<valuef, 6> Sij_sym = extract_symmetry(Sij_raised);
 
@@ -344,10 +342,14 @@ void calculate_particle_intermediates(execution_context& ectx,
         out.E.atom_add_e(idx, E_scaled);
 
         for(int i=0; i < 3; i++)
+        {
             out.Si_raised[i].atom_add_e(idx, Si_scaled[i]);
+        }
 
         for(int i=0; i < 6; i++)
+        {
             out.Sij_raised[i].atom_add_e(idx, Sij_scaled[i]);
+        }
 
         /*if_e(offset.x() == 100 && offset.y() == 99, [&]{
             print("Offset %i %i %i dirac %.23f cell %f %f %f gA %.23f E %i Si %i %i %i Sij %i %i %i %i %i %i\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z(), args.gA,
