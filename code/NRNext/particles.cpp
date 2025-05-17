@@ -155,7 +155,7 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
 {
     using namespace single_source;
 
-    int radius_cells = 3;
+    int radius_cells = 2;
     valuef radius_world = radius_cells * scale;
     pin(radius_world);
     int spread = radius_cells + 1;
@@ -347,7 +347,7 @@ void calculate_particle_intermediates(execution_context& ectx,
         for(int i=0; i < 6; i++)
             out.Sij_raised[i].atom_add_e(idx, Sij_scaled[i]);
 
-        if_e(offset.x() == 100 && offset.y() == 99, [&]{
+        if_e(offset.z() == 99 && offset.y() == 99, [&]{
             print("Offset %i %i %i dirac %.23f cell %f %f %f gA %.23f E %i Si %i %i %i Sij %i %i %i %i %i %i\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z(), args.gA,
             E_scaled, Si_scaled[0], Si_scaled[1], Si_scaled[2], Sij_scaled[0], Sij_scaled[1], Sij_scaled[2], Sij_scaled[3], Sij_scaled[4], Sij_scaled[5]);
         });
@@ -387,7 +387,7 @@ v4f get_timelike_vector(v3f speed, tetrad tet)
 }
 
 //screw it. Do the whole tetrad spiel from raytrace_init, I've already done it. Return a tetrad
-void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, std::array<buffer<valuef>, 3> pos_in, std::array<buffer<valuef>, 3> vel_in, std::array<buffer_mut<valuef>, 3> vel_out, buffer_mut<valuef> lorentz_out, literal<value<size_t>> count, literal<v3i> dim, literal<valuef> scale)
+void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, std::array<buffer<valuef>, 3> pos_in, std::array<buffer<valuef>, 3> vel_in, buffer<valuef> mass_in, std::array<buffer_mut<valuef>, 3> vel_out, buffer_mut<valuef> lorentz_out, literal<value<size_t>> count, literal<v3i> dim, literal<valuef> scale)
 {
     using namespace single_source;
 
@@ -420,13 +420,20 @@ void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer
 
     valuef lorentz = 1 / sqrt(1 - dot(speed_in, speed_in));
 
-    v4f projected = (velocity4 / lorentz) - get_adm_hypersurface_normal_raised(vars.gA, vars.gB);
+    v4f momentum4 = velocity4 * mass_in[id];
+
+    v4f normal = get_adm_hypersurface_normal_raised(vars.gA, vars.gB);
+    v4f normal_lo = get_adm_hypersurface_normal_lowered(vars.gA);
+
+    valuef E = -dot(normal_lo, momentum4);
+
+    v4f projected = (momentum4 / E) - normal;
 
     as_ref(vel_out[0][id]) = projected[1];
     as_ref(vel_out[1][id]) = projected[2];
     as_ref(vel_out[2][id]) = projected[3];
     //always store the lorentz factor as lorentz - 1
-    as_ref(lorentz_out[id]) = lorentz - 1;
+    as_ref(lorentz_out[id]) = E - 1;
 }
 
 struct evolve_vars
@@ -708,7 +715,7 @@ void evolve_particles(execution_context& ctx,
             dV[i] += gA * vel[j] * (vel[i] * (dlog_gA - kjvk) + 2 * iYij.raise(Kij, 0)[i, j] - christoffel_sum)
                     - iYij[i, j] * dgA[j] - vel[j] * dgB[j, i];
 
-            if(i == 2)
+            if(i == 0)
             {
                 print("Dbg k %.23f a %.23f b %.23f\n", vel[j] * iYij.raise(Kij, 0)[i, j], iYij[i,j] * dgA[j], vel[j] * dgB[j, i]);
             }
@@ -1172,6 +1179,7 @@ void particle_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffe
         in.append_to(args);
         args.push_back(p_in.positions[0], p_in.positions[1], p_in.positions[2]);
         args.push_back(p_in.velocities[0], p_in.velocities[1], p_in.velocities[2]);
+        args.push_back(p_in.masses);
         args.push_back(p_out.velocities[0], p_out.velocities[1], p_out.velocities[2]);
         args.push_back(p_out.lorentzs);
         args.push_back(count);
