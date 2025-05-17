@@ -150,6 +150,7 @@ adm_variables make_adm_variables(T&& func, v4f position)
 
 void make_initial_conditions(cl::context ctx)
 {
+    #if 0
     auto init = [](execution_context&, bssn_args_mem<buffer_mut<valuef>> to_fill, literal<v3i> ldim, literal<valuef> scale) {
         using namespace single_source;
 
@@ -199,6 +200,7 @@ void make_initial_conditions(cl::context ctx)
     cl::async_build_and_cache(ctx, [=] {
         return value_impl::make_function(init, "init");
     }, {"init"});
+    #endif
 }
 
 void init_christoffel(cl::context ctx)

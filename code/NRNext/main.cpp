@@ -531,12 +531,12 @@ struct mesh
 
             #define SOMM(name, a, s) sommerfeld_buffer(base.name, in.name, out.name, a, s)
 
-            SOMM(cY[0], 1.f, 1.f);
+            SOMM(cY[0], 0.f, 1.f);
             SOMM(cY[1], 0.f, 1.f);
             SOMM(cY[2], 0.f, 1.f);
-            SOMM(cY[3], 1.f, 1.f);
+            SOMM(cY[3], 0.f, 1.f);
             SOMM(cY[4], 0.f, 1.f);
-            SOMM(cY[5], 1.f, 1.f);
+            SOMM(cY[5], 0.f, 1.f);
 
             SOMM(cA[0], 0.f, 1.f);
             SOMM(cA[1], 0.f, 1.f);
@@ -546,12 +546,12 @@ struct mesh
             SOMM(cA[5], 0.f, 1.f);
 
             SOMM(K, 0.f, 1.f);
-            SOMM(W, 1.f, 1.f);
+            SOMM(W, 0.f, 1.f);
             SOMM(cG[0], 0.f, 1.f);
             SOMM(cG[1], 0.f, 1.f);
             SOMM(cG[2], 0.f, 1.f);
 
-            SOMM(gA, 1.f, sqrt(2));
+            SOMM(gA, 0.f, sqrt(2));
             SOMM(gB[0], 0.f, 1);
             SOMM(gB[1], 0.f, 1);
             SOMM(gB[2], 0.f, 1);
@@ -1743,10 +1743,10 @@ initial_params get_initial_params()
 
     particle_params part;
     //part.add({0.01,0,0}, {0,0,0}, 0.001);
-    //part.add({-10,0,0}, {0,0.015,0}, 0.01);
-    //part.add({10,0,0}, {0,-0.015,0}, 0.01);
+    part.add({-10,0,0}, {0,0.015,0}, 0.01);
+    part.add({10,0,0}, {0,-0.015,0}, 0.01);
 
-    #if 1
+    #if 0
     int N = 80000;
     double M = 1;
 

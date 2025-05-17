@@ -192,6 +192,12 @@ void boot_initial_kernels(cl::context ctx)
         std::array<valuef, 6> packed_cA = extract_symmetry(cA);
         std::array<valuef, 6> packed_cY = extract_symmetry(cY.to_tensor());
 
+        packed_cY[0] = packed_cY[0] - 1;
+        packed_cY[3] = packed_cY[3] - 1;
+        packed_cY[5] = packed_cY[5] - 1;
+        gA = gA - 1;
+        W = W - 1;
+
         for(int i=0; i < 6; i++)
         {
             as_ref(out.cY[i][lid]) = packed_cY[i];

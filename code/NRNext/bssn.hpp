@@ -87,13 +87,17 @@ struct bssn_args
             }
         }
 
+        cY[0, 0] += 1;
+        cY[1, 1] += 1;
+        cY[2, 2] += 1;
+
         K = in.K[pos, dim];
-        W = max(in.W[pos, dim], valuef(1e-4f));
+        W = max(in.W[pos, dim] + 1, valuef(1e-4f));
 
         for(int i=0; i < 3; i++)
             cG[i] = in.cG[i][pos, dim];
 
-        gA = max(in.gA[pos, dim], valuef(1e-4f));
+        gA = max(in.gA[pos, dim] + 1, valuef(1e-4f));
 
         for(int i=0; i < 3; i++)
             gB[i] = in.gB[i][pos, dim];

@@ -405,7 +405,7 @@ valuef W_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 
     auto W_at = [&](v3i pos)
     {
-        return in.W[pos, dim];
+        return in.W[pos, dim] + 1;
     };
 
     return function_trilinear(W_at, pos);
@@ -417,7 +417,7 @@ valuef gA_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 
     auto func = [&](v3i pos)
     {
-        return in.gA[pos, dim];
+        return in.gA[pos, dim] + 1;
     };
 
     auto val = function_trilinear(func, pos);

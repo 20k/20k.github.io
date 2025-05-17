@@ -1187,7 +1187,7 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, const initi
         as_ref(out.K[pos, dim]) = apply_evolution(base.K[pos, dim], dtK, timestep.get());
 
         valuef dtgA = get_dtgA(args, derivs, d, total_elapsed.get(), cfg.lapse_damp_timescale);
-        as_ref(out.gA[pos, dim]) = clamp(apply_evolution(base.gA[pos, dim], dtgA, timestep.get()), valuef(0.f), valuef(1.f));
+        as_ref(out.gA[pos, dim]) = apply_evolution(base.gA[pos, dim], dtgA, timestep.get());
 
         auto dtgB = get_dtgB(args, derivs, d, cfg);
 
