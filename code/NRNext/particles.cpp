@@ -297,11 +297,11 @@ void calculate_particle_intermediates(execution_context& ectx,
             print("Offset %i %i %i dirac %.23f cell %f %f %f gA %.23f\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z(), args.gA);
         });*/
 
-        valuef sqrt_det_Gamma = pow(max(args.W, 0.1f), -3);
-        pin(sqrt_det_Gamma);
+        valuef isqrt_det_Gamma = pow(args.W, 3);
+        pin(isqrt_det_Gamma);
 
-        valuef fin_E = mass * lorentz * dirac / sqrt_det_Gamma;
-        v3f Si_raised = (mass * lorentz * dirac / sqrt_det_Gamma) * vel;
+        valuef fin_E = mass * lorentz * dirac * isqrt_det_Gamma;
+        v3f Si_raised = (mass * lorentz * dirac * isqrt_det_Gamma) * vel;
 
         tensor<valuef, 3, 3> Sij_raised;
 
@@ -309,7 +309,7 @@ void calculate_particle_intermediates(execution_context& ectx,
         {
             for(int j=0; j < 3; j++)
             {
-                Sij_raised[i, j] = (mass * lorentz * dirac / sqrt_det_Gamma) * vel[i] * vel[j];
+                Sij_raised[i, j] = (mass * lorentz * dirac * isqrt_det_Gamma) * vel[i] * vel[j];
             }
         }
 
