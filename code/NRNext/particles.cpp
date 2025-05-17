@@ -505,8 +505,9 @@ struct evolve_vars
             d.dim = dim;
             d.scale = scale;
 
-            bssn_args args(pos, dim, in);
+            bssn_args args(pos, dim, in, true);
 
+            //todo: use better prec here
             v3f dgA = (v3f){diff1(args.gA, 0, d), diff1(args.gA, 1, d), diff1(args.gA, 2, d)};
             pin(dgA);
 
@@ -522,8 +523,9 @@ struct evolve_vars
             d.dim = dim;
             d.scale = scale;
 
-            bssn_args args(pos, dim, in);
+            bssn_args args(pos, dim, in, true);
 
+            //todo; use better prec here
             v3f dW = (v3f){diff1(args.W, 0, d), diff1(args.W, 1, d), diff1(args.W, 2, d)};
             pin(dW);
 
@@ -550,12 +552,13 @@ struct evolve_vars
 
         auto dcY_at = [&](v3i pos)
         {
+            //todo: use better prec here
             derivative_data d;
             d.pos = pos;
             d.dim = dim;
             d.scale = scale;
 
-            bssn_args args(pos, dim, in);
+            bssn_args args(pos, dim, in, true);
             tensor<valuef, 3, 3, 3> dcY;
 
             for(int i=0; i < 3; i++)

@@ -72,7 +72,7 @@ struct bssn_args
     tensor<valuef, 3> gB;
 
     bssn_args(v3i pos, v3i dim,
-              bssn_args_mem<buffer<value<float>>>& in)
+              bssn_args_mem<buffer<value<float>>>& in, bool raw = false)
     {
         int index_table[3][3] = {{0, 1, 2},
                                  {1, 3, 4},
@@ -87,17 +87,25 @@ struct bssn_args
             }
         }
 
-        cY[0, 0] += 1;
-        cY[1, 1] += 1;
-        cY[2, 2] += 1;
+        if(!raw)
+        {
+            cY[0, 0] += 1;
+            cY[1, 1] += 1;
+            cY[2, 2] += 1;
+
+            W = max(in.W[pos, dim] + 1, valuef(1e-4f));
+            gA = max(in.gA[pos, dim] + 1, valuef(1e-4f));
+        }
+        else
+        {
+            W = in.W[pos, dim];
+            gA = in.gA[pos, dim];
+        }
 
         K = in.K[pos, dim];
-        W = max(in.W[pos, dim] + 1, valuef(1e-4f));
 
         for(int i=0; i < 3; i++)
             cG[i] = in.cG[i][pos, dim];
-
-        gA = max(in.gA[pos, dim] + 1, valuef(1e-4f));
 
         for(int i=0; i < 3; i++)
             gB[i] = in.gB[i][pos, dim];
