@@ -331,6 +331,8 @@ void calculate_particle_intermediates(execution_context& ectx,
             }
         }
 
+        //print("Tuv00 %f\n", Tuv[0, 0]);
+
         valuef E = 0;
 
         for(int i=0; i < 4; i++)
@@ -347,9 +349,9 @@ void calculate_particle_intermediates(execution_context& ectx,
         {
             valuef sum = 0;
 
-            for(int j=0; j < 3; j++)
+            for(int j=0; j < 4; j++)
             {
-                for(int k=0; k < 3; k++)
+                for(int k=0; k < 4; k++)
                 {
                     sum += -Yij_projector[i, j] * normal_lo[k] * Tuv[j, k];
                 }
@@ -428,8 +430,10 @@ void calculate_particle_intermediates(execution_context& ectx,
             out.Sij_raised[i].atom_add_e(idx, Sij_scaled[i]);
 
         if_e(offset.z() == 99 && offset.y() == 99, [&]{
-            print("Offset %i %i %i dirac %.23f cell %f %f %f gA %.23f E %i Si %i %i %i Sij %i %i %i %i %i %i\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z(), args.gA,
-            E_scaled, Si_scaled[0], Si_scaled[1], Si_scaled[2], Sij_scaled[0], Sij_scaled[1], Sij_scaled[2], Sij_scaled[3], Sij_scaled[4], Sij_scaled[5]);
+            print("Lorentz %f Energy %f\n", velocity4.x(), lorentz);
+
+            //print("Offset %i %i %i dirac %.23f cell %f %f %f gA %.23f E %i Si %i %i %i Sij %i %i %i %i %i %i\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z(), args.gA,
+            //E_scaled, Si_scaled[0], Si_scaled[1], Si_scaled[2], Sij_scaled[0], Sij_scaled[1], Sij_scaled[2], Sij_scaled[3], Sij_scaled[4], Sij_scaled[5]);
         });
 
     });
@@ -798,14 +802,16 @@ void evolve_particles(execution_context& ctx,
             dV[i] += gA * vel[j] * (vel[i] * (dlog_gA - kjvk) + 2 * iYij.raise(Kij, 0)[i, j] - christoffel_sum)
                     - iYij[i, j] * dgA[j] - vel[j] * dgB[j, i];
 
-            if(i == 0)
+            /*if(i == 0)
             {
                 print("Dbg k %.23f a %.23f b %.23f\n", vel[j] * iYij.raise(Kij, 0)[i, j], iYij[i,j] * dgA[j], vel[j] * dgB[j, i]);
-            }
+            }*/
         }
     }
 
-    print("R grid %f %f %f id %i vel %.23f %.23f %.23f dV %.23f %.23f %.23f lorentz %f\n", grid_next[0], grid_next[1], grid_next[2], id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
+    print("Stats vel %f %f %f lorentz %f\n", vel[0], vel[1], vel[2], lorentz);
+
+    //print("R grid %f %f %f id %i vel %.23f %.23f %.23f dV %.23f %.23f %.23f lorentz %f\n", grid_next[0], grid_next[1], grid_next[2], id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
     //print("R pos %.24f %.24f %.24f grid %f %f %f id %i vel %.23f %.23f %.23f dV %.23f %.23f %.23f lorentz %f\n", pos_next[0], pos_next[1], pos_next[2], grid_next[0], grid_next[1], grid_next[2], id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
 
     valuef dlorentz = 0;
@@ -824,7 +830,7 @@ void evolve_particles(execution_context& ctx,
     for(int i=0; i < 3; i++)
         as_ref(p_out.velocities[i][id]) = vel_base[i] + timestep.get() * dV[i];
 
-    as_ref(p_out.lorentzs[id]) = max(lorentz_base + timestep.get() * dlorentz, 0.f);
+    as_ref(p_out.lorentzs[id]) = lorentz_base + timestep.get() * dlorentz;
     as_ref(p_out.masses[id]) = p_in.masses[id];
 }
 
