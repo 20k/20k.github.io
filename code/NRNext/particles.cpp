@@ -155,7 +155,7 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
 {
     using namespace single_source;
 
-    int radius_cells = 3;
+    int radius_cells = 5;
     valuef radius_world = radius_cells * scale;
     pin(radius_world);
     int spread = radius_cells + 1;
@@ -297,11 +297,13 @@ void calculate_particle_intermediates(execution_context& ectx,
             print("Offset %i %i %i dirac %.23f cell %f %f %f gA %.23f\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z(), args.gA);
         });*/
 
-        valuef isqrt_det_Gamma = pow(args.W, 3);
-        pin(isqrt_det_Gamma);
+        //valuef isqrt_det_Gamma = pow(args.W, 3);
+        //pin(isqrt_det_Gamma);
 
-        valuef fin_E = mass * lorentz * dirac * isqrt_det_Gamma;
-        v3f Si_raised = (mass * lorentz * dirac * isqrt_det_Gamma) * vel;
+        //isqrt_det_Gamma = 1;
+
+        valuef fin_E = mass * lorentz * dirac;
+        v3f Si_raised = (mass * lorentz * dirac) * vel;
 
         tensor<valuef, 3, 3> Sij_raised;
 
@@ -309,7 +311,7 @@ void calculate_particle_intermediates(execution_context& ectx,
         {
             for(int j=0; j < 3; j++)
             {
-                Sij_raised[i, j] = (mass * lorentz * dirac * isqrt_det_Gamma) * vel[i] * vel[j];
+                Sij_raised[i, j] = (mass * lorentz * dirac) * vel[i] * vel[j];
             }
         }
 
@@ -347,11 +349,10 @@ void calculate_particle_intermediates(execution_context& ectx,
         for(int i=0; i < 6; i++)
             out.Sij_raised[i].atom_add_e(idx, Sij_scaled[i]);
 
-        if_e(offset.x() == 100 && offset.y() == 99, [&]{
+        /*if_e(offset.x() == 100 && offset.y() == 99, [&]{
             print("Offset %i %i %i dirac %.23f cell %f %f %f gA %.23f E %i Si %i %i %i Sij %i %i %i %i %i %i\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z(), args.gA,
             E_scaled, Si_scaled[0], Si_scaled[1], Si_scaled[2], Sij_scaled[0], Sij_scaled[1], Sij_scaled[2], Sij_scaled[3], Sij_scaled[4], Sij_scaled[5]);
-        });
-
+        });*/
     });
 }
 
@@ -507,7 +508,7 @@ struct evolve_vars
             v3f dgA = (v3f){diff1(args.gA, 0, d), diff1(args.gA, 1, d), diff1(args.gA, 2, d)};
             pin(dgA);
 
-            print("dgA %.23f %.23f %.23f pos %i %i %i\n", dgA[0], dgA[1], dgA[2], pos.x(), pos.y(), pos.z());
+            //print("dgA %.23f %.23f %.23f pos %i %i %i\n", dgA[0], dgA[1], dgA[2], pos.x(), pos.y(), pos.z());
 
             return dgA;
         };
@@ -708,14 +709,14 @@ void evolve_particles(execution_context& ctx,
             dV[i] += gA * vel[j] * (vel[i] * (dlog_gA - kjvk) + 2 * iYij.raise(Kij, 0)[i, j] - christoffel_sum)
                     - iYij[i, j] * dgA[j] - vel[j] * dgB[j, i];
 
-            if(i == 2)
+            /*if(i == 2)
             {
                 print("Dbg k %.23f a %.23f b %.23f\n", vel[j] * iYij.raise(Kij, 0)[i, j], iYij[i,j] * dgA[j], vel[j] * dgB[j, i]);
-            }
+            }*/
         }
     }
 
-    print("R grid %f %f %f id %i vel %.23f %.23f %.23f dV %.23f %.23f %.23f lorentz %f\n", grid_next[0], grid_next[1], grid_next[2], id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
+    //print("R grid %f %f %f id %i vel %.23f %.23f %.23f dV %.23f %.23f %.23f lorentz %f\n", grid_next[0], grid_next[1], grid_next[2], id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
     //print("R pos %.24f %.24f %.24f grid %f %f %f id %i vel %.23f %.23f %.23f dV %.23f %.23f %.23f lorentz %f\n", pos_next[0], pos_next[1], pos_next[2], grid_next[0], grid_next[1], grid_next[2], id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
 
     valuef dlorentz = 0;
@@ -1006,7 +1007,7 @@ valuef full_particle_args<T>::adm_p(bssn_args& args, const derivative_data& d)
 {
     //return {};
 
-    return this->E[d.pos, d.dim];
+    return pow(args.W, 3.f) * this->E[d.pos, d.dim];
 }
 
 template<typename T>
@@ -1017,7 +1018,7 @@ tensor<valuef, 3> full_particle_args<T>::adm_Si(bssn_args& args, const derivativ
 
     v3f Ji = this->get_Si(d.pos, d.dim);
 
-    return Yij.lower(Ji);
+    return pow(args.W, 3.f) * Yij.lower(Ji);
 }
 
 template<typename T>
@@ -1027,7 +1028,7 @@ tensor<valuef, 3, 3> full_particle_args<T>::adm_W2_Sij(bssn_args& args, const de
 
     tensor<valuef, 3, 3> Sij = this->get_Sij(d.pos, d.dim);
 
-    return args.W * args.W * Yij.lower(Yij.lower(Sij, 0), 1);
+    return pow(args.W, 3.f) * args.W * args.W * Yij.lower(Yij.lower(Sij, 0), 1);
 }
 
 void particle_utility_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t3i size)
