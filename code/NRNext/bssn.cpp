@@ -1266,6 +1266,10 @@ void enforce_algebraic_constraints(cl::context ctx)
             }
         }
 
+        cY[0, 0] += 1;
+        cY[1, 1] += 1;
+        cY[2, 2] += 1;
+
         pin(cY);
         pin(cA);
 
@@ -1276,6 +1280,10 @@ void enforce_algebraic_constraints(cl::context ctx)
 
         tensor<valuef, 3, 3> fixed_cA = trace_free(cA, fixed_cY, fixed_cY.invert());
         pin(fixed_cA);
+
+        fixed_cY[0, 0] = fixed_cY[0, 0] - 1;
+        fixed_cY[1, 1] = fixed_cY[1, 1] - 1;
+        fixed_cY[2, 2] = fixed_cY[2, 2] - 1;
 
         /*if_e(pos.x() == 128 && pos.y() == 128 && pos.z() == 128, [&]{
             value_base se;
