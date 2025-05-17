@@ -231,7 +231,7 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
             valued in_d = (valued)in;
             valued in_scaled = in_d * fixed_scale.get();
 
-            return (valuei64)in_scaled;
+            return (valuei64)round(in_scaled);
         };
 
         valuei64 as_i64 = scale(fin_E);
@@ -320,7 +320,7 @@ void calculate_particle_intermediates(execution_context& ectx,
             valued in_d = (valued)in;
             valued in_scaled = in_d * fixed_scale.get();
 
-            return (valuei64)in_scaled;
+            return (valuei64)round(in_scaled);
         };
 
         valuei64 E_scaled = scale(fin_E);
