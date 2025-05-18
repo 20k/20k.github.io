@@ -5,7 +5,7 @@
 #include <variant>
 #include <vector>
 #include <cstdint>
-#include "stdmath.hpp"
+#include "../common/vec/stdmath.hpp"
 #include "../common/vec/tensor.hpp"
 
 #ifndef __clang__
