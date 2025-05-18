@@ -1107,14 +1107,14 @@ auto check_symmetry(execution_context&, buffer<valuef> in, literal<v3i> idim, li
     v3i pos = get_coordinate_including_boundary(lid, dim);
     pin(pos);
 
-    valuei mirrored_x = dim.x() - pos.x() - 1;
+    valuei mirrored_z = dim.z() - pos.z() - 1;
 
     valuef v_in = in[pos, dim];
-    valuef v_mirrored = in[(v3i){mirrored_x, pos.y(), pos.z()}, dim];
+    valuef v_mirrored = in[(v3i){pos.x(), pos.y(), mirrored_z}, dim];
 
     if_e(v_in != v_mirrored && v_in != -v_mirrored, [&]
     {
-        print("Failure in symmetry at %i %i i base %.23f found %.23f symm pos %i %i %i\n", pos.x(), pos.y(), pos.z(), v_in, v_mirrored, mirrored_x, pos.y(), pos.z());
+        print("Failure in symmetry at %i %i %i base %.23f found %.23f symm pos %i %i %i\n", pos.x(), pos.y(), pos.z(), v_in, v_mirrored, pos.x(), pos.y(), mirrored_z);
     });
 }
 

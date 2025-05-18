@@ -231,6 +231,18 @@ struct bssn_buffer_pack
         for(auto& i : gB)
             args.push_back(i);
     }
+
+    std::vector<std::string> names()
+    {
+        return {"cY0", "cY1", "cY2", "cY3", "cY4", "cY5",
+        "cA0", "cA1", "cA2", "cA3", "cA4", "cA5",
+        "K",
+        "W",
+        "cG0","cG1","cG2",
+        "gA",
+        "gB0","gB1","gB2"
+        };
+    }
 };
 
 struct derivative_data;

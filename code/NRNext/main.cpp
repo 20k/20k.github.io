@@ -33,8 +33,12 @@ int get_evolve_size_with_boundary(t3i dim, int boundary)
     return real_evolve_size.x() * real_evolve_size.y() * real_evolve_size.z();
 }
 
-void check_symmetry(cl::command_queue cqueue, cl::buffer buf, t3i dim)
+void check_symmetry(cl::command_queue cqueue, cl::buffer buf, t3i dim, std::string name)
 {
+    cqueue.block();
+
+    std::cout << "Checking " << name << std::endl;
+
     int evolve_length = get_evolve_size_with_boundary(dim, 2);
 
     cl::args args;
@@ -43,6 +47,7 @@ void check_symmetry(cl::command_queue cqueue, cl::buffer buf, t3i dim)
     args.push_back(evolve_length);
 
     cqueue.exec("check_symmetry", args, {evolve_length}, {128});
+    cqueue.block();
 }
 
 struct mesh
@@ -283,7 +288,7 @@ struct mesh
 
         auto kreiss = [&](int in, int out)
         {
-            auto kreiss_individual = [&](cl::buffer inb, cl::buffer outb, float eps, int order)
+            auto kreiss_individual = [&](cl::buffer inb, cl::buffer outb, float eps, int order, std::string name)
             {
                 float modified_eps = eps * (timestep / std::pow(scale, order));
 
@@ -305,6 +310,8 @@ struct mesh
                 args.push_back(modified_eps);
 
                 cqueue.exec("kreiss_oliger" + std::to_string(order), args, {dim.x() * dim.y() * dim.z()}, {128});
+
+                check_symmetry(cqueue, outb, dim, name);
             };
 
             std::vector<cl::buffer> linear_in;
@@ -322,7 +329,7 @@ struct mesh
 
             for(int i=0; i < (int)linear_in.size(); i++)
             {
-                kreiss_individual(linear_in[i], linear_out[i], 0.1f, 4);
+                kreiss_individual(linear_in[i], linear_out[i], 0.1f, 4, buffers[in].names().at(i));
             }
 
             for(int i=0; i < (int)plugin_buffers[in].size(); i++)
@@ -337,7 +344,7 @@ struct mesh
 
                 for(int kk=0; kk < (int)bufs_in.size(); kk++)
                 {
-                    kreiss_individual(bufs_in[kk], bufs_out[kk], desc[kk].dissipation_coeff, desc[kk].dissipation_order);
+                    kreiss_individual(bufs_in[kk], bufs_out[kk], desc[kk].dissipation_coeff, desc[kk].dissipation_order, "");
                 }
             }
 
@@ -513,6 +520,18 @@ struct mesh
             args.push_back(evolve_length);
 
             cqueue.exec("evolve", args, {evolve_length}, {128});
+
+            std::vector<cl::buffer> linear_in;
+
+            buffers[out_idx].for_each([&](cl::buffer b)
+            {
+                linear_in.push_back(b);
+            });
+
+            for(int i=0; i < (int)linear_in.size(); i++)
+            {
+                check_symmetry(cqueue, linear_in[i], dim, buffers[out_idx].names().at(i));
+            }
         };
 
         auto sommerfeld_buffer = [&](cl::buffer base, cl::buffer in, cl::buffer out, float asym, float wave_speed)
