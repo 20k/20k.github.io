@@ -430,7 +430,7 @@ valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, const derivative_data
         bmdma += args.gB[i] * diff1(args.gA, i, d);
     }
 
-    #define LAPSE_DAMPING
+    //#define LAPSE_DAMPING
     #ifdef LAPSE_DAMPING
     valuef damp = 0.f;
 
@@ -452,7 +452,7 @@ valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, const derivative_data
 
     ///https://arxiv.org/pdf/gr-qc/0206072
     #ifdef ONE_PLUS_LOG
-    return -2 * args.gA * args.K + bmdma * 1 - damp;
+    return -2 * args.gA * args.K + bmdma * 0 - damp;
     #endif // ONE_PLUS_LOG
 
     ///https://arxiv.org/pdf/2201.08857

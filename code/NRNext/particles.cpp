@@ -499,7 +499,7 @@ struct evolve_vars
             bssn_args args(pos, dim, in);
             pin(args.cY);
 
-            print("cY %.23f %.23f %.23f %.23f %.23f %.23f pos %i %i %i\n", args.cY[0, 0], args.cY[1, 1], args.cY[2, 2], args.cY[0, 2], args.cY[1, 2], pos.x(), pos.y(), pos.z());
+            //print("cY %.23f %.23f %.23f %.23f %.23f %.23f pos %i %i %i\n", args.cY[0, 0], args.cY[1, 1], args.cY[2, 2], args.cY[0, 1], args.cY[0, 2], args.cY[1, 2], pos.x(), pos.y(), pos.z());
 
             return args.cY;
         };
@@ -530,7 +530,7 @@ struct evolve_vars
             v3f dgA = (v3f){diff1(args.gA, 0, d), diff1(args.gA, 1, d), diff1(args.gA, 2, d)};
             pin(dgA);
 
-            //print("dgA %.23f %.23f %.23f pos %i %i %i\n", dgA[0], dgA[1], dgA[2], pos.x(), pos.y(), pos.z());
+            print("dgA %.23f %.23f %.23f pos %i %i %i\n", dgA[0], dgA[1], dgA[2], pos.x(), pos.y(), pos.z());
 
             return dgA;
         };
@@ -615,7 +615,7 @@ struct evolve_vars
         dcY = function_trilinear_precise(dcY_at, fpos);
         dW = function_trilinear_precise(dW_at, fpos);
 
-        //print("Interpolated %.23f %.23f %.23f\n", dgA[0], dgA[1], dgA[2]);
+        print("Interpolated %.23f %.23f %.23f\n", dgA[0], dgA[1], dgA[2]);
 
         pin(dgA);
         pin(dgB);
