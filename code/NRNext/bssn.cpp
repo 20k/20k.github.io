@@ -776,7 +776,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
     {
         for(int j=0; j < 3; j++)
         {
-            valuef Ka = 0.08f * should_damp;
+            valuef Ka = 0.04f * should_damp;
 
             dtcA[i, j] += Ka * args.gA * 0.5f *
                               (cd_low[i, j]
