@@ -1090,6 +1090,34 @@ void make_momentum_constraint(cl::context ctx, const std::vector<plugin*>& plugi
     }, {"momentum_constraint"});
 }
 
+auto check_symmetry(execution_context&, buffer<valuef> in, literal<v3i> idim, literal<valuei> positions_length)
+{
+    using namespace single_source;
+
+    valuei lid = value_impl::get_global_id(0);
+
+    pin(lid);
+
+    v3i dim = idim.get();
+
+    if_e(lid >= positions_length.get(), []{
+        return_e();
+    });
+
+    v3i pos = get_coordinate_including_boundary(lid, dim);
+    pin(pos);
+
+    valuei mirrored_x = dim.x() - pos.x() - 1;
+
+    valuef v_in = in[pos, dim];
+    valuef v_mirrored = in[(v3i){mirrored_x, pos.y(), pos.z()}, dim];
+
+    if_e(v_in != v_mirrored && v_in != -v_mirrored, [&]
+    {
+        print("Failure in symmetry at %i %i i base %.23f found %.23f symm pos %i %i %i\n", pos.x(), pos.y(), pos.z(), v_in, v_mirrored, mirrored_x, pos.y(), pos.z());
+    });
+}
+
 ///https://arxiv.org/pdf/0709.3559 tested, appendix a.2
 void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, const initial_params& cfg)
 {
@@ -1225,6 +1253,11 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, const initi
     {
         return value_impl::make_function(bssn_function, "evolve");
     }, {"evolve"});
+
+    cl::async_build_and_cache(ctx, [=]
+    {
+        return value_impl::make_function(check_symmetry, "check_symmetry");
+    }, {"check_symmetry"});
 }
 
 void enforce_algebraic_constraints(cl::context ctx)
