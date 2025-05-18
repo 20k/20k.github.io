@@ -371,10 +371,10 @@ void calculate_particle_intermediates(execution_context& ectx,
             E_scaled, Si_scaled[0], Si_scaled[1], Si_scaled[2], Sij_scaled[0], Sij_scaled[1], Sij_scaled[2], Sij_scaled[3], Sij_scaled[4], Sij_scaled[5], id);
         });*/
 
-        if_e(offset.z() == cell.z() && offset.y() == cell.y(), [&]{
+        /*if_e(offset.z() == cell.z() && offset.y() == cell.y(), [&]{
             print("Offset %i %i %i dirac %.23f cell %f %f %f gA %.23f E %.23f Si %.23f %.23f %.23f Sij %.23f %.23f %.23f %.23f %.23f %.23f id %i\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z(), args.gA,
             fin_E, Si_raised[0], Si_raised[1], Si_raised[2], Sij_sym[0], Sij_sym[1], Sij_sym[2], Sij_sym[3], Sij_sym[4], Sij_sym[5], id);
-        });
+        });*/
     });
 }
 
@@ -753,7 +753,7 @@ void evolve_particles(execution_context& ctx,
     }
 
     //print("R grid %f %f %f id %i vel %.23f %.23f %.23f dV %.23f %.23f %.23f lorentz %f\n", grid_next[0], grid_next[1], grid_next[2], id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
-    print("R pos %.24f %.24f %.24f grid %f %f %f id %i vel %.23f %.23f %.23f dV %.23f %.23f %.23f lorentz %f\n", pos_next[0], pos_next[1], pos_next[2], grid_next[0], grid_next[1], grid_next[2], id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
+    //print("R pos %.24f %.24f %.24f grid %f %f %f id %i vel %.23f %.23f %.23f dV %.23f %.23f %.23f lorentz %.23f\n", pos_next[0], pos_next[1], pos_next[2], grid_next[0], grid_next[1], grid_next[2], id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
 
     valuef dlorentz = 0;
 
