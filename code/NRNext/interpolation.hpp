@@ -55,7 +55,9 @@ auto function_trilinear_precise(T&& func, v3f pos)
     using namespace single_source;
 
     v3f floored = floor(pos);
+    pin(floored);
     v3f frac = pos - floored;
+    pin(frac);
 
     v3i ipos = (v3i)floored;
 
@@ -74,7 +76,7 @@ auto function_trilinear_precise(T&& func, v3f pos)
     //https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0811r2.html
     auto lmix = [&](auto& a, auto& b, auto& t)
     {
-        auto c1 = t * b;
+        /*auto c1 = t * b;
         pin(c1);
 
         auto c2 = (1-t);
@@ -102,7 +104,23 @@ auto function_trilinear_precise(T&& func, v3f pos)
 
         auto c3_selected = ternary(t == valuef(1), b, c2_selected);
 
-        return ternary(cond_1, p1, c3_selected);
+        return ternary(cond_1, p1, c3_selected);*/
+
+        auto imx = 1-t;
+        pin(imx);
+        auto imimx = 1-imx;
+        pin(imimx);
+
+        auto p1 = imx * a;
+        pin(p1);
+        auto p2 = imimx * b;
+        pin(p2);
+
+        auto out = p1 + p2;
+        pin(out);
+        return out;
+
+        //return p1 + p2;
 
         //return ternary(cond_1, p1, c2_selected);
 
