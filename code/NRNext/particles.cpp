@@ -362,10 +362,19 @@ void calculate_particle_intermediates(execution_context& ectx,
             out.Sij_raised[i].atom_add_e(idx, Sij_scaled[i]);
         }
 
-        /*if_e(offset.x() == cell.x() && offset.y() == cell.y(), [&]{
-            print("Offset %i %i %i dirac %.23f cell %f %f %f gA %.23f E %i Si %i %i %i Sij %i %i %i %i %i %i\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z(), args.gA,
-            E_scaled, Si_scaled[0], Si_scaled[1], Si_scaled[2], Sij_scaled[0], Sij_scaled[1], Sij_scaled[2], Sij_scaled[3], Sij_scaled[4], Sij_scaled[5]);
+        //print("Offset %i %i %i dirac %.23f cell %f %f %f gA %.23f E %i Si %i %i %i Sij %i %i %i %i %i %i\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z(), args.gA,
+        //    E_scaled, Si_scaled[0], Si_scaled[1], Si_scaled[2], Sij_scaled[0], Sij_scaled[1], Sij_scaled[2], Sij_scaled[3], Sij_scaled[4], Sij_scaled[5]);
+
+
+        /*if_e(offset.z() == cell.z() && offset.y() == cell.y(), [&]{
+            print("Offset %i %i %i dirac %.23f cell %f %f %f gA %.23f E %i Si %i %i %i Sij %i %i %i %i %i %i id %i\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z(), args.gA,
+            E_scaled, Si_scaled[0], Si_scaled[1], Si_scaled[2], Sij_scaled[0], Sij_scaled[1], Sij_scaled[2], Sij_scaled[3], Sij_scaled[4], Sij_scaled[5], id);
         });*/
+
+        if_e(offset.z() == cell.z() && offset.y() == cell.y(), [&]{
+            print("Offset %i %i %i dirac %.23f cell %f %f %f gA %.23f E %.23f Si %.23f %.23f %.23f Sij %.23f %.23f %.23f %.23f %.23f %.23f id %i\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z(), args.gA,
+            fin_E, Si_raised[0], Si_raised[1], Si_raised[2], Sij_sym[0], Sij_sym[1], Sij_sym[2], Sij_sym[3], Sij_sym[4], Sij_sym[5], id);
+        });
     });
 }
 
@@ -530,7 +539,7 @@ struct evolve_vars
             v3f dgA = (v3f){diff1(args.gA, 0, d), diff1(args.gA, 1, d), diff1(args.gA, 2, d)};
             pin(dgA);
 
-            print("dgA %.23f %.23f %.23f pos %i %i %i\n", dgA[0], dgA[1], dgA[2], pos.x(), pos.y(), pos.z());
+            //print("dgA %.23f %.23f %.23f pos %i %i %i\n", dgA[0], dgA[1], dgA[2], pos.x(), pos.y(), pos.z());
 
             return dgA;
         };
@@ -615,7 +624,7 @@ struct evolve_vars
         dcY = function_trilinear_precise(dcY_at, fpos);
         dW = function_trilinear_precise(dW_at, fpos);
 
-        print("Interpolated %.23f %.23f %.23f\n", dgA[0], dgA[1], dgA[2]);
+        //print("Interpolated %.23f %.23f %.23f\n", dgA[0], dgA[1], dgA[2]);
 
         pin(dgA);
         pin(dgB);
@@ -734,12 +743,12 @@ void evolve_particles(execution_context& ctx,
                     - iYij[i, j] * dgA[j] - vel[j] * dgB[j, i];
 
             //if(i == 0 || i == 1)
-            if(i == 0)
+            /*if(i == 0)
             {
                 print("Dbg 2 iYij %.23f W %.23f cY %.23f id %i i %i j %i\n", iYij[i, j], W, cY[i, j], id, valuei(i), valuei(j));
 
                 print("Dbg k %.23f a %.23f b %.23f dgA %.23f i %i j %i id %i\n", vel[j] * iYij.raise(Kij, 0)[i, j], iYij[i,j] * dgA[j], vel[j] * dgB[j, i], dgA[j], valuei(i), valuei(j), id);
-            }
+            }*/
         }
     }
 
@@ -1044,21 +1053,21 @@ template<typename T>
 tensor<valuef, 3> full_particle_args<T>::adm_Si(bssn_args& args, const derivative_data& d)
 {
     //todo: fixme
-    auto Yij = args.cY / pow(max(args.W, 0.01f), 2.f);
+    auto Yij = args.cY;
 
     v3f Ji = this->get_Si(d.pos, d.dim);
 
-    return pow(args.W, 3.f) * Yij.lower(Ji);
+    return pow(args.W, 1.f) * Yij.lower(Ji);
 }
 
 template<typename T>
 tensor<valuef, 3, 3> full_particle_args<T>::adm_W2_Sij(bssn_args& args, const derivative_data& d)
 {
-    auto Yij = args.cY / pow(max(args.W, 0.01f), 2.f);
+    auto Yij = args.cY;
 
     tensor<valuef, 3, 3> Sij = this->get_Sij(d.pos, d.dim);
 
-    return pow(args.W, 3.f) * args.W * args.W * Yij.lower(Yij.lower(Sij, 0), 1);
+    return args.W * Yij.lower(Yij.lower(Sij, 0), 1);
 }
 
 void particle_utility_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t3i size)

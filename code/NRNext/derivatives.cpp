@@ -80,16 +80,29 @@ template std::array<valuef, 3> get_differentiation_variables<3, valuef>(const va
 template<typename T>
 value<T> diff1_generic(const value<T>& in, int direction, const derivative_data& d)
 {
+    using namespace single_source;
+
     value<T> second;
 
     {
         ///4th order derivatives
         std::array<value<T>, 5> vars = get_differentiation_variables<5>(in, direction);
 
-        value<T> p1 = -vars[4] + vars[0];
-        value<T> p2 = T{8} * (vars[3] - vars[1]);
+        auto s1 = -vars[4];
+        pin(s1);
 
-        second = (p1 + p2) / (value<T>)(12.f * d.scale);
+        value<T> p1 = s1 + vars[0];
+        pin(p1);
+
+        auto d2 = (vars[3] - vars[1]);
+        pin(d2);
+
+        value<T> p2 = T{8} * d2;
+
+        auto s = p1 + p2;
+        pin(s);
+
+        second = s / (value<T>)(12.f * d.scale);
     }
 
     value<T> first;
@@ -97,7 +110,10 @@ value<T> diff1_generic(const value<T>& in, int direction, const derivative_data&
     {
         std::array<value<T>, 3> vars = get_differentiation_variables<3>(in, direction);
 
-        first = (vars[2] - vars[0]) / (value<T>)(2.f * d.scale);
+        auto d1 = (vars[2] - vars[0]);
+        pin(d1);
+
+        first = d1 / (value<T>)(2.f * d.scale);
     }
 
     valuei width = distance_to_boundary(d.pos[direction], d.dim[direction]);
