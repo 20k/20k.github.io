@@ -33,6 +33,18 @@ int get_evolve_size_with_boundary(t3i dim, int boundary)
     return real_evolve_size.x() * real_evolve_size.y() * real_evolve_size.z();
 }
 
+void check_symmetry(cl::command_queue cqueue, cl::buffer buf, t3i dim)
+{
+    int evolve_length = get_evolve_size_with_boundary(dim, 2);
+
+    cl::args args;
+    args.push_back(buf);
+    args.push_back(dim);
+    args.push_back(evolve_length);
+
+    cqueue.exec("check_symmetry", args, {evolve_length}, {128});
+}
+
 struct mesh
 {
     std::vector<plugin*> plugins;
