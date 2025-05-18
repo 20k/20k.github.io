@@ -776,7 +776,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
     {
         for(int j=0; j < 3; j++)
         {
-            valuef Ka = 0.04f * should_damp;
+            valuef Ka = 0.08f * should_damp;
 
             dtcA[i, j] += Ka * args.gA * 0.5f *
                               (cd_low[i, j]
@@ -1341,17 +1341,21 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
         bssn_args args(pos, dim, in);
         bssn_derivatives derivs(pos, dim, derivs_in);
 
+        /*if_e(pos.x() == dim.x()/2 && pos.y() == dim.z()/2 && pos.z() == dim.z()/2, [&]{
+            print("cY %f %f %f %f %f %f0\n", args.cY[0, 0], args.cY[1, 1], args.cY[2, 2], args.cY[1, 0], args.cY[2, 0], args.cY[2, 1]);
+        });*/
+
         derivative_data d;
         d.pos = pos;
         d.dim = dim;
         d.scale = scale.get();
 
-        valuef adm_p = plugin_data.adm_p(args, d);
-        valuef ham = calculate_hamiltonian_constraint(args, derivs, d, adm_p);
-        valuef p = fabs(ham) * 1000;
+        //valuef adm_p = plugin_data.adm_p(args, d);
+        //valuef ham = calculate_hamiltonian_constraint(args, derivs, d, adm_p);
+        //valuef p = fabs(ham) * 1000;
 
-        //valuef momentum = calculate_momentum_constraint_summed(args, d, plugin_data.adm_Si(args, d));
-        //valuef p = fabs(momentum) * 10000;
+        valuef momentum = calculate_momentum_constraint_summed(args, d, plugin_data.adm_Si(args, d));
+        valuef p = fabs(momentum) * 100000;
 
         //v3f Gi_err = calculate_cG(args.cY.invert(), derivs.dcY) - args.cG;
 

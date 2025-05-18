@@ -95,14 +95,14 @@ valuef get_dirac2(auto&& func, const v3f& world_pos, const v3f& dirac_location, 
 {
     using namespace single_source;
 
-    //#define GET_DIRAC_STANDARD
+    #define GET_DIRAC_STANDARD
     #ifdef GET_DIRAC_STANDARD
     valuef r = (world_pos - dirac_location).length();
     //pin(r);
     return func(r, radius);
     #endif // GET_DIRAC_STANDARD
 
-    #define GET_DIRAC_CORRECTED
+    //#define GET_DIRAC_CORRECTED
     #ifdef GET_DIRAC_CORRECTED
     tensor<valuef, 3> scale3 = {scale, scale, scale};
 
@@ -498,6 +498,9 @@ struct evolve_vars
         {
             bssn_args args(pos, dim, in);
             pin(args.cY);
+
+            print("cY %.23f %.23f %.23f %.23f %.23f %.23f pos %i %i %i\n", args.cY[0, 0], args.cY[1, 1], args.cY[2, 2], args.cY[0, 2], args.cY[1, 2], pos.x(), pos.y(), pos.z());
+
             return args.cY;
         };
 
@@ -524,11 +527,10 @@ struct evolve_vars
 
             bssn_args args(pos, dim, in, true);
 
-            //todo: use better prec here
             v3f dgA = (v3f){diff1(args.gA, 0, d), diff1(args.gA, 1, d), diff1(args.gA, 2, d)};
             pin(dgA);
 
-            print("dgA %.23f %.23f %.23f pos %i %i %i\n", dgA[0], dgA[1], dgA[2], pos.x(), pos.y(), pos.z());
+            //print("dgA %.23f %.23f %.23f pos %i %i %i\n", dgA[0], dgA[1], dgA[2], pos.x(), pos.y(), pos.z());
 
             return dgA;
         };
@@ -542,7 +544,6 @@ struct evolve_vars
 
             bssn_args args(pos, dim, in, true);
 
-            //todo; use better prec here
             v3f dW = (v3f){diff1(args.W, 0, d), diff1(args.W, 1, d), diff1(args.W, 2, d)};
             pin(dW);
 
@@ -569,7 +570,6 @@ struct evolve_vars
 
         auto dcY_at = [&](v3i pos)
         {
-            //todo: use better prec here
             derivative_data d;
             d.pos = pos;
             d.dim = dim;
@@ -615,7 +615,7 @@ struct evolve_vars
         dcY = function_trilinear_precise(dcY_at, fpos);
         dW = function_trilinear_precise(dW_at, fpos);
 
-        print("Interpolated %.23f %.23f %.23f\n", dgA[0], dgA[1], dgA[2]);
+        //print("Interpolated %.23f %.23f %.23f\n", dgA[0], dgA[1], dgA[2]);
 
         pin(dgA);
         pin(dgB);
@@ -734,8 +734,10 @@ void evolve_particles(execution_context& ctx,
                     - iYij[i, j] * dgA[j] - vel[j] * dgB[j, i];
 
             //if(i == 0 || i == 1)
-            if(i == 2)
+            if(i == 0)
             {
+                print("Dbg 2 iYij %.23f W %.23f cY %.23f id %i i %i j %i\n", iYij[i, j], W, cY[i, j], id, valuei(i), valuei(j));
+
                 print("Dbg k %.23f a %.23f b %.23f dgA %.23f i %i j %i id %i\n", vel[j] * iYij.raise(Kij, 0)[i, j], iYij[i,j] * dgA[j], vel[j] * dgB[j, i], dgA[j], valuei(i), valuei(j), id);
             }
         }
@@ -753,6 +755,9 @@ void evolve_particles(execution_context& ctx,
             dlorentz += lorentz * vel[i] * (gA * Kij[i, j] * vel[j] - dgA[i]);
         }
     }
+
+    dX[2] = 0;
+    dV[2] = 0;
 
     for(int i=0; i < 3; i++)
         as_ref(p_out.positions[i][id]) = pos_base[i] + timestep.get() * dX[i];
