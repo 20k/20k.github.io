@@ -627,7 +627,7 @@ void trace3(execution_context& ectx, literal<v2i> screen_sizel,
 
     auto get_dS = [&](v3f position, v3f velocity, v3f acceleration, const trace3_state& args)
     {
-        return -3.5f * get_ct_timestep(args.W);
+        return -3.5f * get_ct_timestep(args.W) * 0.1f;
     };
 
     auto get_state = [&](v3f position) -> trace3_state

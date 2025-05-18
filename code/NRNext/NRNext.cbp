@@ -135,6 +135,7 @@
 		<Unit filename="particles.hpp" />
 		<Unit filename="plugin.cpp" />
 		<Unit filename="plugin.hpp" />
+		<Unit filename="random.hpp" />
 		<Unit filename="raytrace.cpp" />
 		<Unit filename="raytrace.hpp" />
 		<Unit filename="raytrace_init.cpp" />

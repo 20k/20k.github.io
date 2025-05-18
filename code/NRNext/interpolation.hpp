@@ -1,6 +1,8 @@
 #ifndef INTERPOLATION_HPP_INCLUDED
 #define INTERPOLATION_HPP_INCLUDED
 
+#include "../common/single_source.hpp"
+
 template<typename T>
 inline
 auto function_trilinear(T&& func, v3f pos)
@@ -22,9 +24,91 @@ auto function_trilinear(T&& func, v3f pos)
     auto c011 = func(ipos + (v3i){0,1,1});
     auto c111 = func(ipos + (v3i){1,1,1});
 
-    auto lmix = [&](auto& i1, auto& i2, auto& a)
+    //https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0811r2.html
+    auto lmix = [&](auto& a, auto& b, auto& t)
     {
-        return i1 * (1-a) + i2 * a;
+        //return i1 + a * (i2 - i1);
+
+        //return mix(a, b, t);
+
+        return t * b + (1 - t) * a;
+
+        //return i1 * (1-a) + i2 * a;
+    };
+
+    auto c00 = lmix(c000, c100, frac.x());
+    auto c01 = lmix(c010, c110, frac.x());
+
+    auto c10 = lmix(c001, c101, frac.x());
+    auto c11 = lmix(c011, c111, frac.x());
+
+    auto c0 = lmix(c00, c01, frac.y());
+    auto c1 = lmix(c10, c11, frac.y());
+
+    return lmix(c0, c1, frac.z());
+}
+
+template<typename T>
+inline
+auto function_trilinear_precise(T&& func, v3f pos)
+{
+    using namespace single_source;
+
+    v3f floored = floor(pos);
+    v3f frac = pos - floored;
+
+    v3i ipos = (v3i)floored;
+
+    auto c000 = func(ipos + (v3i){0,0,0});
+    auto c100 = func(ipos + (v3i){1,0,0});
+
+    auto c010 = func(ipos + (v3i){0,1,0});
+    auto c110 = func(ipos + (v3i){1,1,0});
+
+    auto c001 = func(ipos + (v3i){0,0,1});
+    auto c101 = func(ipos + (v3i){1,0,1});
+
+    auto c011 = func(ipos + (v3i){0,1,1});
+    auto c111 = func(ipos + (v3i){1,1,1});
+
+    //https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0811r2.html
+    auto lmix = [&](auto& a, auto& b, auto& t)
+    {
+        auto c1 = t * b;
+        pin(c1);
+
+        auto c2 = (1-t);
+        pin(c2);
+
+        auto c3 = c2 * a;
+        pin(c3);
+
+        auto p1 = c1 + c3;
+        pin(p1);
+
+        auto diff = b - a;
+        pin(diff);
+
+        auto tdiff = t * diff;
+        pin(tdiff);
+
+        auto x = a + tdiff;
+        pin(x);
+
+        auto cond_1 = a <= 0 && b >= 0 || a >= 0 && b <= 0;
+        auto cond_2 = (b > a) == (t > 1);
+
+        auto c2_selected = ternary(cond_2, max(b, x), min(b, x));
+
+        auto c3_selected = ternary(t == valuef(1), b, c2_selected);
+
+        return ternary(cond_1, p1, c3_selected);
+
+        //return ternary(cond_1, p1, c2_selected);
+
+        //return i1 + a * (i2 - i1);
+
+        //return i1 * (1-a) + i2 * a;
     };
 
     auto c00 = lmix(c000, c100, frac.x());

@@ -8,7 +8,7 @@
 #include <toolkit/opencl.hpp>
 #include "value_alias.hpp"
 
-#define MOMENTUM_CONSTRAINT_DAMPING
+//#define MOMENTUM_CONSTRAINT_DAMPING
 ///the number of cells we simply don't damp
 constexpr int constraint_deadzone = 10;
 

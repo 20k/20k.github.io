@@ -152,6 +152,8 @@ void boot_initial_kernels(cl::context ctx)
 
         valuef cfl = cfl_reg[lid] + u[lid];
 
+        cfl = 1;
+
         metric<valuef, 3, 3> flat;
 
         for(int i=0; i < 3; i++)

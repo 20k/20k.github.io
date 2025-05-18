@@ -153,9 +153,11 @@ valuef get_dirac2(auto&& func, const v3f& world_pos, const v3f& dirac_location, 
 
 void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
 {
+    v3f fpos = world_to_grid(dirac_pos, dim, scale);
+
     using namespace single_source;
 
-    int radius_cells = 5;
+    int radius_cells = 4;
     valuef radius_world = radius_cells * scale;
     pin(radius_world);
     int spread = radius_cells + 1;
@@ -170,9 +172,16 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
 
             for_e(x <= spread, assign_b(x, x+1), [&]{
                 v3i offset = {declare_e(x), declare_e(y), declare_e(z)};
+
+                /*v3f foff = (v3f)offset;
+                v3f rel = fpos - (v3f)cell;
+
+                valuef dirac = get_dirac2(dirac_delta_v, foff, rel, valuef(radius_cells), valuef(1.f));
+                pin(dirac);*/
+
                 offset += cell;
 
-                offset = clamp(offset, (v3i){0,0,0}, dim - 1);
+                //offset = clamp(offset, (v3i){0,0,0}, dim - 1);
                 pin(offset);
 
                 v3f world_pos = grid_to_world((v3f)offset, dim, scale);
@@ -180,6 +189,8 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
 
                 valuef dirac = get_dirac2(dirac_delta_v, world_pos, dirac_pos, radius_world, scale);
                 pin(dirac);
+
+                //print("Dirac %f dirac2 %f\n", dirac, dirac2);
 
                 if_e(dirac > 0, [&]{
                     /*if_e(offset.x() == cell.x() && offset.y() == cell.y(), [&]{
@@ -219,7 +230,7 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
     pin(pos);
     //pin(vel);
 
-    v3i cell = (v3i)round(world_to_grid(pos, dim.get(), scale.get()));
+    v3i cell = (v3i)floor(world_to_grid(pos, dim.get(), scale.get()));
     pin(cell);
 
     for_each_dirac(cell, dim.get(), scale.get(), pos, [&](v3i offset, valuef dirac)
@@ -282,7 +293,7 @@ void calculate_particle_intermediates(execution_context& ectx,
         return args.W;
     };
 
-    auto Wf = function_trilinear(W_at, fcell);
+    auto Wf = function_trilinear_precise(W_at, fcell);
     pin(Wf);
 
     valuef sqrt_det_Gamma = pow(max(Wf, 0.1f), -3);
@@ -351,7 +362,7 @@ void calculate_particle_intermediates(execution_context& ectx,
             out.Sij_raised[i].atom_add_e(idx, Sij_scaled[i]);
         }
 
-        /*if_e(offset.x() == 100 && offset.y() == 99, [&]{
+        /*if_e(offset.x() == cell.x() && offset.y() == cell.y(), [&]{
             print("Offset %i %i %i dirac %.23f cell %f %f %f gA %.23f E %i Si %i %i %i Sij %i %i %i %i %i %i\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z(), args.gA,
             E_scaled, Si_scaled[0], Si_scaled[1], Si_scaled[2], Sij_scaled[0], Sij_scaled[1], Sij_scaled[2], Sij_scaled[3], Sij_scaled[4], Sij_scaled[5]);
         });*/
@@ -403,10 +414,16 @@ void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer
     v3f world_pos = {pos_in[0][id], pos_in[1][id], pos_in[2][id]};
 
     v3f cell_pos = world_to_grid(world_pos, dim.get(), scale.get());
+    pin(cell_pos);
 
     adm_variables vars = admf_at(cell_pos, dim.get(), in);
+    pin(vars.Yij);
+    pin(vars.Kij);
+    pin(vars.gA);
+    pin(vars.gB);
 
     m44f metric = calculate_real_metric(vars.Yij, vars.gA, vars.gB);
+    pin(metric);
 
     tetrad tet = calculate_tetrad(metric, {0,0,0}, false);
 
@@ -511,7 +528,7 @@ struct evolve_vars
             v3f dgA = (v3f){diff1(args.gA, 0, d), diff1(args.gA, 1, d), diff1(args.gA, 2, d)};
             pin(dgA);
 
-            //print("dgA %.23f %.23f %.23f pos %i %i %i\n", dgA[0], dgA[1], dgA[2], pos.x(), pos.y(), pos.z());
+            print("dgA %.23f %.23f %.23f pos %i %i %i\n", dgA[0], dgA[1], dgA[2], pos.x(), pos.y(), pos.z());
 
             return dgA;
         };
@@ -571,12 +588,12 @@ struct evolve_vars
         };
 
 
-        gA = function_trilinear(gA_at, fpos);
-        gB = function_trilinear(gB_at, fpos);
-        cY = function_trilinear(cY_at, fpos);
-        cA = function_trilinear(cA_at, fpos);
-        K = function_trilinear(K_at, fpos);
-        W = function_trilinear(W_at, fpos);
+        gA = function_trilinear_precise(gA_at, fpos);
+        gB = function_trilinear_precise(gB_at, fpos);
+        cY = function_trilinear_precise(cY_at, fpos);
+        cA = function_trilinear_precise(cA_at, fpos);
+        K = function_trilinear_precise(K_at, fpos);
+        W = function_trilinear_precise(W_at, fpos);
 
         pin(gA);
         pin(gB);
@@ -590,13 +607,15 @@ struct evolve_vars
             v3f offset;
             offset[i] = 1;
 
-            dgA[i] = (function_trilinear(gA_at, fpos + offset) - function_trilinear(gA_at, fpos - offset)) / (2 * scale);
+            dgA[i] = (function_trilinear_precise(gA_at, fpos + offset) - function_trilinear_precise(gA_at, fpos - offset)) / (2 * scale);
         }*/
 
-        dgA = function_trilinear(dgA_at, fpos);
-        dgB = function_trilinear(dgB_at, fpos);
-        dcY = function_trilinear(dcY_at, fpos);
-        dW = function_trilinear(dW_at, fpos);
+        dgA = function_trilinear_precise(dgA_at, fpos);
+        dgB = function_trilinear_precise(dgB_at, fpos);
+        dcY = function_trilinear_precise(dcY_at, fpos);
+        dW = function_trilinear_precise(dW_at, fpos);
+
+        print("Interpolated %.23f %.23f %.23f\n", dgA[0], dgA[1], dgA[2]);
 
         pin(dgA);
         pin(dgB);
@@ -632,7 +651,7 @@ void evolve_particles(execution_context& ctx,
     v3f grid_base = world_to_grid(pos_base, dim.get(), scale.get());
     v3f grid_next = world_to_grid(pos_next, dim.get(), scale.get());
 
-    #define MID
+    //#define MID
     #ifdef MID
     valuef lorentz = (lorentz_base + lorentz_next) * 0.5f + 1;
     v3f vel = (vel_base + vel_next) * 0.5f;
@@ -714,15 +733,16 @@ void evolve_particles(execution_context& ctx,
             dV[i] += gA * vel[j] * (vel[i] * (dlog_gA - kjvk) + 2 * iYij.raise(Kij, 0)[i, j] - christoffel_sum)
                     - iYij[i, j] * dgA[j] - vel[j] * dgB[j, i];
 
-            /*if(i == 2)
+            //if(i == 0 || i == 1)
+            if(i == 2)
             {
-                print("Dbg k %.23f a %.23f b %.23f\n", vel[j] * iYij.raise(Kij, 0)[i, j], iYij[i,j] * dgA[j], vel[j] * dgB[j, i]);
-            }*/
+                print("Dbg k %.23f a %.23f b %.23f dgA %.23f i %i j %i id %i\n", vel[j] * iYij.raise(Kij, 0)[i, j], iYij[i,j] * dgA[j], vel[j] * dgB[j, i], dgA[j], valuei(i), valuei(j), id);
+            }
         }
     }
 
     //print("R grid %f %f %f id %i vel %.23f %.23f %.23f dV %.23f %.23f %.23f lorentz %f\n", grid_next[0], grid_next[1], grid_next[2], id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
-    //print("R pos %.24f %.24f %.24f grid %f %f %f id %i vel %.23f %.23f %.23f dV %.23f %.23f %.23f lorentz %f\n", pos_next[0], pos_next[1], pos_next[2], grid_next[0], grid_next[1], grid_next[2], id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
+    print("R pos %.24f %.24f %.24f grid %f %f %f id %i vel %.23f %.23f %.23f dV %.23f %.23f %.23f lorentz %f\n", pos_next[0], pos_next[1], pos_next[2], grid_next[0], grid_next[1], grid_next[2], id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
 
     valuef dlorentz = 0;
 
