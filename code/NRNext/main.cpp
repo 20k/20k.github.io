@@ -290,9 +290,6 @@ struct mesh
         {
             auto kreiss_individual = [&](cl::buffer inb, cl::buffer outb, float eps, int order, std::string name)
             {
-                check_symmetry(cqueue, outb, dim, "Kreiss_in_" + name);
-
-
                 float modified_eps = eps * (timestep / std::pow(scale, order));
 
                 if(inb.alloc_size == 0)
@@ -304,6 +301,8 @@ struct mesh
                     cl::copy(cqueue, inb, outb);
                     return;
                 }
+
+                check_symmetry(cqueue, outb, dim, "Kreiss_in_" + name);
 
                 cl::args args;
                 args.push_back(inb);

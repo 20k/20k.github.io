@@ -159,38 +159,70 @@ valuef diff2nd(const valuef& in, int idx)
 
 valuef diff4th(const valuef& in, int idx)
 {
+    using namespace single_source;
     auto vars = get_differentiation_variables<5>(in, idx);
 
     valuef p1 = vars[0] + vars[4];
-    valuef p2 = -4.f * vars[1] -4.f * vars[3];
-    valuef p3 = 6.f * vars[2];
+    pin(p1);
 
-    return p1 + p2 + p3;
+    auto s1 = -4.f * vars[1];
+    auto s2 = -4.f * vars[3];
+    pin(s1);
+    pin(s2);
+
+    valuef p2 = s1 + s2;
+    pin(p2);
+    valuef p3 = 6.f * vars[2];
+    pin(p3);
+
+    auto out = p1 + p2 + p3;
+    pin(out);
+
+    return out;
+
+    //return p1 + p2 + p3;
 }
 
 valuef diff6th(const valuef& in, int idx)
 {
+    using namespace single_source;
     auto vars = get_differentiation_variables<7>(in, idx);
 
     valuef p1 = vars[0] + vars[6];
+    pin(p1);
     valuef p2 = -6 * (vars[1] + vars[5]);
+    pin(p2);
     valuef p3 = 15 * (vars[2] + vars[4]);
+    pin(p3);
     valuef p4 = -20 * vars[3];
+    pin(p4);
 
     return p1 + p2 + p3 + p4;
 }
 
 valuef diff8th(const valuef& in, int idx)
 {
+    using namespace single_source;
     auto vars = get_differentiation_variables<9>(in, idx);
 
     valuef p1 = vars[0] + vars[8];
-    valuef p2 = -8.f * vars[1] - 8.f * vars[7];
-    valuef p3 = 28.f * vars[2] + 28.f * vars[6];
-    valuef p4 = -56.f * vars[3] - 56.f * vars[5];
+    valuef p2 = declare_e(-8.f * vars[1]) - declare_e(8.f * vars[7]);
+    valuef p3 = 28.f * (declare_e(vars[2]) + declare_e(vars[6]));
+    valuef p4 = -56.f * (declare_e(vars[3]) + declare_e(vars[5]));
     valuef p5 = 70.f * vars[4];
+    pin(p1);
+    pin(p2);
+    pin(p3);
+    pin(p4);
+    pin(p5);
 
-    return p1 + p2 + p3 + p4 + p5;
+    auto left = p1 + p2;
+    pin(left);
+
+    auto right = p3 + p4;
+    pin(right);
+
+    return (left + right) + p5;
 }
 
 valuef diff10th(const valuef& in, int idx)
