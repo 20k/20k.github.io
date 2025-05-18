@@ -1052,6 +1052,8 @@ valuef full_particle_args<T>::adm_p(bssn_args& args, const derivative_data& d)
 template<typename T>
 tensor<valuef, 3> full_particle_args<T>::adm_Si(bssn_args& args, const derivative_data& d)
 {
+    return {};
+
     //todo: fixme
     auto Yij = args.cY;
 
@@ -1063,6 +1065,8 @@ tensor<valuef, 3> full_particle_args<T>::adm_Si(bssn_args& args, const derivativ
 template<typename T>
 tensor<valuef, 3, 3> full_particle_args<T>::adm_W2_Sij(bssn_args& args, const derivative_data& d)
 {
+    return {};
+
     auto Yij = args.cY;
 
     tensor<valuef, 3, 3> Sij = this->get_Sij(d.pos, d.dim);

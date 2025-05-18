@@ -290,6 +290,9 @@ struct mesh
         {
             auto kreiss_individual = [&](cl::buffer inb, cl::buffer outb, float eps, int order, std::string name)
             {
+                check_symmetry(cqueue, outb, dim, "Kreiss_in_" + name);
+
+
                 float modified_eps = eps * (timestep / std::pow(scale, order));
 
                 if(inb.alloc_size == 0)
@@ -311,7 +314,7 @@ struct mesh
 
                 cqueue.exec("kreiss_oliger" + std::to_string(order), args, {dim.x() * dim.y() * dim.z()}, {128});
 
-                check_symmetry(cqueue, outb, dim, name);
+                check_symmetry(cqueue, outb, dim, "Kreiss_out_" + name);
             };
 
             std::vector<cl::buffer> linear_in;
@@ -521,16 +524,32 @@ struct mesh
 
             cqueue.exec("evolve", args, {evolve_length}, {128});
 
-            std::vector<cl::buffer> linear_in;
-
-            buffers[out_idx].for_each([&](cl::buffer b)
             {
-                linear_in.push_back(b);
-            });
+                std::vector<cl::buffer> linear_in;
 
-            for(int i=0; i < (int)linear_in.size(); i++)
+                buffers[in_idx].for_each([&](cl::buffer b)
+                {
+                    linear_in.push_back(b);
+                });
+
+                for(int i=0; i < (int)linear_in.size(); i++)
+                {
+                    check_symmetry(cqueue, linear_in[i], dim, "in_" + buffers[out_idx].names().at(i));
+                }
+            }
+
             {
-                check_symmetry(cqueue, linear_in[i], dim, buffers[out_idx].names().at(i));
+                std::vector<cl::buffer> linear_in;
+
+                buffers[out_idx].for_each([&](cl::buffer b)
+                {
+                    linear_in.push_back(b);
+                });
+
+                for(int i=0; i < (int)linear_in.size(); i++)
+                {
+                    check_symmetry(cqueue, linear_in[i], dim, "out_" + buffers[out_idx].names().at(i));
+                }
             }
         };
 
