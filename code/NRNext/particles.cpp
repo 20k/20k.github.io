@@ -36,10 +36,8 @@ valuef dirac_delta_v(const valuef& r, const valuef& radius)
 }
 
 //3d
-float dirac_delta_f(const float& r, const float& radius)
+float dirac_delta_f(const float& frac, const float& radius)
 {
-    float frac = r / radius;
-
     float mult = 1/(M_PI * pow(radius, 3.f));
 
     float result = 0;
@@ -64,7 +62,7 @@ float dirac_delta_1d(const float& r)
     return 1 - r;
 }
 
-template<typename T>
+/*template<typename T>
 inline
 T get_dirac(auto&& func, tensor<T, 3> world_pos, tensor<T, 3> dirac_location, T radius, T scale)
 {
@@ -88,6 +86,34 @@ T get_dirac(auto&& func, tensor<T, 3> world_pos, tensor<T, 3> dirac_location, T 
         return func((pos - dirac_location).length(), radius);
     }, 10, ip1, im1) / (scale*scale*scale);
     #endif // GET_DIRAC_CORRECTED
+}*/
+
+template<typename T>
+inline
+T get_dirac(auto&& func, tensor<T, 3> lpos, tensor<T, 3> dirac_location, T radius_cells, T scale)
+{
+    //T r = (world_pos - dirac_location).length();
+
+    #ifdef GET_DIRAC1_STANDARD
+    return func(r, radius_cells);
+    #endif // GET_DIRAC_STANDARD
+
+    #define GET_DIRAC1_CORRECTED
+    #ifdef GET_DIRAC1_CORRECTED
+    tensor<T, 3> scale3 = {1, 1, 1};
+
+    auto im1 = lpos - scale3 / 2;
+    auto ip1 = lpos + scale3 / 2;
+
+    return integrate_3d_trapezoidal([&](T x, T y, T z)
+    {
+        tensor<T, 3> pos = {x, y, z};
+
+        T frac = (pos - dirac_location).length() / radius_cells;
+
+        return func(frac, radius_cells * scale);
+    }, 10, ip1, im1);
+    #endif // GET_DIRAC_CORRECTED
 }
 
 inline
@@ -95,14 +121,14 @@ valuef get_dirac2(auto&& func, const v3f& world_pos, const v3f& dirac_location, 
 {
     using namespace single_source;
 
-    #define GET_DIRAC_STANDARD
+    //#define GET_DIRAC_STANDARD
     #ifdef GET_DIRAC_STANDARD
     valuef r = (world_pos - dirac_location).length();
     //pin(r);
     return func(r, radius);
     #endif // GET_DIRAC_STANDARD
 
-    //#define GET_DIRAC_CORRECTED
+    #define GET_DIRAC_CORRECTED
     #ifdef GET_DIRAC_CORRECTED
     tensor<valuef, 3> scale3 = {scale, scale, scale};
 
@@ -884,7 +910,22 @@ void dirac_test()
                 t3i gpos = {x, y, z};
                 t3f wpos = g2w((t3f)gpos);
 
+                float d1 = (wpos - dirac_location).length();
+
+                #ifdef WORLD
+
                 float dirac = get_dirac(dirac_delta_f, wpos, dirac_location, 1.f, scale);
+                #else
+                t3f dirac_grid = w2g(dirac_location);
+                float radius_cells = 1/scale;
+
+                float d2 = ((t3f)gpos - dirac_grid).length();
+
+                printf("Dpos %f %f\n", d1 / 1.f, d2 / radius_cells);
+
+                float dirac = get_dirac(dirac_delta_f, (t3f)gpos, dirac_grid, radius_cells, scale);
+
+                #endif
 
                 values[z * grid_size * grid_size + y * grid_size + x] = dirac;
             }
@@ -899,6 +940,8 @@ void dirac_test()
     }
 
     std::cout << "Integrated " << integrated << std::endl;
+
+    assert(false);
 
     #ifdef DIRAC_1D
     float dirac_location = 0.215f;
