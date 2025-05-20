@@ -5,6 +5,10 @@
 #include "formalisms.hpp"
 #include "raytrace_init.hpp"
 #include "interpolation.hpp"
+#include "../common/vec/dual.hpp"
+
+template<typename T>
+using dual = dual_types::dual_v<T>;
 
 ///https://arxiv.org/pdf/1611.07906.pdf (20)
 //3d
@@ -646,7 +650,7 @@ void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer
     //always store the lorentz factor as lorentz - 1
     as_ref(lorentz_out[id]) = lorentz - 1;*/
 
-    v4f momentum4 = velocity4 * mass_in[id];
+    /*v4f momentum4 = velocity4 * mass_in[id];
 
     v4f normal = get_adm_hypersurface_normal_raised(vars.gA, vars.gB);
     v4f normal_lo = get_adm_hypersurface_normal_lowered(vars.gA);
@@ -661,7 +665,14 @@ void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer
     as_ref(vel_out[1][id]) = projected[2];
     as_ref(vel_out[2][id]) = projected[3];
     //always store the lorentz factor as lorentz - 1
-    as_ref(lorentz_out[id]) = E - 1;
+    as_ref(lorentz_out[id]) = E - 1;*/
+
+    v4f velocity_lo = metric.lower(velocity4);
+
+    as_ref(vel_out[0][id]) = velocity_lo[1];
+    as_ref(vel_out[1][id]) = velocity_lo[2];
+    as_ref(vel_out[2][id]) = velocity_lo[3];
+    as_ref(lorentz_out[id]) = valuef(-1);
 }
 
 struct evolve_vars
@@ -909,8 +920,79 @@ void evolve_particles(execution_context& ctx,
     #endif
 
     auto icY = cY.invert();
-
     auto iYij = icY * (W*W);
+
+    //so. I think I use dx/dt for the position, and du/dt for velocity
+
+    valuef au0_sq = 1 + iYij.dot(vel, vel);
+    valuef u0 = sqrt(au0_sq) / gA;
+
+    v3f dX = -gB + iYij.raise(vel) / u0;
+
+    v3f dV;
+
+    {
+        v3f p1 = -gA * u0 * dgA;
+
+        v3f p2;
+
+        for(int i=0; i < 3; i++)
+        {
+            valuef sum = 0;
+
+            for(int j=0; j < 3; j++)
+            {
+                sum += vel[j] * dgB[i, j];
+            }
+
+            p2[i] = sum;
+        }
+
+        v3f p3;
+
+        //Y^jk,i = u dvdx + v dudx
+        //(W^2 cY^jk),i = W^2 (cY^jk,i) + cY^jk (W^2),i
+        //= W^2 (cY^jk,i) + cY^jk 2 W dW[i]
+
+        for(int i=0; i < 3; i++)
+        {
+            tensor<dual<valuef>, 3, 3, 3> d_dcYij;
+            metric<dual<valuef>, 3, 3> d_cYij;
+
+            for(int j=0; j < 3; j++)
+            {
+                for(int k=0; k < 3; k++)
+                {
+                    d_cYij[j, k].real = cY[j, k];
+                    d_cYij[j, k].dual = dcY[i, j, k];
+                }
+            }
+
+            pin(d_cYij);
+
+            auto dicY = d_cYij.invert();
+            pin(dicY);
+
+            valuef sum = 0;
+
+            for(int j=0; j < 3; j++)
+            {
+                for(int k=0; k < 3; k++)
+                {
+                    valuef licy = pow(W, 2) * dicY[j, k].dual + cY[j, k] * 2 * W * dW[i];
+
+                    sum += -(vel[j] * vel[k] / (2 * u0)) * licy;
+                }
+            }
+
+            p3[i] = sum;
+        }
+
+        dV = p1 + p2 + p3;
+    }
+
+
+    #if 0
     tensor<valuef, 3, 3> Kij = (cA + cY.to_tensor() * (K/3.f)) / pow(max(W, 0.01f), 2.f);
     pin(Kij);
     pin(iYij);
@@ -957,19 +1039,20 @@ void evolve_particles(execution_context& ctx,
             }*/
         }
     }
+    #endif
 
     //print("R grid %f %f %f id %i vel %.23f %.23f %.23f dV %.23f %.23f %.23f lorentz %f\n", grid_next[0], grid_next[1], grid_next[2], id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
     //print("R pos %.24f %.24f %.24f grid %f %f %f id %i vel %.23f %.23f %.23f dV %.23f %.23f %.23f lorentz %.23f\n", pos_next[0], pos_next[1], pos_next[2], grid_next[0], grid_next[1], grid_next[2], id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
 
     valuef dlorentz = 0;
 
-    for(int i=0; i < 3; i++)
+    /*for(int i=0; i < 3; i++)
     {
         for(int j=0; j < 3; j++)
         {
             dlorentz += lorentz * vel[i] * (gA * Kij[i, j] * vel[j] - dgA[i]);
         }
-    }
+    }*/
 
     dX[2] = 0;
     dV[2] = 0;
