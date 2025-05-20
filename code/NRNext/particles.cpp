@@ -119,14 +119,14 @@ valuef get_dirac2(auto&& func, const v3f& world_pos, const v3f& dirac_location, 
 
     valuef prefix = 1/(M_PI * pow(hradius, 3.f));
 
-    #define GET_DIRAC_STANDARD
+    //#define GET_DIRAC_STANDARD
     #ifdef GET_DIRAC_STANDARD
     valuef r = (world_pos - dirac_location).length();
     //pin(r);
     return prefix * func(r / hradius);
     #endif // GET_DIRAC_STANDARD
 
-    //#define GET_DIRAC_CORRECTED
+    #define GET_DIRAC_CORRECTED
     #ifdef GET_DIRAC_CORRECTED
     tensor<valuef, 3> scale3 = {scale, scale, scale};
 
@@ -134,7 +134,6 @@ valuef get_dirac2(auto&& func, const v3f& world_pos, const v3f& dirac_location, 
     auto ip1 = world_pos + scale3 / 2;
     pin(im1);
     pin(ip1);
-
 
     return prefix * integrate_3d_trapezoidal([&](const valuef& x, const valuef& y, const valuef& z)
     {
@@ -150,6 +149,48 @@ valuef get_dirac2(auto&& func, const v3f& world_pos, const v3f& dirac_location, 
         pin(out);
         return out;
     }, 1, ip1, im1) / (scale*scale*scale);
+    #endif // GET_DIRAC_CORRECTED
+}
+
+inline
+valuef get_dirac3(auto&& func, const v3f& world_pos, const v3f& dirac_location, const valuef& radius, const valuef& scale)
+{
+    valuef hradius = (radius / 2.f);
+
+    using namespace single_source;
+
+    valuef prefix = 1/(M_PI * pow(hradius * scale, 3.f));
+
+    //#define GET_DIRAC_STANDARD
+    #ifdef GET_DIRAC_STANDARD
+    valuef r = (world_pos - dirac_location).length();
+    //pin(r);
+    return prefix * func(r / hradius);
+    #endif // GET_DIRAC_STANDARD
+
+    #define GET_DIRAC_CORRECTED
+    #ifdef GET_DIRAC_CORRECTED
+    tensor<valuef, 3> scale3 = {1, 1, 1};
+
+    auto im1 = world_pos - scale3 / 2;
+    auto ip1 = world_pos + scale3 / 2;
+    pin(im1);
+    pin(ip1);
+
+    return prefix * integrate_3d_trapezoidal([&](const valuef& x, const valuef& y, const valuef& z)
+    {
+        tensor<valuef, 3> pos = {x, y, z};
+        pin(pos);
+
+        valuef r = (pos - dirac_location).length();
+        pin(r);
+
+        valuef frac = r / hradius;
+
+        valuef out = func(frac);
+        pin(out);
+        return out;
+    }, 1, ip1, im1);
     #endif // GET_DIRAC_CORRECTED
 }
 
@@ -217,14 +258,17 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
                 valuef dirac = get_dirac2(dirac_delta_v, world_pos, dirac_pos, radius_world, scale);
                 pin(dirac);
 
+                valuef dirac2 = get_dirac3(dirac_delta_v, (v3f)offset, fpos, radius_cells, scale);
+                pin(dirac2);
+
                 //print("Dirac %f dirac2 %f\n", dirac, dirac2);
 
-                if_e(dirac > 0, [&]{
+                if_e(dirac2 > 0, [&]{
                     /*if_e(offset.x() == cell.x() && offset.y() == cell.y(), [&]{
                         print("dbg %i %i %i wp %.23f %.23f %.23f dirac %.23f\n", offset.x(), offset.y(), offset.z(), world_pos[0], world_pos[1], world_pos[2], dirac);
                     });*/
 
-                    func(offset, dirac);
+                    func(offset, dirac2);
                 });
             });
         });
