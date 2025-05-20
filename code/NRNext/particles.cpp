@@ -1107,8 +1107,8 @@ void evolve_particles(execution_context& ctx,
         }
     }*/
 
-    dX[2] = 0;
-    dV[2] = 0;
+    //dX[2] = 0;
+    //dV[2] = 0;
 
     for(int i=0; i < 3; i++)
         as_ref(p_out.positions[i][id]) = pos_base[i] + timestep.get() * dX[i];
