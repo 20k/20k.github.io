@@ -35,7 +35,7 @@ int get_evolve_size_with_boundary(t3i dim, int boundary)
 
 void check_symmetry(cl::command_queue cqueue, cl::buffer buf, t3i dim, std::string name)
 {
-    return;
+    //return;
 
     cqueue.block();
 

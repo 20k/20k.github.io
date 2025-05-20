@@ -152,8 +152,6 @@ void boot_initial_kernels(cl::context ctx)
 
         valuef cfl = cfl_reg[lid] + u[lid];
 
-        cfl = 1;
-
         metric<valuef, 3, 3> flat;
 
         for(int i=0; i < 3; i++)
@@ -232,7 +230,14 @@ void boot_initial_kernels(cl::context ctx)
             return_e();
         });
 
-        as_ref(out[0]) = buffer_read_linear(buf, pos.get(), dim.get());
+        auto get = [&](v3i pos)
+        {
+            pos = clamp(pos, (v3i){0,0,0}, dim.get() - 1);
+
+            return buf[pos, dim.get()];
+        };
+
+        as_ref(out[0]) = function_trilinear(get, pos.get());
     };
 
     cl::async_build_and_cache(ctx, [=]{

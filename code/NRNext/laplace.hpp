@@ -4,78 +4,7 @@
 #include "../common/single_source.hpp"
 #include "bssn.hpp"
 #include "value_alias.hpp"
-
-/**
-Ok. What I want is to be able to solve laplacians
-laplacians have two things: a rhs, and a set of buffers
-so, what I want is to pass in that rhs, and those buffers, and win. To pass in the rhs, it'll need to be a function of position
-so lets have it take a function thats a function of position, and our buffers
-*/
-
-/*
-eg
-template<typename T>
-struct bssn_derivatives_mem : value_impl::single_source::argument_pack
-{
-    std::array<std::array<T, 3>, 6> dcY;
-    std::array<T, 3> dgA;
-    std::array<std::array<T, 3>, 3> dgB;
-    std::array<T, 3> dW;
-
-    void build(auto& in)
-    {
-        using namespace value_impl::builder;
-
-        add(dcY, in);
-        add(dgA, in);
-        add(dgB, in);
-        add(dW, in);
-    }
-};*/
-
-
-template<typename T>
-inline
-auto buffer_read_nearest_clamp(T buf, v3i pos, v3i dim)
-{
-    pos = clamp(pos, (v3i){0,0,0}, dim);
-
-    return buf[pos, dim];
-}
-
-template<typename T>
-inline
-auto buffer_read_linear(T buf, v3f pos, v3i dim)
-{
-    v3f floored = floor(pos);
-    v3f frac = pos - floored;
-
-    v3i ipos = (v3i)floored;
-
-    auto c000 = buffer_read_nearest_clamp(buf, ipos + (v3i){0,0,0}, dim);
-    auto c100 = buffer_read_nearest_clamp(buf, ipos + (v3i){1,0,0}, dim);
-
-    auto c010 = buffer_read_nearest_clamp(buf, ipos + (v3i){0,1,0}, dim);
-    auto c110 = buffer_read_nearest_clamp(buf, ipos + (v3i){1,1,0}, dim);
-
-    auto c001 = buffer_read_nearest_clamp(buf, ipos + (v3i){0,0,1}, dim);
-    auto c101 = buffer_read_nearest_clamp(buf, ipos + (v3i){1,0,1}, dim);
-
-    auto c011 = buffer_read_nearest_clamp(buf, ipos + (v3i){0,1,1}, dim);
-    auto c111 = buffer_read_nearest_clamp(buf, ipos + (v3i){1,1,1}, dim);
-
-    ///numerically symmetric across the centre of dim
-    auto c00 = c000 - frac.x() * (c000 - c100);
-    auto c01 = c001 - frac.x() * (c001 - c101);
-
-    auto c10 = c010 - frac.x() * (c010 - c110);
-    auto c11 = c011 - frac.x() * (c011 - c111);
-
-    auto c0 = c00 - frac.y() * (c00 - c10);
-    auto c1 = c01 - frac.y() * (c01 - c11);
-
-    return c0 - frac.z() * (c0 - c1);
-}
+#include "interpolation.hpp"
 
 inline
 valuef get_scaled_coordinate(valuei in, valuei dimension_upper, valuei dimension_lower)
@@ -131,8 +60,15 @@ void upscale_buffer(execution_context& ctx, buffer<valuef> in, buffer_mut<valuef
         return_e();
     });
 
+    auto get = [&](v3i pos)
+    {
+        pos = clamp(pos, (v3i){0,0,0}, in_dim.get() - 1);
+
+        return in[pos, in_dim.get()];
+    };
+
     ///trilinear interpolation
-    as_ref(out[pos, dim]) = buffer_read_linear(in, lower_pos, in_dim.get());
+    as_ref(out[pos, dim]) = function_trilinear(get, lower_pos);
 }
 
 inline
@@ -205,6 +141,7 @@ struct laplace_solver
             valuef rhs = get_rhs(params, pack);
 
             valuef h2f0 = lscale.get() * lscale.get() * rhs;
+            pin(h2f0);
 
             valuef uxm1 = inout[pos - (v3i){1, 0, 0}, dim];
             valuef uxp1 = inout[pos + (v3i){1, 0, 0}, dim];
