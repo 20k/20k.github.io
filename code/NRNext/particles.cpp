@@ -374,6 +374,7 @@ void calculate_particle_intermediates(execution_context& ectx,
     valuef sqrt_det_Gamma = pow(max(Wf, 0.1f), -3);
     #endif
 
+    #if 0
     valuef E_root = mass * lorentz;
     pin(E_root);
 
@@ -391,6 +392,7 @@ void calculate_particle_intermediates(execution_context& ectx,
     }
 
     pin(Sij_root);
+    #endif
 
     for_each_dirac(cell, dim.get(), scale.get(), pos, [&](v3i offset, valuef dirac) {
         bssn_args args(offset, dim.get(), in);
@@ -401,6 +403,55 @@ void calculate_particle_intermediates(execution_context& ectx,
         v4f normal_lo = get_adm_hypersurface_normal_lowered(args.gA);
         v4f normal = get_adm_hypersurface_normal_raised(args.gA, args.gB);
 
+        valuef E = mass * lorentz * args.gA * pow(args.W, 3) * dirac;
+        v3f Ji = mass * vel * pow(args.W, 3) * dirac;
+
+        tensor<valuef, 3, 3> Sij;
+
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                Sij[i, j] = (mass * vel[i] * vel[j] / lorentz) * pow(args.W, 3) * dirac / args.gA;
+            }
+        }
+
+        std::array<valuef, 6> Sij_sym = extract_symmetry(Sij);
+
+        auto scale = [&](valuef in)
+        {
+            valued in_d = (valued)in;
+            valued in_scaled = in_d * fixed_scale.get();
+
+            return (valuei64)round(in_scaled);
+        };
+
+        valuei64 E_scaled = scale(E);
+
+        tensor<valuei64, 3> Si_scaled;
+
+        for(int i=0; i < 3; i++)
+            Si_scaled[i] = scale(Ji[i]);
+
+        std::array<valuei64, 6> Sij_scaled;
+
+        for(int i=0; i < 6; i++)
+            Sij_scaled[i] = scale(Sij_sym[i]);
+
+        ///[offset, dim.get()]
+
+        valuei idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
+
+        out.E.atom_add_e(idx, E_scaled);
+
+        for(int i=0; i < 3; i++)
+            out.Si_raised[i].atom_add_e(idx, Si_scaled[i]);
+
+        for(int i=0; i < 6; i++)
+            out.Sij_raised[i].atom_add_e(idx, Sij_scaled[i]);
+
+
+        #if 0
         tensor<valuef, 4, 4> Yij_projector;
 
         for(int i=0; i < 4; i++)
@@ -508,6 +559,8 @@ void calculate_particle_intermediates(execution_context& ectx,
 
         for(int i=0; i < 6; i++)
             out.Sij_raised[i].atom_add_e(idx, Sij_scaled[i]);
+
+        #endif
 
         #if 0
         bssn_args args(offset, dim.get(), in);
@@ -672,7 +725,7 @@ void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer
     as_ref(vel_out[0][id]) = velocity_lo[1];
     as_ref(vel_out[1][id]) = velocity_lo[2];
     as_ref(vel_out[2][id]) = velocity_lo[3];
-    as_ref(lorentz_out[id]) = valuef(-1);
+    as_ref(lorentz_out[id]) = velocity_lo[0] - 1;
 }
 
 struct evolve_vars
@@ -1063,7 +1116,7 @@ void evolve_particles(execution_context& ctx,
     for(int i=0; i < 3; i++)
         as_ref(p_out.velocities[i][id]) = vel_base[i] + timestep.get() * dV[i];
 
-    as_ref(p_out.lorentzs[id]) = lorentz_base + timestep.get() * dlorentz;
+    as_ref(p_out.lorentzs[id]) = u0 - 1;
     as_ref(p_out.masses[id]) = p_in.masses[id];
 }
 
