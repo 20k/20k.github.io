@@ -7,51 +7,6 @@ template<typename T>
 inline
 auto function_trilinear(T&& func, v3f pos)
 {
-    v3f floored = floor(pos);
-    v3f frac = pos - floored;
-
-    v3i ipos = (v3i)floored;
-
-    auto c000 = func(ipos + (v3i){0,0,0});
-    auto c100 = func(ipos + (v3i){1,0,0});
-
-    auto c010 = func(ipos + (v3i){0,1,0});
-    auto c110 = func(ipos + (v3i){1,1,0});
-
-    auto c001 = func(ipos + (v3i){0,0,1});
-    auto c101 = func(ipos + (v3i){1,0,1});
-
-    auto c011 = func(ipos + (v3i){0,1,1});
-    auto c111 = func(ipos + (v3i){1,1,1});
-
-    //https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0811r2.html
-    auto lmix = [&](auto& a, auto& b, auto& t)
-    {
-        //return i1 + a * (i2 - i1);
-
-        //return mix(a, b, t);
-
-        return t * b + (1 - t) * a;
-
-        //return i1 * (1-a) + i2 * a;
-    };
-
-    auto c00 = lmix(c000, c100, frac.x());
-    auto c01 = lmix(c010, c110, frac.x());
-
-    auto c10 = lmix(c001, c101, frac.x());
-    auto c11 = lmix(c011, c111, frac.x());
-
-    auto c0 = lmix(c00, c01, frac.y());
-    auto c1 = lmix(c10, c11, frac.y());
-
-    return lmix(c0, c1, frac.z());
-}
-
-template<typename T>
-inline
-auto function_trilinear_precise_old(T&& func, v3f pos)
-{
     using namespace single_source;
 
     v3f floored = floor(pos);
@@ -76,36 +31,6 @@ auto function_trilinear_precise_old(T&& func, v3f pos)
     //https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0811r2.html
     auto lmix = [&](auto& a, auto& b, auto& t)
     {
-        /*auto c1 = t * b;
-        pin(c1);
-
-        auto c2 = (1-t);
-        pin(c2);
-
-        auto c3 = c2 * a;
-        pin(c3);
-
-        auto p1 = c1 + c3;
-        pin(p1);
-
-        auto diff = b - a;
-        pin(diff);
-
-        auto tdiff = t * diff;
-        pin(tdiff);
-
-        auto x = a + tdiff;
-        pin(x);
-
-        auto cond_1 = a <= 0 && b >= 0 || a >= 0 && b <= 0;
-        auto cond_2 = (b > a) == (t > 1);
-
-        auto c2_selected = ternary(cond_2, max(b, x), min(b, x));
-
-        auto c3_selected = ternary(t == valuef(1), b, c2_selected);
-
-        return ternary(cond_1, p1, c3_selected);*/
-
         auto imx = 1-t;
         pin(imx);
         auto imimx = 1-imx;
@@ -119,14 +44,6 @@ auto function_trilinear_precise_old(T&& func, v3f pos)
         auto out = p1 + p2;
         pin(out);
         return out;
-
-        //return p1 + p2;
-
-        //return ternary(cond_1, p1, c2_selected);
-
-        //return i1 + a * (i2 - i1);
-
-        //return i1 * (1-a) + i2 * a;
     };
 
     auto c00 = lmix(c000, c100, frac.x());
@@ -143,7 +60,7 @@ auto function_trilinear_precise_old(T&& func, v3f pos)
 
 template<typename T, typename U>
 inline
-auto linear_1d(std::array<T, 4> vals, U frac)
+auto cubic_interpolate(std::array<T, 4> vals, U frac)
 {
     using namespace single_source;
 
@@ -203,9 +120,9 @@ auto linear_1d(std::array<T, 4> vals, U frac)
 
 template<typename T>
 inline
-auto function_trilinear_precise(T&& func, v3f pos)
+auto function_trilinear_particles(T&& func, v3f pos)
 {
-    return function_trilinear_precise_old(func, pos);
+    return function_trilinear(func, pos);
 
     //#define BICUBIC
     #ifdef BICUBIC
@@ -226,7 +143,7 @@ auto function_trilinear_precise(T&& func, v3f pos)
         auto cp1 = func(ipos + offset);
         auto cp2 = func(ipos + 2 * offset);
 
-        return linear_1d(std::array{cm1, c0, cp1, cp2}, frac.z());
+        return cubic_interpolate(std::array{cm1, c0, cp1, cp2}, frac.z());
     };
 
     auto u = [t](v3i ipos, v3f frac)
@@ -239,7 +156,7 @@ auto function_trilinear_precise(T&& func, v3f pos)
         auto cp1 = t(ipos + offset, frac);
         auto cp2 = t(ipos + 2 * offset, frac);
 
-        return linear_1d(std::array{cm1, c0, cp1, cp2}, frac.y());
+        return cubic_interpolate(std::array{cm1, c0, cp1, cp2}, frac.y());
     };
 
     auto f = [u](v3i ipos, v3f frac)
@@ -252,7 +169,7 @@ auto function_trilinear_precise(T&& func, v3f pos)
         auto cp1 = u(ipos + offset, frac);
         auto cp2 = u(ipos + 2 * offset, frac);
 
-        return linear_1d(std::array{cm1, c0, cp1, cp2}, frac.x());
+        return cubic_interpolate(std::array{cm1, c0, cp1, cp2}, frac.x());
     };
 
     return f((v3i)floored, frac);

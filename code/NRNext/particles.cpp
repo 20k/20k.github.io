@@ -229,7 +229,7 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
 
     using namespace single_source;
 
-    int radius_cells = 5;
+    int radius_cells = 3;
     valuef radius_world = radius_cells * scale;
     pin(radius_world);
     int spread = radius_cells + 1;
@@ -244,35 +244,14 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
 
             for_e(x <= spread, assign_b(x, x+1), [&]{
                 v3i offset = {declare_e(x), declare_e(y), declare_e(z)};
-
-                /*v3f foff = (v3f)offset;
-                v3f rel = fpos - (v3f)cell;
-
-                valuef dirac = get_dirac2(dirac_delta_v, foff, rel, valuef(radius_cells), valuef(1.f));
-                pin(dirac);*/
-
                 offset += cell;
-
-                //offset = clamp(offset, (v3i){0,0,0}, dim - 1);
                 pin(offset);
 
-                v3f world_pos = grid_to_world((v3f)offset, dim, scale);
-                pin(world_pos);
-
-                valuef dirac = get_dirac2(dirac_delta_v, world_pos, dirac_pos, radius_world, scale);
+                valuef dirac = get_dirac3(dirac_delta_v, (v3f)offset, fpos, radius_cells, scale);
                 pin(dirac);
 
-                valuef dirac2 = get_dirac3(dirac_delta_v, (v3f)offset, fpos, radius_cells, scale);
-                pin(dirac2);
-
-                //print("Dirac %f dirac2 %f\n", dirac, dirac2);
-
-                if_e(dirac2 > 0, [&]{
-                    /*if_e(offset.x() == cell.x() && offset.y() == cell.y(), [&]{
-                        print("dbg %i %i %i wp %.23f %.23f %.23f dirac %.23f\n", offset.x(), offset.y(), offset.z(), world_pos[0], world_pos[1], world_pos[2], dirac);
-                    });*/
-
-                    func(offset, dirac2);
+                if_e(dirac > 0, [&]{
+                    func(offset, dirac);
                 });
             });
         });
@@ -293,8 +272,6 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
     if_e(id >= particle_count.get(), [&]{
         return_e();
     });
-
-    //valuef dirac_prefix = 1/(M_PI * pow(radius_world, 3.f));
 
     valuef lorentz = 1;
     valuef mass = particles_in.get_mass(id);
@@ -358,42 +335,6 @@ void calculate_particle_intermediates(execution_context& ectx,
     v3i cell = (v3i)round(fcell);
     pin(cell);
 
-    #ifdef ITS_NOT_THE_INTERPOLATION
-    auto W_at = [&](v3i pos)
-    {
-        pos = clamp(pos, (v3i){0,0,0}, dim.get() - 1);
-
-        bssn_args args(pos, dim.get(), in);
-
-        return args.W;
-    };
-
-    auto Wf = function_trilinear_precise(W_at, fcell);
-    pin(Wf);
-
-    valuef sqrt_det_Gamma = pow(max(Wf, 0.1f), -3);
-    #endif
-
-    #if 0
-    valuef E_root = mass * lorentz;
-    pin(E_root);
-
-    v3f Si_root = mass * lorentz * vel;
-    pin(Si_root);
-
-    tensor<valuef, 3, 3> Sij_root;
-
-    for(int i=0; i < 3; i++)
-    {
-        for(int j=0; j < 3; j++)
-        {
-            Sij_root[i, j] = mass * lorentz * vel[i] * vel[j];
-        }
-    }
-
-    pin(Sij_root);
-    #endif
-
     for_each_dirac(cell, dim.get(), scale.get(), pos, [&](v3i offset, valuef dirac) {
         bssn_args args(offset, dim.get(), in);
 
@@ -449,178 +390,6 @@ void calculate_particle_intermediates(execution_context& ectx,
 
         for(int i=0; i < 6; i++)
             out.Sij_raised[i].atom_add_e(idx, Sij_scaled[i]);
-
-
-        #if 0
-        tensor<valuef, 4, 4> Yij_projector;
-
-        for(int i=0; i < 4; i++)
-        {
-            for(int j=0; j < 4; j++)
-            {
-                Yij_projector[i, j] = met[i, j] + normal_lo[i] * normal_lo[j];
-            }
-        }
-
-        v4f momentum = lorentz * (normal + (v4f){0, vel[0], vel[1], vel[2]});
-
-        v4f velocity4 = momentum / mass;
-
-        valuef isqrt_det_Gamma = pow(args.W, 3);
-        pin(isqrt_det_Gamma);
-
-        tensor<valuef, 4, 4> Tuv;
-
-        for(int i=0; i < 4; i++)
-        {
-            for(int j=0; j < 4; j++)
-            {
-                Tuv[i, j] = (mass * dirac * isqrt_det_Gamma / (velocity4.x() * args.gA)) * velocity4[i] * velocity4[j];
-            }
-        }
-
-        valuef E = 0;
-
-        for(int i=0; i < 4; i++)
-        {
-            for(int j=0; j < 4; j++)
-            {
-                E += normal_lo[i] * normal_lo[j] * Tuv[i, j];
-            }
-        }
-
-        v3f Ji;
-
-        for(int i=1; i < 4; i++)
-        {
-            valuef sum = 0;
-
-            for(int j=0; j < 3; j++)
-            {
-                for(int k=0; k < 3; k++)
-                {
-                    sum += -Yij_projector[i, j] * normal_lo[k] * Tuv[j, k];
-                }
-            }
-
-            Ji[i - 1] = sum * 0;
-        }
-
-        tensor<valuef, 3, 3> Sij;
-
-        for(int i=1; i < 4; i++)
-        {
-            for(int j=1; j < 4; j++)
-            {
-                valuef sum = 0;
-
-                for(int k=0; k < 4; k++)
-                {
-                    for(int l=0; l < 4; l++)
-                    {
-                        sum += Yij_projector[i, k] * Yij_projector[j, l] * Tuv[k, l];
-                    }
-                }
-
-                Sij[i - 1, j - 1] = sum * 0;
-            }
-        }
-
-        std::array<valuef, 6> Sij_sym = extract_symmetry(Sij);
-
-        auto scale = [&](valuef in)
-        {
-            valued in_d = (valued)in;
-            valued in_scaled = in_d * fixed_scale.get();
-
-            return (valuei64)round(in_scaled);
-        };
-
-        valuei64 E_scaled = scale(E);
-
-        tensor<valuei64, 3> Si_scaled;
-
-        for(int i=0; i < 3; i++)
-            Si_scaled[i] = scale(Ji[i]);
-
-        std::array<valuei64, 6> Sij_scaled;
-
-        for(int i=0; i < 6; i++)
-            Sij_scaled[i] = scale(Sij_sym[i]);
-
-        ///[offset, dim.get()]
-
-        valuei idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
-
-        out.E.atom_add_e(idx, E_scaled);
-
-        for(int i=0; i < 3; i++)
-            out.Si_raised[i].atom_add_e(idx, Si_scaled[i]);
-
-        for(int i=0; i < 6; i++)
-            out.Sij_raised[i].atom_add_e(idx, Sij_scaled[i]);
-
-        #endif
-
-        #if 0
-        bssn_args args(offset, dim.get(), in);
-
-        valuef fin_E = E_root * dirac;
-        v3f Si_raised = Si_root * dirac;
-        tensor<valuef, 3, 3> Sij_raised = Sij_root * dirac;
-
-        std::array<valuef, 6> Sij_sym = extract_symmetry(Sij_raised);
-
-        auto scale = [&](valuef in)
-        {
-            valued in_d = (valued)in;
-            valued in_scaled = in_d * fixed_scale.get();
-
-            return (valuei64)round(in_scaled);
-        };
-
-        valuei64 E_scaled = scale(fin_E);
-
-        tensor<valuei64, 3> Si_scaled;
-
-        for(int i=0; i < 3; i++)
-            Si_scaled[i] = scale(Si_raised[i]);
-
-        std::array<valuei64, 6> Sij_scaled;
-
-        for(int i=0; i < 6; i++)
-            Sij_scaled[i] = scale(Sij_sym[i]);
-
-        ///[offset, dim.get()]
-
-        valuei idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
-
-        out.E.atom_add_e(idx, E_scaled);
-
-        for(int i=0; i < 3; i++)
-        {
-            out.Si_raised[i].atom_add_e(idx, Si_scaled[i]);
-        }
-
-        for(int i=0; i < 6; i++)
-        {
-            out.Sij_raised[i].atom_add_e(idx, Sij_scaled[i]);
-        }
-        #endif
-
-        //print("Offset %i %i %i dirac %.23f cell %f %f %f gA %.23f E %i Si %i %i %i Sij %i %i %i %i %i %i\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z(), args.gA,
-        //    E_scaled, Si_scaled[0], Si_scaled[1], Si_scaled[2], Sij_scaled[0], Sij_scaled[1], Sij_scaled[2], Sij_scaled[3], Sij_scaled[4], Sij_scaled[5]);
-
-
-        /*if_e(offset.z() == cell.z() && offset.y() == cell.y(), [&]{
-            print("Offset %i %i %i dirac %.23f cell %f %f %f gA %.23f E %i Si %i %i %i Sij %i %i %i %i %i %i id %i\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z(), args.gA,
-            E_scaled, Si_scaled[0], Si_scaled[1], Si_scaled[2], Sij_scaled[0], Sij_scaled[1], Sij_scaled[2], Sij_scaled[3], Sij_scaled[4], Sij_scaled[5], id);
-        });*/
-
-        /*if_e(offset.z() == cell.z() && offset.y() == cell.y(), [&]{
-            print("Offset %i %i %i dirac %.23f cell %f %f %f gA %.23f E %.23f Si %.23f %.23f %.23f Sij %.23f %.23f %.23f %.23f %.23f %.23f id %i\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z(), args.gA,
-            fin_E, Si_raised[0], Si_raised[1], Si_raised[2], Sij_sym[0], Sij_sym[1], Sij_sym[2], Sij_sym[3], Sij_sym[4], Sij_sym[5], id);
-        });*/
     });
 }
 
@@ -653,79 +422,6 @@ v4f get_timelike_vector(v3f speed, tetrad tet)
     v4f bZ = Y * speed.z() * tet.v[3];
 
     return bT + bX + bY + bZ;
-}
-
-//screw it. Do the whole tetrad spiel from raytrace_init, I've already done it. Return a tetrad
-void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, std::array<buffer<valuef>, 3> pos_in, std::array<buffer<valuef>, 3> vel_in, buffer<valuef> mass_in, std::array<buffer_mut<valuef>, 3> vel_out, buffer_mut<valuef> lorentz_out, literal<value<size_t>> count, literal<v3i> dim, literal<valuef> scale)
-{
-    using namespace single_source;
-
-    value<size_t> id = value_impl::get_global_id_us(0);
-
-    if_e(id >= count.get(), [&]{
-        return_e();
-    });
-
-    v3f world_pos = {pos_in[0][id], pos_in[1][id], pos_in[2][id]};
-
-    v3f cell_pos = world_to_grid(world_pos, dim.get(), scale.get());
-    pin(cell_pos);
-
-    adm_variables vars = admf_at(cell_pos, dim.get(), in);
-    pin(vars.Yij);
-    pin(vars.Kij);
-    pin(vars.gA);
-    pin(vars.gB);
-
-    m44f metric = calculate_real_metric(vars.Yij, vars.gA, vars.gB);
-    pin(metric);
-
-    tetrad tet = calculate_tetrad(metric, {0,0,0}, false);
-
-    /*print("Tet %f %f %f %f b %f %f %f %f c %f %f %f %f d %f %f %f %f\n",
-          tet.v[0][0], tet.v[0][1], tet.v[0][2], tet.v[0][3],
-          tet.v[1][0], tet.v[1][1], tet.v[1][2], tet.v[1][3],
-          tet.v[2][0], tet.v[2][1], tet.v[2][2], tet.v[2][3],
-          tet.v[3][0], tet.v[3][1], tet.v[3][2], tet.v[3][3]
-          );*/
-
-    v3f speed_in = {vel_in[0][id], vel_in[1][id], vel_in[2][id]};
-
-    v4f velocity4 = get_timelike_vector(speed_in, tet);
-
-    valuef lorentz = 1 / sqrt(1 - dot(speed_in, speed_in));
-
-    //v4f projected = (velocity4 / lorentz) - get_adm_hypersurface_normal_raised(vars.gA, vars.gB);
-
-    /*as_ref(vel_out[0][id]) = projected[1];
-    as_ref(vel_out[1][id]) = projected[2];
-    as_ref(vel_out[2][id]) = projected[3];
-    //always store the lorentz factor as lorentz - 1
-    as_ref(lorentz_out[id]) = lorentz - 1;*/
-
-    /*v4f momentum4 = velocity4 * mass_in[id];
-
-    v4f normal = get_adm_hypersurface_normal_raised(vars.gA, vars.gB);
-    v4f normal_lo = get_adm_hypersurface_normal_lowered(vars.gA);
-
-    valuef E = -dot(normal_lo, momentum4);
-
-    v4f projected = (momentum4 / E) - normal;
-
-    //print("Proj %f\n", projected[0]);
-
-    as_ref(vel_out[0][id]) = projected[1];
-    as_ref(vel_out[1][id]) = projected[2];
-    as_ref(vel_out[2][id]) = projected[3];
-    //always store the lorentz factor as lorentz - 1
-    as_ref(lorentz_out[id]) = E - 1;*/
-
-    v4f velocity_lo = metric.lower(velocity4);
-
-    as_ref(vel_out[0][id]) = velocity_lo[1];
-    as_ref(vel_out[1][id]) = velocity_lo[2];
-    as_ref(vel_out[2][id]) = velocity_lo[3];
-    as_ref(lorentz_out[id]) = velocity_lo[0] - 1;
 }
 
 struct evolve_vars
@@ -867,12 +563,12 @@ struct evolve_vars
         };
 
 
-        gA = function_trilinear_precise(gA_at, fpos);
-        gB = function_trilinear_precise(gB_at, fpos);
-        cY = function_trilinear_precise(cY_at, fpos);
-        cA = function_trilinear_precise(cA_at, fpos);
-        K = function_trilinear_precise(K_at, fpos);
-        W = function_trilinear_precise(W_at, fpos);
+        gA = function_trilinear_particles(gA_at, fpos);
+        gB = function_trilinear_particles(gB_at, fpos);
+        cY = function_trilinear_particles(cY_at, fpos);
+        cA = function_trilinear_particles(cA_at, fpos);
+        K = function_trilinear_particles(K_at, fpos);
+        W = function_trilinear_particles(W_at, fpos);
 
         pin(gA);
         pin(gB);
@@ -881,20 +577,10 @@ struct evolve_vars
         pin(K);
         pin(W);
 
-        /*for(int i=0; i < 3; i++)
-        {
-            v3f offset;
-            offset[i] = 1;
-
-            dgA[i] = (function_trilinear_precise(gA_at, fpos + offset) - function_trilinear_precise(gA_at, fpos - offset)) / (2 * scale);
-        }*/
-
-        dgA = function_trilinear_precise(dgA_at, fpos);
-        dgB = function_trilinear_precise(dgB_at, fpos);
-        dcY = function_trilinear_precise(dcY_at, fpos);
-        dW = function_trilinear_precise(dW_at, fpos);
-
-        //print("Interpolated %.23f %.23f %.23f\n", dgA[0], dgA[1], dgA[2]);
+        dgA = function_trilinear_particles(dgA_at, fpos);
+        dgB = function_trilinear_particles(dgB_at, fpos);
+        dcY = function_trilinear_particles(dcY_at, fpos);
+        dW = function_trilinear_particles(dW_at, fpos);
 
         pin(dgA);
         pin(dgB);
@@ -902,6 +588,49 @@ struct evolve_vars
         pin(dW);
     }
 };
+
+//screw it. Do the whole tetrad spiel from raytrace_init, I've already done it. Return a tetrad
+void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, std::array<buffer<valuef>, 3> pos_in, std::array<buffer<valuef>, 3> vel_in, buffer<valuef> mass_in, std::array<buffer_mut<valuef>, 3> vel_out, buffer_mut<valuef> lorentz_out, literal<value<size_t>> count, literal<v3i> dim, literal<valuef> scale)
+{
+    using namespace single_source;
+
+    value<size_t> id = value_impl::get_global_id_us(0);
+
+    if_e(id >= count.get(), [&]{
+        return_e();
+    });
+
+    v3f world_pos = {pos_in[0][id], pos_in[1][id], pos_in[2][id]};
+
+    v3f cell_pos = world_to_grid(world_pos, dim.get(), scale.get());
+    pin(cell_pos);
+
+    evolve_vars vars(in, cell_pos, dim.get(), scale.get());
+
+    auto Yij = vars.cY / pow(max(vars.W, 0.01f), 2);
+
+    pin(Yij);
+    pin(vars.gA);
+    pin(vars.gB);
+
+    m44f metric = calculate_real_metric(Yij, vars.gA, vars.gB);
+    pin(metric);
+
+    tetrad tet = calculate_tetrad(metric, {0,0,0}, false);
+
+    v3f speed_in = {vel_in[0][id], vel_in[1][id], vel_in[2][id]};
+
+    v4f velocity4 = get_timelike_vector(speed_in, tet);
+
+    valuef lorentz = 1 / sqrt(1 - dot(speed_in, speed_in));
+
+    v4f velocity_lo = metric.lower(velocity4);
+
+    as_ref(vel_out[0][id]) = velocity_lo[1];
+    as_ref(vel_out[1][id]) = velocity_lo[2];
+    as_ref(vel_out[2][id]) = velocity_lo[3];
+    as_ref(lorentz_out[id]) = velocity_lo[0] - 1;
+}
 
 void evolve_particles(execution_context& ctx,
                       bssn_args_mem<buffer<valuef>> base,
@@ -975,7 +704,6 @@ void evolve_particles(execution_context& ctx,
     auto icY = cY.invert();
     auto iYij = icY * (W*W);
 
-    //so. I think I use dx/dt for the position, and du/dt for velocity
 
     valuef au0_sq = 1 + iYij.dot(vel, vel);
     valuef u0 = sqrt(au0_sq) / gA;
@@ -1043,72 +771,6 @@ void evolve_particles(execution_context& ctx,
 
         dV = p1 + p2 + p3;
     }
-
-
-    #if 0
-    tensor<valuef, 3, 3> Kij = (cA + cY.to_tensor() * (K/3.f)) / pow(max(W, 0.01f), 2.f);
-    pin(Kij);
-    pin(iYij);
-
-    auto christoff2_cfl = christoffel_symbols_2(icY, dcY);
-    pin(christoff2_cfl);
-
-    auto christoff2 = get_full_christoffel2(W, dW, cY, icY, christoff2_cfl);
-    pin(christoff2);
-
-    v3f dX = gA * vel - gB;
-
-    v3f dV;
-
-    for(int i=0; i < 3; i++)
-    {
-        for(int j=0; j < 3; j++)
-        {
-            valuef kjvk = 0;
-
-            for(int k=0; k < 3; k++)
-            {
-                kjvk += Kij[j, k] * vel[k];
-            }
-
-            valuef christoffel_sum = 0;
-
-            for(int k=0; k < 3; k++)
-            {
-                christoffel_sum += christoff2[i, j, k] * vel[k];
-            }
-
-            valuef dlog_gA = dgA[j] / max(gA, 0.01f);
-
-            dV[i] += gA * vel[j] * (vel[i] * (dlog_gA - kjvk) + 2 * iYij.raise(Kij, 0)[i, j] - christoffel_sum)
-                    - iYij[i, j] * dgA[j] - vel[j] * dgB[j, i];
-
-            //if(i == 0 || i == 1)
-            /*if(i == 0)
-            {
-                print("Dbg 2 iYij %.23f W %.23f cY %.23f id %i i %i j %i\n", iYij[i, j], W, cY[i, j], id, valuei(i), valuei(j));
-
-                print("Dbg k %.23f a %.23f b %.23f dgA %.23f i %i j %i id %i\n", vel[j] * iYij.raise(Kij, 0)[i, j], iYij[i,j] * dgA[j], vel[j] * dgB[j, i], dgA[j], valuei(i), valuei(j), id);
-            }*/
-        }
-    }
-    #endif
-
-    //print("R grid %f %f %f id %i vel %.23f %.23f %.23f dV %.23f %.23f %.23f lorentz %f\n", grid_next[0], grid_next[1], grid_next[2], id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
-    //print("R pos %.24f %.24f %.24f grid %f %f %f id %i vel %.23f %.23f %.23f dV %.23f %.23f %.23f lorentz %.23f\n", pos_next[0], pos_next[1], pos_next[2], grid_next[0], grid_next[1], grid_next[2], id, vel[0], vel[1], vel[2], dV[0], dV[1], dV[2], lorentz_base);
-
-    valuef dlorentz = 0;
-
-    /*for(int i=0; i < 3; i++)
-    {
-        for(int j=0; j < 3; j++)
-        {
-            dlorentz += lorentz * vel[i] * (gA * Kij[i, j] * vel[j] - dgA[i]);
-        }
-    }*/
-
-    //dX[2] = 0;
-    //dV[2] = 0;
 
     for(int i=0; i < 3; i++)
         as_ref(p_out.positions[i][id]) = pos_base[i] + timestep.get() * dX[i];
