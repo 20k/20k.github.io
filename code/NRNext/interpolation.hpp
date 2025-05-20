@@ -205,9 +205,9 @@ template<typename T>
 inline
 auto function_trilinear_precise(T&& func, v3f pos)
 {
-    //return function_trilinear(func, pos);
+    return function_trilinear_precise_old(func, pos);
 
-    #define BICUBIC
+    //#define BICUBIC
     #ifdef BICUBIC
     using namespace single_source;
 
