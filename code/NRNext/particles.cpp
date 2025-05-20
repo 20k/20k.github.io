@@ -391,6 +391,128 @@ void calculate_particle_intermediates(execution_context& ectx,
     for_each_dirac(cell, dim.get(), scale.get(), pos, [&](v3i offset, valuef dirac) {
         bssn_args args(offset, dim.get(), in);
 
+        adm_variables adm = bssn_to_adm(args);
+
+        m44f met = calculate_real_metric(adm.Yij, adm.gA, adm.gB);
+        v4f normal_lo = get_adm_hypersurface_normal_lowered(args.gA);
+        v4f normal = get_adm_hypersurface_normal_raised(args.gA, args.gB);
+
+        tensor<valuef, 4, 4> Yij_projector;
+
+        for(int i=0; i < 4; i++)
+        {
+            for(int j=0; j < 4; j++)
+            {
+                Yij_projector[i, j] = met[i, j] + normal_lo[i] * normal_lo[j];
+            }
+        }
+
+        v4f momentum = lorentz * (normal + (v4f){0, vel[0], vel[1], vel[2]});
+
+        v4f velocity4 = momentum / mass;
+
+        valuef isqrt_det_Gamma = pow(args.W, 3);
+        pin(isqrt_det_Gamma);
+
+        tensor<valuef, 4, 4> Tuv;
+
+        for(int i=0; i < 4; i++)
+        {
+            for(int j=0; j < 4; j++)
+            {
+                Tuv[i, j] = (mass * dirac * isqrt_det_Gamma / (velocity4.x() * args.gA)) * velocity4[i] * velocity4[j];
+            }
+        }
+
+        valuef E = 0;
+
+        for(int i=0; i < 4; i++)
+        {
+            for(int j=0; j < 4; j++)
+            {
+                E += normal_lo[i] * normal_lo[j] * Tuv[i, j];
+            }
+        }
+
+        v3f Ji;
+
+        for(int i=1; i < 4; i++)
+        {
+            valuef sum = 0;
+
+            for(int j=0; j < 3; j++)
+            {
+                for(int k=0; k < 3; k++)
+                {
+                    sum += -Yij_projector[i, j] * normal_lo[k] * Tuv[j, k];
+                }
+            }
+
+            Ji[i - 1] = sum;
+        }
+
+        tensor<valuef, 3, 3> Sij;
+
+        for(int i=1; i < 4; i++)
+        {
+            for(int j=1; j < 4; j++)
+            {
+                valuef sum = 0;
+
+                for(int k=0; k < 4; k++)
+                {
+                    for(int l=0; l < 4; l++)
+                    {
+                        sum += Yij_projector[i, k] * Yij_projector[j, l] * Tuv[k, l];
+                    }
+                }
+
+                Sij[i - 1, j - 1] = sum;
+            }
+        }
+
+        std::array<valuef, 6> Sij_sym = extract_symmetry(Sij);
+
+        auto scale = [&](valuef in)
+        {
+            valued in_d = (valued)in;
+            valued in_scaled = in_d * fixed_scale.get();
+
+            return (valuei64)round(in_scaled);
+        };
+
+        valuei64 E_scaled = scale(E);
+
+        tensor<valuei64, 3> Si_scaled;
+
+        for(int i=0; i < 3; i++)
+            Si_scaled[i] = scale(Ji[i]);
+
+        std::array<valuei64, 6> Sij_scaled;
+
+        for(int i=0; i < 6; i++)
+            Sij_scaled[i] = scale(Sij_sym[i]);
+
+        ///[offset, dim.get()]
+
+        valuei idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
+
+        out.E.atom_add_e(idx, E_scaled);
+
+        for(int i=0; i < 3; i++)
+            out.Si_raised[i].atom_add_e(idx, Si_scaled[i]);
+
+        for(int i=0; i < 6; i++)
+            out.Sij_raised[i].atom_add_e(idx, Sij_scaled[i]);
+
+        if_e(offset.z() == 99 && offset.y() == 99, [&]{
+            print("Offset %i %i %i dirac %.23f cell %f %f %f gA %.23f E %i Si %i %i %i Sij %i %i %i %i %i %i\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z(), args.gA,
+            E_scaled, Si_scaled[0], Si_scaled[1], Si_scaled[2], Sij_scaled[0], Sij_scaled[1], Sij_scaled[2], Sij_scaled[3], Sij_scaled[4], Sij_scaled[5]);
+        });
+
+        #if 0
+        bssn_args args(offset, dim.get(), in);
+
         valuef fin_E = E_root * dirac;
         v3f Si_raised = Si_root * dirac;
         tensor<valuef, 3, 3> Sij_raised = Sij_root * dirac;
@@ -432,6 +554,7 @@ void calculate_particle_intermediates(execution_context& ectx,
         {
             out.Sij_raised[i].atom_add_e(idx, Sij_scaled[i]);
         }
+        #endif
 
         //print("Offset %i %i %i dirac %.23f cell %f %f %f gA %.23f E %i Si %i %i %i Sij %i %i %i %i %i %i\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z(), args.gA,
         //    E_scaled, Si_scaled[0], Si_scaled[1], Si_scaled[2], Sij_scaled[0], Sij_scaled[1], Sij_scaled[2], Sij_scaled[3], Sij_scaled[4], Sij_scaled[5]);
@@ -481,7 +604,7 @@ v4f get_timelike_vector(v3f speed, tetrad tet)
 }
 
 //screw it. Do the whole tetrad spiel from raytrace_init, I've already done it. Return a tetrad
-void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, std::array<buffer<valuef>, 3> pos_in, std::array<buffer<valuef>, 3> vel_in, std::array<buffer_mut<valuef>, 3> vel_out, buffer_mut<valuef> lorentz_out, literal<value<size_t>> count, literal<v3i> dim, literal<valuef> scale)
+void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, std::array<buffer<valuef>, 3> pos_in, std::array<buffer<valuef>, 3> vel_in, buffer<valuef> mass_in, std::array<buffer_mut<valuef>, 3> vel_out, buffer_mut<valuef> lorentz_out, literal<value<size_t>> count, literal<v3i> dim, literal<valuef> scale)
 {
     using namespace single_source;
 
@@ -520,13 +643,30 @@ void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer
 
     valuef lorentz = 1 / sqrt(1 - dot(speed_in, speed_in));
 
-    v4f projected = (velocity4 / lorentz) - get_adm_hypersurface_normal_raised(vars.gA, vars.gB);
+    //v4f projected = (velocity4 / lorentz) - get_adm_hypersurface_normal_raised(vars.gA, vars.gB);
+
+    /*as_ref(vel_out[0][id]) = projected[1];
+    as_ref(vel_out[1][id]) = projected[2];
+    as_ref(vel_out[2][id]) = projected[3];
+    //always store the lorentz factor as lorentz - 1
+    as_ref(lorentz_out[id]) = lorentz - 1;*/
+
+    v4f momentum4 = velocity4 * mass_in[id];
+
+    v4f normal = get_adm_hypersurface_normal_raised(vars.gA, vars.gB);
+    v4f normal_lo = get_adm_hypersurface_normal_lowered(vars.gA);
+
+    valuef E = -dot(normal_lo, momentum4);
+
+    v4f projected = (momentum4 / E) - normal;
+
+    //print("Proj %f\n", projected[0]);
 
     as_ref(vel_out[0][id]) = projected[1];
     as_ref(vel_out[1][id]) = projected[2];
     as_ref(vel_out[2][id]) = projected[3];
     //always store the lorentz factor as lorentz - 1
-    as_ref(lorentz_out[id]) = lorentz - 1;
+    as_ref(lorentz_out[id]) = E - 1;
 }
 
 struct evolve_vars
@@ -1134,32 +1274,38 @@ valuef full_particle_args<T>::adm_p(bssn_args& args, const derivative_data& d)
 {
     //return {};
 
-    return pow(args.W, 3.f) * this->E[d.pos, d.dim];
+    return this->E[d.pos, d.dim];
+
+    //return pow(args.W, 3.f) * this->E[d.pos, d.dim];
 }
 
 template<typename T>
 tensor<valuef, 3> full_particle_args<T>::adm_Si(bssn_args& args, const derivative_data& d)
 {
-    return {};
+    //return {};
 
     //todo: fixme
     auto Yij = args.cY;
 
     v3f Ji = this->get_Si(d.pos, d.dim);
 
-    return pow(args.W, 1.f) * Yij.lower(Ji);
+    return Ji;
+
+    //return pow(args.W, 1.f) * Yij.lower(Ji);
 }
 
 template<typename T>
 tensor<valuef, 3, 3> full_particle_args<T>::adm_W2_Sij(bssn_args& args, const derivative_data& d)
 {
-    return {};
+    //return {};
 
     auto Yij = args.cY;
 
     tensor<valuef, 3, 3> Sij = this->get_Sij(d.pos, d.dim);
 
-    return args.W * Yij.lower(Yij.lower(Sij, 0), 1);
+    return args.W * args.W * Sij;
+
+    //return args.W * Yij.lower(Yij.lower(Sij, 0), 1);
 }
 
 void particle_utility_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t3i size)
@@ -1304,6 +1450,7 @@ void particle_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffe
         in.append_to(args);
         args.push_back(p_in.positions[0], p_in.positions[1], p_in.positions[2]);
         args.push_back(p_in.velocities[0], p_in.velocities[1], p_in.velocities[2]);
+        args.push_back(p_in.masses);
         args.push_back(p_out.velocities[0], p_out.velocities[1], p_out.velocities[2]);
         args.push_back(p_out.lorentzs);
         args.push_back(count);
