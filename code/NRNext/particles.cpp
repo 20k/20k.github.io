@@ -8,31 +8,25 @@
 
 ///https://arxiv.org/pdf/1611.07906.pdf (20)
 //3d
-valuef dirac_delta_impl(const valuef& r, const valuef& radius)
+valuef dirac_delta_impl(const valuef& frac)
 {
     using namespace single_source;
-
-    valuef frac = r / radius;
-    pin(frac);
-
-    valuef mult = 1/(M_PI * pow(radius, 3.f));
-    pin(mult);
 
     valuef result = 0;
 
     valuef branch_1 = (1.f/4.f) * pow(2.f - frac, 3.f);
     valuef branch_2 = 1.f - (3.f/2.f) * pow(frac, 2.f) + (3.f/4.f) * pow(frac, 3.f);
 
-    result = ternary(frac <= 2, mult * branch_1, 0.f);
+    result = ternary(frac <= 2, branch_1, 0.f);
     pin(result);
-    result = ternary(frac <= 1, mult * branch_2, result);
+    result = ternary(frac <= 1, branch_2, result);
     pin(result);
     return result;
 }
 
-valuef dirac_delta_v(const valuef& r, const valuef& radius)
+valuef dirac_delta_v(const valuef& r)
 {
-    return dirac_delta_impl(r, radius/2);
+    return dirac_delta_impl(r);
 }
 
 //3d
@@ -119,16 +113,20 @@ T get_dirac(auto&& func, tensor<T, 3> lpos, tensor<T, 3> dirac_location, T radiu
 inline
 valuef get_dirac2(auto&& func, const v3f& world_pos, const v3f& dirac_location, const valuef& radius, const valuef& scale)
 {
+    valuef hradius = radius / 2.f;
+
     using namespace single_source;
 
-    //#define GET_DIRAC_STANDARD
+    valuef prefix = 1/(M_PI * pow(hradius, 3.f));
+
+    #define GET_DIRAC_STANDARD
     #ifdef GET_DIRAC_STANDARD
     valuef r = (world_pos - dirac_location).length();
     //pin(r);
-    return func(r, radius);
+    return prefix * func(r / hradius);
     #endif // GET_DIRAC_STANDARD
 
-    #define GET_DIRAC_CORRECTED
+    //#define GET_DIRAC_CORRECTED
     #ifdef GET_DIRAC_CORRECTED
     tensor<valuef, 3> scale3 = {scale, scale, scale};
 
@@ -137,7 +135,8 @@ valuef get_dirac2(auto&& func, const v3f& world_pos, const v3f& dirac_location, 
     pin(im1);
     pin(ip1);
 
-    return integrate_3d_trapezoidal([&](const valuef& x, const valuef& y, const valuef& z)
+
+    return prefix * integrate_3d_trapezoidal([&](const valuef& x, const valuef& y, const valuef& z)
     {
         tensor<valuef, 3> pos = {x, y, z};
         pin(pos);
@@ -145,10 +144,12 @@ valuef get_dirac2(auto&& func, const v3f& world_pos, const v3f& dirac_location, 
         valuef r = (pos - dirac_location).length();
         pin(r);
 
-        valuef out = func(r, radius);
+        valuef frac = r / hradius;
+
+        valuef out = func(frac);
         pin(out);
         return out;
-    }, 3, ip1, im1) / (scale*scale*scale);
+    }, 1, ip1, im1) / (scale*scale*scale);
     #endif // GET_DIRAC_CORRECTED
 }
 
@@ -941,7 +942,7 @@ void dirac_test()
 
     std::cout << "Integrated " << integrated << std::endl;
 
-    assert(false);
+    //assert(false);
 
     #ifdef DIRAC_1D
     float dirac_location = 0.215f;

@@ -19,7 +19,7 @@ auto integrate_1d_trapezoidal(const T& func, int n, const U& upper, const U& low
         sum += val;
     }
 
-    return ((upper - lower) / n) * ((func(lower)/2.f + func(upper)/2.f) + sum);
+    return ((upper - lower) / n) * (0.5f * (func(lower) + func(upper)) + sum);
 }
 
 template<typename T, typename U>
