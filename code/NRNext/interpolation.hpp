@@ -191,15 +191,23 @@ auto linear_1d(std::array<T, 4> vals, U frac)
     pin(d1);
     pin(cst);
 
-    return ((a3 + d3) + (b3 + c3)) + ((b2 + c2) + a2) + ((a1 + d1) + (b1 + c1)) + cst;
+    auto p1 = ((a3 + d3) + (b3 + c3));
+    pin(p1);
+    auto p2 = ((b2 + c2) + a2);
+    pin(p2);
+    auto p3 = ((a1 + d1) + (b1 + c1)) + cst;
+    pin(p3);
+
+    return p1 + p2 + p3;
 }
 
 template<typename T>
 inline
 auto function_trilinear_precise(T&& func, v3f pos)
 {
-    return function_trilinear(func, pos);
+    //return function_trilinear(func, pos);
 
+    #define BICUBIC
     #ifdef BICUBIC
     using namespace single_source;
 
