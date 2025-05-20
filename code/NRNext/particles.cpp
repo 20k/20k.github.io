@@ -448,7 +448,7 @@ void calculate_particle_intermediates(execution_context& ectx,
                 }
             }
 
-            Ji[i - 1] = sum;
+            Ji[i - 1] = sum * 0;
         }
 
         tensor<valuef, 3, 3> Sij;
@@ -467,7 +467,7 @@ void calculate_particle_intermediates(execution_context& ectx,
                     }
                 }
 
-                Sij[i - 1, j - 1] = sum;
+                Sij[i - 1, j - 1] = sum * 0;
             }
         }
 
@@ -504,11 +504,6 @@ void calculate_particle_intermediates(execution_context& ectx,
 
         for(int i=0; i < 6; i++)
             out.Sij_raised[i].atom_add_e(idx, Sij_scaled[i]);
-
-        if_e(offset.z() == 99 && offset.y() == 99, [&]{
-            print("Offset %i %i %i dirac %.23f cell %f %f %f gA %.23f E %i Si %i %i %i Sij %i %i %i %i %i %i\n", offset.x(), offset.y(), offset.z(), dirac, fcell.x(), fcell.y(), fcell.z(), args.gA,
-            E_scaled, Si_scaled[0], Si_scaled[1], Si_scaled[2], Sij_scaled[0], Sij_scaled[1], Sij_scaled[2], Sij_scaled[3], Sij_scaled[4], Sij_scaled[5]);
-        });
 
         #if 0
         bssn_args args(offset, dim.get(), in);
@@ -985,7 +980,7 @@ void evolve_particles(execution_context& ctx,
     for(int i=0; i < 3; i++)
         as_ref(p_out.velocities[i][id]) = vel_base[i] + timestep.get() * dV[i];
 
-    as_ref(p_out.lorentzs[id]) = max(lorentz_base + timestep.get() * dlorentz, 0.f);
+    as_ref(p_out.lorentzs[id]) = lorentz_base + timestep.get() * dlorentz;
     as_ref(p_out.masses[id]) = p_in.masses[id];
 }
 
