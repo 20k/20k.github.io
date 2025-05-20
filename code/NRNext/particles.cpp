@@ -190,7 +190,7 @@ valuef get_dirac3(auto&& func, const v3f& world_pos, const v3f& dirac_location, 
         valuef out = func(frac);
         pin(out);
         return out;
-    }, 1, ip1, im1);
+    }, 2, ip1, im1);
     #endif // GET_DIRAC_CORRECTED
 }
 
