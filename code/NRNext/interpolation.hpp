@@ -50,7 +50,7 @@ auto function_trilinear(T&& func, v3f pos)
 
 template<typename T>
 inline
-auto function_trilinear_precise(T&& func, v3f pos)
+auto function_trilinear_precise_old(T&& func, v3f pos)
 {
     using namespace single_source;
 
@@ -139,6 +139,106 @@ auto function_trilinear_precise(T&& func, v3f pos)
     auto c1 = lmix(c10, c11, frac.y());
 
     return lmix(c0, c1, frac.z());
+}
+
+template<typename T, typename U>
+inline
+auto linear_1d(std::array<T, 4> vals, U frac)
+{
+    auto x = frac;
+
+    auto a = vals[0];
+    auto b = vals[1];
+    auto c = vals[2];
+    auto d = vals[3];
+
+    using namespace single_source;
+
+    auto a3 = -(a/6) * pow(x, 3);
+    auto b3 = (b/2) * pow(x, 3);
+    auto c3 = -(c/2) * pow(x, 3);
+    auto d3 = (d/6) * pow(x, 3);
+
+    auto a2 = (a/2) * pow(x, 2);
+    auto b2 = -b * pow(x, 2);
+    auto c2 = (c/2) * pow(x, 2);
+    //auto d2 = 0;
+
+    auto a1 = -(a/3) * x;
+    auto b1 = -(b/2) * x;
+    auto c1 = c * x;
+    auto d1 = -(d/6) * x;
+
+    auto cst = b;
+
+    pin(a3);
+    pin(b3);
+    pin(c3);
+    pin(d3);
+    pin(a2);
+    pin(b2);
+    pin(c2);
+    //pin(d2);
+    pin(a1);
+    pin(b1);
+    pin(c1);
+    pin(d1);
+    pin(cst);
+
+    return ((a3 + d3) + (b3 + c3)) + ((b2 + c2) + a2) + ((a1 + d1) + (b1 + c1)) + cst;
+}
+
+template<typename T>
+inline
+auto function_trilinear_precise(T&& func, v3f pos)
+{
+    using namespace single_source;
+
+    v3f floored = floor(pos);
+    pin(floored);
+    v3f frac = pos - floored;
+    pin(frac);
+
+    auto t = [func](v3i ipos, v3f frac)
+    {
+        v3i offset = {0, 0, 1};
+
+        auto cm1 = func(ipos - offset);
+        auto c0 = func(ipos);
+
+        auto cp1 = func(ipos + offset);
+        auto cp2 = func(ipos + 2 * offset);
+
+        return linear_1d(std::array{cm1, c0, cp1, cp2}, frac.z());
+    };
+
+    auto u = [t](v3i ipos, v3f frac)
+    {
+        v3i offset = {0, 1, 0};
+
+        auto cm1 = t(ipos - offset, frac);
+        auto c0 = t(ipos, frac);
+
+        auto cp1 = t(ipos + offset, frac);
+        auto cp2 = t(ipos + 2 * offset, frac);
+
+        return linear_1d(std::array{cm1, c0, cp1, cp2}, frac.y());
+    };
+
+    auto f = [u](v3i ipos, v3f frac)
+    {
+        v3i offset = {1, 0, 0};
+
+        auto cm1 = u(ipos - offset, frac);
+        auto c0 = u(ipos, frac);
+
+        auto cp1 = u(ipos + offset, frac);
+        auto cp2 = u(ipos + 2 * offset, frac);
+
+        return linear_1d(std::array{cm1, c0, cp1, cp2}, frac.x());
+    };
+
+    return f((v3i)floored, frac);
 }
 
 template<typename T>
