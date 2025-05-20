@@ -629,7 +629,7 @@ void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer
     as_ref(vel_out[0][id]) = velocity_lo[1];
     as_ref(vel_out[1][id]) = velocity_lo[2];
     as_ref(vel_out[2][id]) = velocity_lo[3];
-    as_ref(lorentz_out[id]) = velocity_lo[0] - 1;
+    as_ref(lorentz_out[id]) = velocity4[0] - 1;
 }
 
 void evolve_particles(execution_context& ctx,
