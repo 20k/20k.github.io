@@ -145,14 +145,20 @@ template<typename T, typename U>
 inline
 auto linear_1d(std::array<T, 4> vals, U frac)
 {
+    using namespace single_source;
+
+    pin(vals[0]);
+    pin(vals[1]);
+    pin(vals[2]);
+    pin(vals[3]);
+    pin(frac);
+
     auto x = frac;
 
     auto a = vals[0];
     auto b = vals[1];
     auto c = vals[2];
     auto d = vals[3];
-
-    using namespace single_source;
 
     auto a3 = -(a/6) * pow(x, 3);
     auto b3 = (b/2) * pow(x, 3);
@@ -192,6 +198,9 @@ template<typename T>
 inline
 auto function_trilinear_precise(T&& func, v3f pos)
 {
+    return function_trilinear(func, pos);
+
+    #ifdef BICUBIC
     using namespace single_source;
 
     v3f floored = floor(pos);
@@ -239,6 +248,7 @@ auto function_trilinear_precise(T&& func, v3f pos)
     };
 
     return f((v3i)floored, frac);
+    #endif
 }
 
 template<typename T>
