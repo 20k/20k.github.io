@@ -34,19 +34,17 @@ valuef dirac_delta_v(const valuef& r)
 }
 
 //3d
-float dirac_delta_f(const float& frac, const float& radius)
+float dirac_delta_f(const float& frac)
 {
-    float mult = 1/(M_PI * pow(radius, 3.f));
-
     float result = 0;
 
     float branch_1 = (1.f/4.f) * pow(2.f - frac, 3.f);
     float branch_2 = 1.f - (3.f/2.f) * pow(frac, 2.f) + (3.f/4.f) * pow(frac, 3.f);
 
     if(frac <= 1)
-        return mult * branch_2;
+        return branch_2;
     if(frac <= 2)
-        return mult * branch_1;
+        return branch_1;
 
     return 0.f;
 }
@@ -62,52 +60,55 @@ float dirac_delta_1d(const float& r)
 
 template<typename T>
 inline
-T get_dirac(auto&& func, tensor<T, 3> lpos, tensor<T, 3> dirac_location, T radius_cells, T scale)
+T get_dirac(auto&& func, tensor<T, 3> cell_pos, tensor<T, 3> dirac_location, T radius_cells, T scale)
 {
+    T hradius = (radius_cells/2.f);
+    T prefix = 1/(M_PI * pow(radius_cells * scale, 3.f));
+
+    //#define GET_DIRAC1_STANDARD
     #ifdef GET_DIRAC1_STANDARD
-    return func(r, radius_cells);
+    return prefix * func((cell_pos - dirac_location).length() / radius_cells);
     #endif // GET_DIRAC_STANDARD
 
     #define GET_DIRAC1_CORRECTED
     #ifdef GET_DIRAC1_CORRECTED
     tensor<T, 3> scale3 = {1, 1, 1};
 
-    auto im1 = lpos - scale3 / 2;
-    auto ip1 = lpos + scale3 / 2;
+    auto im1 = cell_pos - scale3 / 2;
+    auto ip1 = cell_pos + scale3 / 2;
 
-    return integrate_3d_trapezoidal([&](T x, T y, T z)
+    return prefix * integrate_3d_trapezoidal([&](T x, T y, T z)
     {
         tensor<T, 3> pos = {x, y, z};
 
         T frac = (pos - dirac_location).length() / radius_cells;
 
-        return func(frac, radius_cells * scale);
-    }, 10, ip1, im1);
+        return func(frac);
+    }, 2, ip1, im1);
     #endif // GET_DIRAC_CORRECTED
 }
 
 inline
-valuef get_dirac3(auto&& func, const v3f& world_pos, const v3f& dirac_location, const valuef& radius, const valuef& scale)
+valuef get_dirac3(auto&& func, const v3f& cell_pos, const v3f& dirac_location, const valuef& radius_cells, const valuef& scale)
 {
-    valuef hradius = (radius / 2.f);
-
     using namespace single_source;
 
-    valuef prefix = 1/(M_PI * pow(hradius * scale, 3.f));
+    valuef hradius = (radius_cells / 2.f);
+    valuef prefix = 1/(M_PI * pow(radius_cells * scale, 3.f));
 
     //#define GET_DIRAC_STANDARD
     #ifdef GET_DIRAC_STANDARD
-    valuef r = (world_pos - dirac_location).length();
+    valuef r = (cell_pos - dirac_location).length();
     //pin(r);
-    return prefix * func(r / hradius);
+    return prefix * func(r / radius_cells);
     #endif // GET_DIRAC_STANDARD
 
     #define GET_DIRAC_CORRECTED
     #ifdef GET_DIRAC_CORRECTED
     tensor<valuef, 3> scale3 = {1, 1, 1};
 
-    auto im1 = world_pos - scale3 / 2;
-    auto ip1 = world_pos + scale3 / 2;
+    auto im1 = cell_pos - scale3 / 2;
+    auto ip1 = cell_pos + scale3 / 2;
     pin(im1);
     pin(ip1);
 
@@ -160,12 +161,13 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
     using namespace single_source;
 
     int radius_cells = 3;
-    valuef radius_world = radius_cells * scale;
-    pin(radius_world);
-    int spread = radius_cells + 1;
 
     if(radius_cells > 0)
     {
+        valuef radius_world = radius_cells * scale;
+        pin(radius_world);
+        int spread = radius_cells + 1;
+
         mut<valuei> z = declare_mut_e(valuei(-spread));
 
         for_e(z <= spread, assign_b(z, z+1), [&]{
