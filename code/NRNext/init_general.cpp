@@ -67,7 +67,7 @@ laplace_solver get_laplace_solver_impl(cl::context ctx)
         auto particles = args.particles_contrib[pos, dim];
 
         return -(1.f/8.f) * pow(cfl, -7) * args.aij_aIJ[pos, dim] - 2 * M_PI * pow(cfl, -3) * mu_h - 2 * M_PI * pow(cfl, -1) * particles;
-    }, all_laplace_args(), "laplace_rb_mg");
+    }, all_laplace_args(), "laplace_mg");
 
     return laplace;
 }

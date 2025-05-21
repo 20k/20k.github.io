@@ -11,9 +11,10 @@ valuef get_scaled_coordinate(valuei in, valuei dimension_upper, valuei dimension
 {
     valuei upper_centre = (dimension_upper - 1)/2;
 
-    valuei upper_offset = in - upper_centre;
+    //valuei upper_offset = in - upper_centre;
 
     valuef scale = (valuef)(dimension_upper - 1) / (valuef)(dimension_lower - 1);
+    single_source::pin(scale);
 
     ///so lets say we have [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12] with a dimension of 13
     ///this gives a middle value of 6, which is the 7th value
@@ -21,7 +22,7 @@ valuef get_scaled_coordinate(valuei in, valuei dimension_upper, valuei dimension
     ///to get [0:0, 1:0.5, 2:1, 3:1.5, 4:2, 5:2.5, 6:3, 7:3.5, 8:4, 9:4.5, 10:5, 11:5.5, 12:6]
     ///so... it should just be a straight division by the scale?
 
-    return (valuef)in / scale;
+    return (valuef)(in - upper_centre) / scale;
 }
 
 inline
@@ -52,7 +53,23 @@ void upscale_buffer(execution_context& ctx, buffer<valuef> in, buffer_mut<valuef
 
     v3i pos = get_coordinate(lid, dim);
 
-    v3f lower_pos = get_scaled_coordinate_vec(pos, dim, in_dim.get());
+    //todo: mirror coordinates
+    //v3f lower_pos = get_scaled_coordinate_vec(pos, dim, in_dim.get());
+    //pin(lower_pos);
+
+    /*mut_v3f lower_pos_mut = declare_mut_e(v3f{});
+
+    for(int i=0; i < 3; i++)
+    {
+        as_ref(lower_pos_mut[i]) = get_scaled_coordinate(pos[i], dim[i], in_dim.get()[i]);
+
+        if_e(pos[i] > ((out_dim.get()[i]  - 1) / 2), [&]{
+            as_ref(lower_pos_mut[i]) = (valuef)(in_dim.get()[i] - 1) - get_scaled_coordinate(out_dim.get()[i] - 1 - pos[i], dim[i], in_dim.get()[i]);
+        });
+    }*/
+
+    v3f lower_pos_relative = get_scaled_coordinate_vec(pos, dim, in_dim.get());
+    pin(lower_pos_relative);
 
     if_e(pos.x() == 0 || pos.y() == 0 || pos.z() == 0 ||
          pos.x() == dim.x() - 1 ||  pos.y() == dim.y() - 1 || pos.z() == dim.z() - 1, [&]{
@@ -62,13 +79,28 @@ void upscale_buffer(execution_context& ctx, buffer<valuef> in, buffer_mut<valuef
 
     auto get = [&](v3i pos)
     {
+        pos += (in_dim.get() - 1)/2;
+
         pos = clamp(pos, (v3i){0,0,0}, in_dim.get() - 1);
 
         return in[pos, in_dim.get()];
     };
 
-    ///trilinear interpolation
-    as_ref(out[pos, dim]) = function_trilinear(get, lower_pos);
+    ///22 27 9 base 0.00006550689431605860591 found 0.00006550687248818576336 symm pos 22 27 31
+
+    valuef val = function_trilinear(get, lower_pos_relative);
+    pin(val);
+
+    /*if_e(pos.x() == 22 && pos.y() == 27 && (pos.z() == 9 || pos.z() == 31), [&]{
+        print("Val %.23f %i %i %i lower pos %.23f %.23f %.23f\n", val, pos.x(), pos.y(), pos.z(), lower_pos.x(), lower_pos.y(), lower_pos.z());
+    });*/
+
+    ///Failure in symmetry at 16 12 2 base 0.00000887810347194317728 found 0.00000887810529093258083 symm pos 16 12 38
+    if_e(pos.x() == 16 && pos.y() == 12 && (pos.z() == 2 || pos.z() == 38), [&]{
+        print("Val %.23f %i %i %i lower pos %.23f %.23f %.23f\n", val, pos.x(), pos.y(), pos.z(), lower_pos_relative.x(), lower_pos_relative.y(), lower_pos_relative.z());
+    });
+
+    as_ref(out[pos, dim]) = val;
 }
 
 inline
@@ -101,9 +133,9 @@ struct laplace_solver
 
         kernel_name = kname;
 
-        auto laplace_rb_mg = [get_rhs](execution_context& ectx, buffer_mut<valuef> inout, U pack,
-                                       literal<valuef> lscale, literal<v3i> ldim, literal<valuei> iteration,
-                                       buffer_mut<valuei> still_going, literal<valuef> relax)
+        auto laplace_mg = [get_rhs](execution_context& ectx, buffer<valuef> in, buffer_mut<valuef> out , U pack,
+                                    literal<valuef> lscale, literal<v3i> ldim, literal<valuei> iteration,
+                                    buffer_mut<valuei> still_going, literal<valuef> relax)
         {
             using namespace single_source;
 
@@ -125,15 +157,15 @@ struct laplace_solver
                 return_e();
             });
 
-            valuei lix = pos.x() + (pos.z() % 2);
+            /*valuei lix = pos.x() + (pos.z() % 2);
             valuei liy = pos.y();
 
             if_e(((lix + liy) % 2) == (iteration.get() % 2), [] {
                 return_e();
-            });
+            });*/
 
             laplace_params params;
-            params.u = inout;
+            params.u = in;
             params.scale = lscale.get();
             params.dim = dim;
             params.pos = pos;
@@ -143,12 +175,12 @@ struct laplace_solver
             valuef h2f0 = lscale.get() * lscale.get() * rhs;
             pin(h2f0);
 
-            valuef uxm1 = inout[pos - (v3i){1, 0, 0}, dim];
-            valuef uxp1 = inout[pos + (v3i){1, 0, 0}, dim];
-            valuef uym1 = inout[pos - (v3i){0, 1, 0}, dim];
-            valuef uyp1 = inout[pos + (v3i){0, 1, 0}, dim];
-            valuef uzm1 = inout[pos - (v3i){0, 0, 1}, dim];
-            valuef uzp1 = inout[pos + (v3i){0, 0, 1}, dim];
+            valuef uxm1 = in[pos - (v3i){1, 0, 0}, dim];
+            valuef uxp1 = in[pos + (v3i){1, 0, 0}, dim];
+            valuef uym1 = in[pos - (v3i){0, 1, 0}, dim];
+            valuef uyp1 = in[pos + (v3i){0, 1, 0}, dim];
+            valuef uzm1 = in[pos - (v3i){0, 0, 1}, dim];
+            valuef uzp1 = in[pos + (v3i){0, 0, 1}, dim];
 
             valuef Xs = uxm1 + uxp1;
             valuef Ys = uyp1 + uym1;
@@ -160,7 +192,7 @@ struct laplace_solver
 
             valuef u0n1 = (1/6.f) * (Xs + Ys + Zs - h2f0);
 
-            valuef u = inout[pos, dim];
+            valuef u = in[pos, dim];
 
             /*if_e(pos.x() == 128 && pos.y() == 128 && pos.z() == 128, [&]{
                 value_base se;
@@ -170,7 +202,7 @@ struct laplace_solver
                 value_impl::get_context().add(se);
             });*/
 
-            as_ref(inout[lid]) = mix(u, u0n1, relax.get());
+            as_ref(out[lid]) = mix(u, u0n1, relax.get());
 
             valuef etol = 1e-6f;
 
@@ -180,7 +212,7 @@ struct laplace_solver
         };
 
         cl::async_build_and_cache(ctx, [=] {
-            return value_impl::make_function(laplace_rb_mg, kname);
+            return value_impl::make_function(laplace_mg, kname);
         }, {kname});
     }
 
@@ -195,8 +227,10 @@ struct laplace_solver
             float scale = simulation_width / (dim.x() - 1);
 
             cl::buffer u_found(ctx);
+            cl::buffer u_found2(ctx);
 
             auto data = data_getter(dim, scale);
+
 
             {
                 cl::buffer still_going(ctx);
@@ -204,8 +238,10 @@ struct laplace_solver
                 still_going.set_to_zero(cqueue);
 
                 u_found.alloc(sizeof(cl_float) * dim.x() * dim.y() * dim.z());
+                u_found2.alloc(sizeof(cl_float) * dim.x() * dim.y() * dim.z());
                 //this is not for safety, this is the boundary condition
                 u_found.set_to_zero(cqueue);
+                u_found2.set_to_zero(cqueue);
 
                 if(u_old.has_value())
                 {
@@ -217,6 +253,24 @@ struct laplace_solver
                     cqueue.exec("upscale", args, {dim.x() * dim.y() * dim.z()}, {128});
                 }
 
+
+                {
+                    cqueue.block();
+
+                    std::cout << "PUPSCALE\n";
+
+                    cl_int len = dim.x() * dim.y() * dim.z();
+
+                    cl::args args;
+                    args.push_back(u_found);
+                    args.push_back(dim);
+                    args.push_back(len);
+
+                    cqueue.exec("check_symmetry", args, {len}, {128});
+
+                    cqueue.block();
+                }
+
                 for(int i=0; i < 100000; i++)
                 {
                     bool check = (i % 500) == 0;
@@ -226,6 +280,7 @@ struct laplace_solver
 
                     cl::args args;
                     args.push_back(u_found);
+                    args.push_back(u_found2);
 
                     data.push(args);
 
@@ -236,6 +291,25 @@ struct laplace_solver
                     args.push_back(relax);
 
                     cqueue.exec(kernel_name, args, {dim.x() * dim.y() * dim.z()}, {128});
+
+                    {
+                        cqueue.block();
+
+                        cl_int len = dim.x() * dim.y() * dim.z();
+
+                        std::cout << "CSymm\n";
+
+                        cl::args args;
+                        args.push_back(u_found);
+                        args.push_back(dim);
+                        args.push_back(len);
+
+                        cqueue.exec("check_symmetry", args, {len}, {128});
+
+                        cqueue.block();
+                    }
+
+                    std::swap(u_found, u_found2);
 
                     if(check)
                     {
