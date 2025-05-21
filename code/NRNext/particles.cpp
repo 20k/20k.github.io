@@ -268,12 +268,6 @@ void calculate_particle_intermediates(execution_context& ectx,
     for_each_dirac(cell, dim.get(), scale.get(), pos, [&](v3i offset, valuef dirac) {
         bssn_args args(offset, dim.get(), in);
 
-        adm_variables adm = bssn_to_adm(args);
-
-        m44f met = calculate_real_metric(adm.Yij, adm.gA, adm.gB);
-        v4f normal_lo = get_adm_hypersurface_normal_lowered(args.gA);
-        v4f normal = get_adm_hypersurface_normal_raised(args.gA, args.gB);
-
         valuef E = mass * lorentz * args.gA * pow(args.W, 3) * dirac;
         v3f Ji = mass * vel * pow(args.W, 3) * dirac;
 
@@ -995,40 +989,19 @@ template struct full_particle_args<buffer_mut<valuef>>;
 template<typename T>
 valuef full_particle_args<T>::adm_p(bssn_args& args, const derivative_data& d)
 {
-    //return {};
-
     return this->E[d.pos, d.dim];
-
-    //return pow(args.W, 3.f) * this->E[d.pos, d.dim];
 }
 
 template<typename T>
 tensor<valuef, 3> full_particle_args<T>::adm_Si(bssn_args& args, const derivative_data& d)
 {
-    //return {};
-
-    //todo: fixme
-    auto Yij = args.cY;
-
-    v3f Ji = this->get_Si(d.pos, d.dim);
-
-    return Ji;
-
-    //return pow(args.W, 1.f) * Yij.lower(Ji);
+    return this->get_Si(d.pos, d.dim);
 }
 
 template<typename T>
 tensor<valuef, 3, 3> full_particle_args<T>::adm_W2_Sij(bssn_args& args, const derivative_data& d)
 {
-    //return {};
-
-    auto Yij = args.cY;
-
-    tensor<valuef, 3, 3> Sij = this->get_Sij(d.pos, d.dim);
-
-    return args.W * args.W * Sij;
-
-    //return args.W * Yij.lower(Yij.lower(Sij, 0), 1);
+    return args.W * args.W * this->get_Sij(d.pos, d.dim);
 }
 
 void particle_utility_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t3i size)
