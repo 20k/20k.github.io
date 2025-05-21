@@ -1781,7 +1781,7 @@ initial_params get_initial_params()
 
         double vm = uint64_to_double(xoshiro256ss(st));
 
-        t3f vel = cross(pos, (t3f){0, 0, 1}).norm() * 0.2 * (vm + 0.5f);
+        t3f vel = cross(pos, (t3f){0, 0, 1}).norm() * 0.1 * (vm + 0.5f);
 
         part.add(pos, vel, lM);
     }
@@ -1791,7 +1791,7 @@ initial_params get_initial_params()
     init.N = 2;
 
     init.dim = {199, 199, 199};
-    init.simulation_width = radial_pos * 6;
+    init.simulation_width = radial_pos * 4;
 
     init.add(std::move(part));
 
