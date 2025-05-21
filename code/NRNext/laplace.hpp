@@ -11,8 +11,6 @@ valuef get_scaled_coordinate(valuei in, valuei dimension_upper, valuei dimension
 {
     valuei upper_centre = (dimension_upper - 1)/2;
 
-    //valuei upper_offset = in - upper_centre;
-
     valuef scale = (valuef)(dimension_upper - 1) / (valuef)(dimension_lower - 1);
     single_source::pin(scale);
 
@@ -21,7 +19,6 @@ valuef get_scaled_coordinate(valuei in, valuei dimension_upper, valuei dimension
     ///Then we want to scale it to a dimension of 7
     ///to get [0:0, 1:0.5, 2:1, 3:1.5, 4:2, 5:2.5, 6:3, 7:3.5, 8:4, 9:4.5, 10:5, 11:5.5, 12:6]
     ///so... it should just be a straight division by the scale?
-
     return (valuef)(in - upper_centre) / scale;
 }
 
@@ -53,21 +50,6 @@ void upscale_buffer(execution_context& ctx, buffer<valuef> in, buffer_mut<valuef
 
     v3i pos = get_coordinate(lid, dim);
 
-    //todo: mirror coordinates
-    //v3f lower_pos = get_scaled_coordinate_vec(pos, dim, in_dim.get());
-    //pin(lower_pos);
-
-    /*mut_v3f lower_pos_mut = declare_mut_e(v3f{});
-
-    for(int i=0; i < 3; i++)
-    {
-        as_ref(lower_pos_mut[i]) = get_scaled_coordinate(pos[i], dim[i], in_dim.get()[i]);
-
-        if_e(pos[i] > ((out_dim.get()[i]  - 1) / 2), [&]{
-            as_ref(lower_pos_mut[i]) = (valuef)(in_dim.get()[i] - 1) - get_scaled_coordinate(out_dim.get()[i] - 1 - pos[i], dim[i], in_dim.get()[i]);
-        });
-    }*/
-
     v3f lower_pos_relative = get_scaled_coordinate_vec(pos, dim, in_dim.get());
     pin(lower_pos_relative);
 
@@ -86,21 +68,7 @@ void upscale_buffer(execution_context& ctx, buffer<valuef> in, buffer_mut<valuef
         return in[pos, in_dim.get()];
     };
 
-    ///22 27 9 base 0.00006550689431605860591 found 0.00006550687248818576336 symm pos 22 27 31
-
-    valuef val = function_trilinear(get, lower_pos_relative);
-    pin(val);
-
-    /*if_e(pos.x() == 22 && pos.y() == 27 && (pos.z() == 9 || pos.z() == 31), [&]{
-        print("Val %.23f %i %i %i lower pos %.23f %.23f %.23f\n", val, pos.x(), pos.y(), pos.z(), lower_pos.x(), lower_pos.y(), lower_pos.z());
-    });*/
-
-    ///Failure in symmetry at 16 12 2 base 0.00000887810347194317728 found 0.00000887810529093258083 symm pos 16 12 38
-    if_e(pos.x() == 16 && pos.y() == 12 && (pos.z() == 2 || pos.z() == 38), [&]{
-        print("Val %.23f %i %i %i lower pos %.23f %.23f %.23f\n", val, pos.x(), pos.y(), pos.z(), lower_pos_relative.x(), lower_pos_relative.y(), lower_pos_relative.z());
-    });
-
-    as_ref(out[pos, dim]) = val;
+    as_ref(out[pos, dim]) = function_trilinear(get, lower_pos_relative);
 }
 
 inline
