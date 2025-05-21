@@ -160,7 +160,7 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
 
     using namespace single_source;
 
-    int radius_cells = 3;
+    int radius_cells = 5;
 
     if(radius_cells > 0)
     {
