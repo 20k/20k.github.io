@@ -279,8 +279,6 @@ struct mesh
                     return;
                 }
 
-                check_symmetry(cqueue, outb, dim, "Kreiss_in_" + name);
-
                 cl::args args;
                 args.push_back(inb);
                 args.push_back(outb);
@@ -499,22 +497,6 @@ struct mesh
             args.push_back(evolve_length);
 
             cqueue.exec("evolve", args, {evolve_length}, {128});
-
-            {
-                std::vector<cl::buffer> linear_in;
-
-                buffers[in_idx].for_each([&](cl::buffer b)
-                {
-                    linear_in.push_back(b);
-                });
-
-                for(int i=0; i < (int)linear_in.size(); i++)
-                {
-                    std::string name = buffers[out_idx].get_names().at(i);
-
-                    check_symmetry(cqueue, linear_in[i], dim, "in_" + name);
-                }
-            }
 
             {
                 std::vector<cl::buffer> linear_in;

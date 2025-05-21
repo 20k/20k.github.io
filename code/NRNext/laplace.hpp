@@ -221,23 +221,7 @@ struct laplace_solver
                     cqueue.exec("upscale", args, {dim.x() * dim.y() * dim.z()}, {128});
                 }
 
-
-                {
-                    cqueue.block();
-
-                    std::cout << "PUPSCALE\n";
-
-                    cl_int len = get_evolve_size_with_boundary(dim, 2);
-
-                    cl::args args;
-                    args.push_back(u_found);
-                    args.push_back(dim);
-                    args.push_back(len);
-
-                    cqueue.exec("check_symmetry", args, {len}, {128});
-
-                    cqueue.block();
-                }
+                check_symmetry(cqueue, u_found, dim, "post upscale");
 
                 for(int i=0; i < 100000; i++)
                 {
@@ -259,22 +243,7 @@ struct laplace_solver
 
                     cqueue.exec(kernel_name, args, {dim.x() * dim.y() * dim.z()}, {128});
 
-                    {
-                        cqueue.block();
-
-                        cl_int len = get_evolve_size_with_boundary(dim, 2);
-
-                        std::cout << "CSymm\n";
-
-                        cl::args args;
-                        args.push_back(u_found);
-                        args.push_back(dim);
-                        args.push_back(len);
-
-                        cqueue.exec("check_symmetry", args, {len}, {128});
-
-                        cqueue.block();
-                    }
+                    check_symmetry(cqueue, u_found, dim, "Check after u iteration step");
 
                     if(check)
                     {
