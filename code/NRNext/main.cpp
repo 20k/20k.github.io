@@ -1755,14 +1755,14 @@ initial_params get_initial_params()
 
     particle_params part;
     //part.add({0.01,0,0}, {0,0,0}, 0.001);
-    part.add({-10,0,0}, {0,0.015,0}, 0.08);
-    part.add({10,0,0}, {0,-0.015,0}, 0.08);
+    //part.add({-10,0,0}, {0,0.015,0}, 0.08);
+    //part.add({10,0,0}, {0,-0.015,0}, 0.08);
 
     //part.add({-3,0,0}, {0,0.015,0}, 0.01);
     //part.add({3,0,0}, {0,-0.015,0}, 0.01);
 
-    #if 0
-    int N = 80000;
+    #if 1
+    int N = 800000;
     double M = 1;
 
     for(int i=0; i < N; i++)
@@ -1790,7 +1790,7 @@ initial_params get_initial_params()
     initial_params init;
     init.N = 2;
 
-    init.dim = {99, 99, 99};
+    init.dim = {199, 199, 199};
     init.simulation_width = radial_pos * 6;
 
     init.add(std::move(part));
@@ -2152,7 +2152,7 @@ int main()
 
         win.display();
 
-        //std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
+        std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
 
         if(step)
             elapsed_t += timestep;
