@@ -103,7 +103,7 @@ struct laplace_solver
 
         kernel_name = kname;
 
-        auto laplace_mg = [get_rhs](execution_context& ectx, buffer<valuef> in, buffer_mut<valuef> out , U pack,
+        auto laplace_mg = [get_rhs](execution_context& ectx, buffer_mut<valuef> inout, U pack,
                                     literal<valuef> lscale, literal<v3i> ldim, literal<valuei> iteration,
                                     buffer_mut<valuei> still_going, literal<valuef> relax)
         {
@@ -127,15 +127,16 @@ struct laplace_solver
                 return_e();
             });
 
-            /*valuei lix = pos.x() + (pos.z() % 2);
+            //its possible that this is accidentally symmetry preserving
+            valuei lix = pos.x() + (pos.z() % 2);
             valuei liy = pos.y();
 
             if_e(((lix + liy) % 2) == (iteration.get() % 2), [] {
                 return_e();
-            });*/
+            });
 
             laplace_params params;
-            params.u = in;
+            params.u = inout;
             params.scale = lscale.get();
             params.dim = dim;
             params.pos = pos;
@@ -145,12 +146,12 @@ struct laplace_solver
             valuef h2f0 = lscale.get() * lscale.get() * rhs;
             pin(h2f0);
 
-            valuef uxm1 = in[pos - (v3i){1, 0, 0}, dim];
-            valuef uxp1 = in[pos + (v3i){1, 0, 0}, dim];
-            valuef uym1 = in[pos - (v3i){0, 1, 0}, dim];
-            valuef uyp1 = in[pos + (v3i){0, 1, 0}, dim];
-            valuef uzm1 = in[pos - (v3i){0, 0, 1}, dim];
-            valuef uzp1 = in[pos + (v3i){0, 0, 1}, dim];
+            valuef uxm1 = inout[pos - (v3i){1, 0, 0}, dim];
+            valuef uxp1 = inout[pos + (v3i){1, 0, 0}, dim];
+            valuef uym1 = inout[pos - (v3i){0, 1, 0}, dim];
+            valuef uyp1 = inout[pos + (v3i){0, 1, 0}, dim];
+            valuef uzm1 = inout[pos - (v3i){0, 0, 1}, dim];
+            valuef uzp1 = inout[pos + (v3i){0, 0, 1}, dim];
 
             valuef Xs = uxm1 + uxp1;
             valuef Ys = uyp1 + uym1;
@@ -162,7 +163,7 @@ struct laplace_solver
 
             valuef u0n1 = (1/6.f) * (Xs + Ys + Zs - h2f0);
 
-            valuef u = in[pos, dim];
+            valuef u = inout[pos, dim];
 
             /*if_e(pos.x() == 128 && pos.y() == 128 && pos.z() == 128, [&]{
                 value_base se;
@@ -172,7 +173,7 @@ struct laplace_solver
                 value_impl::get_context().add(se);
             });*/
 
-            as_ref(out[lid]) = mix(u, u0n1, relax.get());
+            as_ref(inout[lid]) = mix(u, u0n1, relax.get());
 
             valuef etol = 1e-6f;
 
@@ -250,7 +251,7 @@ struct laplace_solver
 
                     cl::args args;
                     args.push_back(u_found);
-                    args.push_back(u_found2);
+                    //args.push_back(u_found2);
 
                     data.push(args);
 
@@ -279,7 +280,7 @@ struct laplace_solver
                         cqueue.block();
                     }
 
-                    std::swap(u_found, u_found2);
+                    //std::swap(u_found, u_found2);
 
                     if(check)
                     {
