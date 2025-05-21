@@ -1090,7 +1090,7 @@ void make_momentum_constraint(cl::context ctx, const std::vector<plugin*>& plugi
     }, {"momentum_constraint"});
 }
 
-auto check_symmetry(execution_context&, buffer<valuef> in, literal<v3i> idim, literal<valuei> positions_length)
+auto check_symmetry_kernel(execution_context&, buffer<valuef> in, literal<v3i> idim, literal<valuei> positions_length)
 {
     using namespace single_source;
 
@@ -1256,7 +1256,7 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, const initi
 
     cl::async_build_and_cache(ctx, [=]
     {
-        return value_impl::make_function(check_symmetry, "check_symmetry");
+        return value_impl::make_function(check_symmetry_kernel, "check_symmetry");
     }, {"check_symmetry"});
 }
 
@@ -1521,4 +1521,29 @@ void make_sommerfeld(cl::context ctx)
     cl::async_build_and_cache(ctx, [=] {
         return value_impl::make_function(func, "sommerfeld");
     }, {"sommerfeld"});
+}
+
+int get_evolve_size_with_boundary(t3i dim, int boundary)
+{
+    t3i real_evolve_size = dim - (t3i){boundary*2, boundary*2, boundary*2};
+    return real_evolve_size.x() * real_evolve_size.y() * real_evolve_size.z();
+}
+
+void check_symmetry(cl::command_queue cqueue, cl::buffer buf, t3i dim, std::string name)
+{
+    return;
+
+    cqueue.block();
+
+    std::cout << "Checking " << name << std::endl;
+
+    int evolve_length = get_evolve_size_with_boundary(dim, 2);
+
+    cl::args args;
+    args.push_back(buf);
+    args.push_back(dim);
+    args.push_back(evolve_length);
+
+    cqueue.exec("check_symmetry", args, {evolve_length}, {128});
+    cqueue.block();
 }

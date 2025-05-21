@@ -202,17 +202,14 @@ struct laplace_solver
 
             auto data = data_getter(dim, scale);
 
-
             {
                 cl::buffer still_going(ctx);
                 still_going.alloc(sizeof(cl_int));
                 still_going.set_to_zero(cqueue);
 
                 u_found.alloc(sizeof(cl_float) * dim.x() * dim.y() * dim.z());
-                u_found2.alloc(sizeof(cl_float) * dim.x() * dim.y() * dim.z());
                 //this is not for safety, this is the boundary condition
                 u_found.set_to_zero(cqueue);
-                u_found2.set_to_zero(cqueue);
 
                 if(u_old.has_value())
                 {
@@ -251,7 +248,6 @@ struct laplace_solver
 
                     cl::args args;
                     args.push_back(u_found);
-                    //args.push_back(u_found2);
 
                     data.push(args);
 
@@ -279,8 +275,6 @@ struct laplace_solver
 
                         cqueue.block();
                     }
-
-                    //std::swap(u_found, u_found2);
 
                     if(check)
                     {

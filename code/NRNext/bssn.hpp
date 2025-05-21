@@ -149,6 +149,7 @@ struct bssn_derivatives
     }
 };
 
+//todo: make this a buffer provider
 struct bssn_buffer_pack
 {
     std::array<cl::buffer, 6> cY;
@@ -232,16 +233,15 @@ struct bssn_buffer_pack
             args.push_back(i);
     }
 
-    std::vector<std::string> names()
+    std::vector<std::string> get_names()
     {
         return {"cY0", "cY1", "cY2", "cY3", "cY4", "cY5",
-        "cA0", "cA1", "cA2", "cA3", "cA4", "cA5",
-        "K",
-        "W",
-        "cG0","cG1","cG2",
-        "gA",
-        "gB0","gB1","gB2"
-        };
+                "cA0", "cA1", "cA2", "cA3", "cA4", "cA5",
+                "K",
+                "W",
+                "cG0","cG1","cG2",
+                "gA",
+                "gB0","gB1","gB2"};
     }
 };
 
@@ -265,6 +265,9 @@ v3i get_coordinate(valuei id, v3i dim);
 //promotes a smaller cube to a bigger cube
 v3i get_coordinate_including_boundary(valuei id, v3i dim);
 v3i get_coordinate_including_boundary(valuei id, v3i dim, int boundary_size);
+int get_evolve_size_with_boundary(t3i dim, int boundary);
+
+void check_symmetry(cl::command_queue cqueue, cl::buffer buf, t3i dim, std::string name);
 
 template<typename T, typename U, typename V>
 inline

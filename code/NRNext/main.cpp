@@ -27,31 +27,6 @@ float get_scale(float simulation_width, t3i dim)
     return simulation_width / (dim.x() - 1);
 }
 
-int get_evolve_size_with_boundary(t3i dim, int boundary)
-{
-    t3i real_evolve_size = dim - (t3i){boundary*2, boundary*2, boundary*2};
-    return real_evolve_size.x() * real_evolve_size.y() * real_evolve_size.z();
-}
-
-void check_symmetry(cl::command_queue cqueue, cl::buffer buf, t3i dim, std::string name)
-{
-    //return;
-
-    cqueue.block();
-
-    std::cout << "Checking " << name << std::endl;
-
-    int evolve_length = get_evolve_size_with_boundary(dim, 2);
-
-    cl::args args;
-    args.push_back(buf);
-    args.push_back(dim);
-    args.push_back(evolve_length);
-
-    cqueue.exec("check_symmetry", args, {evolve_length}, {128});
-    cqueue.block();
-}
-
 struct mesh
 {
     std::vector<plugin*> plugins;
@@ -333,7 +308,7 @@ struct mesh
 
             for(int i=0; i < (int)linear_in.size(); i++)
             {
-                kreiss_individual(linear_in[i], linear_out[i], 0.1f, 4, buffers[in].names().at(i));
+                kreiss_individual(linear_in[i], linear_out[i], 0.1f, 4, buffers[in].get_names().at(i));
             }
 
             for(int i=0; i < (int)plugin_buffers[in].size(); i++)
@@ -535,7 +510,9 @@ struct mesh
 
                 for(int i=0; i < (int)linear_in.size(); i++)
                 {
-                    check_symmetry(cqueue, linear_in[i], dim, "in_" + buffers[out_idx].names().at(i));
+                    std::string name = buffers[out_idx].get_names().at(i);
+
+                    check_symmetry(cqueue, linear_in[i], dim, "in_" + name);
                 }
             }
 
@@ -549,7 +526,9 @@ struct mesh
 
                 for(int i=0; i < (int)linear_in.size(); i++)
                 {
-                    check_symmetry(cqueue, linear_in[i], dim, "out_" + buffers[out_idx].names().at(i));
+                    std::string name = buffers[out_idx].get_names().at(i);
+
+                    check_symmetry(cqueue, linear_in[i], dim, "out_" + name);
                 }
             }
         };
