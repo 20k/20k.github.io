@@ -60,38 +60,10 @@ float dirac_delta_1d(const float& r)
     return 1 - r;
 }
 
-/*template<typename T>
-inline
-T get_dirac(auto&& func, tensor<T, 3> world_pos, tensor<T, 3> dirac_location, T radius, T scale)
-{
-    T r = (world_pos - dirac_location).length();
-
-    #ifdef GET_DIRAC1_STANDARD
-    return func(r, radius);
-    #endif // GET_DIRAC_STANDARD
-
-    #define GET_DIRAC1_CORRECTED
-    #ifdef GET_DIRAC1_CORRECTED
-    tensor<T, 3> scale3 = {scale, scale, scale};
-
-    auto im1 = world_pos - scale3 / 2;
-    auto ip1 = world_pos + scale3 / 2;
-
-    return integrate_3d_trapezoidal([&](T x, T y, T z)
-    {
-        tensor<T, 3> pos = {x, y, z};
-
-        return func((pos - dirac_location).length(), radius);
-    }, 10, ip1, im1) / (scale*scale*scale);
-    #endif // GET_DIRAC_CORRECTED
-}*/
-
 template<typename T>
 inline
 T get_dirac(auto&& func, tensor<T, 3> lpos, tensor<T, 3> dirac_location, T radius_cells, T scale)
 {
-    //T r = (world_pos - dirac_location).length();
-
     #ifdef GET_DIRAC1_STANDARD
     return func(r, radius_cells);
     #endif // GET_DIRAC_STANDARD
@@ -111,48 +83,6 @@ T get_dirac(auto&& func, tensor<T, 3> lpos, tensor<T, 3> dirac_location, T radiu
 
         return func(frac, radius_cells * scale);
     }, 10, ip1, im1);
-    #endif // GET_DIRAC_CORRECTED
-}
-
-inline
-valuef get_dirac2(auto&& func, const v3f& world_pos, const v3f& dirac_location, const valuef& radius, const valuef& scale)
-{
-    valuef hradius = radius / 2.f;
-
-    using namespace single_source;
-
-    valuef prefix = 1/(M_PI * pow(hradius, 3.f));
-
-    //#define GET_DIRAC_STANDARD
-    #ifdef GET_DIRAC_STANDARD
-    valuef r = (world_pos - dirac_location).length();
-    //pin(r);
-    return prefix * func(r / hradius);
-    #endif // GET_DIRAC_STANDARD
-
-    #define GET_DIRAC_CORRECTED
-    #ifdef GET_DIRAC_CORRECTED
-    tensor<valuef, 3> scale3 = {scale, scale, scale};
-
-    auto im1 = world_pos - scale3 / 2;
-    auto ip1 = world_pos + scale3 / 2;
-    pin(im1);
-    pin(ip1);
-
-    return prefix * integrate_3d_trapezoidal([&](const valuef& x, const valuef& y, const valuef& z)
-    {
-        tensor<valuef, 3> pos = {x, y, z};
-        pin(pos);
-
-        valuef r = (pos - dirac_location).length();
-        pin(r);
-
-        valuef frac = r / hradius;
-
-        valuef out = func(frac);
-        pin(out);
-        return out;
-    }, 1, ip1, im1) / (scale*scale*scale);
     #endif // GET_DIRAC_CORRECTED
 }
 
