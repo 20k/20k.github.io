@@ -120,6 +120,8 @@ struct laplace_params
     v3i pos;
 };
 
+int get_evolve_size_with_boundary(t3i dim, int boundary);
+
 struct laplace_solver
 {
     std::string kernel_name;
@@ -259,7 +261,7 @@ struct laplace_solver
 
                     std::cout << "PUPSCALE\n";
 
-                    cl_int len = dim.x() * dim.y() * dim.z();
+                    cl_int len = get_evolve_size_with_boundary(dim, 2);
 
                     cl::args args;
                     args.push_back(u_found);
@@ -295,7 +297,7 @@ struct laplace_solver
                     {
                         cqueue.block();
 
-                        cl_int len = dim.x() * dim.y() * dim.z();
+                        cl_int len = get_evolve_size_with_boundary(dim, 2);
 
                         std::cout << "CSymm\n";
 
