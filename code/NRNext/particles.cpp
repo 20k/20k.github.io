@@ -160,7 +160,7 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
 
     using namespace single_source;
 
-    int radius_cells = 3;
+    int radius_cells = 1;
 
     if(radius_cells > 0)
     {
@@ -316,7 +316,11 @@ void calculate_particle_intermediates(execution_context& ectx,
 
         valuei idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
 
-        out.E.atom_add_e(idx, E_scaled);
+        valuei64 val = out.E.atom_add_e(idx, E_scaled);
+
+        if_e(val < 0, [&]{
+            print("Error in particle dynamics\n");
+        });
 
         for(int i=0; i < 3; i++)
             out.Si_raised[i].atom_add_e(idx, Si_scaled[i]);
@@ -637,7 +641,6 @@ void evolve_particles(execution_context& ctx,
     auto icY = cY.invert();
     auto iYij = icY * (W*W);
 
-
     valuef au0_sq = 1 + iYij.dot(vel, vel);
     valuef u0 = sqrt(au0_sq) / gA;
 
@@ -712,7 +715,16 @@ void evolve_particles(execution_context& ctx,
         as_ref(p_out.velocities[i][id]) = vel_base[i] + timestep.get() * dV[i];
 
     as_ref(p_out.lorentzs[id]) = u0 - 1;
+
+    valuef sim_width = (valuef)(dim.get().x() - 1) * scale.get();
+
     as_ref(p_out.masses[id]) = p_in.masses[id];
+
+    valuei dist = distance_to_boundary((v3i)round(grid_next), dim.get());
+
+    if_e(dist <= 10, [&]{
+        as_ref(p_out.masses[id]) = valuef(0.f);
+    });
 }
 
 void boot_particle_kernels(cl::context ctx)
