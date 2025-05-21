@@ -164,28 +164,35 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
     pin(radius_world);
     int spread = radius_cells + 1;
 
-    mut<valuei> z = declare_mut_e(valuei(-spread));
+    if(radius_cells > 0)
+    {
+        mut<valuei> z = declare_mut_e(valuei(-spread));
 
-    for_e(z <= spread, assign_b(z, z+1), [&]{
-        mut<valuei> y = declare_mut_e(valuei(-spread));
+        for_e(z <= spread, assign_b(z, z+1), [&]{
+            mut<valuei> y = declare_mut_e(valuei(-spread));
 
-        for_e(y <= spread, assign_b(y, y+1), [&]{
-            mut<valuei> x = declare_mut_e(valuei(-spread));
+            for_e(y <= spread, assign_b(y, y+1), [&]{
+                mut<valuei> x = declare_mut_e(valuei(-spread));
 
-            for_e(x <= spread, assign_b(x, x+1), [&]{
-                v3i offset = {declare_e(x), declare_e(y), declare_e(z)};
-                offset += cell;
-                pin(offset);
+                for_e(x <= spread, assign_b(x, x+1), [&]{
+                    v3i offset = {declare_e(x), declare_e(y), declare_e(z)};
+                    offset += cell;
+                    pin(offset);
 
-                valuef dirac = get_dirac3(dirac_delta_v, (v3f)offset, fpos, radius_cells, scale);
-                pin(dirac);
+                    valuef dirac = get_dirac3(dirac_delta_v, (v3f)offset, fpos, radius_cells, scale);
+                    pin(dirac);
 
-                if_e(dirac > 0, [&]{
-                    func(offset, dirac);
+                    if_e(dirac > 0, [&]{
+                        func(offset, dirac);
+                    });
                 });
             });
         });
-    });
+    }
+    else
+    {
+        func((v3i)floor(fpos), 1.f);
+    }
 }
 
 //https://arxiv.org/pdf/1611.07906 16
