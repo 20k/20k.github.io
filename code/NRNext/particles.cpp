@@ -570,6 +570,7 @@ void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer
     as_ref(lorentz_out[id]) = velocity4[0];
 }
 
+template<bool OnlyUseNext>
 void evolve_particles(execution_context& ctx,
                       bssn_args_mem<buffer<valuef>> base,
                       bssn_args_mem<buffer<valuef>> in,
@@ -591,49 +592,64 @@ void evolve_particles(execution_context& ctx,
 
     v3f pos_base = p_base.get_position(id);
     v3f pos_next = p_in.get_position(id);
+
     v3f vel_base = p_base.get_velocity(id);
     v3f vel_next = p_in.get_velocity(id);
 
-    v3f grid_base = world_to_grid(pos_base, dim.get(), scale.get());
     v3f grid_next = world_to_grid(pos_next, dim.get(), scale.get());
 
-    #define MID
-    #ifdef MID
-    v3f vel = (vel_base + vel_next) * 0.5f;
+    v3f vel;
+    v3f pos;
 
-    evolve_vars b_evolve(base, grid_base, dim.get(), scale.get());
-    evolve_vars i_evolve(in, grid_next, dim.get(), scale.get());
+    metric<valuef, 3, 3> cY;
+    valuef W;
+    valuef gA;
+    v3f gB;
 
-    auto cY = (b_evolve.cY + i_evolve.cY) * 0.5f;
-    auto W = (b_evolve.W + i_evolve.W) * 0.5f;
-    //auto cA = (b_evolve.cA + i_evolve.cA) * 0.5f;
-    auto gA = (b_evolve.gA + i_evolve.gA) * 0.5f;
-    auto gB = (b_evolve.gB + i_evolve.gB) * 0.5f;
-    //auto K = (b_evolve.K + i_evolve.K) * 0.5f;
+    v3f dW;
+    v3f dgA;
+    tensor<valuef, 3, 3> dgB;
+    tensor<valuef, 3, 3, 3> dcY;
 
-    auto dW = (b_evolve.dW + i_evolve.dW) * 0.5f;
-    auto dgA = (b_evolve.dgA + i_evolve.dgA) * 0.5f;
-    auto dgB = (b_evolve.dgB + i_evolve.dgB) * 0.5f;
-    auto dcY = (b_evolve.dcY + i_evolve.dcY) * 0.5f;
-    #else
+    if(!OnlyUseNext)
+    {
+        v3f grid_base = world_to_grid(pos_base, dim.get(), scale.get());
 
-    evolve_vars i_evolve(in, grid_next, dim.get(), scale.get());
+        vel = (vel_base + vel_next) * 0.5f;
 
-    v3f vel = vel_next;
-    v3f pos = pos_next;
+        evolve_vars b_evolve(base, grid_base, dim.get(), scale.get());
+        evolve_vars i_evolve(in, grid_next, dim.get(), scale.get());
 
-    auto cY = (i_evolve.cY) ;
-    auto W = (i_evolve.W) ;
-    //auto cA = (i_evolve.cA) ;
-    auto gA = (i_evolve.gA) ;
-    auto gB = (i_evolve.gB) ;
-    //auto K = (i_evolve.K) ;
+        cY = (b_evolve.cY + i_evolve.cY) * 0.5f;
+        W = (b_evolve.W + i_evolve.W) * 0.5f;
+        //auto cA = (b_evolve.cA + i_evolve.cA) * 0.5f;
+        gA = (b_evolve.gA + i_evolve.gA) * 0.5f;
+        gB = (b_evolve.gB + i_evolve.gB) * 0.5f;
+        //auto K = (b_evolve.K + i_evolve.K) * 0.5f;
 
-    auto dW = (i_evolve.dW) ;
-    auto dgA = (i_evolve.dgA) ;
-    auto dgB = (i_evolve.dgB) ;
-    auto dcY = (i_evolve.dcY) ;
-    #endif
+        dW = (b_evolve.dW + i_evolve.dW) * 0.5f;
+        dgA = (b_evolve.dgA + i_evolve.dgA) * 0.5f;
+        dgB = (b_evolve.dgB + i_evolve.dgB) * 0.5f;
+        dcY = (b_evolve.dcY + i_evolve.dcY) * 0.5f;
+    }
+    else
+    {
+        evolve_vars i_evolve(in, grid_next, dim.get(), scale.get());
+
+        vel = vel_next;
+
+        cY = (i_evolve.cY) ;
+        W = (i_evolve.W) ;
+        //cA = (i_evolve.cA) ;
+        gA = (i_evolve.gA) ;
+        gB = (i_evolve.gB) ;
+        //auto K = (i_evolve.K) ;
+
+        dW = (i_evolve.dW) ;
+        dgA = (i_evolve.dgA) ;
+        dgB = (i_evolve.dgB) ;
+        dcY = (i_evolve.dcY) ;
+    }
 
     auto icY = cY.invert();
     auto iYij = icY * (W*W);
@@ -743,8 +759,12 @@ void boot_particle_kernels(cl::context ctx)
     }, {"calculate_particle_intermediates"});
 
     cl::async_build_and_cache(ctx, [&]{
-        return value_impl::make_function(evolve_particles, "evolve_particles");
+        return value_impl::make_function(evolve_particles<false>, "evolve_particles");
     }, {"evolve_particles"});
+
+    cl::async_build_and_cache(ctx, [&]{
+        return value_impl::make_function(evolve_particles<true>, "evolve_particles_base");
+    }, {"evolve_particles_base"});
 }
 
 double get_fixed_scale(double total_mass, int64_t particle_count)
@@ -1229,7 +1249,10 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
         args.push_back(sdata.scale);
         args.push_back(sdata.timestep);
 
-        cqueue.exec("evolve_particles", args, {count}, {128});
+        if(sdata.in_idx == sdata.base_idx)
+            cqueue.exec("evolve_particles_base", args, {count}, {128});
+        else
+            cqueue.exec("evolve_particles", args, {count}, {128});
     }
 
     particle_utility_buffers& util_out = *dynamic_cast<particle_utility_buffers*>(sdata.utility_buffers);

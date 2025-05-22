@@ -1762,7 +1762,7 @@ initial_params get_initial_params()
     //part.add({3,0,0}, {0,-0.015,0}, 0.01);
 
     #if 1
-    int N = 5000000;
+    int N = 2000000;
     double M = 1;
 
     for(int i=0; i < N; i++)
