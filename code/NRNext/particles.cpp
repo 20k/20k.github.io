@@ -581,6 +581,7 @@ void evolve_particles(execution_context& ctx,
     using namespace single_source;
 
     value<size_t> id = value_impl::get_global_id_us(0);
+    pin(id);
 
     if_e(id >= count.get(), [&]{
         return_e();
