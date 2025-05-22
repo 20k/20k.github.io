@@ -201,7 +201,7 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
 void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_args<buffer<valuef>> particles_in,
                                        buffer_mut<valuei64> nonconformal_E_out,
                                        literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count,
-                                       literal<valuef> fixed_scale)
+                                       literal<valued> fixed_scale)
 {
     using namespace single_source;
 
@@ -231,7 +231,7 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
         auto scale = [&](valuef in)
         {
             valued in_d = (valued)in;
-            valued in_scaled = in_d * (valued)fixed_scale.get();
+            valued in_scaled = in_d * fixed_scale.get();
 
             return (valuei64)round(in_scaled);
         };
@@ -249,7 +249,7 @@ void calculate_particle_intermediates(execution_context& ectx,
                                       particle_base_args<buffer<valuef>> particles_in,
                                       particle_utility_args<buffer_mut<valuei64>> out,
                                       literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count,
-                                      literal<valuef> fixed_scale)
+                                      literal<valued> fixed_scale)
 {
     using namespace single_source;
 
@@ -295,7 +295,7 @@ void calculate_particle_intermediates(execution_context& ectx,
         auto scale = [&](valuef in)
         {
             valued in_d = (valued)in;
-            valued in_scaled = in_d * (valued)fixed_scale.get();
+            valued in_scaled = in_d * fixed_scale.get();
 
             return (valuei64)round(in_scaled);
         };
@@ -330,7 +330,7 @@ void calculate_particle_intermediates(execution_context& ectx,
     });
 }
 
-void fixed_to_float(execution_context& ectx, buffer<valuei64> in, buffer_mut<valuef> out, literal<valuef> fixed_scale, literal<valuei> count)
+void fixed_to_float(execution_context& ectx, buffer<valuei64> in, buffer_mut<valuef> out, literal<valued> fixed_scale, literal<valuei> count)
 {
     using namespace single_source;
 
@@ -341,7 +341,7 @@ void fixed_to_float(execution_context& ectx, buffer<valuei64> in, buffer_mut<val
         return_e();
     });
 
-    valued as_double = ((valued)in[id]) / (valued)fixed_scale.get();
+    valued as_double = ((valued)in[id]) / fixed_scale.get();
 
     as_ref(out[id]) = (valuef)as_double;
 }
@@ -769,7 +769,7 @@ void particle_initial_conditions(cl::context& ctx, cl::command_queue& cqueue, di
     ///to correctly sum it, we want the scale to be.. well, each particle's mass is K/N
     ///and we want.. 3 digits ( = log2(10^3) = 10 bits) of precision? as many as possible?
 
-    float fixed_scale = get_fixed_scale(data.total_mass, data.count);
+    double fixed_scale = get_fixed_scale(data.total_mass, data.count);
 
     {
         cl_ulong count = data.count;
@@ -1098,7 +1098,7 @@ void calculate_intermediates(cl::context ctx, cl::command_queue cqueue, std::vec
 {
     particle_temp tmp(ctx, cqueue, dim);
 
-    float fixed_scale = get_fixed_scale(total_mass, count);
+    double fixed_scale = get_fixed_scale(total_mass, count);
 
     {
         cl::args args;
@@ -1122,7 +1122,7 @@ void calculate_intermediates(cl::context ctx, cl::command_queue cqueue, std::vec
         cqueue.exec("calculate_particle_intermediates", args, {count}, {128});
     }
 
-    //void fixed_to_float(execution_context& ectx, buffer<valuei64> in, buffer<valuef> out, literal<valuef> fixed_scale, literal<valuei> count)
+    //void fixed_to_float(execution_context& ectx, buffer<valuei64> in, buffer<valuef> out, literal<valued> fixed_scale, literal<valuei> count)
     {
         auto fix = [&](cl::buffer b1, cl::buffer b2)
         {
