@@ -160,21 +160,23 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
 
     using namespace single_source;
 
+    ///minimum perf floor is 190, and that's achieved with radius_cells = 0
     int radius_cells = 1;
 
     if(radius_cells > 0)
     {
         valuef radius_world = radius_cells * scale;
         pin(radius_world);
+        //The appropriate modification is rightwards + 1, leftwards + 0
         int spread = radius_cells + 1;
 
-        mut<valuei> z = declare_mut_e(valuei(-spread));
+        mut<valuei> z = declare_mut_e(valuei(-radius_cells));
 
         for_e(z <= spread, assign_b(z, z+1), [&]{
-            mut<valuei> y = declare_mut_e(valuei(-spread));
+            mut<valuei> y = declare_mut_e(valuei(-radius_cells));
 
             for_e(y <= spread, assign_b(y, y+1), [&]{
-                mut<valuei> x = declare_mut_e(valuei(-spread));
+                mut<valuei> x = declare_mut_e(valuei(-radius_cells));
 
                 for_e(x <= spread, assign_b(x, x+1), [&]{
                     v3i offset = {declare_e(x), declare_e(y), declare_e(z)};
@@ -185,10 +187,6 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
                     pin(dirac);
 
                     if_e(dirac > 0, [&]{
-                        /*if_e(x == spread || y == spread || z == spread, [&]{
-                            print("hi\n");
-                        });*/
-
                         func(offset, dirac);
                     });
                 });
