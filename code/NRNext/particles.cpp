@@ -295,6 +295,8 @@ void calculate_particle_intermediates(execution_context& ectx,
             }
         }
 
+        //print("Mass by scale %f\n", (valued)mass * fixed_scale.get());
+
         std::array<valuef, 6> Sij_sym = extract_symmetry(Sij);
 
         auto scale = [&](valuef in)
@@ -786,7 +788,7 @@ void boot_particle_kernels(cl::context ctx)
 double get_fixed_scale(double total_mass, int64_t particle_count)
 {
     double approx_total_mass = total_mass;
-    double fixed_scale = ((double)particle_count / approx_total_mass) * pow(10., 8.);
+    double fixed_scale = ((double)particle_count / approx_total_mass) * pow(10., 7.);
     return fixed_scale;
 }
 
