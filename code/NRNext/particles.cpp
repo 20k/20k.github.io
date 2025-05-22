@@ -570,7 +570,7 @@ void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer
     as_ref(lorentz_out[id]) = velocity4[0];
 }
 
-template<bool OnlyUseNext>
+template<bool FirstStep>
 void evolve_particles(execution_context& ctx,
                       bssn_args_mem<buffer<valuef>> base,
                       bssn_args_mem<buffer<valuef>> in,
@@ -611,7 +611,7 @@ void evolve_particles(execution_context& ctx,
     tensor<valuef, 3, 3> dgB;
     tensor<valuef, 3, 3, 3> dcY;
 
-    if(!OnlyUseNext)
+    if(!FirstStep)
     {
         v3f grid_base = world_to_grid(pos_base, dim.get(), scale.get());
 
