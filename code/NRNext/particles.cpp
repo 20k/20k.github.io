@@ -247,6 +247,7 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
 void calculate_particle_intermediates(execution_context& ectx,
                                       bssn_args_mem<buffer<valuef>> in,
                                       particle_base_args<buffer<valuef>> particles_in,
+                                      buffer<valuef> lorentz_in,
                                       particle_utility_args<buffer_mut<valuei64>> out,
                                       literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count,
                                       literal<valued> fixed_scale)
@@ -260,7 +261,7 @@ void calculate_particle_intermediates(execution_context& ectx,
         return_e();
     });
 
-    valuef lorentz = particles_in.get_lorentz(id) + 1;
+    valuef lorentz = lorentz_in[id];
     valuef mass = particles_in.get_mass(id);
     v3f pos = particles_in.get_position(id);
     v3f vel = particles_in.get_velocity(id);
@@ -566,13 +567,14 @@ void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer
     as_ref(vel_out[0][id]) = velocity_lo[1];
     as_ref(vel_out[1][id]) = velocity_lo[2];
     as_ref(vel_out[2][id]) = velocity_lo[3];
-    as_ref(lorentz_out[id]) = velocity4[0] - 1;
+    as_ref(lorentz_out[id]) = velocity4[0];
 }
 
 void evolve_particles(execution_context& ctx,
                       bssn_args_mem<buffer<valuef>> base,
                       bssn_args_mem<buffer<valuef>> in,
                       particle_base_args<buffer<valuef>> p_base, particle_base_args<buffer<valuef>> p_in, particle_base_args<buffer_mut<valuef>> p_out,
+                      buffer_mut<valuef> lorentz_out,
                       literal<value<size_t>> count,
                       literal<v3i> dim,
                       literal<valuef> scale,
@@ -591,15 +593,12 @@ void evolve_particles(execution_context& ctx,
     v3f pos_next = p_in.get_position(id);
     v3f vel_base = p_base.get_velocity(id);
     v3f vel_next = p_in.get_velocity(id);
-    valuef lorentz_base = p_base.get_lorentz(id);
-    valuef lorentz_next = p_in.get_lorentz(id);
 
     v3f grid_base = world_to_grid(pos_base, dim.get(), scale.get());
     v3f grid_next = world_to_grid(pos_next, dim.get(), scale.get());
 
     #define MID
     #ifdef MID
-    //valuef lorentz = (lorentz_base + lorentz_next) * 0.5f + 1;
     v3f vel = (vel_base + vel_next) * 0.5f;
 
     evolve_vars b_evolve(base, grid_base, dim.get(), scale.get());
@@ -622,7 +621,6 @@ void evolve_particles(execution_context& ctx,
 
     v3f vel = vel_next;
     v3f pos = pos_next;
-    //valuef lorentz = lorentz_next + 1;
 
     auto cY = (i_evolve.cY) ;
     auto W = (i_evolve.W) ;
@@ -713,7 +711,7 @@ void evolve_particles(execution_context& ctx,
     for(int i=0; i < 3; i++)
         as_ref(p_out.velocities[i][id]) = vel_base[i] + timestep.get() * dV[i];
 
-    as_ref(p_out.lorentzs[id]) = u0 - 1;
+    as_ref(lorentz_out[id]) = u0;
 
     valuef sim_width = (valuef)(dim.get().x() - 1) * scale.get();
 
@@ -777,7 +775,6 @@ void particle_initial_conditions(cl::context& ctx, cl::command_queue& cqueue, di
         args.push_back(data.positions[0], data.positions[1], data.positions[2]);
         args.push_back(data.velocities[0], data.velocities[1], data.velocities[2]);
         args.push_back(data.masses);
-        args.push_back(nullptr);
         args.push_back(intermediate);
         args.push_back(dim);
         args.push_back(scale);
@@ -954,16 +951,12 @@ std::vector<buffer_descriptor> particle_buffers::get_description()
     mass.name = "mass";
     mass.sommerfeld_enabled = false;
 
-    buffer_descriptor lorentz;
-    lorentz.name = "lorentz";
-    lorentz.sommerfeld_enabled = false;
-
-    return {p0, p1, p2, v0, v1, v2, mass, lorentz};
+    return {p0, p1, p2, v0, v1, v2, mass};
 }
 
 std::vector<cl::buffer> particle_buffers::get_buffers()
 {
-    return {positions[0], positions[1], positions[2], velocities[0], velocities[1], velocities[2], masses, lorentzs};
+    return {positions[0], positions[1], positions[2], velocities[0], velocities[1], velocities[2], masses};
 }
 
 void particle_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t3i size)
@@ -975,7 +968,6 @@ void particle_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t3i s
     }
 
     masses.alloc(sizeof(cl_float) * particle_count);
-    lorentzs.alloc(sizeof(cl_float) * particle_count);
 };
 
 void particle_plugin::add_args_provider(all_adm_args_mem& mem)
@@ -993,8 +985,11 @@ buffer_provider* particle_plugin::get_utility_buffer_factory(cl::context ctx)
     return new particle_utility_buffers(ctx);
 }
 
-particle_plugin::particle_plugin(cl::context ctx, uint64_t _particle_count) : particle_count(_particle_count)
+particle_plugin::particle_plugin(cl::context ctx, uint64_t _particle_count) : lorentz_storage(ctx), particle_count(_particle_count)
 {
+    for(int i=0; i < 10; i++)
+        particle_temp.emplace_back(ctx);
+
     boot_particle_kernels(ctx);
 }
 
@@ -1079,23 +1074,13 @@ std::vector<cl::buffer> particle_utility_buffers::get_buffers()
     return out;
 }
 
-struct particle_temp
-{
-    std::vector<cl::buffer> bufs;
 
-    particle_temp(cl::context ctx, cl::command_queue cqueue, t3i size)
-    {
-        for(int i=0; i < 10; i++)
-        {
-            bufs.emplace_back(ctx).alloc(sizeof(cl_ulong) * size.x() * size.y() * size.z());
-            bufs.back().set_to_zero(cqueue);
-        }
-    }
-};
-
-void calculate_intermediates(cl::context ctx, cl::command_queue cqueue, std::vector<cl::buffer> bssn_in, particle_buffers& p_in, particle_utility_buffers& util_out, t3i dim, float scale, double total_mass, cl_ulong count)
+void particle_plugin::calculate_intermediates(cl::context ctx, cl::command_queue cqueue, std::vector<cl::buffer> bssn_in, particle_buffers& p_in, particle_utility_buffers& util_out, t3i dim, float scale)
 {
-    particle_temp tmp(ctx, cqueue, dim);
+    for(auto& i : particle_temp)
+        i.set_to_zero(cqueue);
+
+    cl_ulong count = particle_count;
 
     double fixed_scale = get_fixed_scale(total_mass, count);
 
@@ -1108,9 +1093,9 @@ void calculate_intermediates(cl::context ctx, cl::command_queue cqueue, std::vec
         args.push_back(p_in.positions[0], p_in.positions[1], p_in.positions[2]);
         args.push_back(p_in.velocities[0], p_in.velocities[1], p_in.velocities[2]);
         args.push_back(p_in.masses);
-        args.push_back(p_in.lorentzs);
+        args.push_back(lorentz_storage);
 
-        for(auto& i : tmp.bufs)
+        for(auto& i : particle_temp)
             args.push_back(i);
 
         args.push_back(dim);
@@ -1136,16 +1121,16 @@ void calculate_intermediates(cl::context ctx, cl::command_queue cqueue, std::vec
             cqueue.exec("fixed_to_float", args, {linear_cnt}, {128});
         };
 
-        fix(tmp.bufs[0], util_out.E);
-        fix(tmp.bufs[1], util_out.Si_raised[0]);
-        fix(tmp.bufs[2], util_out.Si_raised[1]);
-        fix(tmp.bufs[3], util_out.Si_raised[2]);
-        fix(tmp.bufs[4], util_out.Sij_raised[0]);
-        fix(tmp.bufs[5], util_out.Sij_raised[1]);
-        fix(tmp.bufs[6], util_out.Sij_raised[2]);
-        fix(tmp.bufs[7], util_out.Sij_raised[3]);
-        fix(tmp.bufs[8], util_out.Sij_raised[4]);
-        fix(tmp.bufs[9], util_out.Sij_raised[5]);
+        fix(particle_temp[0], util_out.E);
+        fix(particle_temp[1], util_out.Si_raised[0]);
+        fix(particle_temp[2], util_out.Si_raised[1]);
+        fix(particle_temp[3], util_out.Si_raised[2]);
+        fix(particle_temp[4], util_out.Sij_raised[0]);
+        fix(particle_temp[5], util_out.Sij_raised[1]);
+        fix(particle_temp[6], util_out.Sij_raised[2]);
+        fix(particle_temp[7], util_out.Sij_raised[3]);
+        fix(particle_temp[8], util_out.Sij_raised[4]);
+        fix(particle_temp[9], util_out.Sij_raised[5]);
     }
 }
 
@@ -1153,6 +1138,15 @@ void particle_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffe
 {
     assert(pack.gpu_particles);
     total_mass = pack.gpu_particles->total_mass;
+
+    lorentz_storage.alloc(sizeof(cl_float) * particle_count);
+    lorentz_storage.set_to_zero(cqueue);
+
+    for(auto& i : particle_temp)
+    {
+        i.alloc(sizeof(cl_ulong) * int64_t{pack.dim.x()} * pack.dim.y() * pack.dim.z());
+        i.set_to_zero(cqueue);
+    }
 
     particle_buffers& p_out = *dynamic_cast<particle_buffers*>(to_init);
     particle_utility_buffers& util_out = *dynamic_cast<particle_utility_buffers*>(to_init_utility);
@@ -1168,7 +1162,7 @@ void particle_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffe
         args.push_back(p_in.velocities[0], p_in.velocities[1], p_in.velocities[2]);
         args.push_back(p_in.masses);
         args.push_back(p_out.velocities[0], p_out.velocities[1], p_out.velocities[2]);
-        args.push_back(p_out.lorentzs);
+        args.push_back(lorentz_storage);
         args.push_back(count);
         args.push_back(pack.dim);
         args.push_back(pack.scale);
@@ -1188,7 +1182,7 @@ void particle_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffe
         bssn.push_back(buf);
     });
 
-    calculate_intermediates(ctx, cqueue, bssn, p_out, util_out, pack.dim, pack.scale, total_mass, count);
+    calculate_intermediates(ctx, cqueue, bssn, p_out, util_out, pack.dim, pack.scale);
 }
 
 void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plugin_step_data& sdata)
@@ -1228,6 +1222,8 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
         for(auto& i : out_bufs)
             args.push_back(i);
 
+        args.push_back(lorentz_storage);
+
         args.push_back(count);
         args.push_back(sdata.dim);
         args.push_back(sdata.scale);
@@ -1238,5 +1234,5 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
 
     particle_utility_buffers& util_out = *dynamic_cast<particle_utility_buffers*>(sdata.utility_buffers);
 
-    calculate_intermediates(ctx, cqueue, sdata.bssn_buffers, in, util_out, sdata.dim, sdata.scale, total_mass, count);
+    calculate_intermediates(ctx, cqueue, sdata.bssn_buffers, in, util_out, sdata.dim, sdata.scale);
 }
