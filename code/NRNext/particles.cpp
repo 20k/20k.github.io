@@ -185,6 +185,10 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
                     pin(dirac);
 
                     if_e(dirac > 0, [&]{
+                        /*if_e(x == spread || y == spread || z == spread, [&]{
+                            print("hi\n");
+                        });*/
+
                         func(offset, dirac);
                     });
                 });
@@ -271,7 +275,7 @@ void calculate_particle_intermediates(execution_context& ectx,
     pin(lorentz);
 
     v3f fcell = world_to_grid(pos, dim.get(), scale.get());
-    v3i cell = (v3i)round(fcell);
+    v3i cell = (v3i)floor(fcell);
     pin(cell);
 
     for_each_dirac(cell, dim.get(), scale.get(), pos, [&](v3i offset, valuef dirac) {
