@@ -622,10 +622,8 @@ void evolve_particles(execution_context& ctx,
 
         cY = (b_evolve.cY + i_evolve.cY) * 0.5f;
         W = (b_evolve.W + i_evolve.W) * 0.5f;
-        //auto cA = (b_evolve.cA + i_evolve.cA) * 0.5f;
         gA = (b_evolve.gA + i_evolve.gA) * 0.5f;
         gB = (b_evolve.gB + i_evolve.gB) * 0.5f;
-        //auto K = (b_evolve.K + i_evolve.K) * 0.5f;
 
         dW = (b_evolve.dW + i_evolve.dW) * 0.5f;
         dgA = (b_evolve.dgA + i_evolve.dgA) * 0.5f;
@@ -638,17 +636,15 @@ void evolve_particles(execution_context& ctx,
 
         vel = vel_next;
 
-        cY = (i_evolve.cY) ;
-        W = (i_evolve.W) ;
-        //cA = (i_evolve.cA) ;
-        gA = (i_evolve.gA) ;
-        gB = (i_evolve.gB) ;
-        //auto K = (i_evolve.K) ;
+        cY = i_evolve.cY;
+        W = i_evolve.W;
+        gA = i_evolve.gA;
+        gB = i_evolve.gB;
 
-        dW = (i_evolve.dW) ;
-        dgA = (i_evolve.dgA) ;
-        dgB = (i_evolve.dgB) ;
-        dcY = (i_evolve.dcY) ;
+        dW = i_evolve.dW;
+        dgA = i_evolve.dgA;
+        dgB = i_evolve.dgB;
+        dcY = i_evolve.dcY;
     }
 
     auto icY = cY.invert();
