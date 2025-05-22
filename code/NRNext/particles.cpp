@@ -601,7 +601,7 @@ void evolve_particles(execution_context& ctx,
 
     #define MID
     #ifdef MID
-    valuef lorentz = (lorentz_base + lorentz_next) * 0.5f + 1;
+    //valuef lorentz = (lorentz_base + lorentz_next) * 0.5f + 1;
     v3f vel = (vel_base + vel_next) * 0.5f;
 
     evolve_vars b_evolve(base, grid_base, dim.get(), scale.get());
@@ -624,7 +624,7 @@ void evolve_particles(execution_context& ctx,
 
     v3f vel = vel_next;
     v3f pos = pos_next;
-    valuef lorentz = lorentz_next + 1;
+    //valuef lorentz = lorentz_next + 1;
 
     auto cY = (i_evolve.cY) ;
     auto W = (i_evolve.W) ;
@@ -675,7 +675,6 @@ void evolve_particles(execution_context& ctx,
 
         for(int i=0; i < 3; i++)
         {
-            tensor<dual<valuef>, 3, 3, 3> d_dcYij;
             metric<dual<valuef>, 3, 3> d_cYij;
 
             for(int j=0; j < 3; j++)
