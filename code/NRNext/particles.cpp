@@ -286,7 +286,7 @@ void calculate_particle_intermediates(execution_context& ectx,
         {
             for(int j=0; j < 3; j++)
             {
-                Sij[i, j] = (mass * vel[i] * vel[j] / lorentz) * pow(args.W, 3) * dirac / args.gA;
+                Sij[i, j] = (mass * vel[i] * vel[j] / lorentz) * pow(args.W, 3) * dirac / max(args.gA, 0.01f);
             }
         }
 
