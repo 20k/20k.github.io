@@ -607,14 +607,13 @@ void evolve_particles(execution_context& ctx,
 
     auto cY = (b_evolve.cY + i_evolve.cY) * 0.5f;
     auto W = (b_evolve.W + i_evolve.W) * 0.5f;
-    auto cA = (b_evolve.cA + i_evolve.cA) * 0.5f;
+    //auto cA = (b_evolve.cA + i_evolve.cA) * 0.5f;
     auto gA = (b_evolve.gA + i_evolve.gA) * 0.5f;
     auto gB = (b_evolve.gB + i_evolve.gB) * 0.5f;
-    auto K = (b_evolve.K + i_evolve.K) * 0.5f;
+    //auto K = (b_evolve.K + i_evolve.K) * 0.5f;
 
-    //this may not be correct
     auto dW = (b_evolve.dW + i_evolve.dW) * 0.5f;
-    auto dgA = (b_evolve.dgA + i_evolve.dgA) * 0.5f; //this is the term causing drift
+    auto dgA = (b_evolve.dgA + i_evolve.dgA) * 0.5f;
     auto dgB = (b_evolve.dgB + i_evolve.dgB) * 0.5f;
     auto dcY = (b_evolve.dcY + i_evolve.dcY) * 0.5f;
     #else
@@ -627,16 +626,15 @@ void evolve_particles(execution_context& ctx,
 
     auto cY = (i_evolve.cY) ;
     auto W = (i_evolve.W) ;
-    auto cA = (i_evolve.cA) ;
+    //auto cA = (i_evolve.cA) ;
     auto gA = (i_evolve.gA) ;
     auto gB = (i_evolve.gB) ;
-    auto K = (i_evolve.K) ;
+    //auto K = (i_evolve.K) ;
 
     auto dW = (i_evolve.dW) ;
     auto dgA = (i_evolve.dgA) ;
     auto dgB = (i_evolve.dgB) ;
     auto dcY = (i_evolve.dcY) ;
-
     #endif
 
     auto icY = cY.invert();
@@ -644,6 +642,7 @@ void evolve_particles(execution_context& ctx,
 
     valuef au0_sq = 1 + iYij.dot(vel, vel);
     valuef u0 = sqrt(au0_sq) / gA;
+    pin(u0);
 
     v3f dX = -gB + iYij.raise(vel) / u0;
 
