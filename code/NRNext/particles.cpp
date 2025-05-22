@@ -271,6 +271,10 @@ void calculate_particle_intermediates(execution_context& ectx,
     pin(mass);
     pin(lorentz);
 
+    if_e(!isfinite(mass) || mass == 0, [&]{
+        return_e();
+    });
+
     v3f fcell = world_to_grid(pos, dim.get(), scale.get());
     v3i cell = (v3i)floor(fcell);
     pin(cell);
@@ -597,6 +601,22 @@ void evolve_particles(execution_context& ctx,
     v3f vel_next = p_in.get_velocity(id);
 
     v3f grid_next = world_to_grid(pos_next, dim.get(), scale.get());
+
+    valuef mass = p_in.get_mass(id);
+    pin(mass);
+
+    if_e(!isfinite(mass) || mass == 0, [&]{
+        for(int i=0; i < 3; i++)
+            as_ref(p_out.positions[i][id]) = pos_base[i];
+
+        for(int i=0; i < 3; i++)
+            as_ref(p_out.velocities[i][id]) = vel_base[i];
+
+        as_ref(lorentz_out[id]) = valuef(1.f);
+        as_ref(p_out.masses[id]) = mass;
+
+        return_e();
+    });
 
     v3f vel;
     v3f pos;
