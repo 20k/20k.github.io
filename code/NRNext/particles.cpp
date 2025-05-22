@@ -165,8 +165,6 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
 
     if(radius_cells > 0)
     {
-        valuef radius_world = radius_cells * scale;
-        pin(radius_world);
         //The appropriate modification is rightwards + 1, leftwards + 0
         int spread = radius_cells + 1;
 
