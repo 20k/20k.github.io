@@ -751,7 +751,7 @@ void evolve_particles(execution_context& ctx,
 
     valuei dist = distance_to_boundary((v3i)round(grid_next), dim.get());
 
-    if_e(dist <= 10, [&]{
+    if_e(dist <= 10 || gA < 0.15f, [&]{
         as_ref(p_out.masses[id]) = valuef(0.f);
     });
 }
