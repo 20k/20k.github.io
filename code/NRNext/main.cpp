@@ -1751,7 +1751,6 @@ initial_params get_initial_params()
     #ifdef PARTICLE_TESTS
     xoshiro256ss_state st = xoshiro256ss_init(432123452345ULL);
 
-    float radial_pos = geometric_to_msol(1000 * 54.6/2, 1);
 
     particle_params part;
     //part.add({0.01,0,0}, {0,0,0}, 0.001);
@@ -1761,7 +1760,8 @@ initial_params get_initial_params()
     //part.add({-3,0,0}, {0,0.015,0}, 0.01);
     //part.add({3,0,0}, {0,-0.015,0}, 0.01);
 
-    #if 1
+    #ifdef RANDOM_INIT
+    float radial_pos = geometric_to_msol(1000 * 54.6/2, 1);
     int N = 1000000;
     double M = 1;
 
@@ -1791,12 +1791,49 @@ initial_params get_initial_params()
     }
     #endif
 
+    #define BLACK_HOLE
+    #ifdef BLACK_HOLE
+
+    float radial_pos = geometric_to_msol(1000 * 54.6/2, 1);
+    int N = 1000;
+    double M = 1;
+
+    for(int i=0; i < N; i++)
+    {
+        double lM = M/N;
+
+        double x = uint64_to_double(xoshiro256ss(st));
+        double y = uint64_to_double(xoshiro256ss(st));
+        double z = uint64_to_double(xoshiro256ss(st));
+
+        t3f pos = {(x - 0.5f) * 2 * radial_pos, (y - 0.5f) * 2 * radial_pos, (z - 0.5f) * 2 * radial_pos};
+
+        float length = pos.xy().length();
+
+        //if(length >= radial_pos)
+        //    continue;
+
+        pos = pos.norm() * radial_pos * 0.2;
+
+        t3f vel = {0,0,0};
+
+        part.add(pos, vel, lM);
+    }
+
+    #endif
+
     initial_params init;
     init.N = 2;
+
+    /*black_hole_params p1;
+    p1.bare_mass = 1;
+    p1.linear_momentum = {0, 0, 0};
+    p1.position = {-radial_pos, 0, 0};*/
 
     init.dim = {199, 199, 199};
     init.simulation_width = radial_pos * 4;
 
+//    init.add(p1);
     init.add(std::move(part));
 
     init.time_between_snapshots = 15;
