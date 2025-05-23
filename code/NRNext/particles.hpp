@@ -231,6 +231,15 @@ struct particle_plugin : plugin
     cl::buffer lorentz_storage;
     std::vector<cl::buffer> particle_temp;
 
+    //sizeof(cl_int)
+    cl::buffer memory_allocation_count;
+    //sizeof(cl_int) * particle_count
+    cl::buffer particle_ids;
+    //sizeof(cl_int) * dim^3
+    cl::buffer memory_ptrs;
+    //sizeof(cl_int) * dim^3
+    cl::buffer memory_counts;
+
     double total_mass = 0;
     uint64_t particle_count = 0;
 

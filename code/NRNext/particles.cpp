@@ -377,6 +377,11 @@ void calculate_intermediates_by_cells(execution_context& ectx, particle_base_arg
                     valuef mass = particles_in.get_mass((value<size_t>)particle_id);
                     valuef lorentz = lorentz_in[particle_id];
 
+                    pin(position);
+                    pin(velocity);
+                    pin(mass);
+                    pin(lorentz);
+
                     v3f fpos = world_to_grid(position, dim.get(), scale.get());
 
                     valuef dirac = get_dirac3(dirac_delta<valuef>, (v3f)offset, fpos, radius_cells, scale.get());
@@ -447,8 +452,6 @@ void calculate_intermediates_by_cells(execution_context& ectx, particle_base_arg
             });
         });
     });
-
-
 }
 
 void calculate_particle_intermediates(execution_context& ectx,
@@ -1231,7 +1234,7 @@ buffer_provider* particle_plugin::get_utility_buffer_factory(cl::context ctx)
     return new particle_utility_buffers(ctx);
 }
 
-particle_plugin::particle_plugin(cl::context ctx, uint64_t _particle_count) : lorentz_storage(ctx), particle_count(_particle_count)
+particle_plugin::particle_plugin(cl::context ctx, uint64_t _particle_count) : lorentz_storage(ctx), particle_count(_particle_count), memory_allocation_count(ctx), particle_ids(ctx), memory_ptrs(ctx), memory_counts(ctx)
 {
     for(int i=0; i < 10; i++)
         particle_temp.emplace_back(ctx);
@@ -1390,6 +1393,16 @@ void particle_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffe
         i.alloc(sizeof(cl_ulong) * int64_t{pack.dim.x()} * pack.dim.y() * pack.dim.z());
         i.set_to_zero(cqueue);
     }
+
+    memory_allocation_count.alloc(sizeof(cl_int));
+    particle_ids.alloc(sizeof(cl_int) * particle_count);
+    memory_ptrs.alloc(sizeof(cl_int) * int64_t{pack.dim.x()} * pack.dim.y() * pack.dim.z());
+    memory_counts.alloc(sizeof(cl_int) * int64_t{pack.dim.x()} * pack.dim.y() * pack.dim.z());
+
+    memory_allocation_count.set_to_zero(cqueue);
+    particle_ids.set_to_zero(cqueue);
+    memory_ptrs.set_to_zero(cqueue);
+    memory_counts.set_to_zero(cqueue);
 
     particle_buffers& p_out = *dynamic_cast<particle_buffers*>(to_init);
     particle_utility_buffers& util_out = *dynamic_cast<particle_utility_buffers*>(to_init_utility);
