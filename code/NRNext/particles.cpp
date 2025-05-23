@@ -258,13 +258,14 @@ void count_particles_per_cell(execution_context& ectx, std::array<buffer<valuef>
     pin(world_pos);
 
     v3f grid_posf = world_to_grid(world_pos, dim.get(), scale.get());
+    pin(grid_posf);
     v3i grid_pos = (v3i)floor(grid_posf);
 
     grid_pos = clamp(grid_pos, (v3i){0,0,0}, dim.get() - 1);
 
     valuei idx = grid_pos.z() * dim.get().x() * dim.get().y() + grid_pos.y() * dim.get().x() + grid_pos.x();
 
-    cell_counts.atom_add_b(idx, 1);
+    cell_counts.atom_add_e(idx, 1);
 }
 
 /*__kernel
@@ -313,6 +314,36 @@ void memory_allocate(execution_context& ectx, buffer_mut<valuei> counts, buffer_
 
     as_ref(memory_ptrs[id]) = declare_e(my_memory);
     as_ref(counts[id]) = valuei(0);
+}
+
+
+void assign_particles_to_cells(execution_context& ectx, std::array<buffer<valuef>, 3> pos, buffer_mut<valuei> collected_ids, buffer_mut<valuei> memory_ptrs, buffer_mut<valuei> cell_counts, literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count)
+{
+    using namespace single_source;
+
+    value<size_t> id = value_impl::get_global_id_us(0);
+    pin(id);
+
+    if_e(id >= particle_count.get(), [&]{
+        return_e();
+    });
+
+    v3f world_pos = {pos[0][id], pos[1][id], pos[2][id]};
+    pin(world_pos);
+
+    v3f grid_posf = world_to_grid(world_pos, dim.get(), scale.get());
+    pin(grid_posf);
+    v3i grid_pos = (v3i)floor(grid_posf);
+
+    grid_pos = clamp(grid_pos, (v3i){0,0,0}, dim.get() - 1);
+
+    valuei idx = grid_pos.z() * dim.get().x() * dim.get().y() + grid_pos.y() * dim.get().x() + grid_pos.x();
+
+    valuei my_offset = cell_counts.atom_add_e(idx, 1);
+    valuei cell_offset = memory_ptrs[idx];
+    pin(cell_offset);
+
+    as_ref(collected_ids[my_offset + cell_offset]) = (valuei)id;
 }
 
 
