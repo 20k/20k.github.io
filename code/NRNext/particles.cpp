@@ -400,10 +400,6 @@ void calculate_intermediates_by_cells(execution_context& ectx, particle_base_arg
             valuef dirac = get_dirac3(dirac_delta<valuef>, (v3f)offset, fpos, radius_cells, scale.get());
             pin(dirac);
 
-            //mut<valuef> E_acc = declare_mut_e(valuef(0.f));
-            //mut_v3f Si_acc = declare_mut_e(v3f{});
-            //tensor<mut<valuef>, 6> Sij_acc  = declare_mut_e(tensor<valuef, 6>{});
-
             mut<valuef> E_acc = E_ext[relative_pos.z() * 4 * 4 + relative_pos.y() * 4 + relative_pos.x()];
             mut_v3f Si_acc;
             std::array<mut<valuef>, 6> Sij_acc;
