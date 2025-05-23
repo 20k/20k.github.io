@@ -994,6 +994,22 @@ void boot_particle_kernels(cl::context ctx)
     cl::async_build_and_cache(ctx, [&]{
         return value_impl::make_function(sum_E, "sum_E");
     }, {"sum_E"});
+
+    cl::async_build_and_cache(ctx, [&]{
+        return value_impl::make_function(count_particles_per_cell, "count_particles_per_cell");
+    }, {"count_particles_per_cell"});
+
+    cl::async_build_and_cache(ctx, [&]{
+        return value_impl::make_function(memory_allocate, "memory_allocate");
+    }, {"memory_allocate"});
+
+    cl::async_build_and_cache(ctx, [&]{
+        return value_impl::make_function(assign_particles_to_cells, "assign_particles_to_cells");
+    }, {"assign_particles_to_cells"});
+
+    cl::async_build_and_cache(ctx, [&]{
+        return value_impl::make_function(calculate_intermediates_by_cells, "calculate_intermediates_by_cells");
+    }, {"calculate_intermediates_by_cells"});
 }
 
 double get_fixed_scale(double total_mass, int64_t particle_count)
