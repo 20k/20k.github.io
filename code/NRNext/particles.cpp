@@ -337,6 +337,116 @@ void calculate_intermediates_by_cells(execution_context& ectx, particle_base_arg
     });
 
     v3i pos = get_coordinate_including_boundary(id, dim.get(), 2);
+    pin(pos);
+
+    ///minimum perf floor is 190, and that's achieved with radius_cells = 0
+    int radius_cells = 1;
+
+    //The appropriate modification is rightwards + 1, leftwards + 0
+    int spread = radius_cells + 1;
+
+    mut<valuei> z = declare_mut_e(valuei(-radius_cells));
+
+    for_e(z <= spread, assign_b(z, z+1), [&]{
+        mut<valuei> y = declare_mut_e(valuei(-radius_cells));
+
+        for_e(y <= spread, assign_b(y, y+1), [&]{
+            mut<valuei> x = declare_mut_e(valuei(-radius_cells));
+
+            for_e(x <= spread, assign_b(x, x+1), [&]{
+                v3i offset = {declare_e(x), declare_e(y), declare_e(z)};
+                offset += pos;
+                offset = clamp(offset, (v3i){0,0,0}, dim.get() - 1);
+                pin(offset);
+
+                valuei memory_offset = memory_ptrs[offset, dim.get()];
+                valuei num = counts[offset, dim.get()];
+
+                mut<valuei> idx = declare_mut_e(valuei(0));
+
+                mut<valuef> E_acc = declare_mut_e(valuef(0.f));
+                mut_v3f Si_acc = declare_mut_e(v3f{});
+                tensor<mut<valuef>, 6> Sij_acc  = declare_mut_e(tensor<valuef, 6>{});
+
+                for_e(idx < num, assign_b(idx, idx+1), [&]{
+                    valuei particle_id = declare_e(idx) + memory_offset;
+                    pin(particle_id);
+
+                    v3f position = particles_in.get_position((value<size_t>)particle_id);
+                    v3f velocity = particles_in.get_velocity((value<size_t>)particle_id);
+                    valuef mass = particles_in.get_mass((value<size_t>)particle_id);
+                    valuef lorentz = lorentz_in[particle_id];
+
+                    v3f fpos = world_to_grid(position, dim.get(), scale.get());
+
+                    valuef dirac = get_dirac3(dirac_delta<valuef>, (v3f)offset, fpos, radius_cells, scale.get());
+                    pin(dirac);
+
+                    if_e(dirac > 0, [&]{
+                        valuef E = mass * lorentz * dirac;
+                        v3f Ji = mass * velocity * dirac;
+
+                        tensor<valuef, 3, 3> Sij;
+
+                        for(int i=0; i < 3; i++)
+                        {
+                            for(int j=0; j < 3; j++)
+                            {
+                                Sij[i, j] = (mass * velocity[i] * velocity[j] / lorentz) * dirac;
+                            }
+                        }
+
+                        std::array<valuef, 6> Sij_sym = extract_symmetry(Sij);
+
+                        as_ref(E_acc) += E;
+
+                        for(int i=0; i < 3; i++)
+                            as_ref(Si_acc[i]) += Ji[i];
+
+                        for(int i=0; i < 6; i++)
+                            as_ref(Sij_acc[i]) += Sij_sym[i];
+                    });
+                });
+
+
+                auto scale = [&](valuef in)
+                {
+                    valued in_d = (valued)in;
+                    valued in_scaled = in_d * fixed_scale.get();
+
+                    return (valuei64)round((valuef)in_scaled);
+                };
+
+                valuei64 E_scaled = scale(declare_e(E_acc));
+
+                tensor<valuei64, 3> Si_scaled;
+
+                for(int i=0; i < 3; i++)
+                    Si_scaled[i] = scale(declare_e(Si_acc[i]));
+
+                std::array<valuei64, 6> Sij_scaled;
+
+                for(int i=0; i < 6; i++)
+                    Sij_scaled[i] = scale(declare_e(Sij_acc[i]));
+
+                ///[offset, dim.get()]
+
+                valuei grid_idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
+
+                valuei64 val = out.E.atom_add_e(grid_idx, E_scaled);
+
+                if_e(val < 0, [&]{
+                    print("Error in particle dynamics\n");
+                });
+
+                for(int i=0; i < 3; i++)
+                    out.Si_raised[i].atom_add_e(grid_idx, Si_scaled[i]);
+
+                for(int i=0; i < 6; i++)
+                    out.Sij_raised[i].atom_add_e(grid_idx, Sij_scaled[i]);
+            });
+        });
+    });
 
 
 }
