@@ -360,6 +360,15 @@ void calculate_intermediates_by_cells(execution_context& ectx, particle_base_arg
     pin(memory_offset);
     pin(num);
 
+    auto alloc = []()
+    {
+        return declare_mut_array_e(4*4*4, std::vector<valuef>{});
+    };
+
+    array_mut<valuef> E_ext = alloc();
+    std::array<array_mut<valuef>, 3> Si_ext = {alloc(), alloc(), alloc()};
+    std::array<array_mut<valuef>, 6> Sij_ext = {alloc(), alloc(), alloc(), alloc(), alloc(), alloc()};
+
     mut<valuei> idx = declare_mut_e(valuei(0));
 
     for_e(idx < num, assign_b(idx, idx+1), [&]{
@@ -381,12 +390,29 @@ void calculate_intermediates_by_cells(execution_context& ectx, particle_base_arg
         pin(fpos);
 
         for_each_dirac_outer(pos, dim.get(), [&](v3i offset, int radius_cells) {
+            v3i relative_pos = (offset - pos) + (v3i){1,1,1};
+            pin(relative_pos);
+
             valuef dirac = get_dirac3(dirac_delta<valuef>, (v3f)offset, fpos, radius_cells, scale.get());
             pin(dirac);
 
-            mut<valuef> E_acc = declare_mut_e(valuef(0.f));
-            mut_v3f Si_acc = declare_mut_e(v3f{});
-            tensor<mut<valuef>, 6> Sij_acc  = declare_mut_e(tensor<valuef, 6>{});
+            //mut<valuef> E_acc = declare_mut_e(valuef(0.f));
+            //mut_v3f Si_acc = declare_mut_e(v3f{});
+            //tensor<mut<valuef>, 6> Sij_acc  = declare_mut_e(tensor<valuef, 6>{});
+
+            mut<valuef> E_acc = E_ext[relative_pos.z() * 4 * 4 + relative_pos.y() * 4 + relative_pos.x()];
+            mut_v3f Si_acc;
+            std::array<mut<valuef>, 6> Sij_acc;
+
+            for(int i=0; i < 3; i++)
+            {
+                Si_acc[i] = Si_ext[i][relative_pos.z() * 4 * 4 + relative_pos.y() * 4 + relative_pos.x()];
+            }
+
+            for(int i=0; i < 6; i++)
+            {
+                Sij_acc[i] = Sij_ext[i][relative_pos.z() * 4 * 4 + relative_pos.y() * 4 + relative_pos.x()];
+            }
 
             if_e(dirac > 0, [&]{
 
@@ -413,44 +439,63 @@ void calculate_intermediates_by_cells(execution_context& ectx, particle_base_arg
                 for(int i=0; i < 6; i++)
                     as_ref(Sij_acc[i]) += Sij_sym[i];
             });
+        });
+    });
 
-            if_e(E_acc > 0, [&]{
-                auto scale = [&](valuef in)
-                {
-                    valued in_d = (valued)in;
-                    valued in_scaled = in_d * fixed_scale.get();
+    for_each_dirac_outer(pos, dim.get(), [&](v3i offset, int radius_cells) {
+        v3i relative_pos = (offset - pos) + (v3i){1,1,1};
+        pin(relative_pos);
 
-                    return (valuei64)round((valuef)in_scaled);
-                };
+        mut<valuef> E_acc = E_ext[relative_pos.z() * 4 * 4 + relative_pos.y() * 4 + relative_pos.x()];
+        mut_v3f Si_acc;
+        std::array<mut<valuef>, 6> Sij_acc;
 
-                valuei64 E_scaled = scale(declare_e(E_acc));
+        for(int i=0; i < 3; i++)
+        {
+            Si_acc[i] = Si_ext[i][relative_pos.z() * 4 * 4 + relative_pos.y() * 4 + relative_pos.x()];
+        }
 
-                tensor<valuei64, 3> Si_scaled;
+        for(int i=0; i < 6; i++)
+        {
+            Sij_acc[i] = Sij_ext[i][relative_pos.z() * 4 * 4 + relative_pos.y() * 4 + relative_pos.x()];
+        }
 
-                for(int i=0; i < 3; i++)
-                    Si_scaled[i] = scale(declare_e(Si_acc[i]));
+        if_e(E_acc > 0, [&]{
+            auto scale = [&](valuef in)
+            {
+                valued in_d = (valued)in;
+                valued in_scaled = in_d * fixed_scale.get();
 
-                std::array<valuei64, 6> Sij_scaled;
+                return (valuei64)round((valuef)in_scaled);
+            };
 
-                for(int i=0; i < 6; i++)
-                    Sij_scaled[i] = scale(declare_e(Sij_acc[i]));
+            valuei64 E_scaled = scale(declare_e(E_acc));
 
-                ///[offset, dim.get()]
+            tensor<valuei64, 3> Si_scaled;
 
-                valuei grid_idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
+            for(int i=0; i < 3; i++)
+                Si_scaled[i] = scale(declare_e(Si_acc[i]));
 
-                valuei64 val = out.E.atom_add_e(grid_idx, E_scaled);
+            std::array<valuei64, 6> Sij_scaled;
 
-                if_e(val < 0, [&]{
-                    print("Error in particle dynamics\n");
-                });
+            for(int i=0; i < 6; i++)
+                Sij_scaled[i] = scale(declare_e(Sij_acc[i]));
 
-                for(int i=0; i < 3; i++)
-                    out.Si_raised[i].atom_add_e(grid_idx, Si_scaled[i]);
+            ///[offset, dim.get()]
 
-                for(int i=0; i < 6; i++)
-                    out.Sij_raised[i].atom_add_e(grid_idx, Sij_scaled[i]);
+            valuei grid_idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
+
+            valuei64 val = out.E.atom_add_e(grid_idx, E_scaled);
+
+            if_e(val < 0, [&]{
+                print("Error in particle dynamics\n");
             });
+
+            for(int i=0; i < 3; i++)
+                out.Si_raised[i].atom_add_e(grid_idx, Si_scaled[i]);
+
+            for(int i=0; i < 6; i++)
+                out.Sij_raised[i].atom_add_e(grid_idx, Sij_scaled[i]);
         });
     });
 
