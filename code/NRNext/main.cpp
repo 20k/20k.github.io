@@ -1763,7 +1763,7 @@ initial_params get_initial_params()
 
     #define RANDOM_INIT
     #ifdef RANDOM_INIT
-    int N = 10;
+    int N = 1000000;
     double M = 1;
 
     for(int i=0; i < N; i++)

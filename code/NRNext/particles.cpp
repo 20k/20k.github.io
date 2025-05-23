@@ -378,29 +378,23 @@ void calculate_intermediates_by_cells(execution_context& ectx, particle_base_arg
     v3i pos = get_coordinate_including_boundary(id, dim.get(), 2);
     pin(pos);
 
-    ///minimum perf floor is 190, and that's achieved with radius_cells = 0
+    valuei memory_offset = memory_ptrs[pos, dim.get()];
+    valuei num = counts[pos, dim.get()];
+
+    pin(memory_offset);
+    pin(num);
+
     for_each_dirac2(pos, dim.get(), [&](v3i offset, int radius_cells)
     {
-        valuei memory_offset = memory_ptrs[offset, dim.get()];
-        valuei num = counts[offset, dim.get()];
-
         mut<valuei> idx = declare_mut_e(valuei(0));
 
         mut<valuef> E_acc = declare_mut_e(valuef(0.f));
         mut_v3f Si_acc = declare_mut_e(v3f{});
         tensor<mut<valuef>, 6> Sij_acc  = declare_mut_e(tensor<valuef, 6>{});
 
-        /*if_e(num > 0, [&]{
-            print("Count per cell %i pos %i %i %i memory %i\n", num, offset.x(), offset.y(), offset.z(), memory_offset);
-        });*/
-
         for_e(idx < num, assign_b(idx, idx+1), [&]{
             valuei particle_id = particle_ids[declare_e(idx) + memory_offset];
             pin(particle_id);
-
-            /*if_e(x == 0 && y == 0 && z == 0, [&]{
-                print("Particle %i\n", particle_id);
-            });*/
 
             v3f position = particles_in.get_position((value<size_t>)particle_id);
             v3f velocity = particles_in.get_velocity((value<size_t>)particle_id);
@@ -422,7 +416,7 @@ void calculate_intermediates_by_cells(execution_context& ectx, particle_base_arg
                 valuef E = mass * lorentz * dirac;
                 v3f Ji = mass * velocity * dirac;
 
-                print("Dirac %f fpos %f %f %f offset %i %i %i scale %f\n", dirac, fpos.x(), fpos.y(), fpos.z(), offset.x(), offset.y(), offset.z(), scale.get());
+                //print("Dirac %f offset %i %i %i fpos %f %f %f scale %f num %i\n", dirac, offset.x(), offset.y(), offset.z(), fpos.x(), fpos.y(), fpos.z(), scale.get(), num);
 
                 //print("cE %f\n", E);
 
@@ -449,7 +443,7 @@ void calculate_intermediates_by_cells(execution_context& ectx, particle_base_arg
         });
 
         if_e(E_acc > 0, [&]{
-            print("Total contribution %f\n", as_constant(E_acc));
+            //print("Total contribution %f\n", as_constant(E_acc));
 
             auto scale = [&](valuef in)
             {
@@ -529,9 +523,9 @@ void calculate_particle_intermediates(execution_context& ectx,
         valuef E = mass * lorentz * dirac;
         v3f Ji = mass * vel * dirac;
 
-        print("Dirac %f offset %i %i %i fpos %f %f %f scale %f\n", dirac, offset.x(), offset.y(), offset.z(), fcell.x(), fcell.y(), fcell.z(), scale.get());
+        //print("Dirac %f offset %i %i %i fpos %f %f %f scale %f\n", dirac, offset.x(), offset.y(), offset.z(), fcell.x(), fcell.y(), fcell.z(), scale.get());
 
-        print("Standard E %f\n", E);
+        //print("Standard E %f\n", E);
 
         tensor<valuef, 3, 3> Sij;
 
@@ -1633,7 +1627,7 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
 
     calculate_intermediates(ctx, cqueue, sdata.bssn_buffers, in, util_out, sdata.dim, sdata.scale);
 
-    //#define CHECK_E
+    #define CHECK_E
     #ifdef CHECK_E
     {
         cl::buffer buf(ctx);
