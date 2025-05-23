@@ -269,11 +269,11 @@ void count_particles_per_cell(execution_context& ectx, std::array<buffer<valuef>
     cell_counts.atom_add_e(idx, 1);
 }
 
-void memory_allocate(execution_context& ectx, buffer_mut<valuei> counts, buffer_mut<valuei> memory_ptrs, buffer_mut<valuei> memory_allocator, literal<value<size_t>> work_size)
+void memory_allocate(execution_context& ectx, buffer_mut<valuei> counts, buffer_mut<valuei> memory_ptrs, buffer_mut<valuei> memory_allocator, literal<valuei> work_size)
 {
     using namespace single_source;
 
-    value<size_t> id = value_impl::get_global_id_us(0);
+    valuei id = value_impl::get_global_id(0);
     pin(id);
 
     if_e(id >= work_size.get(), [&]{
@@ -286,6 +286,8 @@ void memory_allocate(execution_context& ectx, buffer_mut<valuei> counts, buffer_
 
     if_e(my_count > 0, [&]{
         as_ref(my_memory) = memory_allocator.atom_add_e(valuei(0), my_count);
+
+        //print("My memory %i\n", declare_e(my_memory));
     });
 
     as_ref(memory_ptrs[id]) = declare_e(my_memory);
@@ -368,8 +370,12 @@ void calculate_intermediates_by_cells(execution_context& ectx, particle_base_arg
                 mut_v3f Si_acc = declare_mut_e(v3f{});
                 tensor<mut<valuef>, 6> Sij_acc  = declare_mut_e(tensor<valuef, 6>{});
 
+                /*if_e(num > 0, [&]{
+                    print("Count per cell %i pos %i %i %i memory %i\n", num, offset.x(), offset.y(), offset.z(), memory_offset);
+                });*/
+
                 for_e(idx < num, assign_b(idx, idx+1), [&]{
-                    valuei particle_id = declare_e(idx) + memory_offset;
+                    valuei particle_id = particle_ids[declare_e(idx) + memory_offset];
                     pin(particle_id);
 
                     v3f position = particles_in.get_position((value<size_t>)particle_id);
@@ -1376,13 +1382,15 @@ void particle_plugin::calculate_intermediates(cl::context ctx, cl::command_queue
         particle_ids.set_to_zero(cqueue);
         memory_allocation_count.set_to_zero(cqueue);
 
+        cl_int cells = dim.x() * dim.y() * dim.z();
+
         cl::args args;
         args.push_back(memory_counts);
         args.push_back(memory_ptrs);
         args.push_back(memory_allocation_count);
-        args.push_back(count);
+        args.push_back(cells);
 
-        cqueue.exec("memory_allocate", args, {count}, {128});
+        cqueue.exec("memory_allocate", args, {cells}, {128});
     }
 
     {
