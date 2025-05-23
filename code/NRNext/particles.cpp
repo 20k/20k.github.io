@@ -243,6 +243,79 @@ void sum_E(execution_context& ectx,
     sum.atom_add_e(0, as_uint);
 }
 
+void count_particles_per_cell(execution_context& ectx, std::array<buffer<valuef>, 3> pos, buffer_mut<valuei> cell_counts, literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count)
+{
+    using namespace single_source;
+
+    value<size_t> id = value_impl::get_global_id_us(0);
+    pin(id);
+
+    if_e(id >= particle_count.get(), [&]{
+        return_e();
+    });
+
+    v3f world_pos = {pos[0][id], pos[1][id], pos[2][id]};
+    pin(world_pos);
+
+    v3f grid_posf = world_to_grid(world_pos, dim.get(), scale.get());
+    v3i grid_pos = (v3i)floor(grid_posf);
+
+    grid_pos = clamp(grid_pos, (v3i){0,0,0}, dim.get() - 1);
+
+    valuei idx = grid_pos.z() * dim.get().x() * dim.get().y() + grid_pos.y() * dim.get().x() + grid_pos.x();
+
+    cell_counts.atom_add_b(idx, 1);
+}
+
+/*__kernel
+void memory_allocate(__global ITYPE* counts, __global ITYPE* memory_ptrs, __global ITYPE* memory_allocator, ITYPE max_memory, ulong work_size)
+{
+    size_t index = get_global_id(0);
+
+    if(index >= work_size)
+        return;
+
+    ITYPE my_count = counts[index];
+
+    ITYPE my_memory = 0;
+
+    if(my_count > 0)
+        my_memory = AADD(memory_allocator, my_count);
+
+    if(my_memory + my_count > max_memory)
+    {
+        printf("Overflow in allocate in initial conditions\n");
+        my_memory = 0;
+    }
+
+    memory_ptrs[index] = my_memory;
+    counts[index] = 0;
+}*/
+
+void memory_allocate(execution_context& ectx, buffer_mut<valuei> counts, buffer_mut<valuei> memory_ptrs, buffer_mut<valuei> memory_allocator, literal<value<size_t>> work_size)
+{
+    using namespace single_source;
+
+    value<size_t> id = value_impl::get_global_id_us(0);
+    pin(id);
+
+    if_e(id >= work_size.get(), [&]{
+        return_e();
+    });
+
+    valuei my_count = counts[id];
+
+    mut<valuei> my_memory = declare_mut_e(valuei(0));
+
+    if_e(my_count > 0, [&]{
+        as_ref(my_memory) = memory_allocator.atom_add_e(valuei(0), my_count);
+    });
+
+    as_ref(memory_ptrs[id]) = declare_e(my_memory);
+    as_ref(counts[id]) = valuei(0);
+}
+
+
 void calculate_particle_intermediates(execution_context& ectx,
                                       particle_base_args<buffer<valuef>> particles_in,
                                       buffer<valuef> lorentz_in,
