@@ -163,6 +163,43 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
     }
 }
 
+void for_each_dirac2(v3i cell, v3i dim, auto&& func)
+{
+    using namespace single_source;
+
+    ///minimum perf floor is 190, and that's achieved with radius_cells = 0
+    int radius_cells = 1;
+
+    if(radius_cells > 0)
+    {
+        //The appropriate modification is rightwards + 1, leftwards + 0
+        int spread = radius_cells + 1;
+
+        mut<valuei> z = declare_mut_e(valuei(-radius_cells));
+
+        for_e(z <= spread, assign_b(z, z+1), [&]{
+            mut<valuei> y = declare_mut_e(valuei(-radius_cells));
+
+            for_e(y <= spread, assign_b(y, y+1), [&]{
+                mut<valuei> x = declare_mut_e(valuei(-radius_cells));
+
+                for_e(x <= spread, assign_b(x, x+1), [&]{
+                    v3i offset = {declare_e(x), declare_e(y), declare_e(z)};
+                    offset += cell;
+                    offset = clamp(offset, (v3i){0,0,0}, dim - 1);
+                    pin(offset);
+
+                    func(offset, radius_cells);
+                });
+            });
+        });
+    }
+    else
+    {
+        func(cell, radius_cells);
+    }
+}
+
 //https://arxiv.org/pdf/1611.07906 16
 void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_args<buffer<valuef>> particles_in,
                                        buffer_mut<valuei64> nonconformal_E_out,
@@ -342,122 +379,115 @@ void calculate_intermediates_by_cells(execution_context& ectx, particle_base_arg
     pin(pos);
 
     ///minimum perf floor is 190, and that's achieved with radius_cells = 0
-    int radius_cells = 1;
+    for_each_dirac2(pos, dim.get(), [&](v3i offset, int radius_cells)
+    {
+        valuei memory_offset = memory_ptrs[offset, dim.get()];
+        valuei num = counts[offset, dim.get()];
 
-    //The appropriate modification is rightwards + 1, leftwards + 0
-    int spread = radius_cells + 1;
+        mut<valuei> idx = declare_mut_e(valuei(0));
 
-    mut<valuei> z = declare_mut_e(valuei(-radius_cells));
+        mut<valuef> E_acc = declare_mut_e(valuef(0.f));
+        mut_v3f Si_acc = declare_mut_e(v3f{});
+        tensor<mut<valuef>, 6> Sij_acc  = declare_mut_e(tensor<valuef, 6>{});
 
-    for_e(z <= spread, assign_b(z, z+1), [&]{
-        mut<valuei> y = declare_mut_e(valuei(-radius_cells));
+        /*if_e(num > 0, [&]{
+            print("Count per cell %i pos %i %i %i memory %i\n", num, offset.x(), offset.y(), offset.z(), memory_offset);
+        });*/
 
-        for_e(y <= spread, assign_b(y, y+1), [&]{
-            mut<valuei> x = declare_mut_e(valuei(-radius_cells));
+        for_e(idx < num, assign_b(idx, idx+1), [&]{
+            valuei particle_id = particle_ids[declare_e(idx) + memory_offset];
+            pin(particle_id);
 
-            for_e(x <= spread, assign_b(x, x+1), [&]{
-                v3i offset = {declare_e(x), declare_e(y), declare_e(z)};
-                offset += pos;
-                offset = clamp(offset, (v3i){0,0,0}, dim.get() - 1);
-                pin(offset);
+            /*if_e(x == 0 && y == 0 && z == 0, [&]{
+                print("Particle %i\n", particle_id);
+            });*/
 
-                valuei memory_offset = memory_ptrs[offset, dim.get()];
-                valuei num = counts[offset, dim.get()];
+            v3f position = particles_in.get_position((value<size_t>)particle_id);
+            v3f velocity = particles_in.get_velocity((value<size_t>)particle_id);
+            valuef mass = particles_in.get_mass((value<size_t>)particle_id);
+            valuef lorentz = lorentz_in[particle_id];
 
-                mut<valuei> idx = declare_mut_e(valuei(0));
+            pin(position);
+            pin(velocity);
+            pin(mass);
+            pin(lorentz);
 
-                mut<valuef> E_acc = declare_mut_e(valuef(0.f));
-                mut_v3f Si_acc = declare_mut_e(v3f{});
-                tensor<mut<valuef>, 6> Sij_acc  = declare_mut_e(tensor<valuef, 6>{});
+            v3f fpos = world_to_grid(position, dim.get(), scale.get());
+            pin(fpos);
 
-                /*if_e(num > 0, [&]{
-                    print("Count per cell %i pos %i %i %i memory %i\n", num, offset.x(), offset.y(), offset.z(), memory_offset);
-                });*/
+            valuef dirac = get_dirac3(dirac_delta<valuef>, (v3f)offset, fpos, radius_cells, scale.get());
+            pin(dirac);
 
-                for_e(idx < num, assign_b(idx, idx+1), [&]{
-                    valuei particle_id = particle_ids[declare_e(idx) + memory_offset];
-                    pin(particle_id);
+            if_e(dirac > 0, [&]{
+                valuef E = mass * lorentz * dirac;
+                v3f Ji = mass * velocity * dirac;
 
-                    v3f position = particles_in.get_position((value<size_t>)particle_id);
-                    v3f velocity = particles_in.get_velocity((value<size_t>)particle_id);
-                    valuef mass = particles_in.get_mass((value<size_t>)particle_id);
-                    valuef lorentz = lorentz_in[particle_id];
+                print("Dirac %f fpos %f %f %f offset %i %i %i scale %f\n", dirac, fpos.x(), fpos.y(), fpos.z(), offset.x(), offset.y(), offset.z(), scale.get());
 
-                    pin(position);
-                    pin(velocity);
-                    pin(mass);
-                    pin(lorentz);
+                //print("cE %f\n", E);
 
-                    v3f fpos = world_to_grid(position, dim.get(), scale.get());
+                tensor<valuef, 3, 3> Sij;
 
-                    valuef dirac = get_dirac3(dirac_delta<valuef>, (v3f)offset, fpos, radius_cells, scale.get());
-                    pin(dirac);
-
-                    if_e(dirac > 0, [&]{
-                        valuef E = mass * lorentz * dirac;
-                        v3f Ji = mass * velocity * dirac;
-
-                        tensor<valuef, 3, 3> Sij;
-
-                        for(int i=0; i < 3; i++)
-                        {
-                            for(int j=0; j < 3; j++)
-                            {
-                                Sij[i, j] = (mass * velocity[i] * velocity[j] / lorentz) * dirac;
-                            }
-                        }
-
-                        std::array<valuef, 6> Sij_sym = extract_symmetry(Sij);
-
-                        as_ref(E_acc) += E;
-
-                        for(int i=0; i < 3; i++)
-                            as_ref(Si_acc[i]) += Ji[i];
-
-                        for(int i=0; i < 6; i++)
-                            as_ref(Sij_acc[i]) += Sij_sym[i];
-                    });
-                });
-
-                if_e(E_acc > 0, [&]{
-                    auto scale = [&](valuef in)
+                for(int i=0; i < 3; i++)
+                {
+                    for(int j=0; j < 3; j++)
                     {
-                        valued in_d = (valued)in;
-                        valued in_scaled = in_d * fixed_scale.get();
+                        Sij[i, j] = (mass * velocity[i] * velocity[j] / lorentz) * dirac;
+                    }
+                }
 
-                        return (valuei64)round((valuef)in_scaled);
-                    };
+                std::array<valuef, 6> Sij_sym = extract_symmetry(Sij);
 
-                    valuei64 E_scaled = scale(declare_e(E_acc));
+                as_ref(E_acc) += E;
 
-                    tensor<valuei64, 3> Si_scaled;
+                for(int i=0; i < 3; i++)
+                    as_ref(Si_acc[i]) += Ji[i];
 
-                    for(int i=0; i < 3; i++)
-                        Si_scaled[i] = scale(declare_e(Si_acc[i]));
-
-                    std::array<valuei64, 6> Sij_scaled;
-
-                    for(int i=0; i < 6; i++)
-                        Sij_scaled[i] = scale(declare_e(Sij_acc[i]));
-
-                    ///[offset, dim.get()]
-
-                    valuei grid_idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
-
-                    valuei64 val = out.E.atom_add_e(grid_idx, E_scaled);
-
-                    if_e(val < 0, [&]{
-                        print("Error in particle dynamics\n");
-                    });
-
-                    for(int i=0; i < 3; i++)
-                        out.Si_raised[i].atom_add_e(grid_idx, Si_scaled[i]);
-
-                    for(int i=0; i < 6; i++)
-                        out.Sij_raised[i].atom_add_e(grid_idx, Sij_scaled[i]);
-                });
+                for(int i=0; i < 6; i++)
+                    as_ref(Sij_acc[i]) += Sij_sym[i];
             });
         });
+
+        if_e(E_acc > 0, [&]{
+            print("Total contribution %f\n", as_constant(E_acc));
+
+            auto scale = [&](valuef in)
+            {
+                valued in_d = (valued)in;
+                valued in_scaled = in_d * fixed_scale.get();
+
+                return (valuei64)round((valuef)in_scaled);
+            };
+
+            valuei64 E_scaled = scale(declare_e(E_acc));
+
+            tensor<valuei64, 3> Si_scaled;
+
+            for(int i=0; i < 3; i++)
+                Si_scaled[i] = scale(declare_e(Si_acc[i]));
+
+            std::array<valuei64, 6> Sij_scaled;
+
+            for(int i=0; i < 6; i++)
+                Sij_scaled[i] = scale(declare_e(Sij_acc[i]));
+
+            ///[offset, dim.get()]
+
+            valuei grid_idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
+
+            valuei64 val = out.E.atom_add_e(grid_idx, E_scaled);
+
+            if_e(val < 0, [&]{
+                print("Error in particle dynamics\n");
+            });
+
+            for(int i=0; i < 3; i++)
+                out.Si_raised[i].atom_add_e(grid_idx, Si_scaled[i]);
+
+            for(int i=0; i < 6; i++)
+                out.Sij_raised[i].atom_add_e(grid_idx, Sij_scaled[i]);
+        });
+
     });
 }
 
@@ -498,6 +528,10 @@ void calculate_particle_intermediates(execution_context& ectx,
     for_each_dirac(cell, dim.get(), scale.get(), pos, [&](v3i offset, valuef dirac) {
         valuef E = mass * lorentz * dirac;
         v3f Ji = mass * vel * dirac;
+
+        print("Dirac %f offset %i %i %i fpos %f %f %f scale %f\n", dirac, offset.x(), offset.y(), offset.z(), fcell.x(), fcell.y(), fcell.z(), scale.get());
+
+        print("Standard E %f\n", E);
 
         tensor<valuef, 3, 3> Sij;
 
@@ -1349,6 +1383,8 @@ std::vector<cl::buffer> particle_utility_buffers::get_buffers()
 
 void particle_plugin::calculate_intermediates(cl::context ctx, cl::command_queue cqueue, std::vector<cl::buffer> bssn_in, particle_buffers& p_in, particle_utility_buffers& util_out, t3i dim, float scale)
 {
+    printf("Intermediates\n");
+
     //void count_particles_per_cell(execution_context& ectx, std::array<buffer<valuef>, 3> pos, buffer_mut<valuei> cell_counts, literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count)
     //void memory_allocate(execution_context& ectx, buffer_mut<valuei> counts, buffer_mut<valuei> memory_ptrs, buffer_mut<valuei> memory_allocator, literal<value<size_t>> work_size)
     //void assign_particles_to_cells(execution_context& ectx, std::array<buffer<valuef>, 3> pos, buffer_mut<valuei> collected_ids, buffer_mut<valuei> memory_ptrs, buffer_mut<valuei> cell_counts, literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count)
@@ -1365,6 +1401,7 @@ void particle_plugin::calculate_intermediates(cl::context ctx, cl::command_queue
 
     double fixed_scale = get_fixed_scale(total_mass, count);
 
+    #if 1
     {
         memory_counts.set_to_zero(cqueue);
 
@@ -1430,6 +1467,7 @@ void particle_plugin::calculate_intermediates(cl::context ctx, cl::command_queue
 
         cqueue.exec("calculate_intermediates_by_cells", args, {evolve_length}, {128});
     }
+    #endif
 
     #if 0
     {
