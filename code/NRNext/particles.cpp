@@ -1326,6 +1326,15 @@ std::vector<cl::buffer> particle_utility_buffers::get_buffers()
 
 void particle_plugin::calculate_intermediates(cl::context ctx, cl::command_queue cqueue, std::vector<cl::buffer> bssn_in, particle_buffers& p_in, particle_utility_buffers& util_out, t3i dim, float scale)
 {
+    //void count_particles_per_cell(execution_context& ectx, std::array<buffer<valuef>, 3> pos, buffer_mut<valuei> cell_counts, literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count)
+    //void memory_allocate(execution_context& ectx, buffer_mut<valuei> counts, buffer_mut<valuei> memory_ptrs, buffer_mut<valuei> memory_allocator, literal<value<size_t>> work_size)
+    //void assign_particles_to_cells(execution_context& ectx, std::array<buffer<valuef>, 3> pos, buffer_mut<valuei> collected_ids, buffer_mut<valuei> memory_ptrs, buffer_mut<valuei> cell_counts, literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count)
+    /*void calculate_intermediates_by_cells(execution_context& ectx, particle_base_args<buffer<valuef>> particles_in, buffer<valuef> lorentz_in, particle_utility_args<buffer_mut<valuei64>> out,
+                                      literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count,
+                                      literal<valued> fixed_scale,
+                                      buffer<valuei> particle_ids, buffer<valuei> memory_ptrs, buffer<valuei> counts,
+                                      literal<valuei> evolve_length)*/
+
     for(auto& i : particle_temp)
         i.set_to_zero(cqueue);
 
@@ -1333,6 +1342,71 @@ void particle_plugin::calculate_intermediates(cl::context ctx, cl::command_queue
 
     double fixed_scale = get_fixed_scale(total_mass, count);
 
+    {
+        memory_counts.set_to_zero(cqueue);
+
+        cl::args args;
+        args.push_back(p_in.positions[0], p_in.positions[1], p_in.positions[2]);
+        args.push_back(memory_counts);
+        args.push_back(dim);
+        args.push_back(scale);
+        args.push_back(count);
+
+        cqueue.exec("count_particles_per_cell", args, {count}, {128});
+    }
+
+    {
+        memory_ptrs.set_to_zero(cqueue);
+        particle_ids.set_to_zero(cqueue);
+        memory_allocation_count.set_to_zero(cqueue);
+
+        cl::args args;
+        args.push_back(memory_counts);
+        args.push_back(memory_ptrs);
+        args.push_back(memory_allocation_count);
+        args.push_back(count);
+
+        cqueue.exec("memory_allocate", args, {count}, {128});
+    }
+
+    {
+        cl::args args;
+        args.push_back(p_in.positions[0], p_in.positions[1], p_in.positions[2]);
+        args.push_back(particle_ids);
+        args.push_back(memory_ptrs);
+        args.push_back(memory_counts);
+        args.push_back(dim);
+        args.push_back(scale);
+        args.push_back(count);
+
+        cqueue.exec("assign_particles_to_cells", args, {count}, {128});
+    }
+
+    {
+        cl_int evolve_length = get_evolve_size_with_boundary(dim, 2);
+
+        cl::args args;
+        args.push_back(p_in.positions[0], p_in.positions[1], p_in.positions[2]);
+        args.push_back(p_in.velocities[0], p_in.velocities[1], p_in.velocities[2]);
+        args.push_back(p_in.masses);
+        args.push_back(lorentz_storage);
+
+        for(auto& i : particle_temp)
+            args.push_back(i);
+
+        args.push_back(dim);
+        args.push_back(scale);
+        args.push_back(count);
+        args.push_back(fixed_scale);
+        args.push_back(particle_ids);
+        args.push_back(memory_ptrs);
+        args.push_back(memory_counts);
+        args.push_back(evolve_length);
+
+        cqueue.exec("calculate_intermediates_by_cells", args, {evolve_length}, {128});
+    }
+
+    #if 0
     {
         cl::args args;
 
@@ -1351,6 +1425,7 @@ void particle_plugin::calculate_intermediates(cl::context ctx, cl::command_queue
 
         cqueue.exec("calculate_particle_intermediates", args, {count}, {128});
     }
+    #endif
 
     //void fixed_to_float(execution_context& ectx, buffer<valuei64> in, buffer<valuef> out, literal<valued> fixed_scale, literal<valuei> count)
     {
