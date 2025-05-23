@@ -360,6 +360,10 @@ void calculate_intermediates_by_cells(execution_context& ectx, particle_base_arg
     pin(memory_offset);
     pin(num);
 
+    if_e(num == 0, [&]{
+        return_e();
+    });
+
     auto alloc = []()
     {
         return declare_mut_array_e(4*4*4, std::vector<valuef>{});
