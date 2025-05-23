@@ -419,42 +419,43 @@ void calculate_intermediates_by_cells(execution_context& ectx, particle_base_arg
                     });
                 });
 
+                if_e(E_acc > 0, [&]{
+                    auto scale = [&](valuef in)
+                    {
+                        valued in_d = (valued)in;
+                        valued in_scaled = in_d * fixed_scale.get();
 
-                auto scale = [&](valuef in)
-                {
-                    valued in_d = (valued)in;
-                    valued in_scaled = in_d * fixed_scale.get();
+                        return (valuei64)round((valuef)in_scaled);
+                    };
 
-                    return (valuei64)round((valuef)in_scaled);
-                };
+                    valuei64 E_scaled = scale(declare_e(E_acc));
 
-                valuei64 E_scaled = scale(declare_e(E_acc));
+                    tensor<valuei64, 3> Si_scaled;
 
-                tensor<valuei64, 3> Si_scaled;
+                    for(int i=0; i < 3; i++)
+                        Si_scaled[i] = scale(declare_e(Si_acc[i]));
 
-                for(int i=0; i < 3; i++)
-                    Si_scaled[i] = scale(declare_e(Si_acc[i]));
+                    std::array<valuei64, 6> Sij_scaled;
 
-                std::array<valuei64, 6> Sij_scaled;
+                    for(int i=0; i < 6; i++)
+                        Sij_scaled[i] = scale(declare_e(Sij_acc[i]));
 
-                for(int i=0; i < 6; i++)
-                    Sij_scaled[i] = scale(declare_e(Sij_acc[i]));
+                    ///[offset, dim.get()]
 
-                ///[offset, dim.get()]
+                    valuei grid_idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
 
-                valuei grid_idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
+                    valuei64 val = out.E.atom_add_e(grid_idx, E_scaled);
 
-                valuei64 val = out.E.atom_add_e(grid_idx, E_scaled);
+                    if_e(val < 0, [&]{
+                        print("Error in particle dynamics\n");
+                    });
 
-                if_e(val < 0, [&]{
-                    print("Error in particle dynamics\n");
+                    for(int i=0; i < 3; i++)
+                        out.Si_raised[i].atom_add_e(grid_idx, Si_scaled[i]);
+
+                    for(int i=0; i < 6; i++)
+                        out.Sij_raised[i].atom_add_e(grid_idx, Sij_scaled[i]);
                 });
-
-                for(int i=0; i < 3; i++)
-                    out.Si_raised[i].atom_add_e(grid_idx, Si_scaled[i]);
-
-                for(int i=0; i < 6; i++)
-                    out.Sij_raised[i].atom_add_e(grid_idx, Sij_scaled[i]);
             });
         });
     });
