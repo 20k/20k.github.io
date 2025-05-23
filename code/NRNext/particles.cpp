@@ -360,6 +360,101 @@ void calculate_intermediates_by_cells(execution_context& ectx, particle_base_arg
     pin(memory_offset);
     pin(num);
 
+    mut<valuei> idx = declare_mut_e(valuei(0));
+
+    for_e(idx < num, assign_b(idx, idx+1), [&]{
+        valuei particle_id = particle_ids[declare_e(idx) + memory_offset];
+        pin(particle_id);
+
+        v3f position = particles_in.get_position((value<size_t>)particle_id);
+        pin(position);
+
+        v3f velocity = particles_in.get_velocity((value<size_t>)particle_id);
+        valuef mass = particles_in.get_mass((value<size_t>)particle_id);
+        valuef lorentz = lorentz_in[particle_id];
+
+        pin(velocity);
+        pin(mass);
+        pin(lorentz);
+
+        v3f fpos = world_to_grid(position, dim.get(), scale.get());
+        pin(fpos);
+
+        for_each_dirac_outer(pos, dim.get(), [&](v3i offset, int radius_cells) {
+            valuef dirac = get_dirac3(dirac_delta<valuef>, (v3f)offset, fpos, radius_cells, scale.get());
+            pin(dirac);
+
+            mut<valuef> E_acc = declare_mut_e(valuef(0.f));
+            mut_v3f Si_acc = declare_mut_e(v3f{});
+            tensor<mut<valuef>, 6> Sij_acc  = declare_mut_e(tensor<valuef, 6>{});
+
+            if_e(dirac > 0, [&]{
+
+                valuef E = mass * lorentz * dirac;
+                v3f Ji = mass * velocity * dirac;
+
+                tensor<valuef, 3, 3> Sij;
+
+                for(int i=0; i < 3; i++)
+                {
+                    for(int j=0; j < 3; j++)
+                    {
+                        Sij[i, j] = (mass * velocity[i] * velocity[j] / lorentz) * dirac;
+                    }
+                }
+
+                std::array<valuef, 6> Sij_sym = extract_symmetry(Sij);
+
+                as_ref(E_acc) += E;
+
+                for(int i=0; i < 3; i++)
+                    as_ref(Si_acc[i]) += Ji[i];
+
+                for(int i=0; i < 6; i++)
+                    as_ref(Sij_acc[i]) += Sij_sym[i];
+            });
+
+            if_e(E_acc > 0, [&]{
+                auto scale = [&](valuef in)
+                {
+                    valued in_d = (valued)in;
+                    valued in_scaled = in_d * fixed_scale.get();
+
+                    return (valuei64)round((valuef)in_scaled);
+                };
+
+                valuei64 E_scaled = scale(declare_e(E_acc));
+
+                tensor<valuei64, 3> Si_scaled;
+
+                for(int i=0; i < 3; i++)
+                    Si_scaled[i] = scale(declare_e(Si_acc[i]));
+
+                std::array<valuei64, 6> Sij_scaled;
+
+                for(int i=0; i < 6; i++)
+                    Sij_scaled[i] = scale(declare_e(Sij_acc[i]));
+
+                ///[offset, dim.get()]
+
+                valuei grid_idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
+
+                valuei64 val = out.E.atom_add_e(grid_idx, E_scaled);
+
+                if_e(val < 0, [&]{
+                    print("Error in particle dynamics\n");
+                });
+
+                for(int i=0; i < 3; i++)
+                    out.Si_raised[i].atom_add_e(grid_idx, Si_scaled[i]);
+
+                for(int i=0; i < 6; i++)
+                    out.Sij_raised[i].atom_add_e(grid_idx, Sij_scaled[i]);
+            });
+        });
+    });
+
+    #ifdef MODE_1
     for_each_dirac_outer(pos, dim.get(), [&](v3i offset, int radius_cells)
     {
         mut<valuei> idx = declare_mut_e(valuei(0));
@@ -393,10 +488,6 @@ void calculate_intermediates_by_cells(execution_context& ectx, particle_base_arg
                 valuef E = mass * lorentz * dirac;
                 v3f Ji = mass * velocity * dirac;
 
-                //print("Dirac %f offset %i %i %i fpos %f %f %f scale %f num %i\n", dirac, offset.x(), offset.y(), offset.z(), fpos.x(), fpos.y(), fpos.z(), scale.get(), num);
-
-                //print("cE %f\n", E);
-
                 tensor<valuef, 3, 3> Sij;
 
                 for(int i=0; i < 3; i++)
@@ -420,8 +511,6 @@ void calculate_intermediates_by_cells(execution_context& ectx, particle_base_arg
         });
 
         if_e(E_acc > 0, [&]{
-            //print("Total contribution %f\n", as_constant(E_acc));
-
             auto scale = [&](valuef in)
             {
                 valued in_d = (valued)in;
@@ -458,8 +547,8 @@ void calculate_intermediates_by_cells(execution_context& ectx, particle_base_arg
             for(int i=0; i < 6; i++)
                 out.Sij_raised[i].atom_add_e(grid_idx, Sij_scaled[i]);
         });
-
     });
+    #endif
 }
 
 void calculate_particle_intermediates(execution_context& ectx,
