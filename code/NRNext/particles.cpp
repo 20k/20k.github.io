@@ -6,66 +6,36 @@
 #include "raytrace_init.hpp"
 #include "interpolation.hpp"
 #include "../common/vec/dual.hpp"
+#include <vec/stdmath.hpp>
 
 template<typename T>
 using dual = dual_types::dual_v<T>;
 
 ///https://arxiv.org/pdf/1611.07906.pdf (20)
-//3d
-valuef dirac_delta_impl(const valuef& frac)
+template<typename T>
+T dirac_delta(const T& frac_0_1, const T& full_world_radius)
 {
-    using namespace single_source;
+    //frac is 0, 1
+    //but the dirac delta function really takes 0 -> 2
+    T frac = frac_0_1 * 2;
 
-    valuef result = 0;
+    T branch_1 = (1.f/4.f) * pow(2.f - frac, 3.f);
+    T branch_2 = 1.f - (3.f/2.f) * pow(frac, 2.f) + (3.f/4.f) * pow(frac, 3.f);
 
-    valuef branch_1 = (1.f/4.f) * pow(2.f - frac, 3.f);
-    valuef branch_2 = 1.f - (3.f/2.f) * pow(frac, 2.f) + (3.f/4.f) * pow(frac, 3.f);
+    T mult = 1/(M_PI * pow(full_world_radius/2, 3.f));
 
-    result = ternary(frac <= 2, branch_1, 0.f);
-    pin(result);
-    result = ternary(frac <= 1, branch_2, result);
-    pin(result);
-    return result;
-}
-
-valuef dirac_delta_v(const valuef& r)
-{
-    return dirac_delta_impl(r);
-}
-
-//3d
-float dirac_delta_f(const float& frac)
-{
-    float branch_1 = (1.f/4.f) * pow(2.f - frac, 3.f);
-    float branch_2 = 1.f - (3.f/2.f) * pow(frac, 2.f) + (3.f/4.f) * pow(frac, 3.f);
-
-    if(frac <= 1)
-        return branch_2;
-    if(frac <= 2)
-        return branch_1;
-
-    return 0.f;
-}
-
-//1d
-float dirac_delta_1d(const float& r)
-{
-    if(r >= 1)
-        return 0.f;
-
-    return 1 - r;
+    T result = stdmath::uternary(frac <= 2, branch_1, T{0.f});
+    result = stdmath::uternary(frac <= 1, branch_2, result);
+    return mult * result;
 }
 
 template<typename T>
 inline
 T get_dirac(auto&& func, tensor<T, 3> cell_pos, tensor<T, 3> dirac_location, T radius_cells, T scale)
 {
-    T hradius = (radius_cells/2.f);
-    T prefix = 1/(M_PI * pow(radius_cells * scale, 3.f));
-
     //#define GET_DIRAC1_STANDARD
     #ifdef GET_DIRAC1_STANDARD
-    return prefix * func((cell_pos - dirac_location).length() / radius_cells);
+    return func((cell_pos - dirac_location).length() / radius_cells, radius_cells * scale);
     #endif // GET_DIRAC_STANDARD
 
     #define GET_DIRAC1_CORRECTED
@@ -75,13 +45,13 @@ T get_dirac(auto&& func, tensor<T, 3> cell_pos, tensor<T, 3> dirac_location, T r
     auto im1 = cell_pos - scale3 / 2;
     auto ip1 = cell_pos + scale3 / 2;
 
-    return prefix * integrate_3d_trapezoidal([&](T x, T y, T z)
+    return integrate_3d_trapezoidal([&](T x, T y, T z)
     {
         tensor<T, 3> pos = {x, y, z};
 
         T frac = (pos - dirac_location).length() / radius_cells;
 
-        return func(frac);
+        return func(frac, radius_cells * scale);
     }, 2, ip1, im1);
     #endif // GET_DIRAC_CORRECTED
 }
@@ -91,14 +61,11 @@ valuef get_dirac3(auto&& func, const v3f& cell_pos, const v3f& dirac_location, c
 {
     using namespace single_source;
 
-    valuef hradius = (radius_cells / 2.f);
-    valuef prefix = 1/(M_PI * pow(radius_cells * scale, 3.f));
-
     //#define GET_DIRAC_STANDARD
     #ifdef GET_DIRAC_STANDARD
     valuef r = (cell_pos - dirac_location).length();
     //pin(r);
-    return prefix * func(r / radius_cells);
+    return func(r / radius_cells, radius_cells * scale);
     #endif // GET_DIRAC_STANDARD
 
     #define GET_DIRAC_CORRECTED
@@ -110,7 +77,7 @@ valuef get_dirac3(auto&& func, const v3f& cell_pos, const v3f& dirac_location, c
     pin(im1);
     pin(ip1);
 
-    return prefix * integrate_3d_trapezoidal([&](const valuef& x, const valuef& y, const valuef& z)
+    return integrate_3d_trapezoidal([&](const valuef& x, const valuef& y, const valuef& z)
     {
         tensor<valuef, 3> pos = {x, y, z};
         pin(pos);
@@ -118,9 +85,9 @@ valuef get_dirac3(auto&& func, const v3f& cell_pos, const v3f& dirac_location, c
         valuef r = (pos - dirac_location).length();
         pin(r);
 
-        valuef frac = r / hradius;
+        valuef frac = r / radius_cells;
 
-        valuef out = func(frac);
+        valuef out = func(frac, radius_cells * scale);
         pin(out);
         return out;
     }, 2, ip1, im1);
@@ -159,7 +126,7 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
     using namespace single_source;
 
     ///minimum perf floor is 190, and that's achieved with radius_cells = 0
-    int radius_cells = 1;
+    int radius_cells = 5;
 
     if(radius_cells > 0)
     {
@@ -179,7 +146,7 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
                     offset += cell;
                     pin(offset);
 
-                    valuef dirac = get_dirac3(dirac_delta_v, (v3f)offset, fpos, radius_cells, scale);
+                    valuef dirac = get_dirac3(dirac_delta<valuef>, (v3f)offset, fpos, radius_cells, scale);
                     pin(dirac);
 
                     if_e(dirac > 0, [&]{
@@ -875,8 +842,8 @@ void dirac_test()
 {
     t3f dirac_location = {0, 0, 0.215f};
 
-    int grid_size = 5;
-    float world_width = 5;
+    int grid_size = 14;
+    float world_width = 50;
     float scale = (world_width / (grid_size - 1));
 
     std::vector<float> values;
@@ -914,9 +881,9 @@ void dirac_test()
 
                 float d2 = ((t3f)gpos - dirac_grid).length();
 
-                printf("Dpos %f %f\n", d1 / 1.f, d2 / radius_cells);
+                //printf("Dpos %f %f\n", d1 / 1.f, d2 / radius_cells);
 
-                float dirac = get_dirac(dirac_delta_f, (t3f)gpos, dirac_grid, radius_cells, scale);
+                float dirac = get_dirac(dirac_delta<float>, (t3f)gpos, dirac_grid, radius_cells, scale);
 
                 #endif
 
