@@ -1791,10 +1791,10 @@ initial_params get_initial_params()
     }
     #endif
 
+    float radial_pos = geometric_to_msol(1000 * 54.6/2, 1);
+
     #define BLACK_HOLE
     #ifdef BLACK_HOLE
-
-    float radial_pos = geometric_to_msol(1000 * 54.6/2, 1);
     int N = 1000;
     double M = 1;
 
@@ -1808,22 +1808,45 @@ initial_params get_initial_params()
 
         t3f pos = {(x - 0.5f) * 2 * radial_pos, (y - 0.5f) * 2 * radial_pos, (z - 0.5f) * 2 * radial_pos};
 
-        float length = pos.xy().length();
+        pos = pos.norm() * radial_pos;
 
-        //if(length >= radial_pos)
-        //    continue;
+        t3f vel = {0,0,0};
 
-        pos = pos.norm() * radial_pos * 0.2;
+        part.add(pos, vel, lM);
+    }
+    #endif
+
+    initial_params init;
+    init.N = 2;
+
+    //#define NEGATIVE_MASS
+    #ifdef NEGATIVE_MASS
+    int N = 10;
+    double M = -0.1;
+
+    for(int i=0; i < N; i++)
+    {
+        double lM = M/N;
+
+        double x = uint64_to_double(xoshiro256ss(st));
+        double y = uint64_to_double(xoshiro256ss(st));
+        double z = uint64_to_double(xoshiro256ss(st));
+
+        t3f pos = {(x - 0.5f) * 2 * radial_pos, (y - 0.5f) * 2 * radial_pos, (z - 0.5f) * 2 * radial_pos};
+
+        pos = pos.norm() * radial_pos;
 
         t3f vel = {0,0,0};
 
         part.add(pos, vel, lM);
     }
 
+    black_hole_params p1;
+    p1.bare_mass = 1.1;
+    p1.linear_momentum = {0, 0, 0};
+    p1.position = {0, 0, 0};
+    init.add(p1);
     #endif
-
-    initial_params init;
-    init.N = 2;
 
     /*black_hole_params p1;
     p1.bare_mass = 1;
@@ -2193,7 +2216,7 @@ int main()
 
         win.display();
 
-        //std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
+        std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
 
         if(step)
             elapsed_t += timestep;
