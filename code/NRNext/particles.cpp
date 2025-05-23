@@ -144,6 +144,7 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
                 for_e(x <= spread, assign_b(x, x+1), [&]{
                     v3i offset = {declare_e(x), declare_e(y), declare_e(z)};
                     offset += cell;
+                    offset = clamp(offset, (v3i){0,0,0}, dim - 1);
                     pin(offset);
 
                     valuef dirac = get_dirac3(dirac_delta<valuef>, (v3f)offset, fpos, radius_cells, scale);
@@ -291,7 +292,6 @@ void memory_allocate(execution_context& ectx, buffer_mut<valuei> counts, buffer_
     as_ref(counts[id]) = valuei(0);
 }
 
-
 void assign_particles_to_cells(execution_context& ectx, std::array<buffer<valuef>, 3> pos, buffer_mut<valuei> collected_ids, buffer_mut<valuei> memory_ptrs, buffer_mut<valuei> cell_counts, literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count)
 {
     using namespace single_source;
@@ -321,6 +321,25 @@ void assign_particles_to_cells(execution_context& ectx, std::array<buffer<valuef
     as_ref(collected_ids[my_offset + cell_offset]) = (valuei)id;
 }
 
+void calculate_intermediates_by_cells(execution_context& ectx, particle_base_args<buffer<valuef>> particles_in, buffer<valuef> lorentz_in, particle_utility_args<buffer_mut<valuei64>> out,
+                                      literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count,
+                                      literal<valued> fixed_scale,
+                                      buffer<valuei> particle_ids, buffer<valuei> memory_ptrs, buffer<valuei> counts,
+                                      literal<valuei> evolve_length)
+{
+    using namespace single_source;
+
+    valuei id = value_impl::get_global_id(0);
+    pin(id);
+
+    if_e(id >= evolve_length.get(), [&]{
+        return_e();
+    });
+
+    v3i pos = get_coordinate_including_boundary(id, dim.get(), 2);
+
+
+}
 
 void calculate_particle_intermediates(execution_context& ectx,
                                       particle_base_args<buffer<valuef>> particles_in,
