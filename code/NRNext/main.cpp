@@ -1763,7 +1763,7 @@ initial_params get_initial_params()
 
     #define RANDOM_INIT
     #ifdef RANDOM_INIT
-    int N = 1000000;
+    int N = 5000000;
     double M = 1;
 
     for(int i=0; i < N; i++)
@@ -2216,7 +2216,7 @@ int main()
 
         win.display();
 
-        //std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
+        std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
 
         if(step)
             elapsed_t += timestep;

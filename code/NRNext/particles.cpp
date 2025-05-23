@@ -373,14 +373,7 @@ void calculate_intermediates_by_cells(execution_context& ectx, particle_base_arg
             pin(particle_id);
 
             v3f position = particles_in.get_position((value<size_t>)particle_id);
-            v3f velocity = particles_in.get_velocity((value<size_t>)particle_id);
-            valuef mass = particles_in.get_mass((value<size_t>)particle_id);
-            valuef lorentz = lorentz_in[particle_id];
-
             pin(position);
-            pin(velocity);
-            pin(mass);
-            pin(lorentz);
 
             v3f fpos = world_to_grid(position, dim.get(), scale.get());
             pin(fpos);
@@ -389,6 +382,14 @@ void calculate_intermediates_by_cells(execution_context& ectx, particle_base_arg
             pin(dirac);
 
             if_e(dirac > 0, [&]{
+                v3f velocity = particles_in.get_velocity((value<size_t>)particle_id);
+                valuef mass = particles_in.get_mass((value<size_t>)particle_id);
+                valuef lorentz = lorentz_in[particle_id];
+
+                pin(velocity);
+                pin(mass);
+                pin(lorentz);
+
                 valuef E = mass * lorentz * dirac;
                 v3f Ji = mass * velocity * dirac;
 
