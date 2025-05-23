@@ -119,51 +119,7 @@ valuef get_dirac3(auto&& func, const v3f& cell_pos, const v3f& dirac_location, c
 //sqrt(det(Yij)) = W^6^0.5
 //= W^3
 
-void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
-{
-    v3f fpos = world_to_grid(dirac_pos, dim, scale);
-
-    using namespace single_source;
-
-    ///minimum perf floor is 190, and that's achieved with radius_cells = 0
-    int radius_cells = 1;
-
-    if(radius_cells > 0)
-    {
-        //The appropriate modification is rightwards + 1, leftwards + 0
-        int spread = radius_cells + 1;
-
-        mut<valuei> z = declare_mut_e(valuei(-radius_cells));
-
-        for_e(z <= spread, assign_b(z, z+1), [&]{
-            mut<valuei> y = declare_mut_e(valuei(-radius_cells));
-
-            for_e(y <= spread, assign_b(y, y+1), [&]{
-                mut<valuei> x = declare_mut_e(valuei(-radius_cells));
-
-                for_e(x <= spread, assign_b(x, x+1), [&]{
-                    v3i offset = {declare_e(x), declare_e(y), declare_e(z)};
-                    offset += cell;
-                    offset = clamp(offset, (v3i){0,0,0}, dim - 1);
-                    pin(offset);
-
-                    valuef dirac = get_dirac3(dirac_delta<valuef>, (v3f)offset, fpos, radius_cells, scale);
-                    pin(dirac);
-
-                    if_e(dirac > 0, [&]{
-                        func(offset, dirac);
-                    });
-                });
-            });
-        });
-    }
-    else
-    {
-        func((v3i)floor(fpos), 1.f);
-    }
-}
-
-void for_each_dirac2(v3i cell, v3i dim, auto&& func)
+void for_each_dirac_outer(v3i cell, v3i dim, auto&& func)
 {
     using namespace single_source;
 
@@ -198,6 +154,26 @@ void for_each_dirac2(v3i cell, v3i dim, auto&& func)
     {
         func(cell, radius_cells);
     }
+}
+
+
+void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
+{
+    using namespace single_source;
+
+    v3f fpos = world_to_grid(dirac_pos, dim, scale);
+
+    auto func2 = [&](v3i offset, int radius_cells)
+    {
+        valuef dirac = get_dirac3(dirac_delta<valuef>, (v3f)offset, fpos, radius_cells, scale);
+        pin(dirac);
+
+        if_e(dirac > 0, [&]{
+            func(offset, dirac);
+        });
+    };
+
+    for_each_dirac_outer(cell, dim, func2);
 }
 
 //https://arxiv.org/pdf/1611.07906 16
@@ -384,7 +360,7 @@ void calculate_intermediates_by_cells(execution_context& ectx, particle_base_arg
     pin(memory_offset);
     pin(num);
 
-    for_each_dirac2(pos, dim.get(), [&](v3i offset, int radius_cells)
+    for_each_dirac_outer(pos, dim.get(), [&](v3i offset, int radius_cells)
     {
         mut<valuei> idx = declare_mut_e(valuei(0));
 
