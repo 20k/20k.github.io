@@ -843,7 +843,7 @@ void dirac_test()
     t3f dirac_location = {0, 0, 0.215f};
 
     int grid_size = 14;
-    float world_width = 50;
+    float world_width = 5;
     float scale = (world_width / (grid_size - 1));
 
     std::vector<float> values;
@@ -1280,15 +1280,8 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
 
     calculate_intermediates(ctx, cqueue, sdata.bssn_buffers, in, util_out, sdata.dim, sdata.scale);
 
-    #define CHECK_E
+    //#define CHECK_E
     #ifdef CHECK_E
-
-    /*void sum_E(execution_context& ectx,
-            literal<v3i> idim,
-            buffer<valuef> E_in,
-            literal<valuei> positions_length,
-            literal<valuef> scale, buffer_mut<value<std::int64_t>> sum)*/
-
     {
         cl::buffer buf(ctx);
         buf.alloc(sizeof(cl_long));
