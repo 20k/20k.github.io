@@ -268,31 +268,6 @@ void count_particles_per_cell(execution_context& ectx, std::array<buffer<valuef>
     cell_counts.atom_add_e(idx, 1);
 }
 
-/*__kernel
-void memory_allocate(__global ITYPE* counts, __global ITYPE* memory_ptrs, __global ITYPE* memory_allocator, ITYPE max_memory, ulong work_size)
-{
-    size_t index = get_global_id(0);
-
-    if(index >= work_size)
-        return;
-
-    ITYPE my_count = counts[index];
-
-    ITYPE my_memory = 0;
-
-    if(my_count > 0)
-        my_memory = AADD(memory_allocator, my_count);
-
-    if(my_memory + my_count > max_memory)
-    {
-        printf("Overflow in allocate in initial conditions\n");
-        my_memory = 0;
-    }
-
-    memory_ptrs[index] = my_memory;
-    counts[index] = 0;
-}*/
-
 void memory_allocate(execution_context& ectx, buffer_mut<valuei> counts, buffer_mut<valuei> memory_ptrs, buffer_mut<valuei> memory_allocator, literal<value<size_t>> work_size)
 {
     using namespace single_source;
