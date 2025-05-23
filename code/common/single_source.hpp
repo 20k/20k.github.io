@@ -1065,7 +1065,7 @@ namespace value_impl
             return "atomic_add(" + value_to_string(v.args.at(0)) + "+" + value_to_string(v.args.at(1)) + "," + value_to_string(v.args.at(2)) + ")";
         }
 
-        if(v.type == op::ATOM_XCHG)
+        if(v.type == op::ATOM_XCHG32)
         {
             return "atomic_xchg(" + value_to_string(v.args.at(0)) + "+" + value_to_string(v.args.at(1)) + "," + value_to_string(v.args.at(2)) + ")";
         }
