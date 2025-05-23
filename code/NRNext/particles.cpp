@@ -36,8 +36,6 @@ valuef dirac_delta_v(const valuef& r)
 //3d
 float dirac_delta_f(const float& frac)
 {
-    float result = 0;
-
     float branch_1 = (1.f/4.f) * pow(2.f - frac, 3.f);
     float branch_2 = 1.f - (3.f/2.f) * pow(frac, 2.f) + (3.f/4.f) * pow(frac, 3.f);
 
@@ -242,6 +240,40 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
 
         nonconformal_E_out.atom_add_e(idx, as_i64);
     });
+}
+
+void sum_E(execution_context& ectx,
+            literal<v3i> idim,
+            buffer<valuef> E_in,
+            literal<valuei> positions_length,
+            literal<valuef> scale, buffer_mut<value<std::int64_t>> sum)
+{
+    using namespace single_source;
+
+    valuei lid = value_impl::get_global_id(0);
+
+    pin(lid);
+
+    v3i dim = idim.get();
+
+    if_e(lid >= positions_length.get(), []{
+        return_e();
+    });
+
+    v3i pos = get_coordinate_including_boundary(lid, dim, 0);
+    pin(pos);
+
+    valuef E = E_in[pos, dim];
+
+    /*if_e(E != 0, [&]{
+        print("Hi E %f\n", E);
+    });*/
+
+    valued as_double = (valued)E * pow(10., 12.) * (valued)pow(scale.get(), 3.f);
+
+    value<std::int64_t> as_uint = (value<std::int64_t>)as_double;
+
+    sum.atom_add_e(0, as_uint);
 }
 
 void calculate_particle_intermediates(execution_context& ectx,
@@ -783,6 +815,10 @@ void boot_particle_kernels(cl::context ctx)
     cl::async_build_and_cache(ctx, [&]{
         return value_impl::make_function(evolve_particles<true>, "evolve_particles_base");
     }, {"evolve_particles_base"});
+
+    cl::async_build_and_cache(ctx, [&]{
+        return value_impl::make_function(sum_E, "sum_E");
+    }, {"sum_E"});
 }
 
 double get_fixed_scale(double total_mass, int64_t particle_count)
@@ -1276,4 +1312,36 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
     particle_utility_buffers& util_out = *dynamic_cast<particle_utility_buffers*>(sdata.utility_buffers);
 
     calculate_intermediates(ctx, cqueue, sdata.bssn_buffers, in, util_out, sdata.dim, sdata.scale);
+
+    #define CHECK_E
+    #ifdef CHECK_E
+
+    /*void sum_E(execution_context& ectx,
+            literal<v3i> idim,
+            buffer<valuef> E_in,
+            literal<valuei> positions_length,
+            literal<valuef> scale, buffer_mut<value<std::int64_t>> sum)*/
+
+    {
+        cl::buffer buf(ctx);
+        buf.alloc(sizeof(cl_long));
+        buf.set_to_zero(cqueue);
+
+        cl_int len = sdata.dim.x() * sdata.dim.y() * sdata.dim.z();
+
+        cl::args args;
+        args.push_back(sdata.dim);
+        args.push_back(util_out.E);
+        args.push_back(len);
+        args.push_back(sdata.scale);
+        args.push_back(buf);
+
+        cqueue.exec("sum_E", args, {len}, {128});
+
+        cl_long found = buf.read<cl_long>(cqueue).at(0);
+
+        std::cout << "TOTAL E " << (double)found / pow(10., 12.) << std::endl;
+    }
+
+    #endif // CHECK_E
 }
