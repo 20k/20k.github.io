@@ -1627,7 +1627,7 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
 
     calculate_intermediates(ctx, cqueue, sdata.bssn_buffers, in, util_out, sdata.dim, sdata.scale);
 
-    #define CHECK_E
+    //#define CHECK_E
     #ifdef CHECK_E
     {
         cl::buffer buf(ctx);
