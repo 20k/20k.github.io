@@ -1751,7 +1751,6 @@ initial_params get_initial_params()
     #ifdef PARTICLE_TESTS
     xoshiro256ss_state st = xoshiro256ss_init(432123452345ULL);
 
-
     particle_params part;
     //part.add({0.01,0,0}, {0,0,0}, 0.001);
     //part.add({-10,0,0}, {0,0.015,0}, 0.08);
@@ -1760,8 +1759,10 @@ initial_params get_initial_params()
     //part.add({-3,0,0}, {0,0.015,0}, 0.01);
     //part.add({3,0,0}, {0,-0.015,0}, 0.01);
 
-    #ifdef RANDOM_INIT
     float radial_pos = geometric_to_msol(1000 * 54.6/2, 1);
+
+    #define RANDOM_INIT
+    #ifdef RANDOM_INIT
     int N = 1000000;
     double M = 1;
 
@@ -1791,9 +1792,8 @@ initial_params get_initial_params()
     }
     #endif
 
-    float radial_pos = geometric_to_msol(1000 * 54.6/2, 1);
 
-    #define BLACK_HOLE
+    //#define BLACK_HOLE
     #ifdef BLACK_HOLE
     int N = 1000;
     double M = 1;

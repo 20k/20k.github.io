@@ -244,7 +244,6 @@ void sum_E(execution_context& ectx,
 }
 
 void calculate_particle_intermediates(execution_context& ectx,
-                                      bssn_args_mem<buffer<valuef>> in,
                                       particle_base_args<buffer<valuef>> particles_in,
                                       buffer<valuef> lorentz_in,
                                       particle_utility_args<buffer_mut<valuei64>> out,
@@ -279,10 +278,8 @@ void calculate_particle_intermediates(execution_context& ectx,
     pin(cell);
 
     for_each_dirac(cell, dim.get(), scale.get(), pos, [&](v3i offset, valuef dirac) {
-        bssn_args args(offset, dim.get(), in);
-
-        valuef E = mass * lorentz * args.gA * pow(args.W, 3) * dirac;
-        v3f Ji = mass * vel * pow(args.W, 3) * dirac;
+        valuef E = mass * lorentz * dirac;
+        v3f Ji = mass * vel * dirac;
 
         tensor<valuef, 3, 3> Sij;
 
@@ -290,7 +287,7 @@ void calculate_particle_intermediates(execution_context& ectx,
         {
             for(int j=0; j < 3; j++)
             {
-                Sij[i, j] = (mass * vel[i] * vel[j] / lorentz) * pow(args.W, 3) * dirac / max(args.gA, 0.01f);
+                Sij[i, j] = (mass * vel[i] * vel[j] / lorentz) * dirac;
             }
         }
 
@@ -1045,19 +1042,19 @@ template struct full_particle_args<buffer_mut<valuef>>;
 template<typename T>
 valuef full_particle_args<T>::adm_p(bssn_args& args, const derivative_data& d)
 {
-    return this->E[d.pos, d.dim];
+    return args.gA * pow(args.W, 3) * this->E[d.pos, d.dim];
 }
 
 template<typename T>
 tensor<valuef, 3> full_particle_args<T>::adm_Si(bssn_args& args, const derivative_data& d)
 {
-    return this->get_Si(d.pos, d.dim);
+    return pow(args.W, 3) * this->get_Si(d.pos, d.dim);
 }
 
 template<typename T>
 tensor<valuef, 3, 3> full_particle_args<T>::adm_W2_Sij(bssn_args& args, const derivative_data& d)
 {
-    return args.W * args.W * this->get_Sij(d.pos, d.dim);
+    return (pow(args.W, 5) / max(args.gA, 0.01f)) * this->get_Sij(d.pos, d.dim);
 }
 
 void particle_utility_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t3i size)
@@ -1127,9 +1124,6 @@ void particle_plugin::calculate_intermediates(cl::context ctx, cl::command_queue
 
     {
         cl::args args;
-
-        for(auto& i : bssn_in)
-            args.push_back(i);
 
         args.push_back(p_in.positions[0], p_in.positions[1], p_in.positions[2]);
         args.push_back(p_in.velocities[0], p_in.velocities[1], p_in.velocities[2]);
