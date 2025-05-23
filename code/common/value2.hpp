@@ -36,7 +36,8 @@ namespace value_impl
             MOD,
 
             ATOM_ADD,
-            ATOM_XCHG,
+            ATOM_ADD32,
+            ATOM_XCHG32,
 
             LT,
             LTE,

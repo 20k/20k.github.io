@@ -1055,10 +1055,14 @@ namespace value_impl
             return "select(" + value_to_string(v.args.at(2)) + "," + value_to_string(v.args.at(1)) + ",(" + type_of_selection_arg + ")(" + value_to_string(v.args.at(0)) + "))";
         }
 
-        ///todo: 32bits use atomic_, 64bits use atom_
         if(v.type == op::ATOM_ADD)
         {
             return "atom_add(" + value_to_string(v.args.at(0)) + "+" + value_to_string(v.args.at(1)) + "," + value_to_string(v.args.at(2)) + ")";
+        }
+
+        if(v.type == op::ATOM_ADD32)
+        {
+            return "atomic_add(" + value_to_string(v.args.at(0)) + "+" + value_to_string(v.args.at(1)) + "," + value_to_string(v.args.at(2)) + ")";
         }
 
         if(v.type == op::ATOM_XCHG)
@@ -1247,12 +1251,29 @@ namespace value_impl
 
             T atom_add_b(const value<int>& index, const T& in)
             {
-                value_base op;
-                op.type = op::ATOM_ADD;
-                op.args = {this->name, index, in};
-                op.concrete = get_interior_type(T());
+                if constexpr(std::is_same_v<T, value<int>> || std::is_same_v<T, value<unsigned int>>)
+                {
+                    value_base op;
+                    op.type = op::ATOM_ADD32;
+                    op.args = {this->name, index, in};
+                    op.concrete = get_interior_type(T());
 
-                return build_type(op, T());
+                    return build_type(op, T());
+                }
+
+                else if constexpr(std::is_same_v<T, value<size_t>> || std::is_same_v<T, value<std::int64_t>> || std::is_same_v<T, std::uint64_t>)
+                {
+                    value_base op;
+                    op.type = op::ATOM_ADD;
+                    op.args = {this->name, index, in};
+                    op.concrete = get_interior_type(T());
+
+                    return build_type(op, T());
+                }
+                else
+                {
+                    static_assert(false);
+                }
             }
 
             T atom_add_e(const value<int>& index, const T& in)
@@ -1263,7 +1284,7 @@ namespace value_impl
             T atom_xchg_b(const value<int>& index, const T& in)
             {
                 value_base op;
-                op.type = op::ATOM_XCHG;
+                op.type = op::ATOM_XCHG32;
                 op.args = {this->name, index, in};
                 op.concrete = get_interior_type(T());
 
