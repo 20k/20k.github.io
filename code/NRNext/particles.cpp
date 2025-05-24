@@ -1488,7 +1488,7 @@ std::vector<cl::buffer> particle_utility_buffers::get_buffers()
 
 void particle_plugin::calculate_intermediates(cl::context ctx, cl::command_queue cqueue, std::vector<cl::buffer> bssn_in, particle_buffers& p_in, particle_utility_buffers& util_out, t3i dim, float scale)
 {
-    printf("Intermediates\n");
+    //printf("Intermediates\n");
 
     //void count_particles_per_cell(execution_context& ectx, std::array<buffer<valuef>, 3> pos, buffer_mut<valuei> cell_counts, literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count)
     //void memory_allocate(execution_context& ectx, buffer_mut<valuei> counts, buffer_mut<valuei> memory_ptrs, buffer_mut<valuei> memory_allocator, literal<value<size_t>> work_size)
@@ -1506,7 +1506,7 @@ void particle_plugin::calculate_intermediates(cl::context ctx, cl::command_queue
 
     double fixed_scale = get_fixed_scale(total_mass, count);
 
-    #if 1
+    #if 0
     {
         memory_counts.set_to_zero(cqueue);
 
@@ -1574,7 +1574,7 @@ void particle_plugin::calculate_intermediates(cl::context ctx, cl::command_queue
     }
     #endif
 
-    #if 0
+    #if 1
     {
         cl::args args;
 
