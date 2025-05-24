@@ -233,8 +233,6 @@ struct particle_plugin : plugin
 
     //sizeof(cl_int)
     cl::buffer memory_allocation_count;
-    //sizeof(cl_int) * particle_count
-    cl::buffer particle_ids;
     //sizeof(cl_int) * dim^3
     cl::buffer memory_ptrs;
     //sizeof(cl_int) * dim^3
