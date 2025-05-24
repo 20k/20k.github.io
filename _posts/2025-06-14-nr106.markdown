@@ -259,7 +259,7 @@ $$u^0 = \frac{\Gamma}{\alpha}$$
 
 This was quite confusing to me for a while, as you end up different equations for the stress-energy tensor, and $\Gamma$ is not directly the lorentz factor
 
-# The Dirac Delta Function $\delta$
+# The Dirac Delta Function $\delta$ is the final boss of C++/IEEE
 
 The dirac delta function has a very obtuse and non useful definition:
 
@@ -309,13 +309,23 @@ $$\sum_1^n \Delta(x_n) \; h$$
 
 Should evaluate to exactly $1$, where $h$ is the grid spacing. Now, our naive discretisation like this doesn't actually guarantee that - it only guarantees in the limit as $h \mathrel{-}> 0$. The accuracy of our integral is dependent on the size of the dirac delta discretisation having a sufficient number of grid cells, but the accuracy of our simulation goes down as the number of grid cells covered by the discretisation goes up (as it less accurately approximates the dirac delta function)
 
-One trick we can do is as follows:
+Given that a larger dirac discretisation is both less accurate (we're approximating something pointlike!), and will be our #1 performance constraint, making this as precise as possible is very important
 
-$$\sigma = \frac{\int_{x - \frac{dx}{2}}^{x + \frac{dx}{2}} \Delta(y) dy}{h}$$
+The remedy is to calculate the exact amount of the dirac delta function that intersects with our cell. We can do this by integrating:
 
-Where $y$ is our integration variable between the bounds $x - \frac{dx}{2}$ and $x + \frac{dx}{2}$. This leads to an exact conservation of the dirac delta
+$$\sigma = \frac{\int_{x - \frac{h}{2}}^{x + \frac{h}{2}} \Delta(y) dy}{h}$$
 
-This also generalises to $n$ dimensions: the integral becomes $n$ integrals, and you divide by $h^n$
+Where $y$ is our integration variable between the bounds $x - \frac{dx}{2}$ and $x + \frac{dx}{2}$. This leads to an exact conservation of the dirac delta, and the difference can be quite significant. More importantly, it eliminates systematic sampling errors, which is always a strong problem
+
+This also generalises to $n$ dimensions - in 3d:
+
+$$\sigma = \frac{\int_{z - \frac{h}{2}}^{z + \frac{h}{2}} \int_{y - \frac{h}{2}}^{y + \frac{h}{2}} \int_{x - \frac{h}{2}}^{x + \frac{h}{2}} \Delta(\textbf{V}) d\textbf{V}}{h^3}$$
+
+## Of course, its not that simple
+
+In the equation above, $x,y,z$ represent world coordinates of our cell's coordinate position, *not* grid cell coordinates. This means that we will be integrating between arbitrary bounds represented in floating point - and our results won't be symmetric. Eg, if our world is $30$ wide, $h = 0.1$ , and we're looking at two world points at $1$ and $29$, integrating from $0.9 - 1.1$ won't return the same result as $28.9 - 29.1$, as these are inherently not representable with the exact same inaccuracies
+
+Because of this, and because the dirac delta function is defined in this same coordinate system, the above equation is actually a non starter as it is not symmetric, and will introduce systematic asymmetric errors in your simulation. To fix this is quite the pain and, we'll now need a specific dirac delta discretisation in 3d to work with
 
 ## The actual dirac delta discretisation
 
