@@ -329,4 +329,37 @@ Because of this, and because the dirac delta function is defined in this same co
 
 ## The actual dirac delta discretisation
 
-We'll be using xyz
+The dirac delta function I'll be pilfering today is [this one (20)](https://arxiv.org/pdf/1611.07906). In general, you can construct 3d diracs quite straightforwardly, but this works well:
+
+$$
+\Delta_1(r, r_s) = \frac{1}{\pi r_s^3}
+\begin{align}
+\begin{cases}
+1 - \frac{3}{2} (\frac{r}{r_s})^2 + \frac{3}{4} (\frac{r}{r_s})^3 \;\; &\mathrm{for}\;\; 0 \leq \frac{r}{r_s} \leq 1\\
+\frac{1}{4}(2 - \frac{r}{r_s})^3 \;\; &\mathrm{for}\;\; 1 \leq \frac{r}{r_s} \leq 2\\
+0 & \mathrm{otherwise}
+\end{cases}
+\end{align}
+$$
+
+$r$ is the radius of your point away from the particle
+
+To fix our dirac problems, we need to rework this discretisation:
+
+1. We need to re-express it in cell based coordinates, instead of world coordinates
+2. It operating over the range $[0, 2]$ is very annoying
+
+So we're instead going to take in a fraction from $[0, 1]$:
+
+$$
+\Delta_2(r_f, r_s) = \frac{1}{\pi (\frac{r_s}{2})^3}
+\begin{align}
+\begin{cases}
+1 - \frac{3}{2} (2 r_f)^2 + \frac{3}{4} (2 r_f)^3 \;\; &\mathrm{for}\;\; 0 \leq 2 r_f \leq 1\\
+\frac{1}{4}(2 - 2 r_f)^3 \;\; &\mathrm{for}\;\; 1 \leq 2 r_f \leq 2\\
+0 & \mathrm{otherwise}
+\end{cases}
+\end{align}
+$$
+
+This means that $r_s$ is now the full size of the particle in world coordinates, and $r_f$ is just an arbitrary fraction.
