@@ -336,6 +336,43 @@ void assign_particles_to_cells(execution_context& ectx, std::array<buffer<valuef
     as_ref(collected_ids[my_offset + cell_offset]) = (valuei)id;
 }
 
+void permute_memory(execution_context& ectx, particle_base_args<buffer<valuef>> in, particle_base_args<buffer_mut<valuef>> out, buffer_mut<valuei> memory_ptrs, buffer_mut<valuei> cell_counts, literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count)
+{
+    using namespace single_source;
+
+    value<size_t> id = value_impl::get_global_id_us(0);
+    pin(id);
+
+    if_e(id >= particle_count.get(), [&]{
+        return_e();
+    });
+
+    v3f world_pos = in.get_position(id);
+    pin(world_pos);
+
+    v3f grid_posf = world_to_grid(world_pos, dim.get(), scale.get());
+    pin(grid_posf);
+    v3i grid_pos = (v3i)floor(grid_posf);
+
+    grid_pos = clamp(grid_pos, (v3i){0,0,0}, dim.get() - 1);
+
+    valuei idx = grid_pos.z() * dim.get().x() * dim.get().y() + grid_pos.y() * dim.get().x() + grid_pos.x();
+
+    valuei my_offset = cell_counts.atom_add_e(idx, 1);
+    valuei cell_offset = memory_ptrs[idx];
+    pin(cell_offset);
+
+    valuei idx_out = my_offset + cell_offset;
+
+    for(int i=0; i < 3; i++)
+    {
+        as_ref(out.positions[i][idx_out]) = in.positions[i][id];
+        as_ref(out.velocities[i][idx_out]) = in.velocities[i][id];
+    }
+
+    as_ref(out.masses[idx_out]) = in.masses[id];
+}
+
 void calculate_intermediates_by_cells(execution_context& ectx, particle_base_args<buffer<valuef>> particles_in, buffer<valuef> lorentz_in, particle_utility_args<buffer_mut<valuei64>> out,
                                       literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count,
                                       literal<valued> fixed_scale,
@@ -1156,6 +1193,12 @@ void boot_particle_kernels(cl::context ctx)
     cl::async_build_and_cache(ctx, [&]{
         return value_impl::make_function(calculate_intermediates_by_cells, "calculate_intermediates_by_cells");
     }, {"calculate_intermediates_by_cells"});
+
+
+    cl::async_build_and_cache(ctx, [&]{
+        return value_impl::make_function(permute_memory, "permute_memory");
+    }, {"permute_memory"});
+
 }
 
 double get_fixed_scale(double total_mass, int64_t particle_count)
@@ -1700,6 +1743,57 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
     particle_buffers& out = *dynamic_cast<particle_buffers*>(sdata.buffers[sdata.out_idx]);
 
     cl_ulong count = particle_count;
+
+    if(sdata.in_idx == sdata.base_idx)
+    {
+        {
+            memory_counts.set_to_zero(cqueue);
+
+            cl::args args;
+            args.push_back(in.positions[0], in.positions[1], in.positions[2]);
+            args.push_back(memory_counts);
+            args.push_back(sdata.dim);
+            args.push_back(sdata.scale);
+            args.push_back(count);
+
+            cqueue.exec("count_particles_per_cell", args, {count}, {128});
+        }
+
+        {
+            memory_ptrs.set_to_zero(cqueue);
+            memory_allocation_count.set_to_zero(cqueue);
+
+            cl_int cells = sdata.dim.x() * sdata.dim.y() * sdata.dim.z();
+
+            cl::args args;
+            args.push_back(memory_counts);
+            args.push_back(memory_ptrs);
+            args.push_back(memory_allocation_count);
+            args.push_back(cells);
+
+            cqueue.exec("memory_allocate", args, {cells}, {128});
+        }
+
+        {
+            cl::args args;
+
+            for(auto i : in.get_buffers())
+                args.push_back(i);
+
+            for(auto i : out.get_buffers())
+                args.push_back(i);
+
+            args.push_back(memory_ptrs);
+            args.push_back(memory_counts);
+            args.push_back(sdata.dim);
+            args.push_back(sdata.scale);
+            args.push_back(count);
+
+            cqueue.exec("permute_memory", args, {count}, {128});
+        }
+
+        std::swap(out, base);
+    }
 
     {
         cl::args args;
