@@ -184,7 +184,38 @@ The code as of this article has been updated and checked to make sure this probl
 
 # Equations
 
-Its time to change tack, and go check out the equations we'll be using today
+Its time to change tack, and go check out the equations we'll be using today. There are three sets of equations to pick from:
+
+1. The [ADM geodesic equations](https://arxiv.org/pdf/1611.07906), which you may remember from the rendering article
+2. A scheme based on [4-momentum (2.27)](https://arxiv.org/pdf/1904.07841)
+3. A scheme based on the [4-velocity (2.9)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf)
+
+The third formalism is by far the best, for the following reasons
+
+1. It does not involve the extrinsic curvature $\tilde{A}_{ij}$ compared to #1, which is hugely good for peformance. There are also only three evolution equations vs 4
+2. The 4-momentum is a very poor choice of evolution variable. We'll be dealing with particles with *very* tiny masses, so with an extremely small 4-momentum
+
+Given a 4-velocity $u^\mu$, the spatial components $u_i$ are evolved as follows:
+
+$$\begin{align}
+\frac{d u_i}{dt} &= - \alpha u^0 \partial_i \alpha + u_j \partial_i \beta^j - \frac{u_j u_k}{2 u^0} \partial_i \gamma^{jk}\\
+u^0 &= \frac{\sqrt{1 + \gamma^{ij} u_i u_j}}{\alpha}\\
+\end{align}
+$$
+
+The particle's position is evolved as follows:
+
+$$
+\frac{dx^i}{dt} = -\beta^i + \frac{\gamma^{ij} u_j}{u^0}
+$$
+
+This formalism is simple enough that you could derive it by hand from the relation provided: $u^\mu \nabla_\mu u_\nu = 0$, which is the definition of a geodesic (todo: check terminology). We did actually derive the position equation ourselves in the last article! So far, so good
+
+Note: You'll need to interpolate the quantities above based on the position $x^i$, using the symmetric interpolation
+
+## Source terms
+
+As in the prior article, matter interacts with the metric in general relativity via source terms. The full 4d stress energy tensor is:
 
 # The Dirac Delta Function $\delta$
 
