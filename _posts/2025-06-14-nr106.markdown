@@ -362,4 +362,57 @@ $$
 \end{align}
 $$
 
-This means that $r_s$ is now the full size of the particle in world coordinates, and $r_f$ is just an arbitrary fraction.
+This means that $r_s$ is now the full size of the particle in world coordinates, and $r_f$ is an arbitrary fraction from 0 to 1. This now means that we can redefine the integral in 3d from earlier:
+
+$$\sigma =  \int_{z_c - 0.5}^{z_c + 0.5} \int_{y_c - 0.5}^{y_c + 0.5} \int_{x_c - 0.5}^{x_c + 0.5} \Delta_2(\frac{\sqrt{(x - x_c^{\mathrm{idx}})^2 + (y - y_c^{\mathrm{idx}})^2 + (z - z_c^{\mathrm{idx}})^2}}{(\frac{r_s}{h})}, r_s) d(x, y, z)$$
+
+| Symbol | Meaning |
+|-|-|
+|$x_c, y_c, z_c$ | The position of the current grid cell in cell coordinates, ie $0$ to $dim-1$ |
+|$x_c^{\mathrm{idx}}, y_c^{\mathrm{idx}}, z_c^{\mathrm{idx}}$ | The position of the particle in cell coordinates (which will be fractional) |
+|$\frac{r_s}{h}$ | The radius of the particle in grid cells. This is what I actually specify |
+|$r_s$ | The radius of the particle in world coordinates |
+
+Because offsets of $0.5$ can be represented exactly in floating point, this now all finally works
+
+I use a trapezoidal method to perform the actual numerical integration. Of course, any error in the implementation of trapezoidal integration - including floating point contraction - will result in asymmetry creeping back in
+
+## Symmetric trapezoidal, ish
+
+Implementing a fully symmetric trapezoidal method would be very tricky. For numerical integration, it has the [following definition](https://en.wikipedia.org/wiki/Trapezoidal_rule):
+
+$$\int^b_a f(x) dx = \Delta x \left (\frac{f(x_0) + f(x_N)}{2} + \sum^{n-1}_{k=1} f(x_k)\right )$$
+
+Luckily for $N=2$ - which is good enough, this is actually straightforward. As long as we evaluate the right hand side sum, and the left hand side sum separately, then add them together at the end - it'll be symmetric. More iterations would require an outside in iteration scheme with pairwise matched summation
+
+This is what I implemented (in 1d, just repeat the integral in 3d):
+
+```c++
+template<typename T, typename U>
+inline
+auto integrate_1d_trapezoidal(const T& func, int n, const U& upper, const U& lower)
+{
+    using variable_type = decltype(func(0.f));
+
+    variable_type sum = 0;
+
+    for(int k=1; k < n; k++)
+    {
+        auto coordinate = lower + k * (upper - lower) / n;
+
+        auto val = func(coordinate);
+
+        sum += val;
+    }
+
+    return ((upper - lower) / n) * (0.5f * (func(lower) + func(upper)) + sum);
+}
+```
+
+This only really just-so-happens to work for $N=2$, and its carefully written to avoid floating point contraction issues in the final expression - we'll still get a symmetric result if the compiler generates `fma(0.5f, func(lower) + func(upper), sum)`, and there are no other legal transforms that could cause us problems
+
+## Dirac: The end
+
+This section has been one of the more complicated things I've had to implement. I do not know if I've ever seen a tediously correct implementation of the dirac delta function: most papers simply stop after the initial discretisation, which leads to an overall inaccuracy in the mass of a few % for very small dirac sizes
+
+You can see that there are probably about ~10 points in total in this article where its possible to implement things incorrectly, which can rapidly lead to multiple rounding errors per-cell per-tick. This is the reason why its so important - if you do it wrong *everywhere*, then everything on one side of your grid will experience multiple systematic non random bits of error relative to the other side of your grid every tick, which can lead to very unexpected results over time

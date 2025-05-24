@@ -6,7 +6,7 @@ template<typename T, typename U>
 inline
 auto integrate_1d_trapezoidal(const T& func, int n, const U& upper, const U& lower)
 {
-    using variable_type = decltype(func(0.f));
+    using variable_type = decltype(func(U()));
 
     variable_type sum = 0;
 
