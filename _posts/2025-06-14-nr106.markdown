@@ -15,16 +15,15 @@ That is more true than ever for this article. There are a variety of critical bu
 I'll be dealing with the following topics:
 
 1. The C++ spec defect around floating point, and the bugs it causes in real world code. We'll uncover a bug in a major scientific toolkit here, how you should adjust your code to compensate for how floats work, and why fixing this is important
-2. The equations we'll be using for this article, and finding mistakes in some papers
+2. The equations we'll be using for this article, and checking out why some alternative approaches aren't that great
 3. The deep joys of the dirac delta function, and how to implement it correctly
-4. Integration, and a guide on implementation techniques
-5. Some miscellaneous performance techniques
+4. Initial conditions
+5. Integration, and a guide on implementation techniques
+6. Some miscellaneous performance techniques
 
 At some point we'll be converting a float to a double, back to a float, and then finally to a long. Its just that kind of day
 
 # C++ is sometimes a very poor numerical language
-
-## Floating point contraction
 
 In C++, it is impossible to implement a type that behaves exactly like a `float`. This was a surprising fact to me when I discovered it - for a language that sells itself as having zero overhead, this is a strange omission. To take a simple example, let's have a look at the following two pieces of code:
 
@@ -43,7 +42,7 @@ float func_2(float a, float b, float c)
 
 I suspect that most people are not aware that these two pieces of code are strictly non equivalent in C/C++. This isn't a theoretical problem either, if you compile these two functions you'll discover that they really do generate different assembly, and return different results. This isn't an IEEE float thing, this is just pure C++-itus
 
-C++ allows *expressions* to have what is called floating point contraction applied to them. This means that `a * b + c` is legally allowed to be transformed to `fma(a, b, c)`, and evaluated in higher precision implicitly. Because in `func_2` they're two separate expressions, this optimisation is not allowed. This might seem like a minor problem - most of the time we don't actually care, but today its going to cause us severe problems
+C++ allows *expressions* to have what is called floating point contraction applied to them. This means that `a * b + c` is legally allowed to be transformed to `fma(a, b, c)`, and evaluated in higher precision implicitly. Because in `func_2` they're two separate expressions, this optimisation is not allowed. This might seem like a minor problem - most of the time we don't actually care - but today its going to cause us severe problems
 
 ## Exactly reproducible floating point results
 
@@ -51,7 +50,7 @@ Lets examine the test setup we'll be using today. The specific nature of the par
 
 todo: picture with red arrows
 
-These particles will have roughly circular orbits around each other. You'll notice that there's an implicit symmetry here: if we give the particles exactly equal but opposite velocities, the position of each particle is a reflection. For example, if we have two x coordinates $x_1$ and $x_2$, and our grid size is $d_x$, then with an odd number of grid cells, $x_1 = d_x - x_2 - 1$
+These particles will have roughly circular orbits around each other. You'll notice that there's an implicit symmetry here: if we give the particles exactly equal but opposite velocities, the position of each particle is a reflection. For example, if we have two x coordinates $x_1$ and $x_2$, and our grid size is $d_x$, $x_1 = d_x - x_2 - 1$
 
 In virtually all simulations, this will fail to hold almost immediately. In fact, over time, it'll start to not hold rather dramatically
 
@@ -61,7 +60,7 @@ Intuitively, exactly symmetric initial conditions should hold for all time. The 
 
 ## Sources of asymmetry
 
-Tracking this down can be a pain, and this article is going to be very pedantic about IEEE. Before we get to the particle dynamics, there are three major sources of asymmetry that can perturb a simulation:
+Tracking this down can be a pain, and this article is going to be very pedantic about IEEE. Before we even get to the particle dynamics, there are three major sources of asymmetry that can perturb a simulation:
 
 1. Derivative calculations
 2. Kreiss-Oliger
@@ -76,13 +75,13 @@ float diff(const std::vector<float>& points, int idx, float scale)
 }
 ```
 
-A first order glance at how this could introduce asymmetry is straightforward: compilers interpret these expressions left to right, and so we get the following expression:
+How this could introduce asymmetry is straightforward: compilers interpret these expressions left to right, and so we get the following expression:
 
 ```c++
 (((points[idx - 2] - 8 * points[idx - 1]) + 8 * points[idx + 1]) - points[idx + 2])
 ```
 
-The rounding here is asymmetric with respect to `idx`. If we have a central grid point about which our data is *mirrored*, say $10$, we want the evaluation of $idx = 9$ and $idx = 11$ to return *exactly* the same results. Plugging that in, we get the following:
+The rounding here is asymmetric with respect to `idx`. If we have a central grid point about which our data is mirrored, say $10$, we want the evaluation of $idx = 9$ and $idx = 11$ to return *exactly* the same results. Plugging that in, we get the following:
 
 ```c++
 float diff9(const std::vector<float>& points, float scale)
@@ -105,7 +104,7 @@ float diff11(const std::vector<float>& points, float scale)
 }
 ```
 
-The rounding is done in a different order compared to `diff9`, which is why we get different results on both sides of the grid
+The rounding is done in a different order compared to `diff9`, which is one reason why we'll get different results on both sides of the grid
 
 ### Fixing this
 
@@ -140,7 +139,7 @@ Kreiss-Oliger is fixed in precisely the same fashion, by grouping equidistant de
 
 ## Floating point symmetric interpolation
 
-During our initial conditions, we have to implement linear interpolation for the upscaling step - and you might think to reach for `std::lerp`. If you go read through the spec, you'll discover that a lot of work was put into it to make it work well. Unfortunately, it is inappropriate for our use case: It does not guarantee the following property:
+During our initial conditions, we have to implement linear interpolation for the upscaling step - and you might think to reach for `std::lerp`. If you go read through the spec, you'll discover that a lot of work was put into it to make it work well. Unfortunately, it is inappropriate for our use case: it does not guarantee the following property:
 
 ```c++
 std::lerp(a, b, t) = std::lerp(b, a, 1-t)
@@ -178,7 +177,7 @@ This is my least favourite part of the C++ spec, as it severely complicates a lo
 
 This issue causes bugs in real-world code, eg [here's](https://github.com/GRTLCollaboration/GRChombo/blob/130140afe972701575740685343ea28f6ab8234c/Source/BoxUtils/FourthOrderDerivatives.hpp#L42) one example of a numerical relativity toolkit which falls into the double whammy trap of both incorrect ordering of operations, and floating point contraction. The joys!
 
-I have never seen a single discussion of this anywhere. There are some extremely cryptic references to this problem in the literature: Many simulations run in a symmetry mode, where the simulation grid is chopped in half and implicitly mirrored to cut down on simulation costs - there are reports that the simulation for unknown reasons is more stable when running in a mirrored mode, vs a non mirrored mode (which is presumably implicitly symmetric). You can probably see that a subtle, systematic asymmetry being applied over a long running simulation has the potential to cause an upset
+I have never seen a single discussion of this anywhere. There are some extremely cryptic references to this problem in the literature: many simulations run in a symmetry mode, where the simulation grid is chopped in half (or 8ths) and implicitly mirrored to cut down on simulation costs - there are reports that the simulation for unknown reasons is more stable when running in a mirrored mode, vs a non mirrored mode (which is presumably implicitly symmetric). You can probably see that a systematic asymmetry being applied over a long running simulation has the potential to cause an upset
 
 The code bundled with this article has been updated and checked to make sure this problem isn't present
 
@@ -186,14 +185,14 @@ The code bundled with this article has been updated and checked to make sure thi
 
 Its time to change tack, and go check out the equations we'll be using today. There are three sets of equations to pick from:
 
-1. The [ADM geodesic equations](https://arxiv.org/pdf/1611.07906), which you may remember from the rendering article
+1. The [ADM geodesic equations (12-13)](https://arxiv.org/pdf/1611.07906), which you may remember from the rendering article
 2. A scheme based on [4-momentum (2.27)](https://arxiv.org/pdf/1904.07841)
 3. A scheme based on the [4-velocity (2.9)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf)
 
-The third formalism is by far the best, for the following reasons
+The third formalism is by far the best and that's what we'll be using, for the following reasons:
 
-1. It does not involve the extrinsic curvature $\tilde{A}_{ij}$ compared to #1, which is hugely good for peformance. There are also only three evolution equations vs 4
-2. The 4-momentum is a poor choice of evolution variable. We'll be dealing with particles with *very* tiny masses, so with an extremely small 4-momentum, the velocity will be very inaccurate
+1. It does not involve the extrinsic curvature $\tilde{A}_{ij}$ compared to #1, which is hugely good for performance. There are also only three evolution equations vs 4
+2. The 4-momentum is a poor choice of evolution variable. We'll be dealing with particles with extremely tiny masses, so with an extremely small 4-momentum, the velocity will be very inaccurate
 
 Given a 4-velocity $u^\mu$, the spatial components $u_i$ are evolved as follows:
 
@@ -203,23 +202,66 @@ u^0 &= \frac{\sqrt{1 + \gamma^{ij} u_i u_j}}{\alpha}\\
 \end{align}
 $$
 
-The particle's position is evolved as follows:
+The particle's position is evolved as follows (via $\frac{dx^i}{dt} = \frac{u^i}{u^0}$):
 
 $$
 \frac{dx^i}{dt} = -\beta^i + \frac{\gamma^{ij} u_j}{u^0}
 $$
 
-This formalism is simple enough that you could derive it by hand from the relation provided: $u^\mu \nabla_\mu u_\nu = 0$, which is the definition of a geodesic (todo: check terminology). We did actually derive the position equation ourselves in the last article! So far, so good
+This formalism  also has the advantage of being very simple, and is derived directly from the geodesic equation: $u^\mu \nabla_\mu u_\nu = 0$. So far, so good
 
 Note: You'll need to interpolate the quantities above based on the position $x^i$, using the symmetric interpolation we used earlier
 
 ## Source terms
 
-As in the prior article, matter interacts with the metric in general relativity via source terms. The full 4d stress energy tensor is:
+Matter interacts with the metric in general relativity via the stress-energy tensor. The 4d stress energy tensor for a single particle labelled by $\mathrm{idx}$ is (2.5):
+
+$$
+T_{\mu\nu}^{\mathrm{idx}} = m_{\mathrm{idx}} \alpha^{-1} W^3 \delta^{(3)}(x^i - x_{\mathrm{idx}}^i)\frac{u_\mu^\mathrm{idx} u_\nu^\mathrm{idx}}{u_\mathrm{idx}^0}\\
+$$
+
+You simply sum the stress energy tensors for every particle, ie $$T_{\mu\nu}^{\mathrm{full}} = \sum^N_{\mathrm{idx} = 1} T_{\mu\nu}^{\mathrm{idx}}$$
+
+|Symbol | Meaning |
+|-|-|
+|$m_{\mathrm{idx}}$ | The rest mass of a particle |
+|$\alpha$ | Lapse, evaluated at $x^i$ |
+| $W$ | Conformal factor, evaluated at $x^i$ |
+| $\delta^{(3)}(x)$ | The 3d dirac delta function. This a very non trivial term, and there's a whole section dedicated just to this |
+| $x^i$ | The current coordinate position you're looking at |
+| $x^i_{\mathrm{idx}}$ | The position of the particle |
+| $u^{\mathrm{idx}}_\mu$ | The 4-velocity of a particle, lowered |
+| $u^0_{\mathrm{idx}}$ | The 0th component of the 4-velocity of a particle, which is additionally the Lorentz factor. Calculating this must use interpolated quantities at $x^{i}_{\mathrm{idx}}$, not $x^i$ |
+
+### Projected source terms
+
+We can't directly plug the stress energy tensor in however, as we need the ADM projections of the stress energy tensor $T^{\mathrm{idx}}_{\mu\nu}$. These are (2.14, 2.15, 2.20):
+
+$$
+\begin{align}
+\rho_H &= m u^0 \alpha W^3 \delta^{(3)}(x^i - x^i_{\mathrm{idx}})\\
+S_i &= m u_i W^3 \delta^{(3)}(x^i - x^i_{\mathrm{idx}})\\
+S_{ij} &= m \frac{u_iu_j}{u^0} \alpha^{-1} W^3 \delta^{(3)}(x^i - x^i_{\mathrm{idx}})\\
+\end{align}
+$$
+
+These are summed across all particles
+
+#### An oddity in the literature
+
+One thing to note is that in the literature, when performing the ADM projection of your velocity (which we don't do), you end up with something like:
+
+$$u^\mu = \Gamma(n^\mu + V^\mu)$$
+
+$\Gamma$ is sometimes called a lorentz factor (or, in a similar decomposition: energy). Setting $^\mu=0$, you get:
+
+$$u^0 = \frac{\Gamma}{\alpha}$$
+
+This was quite confusing to me for a while, as you end up different equations for the stress-energy tensor, and $\Gamma$ is not directly the lorentz factor
 
 # The Dirac Delta Function $\delta$
 
-This article is going to contain a lot of information on the dirac delta function. The dirac delta function has a very obtuse and non useful definition:
+The dirac delta function has a very obtuse and non useful definition:
 
 $$\delta(x) =
 \begin{align}
@@ -230,13 +272,13 @@ $$\delta(x) =
 \end{align}
 $$
 
-For all intents and purposes, this definition can be largely disregarded. The more useful definition of the dirac delta function is as follows:
+The slightly more useful definition of the dirac delta function is as follows:
 
 $$\int^\infty_{-\infty} \delta(x) \; dx = 1$$
 
 This is the key property of the dirac delta function. It has an integral of $1$, and yet it only applies to a single infinitesimal point, with no area. This may seem very curious, but take the example a pointlike particle's contribution to gravity. We know that it has infinitesimal extent as it is pointlike, and so where it interacts with the stress energy tensor must also be an infinitesimal area
 
-This still seems clearly absurd, but the maths works out - and its often described more as an integration trick. People will frequently say, you never actually need to implement this, because it'll disappear. Unfortunately, ours doesn't!
+This still seems clearly absurd, but the maths works out - and its often described more as an integration trick. People will frequently say, you never actually need to implement this, because it'll disappear. Unfortunately, ours doesn't, and how it is implemented is frequently on some quite shakey grounds
 
 ## Implementing the dirac delta function
 
