@@ -6,11 +6,189 @@ categories: C++
 published: false
 ---
 
-Fdfdf intro
+Hi! Today we'll be examining how to do N body particle dynamics in numerical relativity. While newtonian N body simulations are quite straightforward, general relativity as always tends to complicate things just a little.  I'll be presenting you with the most straightforward way to get ~10 million particles working at a decent clip, as well as investigating some critical mistakes to avoid
+
+In general, I try and keep a reasonable flow to these articles. Because they're oriented around a solution to an overarching problem rather than a specific technical issue - they often meander between different topics
+
+That is more true than ever for this article. There are a variety of critical but entirely unrelated problems to solve and it'll get downright wacky in places - so I'm presenting this as a choose your own adventure. They'll be listed in-order of how you should tackle them if you're implementing this
+
+I'll be dealing with the following topics:
+
+1. The C++ spec defect around floating point, and the bugs it causes in real world code. We'll uncover a bug in a major scientific toolkit here, how you should adjust your code to compensate for how floats work, and why fixing this is important
+2. The equations we'll be using for this article, and finding mistakes in some papers
+3. The deep joys of the dirac delta function, and how to implement it correctly
+4. Integration, and a guide on implementation techniques
+5. Some miscellaneous performance techniques
+
+At some point we'll be converting a float to a double, back to a float, and then finally to a long. Its just that kind of day
+
+# C++ is sometimes a very poor numerical language
+
+## Floating point contraction
+
+In C++, it is impossible to implement a type that behaves exactly like a `float`. This was a surprising fact to me when I discovered it - for a language that sells itself as having zero overhead, this is a strange omission. To take a simple example, let's have a look at the following two pieces of code:
+
+```c++
+float func_1(float a, float b, float c)
+{
+    return a * b + c;
+}
+
+float func_2(float a, float b, float c)
+{
+    float mul = a*b;
+    return mul + c;
+}
+```
+
+I suspect that most people are not aware that these two pieces of code are strictly non equivalent in C/C++. This isn't a theoretical problem either, if you compile these two functions you'll discover that they really do generate different assembly, and return different results. This isn't an IEEE float thing, this is just pure C++-itus
+
+C++ allows *expressions* to have what is called floating point contraction applied to them. This means that `a * b + c` is legally allowed to be transformed to `fma(a, b, c)`, and evaluated in higher precision implicitly. Because in `func_2` they're two separate expressions, this optimisation is not allowed. This might seem like a minor problem - most of the time we don't actually care, but today its going to cause us severe problems
+
+## Exactly reproducible floating point results
+
+Lets examine the test setup we'll be using today. The specific nature of the particle dynamics isn't important yet:
+
+todo: picture with red arrows
+
+These particles will have roughly circular orbits around each other. You'll notice that there's an implicit symmetry here: if we give the particles exactly equal but opposite velocities, the position of each particle is a reflection. For example, if we have two x coordinates $x_1$ and $x_2$, and our grid size is $d_x$, then with an odd number of grid cells, $x_1 = d_x - x_2 - 1$
+
+In virtually all simulations, this will fail to hold almost immediately. In fact, over time, it'll start to not hold rather dramatically
+
+Todo: Video
+
+Intuitively, exactly symmetric initial conditions should hold for all time. The fact that our simulation breaks down like this is rather worrying - orbital mechanics are chaotic, and so errors compound rather than damp away. A small asymmetry turns into a large asymmetry, which is a clear symptom of a systematic error in our simulation that we want to eliminate
+
+## Sources of asymmetry
+
+Tracking this down can be a pain, and this article is going to be very pedantic about IEEE. Before we get to the particle dynamics, there are three major sources of asymmetry that can perturb a simulation:
+
+1. Derivative calculations
+2. Kreiss-Oliger
+3. The initial conditions laplace solver
+
+To illustrate the problem, we're using 4th order derivatives. A seemingly sane sensible person implements it something like this:
+
+```c++
+float diff(const std::vector<float>& points, int idx, float scale)
+{
+    return (points[idx - 2] - 8 * points[idx - 1] + 8 * points[idx + 1] - points[idx + 2]) / (12 * scale);
+}
+```
+
+A first order glance at how this could introduce asymmetry is straightforward: compilers interpret these expressions left to right, and so we get the following expression:
+
+```c++
+(((points[idx - 2] - 8 * points[idx - 1]) + 8 * points[idx + 1]) - points[idx + 2])
+```
+
+The rounding here is asymmetric with respect to `idx`. If we have a central grid point about which our data is *mirrored*, say $10$, we want the evaluation of $idx = 9$ and $idx = 11$ to return *exactly* the same results. Plugging that in, we get the following:
+
+```c++
+float diff9(const std::vector<float>& points, float scale)
+{
+    return (((points[7] - 8 * points[8]) + 8 * points[10]) - points[11]) / (12 * scale);
+}
+
+float diff11(const std::vector<float>& points, float scale)
+{
+    return (((points[9] - 8 * points[10]) + 8 * points[12]) - points[13]) / (12 * scale);
+}
+```
+
+Lets substitute in the mirrored values into `diff11` to check our algorithm:
+
+```c++
+float diff11(const std::vector<float>& points, float scale)
+{
+    return (((points[11] - 8 * points[10]) + 8 * points[8]) - points[7]) / (12 * scale);
+}
+```
+
+The rounding is done in a different order compared to `diff9`, which is why we get different results on both sides of the grid
+
+### Fixing this
+
+The most logical way to fix this is to group equidistant grid cells:
+
+```c++
+float diff(const std::vector<float>& points, int idx, float scale)
+{
+    return ((points[idx - 2] - points[idx + 2]) + (-8 * points[idx - 1] + 8 * points[idx + 1])) / (12 * scale);
+}
+```
+
+Substituting this through will show that its all hunky dory. The only problem now is that we have to deal with C++-itus, as the right hand side will get transformed to `fma(-8, points[idx-1], 8 * points[idx + 1])`. So instead of the simple solution, the *actually* correct version of this is as follows:
+
+```c++
+float diff(const std::vector<float>& points, int idx, float scale)
+{
+    float vm2 = points[idx - 2];
+    float vp2 = -points[idx + 2];
+    float vm1 = -8 * points[idx - 1];
+    float vp1 = 8 * points[idx + 1];
+
+    float v2 = lm2 + lp2;
+    float v1 = vm1 + vp1;
+    float top = v1 + v2;
+
+    return top / (12 * scale);
+}
+```
+
+Kreiss-Oliger is fixed in precisely the same fashion, by grouping equidistant derivatives with respect to `idx`. The more complex case is the initial conditions
+
+## Floating point symmetric interpolation
+
+During our initial conditions, we have to implement linear interpolation for the upscaling step - and you might think to reach for `std::lerp`. If you go read through the spec, you'll discover that a lot of work was put into it to make it work well. Unfortunately, it is inappropriate for our use case: It does not guarantee the following property:
+
+```c++
+std::lerp(a, b, t) = std::lerp(b, a, 1-t)
+```
+
+I know this seems like we're messing about in the weeds, but these errors compound over time. The correct way in theory to implement *exactly* symmetric linear interpolation for us is as follows:
+
+```c++
+float interpolate(float a, float b, float t)
+{
+    return (1-t) * a + (1-(1-t)) * b;
+}
+```
+
+For this to be actually correct we have to work around floating point contraction:
+
+```c++
+float interpolate(float a, float b, float t)
+{
+    float imx = 1-t;
+    float imimx = 1-imx;
+
+    float p1 = imx * a;
+    float p2 = imimx * b;
+
+    return p1 + p2;
+}
+```
+
+The laplacian also suffers from the same problem as Kreiss-Oliger and the derivatives, and can be solved in the same fashion. You should also be aware: for a value $x$ representing a grid cell which can have a fractional component, the value $d_x - x - 1$ likely cannot be represented exactly enough. You'll either have to split your values into an integral component representing the cell, and a fractional component representing the offset within it - or store your floats in the range $[-(d_x-1)/2, (d_x-1)/2]$ (for odd grid cell sizes) instead of the range $[0, d_x - 1]$ as is more traditional
+
+## Takeaways
+
+This is my least favourite part of the C++ spec, as it severely complicates a lot of code. While some compilers support simply disabling FP contraction, its hugely important for performance on the GPU in some cases. Importantly, CUDA **does not** implement the pragma required (as it is not officially part of the C++ spec), and GPU compilers love FMAs
+
+This issue causes bugs in real-world code, eg [here's](https://github.com/GRTLCollaboration/GRChombo/blob/130140afe972701575740685343ea28f6ab8234c/Source/BoxUtils/FourthOrderDerivatives.hpp#L42) one example of a numerical relativity toolkit which falls into the double whammy trap of both incorrect ordering of operations, and floating point contraction. The joys!
+
+I have never seen a single discussion of this anywhere. There are some extremely cryptic references to this problem in the literature: Many simulations run in a symmetry mode, where the simulation grid is chopped in half and implicitly mirrored to cut down on simulation costs - there are reports that the simulation for unknown reasons is more stable when running in a mirrored mode, vs a non mirrored mode (which is presumably implicitly symmetric). You can probably see that a subtle, systematic asymmetry being applied over a long running simulation has the potential to cause an upset
+
+The code as of this article has been updated and checked to make sure this problem isn't present
+
+# Equations
+
+Its time to change tack, and go check out the equations we'll be using today
 
 # The Dirac Delta Function $\delta$
 
-This article is going to contain a lot of information on the dirac delta function, so buckle up. The dirac delta function has a very obtuse and non useful definition:
+This article is going to contain a lot of information on the dirac delta function. The dirac delta function has a very obtuse and non useful definition:
 
 $$\delta(x) =
 \begin{align}
