@@ -180,7 +180,7 @@ This issue causes bugs in real-world code, eg [here's](https://github.com/GRTLCo
 
 I have never seen a single discussion of this anywhere. There are some extremely cryptic references to this problem in the literature: Many simulations run in a symmetry mode, where the simulation grid is chopped in half and implicitly mirrored to cut down on simulation costs - there are reports that the simulation for unknown reasons is more stable when running in a mirrored mode, vs a non mirrored mode (which is presumably implicitly symmetric). You can probably see that a subtle, systematic asymmetry being applied over a long running simulation has the potential to cause an upset
 
-The code as of this article has been updated and checked to make sure this problem isn't present
+The code bundled with this article has been updated and checked to make sure this problem isn't present
 
 # Equations
 
@@ -193,7 +193,7 @@ Its time to change tack, and go check out the equations we'll be using today. Th
 The third formalism is by far the best, for the following reasons
 
 1. It does not involve the extrinsic curvature $\tilde{A}_{ij}$ compared to #1, which is hugely good for peformance. There are also only three evolution equations vs 4
-2. The 4-momentum is a very poor choice of evolution variable. We'll be dealing with particles with *very* tiny masses, so with an extremely small 4-momentum
+2. The 4-momentum is a poor choice of evolution variable. We'll be dealing with particles with *very* tiny masses, so with an extremely small 4-momentum, the velocity will be very inaccurate
 
 Given a 4-velocity $u^\mu$, the spatial components $u_i$ are evolved as follows:
 
@@ -211,7 +211,7 @@ $$
 
 This formalism is simple enough that you could derive it by hand from the relation provided: $u^\mu \nabla_\mu u_\nu = 0$, which is the definition of a geodesic (todo: check terminology). We did actually derive the position equation ourselves in the last article! So far, so good
 
-Note: You'll need to interpolate the quantities above based on the position $x^i$, using the symmetric interpolation
+Note: You'll need to interpolate the quantities above based on the position $x^i$, using the symmetric interpolation we used earlier
 
 ## Source terms
 
