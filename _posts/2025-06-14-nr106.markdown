@@ -392,7 +392,7 @@ template<typename T, typename U>
 inline
 auto integrate_1d_trapezoidal(const T& func, int n, const U& upper, const U& lower)
 {
-    using variable_type = decltype(func(0.f));
+    using variable_type = decltype(func(U()));
 
     variable_type sum = 0;
 
@@ -413,6 +413,10 @@ This only really just-so-happens to work for $N=2$, and its carefully written to
 
 ## Dirac: The end
 
-This section has been one of the more complicated things I've had to implement. I do not know if I've ever seen a tediously correct implementation of the dirac delta function: most papers simply stop after the initial discretisation, which leads to an overall inaccuracy in the mass of a few % for very small dirac sizes
+This section has been one of the more complicated things I've had to implement. I do not know if I've ever seen a tediously correct implementation of the dirac delta function: most papers simply stop after the initial discretisation, which leads to an overall inaccuracy in the mass of a few % for very small dirac sizes. More importantly, the mass oscillates with a naive discretisation as a particle moves through the grid, which isn't great
 
-You can see that there are probably about ~10 points in total in this article where its possible to implement things incorrectly, which can rapidly lead to multiple rounding errors per-cell per-tick. This is the reason why its so important - if you do it wrong *everywhere*, then everything on one side of your grid will experience multiple systematic non random bits of error relative to the other side of your grid every tick, which can lead to very unexpected results over time
+You can see that there are probably about ~10 points in total in this article where its possible to implement things incorrectly, which can rapidly lead to multiple rounding errors per-cell per-tick. This is the reason why its so important - if you do it wrong *everywhere*, then everything on one side of your grid will experience multiple non random bits of error relative to the other side of your grid every tick, which can lead to very unexpected results over time
+
+# Initial conditions
+
+This segment is less terrible than the dirac segment

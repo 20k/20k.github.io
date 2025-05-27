@@ -27,6 +27,7 @@
 				</Compiler>
 				<Linker>
 					<Add option="-O3" />
+					<Add option="-s" />
 				</Linker>
 			</Target>
 			<Target title="GPUProfile">
@@ -40,6 +41,7 @@
 				</Compiler>
 				<Linker>
 					<Add option="-O3" />
+					<Add option="-s" />
 				</Linker>
 			</Target>
 			<Target title="Profile">
@@ -95,7 +97,6 @@
 		<Unit filename="../common/libtov/tov.cpp" />
 		<Unit filename="../common/libtov/tov.hpp" />
 		<Unit filename="../common/single_source.hpp" />
-		<Unit filename="../common/stdmath.hpp" />
 		<Unit filename="../common/toolkit/clock.cpp" />
 		<Unit filename="../common/toolkit/fs_helpers.cpp" />
 		<Unit filename="../common/toolkit/fs_helpers.hpp" />
@@ -107,6 +108,7 @@
 		<Unit filename="../common/toolkit/texture.cpp" />
 		<Unit filename="../common/toolkit/texture.hpp" />
 		<Unit filename="../common/value2.hpp" />
+		<Unit filename="../common/vec/stdmath.hpp" />
 		<Unit filename="../common/vec/tensor.hpp" />
 		<Unit filename="bssn.cpp" />
 		<Unit filename="bssn.hpp" />
