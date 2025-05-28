@@ -21,7 +21,6 @@
 #include "hydrodynamics.hpp"
 #include "particles.hpp"
 #include "random.hpp"
-#include <nlohmann/json.hpp>
 
 float get_scale(float simulation_width, t3i dim)
 {
@@ -1748,59 +1747,7 @@ initial_params get_initial_params()
     init.add(p1);
     #endif
 
-    #define OMEGA_CENTAURI
-    #ifdef OMEGA_CENTAURI
-    std::string data = file::read("D:/Gaia/combined_datasets/combined.msgpack", file::mode::BINARY);
-
-    nlohmann::json js = nlohmann::json::from_msgpack(data);
-
-        /*    uint64_t omegacat2_id = 0;
-        std::optional<uint64_t> nitschai_id;
-        std::optional<uint64_t> gaia_id;
-
-        std::string ref_epoch;
-        double ra = 0;
-        double dec = 0;
-
-        std::optional<double> pmra;
-        std::optional<double> pmdec;
-
-        std::optional<double> gaia_ref_epoch;
-        std::optional<double> gaia_parallax;
-
-        std::optional<double> nitschai_los_velocity;
-        std::optional<double> gaia_los_velocity;
-
-        //i don't have a clue how to calculate this yet
-        std::optional<double> mass;*/
-
-    std::vector<nlohmann::json> parallax = js["gaia_parallax"];
-
-    for(nlohmann::json& dat : parallax)
-    {
-        if(dat.is_null())
-            continue;
-
-        double milli_to_rad = M_PI/648000000.;
-
-        double au_km = 149597870.7;
-
-        //milliarcseconds
-        double par = dat;
-        double par_radians = milli_to_rad * par;
-
-        double dist_km = au_m / tan(0.5f * par_radians);
-
-        printf("Dist %f\n", dist_m);
-    }
-
-    initial_params init;
-    init.N = 2;
-
-
-    #endif // OMEGA_CENTAURI
-
-    //#define PARTICLE_TESTS
+    #define PARTICLE_TESTS
     #ifdef PARTICLE_TESTS
     xoshiro256ss_state st = xoshiro256ss_init(432123452345ULL);
 
@@ -1814,7 +1761,7 @@ initial_params get_initial_params()
 
     float radial_pos = geometric_to_msol(1000 * 54.6/2, 1);
 
-    //#define RANDOM_INIT
+    #define RANDOM_INIT
     #ifdef RANDOM_INIT
     int N = 10000000;
     double M = 1/10.f;
