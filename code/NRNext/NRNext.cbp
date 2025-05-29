@@ -118,6 +118,8 @@
 		<Unit filename="errors.hpp" />
 		<Unit filename="formalisms.cpp" />
 		<Unit filename="formalisms.hpp" />
+		<Unit filename="galaxy_model.cpp" />
+		<Unit filename="galaxy_model.hpp" />
 		<Unit filename="hydrodynamics.cpp" />
 		<Unit filename="hydrodynamics.hpp" />
 		<Unit filename="init.cpp" />

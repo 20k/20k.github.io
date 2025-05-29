@@ -1792,7 +1792,7 @@ initial_params get_initial_params()
     }
     #endif
 
-    #define TWO_BODY
+    //#define TWO_BODY
     #ifdef TWO_BODY
     float m1 = 0.01;
     float m2 = 0.01;
