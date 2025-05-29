@@ -14,3 +14,4 @@ obj
 /code/NRNext/imgui.ini
 /code/NRNext/.cache/*
 /code/NRNext/.cache/
+.cache
