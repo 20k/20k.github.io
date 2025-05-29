@@ -21,6 +21,7 @@
 #include "hydrodynamics.hpp"
 #include "particles.hpp"
 #include "random.hpp"
+#include "galaxy_model.hpp"
 
 float get_scale(float simulation_width, t3i dim)
 {
@@ -1836,6 +1837,17 @@ initial_params get_initial_params()
 
     initial_params init;
     init.N = 2;
+
+    #define GALAXY_TEST
+    #ifdef GALAXY_TEST
+    galaxy_data dat = build_galaxy(radial_pos * 3);
+
+    for(int i=0; i < (int)dat.positions.size(); i++)
+    {
+        part.add(dat.positions[i], dat.velocities[i], dat.masses[i]);
+    }
+
+    #endif
 
     //#define NEGATIVE_MASS
     #ifdef NEGATIVE_MASS

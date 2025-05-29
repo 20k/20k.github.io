@@ -271,7 +271,7 @@ struct numerical_params
         double mass_in_m = params.mass_kg * G / (C*C);
         double radius_in_m = params.radius_m;
 
-        double max_scale_radius = simulation_width * 0.5f * 0.6f;
+        double max_scale_radius = simulation_width * 0.5f;
         double meters_to_scale = max_scale_radius / radius_in_m;
 
         mass = mass_in_m * meters_to_scale;
@@ -298,6 +298,7 @@ galaxy_data build_galaxy(float simulation_width)
 {
     ///https://arxiv.org/abs/1607.08364
     //double milky_way_mass_kg = 6.43 * pow(10., 10.) * 1.16 * get_solar_mass_kg();
+    //double milky_way_mass_kg = 2 * pow(10, 12) * get_solar_mass_kg();
     double milky_way_mass_kg = 4 * pow(10, 11) * get_solar_mass_kg();
     //double milky_way_radius_m = 0.5f * pow(10., 21.);
     double milky_way_radius_m = 0.5 * 8 * pow(10., 20.);
