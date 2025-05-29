@@ -1,7 +1,8 @@
 #include "galaxy_model.hpp"
+#include <cmath>
+#include "random.hpp"
 
-
-#if 0
+#if 1
 float get_kepler_velocity(float distance_between_bodies, float my_mass, float their_mass)
 {
     float R = distance_between_bodies;
@@ -306,7 +307,7 @@ struct numerical_params
     }
 };
 
-particle_data build_galaxy(float simulation_width)
+galaxy_data build_galaxy(float simulation_width)
 {
     ///https://arxiv.org/abs/1607.08364
     //double milky_way_mass_kg = 6.43 * pow(10., 10.) * 1.16 * get_solar_mass_kg();
@@ -322,8 +323,8 @@ particle_data build_galaxy(float simulation_width)
 
     numerical_params num_params(params, simulation_width);
 
-    std::vector<vec3f> positions;
-    std::vector<vec3f> directions;
+    std::vector<t3f> positions;
+    std::vector<t3f> directions;
     std::vector<float> masses;
     std::vector<float> analytic_cumulative_mass;
 
@@ -344,7 +345,7 @@ particle_data build_galaxy(float simulation_width)
         //printf("Local Velocity %f\n", velocity);
         //printf("Local To Meters", 1/dist.meters_to_local);
 
-        double angle = uint64_to_double(xoshiro256ss(rng)) * 2 * M_PI;
+        double angle = uint64_to_double(xoshiro256ss(rng)) * 2 * std::numbers::pi_v<float>;
 
         double z = 0;
 
@@ -353,7 +354,7 @@ particle_data build_galaxy(float simulation_width)
 
         //double scale_radius = num_params.convert_distance_to_scale(radius);
 
-        vec3f pos = {cos(angle) * radius_scale, sin(angle) * radius_scale, z};
+        t3f pos = {cos(angle) * radius_scale, sin(angle) * radius_scale, z};
 
         positions.push_back(pos);
 
@@ -361,11 +362,28 @@ particle_data build_galaxy(float simulation_width)
         double speed_in_ms = dist.local_distance_to_meters(velocity);
         double speed_in_c = speed_in_ms / get_c();
 
-        vec2f velocity_direction = (vec2f){1, 0}.rot(angle + M_PI/2);
+        auto rot = [](t2f in, float rot_angle)
+        {
+            float len = in.length();
 
-        vec2f velocity_2d = speed_in_c * velocity_direction;
+            if(len < 0.00001f)
+                return in;
 
-        vec3f velocity_fin = {velocity_2d.x(), velocity_2d.y(), 0.f};
+            float cur_angle = atan2(in.y(), in.x());
+
+            float new_angle = cur_angle + rot_angle;
+
+            float nx = len * cos(new_angle);
+            float ny = len * sin(new_angle);
+
+            return (t2f){nx, ny};
+        };
+
+        t2f velocity_direction = rot({1, 0}, angle + std::numbers::pi_v<float>/2);
+
+        t2f velocity_2d = speed_in_c * velocity_direction;
+
+        t3f velocity_fin = {velocity_2d.x(), velocity_2d.y(), 0.f};
 
         directions.push_back(velocity_fin);
 
@@ -397,7 +415,7 @@ particle_data build_galaxy(float simulation_width)
     std::vector<float> debug_real_mass;
 
     {
-        std::vector<std::tuple<vec3f, vec3f, float>> pos_vel;
+        std::vector<std::tuple<t3f, t3f, float>> pos_vel;
         pos_vel.reserve(real_count);
 
         for(int i=0; i < real_count; i++)
@@ -432,14 +450,14 @@ particle_data build_galaxy(float simulation_width)
         }
     }
 
-    particle_data ret;
+    galaxy_data ret;
     ret.positions = std::move(positions);
     ret.velocities = std::move(directions);
     ret.masses = std::move(masses);
     ret.debug_velocities = std::move(debug_velocities);
     ret.debug_analytic_mass = std::move(debug_analytic_mass);
     ret.debug_real_mass = std::move(debug_real_mass);
-    ret.particle_brightness = 0.01;
+    //ret.particle_brightness = 0.01;
 
     return ret;
 }

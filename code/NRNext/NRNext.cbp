@@ -110,6 +110,7 @@
 		<Unit filename="../common/value2.hpp" />
 		<Unit filename="../common/vec/stdmath.hpp" />
 		<Unit filename="../common/vec/tensor.hpp" />
+		<Unit filename="../common/vec/vec.hpp" />
 		<Unit filename="bssn.cpp" />
 		<Unit filename="bssn.hpp" />
 		<Unit filename="derivatives.cpp" />
