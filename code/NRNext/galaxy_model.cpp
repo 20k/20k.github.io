@@ -3,24 +3,11 @@
 #include "random.hpp"
 
 #if 1
-float get_kepler_velocity(float distance_between_bodies, float my_mass, float their_mass)
-{
-    float R = distance_between_bodies;
-
-    float M = my_mass + their_mass;
-
-    float velocity = sqrt(M/R);
-
-    return velocity;
-
-    //float velocity = their_mass * their_mass / (R * M);
-}
-
 ///https://arxiv.org/pdf/1705.04131.pdf 28
-float matter_cdf(float m0, float r0, float rc, float r, float B = 1)
+/*float matter_cdf(float m0, float r0, float rc, float r, float B = 1)
 {
     return m0 * pow(sqrt(r0/rc) * r/(r + rc), 3 * B);
-}
+}*/
 
 float select_from_cdf(float value_mx, float max_radius, auto cdf)
 {
@@ -330,7 +317,7 @@ galaxy_data build_galaxy(float simulation_width)
 
     xoshiro256ss_state rng = xoshiro256ss_init(2345);
 
-    int test_particle_count = 1000 * 60;
+    int test_particle_count = 1000 * 100;
 
     ///oh crap. So, if we select a radius outside of the galaxy radius, we actually need to discard the particle instead?
     for(int i=0; i < test_particle_count; i++)
