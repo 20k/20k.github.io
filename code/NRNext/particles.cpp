@@ -126,7 +126,7 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
     using namespace single_source;
 
     ///minimum perf floor is 190, and that's achieved with radius_cells = 0
-    int radius_cells = 1;
+    int radius_cells = 7;
 
     if(radius_cells > 0)
     {

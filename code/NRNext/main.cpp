@@ -1761,7 +1761,7 @@ initial_params get_initial_params()
 
     float radial_pos = geometric_to_msol(1000 * 54.6/2, 1);
 
-    #define RANDOM_INIT
+    //#define RANDOM_INIT
     #ifdef RANDOM_INIT
     int N = 10000000;
     double M = 1/10.f;
@@ -1792,6 +1792,24 @@ initial_params get_initial_params()
     }
     #endif
 
+    #define TWO_BODY
+    #ifdef TWO_BODY
+    float m1 = 0.01;
+    float m2 = 0.01;
+    float R = radial_pos;
+
+    t3f p1 = {-R/2, 0, 0};
+    t3f p2 = {R/2, 0, 0};
+
+    float v1 = sqrt((m2*m2) / (R * (m1 + m2)));
+    float v2 = sqrt((m1*m1) / (R * (m1 + m2)));
+
+    t3f vv1 = {0, v1, 0};
+    t3f vv2 = {0, -v2, 0};
+
+    part.add(p1, vv1, m1);
+    part.add(p2, vv2, m2);
+    #endif
 
     //#define BLACK_HOLE
     #ifdef BLACK_HOLE
