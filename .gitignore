@@ -11,3 +11,4 @@ generated
 obj
 /code/NRNext/NRNext.depend
 /code/NRNext/imgui.ini
+/code/NRNext/.cache/*
