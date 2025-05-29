@@ -10,5 +10,7 @@ cache
 generated
 obj
 /code/NRNext/NRNext.depend
+/code/NRNext/NRNext.layout
 /code/NRNext/imgui.ini
 /code/NRNext/.cache/*
+/code/NRNext/.cache
