@@ -71,7 +71,7 @@ struct disk_distribution
 {
     bool is_disk = true;
 
-    double a = 3;
+    double a = 1;
 
     double cdf(double M0, double G, double r)
     {
@@ -298,8 +298,8 @@ galaxy_data build_galaxy(float simulation_width)
 {
     ///https://arxiv.org/abs/1607.08364
     //double milky_way_mass_kg = 6.43 * pow(10., 10.) * 1.16 * get_solar_mass_kg();
-    //double milky_way_mass_kg = 2 * pow(10, 12) * get_solar_mass_kg();
-    double milky_way_mass_kg = 4 * pow(10, 11) * get_solar_mass_kg();
+    double milky_way_mass_kg = 2 * pow(10, 12) * get_solar_mass_kg();
+    //double milky_way_mass_kg = 4 * pow(10, 11) * get_solar_mass_kg();
     //double milky_way_radius_m = 0.5f * pow(10., 21.);
     double milky_way_radius_m = 0.5 * 8 * pow(10., 20.);
 
@@ -318,7 +318,7 @@ galaxy_data build_galaxy(float simulation_width)
 
     xoshiro256ss_state rng = xoshiro256ss_init(2345);
 
-    int test_particle_count = 1000 * 100;
+    int test_particle_count = 1000 * 500;
 
     ///oh crap. So, if we select a radius outside of the galaxy radius, we actually need to discard the particle instead?
     for(int i=0; i < test_particle_count; i++)

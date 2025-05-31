@@ -644,7 +644,7 @@ void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer
     pin(vars.gA);
     pin(vars.gB);
 
-    m44f metric = calculate_real_metric(Yij, vars.gA, vars.gB);
+    m44f metric = calculate_real_metric(Yij, valuef(1.f), (v3f){});
     pin(metric);
 
     tetrad tet = calculate_tetrad(metric, {0,0,0}, false);
