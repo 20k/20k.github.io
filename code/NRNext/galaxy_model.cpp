@@ -46,7 +46,7 @@ float select_from_cdf(float value_mx, float max_radius, auto cdf)
 
 double get_solar_mass_kg()
 {
-    return 1.98892 * std::pow(10., 30.);
+    return 1.988416 * std::pow(10., 30.);
 }
 
 ///m/s
@@ -71,7 +71,7 @@ struct disk_distribution
 {
     bool is_disk = true;
 
-    double a = 1;
+    double a = 3;
 
     double cdf(double M0, double G, double r)
     {
@@ -387,9 +387,9 @@ galaxy_data build_galaxy(float simulation_width)
         //printf("Position %f %f %f\n", pos.x(), pos.y(), pos.z());
     }
 
-    float init_mass = num_params.mass / test_particle_count;
-
     int real_count = positions.size();
+
+    float init_mass = num_params.mass / real_count;
 
     ///https://www.mdpi.com/2075-4434/6/3/70/htm mond galaxy info
 
@@ -427,6 +427,8 @@ galaxy_data build_galaxy(float simulation_width)
 
             if(p_len >= selection_radius)
             {
+                //printf("Velocity %f real mass %f radius %f\n", v.length(), real_mass, p_len);
+
                 selection_radius += 0.25f;
                 debug_velocities.push_back(v.length());
 
