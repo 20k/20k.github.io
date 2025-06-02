@@ -2,13 +2,90 @@
 #include <cmath>
 #include "random.hpp"
 
-#if 1
+double select_from_cdf(double frac, auto cdf)
+{
+    double next_upper = 1;
+    double next_lower = 0;
+
+    for(int i=0; i < 50; i++)
+    {
+        double test_val = (next_upper + next_lower)/2.f;
+
+        double found_val = cdf(test_val);
+
+        if(found_val < frac)
+        {
+            next_lower = test_val;
+        }
+        else if(found_val > frac)
+        {
+            next_upper = test_val;
+        }
+        else
+        {
+            return test_val;
+        }
+    }
+
+    return (next_upper + next_lower)/2.f;
+}
+
+double get_c()
+{
+    return 299792458;
+}
+
+///m3 kg-1 s-2
+double get_G()
+{
+    return 6.67430 * std::pow(10., -11.);
+}
+
+struct disk_distribution
+{
+    double M0 = 0;
+    double a_frac = 0.01;
+    double max_R = 0;
+
+    double normalised_cdf(double fraction)
+    {
+        double a = a_frac * max_R;
+
+        double r = fraction * max_R;
+
+        return 1 - a / sqrt(r*r + a*a);
+    }
+
+    //radius -> velocity
+    double fraction_to_velocity(double fraction)
+    {
+        double R = fraction * max_R;
+        double a = a_frac * max_R;
+
+        double G = get_G();
+
+        return std::sqrt((G * M0 * R*R) / pow(R*R + a*a, 3./2.));
+    }
+
+    double select_radius(xoshiro256ss_state& rng)
+    {
+        auto lambda_cdf = [&](double r)
+        {
+            return normalised_cdf(r);
+        };
+
+        double random = uint64_to_double(xoshiro256ss(rng));
+
+        return select_from_cdf(random, lambda_cdf) * max_R;
+    }
+};
+
+#if 0
 ///https://arxiv.org/pdf/1705.04131.pdf 28
 /*float matter_cdf(float m0, float r0, float rc, float r, float B = 1)
 {
     return m0 * pow(sqrt(r0/rc) * r/(r + rc), 3 * B);
 }*/
-
 float select_from_cdf(float value_mx, float max_radius, auto cdf)
 {
     float value_at_max = cdf(max_radius);
@@ -141,6 +218,8 @@ struct disk_distribution
     }
 };*/
 
+///Todo: I've totally messed up the units as I expected
+
 ///This is not geometric units, this is scale independent
 template<typename T>
 struct galaxy_distribution
@@ -165,6 +244,7 @@ struct galaxy_distribution
     }
 
     ///M(r)
+    //problem 2: we're cutting off the CDF quite early
     double cdf(double r)
     {
         ///correct for cumulative sphere model
@@ -213,11 +293,8 @@ struct galaxy_distribution
 
     galaxy_distribution(const galaxy_params& params)
     {
-        ///decide scale. Probably just crack radius between 0 and 5 because astrophysics!
-        ///sun units?
-
         mass = params.mass_kg / get_solar_mass_kg();
-        max_radius = 14.4; ///YEP
+        max_radius = 100.4;
 
         double to_local_distance = max_radius / params.radius_m;
         double to_local_mass = mass / params.mass_kg;
@@ -233,19 +310,6 @@ struct galaxy_distribution
         {
             return cdf(r);
         };
-
-        /*double found_radius = 0;
-
-        do
-        {
-            double random = uint64_to_double(xoshiro256ss(rng));
-
-            double random_mass = random * mass;
-
-            found_radius = select_from_cdf(random_mass, max_radius, lambda_cdf);
-        } while(found_radius >= max_radius);
-
-        return found_radius;*/
 
         double random = uint64_to_double(xoshiro256ss(rng));
 
@@ -294,6 +358,7 @@ struct numerical_params
     }
 };
 
+
 galaxy_data build_galaxy(float simulation_width)
 {
     ///https://arxiv.org/abs/1607.08364
@@ -320,7 +385,7 @@ galaxy_data build_galaxy(float simulation_width)
 
     int test_particle_count = 1000 * 500;
 
-    ///oh crap. So, if we select a radius outside of the galaxy radius, we actually need to discard the particle instead?
+    //check the actual cumulative mass that we generate
     for(int i=0; i < test_particle_count; i++)
     {
         double radius = dist.select_radius(rng);
@@ -389,7 +454,11 @@ galaxy_data build_galaxy(float simulation_width)
 
     int real_count = positions.size();
 
+    float max_mass = dist.cdf(dist.max_radius);
+
     float init_mass = num_params.mass / real_count;
+
+    printf("Max %f %f %f dist mass %f\n", max_mass, init_mass, dist.max_radius, dist.mass);
 
     ///https://www.mdpi.com/2075-4434/6/3/70/htm mond galaxy info
 
@@ -427,7 +496,7 @@ galaxy_data build_galaxy(float simulation_width)
 
             if(p_len >= selection_radius)
             {
-                //printf("Velocity %f real mass %f radius %f\n", v.length(), real_mass, p_len);
+                printf("Velocity %f real mass %f radius %f amass %f\n", v.length(), real_mass, p_len, m);
 
                 selection_radius += 0.25f;
                 debug_velocities.push_back(v.length());
