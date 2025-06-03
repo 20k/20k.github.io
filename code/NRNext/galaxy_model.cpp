@@ -182,44 +182,47 @@ galaxy_data build_galaxy(float fill_width)
 
     double total_den = 0;
 
-    int max_dim = 1000;
+    int max_dim = 300;
 
-    for(int y=-max_dim; y <= max_dim; y++)
+    for(int z=-max_dim; z <= max_dim; z++)
     {
-        for(int x=-max_dim; x <= max_dim; x++)
+        for(int y=-max_dim; y <= max_dim; y++)
         {
-            float fx = (float)x / max_dim;
-            float fy = (float)y / max_dim;
-            float fz = 0.f;
+            for(int x=-max_dim; x <= max_dim; x++)
+            {
+                float fx = (float)x / max_dim;
+                float fy = (float)y / max_dim;
+                float fz = (float)z / max_dim;
 
-            double frac_radius = sqrt(fx * fx + fy * fy + fz * fz);
+                double frac_radius = sqrt(fx * fx + fy * fy + fz * fz);
 
-            if(frac_radius > 1)
-                continue;
+                if(frac_radius > 1)
+                    continue;
 
-            double den = disk.density(fx, fy, fz);
+                double den = disk.density(fx, fy, fz);
 
-            if(den == 0)
-                continue;
+                if(den == 0)
+                    continue;
 
-            double velocity = disk.fraction_to_velocity(frac_radius, fz);
-            double velocity_geom = velocity / get_c();
+                double velocity = disk.fraction_to_velocity(frac_radius, fz);
+                double velocity_geom = velocity / get_c();
 
-            double angle = atan2(fy, fx);
+                double angle = atan2(fy, fx);
 
-            double pi = std::numbers::pi_v<double>;
+                double pi = std::numbers::pi_v<double>;
 
-            t3f vel = {velocity_geom * cos(angle + pi/2), velocity_geom * sin(angle + pi/2), 0.f};
-            t3f pos = {fx * fill_radius, fy * fill_radius, fz * fill_radius};
+                t3f vel = {velocity_geom * cos(angle + pi/2), velocity_geom * sin(angle + pi/2), 0.f};
+                t3f pos = {fx * fill_radius, fy * fill_radius, fz * fill_radius};
 
-            dat.positions.push_back(pos);
-            dat.velocities.push_back(vel);
+                dat.positions.push_back(pos);
+                dat.velocities.push_back(vel);
 
-            total_den += den;
+                total_den += den;
 
-            double local_analytic_mass = milky_way_mass_kg * disk.normalised_cdf(frac_radius);
-            double analytic_mass_scale = si_to_geometric(local_analytic_mass, 1, 0) * (fill_radius / disk.max_R);
-            analytic_cumulative_mass.push_back(analytic_mass_scale);
+                double local_analytic_mass = milky_way_mass_kg * disk.normalised_cdf(frac_radius);
+                double analytic_mass_scale = si_to_geometric(local_analytic_mass, 1, 0) * (fill_radius / disk.max_R);
+                analytic_cumulative_mass.push_back(analytic_mass_scale);
+            }
         }
     }
 
