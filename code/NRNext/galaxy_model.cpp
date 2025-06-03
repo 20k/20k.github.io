@@ -1,6 +1,7 @@
 #include "galaxy_model.hpp"
 #include <cmath>
 #include "random.hpp"
+#include <libtov/tov.hpp>
 
 double select_from_cdf(double frac, auto cdf)
 {
@@ -79,6 +80,66 @@ struct disk_distribution
         return select_from_cdf(random, lambda_cdf) * max_R;
     }
 };
+
+double get_solar_mass_kg()
+{
+    return 1.988416 * std::pow(10., 30.);
+}
+
+galaxy_data build_galaxy(float fill_width)
+{
+    double fill_radius = fill_width/2;
+
+    galaxy_data dat;
+    xoshiro256ss_state rng = xoshiro256ss_init(2345);
+
+    int try_num = 1000 * 1000;
+    int real_num = 0;
+
+    double milky_way_mass_kg = 2 * pow(10, 12) * get_solar_mass_kg();
+    //double milky_way_mass_kg = 4 * pow(10, 11) * get_solar_mass_kg();
+    double milky_way_radius_m = 0.5 * 8 * pow(10., 20.);
+
+    disk_distribution disk;
+    disk.M0 = milky_way_mass_kg;
+    disk.max_R = milky_way_radius_m;
+
+    for(int i=0; i < try_num; i++)
+    {
+        double radius = disk.select_radius(rng);
+
+        if(radius > disk.max_R)
+            continue;
+
+        real_num++;
+
+        double velocity = disk.fraction_to_velocity(radius / disk.max_R);
+
+        double velocity_geom = velocity / get_c();
+
+        double angle = uint64_to_double(xoshiro256ss(rng)) * 2 * std::numbers::pi_v<float>;
+
+        double radius_real = (radius / disk.max_R) * fill_radius;
+
+        t3f vel = {velocity_geom * cos(angle), velocity_geom * sin(angle), 0.f};
+        t3f pos = {radius_real * cos(angle), radius_real * sin(angle), 0.f};
+
+        dat.positions.push_back(pos);
+        dat.velocities.push_back(vel);
+    }
+
+    double mass_m = si_to_geometric(milky_way_mass_kg, 1, 0);
+    double mass_real = (mass_m / disk.max_R) * fill_radius;
+
+    printf("Found mass %f\n", mass_real);
+
+    double mass_per_particle = mass_real / real_num;
+
+    for(auto& i : dat.positions)
+        dat.masses.push_back(mass_per_particle);
+
+    return dat;
+}
 
 #if 0
 ///https://arxiv.org/pdf/1705.04131.pdf 28
