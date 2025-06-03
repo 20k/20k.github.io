@@ -145,7 +145,9 @@ galaxy_data build_galaxy(float fill_width)
         dat.velocities.push_back(vel);
     }
 
-    double mass_m = si_to_geometric(milky_way_mass_kg, 1, 0);
+    double encapsulated_mass_kg = milky_way_mass_kg * disk.normalised_cdf(1.f);
+
+    double mass_m = si_to_geometric(encapsulated_mass_kg, 1, 0);
     double mass_real = (mass_m / disk.max_R) * fill_radius;
 
     printf("Found mass %f\n", mass_real);
