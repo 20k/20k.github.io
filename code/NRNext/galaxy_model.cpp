@@ -63,12 +63,12 @@ struct disk_distribution
     }
 
     //radius -> velocity
-    double fraction_to_velocity(double fraction)
+    double fraction_to_velocity(double fraction, float z_frac)
     {
         double R = fraction * max_R;
 
         double h = 0.01 * max_R;
-        return sqrt(R * (potential((R + h) / max_R, 0) - potential((R - h) / max_R, 0)) / (2 * h));
+        return sqrt(R * (potential((R + h) / max_R, z_frac) - potential((R - h) / max_R, z_frac)) / (2 * h));
     }
 
     /*std::optional<double> select_radial_frac(xoshiro256ss_state& rng)
@@ -190,18 +190,19 @@ galaxy_data build_galaxy(float fill_width)
         {
             float fx = (float)x / max_dim;
             float fy = (float)y / max_dim;
+            float fz = 0.f;
 
-            double frac_radius = sqrt(fx * fx + fy * fy);
+            double frac_radius = sqrt(fx * fx + fy * fy + fz * fz);
 
             if(frac_radius > 1)
                 continue;
 
-            double den = disk.density(fx, fy, 0.);
+            double den = disk.density(fx, fy, fz);
 
             if(den == 0)
                 continue;
 
-            double velocity = disk.fraction_to_velocity(frac_radius);
+            double velocity = disk.fraction_to_velocity(frac_radius, fz);
             double velocity_geom = velocity / get_c();
 
             double angle = atan2(fy, fx);
@@ -209,7 +210,7 @@ galaxy_data build_galaxy(float fill_width)
             double pi = std::numbers::pi_v<double>;
 
             t3f vel = {velocity_geom * cos(angle + pi/2), velocity_geom * sin(angle + pi/2), 0.f};
-            t3f pos = {fx * fill_radius, fy * fill_radius, 0.};
+            t3f pos = {fx * fill_radius, fy * fill_radius, fz * fill_radius};
 
             dat.positions.push_back(pos);
             dat.velocities.push_back(vel);
