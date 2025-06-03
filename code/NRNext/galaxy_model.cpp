@@ -97,7 +97,7 @@ struct disk_distribution
 
         tensor<float, 3> pos = {x_frac, y_frac, z_frac};
 
-        double R = pos.length() * max_R;
+        double R = pos.xy().length() * max_R;
         double z = pos.z() * max_R;
 
         double a = a_frac * max_R;
@@ -234,12 +234,14 @@ galaxy_data build_galaxy(float fill_width)
                 if(frac_radius > 1)
                     continue;
 
+                double R_frac = sqrt(fx*fx + fy*fy);
+
                 double den = disk.density(fx, fy, fz);
 
                 if(den == 0)
                     continue;
 
-                double velocity = disk.fraction_to_velocity(frac_radius, fz);
+                double velocity = disk.fraction_to_velocity(R_frac, fz);
                 double velocity_geom = velocity / get_c();
 
                 double angle = atan2(fy, fx);
@@ -248,7 +250,7 @@ galaxy_data build_galaxy(float fill_width)
 
                 t3f up_axis = {0, 0, 1};
 
-                if(fx == 0 && fy == 0)
+                if(fx == 0 && fy == 0 && fz == 0)
                     continue;
 
                 t3f rotation_axis = cross((t3f){fx, fy, fz}.norm(), up_axis.norm()).norm();
