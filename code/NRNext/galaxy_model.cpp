@@ -48,7 +48,7 @@ double get_G()
 struct disk_distribution
 {
     double M0 = 0;
-    double a_frac = 0.01;
+    double a_frac = 0.05;
     double max_R = 0;
 
     double normalised_cdf(double fraction)
@@ -114,6 +114,12 @@ galaxy_data build_galaxy(float fill_width)
     disk.M0 = milky_way_mass_kg;
     disk.max_R = milky_way_radius_m;
 
+    double encapsulated_mass_kg = milky_way_mass_kg * disk.normalised_cdf(1.f);
+    double mass_m = si_to_geometric(encapsulated_mass_kg, 1, 0);
+    double mass_real = (mass_m / disk.max_R) * fill_radius;
+
+    std::vector<double> analytic_cumulative_mass;
+
     for(int i=0; i < try_num; i++)
     {
         auto radius_opt = disk.select_radial_frac(rng);
@@ -143,12 +149,11 @@ galaxy_data build_galaxy(float fill_width)
 
         dat.positions.push_back(pos);
         dat.velocities.push_back(vel);
+
+        double local_analytic_mass = milky_way_mass_kg * disk.normalised_cdf(radius / disk.max_R);
+        double analytic_mass_scale = si_to_geometric(local_analytic_mass, 1, 0) * (fill_radius / disk.max_R);
+        analytic_cumulative_mass.push_back(analytic_mass_scale);
     }
-
-    double encapsulated_mass_kg = milky_way_mass_kg * disk.normalised_cdf(1.f);
-
-    double mass_m = si_to_geometric(encapsulated_mass_kg, 1, 0);
-    double mass_real = (mass_m / disk.max_R) * fill_radius;
 
     printf("Found mass %f\n", mass_real);
 
@@ -156,6 +161,48 @@ galaxy_data build_galaxy(float fill_width)
 
     for(auto& i : dat.positions)
         dat.masses.push_back(mass_per_particle);
+
+    std::vector<float> debug_velocities;
+    std::vector<float> debug_analytic_mass;
+    std::vector<float> debug_real_mass;
+
+    {
+        std::vector<std::tuple<t3f, t3f, float>> pos_vel;
+
+        for(int i=0; i < real_num; i++)
+        {
+            pos_vel.push_back({dat.positions[i], dat.velocities[i], analytic_cumulative_mass[i]});
+        }
+
+        std::sort(pos_vel.begin(), pos_vel.end(), [](auto& i1, auto& i2)
+        {
+            return std::get<0>(i1).squared_length() < std::get<0>(i2).squared_length();
+        });
+
+        float selection_radius = 0;
+
+        float real_mass = 0;
+
+        for(auto& [p, v, m] : pos_vel)
+        {
+            float p_len = p.length();
+            //float v_len = v.length();
+
+            if(p_len >= selection_radius)
+            {
+                printf("Velocity %f real mass %f radius %f amass %f\n", v.length(), real_mass, p_len, m);
+
+                selection_radius += 0.25f;
+                debug_velocities.push_back(v.length());
+
+                debug_real_mass.push_back(real_mass);
+                debug_analytic_mass.push_back(m);
+            }
+
+            real_mass += mass_per_particle;
+        }
+    }
+
 
     return dat;
 }
