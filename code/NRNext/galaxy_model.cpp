@@ -45,6 +45,8 @@ double get_G()
     return 6.67430 * std::pow(10., -11.);
 }
 
+///todo: do my shitty density idea
+///ie place particles in a regular grid pattern, assign them mass based on density, then scale the overall mass
 struct disk_distribution
 {
     double M0 = 0;
@@ -78,7 +80,7 @@ struct disk_distribution
         return vel;
     }
 
-    std::optional<double> select_radial_frac(xoshiro256ss_state& rng)
+    /*std::optional<double> select_radial_frac(xoshiro256ss_state& rng)
     {
         auto lambda_cdf = [&](double r)
         {
@@ -95,6 +97,22 @@ struct disk_distribution
         //    printf("Got res %f\n", result.value());
 
         return result;
+    }*/
+
+    double density(double x_frac, double y_frac, double z_frac)
+    {
+        if(z_frac != 0)
+            return 0.f;
+
+        double a = a_frac * max_R;
+
+        tensor<float, 3> pos = {x_frac, y_frac, z_frac};
+
+        double R = pos.length() * max_R;
+
+        double pi = std::numbers::pi_v<double>;
+
+        return (M0 * a / (2 * pi)) * pow(R*R + a*a, -3.f/2.f);
     }
 
     double potential(double radius_frac, double z_frac)
@@ -136,7 +154,7 @@ galaxy_data build_galaxy(float fill_width)
 
     std::vector<double> analytic_cumulative_mass;
 
-    for(int i=0; i < try_num; i++)
+    /*for(int i=0; i < try_num; i++)
     {
         auto radius_opt = disk.select_radial_frac(rng);
 
@@ -169,24 +187,85 @@ galaxy_data build_galaxy(float fill_width)
         double local_analytic_mass = milky_way_mass_kg * disk.normalised_cdf(radius / disk.max_R);
         double analytic_mass_scale = si_to_geometric(local_analytic_mass, 1, 0) * (fill_radius / disk.max_R);
         analytic_cumulative_mass.push_back(analytic_mass_scale);
+    }*/
+
+    double total_den = 0;
+
+    int max_dim = 1000;
+
+    for(int y=-max_dim; y <= max_dim; y++)
+    {
+        for(int x=-max_dim; x <= max_dim; x++)
+        {
+            float fx = (float)x / max_dim;
+            float fy = (float)y / max_dim;
+
+            double frac_radius = sqrt(fx * fx + fy * fy);
+
+            if(frac_radius > 1)
+                continue;
+
+            double velocity = disk.fraction_to_velocity(frac_radius);
+            double velocity_geom = velocity / get_c();
+
+            double angle = atan2(fy, fx);
+
+            double pi = std::numbers::pi_v<double>;
+
+            t3f vel = {velocity_geom * cos(angle + pi/2), velocity_geom * sin(angle + pi/2), 0.f};
+            t3f pos = {fx * fill_radius, fy * fill_radius, 0.};
+
+            dat.positions.push_back(pos);
+            dat.velocities.push_back(vel);
+            //dat.masses.push_back(den);
+
+            double den = disk.density(fx, fy, 0.);
+            total_den += den;
+
+            double local_analytic_mass = milky_way_mass_kg * disk.normalised_cdf(frac_radius);
+            double analytic_mass_scale = si_to_geometric(local_analytic_mass, 1, 0) * (fill_radius / disk.max_R);
+            analytic_cumulative_mass.push_back(analytic_mass_scale);
+        }
     }
 
-    printf("Found mass %f\n", mass_real);
+    real_num = dat.positions.size();
+
+    /*for(auto& i : dat.masses)
+        total_den += i;
+
+    for(auto& i : dat.masses)
+        i *= (mass_real / total_den);*/
+
+    for(auto& pos : dat.positions)
+    {
+        //float frac = pos.length() / fill_radius;
+        double den = disk.density(pos.x() / fill_radius, pos.y() / fill_radius, pos.z() / fill_radius);
+
+        //printf("Den %f\n", den);
+
+        double mass = den * (mass_real / total_den);
+
+        //printf("Mass %.23f\n", mass);
+
+        dat.masses.push_back(mass);
+    }
+
+    /*printf("Found mass %f\n", mass_real);
 
     double mass_per_particle = mass_real / real_num;
 
     for(auto& i : dat.positions)
-        dat.masses.push_back(mass_per_particle);
+        dat.masses.push_back(mass_per_particle);*/
 
     std::vector<float> debug_velocities;
     std::vector<float> debug_analytic_mass;
     std::vector<float> debug_real_mass;
 
     {
-        std::vector<std::tuple<t3f, t3f, float>> pos_vel;
+        std::vector<std::tuple<t3f, t3f, float, float>> pos_vel;
 
         for(int i=0; i < real_num; i++)
-            pos_vel.push_back({dat.positions[i], dat.velocities[i], analytic_cumulative_mass[i]});
+            pos_vel.push_back({dat.positions[i], dat.velocities[i], dat.masses[i], analytic_cumulative_mass[i]});
 
         std::sort(pos_vel.begin(), pos_vel.end(), [](auto& i1, auto& i2)
         {
@@ -195,25 +274,25 @@ galaxy_data build_galaxy(float fill_width)
 
         float selection_radius = 0;
 
-        float real_mass = 0;
+        double real_mass = 0;
 
-        for(auto& [p, v, m] : pos_vel)
+        for(auto& [p, v, m, am] : pos_vel)
         {
             float p_len = p.length();
             //float v_len = v.length();
 
             if(p_len >= selection_radius)
             {
-                printf("Velocity %f real mass %f radius %f amass %f\n", v.length(), real_mass, p_len, m);
+                printf("Velocity %f real mass %f radius %f rmass %.23f amass %f\n", v.length(), real_mass, p_len, m, am);
 
                 selection_radius += 0.25f;
                 debug_velocities.push_back(v.length());
 
                 debug_real_mass.push_back(real_mass);
-                debug_analytic_mass.push_back(m);
+                debug_analytic_mass.push_back(am);
             }
 
-            real_mass += mass_per_particle;
+            real_mass += m;
         }
     }
 
