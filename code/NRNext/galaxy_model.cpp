@@ -3,12 +3,15 @@
 #include "random.hpp"
 #include <libtov/tov.hpp>
 
-double select_from_cdf(double frac, auto cdf)
+std::optional<double> select_from_cdf(double frac, auto cdf)
 {
+    if(frac > cdf(1.))
+        return std::nullopt;
+
     double next_upper = 1;
     double next_lower = 0;
 
-    for(int i=0; i < 50; i++)
+    for(int i=0; i < 500; i++)
     {
         double test_val = (next_upper + next_lower)/2.f;
 
@@ -68,7 +71,7 @@ struct disk_distribution
         return std::sqrt((G * M0 * R*R) / pow(R*R + a*a, 3./2.));
     }
 
-    double select_radius(xoshiro256ss_state& rng)
+    std::optional<double> select_radial_frac(xoshiro256ss_state& rng)
     {
         auto lambda_cdf = [&](double r)
         {
@@ -77,7 +80,14 @@ struct disk_distribution
 
         double random = uint64_to_double(xoshiro256ss(rng));
 
-        return select_from_cdf(random, lambda_cdf) * max_R;
+        //printf("Random %f\n", random);
+
+        auto result = select_from_cdf(random, lambda_cdf);
+
+        //if(result)
+        //    printf("Got res %f\n", result.value());
+
+        return result;
     }
 };
 
@@ -106,7 +116,12 @@ galaxy_data build_galaxy(float fill_width)
 
     for(int i=0; i < try_num; i++)
     {
-        double radius = disk.select_radius(rng);
+        auto radius_opt = disk.select_radial_frac(rng);
+
+        if(!radius_opt)
+            continue;
+
+        double radius = radius_opt.value() * disk.max_R;
 
         if(radius > disk.max_R)
             continue;
