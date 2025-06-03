@@ -64,11 +64,18 @@ struct disk_distribution
     double fraction_to_velocity(double fraction)
     {
         double R = fraction * max_R;
-        double a = a_frac * max_R;
+        /*double a = a_frac * max_R;
 
         double G = get_G();
 
-        return std::sqrt((G * M0 * R*R) / pow(R*R + a*a, 3./2.));
+        return std::sqrt((G * M0 * R*R) / pow(R*R + a*a, 3./2.));*/
+
+        double h = 0.01 * max_R;
+        double vel = sqrt(R * (potential((R + h) / max_R, 0) - potential((R - h) / max_R, 0)) / (2 * h));
+
+        //printf("vell %.23f R %f pot %.23f\n", vel, R, potential(R, 0.f));
+
+        return vel;
     }
 
     std::optional<double> select_radial_frac(xoshiro256ss_state& rng)
@@ -88,6 +95,15 @@ struct disk_distribution
         //    printf("Got res %f\n", result.value());
 
         return result;
+    }
+
+    double potential(double radius_frac, double z_frac)
+    {
+        double R = radius_frac * max_R;
+        double z = z_frac * max_R;
+        double a = a_frac * max_R;
+
+        return -get_G() * M0 / sqrt(R*R + pow(fabs(z) + a, 2.));
     }
 };
 
