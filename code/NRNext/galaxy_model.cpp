@@ -51,16 +51,17 @@ struct disk_distribution
 {
     double M0 = 0;
     double a_frac = 0.05;
+    double b_frac = 0.01;
     double max_R = 0;
 
-    double normalised_cdf(double fraction)
+    /*double normalised_cdf(double fraction)
     {
         double a = a_frac * max_R;
 
         double r = fraction * max_R;
 
         return 1 - a / sqrt(r*r + a*a);
-    }
+    }*/
 
     //radius -> velocity
     double fraction_to_velocity(double fraction, float z_frac)
@@ -92,6 +93,37 @@ struct disk_distribution
 
     double density(double x_frac, double y_frac, double z_frac)
     {
+        double pi = std::numbers::pi_v<double>;
+
+        tensor<float, 3> pos = {x_frac, y_frac, z_frac};
+
+        double R = pos.length() * max_R;
+        double z = pos.z() * max_R;
+
+        double a = a_frac * max_R;
+        double b = b_frac * max_R;
+
+        double left = (b*b * M0) / (4 * pi);
+
+        double top = a * R * R + (3 * sqrt(z*z + b*b) + a) * pow(sqrt(z*z + b*b) + a, 2.);
+        double bot = pow(R*R + pow(sqrt(z*z + b*b) + a, 2.), 5./2.) * pow(z*z + b*b, 3./2.);
+
+        return left * (top / bot);
+    }
+
+    double potential(double radius_frac, double z_frac)
+    {
+        double R = radius_frac * max_R;
+        double z = z_frac * max_R;
+        double a = a_frac * max_R;
+        double b = b_frac * max_R;
+
+        return -get_G() * M0 / sqrt(R*R + pow(sqrt(z*z + b*b) + a, 2.));
+    }
+
+    #if 0
+    double density(double x_frac, double y_frac, double z_frac)
+    {
         if(z_frac != 0)
             return 0.f;
 
@@ -114,6 +146,7 @@ struct disk_distribution
 
         return -get_G() * M0 / sqrt(R*R + pow(fabs(z) + a, 2.));
     }
+    #endif
 };
 
 double get_solar_mass_kg()
@@ -139,7 +172,9 @@ galaxy_data build_galaxy(float fill_width)
     disk.M0 = milky_way_mass_kg;
     disk.max_R = milky_way_radius_m;
 
-    double encapsulated_mass_kg = milky_way_mass_kg * disk.normalised_cdf(1.f);
+    //double encapsulated_mass_kg = milky_way_mass_kg * disk.normalised_cdf(1.f);
+
+    double encapsulated_mass_kg = milky_way_mass_kg;
     double mass_m = si_to_geometric(encapsulated_mass_kg, 1, 0);
     double mass_real = (mass_m / disk.max_R) * fill_radius;
 
@@ -182,7 +217,7 @@ galaxy_data build_galaxy(float fill_width)
 
     double total_den = 0;
 
-    int max_dim = 300;
+    int max_dim = 100;
 
     for(int z=-max_dim; z <= max_dim; z++)
     {
@@ -211,7 +246,16 @@ galaxy_data build_galaxy(float fill_width)
 
                 double pi = std::numbers::pi_v<double>;
 
-                t3f vel = {velocity_geom * cos(angle + pi/2), velocity_geom * sin(angle + pi/2), 0.f};
+                t3f up_axis = {0, 0, 1};
+
+                if(fx == 0 && fy == 0)
+                    continue;
+
+                t3f rotation_axis = cross((t3f){fx, fy, fz}.norm(), up_axis.norm()).norm();
+
+                t3f vel = rotation_axis * velocity_geom;
+
+                //t3f vel = {velocity_geom * cos(angle + pi/2), velocity_geom * sin(angle + pi/2), 0.f};
                 t3f pos = {fx * fill_radius, fy * fill_radius, fz * fill_radius};
 
                 dat.positions.push_back(pos);
@@ -219,9 +263,9 @@ galaxy_data build_galaxy(float fill_width)
 
                 total_den += den;
 
-                double local_analytic_mass = milky_way_mass_kg * disk.normalised_cdf(frac_radius);
+                /*double local_analytic_mass = milky_way_mass_kg * disk.normalised_cdf(frac_radius);
                 double analytic_mass_scale = si_to_geometric(local_analytic_mass, 1, 0) * (fill_radius / disk.max_R);
-                analytic_cumulative_mass.push_back(analytic_mass_scale);
+                analytic_cumulative_mass.push_back(analytic_mass_scale);*/#
             }
         }
     }
@@ -241,7 +285,7 @@ galaxy_data build_galaxy(float fill_width)
     std::vector<float> debug_analytic_mass;
     std::vector<float> debug_real_mass;
 
-    {
+    /*{
         std::vector<std::tuple<t3f, t3f, float, float>> pos_vel;
 
         for(int i=0; i < real_num; i++)
@@ -274,8 +318,7 @@ galaxy_data build_galaxy(float fill_width)
 
             real_mass += m;
         }
-    }
-
+    }*/
 
     return dat;
 }
