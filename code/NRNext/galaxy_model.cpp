@@ -132,11 +132,13 @@ galaxy_data build_galaxy(float fill_width)
 
         double velocity_geom = velocity / get_c();
 
-        double angle = uint64_to_double(xoshiro256ss(rng)) * 2 * std::numbers::pi_v<float>;
+        double pi = std::numbers::pi_v<double>;
+
+        double angle = uint64_to_double(xoshiro256ss(rng)) * 2 * pi;
 
         double radius_real = (radius / disk.max_R) * fill_radius;
 
-        t3f vel = {velocity_geom * cos(angle), velocity_geom * sin(angle), 0.f};
+        t3f vel = {velocity_geom * cos(angle + pi/2), velocity_geom * sin(angle + pi/2), 0.f};
         t3f pos = {radius_real * cos(angle), radius_real * sin(angle), 0.f};
 
         dat.positions.push_back(pos);
