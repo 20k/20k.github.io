@@ -170,9 +170,7 @@ galaxy_data build_galaxy(float fill_width)
         std::vector<std::tuple<t3f, t3f, float>> pos_vel;
 
         for(int i=0; i < real_num; i++)
-        {
             pos_vel.push_back({dat.positions[i], dat.velocities[i], analytic_cumulative_mass[i]});
-        }
 
         std::sort(pos_vel.begin(), pos_vel.end(), [](auto& i1, auto& i2)
         {
