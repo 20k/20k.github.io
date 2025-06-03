@@ -205,6 +205,11 @@ galaxy_data build_galaxy(float fill_width)
             if(frac_radius > 1)
                 continue;
 
+            double den = disk.density(fx, fy, 0.);
+
+            if(den == 0)
+                continue;
+
             double velocity = disk.fraction_to_velocity(frac_radius);
             double velocity_geom = velocity / get_c();
 
@@ -217,9 +222,7 @@ galaxy_data build_galaxy(float fill_width)
 
             dat.positions.push_back(pos);
             dat.velocities.push_back(vel);
-            //dat.masses.push_back(den);
 
-            double den = disk.density(fx, fy, 0.);
             total_den += den;
 
             double local_analytic_mass = milky_way_mass_kg * disk.normalised_cdf(frac_radius);
@@ -230,32 +233,14 @@ galaxy_data build_galaxy(float fill_width)
 
     real_num = dat.positions.size();
 
-    /*for(auto& i : dat.masses)
-        total_den += i;
-
-    for(auto& i : dat.masses)
-        i *= (mass_real / total_den);*/
-
     for(auto& pos : dat.positions)
     {
-        //float frac = pos.length() / fill_radius;
         double den = disk.density(pos.x() / fill_radius, pos.y() / fill_radius, pos.z() / fill_radius);
-
-        //printf("Den %f\n", den);
 
         double mass = den * (mass_real / total_den);
 
-        //printf("Mass %.23f\n", mass);
-
         dat.masses.push_back(mass);
     }
-
-    /*printf("Found mass %f\n", mass_real);
-
-    double mass_per_particle = mass_real / real_num;
-
-    for(auto& i : dat.positions)
-        dat.masses.push_back(mass_per_particle);*/
 
     std::vector<float> debug_velocities;
     std::vector<float> debug_analytic_mass;
