@@ -258,7 +258,6 @@ galaxy_data build_galaxy(float fill_width)
                 if(fx == 0 && fy == 0 && fz < 0)
                     up_axis = {-1, 0, 0};
 
-
                 t3f rotation_axis = cross((t3f){fx, fy, fz}.norm(), up_axis.norm()).norm();
 
                 t3f vel = rotation_axis * velocity_geom;
