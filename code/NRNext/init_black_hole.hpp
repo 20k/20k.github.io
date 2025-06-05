@@ -4,6 +4,7 @@
 #include <toolkit/opencl.hpp>
 #include <vec/tensor.hpp>
 #include "../common/single_source.hpp"
+#include "value_alias.hpp"
 
 struct black_hole_data
 {
@@ -21,6 +22,7 @@ struct black_hole_params
     tensor<float, 3> angular_momentum = {0,0,0};
 };
 
+tensor<valuef, 3, 3> get_pointlike_aIJ(v3f world_pos, v3f pos, v3f angular_momentum, v3f momentum);
 black_hole_data init_black_hole(cl::context& ctx, cl::command_queue& cqueue, black_hole_params params, tensor<int, 3> dim, float scale);
 
 #endif // INIT_BLACK_HOLE_HPP_INCLUDED

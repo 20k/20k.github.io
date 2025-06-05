@@ -7,6 +7,7 @@
 #include "interpolation.hpp"
 #include "../common/vec/dual.hpp"
 #include <vec/stdmath.hpp>
+#include "init_black_hole.hpp"
 
 template<typename T>
 using dual = dual_types::dual_v<T>;
@@ -241,6 +242,63 @@ void sum_E(execution_context& ectx,
     value<std::int64_t> as_uint = (value<std::int64_t>)as_double;
 
     sum.atom_add_e(0, as_uint);
+}
+
+void sum_particle_aIJ(execution_context& ectx, particle_base_args<buffer<valuef>> particles_in,
+                      std::array<buffer_mut<valuef>, 6> aIJ_out,
+                      literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count,
+                      literal<valuei> work_size)
+{
+    using namespace single_source;
+
+    valuei id = value_impl::get_global_id(0);
+    pin(id);
+
+    if_e(id >= work_size.get(), [&]{
+        return_e();
+    });
+
+    v3i cpos = get_coordinate_including_boundary(id, dim.get(), 0);
+
+    v3f world_pos = grid_to_world((v3f)cpos, dim.get(), scale.get());
+    pin(world_pos);
+
+    mut<valuei> idx = declare_mut_e(valuei(0));
+
+    tensor<mut<valuef>, 3, 3> aIJ_sum;
+
+    for(int i=0; i < 3; i++)
+        for(int j=0; j < 3; j++)
+            aIJ_sum[i, j] = declare_mut_e(valuef(0));
+
+    for_e(idx < (valuei)particle_count.get(), assign_b(idx, idx+1), [&]{
+        v3f pos = particles_in.get_position((value<size_t>)idx);
+        v3f vel = particles_in.get_velocity((value<size_t>)idx);
+        valuef mass = particles_in.get_mass((value<size_t>)idx);
+
+        pin(pos);
+        pin(vel);
+        pin(mass);
+
+        valuef v2 = dot(vel, vel);
+        valuef lorentz = 1 / sqrt(1 - v2);
+        pin(lorentz);
+
+        v3f momentum = vel * mass * lorentz;
+
+        tensor<valuef, 3, 3> aIJ = get_pointlike_aIJ(world_pos, pos, {0,0,0}, momentum);
+
+        for(int i=0; i < 3; i++)
+            for(int j=0; j < 3; j++)
+                as_ref(aIJ_sum[i, j]) += aIJ[i, j];
+    });
+
+    as_ref(aIJ_out[0][cpos, dim.get()]) += declare_e(aIJ_sum[0, 0]);
+    as_ref(aIJ_out[1][cpos, dim.get()]) += declare_e(aIJ_sum[1, 0]);
+    as_ref(aIJ_out[2][cpos, dim.get()]) += declare_e(aIJ_sum[2, 0]);
+    as_ref(aIJ_out[3][cpos, dim.get()]) += declare_e(aIJ_sum[1, 1]);
+    as_ref(aIJ_out[4][cpos, dim.get()]) += declare_e(aIJ_sum[1, 2]);
+    as_ref(aIJ_out[5][cpos, dim.get()]) += declare_e(aIJ_sum[2, 2]);
 }
 
 void count_particles_per_cell(execution_context& ectx, std::array<buffer<valuef>, 3> pos, buffer_mut<valuei> cell_counts, literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count)
@@ -885,6 +943,10 @@ void boot_particle_kernels(cl::context ctx)
     cl::async_build_and_cache(ctx, [&]{
         return value_impl::make_function(permute_memory, "permute_memory");
     }, {"permute_memory"});
+
+    cl::async_build_and_cache(ctx, [&]{
+        return value_impl::make_function(sum_particle_aIJ, "sum_particle_aIJ");
+    }, {"sum_particle_aIJ"});
 }
 
 double get_fixed_scale(double total_mass, int64_t particle_count)
