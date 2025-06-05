@@ -5,11 +5,8 @@
 #include "value_alias.hpp"
 #include "init_general.hpp"
 
-///todo: do it the way the paper says, even though it maketh a sad me
-tensor<valuef, 3, 3> get_aIJ(v3f world_pos, v3f bh_pos, v3f angular_momentum, v3f momentum)
+tensor<valuef, 3, 3> get_pointlike_aIJ(v3f world_pos, v3f pos, v3f angular_momentum, v3f momentum)
 {
-    ///todo: fixme
-    ///todo: I am unconvinced about the levi civita symbol
     tensor<valuef, 3, 3, 3> eijk = get_eijk();
 
     tensor<valuef, 3, 3> aij;
@@ -25,11 +22,11 @@ tensor<valuef, 3, 3> get_aIJ(v3f world_pos, v3f bh_pos, v3f angular_momentum, v3
     {
         for(int j=0; j < 3; j++)
         {
-            valuef r = (world_pos - bh_pos).length();
+            valuef r = (world_pos - pos).length();
 
             r = max(r, valuef(1e-6f));
 
-            tensor<valuef, 3> n = (world_pos - bh_pos) / r;
+            tensor<valuef, 3> n = (world_pos - pos) / r;
 
             tensor<valuef, 3> momentum_lo = flat.lower(momentum);
             tensor<valuef, 3> n_lo = flat.lower(n);
@@ -90,7 +87,7 @@ black_hole_data init_black_hole(cl::context& ctx, cl::command_queue& cqueue, bla
                 value_impl::get_context().add(se);
             });*/
 
-            tensor<valuef, 3, 3> aij = get_aIJ(world_pos, (v3f)params.position, (v3f)params.angular_momentum, (v3f)params.linear_momentum);
+            tensor<valuef, 3, 3> aij = get_pointlike_aIJ(world_pos, (v3f)params.position, (v3f)params.angular_momentum, (v3f)params.linear_momentum);
 
             return aij[idx.x(), idx.y()];
         };
