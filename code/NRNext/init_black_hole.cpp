@@ -24,7 +24,7 @@ tensor<valuef, 3, 3> get_pointlike_aIJ(v3f world_pos, v3f pos, v3f angular_momen
         {
             valuef r = (world_pos - pos).length();
 
-            r = max(r, valuef(1e-6f));
+            r = max(r, valuef(1.));
 
             tensor<valuef, 3> n = (world_pos - pos) / r;
 

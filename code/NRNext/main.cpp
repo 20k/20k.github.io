@@ -1847,6 +1847,8 @@ initial_params get_initial_params()
         part.add(dat.positions[i], dat.velocities[i], dat.masses[i]);
     }
 
+    printf("Part size %i\n", part.size());
+
     #endif
 
     //#define NEGATIVE_MASS

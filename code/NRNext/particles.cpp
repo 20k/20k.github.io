@@ -247,8 +247,11 @@ void sum_E(execution_context& ectx,
 void sum_particle_aIJ(execution_context& ectx, particle_base_args<buffer<valuef>> particles_in,
                       std::array<buffer_mut<valuef>, 6> aIJ_out,
                       literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count,
-                      literal<valuei> work_size)
+                      literal<valuei> work_size,
+                      literal<value<size_t>> particle_start, literal<value<size_t>> particle_end)
 {
+    //return;
+
     using namespace single_source;
 
     valuei id = value_impl::get_global_id(0);
@@ -258,12 +261,12 @@ void sum_particle_aIJ(execution_context& ectx, particle_base_args<buffer<valuef>
         return_e();
     });
 
-    v3i cpos = get_coordinate_including_boundary(id, dim.get(), 0);
+    v3i cpos = get_coordinate(id, dim.get());
 
     v3f world_pos = grid_to_world((v3f)cpos, dim.get(), scale.get());
     pin(world_pos);
 
-    mut<valuei> idx = declare_mut_e(valuei(0));
+    mut<value<size_t>> idx = declare_mut_e(particle_start.get());
 
     tensor<mut<valuef>, 3, 3> aIJ_sum;
 
@@ -271,10 +274,10 @@ void sum_particle_aIJ(execution_context& ectx, particle_base_args<buffer<valuef>
         for(int j=0; j < 3; j++)
             aIJ_sum[i, j] = declare_mut_e(valuef(0));
 
-    for_e(idx < (valuei)particle_count.get(), assign_b(idx, idx+1), [&]{
-        v3f pos = particles_in.get_position((value<size_t>)idx);
-        v3f vel = particles_in.get_velocity((value<size_t>)idx);
-        valuef mass = particles_in.get_mass((value<size_t>)idx);
+    for_e(idx < particle_end.get(), assign_b(idx, idx+1), [&]{
+        v3f pos = particles_in.get_position(idx);
+        v3f vel = particles_in.get_velocity(idx);
+        valuef mass = particles_in.get_mass(idx);
 
         pin(pos);
         pin(vel);
@@ -284,21 +287,27 @@ void sum_particle_aIJ(execution_context& ectx, particle_base_args<buffer<valuef>
         valuef lorentz = 1 / sqrt(1 - v2);
         pin(lorentz);
 
-        v3f momentum = vel * mass * lorentz;
+        v3f momentum = vel * mass;
 
         tensor<valuef, 3, 3> aIJ = get_pointlike_aIJ(world_pos, pos, {0,0,0}, momentum);
 
         for(int i=0; i < 3; i++)
             for(int j=0; j < 3; j++)
                 as_ref(aIJ_sum[i, j]) += aIJ[i, j];
+
+        //print("Hello\n");
     });
 
-    as_ref(aIJ_out[0][cpos, dim.get()]) += declare_e(aIJ_sum[0, 0]);
-    as_ref(aIJ_out[1][cpos, dim.get()]) += declare_e(aIJ_sum[1, 0]);
-    as_ref(aIJ_out[2][cpos, dim.get()]) += declare_e(aIJ_sum[2, 0]);
-    as_ref(aIJ_out[3][cpos, dim.get()]) += declare_e(aIJ_sum[1, 1]);
-    as_ref(aIJ_out[4][cpos, dim.get()]) += declare_e(aIJ_sum[1, 2]);
-    as_ref(aIJ_out[5][cpos, dim.get()]) += declare_e(aIJ_sum[2, 2]);
+    /*if_e(aIJ_sum[0, 0] != 0, [&]{
+        print("aij %.23f\n", aIJ_sum[0, 0]);
+    });*/
+
+    as_ref(aIJ_out[0][id]) += declare_e(aIJ_sum[0, 0]);
+    as_ref(aIJ_out[1][id]) += declare_e(aIJ_sum[1, 0]);
+    as_ref(aIJ_out[2][id]) += declare_e(aIJ_sum[2, 0]);
+    as_ref(aIJ_out[3][id]) += declare_e(aIJ_sum[1, 1]);
+    as_ref(aIJ_out[4][id]) += declare_e(aIJ_sum[2, 1]);
+    as_ref(aIJ_out[5][id]) += declare_e(aIJ_sum[2, 2]);
 }
 
 void count_particles_per_cell(execution_context& ectx, std::array<buffer<valuef>, 3> pos, buffer_mut<valuei> cell_counts, literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count)
@@ -996,6 +1005,59 @@ void particle_initial_conditions(cl::context& ctx, cl::command_queue& cqueue, di
         args.push_back(size);
 
         cqueue.exec("fixed_to_float", args, {size}, {128});
+    }
+
+    ///add to aij
+    {
+        /*void sum_particle_aIJ(execution_context& ectx, particle_base_args<buffer<valuef>> particles_in,
+                      std::array<buffer_mut<valuef>, 6> aIJ_out,
+                      literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count,
+                      literal<valuei> work_size)*/
+        cl_ulong p_start = 0;
+
+        //for(int i=0; i < 1; i++)
+
+        int its = 0;
+
+        while(1)
+        {
+            int num = 200;
+
+            cl_ulong p_end = p_start + num;
+
+            p_end = std::min((int64_t)p_end, data.count);
+
+            cl_ulong count = data.count;
+            int size = dim.x() * dim.y() * dim.z();
+
+            cl::args args;
+            args.push_back(data.positions[0], data.positions[1], data.positions[2]);
+            args.push_back(data.velocities[0], data.velocities[1], data.velocities[2]);
+            args.push_back(data.masses);
+
+            for(auto& i : to_fill.AIJ_cfl)
+                args.push_back(i);
+
+            args.push_back(dim);
+            args.push_back(scale);
+
+            args.push_back(count);
+            args.push_back(size);
+            args.push_back(p_start);
+            args.push_back(p_end);
+
+            cqueue.exec("sum_particle_aIJ", args, {size}, {128});
+            //cqueue.block();
+
+            its++;
+
+            //printf("Its %i\n", its);
+
+            p_start += num;
+
+            if(p_start >= count)
+                break;
+        }
     }
 }
 
