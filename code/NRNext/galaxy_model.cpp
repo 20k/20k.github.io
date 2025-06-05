@@ -45,14 +45,110 @@ double get_G()
     return 6.67430 * std::pow(10., -11.);
 }
 
+double density_impl(double M, double R, double z, double a, double b)
+{
+    double pi = std::numbers::pi_v<double>;
+
+    double left = (b*b * M) / (4 * pi);
+
+    double top = a * R * R + (3 * sqrt(z*z + b*b) + a) * pow(sqrt(z*z + b*b) + a, 2.);
+    double bot = pow(R*R + pow(sqrt(z*z + b*b) + a, 2.), 5./2.) * pow(z*z + b*b, 3./2.);
+
+    return left * (top / bot);
+}
+
+double poisson_impl(double M, double R, double z, double a, double b)
+{
+    return -get_G() * M / sqrt(R*R + pow(sqrt(z*z + b*b) + a, 2.));
+}
+
+double get_solar_mass_kg()
+{
+    return 1.988416 * std::pow(10., 30.);
+}
+
+double parsec_to_m(double pc)
+{
+    return pc * 3.086 * pow(10., 16.);
+}
+
 ///todo: do my shitty density idea
 ///ie place particles in a regular grid pattern, assign them mass based on density, then scale the overall mass
 struct disk_distribution
 {
-    double M0 = 0;
-    double a_frac = 0.05;
-    double b_frac = 0.01;
-    double max_R = 0;
+    //double M = 0;
+    //double a_frac = 0.05;
+    //double b_frac = 0.01;
+    //double max_R = 0;
+    //double a = 0;
+    //double b = 0;
+
+    std::vector<double> masses = {2.05 * pow(10., 10.) * get_solar_mass_kg(), 2.547 * pow(10, 11.) * get_solar_mass_kg()};
+    std::vector<double> as = {0, parsec_to_m(7.258)};
+    std::vector<double> bs = {parsec_to_m(0.495), parsec_to_m(0.520)};
+
+    double get_mass()
+    {
+        double d = 0;
+
+        for(auto& i : masses)
+            d += i;
+
+        return d;
+    }
+
+    double get_density(double x_phys, double y_phys, double z_phys)
+    {
+        double d = 0;
+
+        double R = (tensor<double, 2>){x_phys, y_phys}.length();
+
+        for(int i=0; i < (int)masses.size(); i++)
+            d += density_impl(masses[i], R, z_phys, as[i], bs[i]);
+
+        return d;
+    }
+
+    double get_potential(double x_phys, double y_phys, double z_phys)
+    {
+        double d = 0;
+
+        double R = (tensor<double, 2>){x_phys, y_phys}.length();
+
+        for(int i=0; i < (int)masses.size(); i++)
+            d += poisson_impl(masses[i], R, z_phys, as[i], bs[i]);
+
+        return d;
+    }
+
+    double get_velocity(double x_phys, double y_phys, double z_phys, double max_radius)
+    {
+        double R = sqrt(x_phys * x_phys + y_phys * y_phys + z_phys*z_phys);
+
+        double h = max_radius * 0.01;
+
+        double a_x = (get_potential(x_phys + h, y_phys, z_phys) - get_potential(x_phys - h, y_phys, z_phys)) / (2 * h);
+        double a_y = (get_potential(x_phys, y_phys + h, z_phys) - get_potential(x_phys, y_phys - h, z_phys)) / (2 * h);
+        double a_z = (get_potential(x_phys, y_phys, z_phys + h) - get_potential(x_phys, y_phys, z_phys - h)) / (2 * h);
+
+        tensor<double, 3> acc = {a_x, a_y, a_z};
+
+        ///centripetal force = m v^2/r
+        //=force due to gravity = F(x) = -m div X
+        //set to opposite. m v^2/r = m div X
+        //v^2/r = div X
+
+        double div = acc.x() + acc.y() + acc.z();
+
+        return sqrt(R * div);
+        ///centripetal acceleration = v^2 / R
+        ///centripetal acceleration = -F =
+
+        ///F = -m delta phi(x)?
+        ///a = diff phi
+
+        //double R = (tensor<double, 2>){x_phys, y_phys}.length();
+    }
 
     /*double normalised_cdf(double fraction)
     {
@@ -64,13 +160,14 @@ struct disk_distribution
     }*/
 
     //radius -> velocity
-    double fraction_to_velocity(double fraction, float z_frac)
+    /*double fraction_to_velocity(double fraction, float z_frac)
     {
         double R = fraction * max_R;
 
         double h = 0.01 * max_R;
+        //i don't think this is correct
         return sqrt(R * (potential((R + h) / max_R, z_frac) - potential((R - h) / max_R, z_frac)) / (2 * h));
-    }
+    }*/
 
     /*std::optional<double> select_radial_frac(xoshiro256ss_state& rng)
     {
@@ -91,6 +188,9 @@ struct disk_distribution
         return result;
     }*/
 
+    ///https://ned.ipac.caltech.edu/level5/Sept16/Sofue/Sofue4.html some explicit values here
+
+    #if 0
     double density(double x_frac, double y_frac, double z_frac)
     {
         double pi = std::numbers::pi_v<double>;
@@ -120,6 +220,7 @@ struct disk_distribution
 
         return -get_G() * M0 / sqrt(R*R + pow(sqrt(z*z + b*b) + a, 2.));
     }
+    #endif
 
     #if 0
     double density(double x_frac, double y_frac, double z_frac)
@@ -149,11 +250,6 @@ struct disk_distribution
     #endif
 };
 
-double get_solar_mass_kg()
-{
-    return 1.988416 * std::pow(10., 30.);
-}
-
 galaxy_data build_galaxy(float fill_width)
 {
     double fill_radius = fill_width/2;
@@ -164,13 +260,16 @@ galaxy_data build_galaxy(float fill_width)
     int try_num = 1000 * 1000;
     int real_num = 0;
 
-    double milky_way_mass_kg = 2 * pow(10, 12) * get_solar_mass_kg();
+    //double milky_way_mass_kg = 2 * pow(10, 12) * get_solar_mass_kg();
     //double milky_way_mass_kg = 4 * pow(10, 11) * get_solar_mass_kg();
-    double milky_way_radius_m = 0.5 * 8 * pow(10., 20.);
+    //double milky_way_radius_m = 0.5 * 8 * pow(10., 20.);
+
+    double milky_way_mass_kg = pow(10., 10.) * get_solar_mass_kg();
+    double milky_way_radius_m = 3 * pow(10., 19.);
 
     disk_distribution disk;
-    disk.M0 = milky_way_mass_kg;
-    disk.max_R = milky_way_radius_m;
+    //disk.M0 = milky_way_mass_kg;
+    //disk.max_R = milky_way_radius_m;
 
     //double encapsulated_mass_kg = milky_way_mass_kg * disk.normalised_cdf(1.f);
 
@@ -215,9 +314,18 @@ galaxy_data build_galaxy(float fill_width)
         analytic_cumulative_mass.push_back(analytic_mass_scale);
     }*/
 
+    for(int x=0; x < 100; x++)
+    {
+        double den = disk.density(x / 100., 0, 0);
+
+        printf("Den %.32f\n", den);
+    }
+
+    //assert(false);
+
     double total_den = 0;
 
-    int max_dim = 100;
+    int max_dim = 70;
 
     for(int z=-max_dim; z <= max_dim; z++)
     {
@@ -238,7 +346,7 @@ galaxy_data build_galaxy(float fill_width)
 
                 double den = disk.density(fx, fy, fz);
 
-                if(den == 0)
+                if((float)den == 0)
                     continue;
 
                 double velocity = disk.fraction_to_velocity(R_frac, fz);
@@ -262,6 +370,10 @@ galaxy_data build_galaxy(float fill_width)
 
                 t3f vel = rotation_axis * velocity_geom;
 
+                //vel.x() += vel.x() * (uint64_to_double(xoshiro256ss(rng)) - 0.5) * 0.2;
+                //vel.y() += vel.y() * (uint64_to_double(xoshiro256ss(rng)) - 0.5) * 0.2;
+                //vel.z() += vel.z() * (uint64_to_double(xoshiro256ss(rng)) - 0.5) * 0.2;
+
                 //t3f vel = {velocity_geom * cos(angle + pi/2), velocity_geom * sin(angle + pi/2), 0.f};
                 t3f pos = {fx * fill_radius, fy * fill_radius, fz * fill_radius};
 
@@ -272,7 +384,7 @@ galaxy_data build_galaxy(float fill_width)
 
                 /*double local_analytic_mass = milky_way_mass_kg * disk.normalised_cdf(frac_radius);
                 double analytic_mass_scale = si_to_geometric(local_analytic_mass, 1, 0) * (fill_radius / disk.max_R);
-                analytic_cumulative_mass.push_back(analytic_mass_scale);*/#
+                analytic_cumulative_mass.push_back(analytic_mass_scale);*/
             }
         }
     }
@@ -292,11 +404,11 @@ galaxy_data build_galaxy(float fill_width)
     std::vector<float> debug_analytic_mass;
     std::vector<float> debug_real_mass;
 
-    /*{
-        std::vector<std::tuple<t3f, t3f, float, float>> pos_vel;
+    {
+        std::vector<std::tuple<t3f, t3f, float>> pos_vel;
 
         for(int i=0; i < real_num; i++)
-            pos_vel.push_back({dat.positions[i], dat.velocities[i], dat.masses[i], analytic_cumulative_mass[i]});
+            pos_vel.push_back({dat.positions[i], dat.velocities[i], dat.masses[i]});
 
         std::sort(pos_vel.begin(), pos_vel.end(), [](auto& i1, auto& i2)
         {
@@ -306,26 +418,30 @@ galaxy_data build_galaxy(float fill_width)
         float selection_radius = 0;
 
         double real_mass = 0;
+        int particles = 0;
 
-        for(auto& [p, v, m, am] : pos_vel)
+        for(auto& [p, v, m] : pos_vel)
         {
             float p_len = p.length();
             //float v_len = v.length();
 
             if(p_len >= selection_radius)
             {
-                printf("Velocity %f real mass %f radius %f rmass %.23f amass %f\n", v.length(), real_mass, p_len, m, am);
+                printf("Velocity %f real mass %f radius %f rmass %.23f particles %i density %.23f\n", v.length(), real_mass, p_len, m, particles, disk.density(p.x() / fill_radius, p.y() / fill_radius, 0));
 
                 selection_radius += 0.25f;
                 debug_velocities.push_back(v.length());
 
                 debug_real_mass.push_back(real_mass);
-                debug_analytic_mass.push_back(am);
+                //debug_analytic_mass.push_back(am);
             }
 
             real_mass += m;
+            particles++;
         }
-    }*/
+    }
+
+    //assert(false);
 
     return dat;
 }

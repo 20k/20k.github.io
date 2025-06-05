@@ -650,7 +650,6 @@ void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer
     tetrad tet = calculate_tetrad(metric, {0,0,0}, false);
 
     v3f speed_in = {vel_in[0][id], vel_in[1][id], vel_in[2][id]};
-
     v4f velocity4 = get_timelike_vector(speed_in, tet);
 
     valuef lorentz = 1 / sqrt(1 - dot(speed_in, speed_in));
