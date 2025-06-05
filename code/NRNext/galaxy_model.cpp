@@ -99,7 +99,7 @@ struct disk_distribution
 
     double get_max_radius()
     {
-        return as[1] * 100;
+        return as[1] * 15;
     }
 
     double get_density(double x_phys, double y_phys, double z_phys)
@@ -130,9 +130,11 @@ struct disk_distribution
     {
         double max_radius = get_max_radius();
 
+        tensor<double, 3> pos = {x_phys, y_phys, z_phys};
+
         double R = sqrt(x_phys * x_phys + y_phys * y_phys + z_phys*z_phys);
 
-        double h = max_radius * 0.01;
+        double h = max_radius * 0.0001;
 
         double a_x = (get_potential(x_phys + h, y_phys, z_phys) - get_potential(x_phys - h, y_phys, z_phys)) / (2 * h);
         double a_y = (get_potential(x_phys, y_phys + h, z_phys) - get_potential(x_phys, y_phys - h, z_phys)) / (2 * h);
@@ -140,12 +142,18 @@ struct disk_distribution
 
         tensor<double, 3> acc = {a_x, a_y, a_z};
 
+        double div = acc.length();
+
         ///centripetal force = m v^2/r
         //=force due to gravity = F(x) = -m div X
         //set to opposite. m v^2/r = m div X
         //v^2/r = div X
 
-        double div = acc.length();
+        //double div = acc.length();
+
+        ///so, we have force due to gravity -m Di X
+        //centripetal force = m r_i W^2
+        ///r_i W^2 = Di X
 
         //double div = acc.x() + acc.y() + acc.z();
 
@@ -376,7 +384,7 @@ galaxy_data build_galaxy(float fill_width)
 
                 double velocity_geom = velocity / get_c();
 
-                double angle = atan2(fy, fx);
+                //double angle = atan2(fy, fx);
 
                 double pi = std::numbers::pi_v<double>;
 
@@ -390,9 +398,11 @@ galaxy_data build_galaxy(float fill_width)
                 if(fx == 0 && fy == 0 && fz < 0)
                     up_axis = {-1, 0, 0};
 
-                t3f rotation_axis = cross((t3f){fx, fy, fz}.norm(), up_axis.norm()).norm();
+                t3f rotation_axis = -cross((t3f){fx, fy, fz}.norm(), up_axis.norm()).norm();
 
                 t3f vel = rotation_axis * velocity_geom;
+
+                //t3f vel = {(float)velocity_geom.x(), (float)velocity_geom.y(), (float)velocity_geom.z()};
 
                 //vel.x() += vel.x() * (uint64_to_double(xoshiro256ss(rng)) - 0.5) * 0.2;
                 //vel.y() += vel.y() * (uint64_to_double(xoshiro256ss(rng)) - 0.5) * 0.2;
