@@ -97,6 +97,11 @@ struct disk_distribution
         return d;
     }
 
+    double get_max_radius()
+    {
+        return as[1] * 100;
+    }
+
     double get_density(double x_phys, double y_phys, double z_phys)
     {
         double d = 0;
@@ -121,8 +126,10 @@ struct disk_distribution
         return d;
     }
 
-    double get_velocity(double x_phys, double y_phys, double z_phys, double max_radius)
+    double get_velocity(double x_phys, double y_phys, double z_phys)
     {
+        double max_radius = get_max_radius();
+
         double R = sqrt(x_phys * x_phys + y_phys * y_phys + z_phys*z_phys);
 
         double h = max_radius * 0.01;
@@ -138,7 +145,9 @@ struct disk_distribution
         //set to opposite. m v^2/r = m div X
         //v^2/r = div X
 
-        double div = acc.x() + acc.y() + acc.z();
+        double div = acc.length();
+
+        //double div = acc.x() + acc.y() + acc.z();
 
         return sqrt(R * div);
         ///centripetal acceleration = v^2 / R
@@ -264,8 +273,8 @@ galaxy_data build_galaxy(float fill_width)
     //double milky_way_mass_kg = 4 * pow(10, 11) * get_solar_mass_kg();
     //double milky_way_radius_m = 0.5 * 8 * pow(10., 20.);
 
-    double milky_way_mass_kg = pow(10., 10.) * get_solar_mass_kg();
-    double milky_way_radius_m = 3 * pow(10., 19.);
+    //double milky_way_mass_kg = pow(10., 10.) * get_solar_mass_kg();
+    //double milky_way_radius_m = 3 * pow(10., 19.);
 
     disk_distribution disk;
     //disk.M0 = milky_way_mass_kg;
@@ -273,9 +282,14 @@ galaxy_data build_galaxy(float fill_width)
 
     //double encapsulated_mass_kg = milky_way_mass_kg * disk.normalised_cdf(1.f);
 
-    double encapsulated_mass_kg = milky_way_mass_kg;
+    double total_mass = disk.get_mass();
+    double max_world_radius = disk.get_max_radius();
+
+    double meters_to_real = fill_radius / max_world_radius;
+
+    double encapsulated_mass_kg = total_mass;
     double mass_m = si_to_geometric(encapsulated_mass_kg, 1, 0);
-    double mass_real = (mass_m / disk.max_R) * fill_radius;
+    double mass_real = mass_m * meters_to_real;
 
     std::vector<double> analytic_cumulative_mass;
 
@@ -314,16 +328,17 @@ galaxy_data build_galaxy(float fill_width)
         analytic_cumulative_mass.push_back(analytic_mass_scale);
     }*/
 
-    for(int x=0; x < 100; x++)
+    /*for(int x=0; x < 100; x++)
     {
         double den = disk.density(x / 100., 0, 0);
 
         printf("Den %.32f\n", den);
-    }
+    }*/
 
     //assert(false);
 
     double total_den = 0;
+    std::vector<double> n_densities;
 
     int max_dim = 70;
 
@@ -342,14 +357,23 @@ galaxy_data build_galaxy(float fill_width)
                 if(frac_radius > 1)
                     continue;
 
-                double R_frac = sqrt(fx*fx + fy*fy);
+                /*double R_frac = sqrt(fx*fx + fy*fy);
 
                 double den = disk.density(fx, fy, fz);
 
                 if((float)den == 0)
                     continue;
 
-                double velocity = disk.fraction_to_velocity(R_frac, fz);
+                double velocity = disk.fraction_to_velocity(R_frac, fz);*/
+
+                double world_x = fx * disk.get_max_radius();
+                double world_y = fy * disk.get_max_radius();
+                double world_z = fz * disk.get_max_radius();
+
+                double density = disk.get_density(world_x, world_y, world_z);
+
+                double velocity = disk.get_velocity(world_x, world_y, world_z);
+
                 double velocity_geom = velocity / get_c();
 
                 double angle = atan2(fy, fx);
@@ -380,7 +404,9 @@ galaxy_data build_galaxy(float fill_width)
                 dat.positions.push_back(pos);
                 dat.velocities.push_back(vel);
 
-                total_den += den;
+                n_densities.push_back(density);
+
+                total_den += density;
 
                 /*double local_analytic_mass = milky_way_mass_kg * disk.normalised_cdf(frac_radius);
                 double analytic_mass_scale = si_to_geometric(local_analytic_mass, 1, 0) * (fill_radius / disk.max_R);
@@ -391,16 +417,23 @@ galaxy_data build_galaxy(float fill_width)
 
     real_num = dat.positions.size();
 
-    for(auto& pos : dat.positions)
+    /*for(auto& pos : dat.positions)
     {
-        double den = disk.density(pos.x() / fill_radius, pos.y() / fill_radius, pos.z() / fill_radius);
+        //double den = disk.density(pos.x() / fill_radius, pos.y() / fill_radius, pos.z() / fill_radius);
 
+        double mass = den * (mass_real / total_den);
+
+        dat.masses.push_back(mass);
+    }*/
+
+    for(auto den : n_densities)
+    {
         double mass = den * (mass_real / total_den);
 
         dat.masses.push_back(mass);
     }
 
-    std::vector<float> debug_velocities;
+    /*std::vector<float> debug_velocities;
     std::vector<float> debug_analytic_mass;
     std::vector<float> debug_real_mass;
 
@@ -439,7 +472,7 @@ galaxy_data build_galaxy(float fill_width)
             real_mass += m;
             particles++;
         }
-    }
+    }*/
 
     //assert(false);
 
