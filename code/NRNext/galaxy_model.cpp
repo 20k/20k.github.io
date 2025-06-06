@@ -348,7 +348,7 @@ galaxy_data build_galaxy(float fill_width)
     double total_den = 0;
     std::vector<double> n_densities;
 
-    int max_dim = 50;
+    int max_dim = 70;
 
     for(int z=-max_dim; z <= max_dim; z++)
     {

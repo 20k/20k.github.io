@@ -1838,7 +1838,7 @@ initial_params get_initial_params()
     initial_params init;
     init.N = 2;
 
-    //#define GALAXY_TEST
+    #define GALAXY_TEST
     #ifdef GALAXY_TEST
     galaxy_data dat = build_galaxy(radial_pos * 3);
 
@@ -1880,7 +1880,7 @@ initial_params get_initial_params()
     init.add(p1);
     #endif
 
-    #define MOMENTUM_TEST
+    //#define MOMENTUM_TEST
     #ifdef MOMENTUM_TEST
     int N = 100;
 

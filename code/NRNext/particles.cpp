@@ -121,7 +121,7 @@ valuef get_dirac3(auto&& func, const v3f& cell_pos, const v3f& dirac_location, c
 //E = m u0 a W^3 dirac
 //hamiltonian = -2 pi E?
 
-static int radius_cells = 10;
+static int radius_cells = 1;
 
 void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
 {
@@ -339,7 +339,7 @@ void sum_particle_aIJ(execution_context& ectx, particle_base_args<buffer<valuef>
             return x*x * sigma;
         }, 4, valuef(0), r);
 
-        Q = ternary(r >= radius_cells * scale.get(), valuef(0.f), Q);
+        Q = ternary(r >= radius_cells * scale.get(), valuef(1.f), Q);
 
         tensor<valuef, 3, 3> aIJ = get_p_aIJ(world_pos, pos, momentum, Q);
 
