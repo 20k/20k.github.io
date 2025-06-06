@@ -151,6 +151,7 @@ struct particle_base_args : virtual value_impl::single_source::argument_pack
         add(positions, in);
         add(velocities, in);
         add(masses, in);
+        add(lorentzs, in);
     }
 };
 
