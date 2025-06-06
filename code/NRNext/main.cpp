@@ -1838,7 +1838,7 @@ initial_params get_initial_params()
     initial_params init;
     init.N = 2;
 
-    #define GALAXY_TEST
+    //#define GALAXY_TEST
     #ifdef GALAXY_TEST
     galaxy_data dat = build_galaxy(radial_pos * 3);
 
@@ -1878,6 +1878,24 @@ initial_params get_initial_params()
     p1.linear_momentum = {0, 0, 0};
     p1.position = {0, 0, 0};
     init.add(p1);
+    #endif
+
+    #define MOMENTUM_TEST
+    #ifdef MOMENTUM_TEST
+    int N = 100;
+
+    for(int i=0; i < N; i++)
+    {
+        float frac = (i - N/2) / (N/2.f);
+
+        t3f pos = {frac * radial_pos, 0.f, 0.f};
+        t3f vel = {0, frac * 0.01, 0};
+
+        //t3f vel = {0,0,0};
+        float mass = 0.01;
+
+        part.add(pos, vel, mass);
+    }
     #endif
 
     /*black_hole_params p1;
@@ -2248,7 +2266,7 @@ int main()
 
         win.display();
 
-        std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
+        //std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
 
         if(step)
             elapsed_t += timestep;

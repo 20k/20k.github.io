@@ -399,6 +399,10 @@ valuef calculate_hamiltonian_constraint(bssn_args& args, bssn_derivatives& deriv
         }
     }
 
+    /*single_source::if_e(d.pos.x() == (d.dim.x() - 1)/2 && d.pos.y() == (d.dim.y() - 1)/2 && d.pos.z() == (d.dim.z() - 1)/2, [&]{
+        single_source::print("Part real %f\n", -2 * M_PI * adm_p);
+    });*/
+
     return R + (2.f/3.f) * args.K * args.K - AMN_Amn - 16 * M_PI * adm_p;
 }
 
@@ -1385,10 +1389,10 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
 
         //valuef adm_p = plugin_data.adm_p(args, d);
         //valuef ham = calculate_hamiltonian_constraint(args, derivs, d, adm_p);
-        //valuef p = fabs(ham) * 1000;
+        //valuef p = fabs(ham) * 10;
 
         valuef momentum = calculate_momentum_constraint_summed(args, d, plugin_data.adm_Si(args, d));
-        valuef p = fabs(momentum) * 100000;
+        valuef p = fabs(momentum) * 1000;
 
         //v3f Gi_err = calculate_cG(args.cY.invert(), derivs.dcY) - args.cG;
 

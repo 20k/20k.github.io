@@ -99,7 +99,7 @@ struct disk_distribution
 
     double get_max_radius()
     {
-        return as[1] * 15;
+        return as[1] * 10;
     }
 
     double get_density(double x_phys, double y_phys, double z_phys)
@@ -348,7 +348,7 @@ galaxy_data build_galaxy(float fill_width)
     double total_den = 0;
     std::vector<double> n_densities;
 
-    int max_dim = 70;
+    int max_dim = 50;
 
     for(int z=-max_dim; z <= max_dim; z++)
     {
@@ -381,6 +381,8 @@ galaxy_data build_galaxy(float fill_width)
                 double density = disk.get_density(world_x, world_y, world_z);
 
                 double velocity = disk.get_velocity(world_x, world_y, world_z);
+
+                //velocity = 0;
 
                 double velocity_geom = velocity / get_c();
 

@@ -112,13 +112,16 @@ valuef get_dirac3(auto&& func, const v3f& cell_pos, const v3f& dirac_location, c
 //det(Yij) = det(cY) (W^-2)^3
 //= W^-6
 //sqrt(det(Yij)) = W^-3
+//cY W^-2 = Yij
+//cY W^-2 = phi^4 cY
+//W^-2 = phi^4
+//W^-3 = phi^6
+//W^3 = phi^-6
 
-//det(cA) = c^n det(A). For us, c^3
-//Yij = W^2 cY
-//det(Yij) = det(W^2 cY)
-//det(Yij) = W^6 det(cY)
-//sqrt(det(Yij)) = W^6^0.5
-//= W^3
+//E = m u0 a W^3 dirac
+//hamiltonian = -2 pi E?
+
+static int radius_cells = 10;
 
 void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
 {
@@ -127,7 +130,6 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
     using namespace single_source;
 
     ///minimum perf floor is 190, and that's achieved with radius_cells = 0
-    int radius_cells = 1;
 
     if(radius_cells > 0)
     {
@@ -178,14 +180,20 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
         return_e();
     });
 
-    valuef lorentz = 1;
+    //valuef lorentz = 1;
     valuef mass = particles_in.get_mass(id);
     v3f pos = particles_in.get_position(id);
-    //v3f vel = particles_in.get_velocity(id);
+    v3f vel = particles_in.get_velocity(id);
 
     pin(mass);
     pin(pos);
-    //pin(vel);
+    pin(vel);
+
+    valuef v2 = dot(vel, vel);
+    valuef lorentz = 1 / sqrt(1 - v2);
+    pin(lorentz);
+
+    //lorentz = 1;
 
     v3i cell = (v3i)floor(world_to_grid(pos, dim.get(), scale.get()));
     pin(cell);
@@ -244,14 +252,44 @@ void sum_E(execution_context& ectx,
     sum.atom_add_e(0, as_uint);
 }
 
+tensor<valuef, 3, 3> get_p_aIJ(v3f world_pos, v3f pos, v3f momentum, valuef Q)
+{
+    tensor<valuef, 3, 3, 3> eijk = get_eijk();
+
+    tensor<valuef, 3, 3> aij;
+
+    metric<valuef, 3, 3> flat;
+
+    for(int i=0; i < 3; i++)
+        flat[i, i] = 1;
+
+    for(int i=0; i < 3; i++)
+    {
+        for(int j=0; j < 3; j++)
+        {
+            valuef r = (world_pos - pos).length();
+
+            r = max(r, valuef(1e-6f));
+
+            tensor<valuef, 3> n = (world_pos - pos) / r;
+
+            tensor<valuef, 3> momentum_lo = flat.lower(momentum);
+            tensor<valuef, 3> n_lo = flat.lower(n);
+
+            aij[i, j] += ((3 * Q) / (2.f * r * r)) * (momentum_lo[i] * n_lo[j] + momentum_lo[j] * n_lo[i] - (flat[i, j] - n_lo[i] * n_lo[j]) * sum_multiply(momentum, n_lo));
+        }
+    }
+
+    return aij;
+}
+
+
 void sum_particle_aIJ(execution_context& ectx, particle_base_args<buffer<valuef>> particles_in,
                       std::array<buffer_mut<valuef>, 6> aIJ_out,
                       literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count,
                       literal<valuei> work_size,
                       literal<value<size_t>> particle_start, literal<value<size_t>> particle_end)
 {
-    //return;
-
     using namespace single_source;
 
     valuei id = value_impl::get_global_id(0);
@@ -287,9 +325,23 @@ void sum_particle_aIJ(execution_context& ectx, particle_base_args<buffer<valuef>
         valuef lorentz = 1 / sqrt(1 - v2);
         pin(lorentz);
 
-        v3f momentum = vel * mass;
+        v3f momentum = vel * mass * lorentz;
 
-        tensor<valuef, 3, 3> aIJ = get_pointlike_aIJ(world_pos, pos, {0,0,0}, momentum);
+        valuef M = 4 * M_PI * integrate_1d_trapezoidal([&](auto x){
+            return x*x * dirac_delta(x / (radius_cells * scale.get()), radius_cells * scale.get());
+        }, 4, valuef(0), radius_cells * scale.get());
+
+        valuef r = (world_pos - pos).length();
+
+        valuef Q = 4 * M_PI * integrate_1d_trapezoidal([&](auto x){
+            valuef sigma = dirac_delta(x / (radius_cells * scale.get()), radius_cells * scale.get()) / M;
+
+            return x*x * sigma;
+        }, 4, valuef(0), r);
+
+        Q = ternary(r >= radius_cells * scale.get(), valuef(0.f), Q);
+
+        tensor<valuef, 3, 3> aIJ = get_p_aIJ(world_pos, pos, momentum, Q);
 
         for(int i=0; i < 3; i++)
             for(int j=0; j < 3; j++)
@@ -1100,7 +1152,7 @@ void dirac_test()
                 float dirac = get_dirac(dirac_delta_f, wpos, dirac_location, 1.f, scale);
                 #else
                 t3f dirac_grid = w2g(dirac_location);
-                float radius_cells = 1/scale;
+                float radius_cells = 1.432;
 
                 float d2 = ((t3f)gpos - dirac_grid).length();
 
