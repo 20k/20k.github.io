@@ -90,8 +90,9 @@ struct particle_data
     std::array<cl::buffer, 3> positions;
     std::array<cl::buffer, 3> velocities;
     cl::buffer masses;
+    cl::buffer lorentzs;
 
-    particle_data(cl::context& ctx) : positions{ctx, ctx, ctx}, velocities{ctx, ctx, ctx}, masses(ctx){}
+    particle_data(cl::context& ctx) : positions{ctx, ctx, ctx}, velocities{ctx, ctx, ctx}, masses(ctx), lorentzs(ctx){}
 
     void add(cl::command_queue& cqueue, const particle_params& params)
     {
@@ -109,6 +110,9 @@ struct particle_data
 
         masses.alloc(sizeof(cl_float) * params.masses.size());
         masses.write(cqueue, params.masses);
+
+        lorentzs.alloc(sizeof(cl_float) * params.masses.size());
+        lorentzs.fill(cqueue, cl_float{1});
     }
 };
 
@@ -118,6 +122,7 @@ struct particle_base_args : virtual value_impl::single_source::argument_pack
     std::array<T, 3> positions;
     std::array<T, 3> velocities;
     T masses;
+    T lorentzs;
 
     v3f get_position(value<size_t> idx)
     {
@@ -132,6 +137,11 @@ struct particle_base_args : virtual value_impl::single_source::argument_pack
     valuef get_mass(value<size_t> idx)
     {
         return masses[idx];
+    }
+
+    valuef get_lorentz(value<size_t> idx)
+    {
+        return lorentzs[idx];
     }
 
     void build(value_impl::type_storage& in)
@@ -188,9 +198,10 @@ struct particle_buffers : buffer_provider
     std::array<cl::buffer, 3> positions;
     std::array<cl::buffer, 3> velocities;
     cl::buffer masses;
+    cl::buffer lorentzs;
     uint64_t particle_count = 0;
 
-    particle_buffers(cl::context ctx, uint64_t _particle_count) : positions{ctx, ctx, ctx}, velocities{ctx, ctx, ctx}, masses{ctx}, particle_count(_particle_count){}
+    particle_buffers(cl::context ctx, uint64_t _particle_count) : positions{ctx, ctx, ctx}, velocities{ctx, ctx, ctx}, masses{ctx}, lorentzs(ctx), particle_count(_particle_count){}
 
     virtual std::vector<buffer_descriptor> get_description() override;
     virtual std::vector<cl::buffer> get_buffers() override;

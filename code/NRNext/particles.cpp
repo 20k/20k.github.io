@@ -290,6 +290,8 @@ void sum_particle_aIJ(execution_context& ectx, particle_base_args<buffer<valuef>
                       literal<valuei> work_size,
                       literal<value<size_t>> particle_start, literal<value<size_t>> particle_end)
 {
+    return;
+
     using namespace single_source;
 
     valuei id = value_impl::get_global_id(0);
@@ -740,7 +742,11 @@ struct evolve_vars
 };
 
 //screw it. Do the whole tetrad spiel from raytrace_init, I've already done it. Return a tetrad
-void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, std::array<buffer<valuef>, 3> pos_in, std::array<buffer<valuef>, 3> vel_in, buffer<valuef> mass_in, std::array<buffer_mut<valuef>, 3> vel_out, buffer_mut<valuef> lorentz_out, literal<value<size_t>> count, literal<v3i> dim, literal<valuef> scale)
+void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, std::array<buffer<valuef>, 3> pos_in, std::array<buffer<valuef>, 3> vel_in, buffer<valuef> mass_in,
+                                   std::array<buffer_mut<valuef>, 3> vel_out,
+                                   buffer_mut<valuef> lorentz_out,
+                                   buffer_mut<valuef> lorentz_out2,
+                                   literal<value<size_t>> count, literal<v3i> dim, literal<valuef> scale)
 {
     using namespace single_source;
 
@@ -771,7 +777,7 @@ void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer
     v3f speed_in = {vel_in[0][id], vel_in[1][id], vel_in[2][id]};
     v4f velocity4 = get_timelike_vector(speed_in, tet);
 
-    valuef lorentz = 1 / sqrt(1 - dot(speed_in, speed_in));
+    //valuef lorentz = 1 / sqrt(1 - dot(speed_in, speed_in));
 
     v4f velocity_lo = metric.lower(velocity4);
 
@@ -1267,12 +1273,16 @@ std::vector<buffer_descriptor> particle_buffers::get_description()
     mass.name = "mass";
     mass.sommerfeld_enabled = false;
 
-    return {p0, p1, p2, v0, v1, v2, mass};
+    buffer_descriptor lorentz;
+    lorentz.name = "lorentz";
+    lorentz.sommerfeld_enabled = false;
+
+    return {p0, p1, p2, v0, v1, v2, mass, lorentz};
 }
 
 std::vector<cl::buffer> particle_buffers::get_buffers()
 {
-    return {positions[0], positions[1], positions[2], velocities[0], velocities[1], velocities[2], masses};
+    return {positions[0], positions[1], positions[2], velocities[0], velocities[1], velocities[2], masses, lorentzs};
 }
 
 void particle_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t3i size)
@@ -1284,6 +1294,7 @@ void particle_buffers::allocate(cl::context ctx, cl::command_queue cqueue, t3i s
     }
 
     masses.alloc(sizeof(cl_float) * particle_count);
+    lorentzs.alloc(sizeof(cl_float) * particle_count);
 };
 
 void particle_plugin::add_args_provider(all_adm_args_mem& mem)
@@ -1406,6 +1417,7 @@ void particle_plugin::calculate_intermediates(cl::context ctx, cl::command_queue
         args.push_back(p_in.positions[0], p_in.positions[1], p_in.positions[2]);
         args.push_back(p_in.velocities[0], p_in.velocities[1], p_in.velocities[2]);
         args.push_back(p_in.masses);
+        args.push_back(p_in.lorentzs);
         args.push_back(lorentz_storage);
 
         for(auto& i : particle_temp)
@@ -1484,6 +1496,7 @@ void particle_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffe
         args.push_back(p_in.masses);
         args.push_back(p_out.velocities[0], p_out.velocities[1], p_out.velocities[2]);
         args.push_back(lorentz_storage);
+        args.push_back(p_out.lorentzs);
         args.push_back(count);
         args.push_back(pack.dim);
         args.push_back(pack.scale);
@@ -1523,6 +1536,7 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
 
     cl_ulong count = particle_count;
 
+    #if 0
     if(sdata.in_idx == sdata.base_idx)
     {
         {
@@ -1573,6 +1587,7 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
 
         std::swap(out, base);
     }
+    #endif
 
     {
         cl::args args;
