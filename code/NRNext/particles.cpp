@@ -1044,6 +1044,7 @@ void particle_initial_conditions(cl::context& ctx, cl::command_queue& cqueue, di
         args.push_back(data.positions[0], data.positions[1], data.positions[2]);
         args.push_back(data.velocities[0], data.velocities[1], data.velocities[2]);
         args.push_back(data.masses);
+        args.push_back(data.lorentzs);
         args.push_back(intermediate);
         args.push_back(dim);
         args.push_back(scale);
@@ -1092,6 +1093,7 @@ void particle_initial_conditions(cl::context& ctx, cl::command_queue& cqueue, di
             args.push_back(data.positions[0], data.positions[1], data.positions[2]);
             args.push_back(data.velocities[0], data.velocities[1], data.velocities[2]);
             args.push_back(data.masses);
+            args.push_back(data.lorentzs);
 
             for(auto& i : to_fill.AIJ_cfl)
                 args.push_back(i);
