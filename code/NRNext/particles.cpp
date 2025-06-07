@@ -843,6 +843,7 @@ void evolve_particles(execution_context& ctx,
     if(!FirstStep)
     {
         v3f grid_base = world_to_grid(pos_base, dim.get(), scale.get());
+        pos = (pos_base + pos_next) * 0.5f;
 
         vel = (vel_base + vel_next) * 0.5f;
 
@@ -862,6 +863,7 @@ void evolve_particles(execution_context& ctx,
     else
     {
         evolve_vars i_evolve(in, grid_next, dim.get(), scale.get());
+        pos = pos_next;
 
         vel = vel_next;
 
@@ -963,6 +965,10 @@ void evolve_particles(execution_context& ctx,
     if_e(dist <= 10 || gA < 0.15f, [&]{
         as_ref(p_out.masses[id]) = valuef(0.f);
     });
+
+    /*if_e(id == value<size_t>(718182), [&]{
+        print("Pos %f %f %f vel %f %f %f\n", pos.x(), pos.y(), pos.z(), vel.x(), vel.y(), vel.z());
+    });*/
 }
 
 void boot_particle_kernels(cl::context ctx)
@@ -1525,6 +1531,7 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
 
     cl_ulong count = particle_count;
 
+    #if 0
     if(sdata.in_idx == sdata.base_idx)
     {
         {
@@ -1575,6 +1582,7 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
 
         std::swap(out, base);
     }
+    #endif
 
     {
         cl::args args;

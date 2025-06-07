@@ -3,7 +3,7 @@
 
 #include "../common/value2.hpp"
 
-using derivative_t = value<float16>;
+using derivative_t = value<float>;
 using valuef = value<float>;
 using valued = value<double>;
 using valuei = value<int>;
@@ -24,7 +24,7 @@ using mut_v3f = tensor<mut<valuef>, 3>;
 
 using t3i = tensor<int, 3>;
 using t3f = tensor<float, 3>;
-using momentum_t = valueh;
+using momentum_t = valuef;
 using block_precision_t = valuef;
 
 #endif // VALUE_ALIAS_HPP_INCLUDED

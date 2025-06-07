@@ -413,6 +413,11 @@ galaxy_data build_galaxy(float fill_width)
                 //t3f vel = {velocity_geom * cos(angle + pi/2), velocity_geom * sin(angle + pi/2), 0.f};
                 t3f pos = {fx * fill_radius, fy * fill_radius, fz * fill_radius};
 
+                if(x == -10 && y == 0 && z == 0)
+                {
+                    printf("Size %i\n", dat.positions.size());
+                }
+
                 dat.positions.push_back(pos);
                 dat.velocities.push_back(vel);
 
