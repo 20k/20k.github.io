@@ -27,14 +27,10 @@ std::array<T, elements> get_differentiation_variables(const T& in, int direction
     if(in.type == value_impl::op::PLUS)
     {
         if(in.args.at(0).is_concrete_type())
-        {
             return get_differentiation_variables<elements, T>(from_base<typename T::interior_type>(in.args.at(1)), direction);
-        }
-        if(in.args.at(1).is_concrete_type())
-        {
-            return get_differentiation_variables<elements, T>(from_base<typename T::interior_type>(in.args.at(0)), direction);
-        }
 
+        if(in.args.at(1).is_concrete_type())
+            return get_differentiation_variables<elements, T>(from_base<typename T::interior_type>(in.args.at(0)), direction);
     }
 
     std::array<T, elements> vars;
