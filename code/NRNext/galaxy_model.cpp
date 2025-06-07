@@ -99,7 +99,7 @@ struct disk_distribution
 
     double get_max_radius()
     {
-        return as[1] * 10;
+        return as[1] * 20;
     }
 
     double get_density(double x_phys, double y_phys, double z_phys)
