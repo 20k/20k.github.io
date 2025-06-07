@@ -439,7 +439,7 @@ tensor<valuef, 3> gB_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
     return val;
 }
 
-unit_metric<valuef, 3, 3> cY_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
+auto cY_f_at(v3f pos, v3i dim, bssn_args_mem<buffer<valuef>> in)
 {
     using namespace single_source;
 
@@ -471,7 +471,7 @@ valuef get_ct_timestep(valuef W)
 struct trace3_state
 {
     valuef W;
-    unit_metric<valuef, 3, 3> cY;
+    metric<valuef, 3, 3> cY;
     tensor<valuef, 3, 3> Kij;
     valuef gA;
     tensor<valuef, 3> gB;

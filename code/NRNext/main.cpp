@@ -2266,7 +2266,7 @@ int main()
 
         win.display();
 
-        //std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
+        std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
 
         if(step)
             elapsed_t += timestep;

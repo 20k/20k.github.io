@@ -68,7 +68,7 @@ valuef eos(valuef W, valuef w, valuef p_star, valuef e_star)
 }
 
 //this function is numerically unstable
-v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, const unit_metric<valuef, 3, 3>& cY, valuef p_star, bool viscosity)
+v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, const metric<valuef, 3, 3>& cY, valuef p_star, bool viscosity)
 {
     valuef h = calculate_h_from_epsilon(epsilon);
 
@@ -87,7 +87,7 @@ v3f calculate_vi(valuef gA, v3f gB, valuef W, valuef w, valuef epsilon, v3f Si, 
     #endif
 }
 
-v3f calculate_ui(valuef p_star, valuef epsilon, v3f Si, valuef w, valuef gA, v3f gB, const unit_metric<valuef, 3, 3>& cY)
+v3f calculate_ui(valuef p_star, valuef epsilon, v3f Si, valuef w, valuef gA, v3f gB, const metric<valuef, 3, 3>& cY)
 {
     valuef h = calculate_h_from_epsilon(epsilon);
 
@@ -190,14 +190,14 @@ struct hydrodynamic_concrete
         return ::eos(W, w, p_star, e_star);
     }
 
-    v3f calculate_vi(valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY, bool viscosity)
+    v3f calculate_vi(valuef gA, v3f gB, valuef W, const metric<valuef, 3, 3>& cY, bool viscosity)
     {
         valuef epsilon = calculate_epsilon(W);
 
         return ::calculate_vi(gA, gB, W, w, epsilon, Si, cY, p_star, viscosity);
     }
 
-    v3f calculate_ui(valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY)
+    v3f calculate_ui(valuef gA, v3f gB, valuef W, const metric<valuef, 3, 3>& cY)
     {
         valuef epsilon = calculate_epsilon(W);
 
@@ -344,7 +344,7 @@ struct hydrodynamic_concrete
         return -degenerate * (Q_vis / Gamma) * sum_interior_rhs;
     }
 
-    v3f Si_rhs(valuef gA, v3f gB, valuef W, const unit_metric<valuef, 3, 3>& cY, valuef Q_vis, v3f vi, const derivative_data& d)
+    v3f Si_rhs(valuef gA, v3f gB, valuef W, const metric<valuef, 3, 3>& cY, valuef Q_vis, v3f vi, const derivative_data& d)
     {
         valuef P = max(eos(W) + Q_vis, 0.f);
 

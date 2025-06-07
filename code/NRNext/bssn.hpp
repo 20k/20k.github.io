@@ -62,7 +62,7 @@ struct bssn_derivatives;
 
 struct bssn_args
 {
-    unit_metric<valuef, 3, 3> cY;
+    metric<valuef, 3, 3> cY;
     tensor<valuef, 3, 3> cA;
     valuef K;
     valuef W;

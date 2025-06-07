@@ -548,7 +548,9 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
 
     ///https://arxiv.org/pdf/1307.7391 specifically for why the trace free aspect
     ///https://arxiv.org/pdf/1106.2254 also see here, after 25
-    auto dtcY = lie_derivative_weight(args.gB, args.cY.to_tensor(), d) - 2 * args.gA * args.cA;
+    auto dtcY = lie_derivative_weight(args.gB, args.cY.to_tensor(), d) - 2 * args.gA * trace_free(args.cA, args.cY, icY);
+
+    dtcY += -0.3 * args.gA * args.cY.to_tensor() * log(args.cY.det());
 
     #define CY_STABILITY
     #ifdef CY_STABILITY
@@ -788,6 +790,8 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
         }
     }
     #endif
+
+    dtcA += -0.3f * args.gA * args.cY.to_tensor() * trace(args.cA, args.cY.invert());
 
     return dtcA;
 }
@@ -1268,6 +1272,8 @@ void enforce_algebraic_constraints(cl::context ctx)
 {
     auto func = [](execution_context&, std::array<buffer_mut<valuef>, 6> mcY, std::array<buffer_mut<valuef>, 6> mcA, literal<valuei> positions_length, literal<v3i> idim)
     {
+        return;
+
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);
