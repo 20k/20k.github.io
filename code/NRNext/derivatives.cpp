@@ -24,6 +24,19 @@ valuei distance_to_boundary(v3i pos, v3i dim)
 template<std::size_t elements, typename T>
 std::array<T, elements> get_differentiation_variables(const T& in, int direction)
 {
+    if(in.type == value_impl::op::PLUS)
+    {
+        if(in.args.at(0).is_concrete_type())
+        {
+            return get_differentiation_variables<elements, T>(from_base<typename T::interior_type>(in.args.at(1)), direction);
+        }
+        if(in.args.at(1).is_concrete_type())
+        {
+            return get_differentiation_variables<elements, T>(from_base<typename T::interior_type>(in.args.at(0)), direction);
+        }
+
+    }
+
     std::array<T, elements> vars;
 
     ///for each element, ie x-2, x-1, x, x+1, x+2
