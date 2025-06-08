@@ -21,7 +21,6 @@
 #include "hydrodynamics.hpp"
 #include "particles.hpp"
 #include "random.hpp"
-#include "galaxy_model.hpp"
 
 float get_scale(float simulation_width, t3i dim)
 {
@@ -1793,7 +1792,7 @@ initial_params get_initial_params()
     }
     #endif
 
-    //#define TWO_BODY
+    #define TWO_BODY
     #ifdef TWO_BODY
     float m1 = 0.01;
     float m2 = 0.01;
@@ -1837,19 +1836,6 @@ initial_params get_initial_params()
 
     initial_params init;
     init.N = 2;
-
-    #define GALAXY_TEST
-    #ifdef GALAXY_TEST
-    galaxy_data dat = build_galaxy(radial_pos * 3);
-
-    for(int i=0; i < (int)dat.positions.size(); i++)
-    {
-        part.add(dat.positions[i], dat.velocities[i], dat.masses[i]);
-    }
-
-    printf("Part size %i\n", part.size());
-
-    #endif
 
     //#define NEGATIVE_MASS
     #ifdef NEGATIVE_MASS
@@ -1897,11 +1883,6 @@ initial_params get_initial_params()
         part.add(pos, vel, mass);
     }
     #endif
-
-    /*black_hole_params p1;
-    p1.bare_mass = 1;
-    p1.linear_momentum = {0, 0, 0};
-    p1.position = {-radial_pos, 0, 0};*/
 
     init.dim = {199, 199, 199};
     init.simulation_width = radial_pos * 4;
