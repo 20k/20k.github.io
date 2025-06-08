@@ -1530,7 +1530,6 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
 
     cl_ulong count = particle_count;
 
-    #if 0
     if(sdata.in_idx == sdata.base_idx)
     {
         {
@@ -1581,7 +1580,6 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
 
         std::swap(out, base);
     }
-    #endif
 
     {
         cl::args args;
