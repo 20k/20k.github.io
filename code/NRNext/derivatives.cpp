@@ -97,10 +97,10 @@ value<T> diff1_generic(const value<T>& in, int direction, const derivative_data&
         ///4th order derivatives
         std::array<value<T>, 5> vars = get_differentiation_variables<5>(in, direction);
 
-        value<T> p1 = no_opt(-vars[4]) + no_opt(vars[0]);
-        value<T> p2 = T{8} * (no_opt(vars[3]) - no_opt(vars[1]));
+        value<T> p1 = vars[0] - vars[4];
+        value<T> p2 = T{8} * (vars[3] - vars[1]);
 
-        second = no_opt(no_opt(p1) + no_opt(p2)) / (value<T>)(12.f * d.scale);
+        second = (p1 + p2) / (value<T>)(12.f * d.scale);
     }
 
     value<T> first;
@@ -108,7 +108,7 @@ value<T> diff1_generic(const value<T>& in, int direction, const derivative_data&
     {
         std::array<value<T>, 3> vars = get_differentiation_variables<3>(in, direction);
 
-        first = no_opt(no_opt(vars[2]) - no_opt(vars[0])) / (value<T>)(2.f * d.scale);
+        first = (vars[2] - vars[0]) / (value<T>)(2.f * d.scale);
     }
 
     valuei width = distance_to_boundary(d.pos[direction], d.dim[direction]);
