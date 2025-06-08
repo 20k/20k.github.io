@@ -783,7 +783,6 @@ void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer
     as_ref(lorentz_out[id]) = velocity4[0];
 }
 
-template<bool FirstStep>
 void evolve_particles(execution_context& ctx,
                       bssn_args_mem<buffer<valuef>> base,
                       bssn_args_mem<buffer<valuef>> in,
@@ -792,7 +791,7 @@ void evolve_particles(execution_context& ctx,
                       literal<value<size_t>> count,
                       literal<v3i> dim,
                       literal<valuef> scale,
-                      literal<valuef> timestep)
+                      literal<valuef> timestep, bool first_step)
 {
     using namespace single_source;
 
@@ -840,7 +839,7 @@ void evolve_particles(execution_context& ctx,
     tensor<valuef, 3, 3> dgB;
     tensor<valuef, 3, 3, 3> dcY;
 
-    if(!FirstStep)
+    if(!first_step)
     {
         v3f grid_base = world_to_grid(pos_base, dim.get(), scale.get());
         pos = (pos_base + pos_next) * 0.5f;
@@ -990,11 +989,11 @@ void boot_particle_kernels(cl::context ctx)
     }, {"calculate_particle_intermediates"});
 
     cl::async_build_and_cache(ctx, [&]{
-        return value_impl::make_function(evolve_particles<false>, "evolve_particles");
+        return value_impl::make_function(evolve_particles, "evolve_particles", false);
     }, {"evolve_particles"});
 
     cl::async_build_and_cache(ctx, [&]{
-        return value_impl::make_function(evolve_particles<true>, "evolve_particles_base");
+        return value_impl::make_function(evolve_particles, "evolve_particles_base", true);
     }, {"evolve_particles_base"});
 
     cl::async_build_and_cache(ctx, [&]{
