@@ -478,6 +478,13 @@ namespace value_impl
 
             value_impl::get_context().add(se);
         }
+
+        template<typename T>
+        inline
+        value<T> no_opt(const value<T>& v1)
+        {
+            return declare_e(v1);
+        }
     }
 
     template<typename T>
