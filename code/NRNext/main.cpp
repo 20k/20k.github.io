@@ -1167,7 +1167,7 @@ double angular_velocity_to_velocity(double rad_ps, double radius_distance_m)
 
 initial_params get_initial_params()
 {
-    //#define INSPIRAL_BH
+    #define INSPIRAL_BH
     #ifdef INSPIRAL_BH
     black_hole_params p1;
     p1.bare_mass = 0.483f;
@@ -1730,7 +1730,7 @@ initial_params get_initial_params()
     init.time_between_snapshots = 20;
 
     init.add(p1);
-    init.add(p2);s
+    init.add(p2);
     #endif
 
     #endif
@@ -1747,7 +1747,7 @@ initial_params get_initial_params()
     init.add(p1);
     #endif
 
-    #define PARTICLE_TESTS
+    //#define PARTICLE_TESTS
     #ifdef PARTICLE_TESTS
     xoshiro256ss_state st = xoshiro256ss_init(432123452345ULL);
 

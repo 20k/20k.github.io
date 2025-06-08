@@ -121,7 +121,7 @@ valuef get_dirac3(auto&& func, const v3f& cell_pos, const v3f& dirac_location, c
 //E = m u0 a W^3 dirac
 //hamiltonian = -2 pi E?
 
-static int radius_cells = 1;
+static int radius_cells = 5;
 
 void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
 {

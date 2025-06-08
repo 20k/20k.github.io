@@ -434,7 +434,7 @@ valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, const derivative_data
         bmdma += args.gB[i] * diff1(args.gA, i, d);
     }
 
-    //#define LAPSE_DAMPING
+    #define LAPSE_DAMPING
     #ifdef LAPSE_DAMPING
     valuef damp = 0.f;
 
@@ -456,7 +456,7 @@ valuef get_dtgA(bssn_args& args, bssn_derivatives& derivs, const derivative_data
 
     ///https://arxiv.org/pdf/gr-qc/0206072
     #ifdef ONE_PLUS_LOG
-    return -2 * args.gA * args.K + bmdma * 0 - damp;
+    return -2 * args.gA * args.K + bmdma * 1 - damp;
     #endif // ONE_PLUS_LOG
 
     ///https://arxiv.org/pdf/2201.08857
@@ -548,9 +548,10 @@ tensor<valuef, 3, 3> get_dtcY(bssn_args& args, bssn_derivatives& derivs, const d
 
     ///https://arxiv.org/pdf/1307.7391 specifically for why the trace free aspect
     ///https://arxiv.org/pdf/1106.2254 also see here, after 25
-    auto dtcY = lie_derivative_weight(args.gB, args.cY.to_tensor(), d) - 2 * args.gA * trace_free(args.cA, args.cY, icY);
+    auto dtcY = lie_derivative_weight(args.gB, args.cY.to_tensor(), d) - 2 * args.gA * args.cA;
+    //auto dtcY = lie_derivative_weight(args.gB, args.cY.to_tensor(), d) - 2 * args.gA * trace_free(args.cA, args.cY, icY);
 
-    dtcY += -0.3 * args.gA * args.cY.to_tensor() * log(args.cY.det());
+    //dtcY += -0.3 * args.gA * args.cY.to_tensor() * log(args.cY.det());
 
     #define CY_STABILITY
     #ifdef CY_STABILITY
@@ -791,7 +792,7 @@ tensor<valuef, 3, 3> get_dtcA(bssn_args& args, bssn_derivatives& derivs, v3f mom
     }
     #endif
 
-    dtcA += -0.3f * args.gA * args.cY.to_tensor() * trace(args.cA, args.cY.invert());
+    //dtcA += -0.3f * args.gA * args.cY.to_tensor() * trace(args.cA, args.cY.invert());
 
     return dtcA;
 }
@@ -1272,7 +1273,7 @@ void enforce_algebraic_constraints(cl::context ctx)
 {
     auto func = [](execution_context&, std::array<buffer_mut<valuef>, 6> mcY, std::array<buffer_mut<valuef>, 6> mcA, literal<valuei> positions_length, literal<v3i> idim)
     {
-        return;
+        //return;
 
         using namespace single_source;
 
