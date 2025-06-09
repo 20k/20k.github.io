@@ -306,7 +306,7 @@ struct mesh
 
             for(int i=0; i < (int)linear_in.size(); i++)
             {
-                kreiss_individual(linear_in[i], linear_out[i], 0.01f, 4, buffers[in].get_names().at(i));
+                kreiss_individual(linear_in[i], linear_out[i], 0.0004f, 4, buffers[in].get_names().at(i));
             }
 
             for(int i=0; i < (int)plugin_buffers[in].size(); i++)
