@@ -27,6 +27,11 @@ float get_scale(float simulation_width, t3i dim)
     return simulation_width / (dim.x() - 1);
 }
 
+float get_cfl()
+{
+    return 0.2975;
+}
+
 struct mesh
 {
     std::vector<plugin*> plugins;
@@ -267,7 +272,7 @@ struct mesh
         {
             auto kreiss_individual = [&](cl::buffer inb, cl::buffer outb, float eps, int order, std::string name)
             {
-                float modified_eps = eps * (timestep / std::pow(scale, order));
+                float modified_eps = eps * (timestep / scale);
 
                 if(inb.alloc_size == 0)
                     return;
@@ -306,7 +311,7 @@ struct mesh
 
             for(int i=0; i < (int)linear_in.size(); i++)
             {
-                kreiss_individual(linear_in[i], linear_out[i], 0.0004f, 4, buffers[in].get_names().at(i));
+                kreiss_individual(linear_in[i], linear_out[i], 0.168, 4, buffers[in].get_names().at(i));
             }
 
             for(int i=0; i < (int)plugin_buffers[in].size(); i++)
@@ -658,11 +663,6 @@ struct mesh
         valid_derivative_buffer = 2;
     }
 };
-
-float get_cfl()
-{
-    return 0.2975;
-}
 
 float get_timestep(float simulation_width, t3i size)
 {
