@@ -260,7 +260,7 @@ auto function_trilinear_particles(T&& func, v3f pos)
 
     using value_v = decltype(func(v3i()));
 
-    auto L_j = [&](int j, const valuef& f)
+    auto L_j = [&](int j, const valuef& f, float& bottom_out)
     {
         int bottom = 1;
 
@@ -276,9 +276,11 @@ auto function_trilinear_particles(T&& func, v3f pos)
             out = out * (f - nodes[m]);
         }
 
+        bottom_out = (float)bottom;
+
         //pin(out);
 
-        return out / (float)bottom;
+        return out;
     };
 
     value_v sum = {};
@@ -296,7 +298,13 @@ auto function_trilinear_particles(T&& func, v3f pos)
 
                 auto u = func(ifloored + offset);
 
-                sum += u * L_j(x, frac.x()) * L_j(y, frac.y()) * L_j(z, frac.z());
+                float bx = 0;
+                float by = 0;
+                float bz = 0;
+
+                auto val = u * L_j(x, frac.x(), bx) * L_j(y, frac.y(), by) * L_j(z, frac.z(), bz);
+
+                sum += val / (bx * by * bz);
             }
         }
     }
