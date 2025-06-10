@@ -993,7 +993,7 @@ void evolve_particles(execution_context& ctx,
     valuef idgA1 = diff1_nocheck(base.gA[ld.pos, ld.dim], 1, ld);
     valuef idgA2 = diff1_nocheck(in.gA[ld2.pos, ld2.dim], 1, ld2);*/
 
-    v3i iipos = (v3i)grid_base;
+    /*v3i iipos = (v3i)grid_base;
     pin(iipos);
 
     v3i iipos2 = (v3i)grid_base;
@@ -1011,7 +1011,7 @@ void evolve_particles(execution_context& ctx,
     ld2.scale = scale.get();
 
     valuef idgA1 = diff1_nocheck(base.gA[ld.pos, ld.dim], 1, ld);
-    valuef idgA2 = diff1_nocheck(in.gA[ld2.pos, ld2.dim], 1, ld2);
+    valuef idgA2 = diff1_nocheck(in.gA[ld2.pos, ld2.dim], 1, ld2);*/
 
     v3f dV;
 
@@ -1040,7 +1040,7 @@ void evolve_particles(execution_context& ctx,
 
         for(int i=0; i < 3; i++)
         {
-            metric<dual<valuef>, 3, 3> d_cYij;
+            unit_metric<dual<valuef>, 3, 3> d_cYij;
 
             for(int j=0; j < 3; j++)
             {
@@ -1071,10 +1071,16 @@ void evolve_particles(execution_context& ctx,
             p3[i] = sum;
         }
 
-        print("dV %.23f %.23f %.23f rdgA %.23f idgA1 %.23f idgA2 %.23f\n", p1[1], p2[1], p3[1], dgA[1], idgA1, idgA2);
+        //print("dV %.23f %.23f %.23f rdgA %.23f idgA1 %.23f idgA2 %.23f\n", p1[1], p2[1], p3[1], dgA[1], idgA1, idgA2);
 
         dV = p1 + p2 + p3;
     }
+
+    pin(pos_base);
+    pin(vel_base);
+    pin(dX);
+    pin(dV);
+    pin(u0);
 
     for(int i=0; i < 3; i++)
         as_ref(p_out.positions[i][id]) = pos_base[i] + timestep.get() * dX[i];
@@ -1094,7 +1100,7 @@ void evolve_particles(execution_context& ctx,
         as_ref(p_out.masses[id]) = valuef(0.f);
     });
 
-    print("Pos %f %f %f vel %f %f %f\n", pos.x(), pos.y(), pos.z(), vel.x(), vel.y(), vel.z());
+    //print("Pos %f %f %f vel %f %f %f\n", pos.x(), pos.y(), pos.z(), vel.x(), vel.y(), vel.z());
 
     /*if_e(id == value<size_t>(718182), [&]{
         print("Pos %f %f %f vel %f %f %f\n", pos.x(), pos.y(), pos.z(), vel.x(), vel.y(), vel.z());
