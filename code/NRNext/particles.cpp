@@ -585,7 +585,7 @@ struct evolve_vars
 
     //interpolation no longer guarantees unit determinant
     metric<valuef, 3, 3> cY;
-    tensor<valuef, 3, 3> cA;
+    //tensor<valuef, 3, 3> cA;
     valuef K;
 
     v3f dgA;
@@ -639,12 +639,12 @@ struct evolve_vars
             return args.K;
         };
 
-        auto cA_at = [&](v3i pos)
+        /*auto cA_at = [&](v3i pos)
         {
             bssn_args args(pos, dim, in);
             pin(args.cA);
             return args.cA;
-        };
+        };*/
 
         auto dgA_at = [&](v3i pos)
         {
@@ -719,14 +719,14 @@ struct evolve_vars
         gA = function_trilinear_particles(gA_at, fpos);
         gB = function_trilinear_particles(gB_at, fpos);
         cY = function_trilinear_particles(cY_at, fpos);
-        cA = function_trilinear_particles(cA_at, fpos);
+        //cA = function_trilinear_particles(cA_at, fpos);
         K = function_trilinear_particles(K_at, fpos);
         W = function_trilinear_particles(W_at, fpos);
 
         pin(gA);
         pin(gB);
         pin(cY);
-        pin(cA);
+        //pin(cA);
         pin(K);
         pin(W);
 
@@ -810,6 +810,7 @@ void evolve_particles(execution_context& ctx,
     v3f vel_next = p_in.get_velocity(id);
 
     v3f grid_next = world_to_grid(pos_next, dim.get(), scale.get());
+    v3f grid_base = world_to_grid(pos_base, dim.get(), scale.get());
 
     valuef mass = p_in.get_mass(id);
     pin(mass);
@@ -842,9 +843,7 @@ void evolve_particles(execution_context& ctx,
 
     if(!first_step)
     {
-        v3f grid_base = world_to_grid(pos_base, dim.get(), scale.get());
         pos = (pos_base + pos_next) * 0.5f;
-
         vel = (vel_base + vel_next) * 0.5f;
 
         evolve_vars b_evolve(base, grid_base, dim.get(), scale.get());
@@ -864,7 +863,6 @@ void evolve_particles(execution_context& ctx,
     {
         evolve_vars i_evolve(in, grid_next, dim.get(), scale.get());
         pos = pos_next;
-
         vel = vel_next;
 
         cY = i_evolve.cY;
@@ -886,6 +884,55 @@ void evolve_particles(execution_context& ctx,
     pin(u0);
 
     v3f dX = -gB + iYij.raise(vel) / u0;
+
+    /*derivative_data d;
+    d.pos = pos;
+    d.dim = dim;
+    d.scale = scale;
+
+    bssn_args args(pos, dim, in, true);
+
+    v3f dgA = (v3f){diff1(args.gA, 0, d), diff1(args.gA, 1, d), diff1(args.gA, 2, d)};
+    pin(dgA);*/
+
+    /*v3i iipos = (v3i)grid_base;
+    pin(iipos);
+
+    v3i iipos2 = (v3i)grid_next;
+    pin(iipos2);
+
+    derivative_data ld;
+    ld.pos = iipos;
+    ld.dim = dim.get();
+    ld.scale = scale.get();
+
+    derivative_data ld2;
+    ld2.pos = iipos2;
+    ld2.dim = dim.get();
+    ld2.scale = scale.get();
+
+    valuef idgA1 = diff1(base.gA[ld.pos, ld.dim], 1, ld);
+    valuef idgA2 = diff1(in.gA[ld2.pos, ld2.dim], 1, ld2);*/
+
+    v3i iipos = (v3i)grid_base;
+    pin(iipos);
+
+    v3i iipos2 = (v3i)grid_base;
+    iipos2.y() += 1;
+    pin(iipos2);
+
+    derivative_data ld;
+    ld.pos = iipos;
+    ld.dim = dim.get();
+    ld.scale = scale.get();
+
+    derivative_data ld2;
+    ld2.pos = iipos2;
+    ld2.dim = dim.get();
+    ld2.scale = scale.get();
+
+    valuef idgA1 = diff1(base.gA[ld.pos, ld.dim], 1, ld);
+    valuef idgA2 = diff1(in.gA[ld2.pos, ld2.dim], 1, ld2);
 
     v3f dV;
 
@@ -945,6 +992,8 @@ void evolve_particles(execution_context& ctx,
             p3[i] = sum;
         }
 
+        print("dV %.23f %.23f %.23f rdgA %.23f idgA1 %.23f idgA2 %.23f\n", p1[1], p2[1], p3[1], dgA[1], idgA1, idgA2);
+
         dV = p1 + p2 + p3;
     }
 
@@ -965,6 +1014,8 @@ void evolve_particles(execution_context& ctx,
     if_e(dist <= 10 || gA < 0.15f, [&]{
         as_ref(p_out.masses[id]) = valuef(0.f);
     });
+
+    print("Pos %f %f %f vel %f %f %f\n", pos.x(), pos.y(), pos.z(), vel.x(), vel.y(), vel.z());
 
     /*if_e(id == value<size_t>(718182), [&]{
         print("Pos %f %f %f vel %f %f %f\n", pos.x(), pos.y(), pos.z(), vel.x(), vel.y(), vel.z());
@@ -1531,6 +1582,7 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
 
     cl_ulong count = particle_count;
 
+    #if 0
     if(sdata.in_idx == sdata.base_idx)
     {
         {
@@ -1581,6 +1633,7 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
 
         std::swap(out, base);
     }
+    #endif
 
     {
         cl::args args;
