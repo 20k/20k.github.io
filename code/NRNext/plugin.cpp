@@ -1,5 +1,34 @@
 #include "plugin.hpp"
 #include "bssn.hpp"
+#include <toolkit/fs_helpers.hpp>
+
+void buffer_provider::save(cl::command_queue& cqueue, const std::string& directory)
+{
+    auto bufs = get_buffers();
+    auto desc = get_description();
+
+    for(int i=0; i < (int)bufs.size(); i++)
+    {
+        std::string name = desc.at(i).name;
+        std::vector<uint8_t> data = bufs[i].read<uint8_t>(cqueue);
+
+        file::write(directory + name + ".bin", std::string(data.begin(), data.end()), file::mode::BINARY);
+    }
+}
+
+void buffer_provider::load(cl::command_queue& cqueue, const std::string& directory)
+{
+    auto bufs = get_buffers();
+    auto desc = get_description();
+
+    for(int i=0; i < (int)bufs.size(); i++)
+    {
+        std::string name = desc.at(i).name;
+        std::string data = file::read(directory + name + ".bin", file::mode::BINARY);
+
+        bufs[i].write(cqueue, std::span<char>(data.begin(), data.end()));
+    }
+}
 
 v4f all_adm_args_mem::get_4_velocity(bssn_args& args, const derivative_data& d)
 {

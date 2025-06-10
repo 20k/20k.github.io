@@ -83,6 +83,9 @@ struct mesh
 
         for(int i=0; i < (int)plugins.size(); i++)
         {
+            plugin_buffers[0][i]->save(cqueue, directory);
+            plugin_utility_buffers[i]->save(cqueue, directory);
+
             plugin* p = plugins[i];
             p->save(cqueue, directory, plugin_buffers[0].at(i));
         }
@@ -102,11 +105,15 @@ struct mesh
 
         for(int i=0; i < (int)plugins.size(); i++)
         {
+            plugin_buffers[0][i]->load(cqueue, directory);
+            plugin_utility_buffers[i]->load(cqueue, directory);
+
             plugin* p = plugins[i];
             p->load(cqueue, directory, plugin_buffers[0].at(i));
         }
 
         calculate_derivatives_for(cqueue, buffers[0], derivatives);;
+        valid_derivative_buffer = 0;
     }
 
     void calculate_derivatives_for(cl::command_queue cqueue, bssn_buffer_pack& pack, std::vector<cl::buffer>& into)
@@ -2187,6 +2194,11 @@ int main()
         ImGui::Checkbox("Capture Render Slices", &rt_bssn.capture_4slices);
         ImGui::SliderInt("Render Skipping", &render_skipping, 1, 32);
         ImGui::SliderFloat("Render Size Scale", &render_size_scale, 0.1f, 10.f);
+
+        if(ImGui::Button("Save"))
+            m.save(cqueue, "./save/");
+        if(ImGui::Button("Load"))
+            m.load(cqueue, "./save/");
 
         step = step || running;
 
