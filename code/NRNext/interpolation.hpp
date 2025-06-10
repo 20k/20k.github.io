@@ -260,111 +260,8 @@ auto function_trilinear_particles(T&& func, v3f pos)
 
     using value_v = decltype(func(v3i()));
 
-    #if 0
-    auto L_i = [&](int x_o, int y_o, int z_o, valuef x, valuef y, valuef z)
-    {
-        int x_i = nodes[x_o];
-        int y_i = nodes[y_o];
-        int z_i = nodes[z_o];
-
-        std::optional<valuef> psum;
-
-        for(int ko_z = 0; ko_z < 4; ko_z++)
-        for(int ko_y = 0; ko_y < 4; ko_y++)
-        for(int ko_x = 0; ko_x < 4; ko_x++)
-        {
-            int x_k = nodes[ko_x];
-            int y_k = nodes[ko_y];
-            int z_k = nodes[ko_z];
-
-            if(x_k == x_i && y_k == y_i && z_k == z_i)
-                continue;
-
-            valuef next = ((x - x_k) * (y - y_k) * (z - z_k)) / ((x_i - x_k) * (y_i - y_k) * (z_i - z_k));
-
-            if(!psum.has_value())
-                psum = next;
-            else
-                psum.value() = psum.value() * next;
-        }
-
-        return psum.value();
-    };
-    #endif
-
-    #if 0
-    auto L_i = [&](int x_o, int y_o, int z_o, valuef x, valuef y, valuef z)
-    {
-        int x_fixed = nodes[x_o];
-        int y_fixed = nodes[y_o];
-        int z_fixed = nodes[z_o];
-
-        valuef Z_product = 1;
-
-        for(int z=0; z < 4; z++)
-        {
-            int z_dyn = nodes[z];
-
-            if(z_dyn == z_fixed)
-                continue;
-
-            valuef Y_product = 1;
-
-            for(int y=0; y < 4; y++)
-            {
-                int y_dyn = nodes[y];
-
-                valuef X_product = 1;
-
-                if(y_dyn == y_fixed)
-                    continue;
-
-                for(int x=0; x < 4; x++)
-                {
-                    int x_dyn = nodes[x];
-
-                    if(x_dyn == x_fixed)
-                        continue;
-
-                    X_product = X_product * (x - x_dyn) / (x_fixed - x_dyn);
-                }
-
-                pin(X_product);
-
-                Y_product = X_product * Y_product * (y - y_dyn) / (y_fixed - y_dyn);
-            }
-
-            pin(Y_product);
-
-            Z_product = Y_product * Z_product * (z - z_dyn) / (z_fixed - z_dyn);
-        }
-
-        return Z_product;
-    };
-    #endif
-
     auto L_j = [&](int j, const valuef& f)
     {
-        #if 0
-        mut<valuef> out = declare_mut_e(valuef(1.f));
-
-        mut<valuei> m = declare_mut_e(valuei(0));
-
-        for_e(m < 4, assign_b(m, m+1), [&]{
-            /*if_e(m == j, [&]{
-                continue_e();
-            });*/
-
-            if_e(declare_e(m) != j, [&]{
-                as_ref(out) = declare_e(out) * (f - ((valuef)m - 1)) / (valuef)(j - 1 - (m - 1));
-            });
-        });
-
-        //pin(out);
-
-        return declare_e(out);
-        #endif
-
         int bottom = 1;
 
         valuef out = 1;
@@ -386,11 +283,8 @@ auto function_trilinear_particles(T&& func, v3f pos)
 
     value_v sum = {};
 
-    //mut<valuei> z = declare_mut_e(valuei(0));
-
-    //for(int z=0; z < 4; z++)
-
-    //for_e(z < 4, assign_b(z, z+1), [&]{
+    v3i ifloored = (v3i)floored;
+    pin(ifloored);
 
     for(int z=0; z < 4; z++)
     {
@@ -400,16 +294,9 @@ auto function_trilinear_particles(T&& func, v3f pos)
             {
                 v3i offset = (v3i){x - 1, y - 1, z - 1};
 
-                auto u = func((v3i)floored + offset);
-                //pin(u);
-
-                //pin(sum);
+                auto u = func(ifloored + offset);
 
                 sum += u * L_j(x, frac.x()) * L_j(y, frac.y()) * L_j(z, frac.z());
-
-                //sum += u * L_i(x, y, z, frac.x(), frac.y(), frac.z());
-
-                //t3f node_pos = (t3f){nodes[x], nodes[y], nodes[z]};
             }
         }
     }
