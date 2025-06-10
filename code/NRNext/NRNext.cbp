@@ -65,6 +65,13 @@
 			<Add option="`pkg-config --cflags freetype2`" />
 			<Add option="-fvisibility=hidden -fvisibility-inlines-hidden" />
 			<Add option="-Wno-narrowing" />
+			<Add option="-U_FORTIFY_SOURCE -D_FORTIFY_SOURCE=3" />
+			<Add option="-D_GLIBCXX_ASSERTIONS" />
+			<Add option="-fstrict-flex-arrays=3" />
+			<Add option="-fstack-clash-protection -fstack-protector-strong" />
+			<Add option="-Wl,-z,nodlopen -Wl,-z,noexecstack" />
+			<Add option="-Wl,-z,relro -Wl,-z,now" />
+			<Add option="-Wl,--as-needed -Wl,--no-copy-dt-needed-entries" />
 			<Add option="-DIMGUI_IMPL_OPENGL_LOADER_GLEW" />
 			<Add option="-DSUBPIXEL_FONT_RENDERING" />
 			<Add option="-DIMGUI_ENABLE_FREETYPE" />

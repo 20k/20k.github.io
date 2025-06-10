@@ -58,6 +58,48 @@ auto function_trilinear(T&& func, v3f pos)
     return lmix(c0, c1, frac.z());
 }
 
+#if 0
+inline
+void collect_cubic_interpolate_coefficients()
+{
+    ///ok so
+    ///we have 4 arrays of coefficients?
+    ///for 0, x, x^2, and x^3
+
+    std::array<std::array<float, 64>, 4> c0;
+
+    auto apply_coeff = [&](t3i pos, float coeff, int rnk)
+    {
+        c0[rnk].at((pos.z() + 1) * 4 * 4 + (pos.y() + 1) * 4 * 4 + pos.x() + 1) += coeff;
+    };
+
+    auto c_base = [&](std::array<t3i, 4> offs)
+    {
+        auto a = offs[0];
+        auto b = offs[1];
+        auto c = offs[2];
+        auto d = offs[3];
+
+        apply_coeff(a, -1/6.f, 3);
+        apply_coeff(b, 0.5f, 3);
+        apply_coeff(c, -0.5f, 3);
+        apply_coeff(d, 1/6., 3);
+
+        apply_coeff(a, 0.5f, 2);
+        apply_coeff(b, -1, 2);
+        apply_coeff(c, 0.5f, 2);
+
+        apply_coeff(a, -1/3.f, 1);
+        apply_coeff(b, -1/2.f, 1);
+        apply_coeff(c, 1, 1);
+        apply_coeff(d, -1/6.f, 1);
+
+        apply_coeff(b, 1.f, 0);
+    };
+
+
+}
+
 template<typename T, typename U>
 inline
 auto cubic_interpolate(std::array<T, 4> vals, U frac)
@@ -179,6 +221,168 @@ auto function_trilinear_particles(T&& func, v3f pos)
 
     return f(ifloored, frac);
     #endif
+}
+#endif
+
+
+/*template<typename T>
+inline
+auto cubic_interpolate(std::array<T, 4> vals, v3f frac)
+{
+    using namespace single_source;
+
+    std::array<float, 4> nodes = {
+        -1,
+        0,
+        1,
+        2
+    };
+
+}*/
+
+template<typename T>
+inline
+auto function_trilinear_particles(T&& func, v3f pos)
+{
+    using namespace single_source;
+
+    v3f floored = floor(pos);
+    pin(floored);
+    v3f frac = pos - floored;
+    pin(frac);
+
+    std::array<float, 4> nodes = {
+        -1,
+        0,
+        1,
+        2
+    };
+
+    using value_v = decltype(func(v3i()));
+
+    #if 0
+    auto L_i = [&](int x_o, int y_o, int z_o, valuef x, valuef y, valuef z)
+    {
+        int x_i = nodes[x_o];
+        int y_i = nodes[y_o];
+        int z_i = nodes[z_o];
+
+        std::optional<valuef> psum;
+
+        for(int ko_z = 0; ko_z < 4; ko_z++)
+        for(int ko_y = 0; ko_y < 4; ko_y++)
+        for(int ko_x = 0; ko_x < 4; ko_x++)
+        {
+            int x_k = nodes[ko_x];
+            int y_k = nodes[ko_y];
+            int z_k = nodes[ko_z];
+
+            if(x_k == x_i && y_k == y_i && z_k == z_i)
+                continue;
+
+            valuef next = ((x - x_k) * (y - y_k) * (z - z_k)) / ((x_i - x_k) * (y_i - y_k) * (z_i - z_k));
+
+            if(!psum.has_value())
+                psum = next;
+            else
+                psum.value() = psum.value() * next;
+        }
+
+        return psum.value();
+    };
+    #endif
+
+    #if 0
+    auto L_i = [&](int x_o, int y_o, int z_o, valuef x, valuef y, valuef z)
+    {
+        int x_fixed = nodes[x_o];
+        int y_fixed = nodes[y_o];
+        int z_fixed = nodes[z_o];
+
+        valuef Z_product = 1;
+
+        for(int z=0; z < 4; z++)
+        {
+            int z_dyn = nodes[z];
+
+            if(z_dyn == z_fixed)
+                continue;
+
+            valuef Y_product = 1;
+
+            for(int y=0; y < 4; y++)
+            {
+                int y_dyn = nodes[y];
+
+                valuef X_product = 1;
+
+                if(y_dyn == y_fixed)
+                    continue;
+
+                for(int x=0; x < 4; x++)
+                {
+                    int x_dyn = nodes[x];
+
+                    if(x_dyn == x_fixed)
+                        continue;
+
+                    X_product = X_product * (x - x_dyn) / (x_fixed - x_dyn);
+                }
+
+                pin(X_product);
+
+                Y_product = X_product * Y_product * (y - y_dyn) / (y_fixed - y_dyn);
+            }
+
+            pin(Y_product);
+
+            Z_product = Y_product * Z_product * (z - z_dyn) / (z_fixed - z_dyn);
+        }
+
+        return Z_product;
+    };
+    #endif
+
+    auto L_j = [&](int j, const valuef& f)
+    {
+        valuef out = 1;
+
+        for(int m=0; m < 4; m++)
+        {
+            if(m == j)
+                continue;
+
+            out = out * (f - nodes[m]) / (nodes[j] - nodes[m]);
+        }
+
+        pin(out);
+
+        return out;
+    };
+
+    value_v sum = {};
+
+    for(int z=0; z < 4; z++)
+    {
+        for(int y=0; y < 4; y++)
+        {
+            for(int x=0; x < 4; x++)
+            {
+                v3i offset = (v3i){nodes[x], nodes[y], nodes[z]};
+
+                auto u = func((v3i)floored + offset);
+                pin(u);
+
+                sum += u * L_j(x, frac.x()) * L_j(y, frac.y()) * L_j(z, frac.z());
+
+                //sum += u * L_i(x, y, z, frac.x(), frac.y(), frac.z());
+
+                //t3f node_pos = (t3f){nodes[x], nodes[y], nodes[z]};
+            }
+        }
+    }
+
+    return sum;
 }
 
 template<typename T>
