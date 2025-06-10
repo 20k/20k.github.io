@@ -87,7 +87,7 @@ template std::array<valuef, 5> get_differentiation_variables<5, valuef>(const va
 template std::array<valuef, 3> get_differentiation_variables<3, valuef>(const valuef&, int);
 
 template<typename T>
-value<T> diff1_generic(const value<T>& in, int direction, const derivative_data& d)
+value<T> diff1_generic(const value<T>& in, int direction, const derivative_data& d, bool check_boundary)
 {
     using namespace single_source;
 
@@ -102,6 +102,9 @@ value<T> diff1_generic(const value<T>& in, int direction, const derivative_data&
 
         second = (p1 + p2) / (value<T>)(12.f * d.scale);
     }
+
+    if(!check_boundary)
+        return second;
 
     value<T> first;
 
@@ -118,7 +121,12 @@ value<T> diff1_generic(const value<T>& in, int direction, const derivative_data&
 
 valuef diff1(const valuef& in, int direction, const derivative_data& d)
 {
-    return diff1_generic(in, direction, d);
+    return diff1_generic(in, direction, d, true);
+}
+
+valuef diff1_nocheck(const valuef& in, int direction, const derivative_data& d)
+{
+    return diff1_generic(in, direction, d, false);
 }
 
 ///this uses the commutativity of partial derivatives to lopsidedly prefer differentiating dy in the x direction

@@ -655,7 +655,7 @@ struct evolve_vars
 
             bssn_args args(pos, dim, in, true);
 
-            v3f dgA = (v3f){diff1(args.gA, 0, d), diff1(args.gA, 1, d), diff1(args.gA, 2, d)};
+            v3f dgA = (v3f){diff1_nocheck(args.gA, 0, d), diff1_nocheck(args.gA, 1, d), diff1_nocheck(args.gA, 2, d)};
             pin(dgA);
 
             //print("dgA %.23f %.23f %.23f pos %i %i %i\n", dgA[0], dgA[1], dgA[2], pos.x(), pos.y(), pos.z());
@@ -672,7 +672,7 @@ struct evolve_vars
 
             bssn_args args(pos, dim, in, true);
 
-            v3f dW = (v3f){diff1(args.W, 0, d), diff1(args.W, 1, d), diff1(args.W, 2, d)};
+            v3f dW = (v3f){diff1_nocheck(args.W, 0, d), diff1_nocheck(args.W, 1, d), diff1_nocheck(args.W, 2, d)};
             pin(dW);
 
             return dW;
@@ -690,7 +690,7 @@ struct evolve_vars
 
             for(int i=0; i < 3; i++)
                 for(int j=0; j < 3; j++)
-                    dgB[i, j] = diff1(args.gB[j], i, d);
+                    dgB[i, j] = diff1_nocheck(args.gB[j], i, d);
 
             pin(dgB);
             return dgB;
@@ -709,7 +709,7 @@ struct evolve_vars
             for(int i=0; i < 3; i++)
                 for(int j=0; j < 3; j++)
                     for(int k=0; k < 3; k++)
-                        dcY[i, j, k] = diff1(args.cY[j, k], i, d);
+                        dcY[i, j, k] = diff1_nocheck(args.cY[j, k], i, d);
 
             pin(dcY);
             return dcY;
@@ -892,7 +892,7 @@ void evolve_particles(execution_context& ctx,
 
     bssn_args args(pos, dim, in, true);
 
-    v3f dgA = (v3f){diff1(args.gA, 0, d), diff1(args.gA, 1, d), diff1(args.gA, 2, d)};
+    v3f dgA = (v3f){diff1_nocheck(args.gA, 0, d), diff1_nocheck(args.gA, 1, d), diff1_nocheck(args.gA, 2, d)};
     pin(dgA);*/
 
     /*v3i iipos = (v3i)grid_base;
@@ -911,8 +911,8 @@ void evolve_particles(execution_context& ctx,
     ld2.dim = dim.get();
     ld2.scale = scale.get();
 
-    valuef idgA1 = diff1(base.gA[ld.pos, ld.dim], 1, ld);
-    valuef idgA2 = diff1(in.gA[ld2.pos, ld2.dim], 1, ld2);*/
+    valuef idgA1 = diff1_nocheck(base.gA[ld.pos, ld.dim], 1, ld);
+    valuef idgA2 = diff1_nocheck(in.gA[ld2.pos, ld2.dim], 1, ld2);*/
 
     v3i iipos = (v3i)grid_base;
     pin(iipos);
@@ -931,8 +931,8 @@ void evolve_particles(execution_context& ctx,
     ld2.dim = dim.get();
     ld2.scale = scale.get();
 
-    valuef idgA1 = diff1(base.gA[ld.pos, ld.dim], 1, ld);
-    valuef idgA2 = diff1(in.gA[ld2.pos, ld2.dim], 1, ld2);
+    valuef idgA1 = diff1_nocheck(base.gA[ld.pos, ld.dim], 1, ld);
+    valuef idgA2 = diff1_nocheck(in.gA[ld2.pos, ld2.dim], 1, ld2);
 
     v3f dV;
 
