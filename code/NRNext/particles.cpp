@@ -603,7 +603,7 @@ struct evolve_vars
 
         auto gA_at = [&](v3i pos)
         {
-            bssn_args args(pos, dim, in);
+            bssn_args args(pos, dim, in, true);
             pin(args.gA);
             return args.gA;
         };
@@ -617,14 +617,14 @@ struct evolve_vars
 
         auto W_at = [&](v3i pos)
         {
-            bssn_args args(pos, dim, in);
+            bssn_args args(pos, dim, in, true);
             pin(args.W);
             return args.W;
         };
 
         auto cY_at = [&](v3i pos)
         {
-            bssn_args args(pos, dim, in);
+            bssn_args args(pos, dim, in, true);
             pin(args.cY);
 
             //print("cY %.23f %.23f %.23f %.23f %.23f %.23f pos %i %i %i\n", args.cY[0, 0], args.cY[1, 1], args.cY[2, 2], args.cY[0, 1], args.cY[0, 2], args.cY[1, 2], pos.x(), pos.y(), pos.z());
@@ -722,6 +722,13 @@ struct evolve_vars
         //cA = function_trilinear_particles(cA_at, fpos);
         K = function_trilinear_particles(K_at, fpos);
         W = function_trilinear_particles(W_at, fpos);
+
+        gA = max(gA + 1, valuef(1e-4f));
+        W = max(W + 1, valuef(1e-4f));
+
+        cY[0, 0] += 1;
+        cY[1, 1] += 1;
+        cY[2, 2] += 1;
 
         pin(gA);
         pin(gB);

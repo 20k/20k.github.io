@@ -304,7 +304,7 @@ auto function_trilinear_particles(T&& func, v3f pos)
 
                 auto val = u * L_j(x, frac.x(), bx) * L_j(y, frac.y(), by) * L_j(z, frac.z(), bz);
 
-                sum += val / (bx * by * bz);
+                sum += val * (1/(bx * by * bz));
             }
         }
     }
