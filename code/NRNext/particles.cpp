@@ -8,6 +8,7 @@
 #include "../common/vec/dual.hpp"
 #include <vec/stdmath.hpp>
 #include "init_black_hole.hpp"
+#include <toolkit/fs_helpers.hpp>
 
 template<typename T>
 using dual = dual_types::dual_v<T>;
@@ -1643,3 +1644,32 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
 
     #endif // CHECK_E
 }
+
+void particle_plugin::save(cl::command_queue& cqueue, const std::string& directory, buffer_provider* buf)
+{
+    std::vector<cl::buffer> bufs = buf->get_buffers();
+    std::vector<buffer_descriptor> decs = buf->get_description();
+
+    for(int i=0; i < (int)bufs.size(); i++)
+    {
+        std::string name = decs[i].name;
+        std::vector<uint8_t> data = bufs[i].read<uint8_t>(cqueue);
+
+        file::write(directory + name + ".bin", std::string(data.begin(), data.end()), file::mode::BINARY);
+    }
+}
+
+void particle_plugin::load(cl::command_queue& cqueue, const std::string& directory, buffer_provider* buf)
+{
+    std::vector<cl::buffer> bufs = buf->get_buffers();
+    std::vector<buffer_descriptor> decs = buf->get_description();
+
+    for(int i=0; i < (int)bufs.size(); i++)
+    {
+        std::string name = decs[i].name;
+        std::string data = file::read(directory + name + ".bin", file::mode::BINARY);
+
+        bufs[i].write(cqueue, std::span<char>(data.begin(), data.end()));
+    }
+}
+

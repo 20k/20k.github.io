@@ -78,7 +78,6 @@ struct mesh
             std::vector<uint8_t> data = buf.read<uint8_t>(cqueue);
 
             file::write(directory + name + ".bin", std::string(data.begin(), data.end()), file::mode::BINARY);
-
             idx++;
         });
 
@@ -98,7 +97,6 @@ struct mesh
             std::string data = file::read(directory + name + ".bin", file::mode::BINARY);
 
             buf.write(cqueue, std::span<char>(data.begin(), data.end()));
-
             idx++;
         });
 
@@ -107,6 +105,8 @@ struct mesh
             plugin* p = plugins[i];
             p->load(cqueue, directory, plugin_buffers[0].at(i));
         }
+
+        calculate_derivatives_for(cqueue, buffers[0], derivatives);;
     }
 
     void calculate_derivatives_for(cl::command_queue cqueue, bssn_buffer_pack& pack, std::vector<cl::buffer>& into)

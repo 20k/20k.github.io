@@ -251,6 +251,9 @@ struct particle_plugin : plugin
     virtual void step(cl::context ctx, cl::command_queue cqueue, const plugin_step_data& sdata) override;
     virtual void finalise(cl::context ctx, cl::command_queue cqueue, const finalise_data& sdata) override{}
 
+    virtual void save(cl::command_queue& cqueue, const std::string& directory, buffer_provider* buf) override;
+    virtual void load(cl::command_queue& cqueue, const std::string& directory, buffer_provider* buf) override;
+
     virtual void add_args_provider(all_adm_args_mem& mem) override;
 
     virtual ~particle_plugin(){}
