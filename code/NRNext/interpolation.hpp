@@ -345,6 +345,26 @@ auto function_trilinear_particles(T&& func, v3f pos)
 
     auto L_j = [&](int j, const valuef& f)
     {
+        #if 0
+        mut<valuef> out = declare_mut_e(valuef(1.f));
+
+        mut<valuei> m = declare_mut_e(valuei(0));
+
+        for_e(m < 4, assign_b(m, m+1), [&]{
+            /*if_e(m == j, [&]{
+                continue_e();
+            });*/
+
+            if_e(declare_e(m) != j, [&]{
+                as_ref(out) = declare_e(out) * (f - ((valuef)m - 1)) / (valuef)(j - 1 - (m - 1));
+            });
+        });
+
+        //pin(out);
+
+        return declare_e(out);
+        #endif
+
         valuef out = 1;
 
         for(int m=0; m < 4; m++)
@@ -362,13 +382,19 @@ auto function_trilinear_particles(T&& func, v3f pos)
 
     value_v sum = {};
 
+    //mut<valuei> z = declare_mut_e(valuei(0));
+
+    //for(int z=0; z < 4; z++)
+
+    //for_e(z < 4, assign_b(z, z+1), [&]{
+
     for(int z=0; z < 4; z++)
     {
         for(int y=0; y < 4; y++)
         {
             for(int x=0; x < 4; x++)
             {
-                v3i offset = (v3i){nodes[x], nodes[y], nodes[z]};
+                v3i offset = (v3i){x - 1, y - 1, z - 1};
 
                 auto u = func((v3i)floored + offset);
                 pin(u);
