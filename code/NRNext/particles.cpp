@@ -648,7 +648,7 @@ struct evolve_vars
     //interpolation no longer guarantees unit determinant
     metric<valuef, 3, 3> cY;
     //tensor<valuef, 3, 3> cA;
-    valuef K;
+    //valuef K;
 
     v3f dgA;
     v3f dW;
@@ -694,12 +694,12 @@ struct evolve_vars
             return args.cY;
         };
 
-        auto K_at = [&](v3i pos)
+        /*auto K_at = [&](v3i pos)
         {
             bssn_args args(pos, dim, in);
             pin(args.K);
             return args.K;
-        };
+        };*/
 
         /*auto cA_at = [&](v3i pos)
         {
@@ -788,7 +788,7 @@ struct evolve_vars
         gB = function_trilinear_particles(gB_at, frac, ifloored);
         cY = function_trilinear_particles(cY_at, frac, ifloored);
         //cA = function_trilinear_particles(cA_at, frac, ifloored);
-        K = function_trilinear_particles(K_at, frac, ifloored);
+        //K = function_trilinear_particles(K_at, frac, ifloored);
         W = function_trilinear_particles(W_at, frac, ifloored);
 
         pin(gA);
@@ -806,7 +806,7 @@ struct evolve_vars
         pin(gB);
         pin(cY);
         //pin(cA);
-        pin(K);
+        //pin(K);
         pin(W);
 
         dgA = function_trilinear_particles(dgA_at, frac, ifloored);
