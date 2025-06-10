@@ -21,6 +21,7 @@
 #include "hydrodynamics.hpp"
 #include "particles.hpp"
 #include "random.hpp"
+#include <nlohmann/json.hpp>
 
 float get_scale(float simulation_width, t3i dim)
 {
@@ -89,6 +90,11 @@ struct mesh
             plugin* p = plugins[i];
             p->save(cqueue, directory, plugin_buffers[0].at(i));
         }
+
+        nlohmann::json extra;
+        extra["total_elapsed"] = total_elapsed;
+
+        file::write(directory + "info.json", extra.dump(4), file::mode::TEXT);
     }
 
     void load(cl::command_queue& cqueue, const std::string& directory)
@@ -114,6 +120,19 @@ struct mesh
 
         calculate_derivatives_for(cqueue, buffers[0], derivatives);;
         valid_derivative_buffer = 0;
+
+        nlohmann::json extra;
+
+        try{
+            std::string data = file::read(directory + "info.json", file::mode::TEXT);
+            extra = nlohmann::json::parse(data);
+
+            total_elapsed = extra["total_elapsed"];
+        }
+        catch(...)
+        {
+            printf("Failed to parse info.json in /save");
+        }
     }
 
     void calculate_derivatives_for(cl::command_queue cqueue, bssn_buffer_pack& pack, std::vector<cl::buffer>& into)
@@ -2047,7 +2066,6 @@ int main()
 
     printf("Start\n");
 
-    float elapsed_t = 0;
     //float timestep = 0.001f;
     float timestep = get_timestep(simulation_width, dim);
     bool step = false;
@@ -2202,7 +2220,7 @@ int main()
 
         step = step || running;
 
-        ImGui::Text("Elapsed %f", elapsed_t);
+        ImGui::Text("Elapsed %f", m.total_elapsed);
 
         #if 1
         std::vector<float> lines;
@@ -2249,7 +2267,7 @@ int main()
 
         screen_tex.acquire(cqueue);
 
-        if(pause && elapsed_t > pause_time)
+        if(pause && m.total_elapsed > pause_time)
             step = false;
 
         if(step)
@@ -2261,7 +2279,7 @@ int main()
         {
             rt_bssn.poll_render_resolution(screen_tex.size<2>().x(), screen_tex.size<2>().y());
 
-            tensor<float, 4> camera4 = {elapsed_t, camera_pos.x(), camera_pos.y(), camera_pos.z()};
+            tensor<float, 4> camera4 = {m.total_elapsed, camera_pos.x(), camera_pos.y(), camera_pos.z()};
 
             if(lock_camera_to_slider || progress_camera_time)
                 camera4.x() = cam_time;
@@ -2300,9 +2318,6 @@ int main()
         win.display();
 
         std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
-
-        if(step)
-            elapsed_t += timestep;
 
         render_frame_idx++;
     }
