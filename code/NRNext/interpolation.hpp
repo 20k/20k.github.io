@@ -115,16 +115,18 @@ auto cubic_interpolate(std::array<T, 4> vals, U frac)
     auto p3 = ((a1 + d1) + (b1 + c1)) + cst;
     pin(p3);
 
-    return p1 + p2 + p3;
+    auto out = p1 + p2 + p3;
+    pin(out);
+    return out;
 }
 
 template<typename T>
 inline
 auto function_trilinear_particles(T&& func, v3f pos)
 {
-    return function_trilinear(func, pos);
+    //return function_trilinear(func, pos);
 
-    //#define BICUBIC
+    #define BICUBIC
     #ifdef BICUBIC
     using namespace single_source;
 
@@ -135,7 +137,7 @@ auto function_trilinear_particles(T&& func, v3f pos)
 
     auto t = [func](v3i ipos, v3f frac)
     {
-        v3i offset = {0, 0, 1};
+        v3i offset = {1, 0, 0};
 
         auto cm1 = func(ipos - offset);
         auto c0 = func(ipos);
@@ -161,7 +163,7 @@ auto function_trilinear_particles(T&& func, v3f pos)
 
     auto f = [u](v3i ipos, v3f frac)
     {
-        v3i offset = {1, 0, 0};
+        v3i offset = {0, 0, 1};
 
         auto cm1 = u(ipos - offset, frac);
         auto c0 = u(ipos, frac);
@@ -172,7 +174,10 @@ auto function_trilinear_particles(T&& func, v3f pos)
         return cubic_interpolate(std::array{cm1, c0, cp1, cp2}, frac.x());
     };
 
-    return f((v3i)floored, frac);
+    v3i ifloored = (v3i)floored;
+    pin(ifloored);
+
+    return f(ifloored, frac);
     #endif
 }
 
