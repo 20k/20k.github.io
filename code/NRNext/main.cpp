@@ -69,6 +69,46 @@ struct mesh
         #endif // MOMENTUM_CONSTRAINT_DAMPING
     }
 
+    void save(cl::command_queue& cqueue, const std::string& directory)
+    {
+        int idx = 0;
+
+        buffers[0].for_each([&](cl::buffer buf){
+            std::string name = buffers[0].get_names().at(idx);
+            std::vector<uint8_t> data = buf.read<uint8_t>(cqueue);
+
+            file::write(directory + name + ".bin", std::string(data.begin(), data.end()), file::mode::BINARY);
+
+            idx++;
+        });
+
+        for(int i=0; i < (int)plugins.size(); i++)
+        {
+            plugin* p = plugins[i];
+            p->save(cqueue, directory, plugin_buffers[0].at(i));
+        }
+    }
+
+    void load(cl::command_queue& cqueue, const std::string& directory)
+    {
+        int idx = 0;
+
+        buffers[0].for_each([&](cl::buffer buf){
+            std::string name = buffers[0].get_names().at(idx);
+            std::string data = file::read(directory + name + ".bin", file::mode::BINARY);
+
+            buf.write(cqueue, std::span<char>(data.begin(), data.end()));
+
+            idx++;
+        });
+
+        for(int i=0; i < (int)plugins.size(); i++)
+        {
+            plugin* p = plugins[i];
+            p->load(cqueue, directory, plugin_buffers[0].at(i));
+        }
+    }
+
     void calculate_derivatives_for(cl::command_queue cqueue, bssn_buffer_pack& pack, std::vector<cl::buffer>& into)
     {
         float scale = get_scale(simulation_width, dim);
@@ -1167,7 +1207,7 @@ double angular_velocity_to_velocity(double rad_ps, double radius_distance_m)
 
 initial_params get_initial_params()
 {
-    #define INSPIRAL_BH
+    //#define INSPIRAL_BH
     #ifdef INSPIRAL_BH
     black_hole_params p1;
     p1.bare_mass = 0.483f;
@@ -1747,7 +1787,7 @@ initial_params get_initial_params()
     init.add(p1);
     #endif
 
-    //#define PARTICLE_TESTS
+    #define PARTICLE_TESTS
     #ifdef PARTICLE_TESTS
     xoshiro256ss_state st = xoshiro256ss_init(432123452345ULL);
 

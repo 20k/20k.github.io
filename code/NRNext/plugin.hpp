@@ -202,8 +202,8 @@ struct plugin
     //virtual void pre_step(mesh& m, cl::context& ctx, cl::command_queue& mqueue, thin_intermediates_pool& pool, buffer_set& buffers, float timestep){}
     virtual void step(cl::context ctx, cl::command_queue cqueue, const plugin_step_data& sdata){assert(false);}
     virtual void finalise(cl::context ctx, cl::command_queue cqueue, const finalise_data& sdata) {}
-    //virtual void save(cl::command_queue& cqueue, const std::string& directory){assert(false);}
-    //virtual void load(cl::command_queue& cqueue, const std::string& directory){assert(false);}
+    virtual void save(cl::command_queue& cqueue, const std::string& directory, buffer_provider* buf){assert(false);}
+    virtual void load(cl::command_queue& cqueue, const std::string& directory, buffer_provider* buf){assert(false);}
 
     virtual void add_args_provider(all_adm_args_mem& mem){};
 
