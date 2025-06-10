@@ -59,6 +59,21 @@ namespace value_impl
             });
         }
 
+        template<typename T>
+        void pin(metric<T, 3, 3>& inout)
+        {
+            pin(inout[0, 0]);
+            pin(inout[1, 0]);
+            pin(inout[2, 0]);
+            pin(inout[1, 1]);
+            pin(inout[2, 1]);
+            pin(inout[2, 2]);
+
+            inout[0, 1] = inout[1, 0];
+            inout[0, 2] = inout[2, 0];
+            inout[1, 2] = inout[2, 1];
+        }
+
         template<typename T, int... N>
         void pin(metric<T, N...>& inout)
         {
