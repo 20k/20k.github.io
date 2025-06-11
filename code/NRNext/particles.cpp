@@ -765,15 +765,10 @@ struct evolve_vars
             d.scale = scale;
 
             bssn_args args(pos, dim, in, true);
-            tensor<valuef, 3, 3, 3> dcY;
 
-            for(int i=0; i < 3; i++)
-                for(int j=0; j < 3; j++)
-                    for(int k=0; k < 3; k++)
-                        dcY[i, j, k] = diff1_nocheck(args.cY[j, k], i, d);
-
-            pin(dcY[x, y, z]);
-            return dcY[x, y, z];
+            valuef v = diff1_nocheck(args.cY[y, z], x, d);
+            pin(v);
+            return v;
         };
 
         v3f floored = floor(fpos);
