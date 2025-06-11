@@ -592,7 +592,7 @@ auto function_trilinear_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
 
     using value_v = decltype(func(v3i(), std::forward<U>(args)...));
 
-    auto L_j = [&](int j, const valuef& f, float& bottom_out)
+    /*auto L_j = [&](int j, const valuef& f, float& bottom_out)
     {
         int bottom = 1;
 
@@ -611,34 +611,57 @@ auto function_trilinear_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
         bottom_out = (float)bottom;
 
         return out;
+    };*/
+
+    auto L_j = [&](valuei j, const valuef& f, mut<valuef>& bottom_out)
+    {
+        mut<valuef> out = declare_mut_e(valuef(1));
+
+        for(int m=0; m < 4; m++)
+        {
+            if_e(m != j, [&]{
+                as_ref(bottom_out) = declare_e(bottom_out) * ((valuef)j - 1.f - ((float)m - 1));
+
+                as_ref(out) = declare_e(out) * (f - (valuef)(m - 1));
+            });
+        }
+
+        return declare_e(out);
     };
 
     //auto sum = declare_mut_e(value_v());
 
-    value_v sum = {};
+    auto sum = declare_mut_e(value_v());
 
-    for(int z=0; z < 4; z++)
-    {
-        for(int y=0; y < 4; y++)
-        {
-            for(int x=0; x < 4; x++)
-            {
+    mut<valuei> z = declare_mut_e(valuei());
+
+    //for(int z=0; z < 4; z++)
+
+    for_e(z < 4, assign_b(z, z+1), [&]{
+
+        mut<valuei> y = declare_mut_e(valuei());
+
+        //for(int y=0; y < 4; y++)
+        for_e(y < 4, assign_b(y, y+1), [&]{
+            mut<valuei> x = declare_mut_e(valuei());
+
+            for_e(x < 4, assign_b(x, x+1), [&]{
                 v3i offset = (v3i){x - 1, y - 1, z - 1};
 
                 auto u = func(ifloored + offset, std::forward<U>(args)...);
 
-                float bx = 0;
-                float by = 0;
-                float bz = 0;
+                mut<valuef> bx = declare_mut_e(valuef(1));
+                mut<valuef> by = declare_mut_e(valuef(1));
+                mut<valuef> bz = declare_mut_e(valuef(1));
 
                 auto val = u * L_j(x, frac.x(), bx) * L_j(y, frac.y(), by) * L_j(z, frac.z(), bz);
 
-                (sum) += val * (1/(bx * by * bz));
-            }
-        }
-    }
+                as_ref(sum) += val * (1/(declare_e(bx) * declare_e(by) * declare_e(bz)));
+            });;
+        });
+    });
 
-    return (sum);
+    return declare_e(sum);
 }
 
 struct evolve_vars
@@ -739,7 +762,7 @@ struct evolve_vars
             return dW;
         };
 
-        auto dgB_at = [&](v3i pos)
+        auto dgB_at = [&](v3i pos, int x, int y)
         {
             derivative_data d;
             d.pos = pos;
@@ -747,14 +770,10 @@ struct evolve_vars
             d.scale = scale;
 
             bssn_args args(pos, dim, in, true);
-            tensor<valuef, 3, 3> dgB;
 
-            for(int i=0; i < 3; i++)
-                for(int j=0; j < 3; j++)
-                    dgB[i, j] = diff1_nocheck(args.gB[j], i, d);
-
-            pin(dgB);
-            return dgB;
+            valuef v = diff1_nocheck(args.gB[y], x, d);
+            pin(v);
+            return v;
         };
 
         auto dcY_at = [&](v3i pos, int x, int y, int z)
@@ -815,9 +834,17 @@ struct evolve_vars
         pin(W);
 
         dgA = function_trilinear_particles(dgA_at, frac, ifloored);
-        dgB = function_trilinear_particles(dgB_at, frac, ifloored);
+        //dgB = function_trilinear_particles(dgB_at, frac, ifloored);
         //dcY = function_trilinear_particles(dcY_at, frac, ifloored);
         dW = function_trilinear_particles(dW_at, frac, ifloored);
+
+        for(int x=0; x < 3; x++)
+        {
+            for(int y=0; y < 3; y++)
+            {
+                dgB[x, y] = function_trilinear_particles(dgB_at, frac, ifloored, x, y);
+            }
+        }
 
         for(int i=0; i < 3; i++)
         {
