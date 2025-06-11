@@ -577,9 +577,9 @@ v4f get_timelike_vector(v3f speed, tetrad tet)
     return bT + bX + bY + bZ;
 }
 
-template<typename T>
+template<typename T, typename... U>
 inline
-auto function_trilinear_particles(T&& func, v3f frac, v3i ifloored)
+auto function_trilinear_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
 {
     using namespace single_source;
 
@@ -590,7 +590,7 @@ auto function_trilinear_particles(T&& func, v3f frac, v3i ifloored)
         2
     };
 
-    using value_v = decltype(func(v3i()));
+    using value_v = decltype(func(v3i(), std::forward<U>(args)...));
 
     auto L_j = [&](int j, const valuef& f, float& bottom_out)
     {
@@ -613,6 +613,8 @@ auto function_trilinear_particles(T&& func, v3f frac, v3i ifloored)
         return out;
     };
 
+    //auto sum = declare_mut_e(value_v());
+
     value_v sum = {};
 
     for(int z=0; z < 4; z++)
@@ -623,7 +625,7 @@ auto function_trilinear_particles(T&& func, v3f frac, v3i ifloored)
             {
                 v3i offset = (v3i){x - 1, y - 1, z - 1};
 
-                auto u = func(ifloored + offset);
+                auto u = func(ifloored + offset, std::forward<U>(args)...);
 
                 float bx = 0;
                 float by = 0;
@@ -631,12 +633,12 @@ auto function_trilinear_particles(T&& func, v3f frac, v3i ifloored)
 
                 auto val = u * L_j(x, frac.x(), bx) * L_j(y, frac.y(), by) * L_j(z, frac.z(), bz);
 
-                sum += val * (1/(bx * by * bz));
+                (sum) += val * (1/(bx * by * bz));
             }
         }
     }
 
-    return sum;
+    return (sum);
 }
 
 struct evolve_vars
@@ -646,7 +648,7 @@ struct evolve_vars
     valuef W;
 
     //interpolation no longer guarantees unit determinant
-    metric<valuef, 3, 3> cY;
+    unit_metric<valuef, 3, 3> cY;
     //tensor<valuef, 3, 3> cA;
     //valuef K;
 
@@ -684,14 +686,11 @@ struct evolve_vars
             return args.W;
         };
 
-        auto cY_at = [&](v3i pos)
+        auto cY_at = [&](v3i pos, int x, int y)
         {
             bssn_args args(pos, dim, in, true);
-            pin(args.cY);
-
-            //print("cY %.23f %.23f %.23f %.23f %.23f %.23f pos %i %i %i\n", args.cY[0, 0], args.cY[1, 1], args.cY[2, 2], args.cY[0, 1], args.cY[0, 2], args.cY[1, 2], pos.x(), pos.y(), pos.z());
-
-            return args.cY;
+            pin(args.cY[x, y]);
+            return args.cY[x, y];
         };
 
         /*auto K_at = [&](v3i pos)
@@ -747,7 +746,7 @@ struct evolve_vars
             d.dim = dim;
             d.scale = scale;
 
-            bssn_args args(pos, dim, in);
+            bssn_args args(pos, dim, in, true);
             tensor<valuef, 3, 3> dgB;
 
             for(int i=0; i < 3; i++)
@@ -758,7 +757,7 @@ struct evolve_vars
             return dgB;
         };
 
-        auto dcY_at = [&](v3i pos)
+        auto dcY_at = [&](v3i pos, int x, int y, int z)
         {
             derivative_data d;
             d.pos = pos;
@@ -773,8 +772,8 @@ struct evolve_vars
                     for(int k=0; k < 3; k++)
                         dcY[i, j, k] = diff1_nocheck(args.cY[j, k], i, d);
 
-            pin(dcY);
-            return dcY;
+            pin(dcY[x, y, z]);
+            return dcY[x, y, z];
         };
 
         v3f floored = floor(fpos);
@@ -786,7 +785,18 @@ struct evolve_vars
 
         gA = function_trilinear_particles(gA_at, frac, ifloored);
         gB = function_trilinear_particles(gB_at, frac, ifloored);
-        cY = function_trilinear_particles(cY_at, frac, ifloored);
+
+        cY[0, 0] = function_trilinear_particles(cY_at, frac, ifloored, 0, 0);
+        cY[1, 1] = function_trilinear_particles(cY_at, frac, ifloored, 1, 1);
+        cY[2, 2] = function_trilinear_particles(cY_at, frac, ifloored, 2, 2);
+        cY[1, 0] = function_trilinear_particles(cY_at, frac, ifloored, 1, 0);
+        cY[2, 0] = function_trilinear_particles(cY_at, frac, ifloored, 2, 0);
+        cY[2, 1] = function_trilinear_particles(cY_at, frac, ifloored, 2, 1);
+
+        cY[0, 1] = cY[1, 0];
+        cY[0, 2] = cY[2, 0];
+        cY[1, 2] = cY[2, 1];
+
         //cA = function_trilinear_particles(cA_at, frac, ifloored);
         //K = function_trilinear_particles(K_at, frac, ifloored);
         W = function_trilinear_particles(W_at, frac, ifloored);
@@ -811,8 +821,22 @@ struct evolve_vars
 
         dgA = function_trilinear_particles(dgA_at, frac, ifloored);
         dgB = function_trilinear_particles(dgB_at, frac, ifloored);
-        dcY = function_trilinear_particles(dcY_at, frac, ifloored);
+        //dcY = function_trilinear_particles(dcY_at, frac, ifloored);
         dW = function_trilinear_particles(dW_at, frac, ifloored);
+
+        for(int i=0; i < 3; i++)
+        {
+            dcY[i, 0, 0] = function_trilinear_particles(dcY_at, frac, ifloored, i, 0, 0);
+            dcY[i, 1, 1] = function_trilinear_particles(dcY_at, frac, ifloored, i, 1, 1);
+            dcY[i, 2, 2] = function_trilinear_particles(dcY_at, frac, ifloored, i, 2, 2);
+            dcY[i, 1, 0] = function_trilinear_particles(dcY_at, frac, ifloored, i, 1, 0);
+            dcY[i, 2, 0] = function_trilinear_particles(dcY_at, frac, ifloored, i, 2, 0);
+            dcY[i, 2, 1] = function_trilinear_particles(dcY_at, frac, ifloored, i, 2, 1);
+
+            dcY[i, 0, 1] = dcY[i, 1, 0];
+            dcY[i, 0, 2] = dcY[i, 2, 0];
+            dcY[i, 1, 2] = dcY[i, 2, 1];
+        }
 
         pin(dgA);
         pin(dgB);
