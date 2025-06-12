@@ -3,9 +3,9 @@
 
 #include "../common/single_source.hpp"
 
-template<typename T>
+template<typename T, typename... U>
 inline
-auto function_trilinear(T&& func, v3f pos)
+auto function_trilinear(T&& func, v3f pos, U&&... args)
 {
     using namespace single_source;
 
@@ -16,17 +16,17 @@ auto function_trilinear(T&& func, v3f pos)
 
     v3i ipos = (v3i)floored;
 
-    auto c000 = func(ipos + (v3i){0,0,0});
-    auto c100 = func(ipos + (v3i){1,0,0});
+    auto c000 = func(ipos + (v3i){0,0,0}, std::forward<U>(args)...);
+    auto c100 = func(ipos + (v3i){1,0,0}, std::forward<U>(args)...);
 
-    auto c010 = func(ipos + (v3i){0,1,0});
-    auto c110 = func(ipos + (v3i){1,1,0});
+    auto c010 = func(ipos + (v3i){0,1,0}, std::forward<U>(args)...);
+    auto c110 = func(ipos + (v3i){1,1,0}, std::forward<U>(args)...);
 
-    auto c001 = func(ipos + (v3i){0,0,1});
-    auto c101 = func(ipos + (v3i){1,0,1});
+    auto c001 = func(ipos + (v3i){0,0,1}, std::forward<U>(args)...);
+    auto c101 = func(ipos + (v3i){1,0,1}, std::forward<U>(args)...);
 
-    auto c011 = func(ipos + (v3i){0,1,1});
-    auto c111 = func(ipos + (v3i){1,1,1});
+    auto c011 = func(ipos + (v3i){0,1,1}, std::forward<U>(args)...);
+    auto c111 = func(ipos + (v3i){1,1,1}, std::forward<U>(args)...);
 
     //https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0811r2.html
     auto lmix = [&](auto& a, auto& b, auto& t)
