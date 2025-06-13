@@ -643,27 +643,6 @@ auto function_trilinear_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
 
     using value_v = decltype(func(v3i(), std::forward<U>(args)...));
 
-    /*auto L_j = [&](int j, const valuef& f, float& bottom_out)
-    {
-        int bottom = 1;
-
-        valuef out = 1;
-
-        for(int m=0; m < 4; m++)
-        {
-            if(m == j)
-                continue;
-
-            bottom = bottom * (nodes[j] - nodes[m]);
-
-            out = out * (f - nodes[m]);
-        }
-
-        bottom_out = (float)bottom;
-
-        return out;
-    };*/
-
     auto L_j = [&](valuei j, const valuef& f, mut<valuef>& bottom_out)
     {
         mut<valuef> out = declare_mut_e(valuef(1));
@@ -680,19 +659,13 @@ auto function_trilinear_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
         return declare_e(out);
     };
 
-    //auto sum = declare_mut_e(value_v());
-
     auto sum = declare_mut_e(value_v());
 
     mut<valuei> z = declare_mut_e(valuei());
 
-    //for(int z=0; z < 4; z++)
-
     for_e(z < 4, assign_b(z, z+1), [&]{
-
         mut<valuei> y = declare_mut_e(valuei());
 
-        //for(int y=0; y < 4; y++)
         for_e(y < 4, assign_b(y, y+1), [&]{
             mut<valuei> x = declare_mut_e(valuei());
 
