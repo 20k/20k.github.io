@@ -97,10 +97,10 @@ value<T> diff1_generic(const value<T>& in, int direction, const derivative_data&
         ///4th order derivatives
         std::array<value<T>, 5> vars = get_differentiation_variables<5>(in, direction);
 
-        value<T> p1 = vars[0] - vars[4];
-        value<T> p2 = T{8} * (vars[3] - vars[1]);
+        value<T> p1 = no_opt(vars[0]) - no_opt(vars[4]);
+        value<T> p2 = T{8} * no_opt(no_opt(vars[3]) - no_opt(vars[1]));
 
-        second = (p1 + p2) / (value<T>)(12.f * d.scale);
+        second = no_opt(no_opt(no_opt(p1) + no_opt(p2)) / (value<T>)(12.f * d.scale));
     }
 
     if(!check_boundary)
@@ -181,25 +181,33 @@ valuef diff6th(const valuef& in, int idx)
     auto vars = get_differentiation_variables<7>(in, idx);
 
     valuef p1 = no_opt(vars[0]) + no_opt(vars[6]);
-    valuef p2 = -6 * (no_opt(vars[1]) + no_opt(vars[5]));
-    valuef p3 = 15 * (no_opt(vars[2]) + no_opt(vars[4]));
+    valuef p2 = -6 * no_opt(no_opt(vars[1]) + no_opt(vars[5]));
+    valuef p3 = 15 * no_opt(no_opt(vars[2]) + no_opt(vars[4]));
     valuef p4 = -20 * no_opt(vars[3]);
 
     return p1 + no_opt(p2) + no_opt(p3) + no_opt(p4);
 }
 
-valuef diff8th(const valuef& in, int idx)
+valuef diff8th(const valuef& in, int idx, bool debug)
 {
     using namespace single_source;
     auto vars = get_differentiation_variables<9>(in, idx);
 
     valuef p1 = no_opt(vars[0]) + no_opt(vars[8]);
-    valuef p2 = -8.f * (no_opt(vars[1]) + no_opt(vars[7]));
-    valuef p3 = 28.f * (no_opt(vars[2]) + no_opt(vars[6]));
-    valuef p4 = -56.f * (no_opt(vars[3]) + no_opt(vars[5]));
+    valuef p2 = -8.f * no_opt(no_opt(vars[1]) + no_opt(vars[7]));
+    valuef p3 = 28.f * no_opt(no_opt(vars[2]) + no_opt(vars[6]));
+    valuef p4 = -56.f * no_opt(no_opt(vars[3]) + no_opt(vars[5]));
     valuef p5 = 70.f * no_opt(vars[4]);
 
-    return (no_opt(p1) + no_opt(p2)) + (no_opt(p3) + no_opt(p4)) + no_opt(p5);
+    /*if(debug && idx == 2)
+    {
+        print("Dbg2 raw %.23f c %.23f %.23f %.23f\n", p2,  no_opt(vars[1]), no_opt(vars[7]), no_opt(vars[1]) + no_opt(vars[7]));
+    }*/
+
+    //if(debug)
+    //    print("KDebugging %.23f %.23f %.23f %.23f %.23f\n", p1, p2, p3, p4, p5);
+
+    return (((no_opt(p1) + no_opt(p2)) + no_opt(p3)) + no_opt(p4)) + no_opt(p5);
 }
 
 valuef diff10th(const valuef& in, int idx)
@@ -208,10 +216,10 @@ valuef diff10th(const valuef& in, int idx)
     auto vars = get_differentiation_variables<11>(in, idx);
 
     valuef p1 = no_opt(vars[0]) + no_opt(vars[10]);
-    valuef p2 = -10.f * (no_opt(vars[1]) + no_opt(vars[9]));
-    valuef p3 = 45.f * (no_opt(vars[2]) + no_opt(vars[8]));
-    valuef p4 = -120.f * (no_opt(vars[3]) + no_opt(vars[7]));
-    valuef p5 = 210.f * (no_opt(vars[4]) + no_opt(vars[6]));
+    valuef p2 = -10.f * no_opt(no_opt(vars[1]) + no_opt(vars[9]));
+    valuef p3 = 45.f * no_opt(no_opt(vars[2]) + no_opt(vars[8]));
+    valuef p4 = -120.f * no_opt(no_opt(vars[3]) + no_opt(vars[7]));
+    valuef p5 = 210.f * no_opt(no_opt(vars[4]) + no_opt(vars[6]));
     valuef p6 = -252.f * no_opt(vars[5]);
 
     return p1 + no_opt(p2) + no_opt(p3) + no_opt(p4) + no_opt(p5) + no_opt(p6);

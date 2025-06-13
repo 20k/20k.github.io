@@ -350,6 +350,8 @@ struct mesh
                     return;
                 }
 
+                check_symmetry(cqueue, inb, dim, "Kreiss_in_" + name);
+
                 cl::args args;
                 args.push_back(inb);
                 args.push_back(outb);
@@ -755,7 +757,7 @@ struct raytrace_manager
     int slices = 120;
     float time_between_snapshots = 2;
     t3i reduced_dim = {101, 101, 101};
-    bool capture_4slices = true;
+    bool capture_4slices = false;
 
     cl::buffer texture_coordinates;
     cl::buffer zshifts;

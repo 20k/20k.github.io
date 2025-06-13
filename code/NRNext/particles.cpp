@@ -577,10 +577,61 @@ v4f get_timelike_vector(v3f speed, tetrad tet)
     return bT + bX + bY + bZ;
 }
 
+
+template<typename T, typename... U>
+inline
+auto function_trilinear2(T&& func, v3f frac, v3i ipos, U&&... args)
+{
+    using namespace single_source;
+
+    auto c000 = func(ipos + (v3i){0,0,0}, std::forward<U>(args)...);
+    auto c100 = func(ipos + (v3i){1,0,0}, std::forward<U>(args)...);
+
+    auto c010 = func(ipos + (v3i){0,1,0}, std::forward<U>(args)...);
+    auto c110 = func(ipos + (v3i){1,1,0}, std::forward<U>(args)...);
+
+    auto c001 = func(ipos + (v3i){0,0,1}, std::forward<U>(args)...);
+    auto c101 = func(ipos + (v3i){1,0,1}, std::forward<U>(args)...);
+
+    auto c011 = func(ipos + (v3i){0,1,1}, std::forward<U>(args)...);
+    auto c111 = func(ipos + (v3i){1,1,1}, std::forward<U>(args)...);
+
+    //https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0811r2.html
+    auto lmix = [&](auto& a, auto& b, auto& t)
+    {
+        auto imx = 1-t;
+        pin(imx);
+        auto imimx = 1-imx;
+        pin(imimx);
+
+        auto p1 = imx * a;
+        pin(p1);
+        auto p2 = imimx * b;
+        pin(p2);
+
+        auto out = p1 + p2;
+        pin(out);
+        return out;
+    };
+
+    auto c00 = lmix(c000, c100, frac.x());
+    auto c01 = lmix(c010, c110, frac.x());
+
+    auto c10 = lmix(c001, c101, frac.x());
+    auto c11 = lmix(c011, c111, frac.x());
+
+    auto c0 = lmix(c00, c01, frac.y());
+    auto c1 = lmix(c10, c11, frac.y());
+
+    return lmix(c0, c1, frac.z());
+}
+
 template<typename T, typename... U>
 inline
 auto function_trilinear_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
 {
+    return function_trilinear2(func, frac, ifloored, args...);
+
     using namespace single_source;
 
     std::array<float, 4> nodes = {
@@ -742,7 +793,7 @@ struct evolve_vars
             v3f dgA = (v3f){diff1_nocheck(args.gA, 0, d), diff1_nocheck(args.gA, 1, d), diff1_nocheck(args.gA, 2, d)};
             pin(dgA);
 
-            //print("dgA %.23f %.23f %.23f pos %i %i %i\n", dgA[0], dgA[1], dgA[2], pos.x(), pos.y(), pos.z());
+            print("dgA %.23f %.23f %.23f pos %i %i %i\n", dgA[0], dgA[1], dgA[2], pos.x(), pos.y(), pos.z());
 
             return dgA;
         };
@@ -1117,7 +1168,8 @@ void evolve_particles(execution_context& ctx,
             p3[i] = sum;
         }
 
-        //print("dV %.23f %.23f %.23f rdgA %.23f idgA1 %.23f idgA2 %.23f\n", p1[1], p2[1], p3[1], dgA[1], idgA1, idgA2);
+        print("dV %.23f %.23f %.23f dgA %.23f\n", p1[2], p2[2], p3[2], dgA[2]);
+        //print("dV %.23f %.23f %.23f dgA %.23f gA %.23f u0 %.23f\n", p1[2], p2[2], p3[2], dgA[2], gA, u0);
 
         dV = p1 + p2 + p3;
     }
@@ -1146,7 +1198,7 @@ void evolve_particles(execution_context& ctx,
         as_ref(p_out.masses[id]) = valuef(0.f);
     });
 
-    //print("Pos %f %f %f vel %f %f %f\n", pos.x(), pos.y(), pos.z(), vel.x(), vel.y(), vel.z());
+    print("Pos %.23f %.23f %.23f vel %.23f %.23f %.23f\n", pos.x(), pos.y(), pos.z(), vel.x(), vel.y(), vel.z());
 
     /*if_e(id == value<size_t>(718182), [&]{
         print("Pos %f %f %f vel %f %f %f\n", pos.x(), pos.y(), pos.z(), vel.x(), vel.y(), vel.z());

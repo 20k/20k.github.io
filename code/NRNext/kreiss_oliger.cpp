@@ -5,8 +5,9 @@
 #include "derivatives.hpp"
 #include "bssn.hpp"
 
-valuef kreiss_oliger_interior(valuef in, int order)
+valuef kreiss_oliger_interior(valuef in, int order, bool debug = false)
 {
+    using namespace single_source;
     ///boundary is at 1 and dim - 2
     valuef val = 0;
 
@@ -19,9 +20,12 @@ valuef kreiss_oliger_interior(valuef in, int order)
         if(order == 6)
             val += diff6th(in, i);
         if(order == 8)
-            val += diff8th(in, i);
+            val += diff8th(in, i, debug);
         if(order == 10)
             val += diff10th(in, i);
+
+        //if(debug)
+        //    print("Debugging %.23f order %i\n", val, (valuei)order);
     }
 
     int n = order;
@@ -64,10 +68,23 @@ void make_kreiss_oliger(cl::context ctx)
                 return_e();
             });
 
+            /*Failure in symmetry at 124 99 96 base 0.00004017086757812649012 found -0.00004017088576802052557 symm pos 124 99 102
+Failure in symmetry at 124 99 97 base 0.00002816093547153286636 found -0.00002816087726387195289 symm pos 124 99 101
+Failure in symmetry at 124 99 98 base 0.00001233850798598723486 found -0.00001233862349181436002 symm pos 124 99 100
+Failure in symmetry at 124 99 100 base -0.00001233862349181436002 found 0.00001233850798598723486 symm pos 124 99 98
+Failure in symmetry at 124 99 101 base -0.00002816087726387195289 found 0.00002816093547153286636 symm pos 124 99 97
+Failure in symmetry at 124 99 102 base -0.00004017088576802052557 found 0.00004017086757812649012 symm pos 124 99 96*/
+
             #define CAKO
             #ifdef CAKO
             auto do_kreiss = [&](int order)
             {
+                /*if_e(pos.x() == 124 && pos.y() == 99 && (pos.z() == 96 || pos.z() == 102),[&]{
+                    valuef v = kreiss_oliger_interior(in[pos, dim], order, true);
+
+                    print("Interior %.23f %i\n", v, pos.z());
+                });*/
+
                 as_ref(out[lid]) = in[lid] + eps.get() * kreiss_oliger_interior(in[pos, dim], order) * max(W[lid], valuef(0.5));
             };
             #else

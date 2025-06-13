@@ -29,7 +29,7 @@ valuef diff2nd(const valuef& in, int idx);
 valuef diff4th(const valuef& in, int idx);
 //6th derivative with second order accuracy
 valuef diff6th(const valuef& in, int idx);
-valuef diff8th(const valuef& in, int idx);
+valuef diff8th(const valuef& in, int idx, bool debug = false);
 valuef diff10th(const valuef& in, int idx);
 
 valuef diff1_boundary(const valuef& in, int direction, const derivative_data& d);
