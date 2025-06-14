@@ -188,7 +188,7 @@ valuef diff6th(const valuef& in, int idx)
     return p1 + no_opt(p2) + no_opt(p3) + no_opt(p4);
 }
 
-valuef diff8th(const valuef& in, int idx, bool debug)
+valuef diff8th(const valuef& in, int idx)
 {
     using namespace single_source;
     auto vars = get_differentiation_variables<9>(in, idx);
@@ -198,14 +198,6 @@ valuef diff8th(const valuef& in, int idx, bool debug)
     valuef p3 = 28.f * no_opt(no_opt(vars[2]) + no_opt(vars[6]));
     valuef p4 = -56.f * no_opt(no_opt(vars[3]) + no_opt(vars[5]));
     valuef p5 = 70.f * no_opt(vars[4]);
-
-    /*if(debug && idx == 2)
-    {
-        print("Dbg2 raw %.23f c %.23f %.23f %.23f\n", p2,  no_opt(vars[1]), no_opt(vars[7]), no_opt(vars[1]) + no_opt(vars[7]));
-    }*/
-
-    //if(debug)
-    //    print("KDebugging %.23f %.23f %.23f %.23f %.23f\n", p1, p2, p3, p4, p5);
 
     return (((no_opt(p1) + no_opt(p2)) + no_opt(p3)) + no_opt(p4)) + no_opt(p5);
 }

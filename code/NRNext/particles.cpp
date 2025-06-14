@@ -638,8 +638,6 @@ auto function_trilinear_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
 
     auto L_j = [&](valuei j, const valuef& f, mut<valuef>& bottom_out)
     {
-        //mut<valuef> out = declare_mut_e(valuef(1));
-
         auto apply_for_m = [&](int m)
         {
             mut<valuef> out = declare_mut_e(valuef(1));
@@ -654,53 +652,11 @@ auto function_trilinear_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
         };
 
         return (apply_for_m(0) * apply_for_m(3)) * (apply_for_m(1) * apply_for_m(2));
-
-        //return declare_e(out);
     };
-
-    /*auto L_j = [&](valuei j, const valuef& f, mut<valuef>& bottom_out)
-    {
-        mut<valuef> out = declare_mut_e(valuef(1));
-
-        for(int m=0; m < 4; m++)
-        {
-            if_e(m != j, [&]{
-                as_ref(bottom_out) = declare_e(bottom_out) * ((valuef)j - 1.f - ((float)m - 1));
-
-                as_ref(out) = declare_e(out) * (f - (valuef)(m - 1));
-            });
-        }
-
-        return declare_e(out);
-    };*/
 
     auto sum = declare_mut_e(value_v());
 
     mut<valuei> iz = declare_mut_e(valuei());
-
-    //need to sum 0 + 3, then 1 + 2
-    /*for_e(z < 4, assign_b(z, z+1), [&]{
-        mut<valuei> y = declare_mut_e(valuei());
-
-        for_e(y < 4, assign_b(y, y+1), [&]{
-            mut<valuei> x = declare_mut_e(valuei());
-
-            for_e(x < 4, assign_b(x, x+1), [&]{
-                v3i offset = (v3i){x - 1, y - 1, z - 1};
-
-                auto u = func(ifloored + offset, std::forward<U>(args)...);
-
-                mut<valuef> bx = declare_mut_e(valuef(1));
-                mut<valuef> by = declare_mut_e(valuef(1));
-                mut<valuef> bz = declare_mut_e(valuef(1));
-
-                auto val = u * L_j(x, frac.x(), bx) * L_j(y, frac.y(), by) * L_j(z, frac.z(), bz);
-                pin(val);
-
-                as_ref(sum) += val * (1/(declare_e(bx) * declare_e(by) * declare_e(bz)));
-            });;
-        });
-    });*/
 
     auto fetch_pair = [](valuei what)
     {
@@ -714,15 +670,6 @@ auto function_trilinear_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
             mut<valuei> ix = declare_mut_e(valuei());
 
             for_e(ix < 2, assign_b(ix, ix+1), [&]{
-                /*mut<valuei> x0 = declare_mut_e(valuei());
-                mut<valuei> x1 = declare_mut_e(valuei());
-
-                mut<valuei> y0 = declare_mut_e(valuei());
-                mut<valuei> y1 = declare_mut_e(valuei());
-
-                mut<valuei> z0 = declare_mut_e(valuei());
-                mut<valuei> z1 = declare_mut_e(valuei());*/
-
                 auto xs = fetch_pair(declare_e(ix));
                 auto ys = fetch_pair(declare_e(iy));
                 auto zs = fetch_pair(declare_e(iz));
@@ -780,7 +727,7 @@ struct evolve_vars
     valuef W;
 
     //interpolation no longer guarantees unit determinant
-    unit_metric<valuef, 3, 3> cY;
+    metric<valuef, 3, 3> cY;
     //tensor<valuef, 3, 3> cA;
     //valuef K;
 
@@ -851,7 +798,7 @@ struct evolve_vars
             v3f dgA = (v3f){diff1_nocheck(args.gA, 0, d), diff1_nocheck(args.gA, 1, d), diff1_nocheck(args.gA, 2, d)};
             pin(dgA);
 
-            print("dgA %.23f %.23f %.23f pos %i %i %i\n", dgA[0], dgA[1], dgA[2], pos.x(), pos.y(), pos.z());
+            //print("dgA %.23f %.23f %.23f pos %i %i %i\n", dgA[0], dgA[1], dgA[2], pos.x(), pos.y(), pos.z());
 
             return dgA;
         };
@@ -1119,55 +1066,6 @@ void evolve_particles(execution_context& ctx,
 
     v3f dX = -gB + iYij.raise(vel) / u0;
 
-    /*derivative_data d;
-    d.pos = pos;
-    d.dim = dim;
-    d.scale = scale;
-
-    bssn_args args(pos, dim, in, true);
-
-    v3f dgA = (v3f){diff1_nocheck(args.gA, 0, d), diff1_nocheck(args.gA, 1, d), diff1_nocheck(args.gA, 2, d)};
-    pin(dgA);*/
-
-    /*v3i iipos = (v3i)grid_base;
-    pin(iipos);
-
-    v3i iipos2 = (v3i)grid_next;
-    pin(iipos2);
-
-    derivative_data ld;
-    ld.pos = iipos;
-    ld.dim = dim.get();
-    ld.scale = scale.get();
-
-    derivative_data ld2;
-    ld2.pos = iipos2;
-    ld2.dim = dim.get();
-    ld2.scale = scale.get();
-
-    valuef idgA1 = diff1_nocheck(base.gA[ld.pos, ld.dim], 1, ld);
-    valuef idgA2 = diff1_nocheck(in.gA[ld2.pos, ld2.dim], 1, ld2);*/
-
-    /*v3i iipos = (v3i)grid_base;
-    pin(iipos);
-
-    v3i iipos2 = (v3i)grid_base;
-    iipos2.y() += 1;
-    pin(iipos2);
-
-    derivative_data ld;
-    ld.pos = iipos;
-    ld.dim = dim.get();
-    ld.scale = scale.get();
-
-    derivative_data ld2;
-    ld2.pos = iipos2;
-    ld2.dim = dim.get();
-    ld2.scale = scale.get();
-
-    valuef idgA1 = diff1_nocheck(base.gA[ld.pos, ld.dim], 1, ld);
-    valuef idgA2 = diff1_nocheck(in.gA[ld2.pos, ld2.dim], 1, ld2);*/
-
     v3f dV;
 
     {
@@ -1195,7 +1093,7 @@ void evolve_particles(execution_context& ctx,
 
         for(int i=0; i < 3; i++)
         {
-            unit_metric<dual<valuef>, 3, 3> d_cYij;
+            metric<dual<valuef>, 3, 3> d_cYij;
 
             for(int j=0; j < 3; j++)
             {
@@ -1226,7 +1124,7 @@ void evolve_particles(execution_context& ctx,
             p3[i] = sum;
         }
 
-        print("dV %.23f %.23f %.23f dgA %.23f\n", p1[2], p2[2], p3[2], dgA[2]);
+        //print("dV %.23f %.23f %.23f dgA %.23f\n", p1[2], p2[2], p3[2], dgA[2]);
         //print("dV %.23f %.23f %.23f dgA %.23f gA %.23f u0 %.23f\n", p1[2], p2[2], p3[2], dgA[2], gA, u0);
 
         dV = p1 + p2 + p3;
@@ -1256,7 +1154,7 @@ void evolve_particles(execution_context& ctx,
         as_ref(p_out.masses[id]) = valuef(0.f);
     });
 
-    print("Pos %.23f %.23f %.23f vel %.23f %.23f %.23f\n", pos.x(), pos.y(), pos.z(), vel.x(), vel.y(), vel.z());
+    //print("Pos %.23f %.23f %.23f vel %.23f %.23f %.23f\n", pos.x(), pos.y(), pos.z(), vel.x(), vel.y(), vel.z());
 
     /*if_e(id == value<size_t>(718182), [&]{
         print("Pos %f %f %f vel %f %f %f\n", pos.x(), pos.y(), pos.z(), vel.x(), vel.y(), vel.z());
@@ -1823,7 +1721,7 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
 
     cl_ulong count = particle_count;
 
-    #if 0
+    #if 1
     if(sdata.in_idx == sdata.base_idx)
     {
         {
