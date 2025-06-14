@@ -5,7 +5,7 @@
 #include "derivatives.hpp"
 #include "bssn.hpp"
 
-valuef kreiss_oliger_interior(valuef in, int order, bool debug = false)
+valuef kreiss_oliger_interior(valuef in, int order)
 {
     using namespace single_source;
     ///boundary is at 1 and dim - 2
@@ -20,12 +20,9 @@ valuef kreiss_oliger_interior(valuef in, int order, bool debug = false)
         if(order == 6)
             val += diff6th(in, i);
         if(order == 8)
-            val += diff8th(in, i, debug);
+            val += diff8th(in, i);
         if(order == 10)
             val += diff10th(in, i);
-
-        //if(debug)
-        //    print("Debugging %.23f order %i\n", val, (valuei)order);
     }
 
     int n = order;
@@ -79,12 +76,6 @@ Failure in symmetry at 124 99 102 base -0.00004017088576802052557 found 0.000040
             #ifdef CAKO
             auto do_kreiss = [&](int order)
             {
-                /*if_e(pos.x() == 124 && pos.y() == 99 && (pos.z() == 96 || pos.z() == 102),[&]{
-                    valuef v = kreiss_oliger_interior(in[pos, dim], order, true);
-
-                    print("Interior %.23f %i\n", v, pos.z());
-                });*/
-
                 as_ref(out[lid]) = in[lid] + eps.get() * kreiss_oliger_interior(in[pos, dim], order) * max(W[lid], valuef(0.5));
             };
             #else
