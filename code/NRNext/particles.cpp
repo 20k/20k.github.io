@@ -630,20 +630,35 @@ template<typename T, typename... U>
 inline
 auto function_trilinear_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
 {
-    return function_trilinear2(func, frac, ifloored, args...);
+    //return function_trilinear2(func, frac, ifloored, args...);
 
     using namespace single_source;
-
-    std::array<float, 4> nodes = {
-        -1,
-        0,
-        1,
-        2
-    };
 
     using value_v = decltype(func(v3i(), std::forward<U>(args)...));
 
     auto L_j = [&](valuei j, const valuef& f, mut<valuef>& bottom_out)
+    {
+        //mut<valuef> out = declare_mut_e(valuef(1));
+
+        auto apply_for_m = [&](int m)
+        {
+            mut<valuef> out = declare_mut_e(valuef(1));
+
+            if_e(m != j, [&]{
+                as_ref(bottom_out) = declare_e(bottom_out) * ((valuef)j - 1.f - ((float)m - 1));
+
+                as_ref(out) = (f - (valuef)(m - 1));
+            });
+
+            return declare_e(out);
+        };
+
+        return (apply_for_m(0) * apply_for_m(3)) * (apply_for_m(1) * apply_for_m(2));
+
+        //return declare_e(out);
+    };
+
+    /*auto L_j = [&](valuei j, const valuef& f, mut<valuef>& bottom_out)
     {
         mut<valuef> out = declare_mut_e(valuef(1));
 
@@ -657,13 +672,14 @@ auto function_trilinear_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
         }
 
         return declare_e(out);
-    };
+    };*/
 
     auto sum = declare_mut_e(value_v());
 
-    mut<valuei> z = declare_mut_e(valuei());
+    mut<valuei> iz = declare_mut_e(valuei());
 
-    for_e(z < 4, assign_b(z, z+1), [&]{
+    //need to sum 0 + 3, then 1 + 2
+    /*for_e(z < 4, assign_b(z, z+1), [&]{
         mut<valuei> y = declare_mut_e(valuei());
 
         for_e(y < 4, assign_b(y, y+1), [&]{
@@ -679,9 +695,78 @@ auto function_trilinear_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
                 mut<valuef> bz = declare_mut_e(valuef(1));
 
                 auto val = u * L_j(x, frac.x(), bx) * L_j(y, frac.y(), by) * L_j(z, frac.z(), bz);
+                pin(val);
 
                 as_ref(sum) += val * (1/(declare_e(bx) * declare_e(by) * declare_e(bz)));
             });;
+        });
+    });*/
+
+    auto fetch_pair = [](valuei what)
+    {
+        return ternary(what == 0, (v2i){0,3}, (v2i){1, 2});
+    };
+
+    for_e(iz < 2, assign_b(iz, iz+1), [&]{
+        mut<valuei> iy = declare_mut_e(valuei());
+
+        for_e(iy < 2, assign_b(iy, iy+1), [&]{
+            mut<valuei> ix = declare_mut_e(valuei());
+
+            for_e(ix < 2, assign_b(ix, ix+1), [&]{
+                /*mut<valuei> x0 = declare_mut_e(valuei());
+                mut<valuei> x1 = declare_mut_e(valuei());
+
+                mut<valuei> y0 = declare_mut_e(valuei());
+                mut<valuei> y1 = declare_mut_e(valuei());
+
+                mut<valuei> z0 = declare_mut_e(valuei());
+                mut<valuei> z1 = declare_mut_e(valuei());*/
+
+                auto xs = fetch_pair(declare_e(ix));
+                auto ys = fetch_pair(declare_e(iy));
+                auto zs = fetch_pair(declare_e(iz));
+
+                auto get_for = [&](valuei x, valuei y, valuei z)
+                {
+                    v3i offset = (v3i){x - 1, y - 1, z - 1};
+
+                    auto u = func(ifloored + offset, std::forward<U>(args)...);
+
+                    mut<valuef> bx = declare_mut_e(valuef(1));
+                    mut<valuef> by = declare_mut_e(valuef(1));
+                    mut<valuef> bz = declare_mut_e(valuef(1));
+
+                    auto val = u * L_j(x, frac.x(), bx) * L_j(y, frac.y(), by) * L_j(z, frac.z(), bz);
+                    pin(val);
+
+                    auto v = val * (1/(declare_e(bx) * declare_e(by) * declare_e(bz)));
+                    pin(v);
+                    return v;
+                };
+
+                auto v000 = get_for(xs[0], ys[0], zs[0]);
+                auto v100 = get_for(xs[1], ys[0], zs[0]);
+
+                auto v010 = get_for(xs[0], ys[1], zs[0]);
+                auto v110 = get_for(xs[1], ys[1], zs[0]);
+
+                auto v001 = get_for(xs[0], ys[0], zs[1]);
+                auto v101 = get_for(xs[1], ys[0], zs[1]);
+
+                auto v011 = get_for(xs[0], ys[1], zs[1]);
+                auto v111 = get_for(xs[1], ys[1], zs[1]);
+
+                auto v00 = v000 + v100;
+                auto v10 = v010 + v110;
+                auto v01 = v001 + v101;
+                auto v11 = v011 + v111;
+
+                auto v0 = v00 + v10;
+                auto v1 = v01 + v11;
+
+                as_ref(sum) += (v0 + v1);
+            });
         });
     });
 
