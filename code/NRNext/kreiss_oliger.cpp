@@ -65,13 +65,6 @@ void make_kreiss_oliger(cl::context ctx)
                 return_e();
             });
 
-            /*Failure in symmetry at 124 99 96 base 0.00004017086757812649012 found -0.00004017088576802052557 symm pos 124 99 102
-Failure in symmetry at 124 99 97 base 0.00002816093547153286636 found -0.00002816087726387195289 symm pos 124 99 101
-Failure in symmetry at 124 99 98 base 0.00001233850798598723486 found -0.00001233862349181436002 symm pos 124 99 100
-Failure in symmetry at 124 99 100 base -0.00001233862349181436002 found 0.00001233850798598723486 symm pos 124 99 98
-Failure in symmetry at 124 99 101 base -0.00002816087726387195289 found 0.00002816093547153286636 symm pos 124 99 97
-Failure in symmetry at 124 99 102 base -0.00004017088576802052557 found 0.00004017086757812649012 symm pos 124 99 96*/
-
             #define CAKO
             #ifdef CAKO
             auto do_kreiss = [&](int order)
