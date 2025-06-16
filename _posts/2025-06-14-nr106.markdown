@@ -12,7 +12,7 @@ At the end of this topic, we'll have about 10 million particles up and running a
 
 # What are we doing?
 
-In both General Relativity, and Newtonian physics, we deal with pointlike N-body particles. These are fully described by their mass, position, and velocity in both formalisms
+In both General Relativity, and Newtonian physics, we deal with pointlike particles when doing N-body dynamics. Each particle is fully described by its mass, position, and velocity in both formalisms
 
 In Newtonian physics, each particle directly exerts a force on all other particles, which is famously:
 
@@ -39,7 +39,7 @@ This is simply summed across all particles. Particles as you'd expect simply mov
 
 $$u^\mu \nabla_\mu u_\nu = 0$$
 
-Clearly, we'll need to transplant this into the ADM formalism, but for once the general relativistic side of this is straightforward
+Clearly, we need to transplant this into the ADM formalism and spell out the equations more, but for once the general relativistic side of this is straightforward
 
 # These equations in the ADM formalism
 
@@ -51,11 +51,25 @@ $$
 \begin{align}
 \rho_H &= m u^0 \alpha W^3 \delta^{(3)}(x^i - x^i_{\mathrm{p}})\\
 S_i &= m u_i W^3 \delta^{(3)}(x^i - x^i_{\mathrm{p}})\\
-S_{ij} &= m \frac{u_iu_j}{u^0} \alpha^{-1} W^3 \delta^{(3)}(x^i - x^i_{\mathrm{p}})\\
+S_{ij} &= m \frac{u_i u_j}{u^0} \alpha^{-1} W^3 \delta^{(3)}(x^i - x^i_{\mathrm{p}})\\
 \end{align}
 $$
 
-These are summed across all particles
+These are summed across all particles. Note that when we're evaluating these, these can be split up into two components: The contributions per-particle, and per-cell
+
+$$
+\begin{align}
+s &= m u^0 \delta^{(3)}(x^i - x^i_{\mathrm{p}})\\
+s_i &= m u_i \delta^{(3)}(x^i - x^i_{\mathrm{p}})\\
+s_{ij} &= m \frac{u_i u_j}{u^0}\delta^{(3)}(x^i - x^i_{\mathrm{p}})\\
+\\
+\rho_H &= \alpha W^3 s\\
+S_i &= W^3 s_i\\
+S_{ij} &= \alpha^{-1} W^3 s_{ij}\\
+\end{align}
+$$
+
+This allows you to split up the summation of the $s$ terms, and factor out the redundant calculations involving $W$ and $\alpha$
 
 ## The geodesic equation
 
@@ -73,7 +87,20 @@ $$
 \frac{dx^i}{dt} = -\beta^i + \frac{\gamma^{ij} u_j}{u^0}
 $$
 
-Note that all the quantities evaluated here need to be interpolated from the grid at the particle's position $x^i_\mathrm{p}$, which I'll get back to
+Note that all the quantities evaluated here need to be interpolated from the grid at the particle's position $x^i_\mathrm{p}$ (keep this in mind especially for the $u^0$ term in the source terms)
+
+# Outstanding problems
+
+At this point, we only have a few things left to solve:
+
+1. What is $\delta(x)$?
+2. Interpolation
+3. Initial conditions
+4. Implementation
+
+# The dirac delta function $\delta(x)$
+
+
 
 Old
 
