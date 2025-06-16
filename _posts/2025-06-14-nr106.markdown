@@ -8,7 +8,7 @@ published: false
 
 Hi there! Today we're going to examine how to do N-body particle physics, in general relativity. This is a bit of an underexplored topic compared to Newtonian N-body, and its easy to accidentally pick the wrong formalism or techniques for solving this problem. While the basic theory of what we're doing isn't complicated, there's a few major numerical problems to tackle today
 
-At the end of this topic, we'll have about 10 million particles up and running at a decent speed.
+At the end of this topic, we'll have about 10 million particles up and running at a decent speed, and you'll have also received an accidental crash course on the problems a spec defect in C++ can cause
 
 # What are we doing?
 
@@ -167,7 +167,17 @@ $$\Delta^{(3)}_{\mathrm{good}} = \frac{\int_{z - \frac{h}{2}}^{z + \frac{h}{2}} 
 
 Where $x, y, z$ are the coordinates of a grid cell in world coordinates
 
-## More numerical problems
+## Strange numerical problems
+
+If you try and implement this with a simple test case (two particles orbiting each other), you'll quickly run into a rather odd issue:
+
+Todo: Video
+
+You're now going to learn more about C++, IEEE floats, and cryptic problems in the literature than you signed up for when you clicked on this article
+
+# From time to time, C++ is not a very good programming language
+
+
 
 Old
 
