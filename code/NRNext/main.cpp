@@ -1817,6 +1817,10 @@ initial_params get_initial_params()
 
     #define PARTICLE_TESTS
     #ifdef PARTICLE_TESTS
+
+    initial_params init;
+    init.N = 2;
+
     xoshiro256ss_state st = xoshiro256ss_init(432123452345ULL);
 
     particle_params part;
@@ -1877,6 +1881,8 @@ initial_params get_initial_params()
 
     part.add(p1, vv1, m1);
     part.add(p2, vv2, m2);
+
+    init.particle_radius_cells = 5;
     #endif
 
     //#define BLACK_HOLE
@@ -1901,9 +1907,6 @@ initial_params get_initial_params()
         part.add(pos, vel, lM);
     }
     #endif
-
-    initial_params init;
-    init.N = 2;
 
     //#define NEGATIVE_MASS
     #ifdef NEGATIVE_MASS
@@ -1992,7 +1995,7 @@ int main()
     t3i dim = params.dim;
 
     hydrodynamic_plugin* hydro = new hydrodynamic_plugin(ctx, params.linear_viscosity_timescale, params.hydrodynamics_wants_colour(), params.linear_viscosity_strength, params.quadratic_viscosity_strength);
-    particle_plugin* particles = new particle_plugin(ctx, params.particles.size());
+    particle_plugin* particles = new particle_plugin(ctx, params.particles.size(), params.particle_radius_cells);
 
     std::vector<plugin*> plugins;
 

@@ -122,9 +122,7 @@ valuef get_dirac3(auto&& func, const v3f& cell_pos, const v3f& dirac_location, c
 //E = m u0 a W^3 dirac
 //hamiltonian = -2 pi E?
 
-static int radius_cells = 5;
-
-void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
+void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, int radius_cells, auto&& func)
 {
     v3f fpos = world_to_grid(dirac_pos, dim, scale);
 
@@ -170,7 +168,7 @@ void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, auto&& func)
 void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_args<buffer<valuef>> particles_in,
                                        buffer_mut<valuei64> nonconformal_E_out,
                                        literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count,
-                                       literal<valued> fixed_scale)
+                                       literal<valued> fixed_scale, int radius_cells)
 {
     using namespace single_source;
 
@@ -199,7 +197,7 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
     v3i cell = (v3i)floor(world_to_grid(pos, dim.get(), scale.get()));
     pin(cell);
 
-    for_each_dirac(cell, dim.get(), scale.get(), pos, [&](v3i offset, valuef dirac)
+    for_each_dirac(cell, dim.get(), scale.get(), pos, radius_cells, [&](v3i offset, valuef dirac)
     {
         valuef fin_E = mass * lorentz * dirac;
 
@@ -289,7 +287,7 @@ void sum_particle_aIJ(execution_context& ectx, particle_base_args<buffer<valuef>
                       std::array<buffer_mut<valuef>, 6> aIJ_out,
                       literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count,
                       literal<valuei> work_size,
-                      literal<value<size_t>> particle_start, literal<value<size_t>> particle_end)
+                      literal<value<size_t>> particle_start, literal<value<size_t>> particle_end, int radius_cells)
 {
     return;
 
@@ -457,7 +455,7 @@ void calculate_particle_intermediates(execution_context& ectx,
                                       buffer<valuef> lorentz_in,
                                       particle_utility_args<buffer_mut<valuei64>> out,
                                       literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count,
-                                      literal<valued> fixed_scale)
+                                      literal<valued> fixed_scale, int radius_cells)
 {
     using namespace single_source;
 
@@ -486,7 +484,7 @@ void calculate_particle_intermediates(execution_context& ectx,
     v3i cell = (v3i)floor(fcell);
     pin(cell);
 
-    for_each_dirac(cell, dim.get(), scale.get(), pos, [&](v3i offset, valuef dirac) {
+    for_each_dirac(cell, dim.get(), scale.get(), pos, radius_cells, [&](v3i offset, valuef dirac) {
         valuef E = mass * lorentz * dirac;
         v3f Ji = mass * vel * dirac;
 
@@ -1161,10 +1159,10 @@ void evolve_particles(execution_context& ctx,
     });*/
 }
 
-void boot_particle_kernels(cl::context ctx)
+void boot_particle_kernels(cl::context ctx, int particle_radius_cells)
 {
     cl::async_build_and_cache(ctx, [&]{
-        return value_impl::make_function(calculate_particle_nonconformal_E, "calculate_particle_nonconformal_E");
+        return value_impl::make_function(calculate_particle_nonconformal_E, "calculate_particle_nonconformal_E", particle_radius_cells);
     }, {"calculate_particle_nonconformal_E"});
 
     cl::async_build_and_cache(ctx, [&]{
@@ -1176,7 +1174,7 @@ void boot_particle_kernels(cl::context ctx)
     }, {"calculate_particle_properties"});
 
     cl::async_build_and_cache(ctx, [&]{
-        return value_impl::make_function(calculate_particle_intermediates, "calculate_particle_intermediates");
+        return value_impl::make_function(calculate_particle_intermediates, "calculate_particle_intermediates", particle_radius_cells);
     }, {"calculate_particle_intermediates"});
 
     cl::async_build_and_cache(ctx, [&]{
@@ -1204,7 +1202,7 @@ void boot_particle_kernels(cl::context ctx)
     }, {"permute_memory"});
 
     cl::async_build_and_cache(ctx, [&]{
-        return value_impl::make_function(sum_particle_aIJ, "sum_particle_aIJ");
+        return value_impl::make_function(sum_particle_aIJ, "sum_particle_aIJ", particle_radius_cells);
     }, {"sum_particle_aIJ"});
 }
 
@@ -1499,12 +1497,12 @@ buffer_provider* particle_plugin::get_utility_buffer_factory(cl::context ctx)
     return new particle_utility_buffers(ctx);
 }
 
-particle_plugin::particle_plugin(cl::context ctx, uint64_t _particle_count) : lorentz_storage(ctx), particle_count(_particle_count), memory_allocation_count(ctx), memory_ptrs(ctx), memory_counts(ctx)
+particle_plugin::particle_plugin(cl::context ctx, uint64_t _particle_count, int _particle_radius_cells) : lorentz_storage(ctx), particle_count(_particle_count), particle_radius_cells(_particle_radius_cells), memory_allocation_count(ctx), memory_ptrs(ctx), memory_counts(ctx)
 {
     for(int i=0; i < 10; i++)
         particle_temp.emplace_back(ctx);
 
-    boot_particle_kernels(ctx);
+    boot_particle_kernels(ctx, particle_radius_cells);
 }
 
 //consider implementing 3.2 https://arxiv.org/pdf/1905.08890
