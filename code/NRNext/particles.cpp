@@ -626,7 +626,7 @@ auto function_trilinear2(T&& func, v3f frac, v3i ipos, U&&... args)
 
 template<typename T, typename... U>
 inline
-auto function_trilinear_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
+auto interpolate_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
 {
     //return function_trilinear2(func, frac, ifloored, args...);
 
@@ -654,12 +654,12 @@ auto function_trilinear_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
 
     auto sum = declare_mut_e(value_v());
 
-    mut<valuei> iz = declare_mut_e(valuei());
-
-    auto fetch_pair = [](valuei what)
+    auto fetch_indices = [](valuei what)
     {
         return ternary(what == 0, (v2i){0,3}, (v2i){1, 2});
     };
+
+    mut<valuei> iz = declare_mut_e(valuei());
 
     for_e(iz < 2, assign_b(iz, iz+1), [&]{
         mut<valuei> iy = declare_mut_e(valuei());
@@ -668,11 +668,11 @@ auto function_trilinear_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
             mut<valuei> ix = declare_mut_e(valuei());
 
             for_e(ix < 2, assign_b(ix, ix+1), [&]{
-                auto xs = fetch_pair(declare_e(ix));
-                auto ys = fetch_pair(declare_e(iy));
-                auto zs = fetch_pair(declare_e(iz));
+                auto xs = fetch_indices(declare_e(ix));
+                auto ys = fetch_indices(declare_e(iy));
+                auto zs = fetch_indices(declare_e(iz));
 
-                auto get_for = [&](valuei x, valuei y, valuei z)
+                auto eval_for = [&](valuei x, valuei y, valuei z)
                 {
                     v3i offset = (v3i){x - 1, y - 1, z - 1};
 
@@ -682,25 +682,22 @@ auto function_trilinear_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
                     mut<valuef> by = declare_mut_e(valuef(1));
                     mut<valuef> bz = declare_mut_e(valuef(1));
 
-                    auto val = u * L_j(x, frac.x(), bx) * L_j(y, frac.y(), by) * L_j(z, frac.z(), bz);
-                    pin(val);
+                    auto val = no_opt(u * L_j(x, frac.x(), bx) * L_j(y, frac.y(), by) * L_j(z, frac.z(), bz));
 
-                    auto v = val * (1/(declare_e(bx) * declare_e(by) * declare_e(bz)));
-                    pin(v);
-                    return v;
+                    return no_opt(val * (1/(declare_e(bx) * declare_e(by) * declare_e(bz))));
                 };
 
-                auto v000 = get_for(xs[0], ys[0], zs[0]);
-                auto v100 = get_for(xs[1], ys[0], zs[0]);
+                auto v000 = eval_for(xs[0], ys[0], zs[0]);
+                auto v100 = eval_for(xs[1], ys[0], zs[0]);
 
-                auto v010 = get_for(xs[0], ys[1], zs[0]);
-                auto v110 = get_for(xs[1], ys[1], zs[0]);
+                auto v010 = eval_for(xs[0], ys[1], zs[0]);
+                auto v110 = eval_for(xs[1], ys[1], zs[0]);
 
-                auto v001 = get_for(xs[0], ys[0], zs[1]);
-                auto v101 = get_for(xs[1], ys[0], zs[1]);
+                auto v001 = eval_for(xs[0], ys[0], zs[1]);
+                auto v101 = eval_for(xs[1], ys[0], zs[1]);
 
-                auto v011 = get_for(xs[0], ys[1], zs[1]);
-                auto v111 = get_for(xs[1], ys[1], zs[1]);
+                auto v011 = eval_for(xs[0], ys[1], zs[1]);
+                auto v111 = eval_for(xs[1], ys[1], zs[1]);
 
                 auto v00 = v000 + v100;
                 auto v10 = v010 + v110;
@@ -726,8 +723,6 @@ struct evolve_vars
 
     //interpolation no longer guarantees unit determinant
     metric<valuef, 3, 3> cY;
-    //tensor<valuef, 3, 3> cA;
-    //valuef K;
 
     v3f dgA;
     v3f dW;
@@ -770,19 +765,6 @@ struct evolve_vars
             return args.cY[x, y];
         };
 
-        /*auto K_at = [&](v3i pos)
-        {
-            bssn_args args(pos, dim, in);
-            pin(args.K);
-            return args.K;
-        };*/
-
-        /*auto cA_at = [&](v3i pos)
-        {
-            bssn_args args(pos, dim, in);
-            pin(args.cA);
-            return args.cA;
-        };*/
 
         auto dgA_at = [&](v3i pos)
         {
@@ -851,23 +833,21 @@ struct evolve_vars
         pin(frac);
         pin(ifloored);
 
-        gA = function_trilinear_particles(gA_at, frac, ifloored);
-        gB = function_trilinear_particles(gB_at, frac, ifloored);
+        gA = interpolate_particles(gA_at, frac, ifloored);
+        gB = interpolate_particles(gB_at, frac, ifloored);
 
-        cY[0, 0] = function_trilinear_particles(cY_at, frac, ifloored, 0, 0);
-        cY[1, 1] = function_trilinear_particles(cY_at, frac, ifloored, 1, 1);
-        cY[2, 2] = function_trilinear_particles(cY_at, frac, ifloored, 2, 2);
-        cY[1, 0] = function_trilinear_particles(cY_at, frac, ifloored, 1, 0);
-        cY[2, 0] = function_trilinear_particles(cY_at, frac, ifloored, 2, 0);
-        cY[2, 1] = function_trilinear_particles(cY_at, frac, ifloored, 2, 1);
+        cY[0, 0] = interpolate_particles(cY_at, frac, ifloored, 0, 0);
+        cY[1, 1] = interpolate_particles(cY_at, frac, ifloored, 1, 1);
+        cY[2, 2] = interpolate_particles(cY_at, frac, ifloored, 2, 2);
+        cY[1, 0] = interpolate_particles(cY_at, frac, ifloored, 1, 0);
+        cY[2, 0] = interpolate_particles(cY_at, frac, ifloored, 2, 0);
+        cY[2, 1] = interpolate_particles(cY_at, frac, ifloored, 2, 1);
 
         cY[0, 1] = cY[1, 0];
         cY[0, 2] = cY[2, 0];
         cY[1, 2] = cY[2, 1];
 
-        //cA = function_trilinear_particles(cA_at, frac, ifloored);
-        //K = function_trilinear_particles(K_at, frac, ifloored);
-        W = function_trilinear_particles(W_at, frac, ifloored);
+        W = interpolate_particles(W_at, frac, ifloored);
 
         pin(gA);
         pin(W);
@@ -887,27 +867,25 @@ struct evolve_vars
         //pin(K);
         pin(W);
 
-        dgA = function_trilinear_particles(dgA_at, frac, ifloored);
-        //dgB = function_trilinear_particles(dgB_at, frac, ifloored);
-        //dcY = function_trilinear_particles(dcY_at, frac, ifloored);
-        dW = function_trilinear_particles(dW_at, frac, ifloored);
+        dgA = interpolate_particles(dgA_at, frac, ifloored);
+        dW = interpolate_particles(dW_at, frac, ifloored);
 
         for(int x=0; x < 3; x++)
         {
             for(int y=0; y < 3; y++)
             {
-                dgB[x, y] = function_trilinear_particles(dgB_at, frac, ifloored, x, y);
+                dgB[x, y] = interpolate_particles(dgB_at, frac, ifloored, x, y);
             }
         }
 
         for(int i=0; i < 3; i++)
         {
-            dcY[i, 0, 0] = function_trilinear_particles(dcY_at, frac, ifloored, i, 0, 0);
-            dcY[i, 1, 1] = function_trilinear_particles(dcY_at, frac, ifloored, i, 1, 1);
-            dcY[i, 2, 2] = function_trilinear_particles(dcY_at, frac, ifloored, i, 2, 2);
-            dcY[i, 1, 0] = function_trilinear_particles(dcY_at, frac, ifloored, i, 1, 0);
-            dcY[i, 2, 0] = function_trilinear_particles(dcY_at, frac, ifloored, i, 2, 0);
-            dcY[i, 2, 1] = function_trilinear_particles(dcY_at, frac, ifloored, i, 2, 1);
+            dcY[i, 0, 0] = interpolate_particles(dcY_at, frac, ifloored, i, 0, 0);
+            dcY[i, 1, 1] = interpolate_particles(dcY_at, frac, ifloored, i, 1, 1);
+            dcY[i, 2, 2] = interpolate_particles(dcY_at, frac, ifloored, i, 2, 2);
+            dcY[i, 1, 0] = interpolate_particles(dcY_at, frac, ifloored, i, 1, 0);
+            dcY[i, 2, 0] = interpolate_particles(dcY_at, frac, ifloored, i, 2, 0);
+            dcY[i, 2, 1] = interpolate_particles(dcY_at, frac, ifloored, i, 2, 1);
 
             dcY[i, 0, 1] = dcY[i, 1, 0];
             dcY[i, 0, 2] = dcY[i, 2, 0];

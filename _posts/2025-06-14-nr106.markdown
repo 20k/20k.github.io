@@ -407,13 +407,156 @@ auto function_trilinear(T&& func, v3f pos)
 }
 ```
 
-Note that `no_opt` in the scheme I'm using forces a variable declaration, to disable fp contraction. This `lmix` guarantees the property:
+Note that `no_opt` in the scheme I'm using forces a variable declaration, to disable fp contraction. `lmix` guarantees the property:
 
 $$\mathrm{lmix}(a, b, t) == \mathrm{lmix}(b, a, 1-t)$$
 
-## Trilinear Interpolation isn't that great
+Trilinear interpolation is otherwise a very standard algorithm, and not worth diving into. In many situations, trilinear interpolation is perfectly fine, but we'll have to go into when it is not
 
+## Trilinear Interpolation can be a problem
 
+The motion of a particle is largely dictated by the term $\partial_i \alpha$, which you should construct by applying interpolation to the derivatives (rather than differentiating the interpolated values). Particles in General Relativity effectively have a kind of *self* force - they distort the metric, and this directly modifies $\alpha$ around where they are in an area
+
+A particle's contribution to its own velocity should be *precisely* 0 (ie $\partial_i \alpha = 0$), otherwise you might see an anomalous drift. With high mass particles, this is actually very common, see the following:
+
+Todo: Video
+
+The issue is that as a particle drifts away from your cell centres, the interpolation becomes increasingly inaccurate relative to how far away it is. If there's a sign change on the derivative, your particle will drift in the wrong direction. This is bad, because we have a systematic, oscillating error term, that cannot be removed easily, and it can cause very strange issues like the following abrupt failure:
+
+Todo: Video
+
+Fixing this involves constructing a higher order interpolation scheme, with the caveat that we still have to deal with all the same floating point rounding issues as before. Its worth noting that this is more of a problem when the mass of the particle is high relative to the spacetime its embedded in
+
+## Symmetric tricubic interpolation
+
+The next step up from trilinear interpolation, is tri*cubic* interpolation. I'll just put this out there: Everyone does cubic interpolation wrong. Its common to use hermite[^hermite] interpolation - this kind of interpolation guarantees the values of the derivatives at our boundaries. We don't differentiate our interpolated variables nor do we care about its derivatives, so this is a bad move for us
+
+[^hermite]: Wikipedia will direct you to [this](https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.89.7835) paper, which is precisely the wrong approach. Its set up to be able to repeatedly perform hermite interpolation with the same set of values, which is not what we want at all
+
+What we want is tricubic Lagrangian interpolation, via a Lagrange interpolating polynomial. This does not require us to know the values of the derivatives anywhere, and its both faster and more accurate than hermite interpolation. It does have the downside that I now have to do more work though
+
+### Cubic Lagrangian interpolation
+
+The minimum number of points to do cubic interpolation is $4$. We'll operate in grid cells, which means that we have the following node structure:
+
+| Node label | $x_0$ | $x_1$ | $x_2$ | $x_3$
+|-|-|-|-|-|
+|Value|$-1$|$0$|$1$|$2$|
+
+A cubic interpolating polynomial is constructed as follows (all bounds are inclusive):
+
+$$\begin{align}
+l_j = \prod_{m=0, m \neq j}^3 \frac{x - x_m}{x_j - x_m}\\
+L(x) = \sum^3_{j} f_j l_j(x)\\
+\end{align}
+$$
+
+$f_j$ represents the function value at the corresponding offset, eg $f_0$ is $f(x - x_0)$
+
+A 3d polynomial can be constructed as follows:
+
+$$L(x, y, z) = \sum^3_a \sum^3_b \sum^3_c f_{abc} l_a(x) l_b(y) l_c(z)$$
+
+This is a large sum of 64 values. As you have already guessed, we can't implement this as written otherwise we'll end up with massive systematic rounding errors. We instead have to perform a pairwise matched summation of all values, to ensure exactly the same order of operations on both sides of the grid
+
+```c++
+template<typename T, typename... U>
+inline
+auto function_tricubic_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
+{
+    using namespace single_source;
+
+    using value_v = decltype(func(v3i(), std::forward<U>(args)...));
+
+    //I accumulate the top, and bottom portions of the lagrange interpolating polynomial basis functions separately
+    //as the bottom is a collection of integral constants
+    auto L_j = [&](valuei j, const valuef& f, mut<valuef>& bottom_out)
+    {
+        auto apply_for_m = [&](int m)
+        {
+            mut<valuef> out = declare_mut_e(valuef(1));
+
+            if_e(m != j, [&]{
+                //node locations are implicitly calculated as label - 1
+                as_ref(bottom_out) = declare_e(bottom_out) * ((valuef)j - 1.f - ((float)m - 1));
+
+                as_ref(out) = (f - (valuef)(m - 1));
+            });
+
+            return declare_e(out);
+        };
+
+        return (apply_for_m(0) * apply_for_m(3)) * (apply_for_m(1) * apply_for_m(2));
+    };
+
+    auto sum = declare_mut_e(value_v());
+
+    auto fetch_indices = [](valuei what)
+    {
+        return ternary(what == 0, (v2i){0,3}, (v2i){1, 2});
+    };
+
+    mut<valuei> iz = declare_mut_e(valuei());
+
+    for_e(iz < 2, assign_b(iz, iz+1), [&]{
+        mut<valuei> iy = declare_mut_e(valuei());
+
+        for_e(iy < 2, assign_b(iy, iy+1), [&]{
+            mut<valuei> ix = declare_mut_e(valuei());
+
+            for_e(ix < 2, assign_b(ix, ix+1), [&]{
+                auto xs = fetch_indices(declare_e(ix));
+                auto ys = fetch_indices(declare_e(iy));
+                auto zs = fetch_indices(declare_e(iz));
+
+                //evaluates the interior term of the sum
+                auto eval_for = [&](valuei x, valuei y, valuei z)
+                {
+                    v3i offset = (v3i){x - 1, y - 1, z - 1};
+
+                    auto u = func(ifloored + offset, std::forward<U>(args)...);
+
+                    mut<valuef> bx = declare_mut_e(valuef(1));
+                    mut<valuef> by = declare_mut_e(valuef(1));
+                    mut<valuef> bz = declare_mut_e(valuef(1));
+
+                    auto val = no_opt(u * L_j(x, frac.x(), bx) * L_j(y, frac.y(), by) * L_j(z, frac.z(), bz));
+
+                    return no_opt(val * (1/(declare_e(bx) * declare_e(by) * declare_e(bz))));
+                };
+
+                auto v000 = eval_for(xs[0], ys[0], zs[0]);
+                auto v100 = eval_for(xs[1], ys[0], zs[0]);
+
+                auto v010 = eval_for(xs[0], ys[1], zs[0]);
+                auto v110 = eval_for(xs[1], ys[1], zs[0]);
+
+                auto v001 = eval_for(xs[0], ys[0], zs[1]);
+                auto v101 = eval_for(xs[1], ys[0], zs[1]);
+
+                auto v011 = eval_for(xs[0], ys[1], zs[1]);
+                auto v111 = eval_for(xs[1], ys[1], zs[1]);
+
+                auto v00 = v000 + v100;
+                auto v10 = v010 + v110;
+                auto v01 = v001 + v101;
+                auto v11 = v011 + v111;
+
+                auto v0 = v00 + v10;
+                auto v1 = v01 + v11;
+
+                as_ref(sum) += (v0 + v1);
+            });
+        });
+    });
+
+    return declare_e(sum);
+}
+```
+
+One of the reasons I write these articles is to save you from the same pain I have had to experience. There's no way around the fact that this is absolutely horrendous. The naive implementation of this is simple, but my goodness is this a joy. Even without the systematic numerical issues, pairwise summation has a reduced error term - so its better than just a big linear sum
+
+This implementation was severely complicated by bugs in AMD's GPU compiler, which is why these memory accesses are not just standard loops, and I have to emit GPU loops over constants
 
 Old
 
