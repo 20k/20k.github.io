@@ -6,6 +6,77 @@ categories: C++
 published: false
 ---
 
+Hi there! Today we're going to examine how to do N-body particle physics, in general relativity. This is a bit of an underexplored topic compared to Newtonian N-body, and its easy to accidentally pick the wrong formalism or techniques for solving this problem. While the basic theory of what we're doing isn't complicated, there's a few major numerical problems to tackle today
+
+At the end of this topic, we'll have about 10 million particles up and running at a decent speed.
+
+# What are we doing?
+
+In both General Relativity, and Newtonian physics, we deal with pointlike N-body particles. These are fully described by their mass, position, and velocity in both formalisms
+
+In Newtonian physics, each particle directly exerts a force on all other particles, which is famously:
+
+$$F = \frac{G m_1 m_2}{r^2}$$
+
+In general relativity, particles act through the (4d) stress energy tensor, and do not *directly* interact. For a single particle [(2.5)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf0):
+
+$$
+T_{\mu\nu} = m \alpha^{-1} W^3 \delta^{(3)}(x^i - x_{\mathrm{p}}^i)\frac{u_\mu u_\nu}{u^0}\\
+$$
+
+|Symbol | Meaning |
+|-|-|
+|$m$ | The rest mass of a particle |
+|$\alpha$ | Lapse, evaluated at $x^i$ |
+| $W$ | Conformal factor, evaluated at $x^i$ |
+| $\delta^{(3)}(x)$ | The 3d dirac delta function - this only takes a nonzero value when $x = 0$. This a non trivial term, and we'll have to discretise this |
+| $x^i$ | The current coordinate position you're looking at |
+| $x^i_{\mathrm{p}}$ | The position of the particle |
+| $u_\mu$ | The 4-velocity of a particle, lowered |
+| $u^0$ | The lorentz factor |
+
+This is simply summed across all particles. Particles as you'd expect simply move via the geodesic equation, which is:
+
+$$u^\mu \nabla_\mu u_\nu = 0$$
+
+Clearly, we'll need to transplant this into the ADM formalism, but for once the general relativistic side of this is straightforward
+
+# These equations in the ADM formalism
+
+## Stress-energy
+
+We need the ADM projections of the stress energy tensor $T_{\mu\nu}$, to calculate the compatible terms for the BSSN equations. These are [(2.14, 2.15, 2.20)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf):
+
+$$
+\begin{align}
+\rho_H &= m u^0 \alpha W^3 \delta^{(3)}(x^i - x^i_{\mathrm{p}})\\
+S_i &= m u_i W^3 \delta^{(3)}(x^i - x^i_{\mathrm{p}})\\
+S_{ij} &= m \frac{u_iu_j}{u^0} \alpha^{-1} W^3 \delta^{(3)}(x^i - x^i_{\mathrm{p}})\\
+\end{align}
+$$
+
+These are summed across all particles
+
+## The geodesic equation
+
+Given a 4-velocity $u^\mu = \frac{dx^\mu}{d\tau}$, the spatial components $u_i$ are evolved as follows [(2.9)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf):
+
+$$\begin{align}
+\frac{d u_i}{dt} &= - \alpha u^0 \partial_i \alpha + u_j \partial_i \beta^j - \frac{u_j u_k}{2 u^0} \partial_i \gamma^{jk}\\
+u^0 &= \frac{\sqrt{1 + \gamma^{ij} u_i u_j}}{\alpha}\\
+\end{align}
+$$
+
+The particle's position is evolved as follows (via $\frac{dx^i}{dt} = \frac{u^i}{u^0}$):
+
+$$
+\frac{dx^i}{dt} = -\beta^i + \frac{\gamma^{ij} u_j}{u^0}
+$$
+
+Note that all the quantities evaluated here need to be interpolated from the grid at the particle's position $x^i_\mathrm{p}$, which I'll get back to
+
+Old
+
 Hi! Today we'll be examining how to do N body particle dynamics in numerical relativity. While newtonian N body simulations are quite straightforward, general relativity as always tends to complicate things just a little.  I'll be presenting you with the most straightforward way to get ~10 million particles working at a decent clip, as well as investigating some critical mistakes to avoid
 
 In general, I try and keep a reasonable flow to these articles. Because they're oriented around a solution to an overarching problem rather than a specific technical issue - they often meander between different topics
