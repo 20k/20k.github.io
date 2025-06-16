@@ -14,12 +14,13 @@ That is more true than ever for this article. There are a variety of critical bu
 
 I'll be dealing with the following topics:
 
-1. The C++ spec defect around floating point, and the bugs it causes in real world code. We'll uncover a bug in a major scientific toolkit here, how you should adjust your code to compensate for how floats work, and why fixing this is important
+1. The C++ spec defect around floating point, and the bugs it causes in real world code. We'll uncover a bug in a scientific toolkit here, how you should adjust your code to compensate for how floats work, and why fixing this is important
 2. The equations we'll be using for this article, and checking out why some alternative approaches aren't that great
 3. The deep joys of the dirac delta function, and how to implement it correctly
-4. Initial conditions
-5. Integration, and a guide on implementation techniques
-6. Some miscellaneous performance techniques
+4. Trilinear +  tricubic interpolation
+5. Initial conditions
+6. Integration, and a guide on implementation techniques
+7. Some miscellaneous performance techniques
 
 At some point we'll be converting a float to a double, back to a float, and then finally to a long. Its just that kind of day
 
@@ -75,6 +76,7 @@ float diff(const std::vector<float>& points, int idx, float scale)
 }
 ```
 
+
 How this could introduce asymmetry is straightforward: compilers interpret these expressions left to right, and so we get the following expression:
 
 ```c++
@@ -82,6 +84,8 @@ How this could introduce asymmetry is straightforward: compilers interpret these
 ```
 
 The rounding here is asymmetric with respect to `idx`. If we have a central grid point about which our data is mirrored, say $10$, we want the evaluation of $idx = 9$ and $idx = 11$ to return *exactly* the same results. Plugging that in, we get the following:
+
+Todo: use pictures instead
 
 ```c++
 float diff9(const std::vector<float>& points, float scale)
@@ -117,7 +121,7 @@ float diff(const std::vector<float>& points, int idx, float scale)
 }
 ```
 
-Substituting this through will show that its all hunky dory. The only problem now is that we have to deal with C++-itus, as the right hand side will get transformed to `fma(-8, points[idx-1], 8 * points[idx + 1])`. So instead of the simple solution, the *actually* correct version of this is as follows:
+Substituting this through will show that its all hunky dory. The only problem now is that we have to deal with C++-itus, as the right hand side will get transformed to `fma(-8, points[idx-1], 8 * points[idx + 1])`. So instead of the simple solution, the pedantically correct version of this is as follows:
 
 ```c++
 float diff(const std::vector<float>& points, int idx, float scale)
@@ -135,9 +139,22 @@ float diff(const std::vector<float>& points, int idx, float scale)
 }
 ```
 
-Kreiss-Oliger is fixed in precisely the same fashion, by grouping equidistant derivatives with respect to `idx`. The more complex case is the initial conditions
+The above ('long form') represents the general form of how to fix this, and shows how to disable this compiler optimisation where necessary. For the specific case of first derivatives, the below also works - as the FMA that gets generated does not upset symmetry. This is a 20% improvement in GPU-land over the above[^compiler]
+
+[^compiler]: This is at least partly due to compiler-itus, as compilers are much better at optimising within an expression, than across multiple expressions. Its a big part of the reason why I use code generation in these articles
+
+```c++
+float diff(const std::vector<float>& points, int idx, float scale)
+{
+    return ((points[idx - 2] - points[idx + 2]) + 8 * (points[idx + 1] - points[idx - 1])) / (12 * scale);
+}
+```
+
+Kreiss-Oliger is fixed in the long form fashion
 
 ## Floating point symmetric interpolation
+
+Todo: Move this into trilinear/tricubic
 
 During our initial conditions, we have to implement linear interpolation for the upscaling step - and you might think to reach for `std::lerp`. If you go read through the spec, you'll discover that a lot of work was put into it to make it work well. Unfortunately, it is inappropriate for our use case: it does not guarantee the following property:
 
@@ -210,7 +227,7 @@ $$
 
 This formalism  also has the advantage of being very simple, and is derived directly from the geodesic equation: $u^\mu \nabla_\mu u_\nu = 0$. So far, so good
 
-Note: You'll need to interpolate the quantities above based on the position $x^i$, using the symmetric interpolation we used earlier
+Note: You'll need to interpolate the quantities (eg the metric, and $\beta^j$) above based on the position $x^i$. I'll get into how to do this later
 
 ## Source terms
 
@@ -282,7 +299,7 @@ This still seems clearly absurd, but the maths works out - and its often describ
 
 ## Implementing the dirac delta function
 
-Numerically, its clear that this function is unworkable. So instead, we want to implement something that approximates the dirac delta function - in essence, you smear it out over a small area. We might demand that this new function has a few properties:
+Numerically, its clear that this function is unworkable. So instead, we want to implement something that approximates the dirac delta function - in essence, you smear it out over a small area. Todo: diagram. We might demand that this new function has a few properties:
 
 1. It is compactly supported, ie it has finite extent
 2. It is smooth-ish
@@ -319,13 +336,13 @@ Where $y$ is our integration variable between the bounds $x - \frac{dx}{2}$ and 
 
 This also generalises to $n$ dimensions - in 3d:
 
-$$\sigma = \frac{\int_{z - \frac{h}{2}}^{z + \frac{h}{2}} \int_{y - \frac{h}{2}}^{y + \frac{h}{2}} \int_{x - \frac{h}{2}}^{x + \frac{h}{2}} \Delta(\textbf{V}) d\textbf{V}}{h^3}$$
+$$\sigma = \frac{\int_{z - \frac{h}{2}}^{z + \frac{h}{2}} \int_{y - \frac{h}{2}}^{y + \frac{h}{2}} \int_{x - \frac{h}{2}}^{x + \frac{h}{2}} \Delta(x, y, z) dx dy dz}{h^3}$$
 
 ## Of course, its not that simple
 
 In the equation above, $x,y,z$ represent world coordinates of our cell's coordinate position, *not* grid cell coordinates. This means that we will be integrating between arbitrary bounds represented in floating point - and our results won't be symmetric. Eg, if our world is $30$ wide, $h = 0.1$ , and we're looking at two world points at $1$ and $29$, integrating from $0.9 - 1.1$ won't return the same result as $28.9 - 29.1$, as these are inherently not representable with the exact same inaccuracies
 
-Because of this, and because the dirac delta function is defined in this same coordinate system, the above equation is actually a non starter as it is not symmetric, and will introduce systematic asymmetric errors in your simulation. To fix this is quite the pain and, we'll now need a specific dirac delta discretisation in 3d to work with
+Because of this, the above equation is actually a non starter as it is not symmetric, and will introduce systematic asymmetric errors in your simulation. To fix this is quite the pain and, we'll now need a specific dirac delta discretisation in 3d to work with
 
 ## The actual dirac delta discretisation
 
@@ -364,7 +381,9 @@ $$
 
 This means that $r_s$ is now the full size of the particle in world coordinates, and $r_f$ is an arbitrary fraction from 0 to 1. This now means that we can redefine the integral in 3d from earlier:
 
-$$\sigma =  \int_{z_c - 0.5}^{z_c + 0.5} \int_{y_c - 0.5}^{y_c + 0.5} \int_{x_c - 0.5}^{x_c + 0.5} \Delta_2(\frac{\sqrt{(x - x_c^{\mathrm{idx}})^2 + (y - y_c^{\mathrm{idx}})^2 + (z - z_c^{\mathrm{idx}})^2}}{(\frac{r_s}{h})}, r_s) d(x, y, z)$$
+$$\sigma =  \int_{z_c - 0.5}^{z_c + 0.5} \int_{y_c - 0.5}^{y_c + 0.5} \int_{x_c - 0.5}^{x_c + 0.5} \Delta_2\left (\frac{\sqrt{(x - x_c^{\mathrm{idx}})^2 + (y - y_c^{\mathrm{idx}})^2 + (z - z_c^{\mathrm{idx}})^2}}{(\frac{r_s}{h})}, r_s \right ) dx dy dz$$
+
+Todo: Where's my division at? Is it just consumed?
 
 | Symbol | Meaning |
 |-|-|
@@ -413,7 +432,7 @@ This only really just-so-happens to work for $N=2$, and its carefully written to
 
 ## Dirac: The end
 
-This section has been one of the more complicated things I've had to implement. I do not know if I've ever seen a tediously correct implementation of the dirac delta function: most papers simply stop after the initial discretisation, which leads to an overall inaccuracy in the mass of a few % for very small dirac sizes. More importantly, the mass oscillates with a naive discretisation as a particle moves through the grid, which isn't great
+This section has been one of the more complicated things I've had to implement. I do not know if I've ever seen a tediously correct implementation of the dirac delta function: most papers simply stop after the initial discretisation, which leads to an overall inaccuracy in the mass of a few % for very small dirac sizes. More importantly, the mass oscillates with a naive discretisation as a particle moves through the grid, and it introduces systematic errors
 
 You can see that there are probably about ~10 points in total in this article where its possible to implement things incorrectly, which can rapidly lead to multiple rounding errors per-cell per-tick. This is the reason why its so important - if you do it wrong *everywhere*, then everything on one side of your grid will experience multiple non random bits of error relative to the other side of your grid every tick, which can lead to very unexpected results over time
 
