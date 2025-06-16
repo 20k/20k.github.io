@@ -100,7 +100,74 @@ At this point, we only have a few things left to solve:
 
 # The dirac delta function $\delta(x)$
 
+The  1d dirac delta function $\delta^{(1)}(x)$ has the following definition:
 
+$$\delta^{(1)}(x) =
+\begin{align}
+\begin{cases}
+0, \; &x \neq 0 \\
+\infty, \; &x = 0
+\end{cases}
+\end{align}
+$$
+
+$$\int^\infty_{-\infty} \delta^{(1)}(x) \; dx = 1$$
+
+This says that the dirac delta function only takes a value at a single point $x=0$, and the area under this point is precisely $1$. No function actually meets this definition, so we must numerically approximate it somehow. Higher dimensional diracs are donated by the raised index, eg $\delta^{(3)}(x, y, z) = \delta^{(1)}(x)\delta^{(1)}(y)\delta^{(1)}(z)$
+
+## Numerical approximations
+
+There are an extremely wide variety of approximations we can use - these basically smear out the function over a small area. We might demand that this new function has a few properties:
+
+1. It is compactly supported, ie it has finite extent
+2. It is smooth-ish
+3. This function has an integral of 1
+
+There isn't a super specific reason to use one approximation over another. The dirac delta function I'll be pilfering today is [this one (20)](https://arxiv.org/pdf/1611.07906), which operates in 3d (though it is a function of radius)
+
+$$
+\Delta_1^{(3)}(r, r_s) = \frac{1}{\pi r_s^3}
+\begin{align}
+\begin{cases}
+1 - \frac{3}{2} (\frac{r}{r_s})^2 + \frac{3}{4} (\frac{r}{r_s})^3 \;\; &\mathrm{for}\;\; 0 \leq \frac{r}{r_s} \leq 1\\
+\frac{1}{4}(2 - \frac{r}{r_s})^3 \;\; &\mathrm{for}\;\; 1 \leq \frac{r}{r_s} \leq 2\\
+0 & \mathrm{otherwise}
+\end{cases}
+\end{align}
+$$
+
+Where $r_s$ is the size in world coordinates of your particle, ie its a constant. Many papers make the simple substitution $\delta^{(3)}(x, y, z) \rightarrow \Delta^{(3)}(r)$, although this is a bit problematic
+
+## Improving the numerical approximation
+
+There's a bit of problem with making this simple substitution. To examine this, lets step back into 1D, and imagine a very basic dirac delta function $\Delta^{(1)}$:
+
+$$\Delta^{(1)}(x) =
+\begin{align}
+\begin{cases}
+1 - x, \; &\mid x\mid < 1 \\
+0, \; \mathrm{otherwise}
+\end{cases}
+\end{align}
+$$
+
+When discretising, we create cells which are separated by a space of $h$. Our grid structure *samples* this function at eg $x-2h, x-h, x, x+h, x+2h$. If we evaluate the quantity:
+
+$$\sum_1^n \Delta(x_n) \; h$$
+
+We want that to be *precisely* $1$ - that is to say our area under the dirac delta function has been preserved. In our discretisation as it stands currently, there is absolutely no guarantee of it - this is only true in the limit as $h \rightarrow 0$. In fact, with small dirac delta function sizes (eg imagine its much smaller than a grid cell), this may be out by a significant amount!
+
+The remedy is to calculate the exact amount of the dirac delta function that intersects with a grid cell. We can do this by integrating:
+
+$$\Delta^{(1)}_{\mathrm{good}} = \frac{\int_{x - \frac{h}{2}}^{x + \frac{h}{2}} \Delta^{(1)}(y) dy}{h}$$
+
+in one dimension, or in three dimensions:
+
+$$\Delta^{(3)}_{\mathrm{good}} = \frac{\int_{z - \frac{h}{2}}^{z + \frac{h}{2}} \int_{y - \frac{h}{2}}^{y + \frac{h}{2}} \int_{x - \frac{h}{2}}^{x + \frac{h}{2}} \Delta^{(3)}(\textbf{V}) d\textbf{V}}{h^3}$$
+
+Where $x, y, z$ are the coordinates of a grid cell in world coordinates
+
+## More numerical problems
 
 Old
 
