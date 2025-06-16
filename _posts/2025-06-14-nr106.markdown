@@ -472,6 +472,7 @@ auto function_tricubic_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
     //as the bottom is a collection of integral constants
     auto L_j = [&](valuei j, const valuef& f, mut<valuef>& bottom_out)
     {
+        //evaluate a basis function
         auto apply_for_m = [&](int m)
         {
             mut<valuef> out = declare_mut_e(valuef(1));
@@ -556,7 +557,20 @@ auto function_tricubic_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
 
 One of the reasons I write these articles is to save you from the same pain I have had to experience. There's no way around the fact that this is absolutely horrendous. The naive implementation of this is simple, but my goodness is this a joy. Even without the systematic numerical issues, pairwise summation has a reduced error term - so its better than just a big linear sum
 
-This implementation was severely complicated by bugs in AMD's GPU compiler, which is why these memory accesses are not just standard loops, and I have to emit GPU loops over constants
+This implementation is also complicated by bugs in AMD's GPU compiler, which is why these memory accesses are not just standard loops, and I have to emit GPU loops over constants. With this, the floating point nightmare portion of this article is over
+
+# Initial conditions
+
+
+# Implementation
+
+# Results
+
+# Discussion
+
+# Appendix
+
+## Comparison of other formalisms
 
 Old
 
