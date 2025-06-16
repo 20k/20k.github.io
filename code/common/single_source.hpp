@@ -500,6 +500,15 @@ namespace value_impl
         {
             return declare_e(v1);
         }
+
+        template<template<typename, int...> typename TType, typename T, int... N>
+        inline
+        auto no_opt(const TType<T, N...>& in)
+        {
+            return tensor_for_each_unary(in, [](const T& val){
+                return no_opt(val);
+            });
+        }
     }
 
     template<typename T>

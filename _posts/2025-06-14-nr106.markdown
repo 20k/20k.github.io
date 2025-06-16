@@ -8,7 +8,7 @@ published: false
 
 Hi there! Today we're going to examine how to do N-body particle physics, in general relativity. This is a bit of an underexplored topic compared to Newtonian N-body, and its easy to accidentally pick the wrong formalism or techniques for solving this problem. While the basic theory of what we're doing isn't complicated, there's a few major numerical problems to tackle today
 
-At the end of this topic, we'll have about 10 million particles up and running at a decent speed, and you'll have also received an accidental crash course on the problems a spec defect in C++ can cause
+At the end of this topic, we'll have about 10 million particles up and running at a decent speed - you'll also have received a crash course in IEEE floats, and the problems a spec defect in C++ can cause
 
 # What are we doing?
 
@@ -169,13 +169,249 @@ Where $x, y, z$ are the coordinates of a grid cell in world coordinates
 
 ## Strange numerical problems
 
-If you try and implement this with a simple test case (two particles orbiting each other), you'll quickly run into a rather odd issue:
+If you try and implement this discretisation with a simple test case (two particles orbiting each other), you'll quickly run into a rather odd issue:
 
 Todo: Video
 
-You're now going to learn more about C++, IEEE floats, and cryptic problems in the literature than you signed up for when you clicked on this article
+You're now going to learn more about C++, IEEE floats, and cryptic problems in the literature than you signed up for when you clicked on this article. I also have to present this to you before we do the interpolation step, because its going to get a bit more complex
 
 # From time to time, C++ is not a very good programming language
+
+Let's imagine we have a set of initial conditions that looks like this, for a basic test problem that's discretised in one dimension, with a grid size of $7$:
+
+|Cell Index|0|1|2|3|4|5|6|
+|-|-|-|-|-|-|-|-|
+|Value|$a_0$|$b_0$|$c_0$|$d_0$|$c_0$|$b_0$|$a_0$|
+
+We can clearly see that this data is symmetric about the cell with index $3$. After a single timestep into the future, we might expect our initial conditions to evolve to a new state:
+
+|Cell Index|0|1|2|3|4|5|6|
+|-|-|-|-|-|-|-|-|
+|Value|$a_1$|$b_1$|$c_1$|$d_1$|$c_1$|$b_1$|$a_1$|
+
+For any correct simulation, we expect that symmetry to be preserved. In virtually all simulations however, if you implement some debugging, you'll very immediately notice that this property does not hold up - and the two sides of the grid start to *increasingly* diverge. This is despite having the same initial conditions on both sides!
+
+## Root causing the problems
+
+This can be root caused to two related problems:
+
+1. How C++ handles floating point expressions, via a little known loophole in the standard
+2. Floating point arithmetic is not associative
+
+Asymmetry can sneak in anywhere we look at adjacent grid cells or non central values (eg the dirac integral bounds). A first culprit to look at is differentiation: In general, 4th order numerical derivatives get implemented as follows:
+
+```c++
+float diff(const std::vector<float>& points, int idx, float scale)
+{
+    return (points[idx - 2] - 8 * points[idx - 1] + 8 * points[idx + 1] - points[idx + 2]) / (12 * scale);
+}
+```
+
+This is evaluated from left to right. Lets check what we get for indices $2$, and $4$ - which should return exactly the same result:
+
+$$\begin{align}
+\mathrm{diff}_2 &= ((a_0 - (8 b_0)) + (8 d_1)) - c_1\\
+\mathrm{diff}_4 &= ((c_0 - (8 d_0)) + (8 b_1)) - a_1\\
+\end{align}$$
+
+The issue is that after each floating point operation, a *rounding* step is performed implicitly. This means that these two expressions don't return the same results! This isn't a theoretical problem either, here's an example in [real-world code](https://github.com/GRTLCollaboration/GRChombo/blob/130140afe972701575740685343ea28f6ab8234c/Source/BoxUtils/FourthOrderDerivatives.hpp#L42)
+
+This results in systematic differences in rounding on both sides of the grid, and this error can build up surprisingly fast as we've seen - as we're essentially preferentially discarding the low bits of our floats, biased in a specific direction. Eliminating these systematic errors is important. You might think you can just rewrite this expression like this, by grouping equidistant cells:
+
+```c++
+float diff(const std::vector<float>& points, int idx, float scale)
+{
+    return ((points[idx - 2] - points[idx + 2]) + (-8 * points[idx - 1] + 8 * points[idx + 1])) / (12 * scale);
+}
+```
+
+But, surprisingly, this still returns the wrong answer. What gives?
+
+## The C++ loophole
+
+In this piece of code:
+
+```c++
+float v1 = a*b + c;
+
+float v_mul = a*b;
+float v2 = v_mul + c;
+```
+
+C++ encourages that $v_1 \neq v_2$. This rather surprising feature is known as floating point contraction, and there is no standardised way to disable it[^pragma]. Within an expression, the compiler is free to turn anything of the form $a*b + c$ into $\mathrm{fma}(a, b, c)$, which may be both faster and more precise. Unfortunately - in our case, it also causes our 'fixed' code to be rewritten as follows:
+
+[^pragma]: There is a non standard pragma inherited from C, but CUDA does not implement this. Given that this article is focused on GPU programming, its a problem
+
+```c++
+float diff(const std::vector<float>& points, int idx, float scale)
+{
+    return ((points[idx - 2] - points[idx + 2]) + (fma(-8, points[idx - 1], 8 * points[idx + 1]))) / (12 * scale);
+}
+```
+
+Compilers can and do make this transform, and the difference in the way that our terms are dealt with, will also reintroduce numerical error. We can fix this in one of two ways:
+
+```c++
+float diff_long(const std::vector<float>& points, int idx, float scale)
+{
+    float vm2 = points[idx - 2];
+    float vp2 = -points[idx + 2];
+    float vm1 = -8 * points[idx - 1];
+    float vp1 = 8 * points[idx + 1];
+
+    float v2 = lm2 + lp2;
+    float v1 = vm1 + vp1;
+    float top = v1 + v2;
+
+    return top / (12 * scale);
+}
+```
+
+The above ('long form') represents the general form of how to fix this, and shows how to disable this compiler optimisation where necessary
+
+```c++
+float diff_concise(const std::vector<float>& points, int idx, float scale)
+{
+    return ((points[idx - 2] - points[idx + 2]) + 8 * (points[idx + 1] - points[idx - 1])) / (12 * scale);
+}
+```
+
+The concise version only works in our specific case for first derivatives - as the FMA that gets generated does not upset symmetry, and gives a 20% improvement in GPU-land over the long form version[^compiler]
+
+Kreiss-Oliger must be fixed in the same fashion as `diff_long`, by explicit pairwise summation, and creating a bunch of of intermediate variables to impair the compiler's ability to generate FMAs
+
+[^compiler]: This is at least partly due to compiler-itus, as compilers are much better at optimising within an expression, than across multiple expressions. Its a big part of the reason why I use code generation in these articles
+
+## Fixing dirac
+
+Fixing the dirac delta function is along the same lines as this. We must ensure that the order of operations is exactly the same between the left side of the grid, and the right side of the grid. At the moment, we're integrating in *world* coordinates in floats, which can lead to representation issues as values are truncated differently. So we're going to swap to cell index based coordinates instead. I've also changed $\Delta$ to take in a fraction in the range $[0, 1]$
+
+$$
+\Delta_2^{(3)}(r_f, r_s) = \frac{1}{\pi (\frac{r_s}{2})^3}
+\begin{align}
+\begin{cases}
+1 - \frac{3}{2} (2 r_f)^2 + \frac{3}{4} (2 r_f)^3 \;\; &\mathrm{for}\;\; 0 \leq 2 r_f \leq 1\\
+\frac{1}{4}(2 - 2 r_f)^3 \;\; &\mathrm{for}\;\; 1 \leq 2 r_f \leq 2\\
+0 & \mathrm{otherwise}
+\end{cases}
+\end{align}
+$$
+
+This means that $r_s$ is now the full size of the particle in world coordinates, and $r_f$ is a fraction from 0 to 1. Now we can redefine the integral in 3d from earlier:
+
+$$\Delta_{\mathrm{best}}^{(3)} =  \int_{z_c - 0.5}^{z_c + 0.5} \int_{y_c - 0.5}^{y_c + 0.5} \int_{x_c - 0.5}^{x_c + 0.5} \Delta_2\left (\frac{\sqrt{(x - x_c^{\mathrm{idx}})^2 + (y - y_c^{\mathrm{idx}})^2 + (z - z_c^{\mathrm{idx}})^2}}{(\frac{r_s}{h})}, r_s \right ) dx dy dz$$
+
+Where $x_c, y_c, z_c$ are the positions of the cells in integral cell-based coordinates, and their half offsets can be represented exactly. $x_c^{\mathrm{idx}}, y_c^{\mathrm{idx}}, z_c^{\mathrm{idx}}$ is the position of the particle, converted into those same cell based coordinates. This avoids the first set of numerical problems from earlier. Next up, we need to deal with the integration itself
+
+### Trapezoidal integration
+
+Implementing a fully symmetric trapezoidal method would be very tricky. For numerical integration, it has the [following definition](https://en.wikipedia.org/wiki/Trapezoidal_rule):
+
+$$\int^b_a f(x) dx = \Delta x \left (\frac{f(x_0) + f(x_N)}{2} + \sum^{n-1}_{k=1} f(x_k)\right )$$
+
+Luckily for $N=2$ - which is good enough - this is actually straightforward. As long as we evaluate the right hand side sum, and the left hand side sum separately, then add them together at the end - it'll be symmetric. More iterations would require an outside in iteration scheme with pairwise summation
+
+This is what I implemented (in 1d, just repeat the integral in 3d):
+
+```c++
+template<typename T, typename U>
+inline
+auto integrate_1d_trapezoidal(const T& func, int n, const U& upper, const U& lower)
+{
+    using variable_type = decltype(func(U()));
+
+    variable_type sum = 0;
+
+    for(int k=1; k < n; k++)
+    {
+        auto coordinate = lower + k * (upper - lower) / n;
+
+        auto val = func(coordinate);
+
+        sum += val;
+    }
+
+    return ((upper - lower) / n) * (0.5f * (func(lower) + func(upper)) + sum);
+}
+```
+
+Note that the returned value is carefully written to avoid problems
+
+## Dirac: The end
+
+This section has been one of the more complicated things I've had to implement. I do not know if I've ever seen a tediously correct implementation of the dirac delta function: most papers simply stop after the initial discretisation, which leads to an overall inaccuracy in the mass of a few % for small dirac sizes. More importantly, the mass oscillates with a naive discretisation as a particle moves through the grid, and it introduces systematic errors
+
+There are about ~10 points in total in this article where its possible to implement things incorrectly, which can rapidly lead to multiple rounding errors per-cell per-tick. This is the reason why its so important - if you do it wrong *everywhere*, then everything on one side of your grid will experience multiple non random bits of error relative to the other side of your grid every tick, which can lead to very unexpected results over time
+
+We now need to step into our final hard problem: Interpolation
+
+# Interpolation
+
+As a reminder, our geodesic equation is as follows:
+
+$$\begin{align}
+\frac{d u_i}{dt} &= - \alpha u^0 \partial_i \alpha + u_j \partial_i \beta^j - \frac{u_j u_k}{2 u^0} \partial_i \gamma^{jk}\\
+u^0 &= \frac{\sqrt{1 + \gamma^{ij} u_i u_j}}{\alpha}\\
+\end{align}
+$$
+
+At every step, we need to interpolate the positions of the ADM variables $\gamma_{ij}$, $\alpha$, and $\beta^i$ in order to evolve this, at our particle's position $x^i_p$. A naive trilinear interpolation will lead to the same issues talked about above: Luckily, this *is* quite easily fixable:
+
+```c++
+template<typename T
+inline
+auto function_trilinear(T&& func, v3f pos)
+{
+    using namespace single_source;
+
+    v3f floored = floor(pos);
+    pin(floored);
+    v3f frac = pos - floored;
+    pin(frac);
+
+    v3i ipos = (v3i)floored;
+
+    auto c000 = func(ipos + (v3i){0,0,0});
+    auto c100 = func(ipos + (v3i){1,0,0});
+
+    auto c010 = func(ipos + (v3i){0,1,0});
+    auto c110 = func(ipos + (v3i){1,1,0});
+
+    auto c001 = func(ipos + (v3i){0,0,1});
+    auto c101 = func(ipos + (v3i){1,0,1});
+
+    auto c011 = func(ipos + (v3i){0,1,1});
+    auto c111 = func(ipos + (v3i){1,1,1});
+
+    auto lmix = [&](auto& a, auto& b, auto& t)
+    {
+        auto imx = no_opt(1-t);
+        auto imimx = no_opt(1-imx);
+
+        auto p1 = no_opt(imx * a);
+        auto p2 = no_opt(imimx * b);
+
+        return no_opt(p1 + p2);
+    };
+
+    auto c00 = lmix(c000, c100, frac.x());
+    auto c01 = lmix(c010, c110, frac.x());
+
+    auto c10 = lmix(c001, c101, frac.x());
+    auto c11 = lmix(c011, c111, frac.x());
+
+    auto c0 = lmix(c00, c01, frac.y());
+    auto c1 = lmix(c10, c11, frac.y());
+
+    return lmix(c0, c1, frac.z());
+}
+```
+
+Note that `no_opt` in the scheme I'm using forces a variable declaration, to disable fp contraction. This `lmix` guarantees the property:
+
+$$\mathrm{lmix}(a, b, t) == \mathrm{lmix}(b, a, 1-t)$$
+
+## Trilinear Interpolation isn't that great
 
 
 
