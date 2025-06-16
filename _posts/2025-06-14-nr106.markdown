@@ -451,7 +451,7 @@ L(x) = \sum^3_{j} f_j l_j(x)\\
 \end{align}
 $$
 
-$f_j$ represents the function value at the corresponding offset, eg $f_0$ is $f(x - x_0)$
+$f_j$ represents the function value at the corresponding offset, eg $f_0$ is $f(x + x_0)$
 
 A 3d polynomial can be constructed as follows:
 
