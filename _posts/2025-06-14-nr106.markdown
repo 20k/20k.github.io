@@ -48,28 +48,13 @@ Clearly, we need to transplant this into the ADM formalism and spell out the equ
 We need the ADM projections of the stress energy tensor $T_{\mu\nu}$, to calculate the compatible terms for the BSSN equations. These are [(2.14, 2.15, 2.20)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf):
 
 $$
-\begin{align}
-\rho_H &= m u^0 \alpha W^3 \delta^{(3)}(x^i - x^i_{\mathrm{p}})\\
-S_i &= m u_i W^3 \delta^{(3)}(x^i - x^i_{\mathrm{p}})\\
-S_{ij} &= m \frac{u_i u_j}{u^0} \alpha^{-1} W^3 \delta^{(3)}(x^i - x^i_{\mathrm{p}})\\
-\end{align}
+\begin{alignat}{2}
+\rho_H &= \alpha W^3 &&\sum m u^0 \delta^{(3)}(x^i - x^i_{\mathrm{p}})\\
+S_i &= W^3 &&\sum m u_i \delta^{(3)}(x^i - x^i_{\mathrm{p}})\\
+S_{ij} &= \alpha^{-1} W^3 &&\sum m \frac{u_i u_j}{u^0} \delta^{(3)}(x^i - x^i_{\mathrm{p}})\\
+\end{alignat}
 $$
 
-These are summed across all particles. Note that when we're evaluating these, these can be split up into two components: The contributions per-particle, and per-cell
-
-$$
-\begin{align}
-s &= m u^0 \delta^{(3)}(x^i - x^i_{\mathrm{p}})\\
-s_i &= m u_i \delta^{(3)}(x^i - x^i_{\mathrm{p}})\\
-s_{ij} &= m \frac{u_i u_j}{u^0}\delta^{(3)}(x^i - x^i_{\mathrm{p}})\\
-\\
-\rho_H &= \alpha W^3 s\\
-S_i &= W^3 s_i\\
-S_{ij} &= \alpha^{-1} W^3 s_{ij}\\
-\end{align}
-$$
-
-This allows you to split up the summation of the $s$ terms, and factor out the redundant calculations involving $W$ and $\alpha$
 
 ## The geodesic equation
 
@@ -225,7 +210,7 @@ float diff(const std::vector<float>& points, int idx, float scale)
 }
 ```
 
-But, surprisingly, this still returns the wrong answer. What gives?
+But, surprisingly, tests will show that this still returns the wrong answer. What gives?
 
 ## The C++ loophole
 
@@ -415,6 +400,8 @@ Trilinear interpolation is otherwise a very standard algorithm, and not worth di
 
 ## Trilinear Interpolation can be a problem
 
+Todo: massively simplify this segment
+
 The motion of a particle is largely dictated by the term $\partial_i \alpha$, which you should construct by applying interpolation to the derivatives (rather than differentiating the interpolated values). Particles in General Relativity effectively have a kind of *self* force - they distort the metric, and this directly modifies $\alpha$ around where they are in an area
 
 A particle's contribution to its own velocity should be *precisely* 0 (ie $\partial_i \alpha = 0$), otherwise you might see an anomalous drift. With high mass particles, this is actually very common, see the following:
@@ -451,18 +438,18 @@ L(x) = \sum^3_{j} f_j l_j(x)\\
 \end{align}
 $$
 
-$f_j$ represents the function value at the corresponding offset, eg $f_0$ is $f(x + x_0)$
+$f_j$ represents the function value at the grid cell corresponding to the node. $x$ here is in the range $[0, 1]$, and represents the fractional offset of a particle's position with respect to the grid cells
 
 A 3d polynomial can be constructed as follows:
 
 $$L(x, y, z) = \sum^3_a \sum^3_b \sum^3_c f_{abc} l_a(x) l_b(y) l_c(z)$$
 
-This is a large sum of 64 values. As you have already guessed, we can't implement this as written otherwise we'll end up with massive systematic rounding errors. We instead have to perform a pairwise matched summation of all values, to ensure exactly the same order of operations on both sides of the grid
+This is a large sum of 64 values. As you may have, you can't implement this as written otherwise we'll end up with massive systematic rounding errors. We instead have to perform a pairwise matched summation of all values, to ensure exactly the same order of operations on both sides of the grid
 
 ```c++
 template<typename T, typename... U>
 inline
-auto function_tricubic_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
+auto tricubic_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
 {
     using namespace single_source;
 
@@ -561,6 +548,22 @@ This implementation is also complicated by bugs in AMD's GPU compiler, which is 
 
 # Initial conditions
 
+There are three components to the initial conditions:
+
+1. Define the particle's 4-velocity
+2. Solve the hamiltonian constraint
+3. Possibly solve the momentum constraint
+
+## 4-velocity
+
+Generally, your initial conditions will come in one of two forms:
+
+1. A local 3-velocity
+2. A coordinate 4d velocity
+
+### Local 3-velocity
+
+Here, velocity is defined relative to the inertial frame of reference of the particle. This means that to calculate the 4-velocity, we need to
 
 # Implementation
 
