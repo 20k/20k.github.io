@@ -1139,47 +1139,47 @@ void evolve_particles(execution_context& ctx,
 
 void boot_particle_kernels(cl::context ctx, int particle_radius_cells)
 {
-    cl::async_build_and_cache(ctx, [&]{
+    cl::async_build_and_cache(ctx, [=]{
         return value_impl::make_function(calculate_particle_nonconformal_E, "calculate_particle_nonconformal_E", particle_radius_cells);
     }, {"calculate_particle_nonconformal_E"});
 
-    cl::async_build_and_cache(ctx, [&]{
+    cl::async_build_and_cache(ctx, [=]{
         return value_impl::make_function(fixed_to_float, "fixed_to_float");
     }, {"fixed_to_float"});
 
-    cl::async_build_and_cache(ctx, [&]{
+    cl::async_build_and_cache(ctx, [=]{
         return value_impl::make_function(calculate_particle_properties, "calculate_particle_properties");
     }, {"calculate_particle_properties"});
 
-    cl::async_build_and_cache(ctx, [&]{
+    cl::async_build_and_cache(ctx, [=]{
         return value_impl::make_function(calculate_particle_intermediates, "calculate_particle_intermediates", particle_radius_cells);
     }, {"calculate_particle_intermediates"});
 
-    cl::async_build_and_cache(ctx, [&]{
+    cl::async_build_and_cache(ctx, [=]{
         return value_impl::make_function(evolve_particles, "evolve_particles", false);
     }, {"evolve_particles"});
 
-    cl::async_build_and_cache(ctx, [&]{
+    cl::async_build_and_cache(ctx, [=]{
         return value_impl::make_function(evolve_particles, "evolve_particles_base", true);
     }, {"evolve_particles_base"});
 
-    cl::async_build_and_cache(ctx, [&]{
+    cl::async_build_and_cache(ctx, [=]{
         return value_impl::make_function(sum_E, "sum_E");
     }, {"sum_E"});
 
-    cl::async_build_and_cache(ctx, [&]{
+    cl::async_build_and_cache(ctx, [=]{
         return value_impl::make_function(count_particles_per_cell, "count_particles_per_cell");
     }, {"count_particles_per_cell"});
 
-    cl::async_build_and_cache(ctx, [&]{
+    cl::async_build_and_cache(ctx, [=]{
         return value_impl::make_function(memory_allocate, "memory_allocate");
     }, {"memory_allocate"});
 
-    cl::async_build_and_cache(ctx, [&]{
+    cl::async_build_and_cache(ctx, [=]{
         return value_impl::make_function(permute_memory, "permute_memory");
     }, {"permute_memory"});
 
-    cl::async_build_and_cache(ctx, [&]{
+    cl::async_build_and_cache(ctx, [=]{
         return value_impl::make_function(sum_particle_aIJ, "sum_particle_aIJ", particle_radius_cells);
     }, {"sum_particle_aIJ"});
 }

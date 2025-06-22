@@ -1319,7 +1319,7 @@ hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx, float _linear_viscosit
     linear_viscosity_strength = _linear_viscosity_strength;
     quadratic_viscosity_strength = _quadratic_viscosity_strength;
 
-    cl::async_build_and_cache(ctx, [&]{
+    cl::async_build_and_cache(ctx, [this]{
         return value_impl::make_function(init_hydro, "init_hydro", use_colour);
     }, {"init_hydro"});
 
@@ -1331,19 +1331,19 @@ hydrodynamic_plugin::hydrodynamic_plugin(cl::context ctx, float _linear_viscosit
         return value_impl::make_function(calculate_w_kern, "calculate_w");
     }, {"calculate_w"});
 
-    cl::async_build_and_cache(ctx, [&]{
+    cl::async_build_and_cache(ctx, [this]{
         return value_impl::make_function(evolve_hydro_all, "evolve_hydro_all", use_colour, false);
     }, {"evolve_hydro_all"});
 
-    cl::async_build_and_cache(ctx, [&]{
+    cl::async_build_and_cache(ctx, [this]{
         return value_impl::make_function(evolve_hydro_all, "evolve_hydro_all_prep", use_colour, true);
     }, {"evolve_hydro_all_prep"});
 
-    cl::async_build_and_cache(ctx, [&]{
+    cl::async_build_and_cache(ctx, [this]{
         return value_impl::make_function(enforce_hydro_constraints, "enforce_hydro_constraints", use_colour);
     }, {"enforce_hydro_constraints"});
 
-    cl::async_build_and_cache(ctx, [&]{
+    cl::async_build_and_cache(ctx, [=]{
         return value_impl::make_function(sum_rest_mass, "sum_rest_mass");
     }, {"sum_rest_mass"});
 }
