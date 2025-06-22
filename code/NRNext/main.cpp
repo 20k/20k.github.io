@@ -2023,7 +2023,7 @@ int main()
     make_cG_error(ctx, 1);
     make_cG_error(ctx, 2);
 
-    cl::command_queue cqueue(ctx);
+    cl::command_queue& cqueue = win.clctx->cqueue;
 
     neutron_star::boot_solver(ctx);
 
