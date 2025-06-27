@@ -98,7 +98,7 @@ $$
 
 $$\int^\infty_{-\infty} \delta^{(1)}(x) \; dx = 1$$
 
-This says that the dirac delta function only takes a value at a single point $x=0$, and the area under this point is precisely $1$. No function actually meets this definition, so we must numerically approximate it somehow. Higher dimensional diracs are donated by the raised index, eg $\delta^{(3)}(x, y, z) = \delta^{(1)}(x)\delta^{(1)}(y)\delta^{(1)}(z)$
+This says that the dirac delta function only takes a value at a single point $x=0$, and the area under this point is precisely $1$. No function actually meets this definition, so we must numerically approximate it somehow. Higher dimensional diracs are denoted by the raised index, eg $\delta^{(3)}(x, y, z) = \delta^{(1)}(x)\delta^{(1)}(y)\delta^{(1)}(z)$
 
 ## Numerical approximations
 
@@ -160,21 +160,21 @@ Todo: Video
 
 You're now going to learn more about C++, IEEE floats, and cryptic problems in the literature than you signed up for when you clicked on this article. I also have to present this to you before we do the interpolation step, because its going to get a bit more complex
 
-# From time to time, C++ is not a very good programming language
+# IEEE and C++: A joyous combination
 
-Let's imagine we have a set of initial conditions that looks like this, for a basic test problem that's discretised in one dimension, with a grid size of $7$:
+Let's examine the form of a general 1D problem, discretised onto a grid:
 
 |Cell Index|0|1|2|3|4|5|6|
 |-|-|-|-|-|-|-|-|
 |Value|$a_0$|$b_0$|$c_0$|$d_0$|$c_0$|$b_0$|$a_0$|
 
-We can clearly see that this data is symmetric about the cell with index $3$. After a single timestep into the future, we might expect our initial conditions to evolve to a new state:
+I've set up the initial conditions such that they're symmetric about the index $3$. After a single timestep into the future, we might expect our initial conditions to evolve to a new state:
 
 |Cell Index|0|1|2|3|4|5|6|
 |-|-|-|-|-|-|-|-|
 |Value|$a_1$|$b_1$|$c_1$|$d_1$|$c_1$|$b_1$|$a_1$|
 
-For any correct simulation, we expect that symmetry to be preserved. In virtually all simulations however, if you implement some debugging, you'll very immediately notice that this property does not hold up - and the two sides of the grid start to *increasingly* diverge. This is despite having the same initial conditions on both sides!
+For any correct simulation, that symmetry should be preserved. In virtually all simulations however, you'll very immediately notice that this property does not hold up - and the two sides of the grid start to *increasingly* diverge. This is despite having the same initial conditions on both sides!
 
 ## Root causing the problems
 
@@ -183,7 +183,7 @@ This can be root caused to two related problems:
 1. How C++ handles floating point expressions, via a little known loophole in the standard
 2. Floating point arithmetic is not associative
 
-Asymmetry can sneak in anywhere we look at adjacent grid cells or non central values (eg the dirac integral bounds). A first culprit to look at is differentiation: In general, 4th order numerical derivatives get implemented as follows:
+Asymmetry can sneak in anywhere we look at adjacent grid cells or non central values (eg the dirac integral bounds). A first culprit to look at is differentiation. In general, 4th order numerical derivatives get implemented as follows:
 
 ```c++
 float diff(const std::vector<float>& points, int idx, float scale)
@@ -201,7 +201,7 @@ $$\begin{align}
 
 The issue is that after each floating point operation, a *rounding* step is performed implicitly. This means that these two expressions don't return the same results! This isn't a theoretical problem either, here's an example in [real-world code](https://github.com/GRTLCollaboration/GRChombo/blob/130140afe972701575740685343ea28f6ab8234c/Source/BoxUtils/FourthOrderDerivatives.hpp#L42)
 
-This results in systematic differences in rounding on both sides of the grid, and this error can build up surprisingly fast as we've seen - as we're essentially preferentially discarding the low bits of our floats, biased in a specific direction. Eliminating these systematic errors is important. You might think you can just rewrite this expression like this, by grouping equidistant cells:
+This results in systematic differences in rounding on both sides of the grid, and this error can build up surprisingly fast as we've seen - as we're essentially preferentially discarding the low bits of our floats but biased in a specific direction. Eliminating these systematic errors is important. You might think you can just rewrite this expression like this, by grouping equidistant cells:
 
 ```c++
 float diff(const std::vector<float>& points, int idx, float scale)
@@ -269,7 +269,7 @@ Kreiss-Oliger must be fixed in the same fashion as `diff_long`, by explicit pair
 
 ## Fixing dirac
 
-Fixing the dirac delta function is along the same lines as this. We must ensure that the order of operations is exactly the same between the left side of the grid, and the right side of the grid. At the moment, we're integrating in *world* coordinates in floats, which can lead to representation issues as values are truncated differently. So we're going to swap to cell index based coordinates instead. I've also changed $\Delta$ to take in a fraction in the range $[0, 1]$
+Another source of error is the way we've implement the dirac delta function - fixing this function is along the same lines as differentiation. We must ensure that the order of operations is exactly the same between the left side of the grid, and the right side of the grid. At the moment, we're integrating in *world* coordinates in floats, which can lead to representation issues as values are truncated differently. So we're going to swap to cell index based coordinates instead. I've also changed $\Delta$ to take in a fraction in the range $[0, 1]$
 
 $$
 \Delta_2^{(3)}(r_f, r_s) = \frac{1}{\pi (\frac{r_s}{2})^3}
@@ -556,14 +556,103 @@ There are three components to the initial conditions:
 
 ## 4-velocity
 
-Generally, your initial conditions will come in one of two forms:
+Here, velocity is defined relative to the inertial frame of reference of the particle. This means that to calculate the 4-velocity, we need to first construct a tetrad. While in the general case you'll need to [Gram-Schidt](https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process) the metric to find a set of tetrads (eg see [here](https://20k.github.io/c++/2024/06/19/tetrads.html)), our initial conditions will always produce a diagonal metric - which makes tetrad construction straightforward
 
-1. A local 3-velocity
-2. A coordinate 4d velocity
+Firstly, take the following initial slice: $\alpha = 1, \beta^i = 0$. Then, we can construct the metric tensor as follows:
 
-### Local 3-velocity
+$g_{\mu\nu} =$
 
-Here, velocity is defined relative to the inertial frame of reference of the particle. This means that to calculate the 4-velocity, we need to
+||0|1|2|3|
+|-|-|-|-|-|
+|0|-1| | | |
+|1|  |$\gamma_{00}$| | |
+|2|  |  |  $\gamma_{11}$| |
+|3|  |  |  | $\gamma_{22}$ |
+
+This gives the tetrads via the usual relation for diagonal metrics (ie [1.4.21](https://arxiv.org/pdf/0904.4184)):
+
+$$\begin{align}
+e_0^0 &= 1\\
+e_1^1 &= \frac{1}{\sqrt{\gamma_{00}}}\\
+e_2^2 &= \frac{1}{\sqrt{\gamma_{11}}}\\
+e_3^3 &= \frac{1}{\sqrt{\gamma_{22}}}\\
+\end{align}$$
+
+The lower index labels the tetrad vector, and the upper index labels the coordinate. From here, you first construct a 4-velocity locally, and then use the tetrad to find the global 4-velocity:
+
+$$\begin{align}
+\gamma &= \frac{1}{\sqrt{1 - \mid v \mid^2}}\\
+v_{flat}^{\mu} &= \gamma(1, v_0, v_1, v_2)\\
+v_{curved}^\mu &= e_i^\mu v_{flat}^i
+\end{align}$$
+
+Note that the $i$ index runs from $0$ to $4$ contrary to the rest of this article, as this is standard notation for tetrads[^notthesame]. $v_{curved}$ is the final velocity of the particle
+
+[^notthesame]: This use of index notation isn't really the same as other uses, as the lower index of a tetrad is only denoting the label of which vector you're talking about (rather than it having co and contravariant indices). Tetrad indices when inverted correspond to a matrix inversion (when treating the tetrad vectors as the column vectors of a 4x4 matrix), and does not involve the metric tensor
+
+## Hamiltonian constraint solving
+
+Its important to solve the hamiltonian constraint as part of the initial conditions, because errors here are quite sticky, and can leave visual 'welts' on your simulation that are very noticeable. The hamiltonian constraint that we'll be using can be derived from [2.11](https://arxiv.org/pdf/1905.08890), and with the standard set of constraints looks like this:
+
+$$
+\nabla \psi = - \psi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 16 \pi \psi^5 \rho_H
+$$
+
+$\rho_H$ is the source term for the stress-energy tensor, and I'm keeping the same notation from the matter article. To keep solving, we need two things:
+
+1. $\rho_H$ (the scalar source term for the stress-energy tensor)
+2. $\bar{A}_{ij}$ (the extrinsic curvature)
+
+### $\rho_H$
+
+We already know that:
+
+$$\rho_H = \alpha W^3 \sum m u^0 \delta^{(3)}(x^i - x^i_{\mathrm{p}})$$
+
+The only issue is that we don't have a value of $W$ that we can use (we'll implicitly set $\alpha = 1$). To solve this, we know that:
+
+$$\begin{align}
+\bar{\gamma}_{ij} \psi^4 &= \gamma_{ij}\\
+\tilde{\gamma}_{ij} &= W^2 \gamma_{ij}\\
+\end{align}
+$$
+
+Apply the rules of determinants:
+
+$$\begin{align}
+det(\bar{\gamma}_{ij} \psi^4) &= det(\gamma_{ij}) = det(\tilde{\gamma}_{ij} W^{-2})\\
+(\psi^4)^3 &= (W^{-2})^3\\
+\psi^{12} &= W^{-6}\\
+\psi^{-6} &= W^3\\
+\end{align}
+$$
+
+Lets now define $\bar{\rho}_H = \sum m u^0 \delta^{(3)}(x^i - x^i_{\mathrm{p}})$, ie dropping the conformal factor. This means you may rewrite the hamiltonian constraint as this:
+
+$$\nabla \psi = - \psi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 16 \pi \psi^{-1} \bar{\rho}_H$$
+
+This is actually solvable, aside from $\bar{A}_{ij}$. To figure that out, we'll dip into the momentum constraint
+
+## $\bar{A}_{ij}$ and the momentum constraint
+
+When our particles are not moving, $\bar{A}_{ij} = 0$ - and bob's your uncle. All particle papers I have looked at use stationary particles, and it seems like nobody wants to touch this problem with a 100ft barge pole. As a professional barge pole toucher, this question has been haunting me for a while
+
+One approach is to repurpose the [neutron star](https://arxiv.org/pdf/1606.04881) initial conditions paper - set the pressure to $0$, and to model a body without spin. When an object does not have spin - only adm momentum - the solution becomes spherically symmetric - and can be converted to a 1d problem. The reduced problem is as follows:
+
+$$\begin{align}
+\bar{A}^{ij} &= \frac{3Q}{2r^2}(P^i l^j + P^j l^i - (\eta^{ij} - l^i l^j) P_i l^i)\\
+Q &= \int^r_0 4 \pi \sigma(x) x^2 dx\\
+\sigma(x) &= \frac{\tilde{\rho}_H}{\mathcal{M}}\\
+\mathcal{M} &= 4 \pi \int^{r_0}_0 \tilde{\rho}_H r^2 dr\\
+\end{align}$$
+
+Strictly speaking, this is approximate - as it assumes that $W$ is constant within the body, and so disappears in the normalisation factor $\mathcal{M}$. Tests show that this reduces the momentum constraint violations significantly. This isn't worth solving for the following reasons:
+
+1. Generally we're dealing with relatively low velocity particles, so $\bar{A}_{ij} \approx 0$ anyway
+2. All formalisms are momentum constraint damped, so errors disappear quickly
+3. It involves summing across all particles over all points of the grid, which is very bad perf-wise. In general you'll likely want to merge nearby particles, and perform other grouping approximations which are non trivial
+
+I've bundled an implementation of this in with the article, but its switched off by default. Because it has minimal value, I'm not going to dig into this more
 
 # Implementation
 

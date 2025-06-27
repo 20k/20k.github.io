@@ -120,7 +120,7 @@ valuef get_dirac3(auto&& func, const v3f& cell_pos, const v3f& dirac_location, c
 //W^3 = phi^-6
 
 //E = m u0 a W^3 dirac
-//hamiltonian = -2 pi E?
+//hamiltonian = -2 pi E^-1
 
 void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, int radius_cells, auto&& func)
 {
@@ -930,8 +930,6 @@ void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer
 
     v3f speed_in = {vel_in[0][id], vel_in[1][id], vel_in[2][id]};
     v4f velocity4 = get_timelike_vector(speed_in, tet);
-
-    valuef lorentz = 1 / sqrt(1 - dot(speed_in, speed_in));
 
     v4f velocity_lo = metric.lower(velocity4);
 
