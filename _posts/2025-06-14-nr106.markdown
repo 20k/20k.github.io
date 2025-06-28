@@ -55,6 +55,7 @@ S_{ij} &= \alpha^{-1} W^3 &&\sum m \frac{u_i u_j}{u^0} \delta^{(3)}(x^i - x^i_{\
 \end{alignat}
 $$
 
+These quantities will be evaluated at every cell in our grid - except for $u^0$, which hides a significant amount of interpolation at $x^i$ in its calculation
 
 ## The geodesic equation
 
@@ -72,7 +73,7 @@ $$
 \frac{dx^i}{dt} = -\beta^i + \frac{\gamma^{ij} u_j}{u^0}
 $$
 
-Note that all the quantities evaluated here need to be interpolated from the grid at the particle's position $x^i_\mathrm{p}$ (keep this in mind especially for the $u^0$ term in the source terms)
+Note that all the quantities evaluated here need to be interpolated from the grid at the particle's position $x^i_\mathrm{p}$ - keep this in mind for $u^0$. I precalculate $u^0$ in the evolution step, and re-use that in the stress-energy calculation
 
 # Outstanding problems
 
@@ -98,7 +99,7 @@ $$
 
 $$\int^\infty_{-\infty} \delta^{(1)}(x) \; dx = 1$$
 
-This says that the dirac delta function only takes a value at a single point $x=0$, and the area under this point is precisely $1$. No function actually meets this definition, so we must numerically approximate it somehow. Higher dimensional diracs are denoted by the raised index, eg $\delta^{(3)}(x, y, z) = \delta^{(1)}(x)\delta^{(1)}(y)\delta^{(1)}(z)$
+This says that the dirac delta function only takes a value at a single point $x=0$, and the area under this point is precisely $1$. No real function actually meets this definition, so we must numerically approximate it somehow. Higher dimensional diracs are denoted by the raised index, eg $\delta^{(3)}(x, y, z) = \delta^{(1)}(x)\delta^{(1)}(y)\delta^{(1)}(z)$
 
 ## Numerical approximations
 
@@ -108,7 +109,9 @@ There are an extremely wide variety of approximations we can use - these basical
 2. It is smooth-ish
 3. This function has an integral of 1
 
-There isn't a super specific reason to use one approximation over another. The dirac delta function I'll be pilfering today is [this one (20)](https://arxiv.org/pdf/1611.07906), which operates in 3d (though it is a function of radius)
+There isn't a super specific[^okso] reason to use one approximation over another. The dirac delta function I'll be pilfering today is [this one (20)](https://arxiv.org/pdf/1611.07906), which operates in 3d (though it is a function of radius)
+
+[^okso]: One property it would be nice if our dirac could maintain is that the generated effective self force is exactly 0. I'm not sure if its possible to construct such a dirac though
 
 $$
 \Delta_1^{(3)}(r, r_s) = \frac{1}{\pi r_s^3}
@@ -178,10 +181,10 @@ For any correct simulation, that symmetry should be preserved. In virtually all 
 
 ## Root causing the problems
 
-This can be root caused to two related problems:
+This can be root caused to two similar problems:
 
-1. How C++ handles floating point expressions, via a little known loophole in the standard
-2. Floating point arithmetic is not associative
+1. Floating point arithmetic is not associative
+2. How C++ handles floating point expressions, via a little known loophole in the standard
 
 Asymmetry can sneak in anywhere we look at adjacent grid cells or non central values (eg the dirac integral bounds). A first culprit to look at is differentiation. In general, 4th order numerical derivatives get implemented as follows:
 
@@ -234,7 +237,7 @@ float diff(const std::vector<float>& points, int idx, float scale)
 }
 ```
 
-Compilers can and do make this transform, and the difference in the way that our terms are dealt with, will also reintroduce numerical error. We can fix this in one of two ways:
+Compilers can and do make this transform, and the difference in the way that our terms are dealt with will also reintroduce numerical error. This can be fixed in one of two ways:
 
 ```c++
 float diff_long(const std::vector<float>& points, int idx, float scale)
@@ -446,6 +449,78 @@ $$L(x, y, z) = \sum^3_a \sum^3_b \sum^3_c f_{abc} l_a(x) l_b(y) l_c(z)$$
 
 This is a large sum of 64 values. As you may have, you can't implement this as written otherwise we'll end up with massive systematic rounding errors. We instead have to perform a pairwise matched summation of all values, to ensure exactly the same order of operations on both sides of the grid
 
+#### Simple but wrong
+
+This is tricubic interpolation without any corrections for floating-point-itus
+
+```c++
+template<typename T, typename... U>
+inline
+auto tricubic_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
+{
+    using namespace single_source;
+
+    std::array<float, 4> nodes = {
+        -1,
+        0,
+        1,
+        2
+    };
+
+    using value_v = decltype(func(v3i(), std::forward<U>(args)...));
+
+    auto L_j = [&](int j, const valuef& f, float& bottom_out)
+    {
+        int bottom = 1;
+
+        valuef out = 1;
+
+        for(int m=0; m < 4; m++)
+        {
+            if(m == j)
+                continue;
+
+            bottom = bottom * (nodes[j] - nodes[m]);
+
+            out = out * (f - nodes[m]);
+        }
+
+        bottom_out = (float)bottom;
+
+        return out;
+    };
+
+    value_v sum = {};
+
+    for(int z=0; z < 4; z++)
+    {
+        for(int y=0; y < 4; y++)
+        {
+            for(int x=0; x < 4; x++)
+            {
+                v3i offset = (v3i){x - 1, y - 1, z - 1};
+
+                auto u = func(ifloored + offset, std::forward<U>(args)...);
+
+                float bx = 0;
+                float by = 0;
+                float bz = 0;
+
+                auto val = u * L_j(x, frac.x(), bx) * L_j(y, frac.y(), by) * L_j(z, frac.z(), bz);
+
+                sum += val * (1/(bx * by * bz));
+            }
+        }
+    }
+
+    return sum;
+}
+```
+
+#### Complex but correct
+
+This is the pairwise matched summation version of the above. GPU loops are emitted instead of unrolled, as AMD appears to suffer when too many memory accesses are emitted
+
 ```c++
 template<typename T, typename... U>
 inline
@@ -595,7 +670,7 @@ Note that the $i$ index runs from $0$ to $4$ contrary to the rest of this articl
 Its important to solve the hamiltonian constraint as part of the initial conditions, because errors here are quite sticky, and can leave visual 'welts' on your simulation that are very noticeable. The hamiltonian constraint that we'll be using can be derived from [2.11](https://arxiv.org/pdf/1905.08890), and with the standard set of constraints looks like this:
 
 $$
-\nabla \psi = - \psi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 16 \pi \psi^5 \rho_H
+\nabla \psi = - \psi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \psi^5 \rho_H
 $$
 
 $\rho_H$ is the source term for the stress-energy tensor, and I'm keeping the same notation from the matter article. To keep solving, we need two things:
@@ -627,9 +702,9 @@ det(\bar{\gamma}_{ij} \psi^4) &= det(\gamma_{ij}) = det(\tilde{\gamma}_{ij} W^{-
 \end{align}
 $$
 
-Lets now define $\bar{\rho}_H = \sum m u^0 \delta^{(3)}(x^i - x^i_{\mathrm{p}})$, ie dropping the conformal factor. This means you may rewrite the hamiltonian constraint as this:
+Lets now define $\bar{\rho}_H = \sum m u^0 \delta^{(3)}(x^i - x^i_{\mathrm{p}})$, ie dropping the conformal factor (and setting $\alpha=1$). This means you may rewrite the hamiltonian constraint as this:
 
-$$\nabla \psi = - \psi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 16 \pi \psi^{-1} \bar{\rho}_H$$
+$$\nabla \psi = - \psi^{-7} \bar{A} _{ij} \bar{A}^{ij} - 2 \pi \psi^{-1} \bar{\rho}_H$$
 
 This is actually solvable, aside from $\bar{A}_{ij}$. To figure that out, we'll dip into the momentum constraint
 
