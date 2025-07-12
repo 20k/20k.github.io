@@ -617,7 +617,7 @@ auto tricubic_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
 }
 ```
 
-One of the reasons I write these articles is to save you from the same pain I have had to experience. There's no way around the fact that this is absolutely horrendous. The naive implementation of this is simple, but my goodness is this a joy. Even without the systematic numerical issues, pairwise summation has a reduced error term - so its better than just a big linear sum
+One of the reasons I write these articles is to save you from the same pain I have had to experience. There's no way around the fact that this is fairly complicated. The naive implementation of this is simple, but my goodness is this a joy. Even without the systematic numerical issues, pairwise summation has a reduced error term - so its better than just a big linear sum
 
 This implementation is also complicated by bugs in AMD's GPU compiler, which is why these memory accesses are not just standard loops, and I have to emit GPU loops over constants. With this, the floating point nightmare portion of this article is over
 
@@ -712,7 +712,7 @@ This is actually solvable, aside from $\bar{A}_{ij}$. To figure that out, we'll 
 
 When our particles are not moving, $\bar{A}_{ij} = 0$ - and bob's your uncle. All particle papers I have looked at use stationary particles, and it seems like nobody wants to touch this problem with a 100ft barge pole. As a professional barge pole toucher, this question has been haunting me for a while
 
-One approach is to repurpose the [neutron star](https://arxiv.org/pdf/1606.04881) initial conditions paper - set the pressure to $0$, and to model a body without spin. When an object does not have spin - only adm momentum - the solution becomes spherically symmetric - and can be converted to a 1d problem. The reduced problem is as follows:
+One approach is to repurpose the [neutron star](https://arxiv.org/pdf/1606.04881) initial conditions paper - set the pressure to $0$, and to model a body without spin. When an object does not have spin, the solution becomes spherically symmetric. The reduced problem is as follows:
 
 $$\begin{align}
 \bar{A}^{ij} &= \frac{3Q}{2r^2}(P^i l^j + P^j l^i - (\eta^{ij} - l^i l^j) P_i l^i)\\
@@ -731,13 +731,347 @@ I've bundled an implementation of this in with the article, but its switched off
 
 # Implementation
 
-# Results
+## The geodesic equation
+
+This is straightforward to implement. There are only two interesting features here:
+
+1. I use implicit midpoint, as it is symplectic. There's no real reason for an implicit approach, but it fits nicely in with backwards euler
+2. The mass boundary condition
+
+Todo: Go through the two above + Code
+
+## Calculating the stress-energy tensor
+
+This is the bit which is much more interesting. I think I've finally come up with a decent approach here, which is free of the limitations of older methods I've explored in the past
+
+The basic idea is as follows:
+
+1. Loop over the size (in cells) of the particle, determined by the dirac delta size
+2. Accumulate the stress energy tensor on the grid directly, using 64-bit fixed point
+
+In the past, I've tried multiple difference techniques here. While using atomics may seem suboptimal, other techniques have downsides which are discussed at the end of the article
+
+### Looping over the size in cells of the particle
+
+Instead of defining the size of a particle in world coordinate, I do it in cells - and calculate the radius in world coordinates of the particle. This gets plugged into the dirac delta function (which remember: we modified the definition of to take a unit fraction)
+
+This gives a simple loop procedure:
+
+```c++
+void for_each_dirac(v3i dim, valuef scale, v3f dirac_pos, int radius_cells, auto&& func)
+{
+    using namespace single_source;
+    assert(radius_cells > 0);
+
+    v3f fpos = world_to_grid(dirac_pos, dim, scale);
+
+    v3i cell = (v3i)floor(fpos);
+    pin(cell);
+
+    //The appropriate modification is rightwards + 1, leftwards + 0
+    int spread = radius_cells + 1;
+
+    mut<valuei> z = declare_mut_e(valuei(-radius_cells));
+
+    for_e(z <= spread, assign_b(z, z+1), [&]{
+        mut<valuei> y = declare_mut_e(valuei(-radius_cells));
+
+        for_e(y <= spread, assign_b(y, y+1), [&]{
+            mut<valuei> x = declare_mut_e(valuei(-radius_cells));
+
+            for_e(x <= spread, assign_b(x, x+1), [&]{
+                v3i offset = {declare_e(x), declare_e(y), declare_e(z)};
+                offset += cell;
+                pin(offset);
+
+                valuef dirac = integrate_dirac_gpu(dirac_delta<valuef>, (v3f)offset, fpos, radius_cells, scale);
+                pin(dirac);
+
+                if_e(dirac > 0, [&]{
+                    func(offset, dirac);
+                });
+            });
+        });
+    });
+}
+```
+
+The interesting parts here are:
+
+1. `dirac_pos` is just the particle position
+2. The cells that the dirac delta function covers must be offset by one in the *rightwards* direction only, as its origin can take fractional positions
+3. These loops are not unrolled on the GPU, as it causes very bad performance issues
+4. Many of the cells are simply skipped. It would be a lot more efficient to somehow directly iterate over a sphere, than a cube
+
+### Accumulation
+
+This is one of the most critical kernels in the entire program, so I'm going to parse out the interesting bits here:
+
+```c++
+void calculate_particle_intermediates(execution_context& ectx,
+                                      particle_base_args<buffer<valuef>> particles_in,
+                                      buffer<valuef> lorentz_in,
+                                      particle_utility_args<buffer_mut<valuei64>> out,
+                                      literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count,
+                                      literal<valued> fixed_scale, int radius_cells)
+{
+    using namespace single_source;
+
+    value<size_t> id = value_impl::get_global_id_us(0);
+    pin(id);
+
+    if_e(id >= particle_count.get(), [&]{
+        return_e();
+    });
+
+    valuef lorentz = lorentz_in[id];
+    valuef mass = particles_in.get_mass(id);
+    v3f pos = particles_in.get_position(id);
+    v3f vel = particles_in.get_velocity(id);
+
+    pin(pos);
+    pin(vel);
+    pin(mass);
+    pin(lorentz);
+
+    if_e(!isfinite(mass) || mass == 0, [&]{
+        return_e();
+    });
+
+    for_each_dirac(dim.get(), scale.get(), pos, radius_cells, [&](v3i offset, valuef dirac) {
+        valuef E = mass * lorentz * dirac;
+        v3f Ji = mass * vel * dirac;
+
+        tensor<valuef, 3, 3> Sij;
+
+        for(int i=0; i < 3; i++)
+        {
+            for(int j=0; j < 3; j++)
+            {
+                Sij[i, j] = (mass * vel[i] * vel[j] / lorentz) * dirac;
+            }
+        }
+
+        std::array<valuef, 6> Sij_sym = extract_symmetry(Sij);
+
+        auto scale = [&](valuef in)
+        {
+            valued in_d = (valued)in;
+            valued in_scaled = in_d * fixed_scale.get();
+
+            return (valuei64)round((valuef)in_scaled);
+        };
+
+        valuei64 E_scaled = scale(E);
+
+        tensor<valuei64, 3> Si_scaled;
+
+        for(int i=0; i < 3; i++)
+            Si_scaled[i] = scale(Ji[i]);
+
+        std::array<valuei64, 6> Sij_scaled;
+
+        for(int i=0; i < 6; i++)
+            Sij_scaled[i] = scale(Sij_sym[i]);
+
+        valuei idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
+
+        valuei64 val = out.E.atom_add_e(idx, E_scaled);
+
+        //basic overflow detection, as E > 0
+        if_e(val < 0, [&]{
+            print("Error in particle dynamics\n");
+        });
+
+        for(int i=0; i < 3; i++)
+            out.Si_raised[i].atom_add_e(idx, Si_scaled[i]);
+
+        for(int i=0; i < 6; i++)
+            out.Sij_raised[i].atom_add_e(idx, Sij_scaled[i]);
+    });
+}
+```
+
+#### Stripping out the BSSN parts
+
+I've dropped all the BSSN terms from the accumulation step, as they are constant-per-cell. These are deferred to the actual BSSN evolution kernel stage, as follows:
+
+```c++
+
+template<typename T>
+valuef full_particle_args<T>::adm_p(bssn_args& args, const derivative_data& d)
+{
+    return args.gA * pow(args.W, 3) * this->E[d.pos, d.dim];
+}
+
+template<typename T>
+tensor<valuef, 3> full_particle_args<T>::adm_Si(bssn_args& args, const derivative_data& d)
+{
+    return pow(args.W, 3) * this->get_Si(d.pos, d.dim);
+}
+
+template<typename T>
+tensor<valuef, 3, 3> full_particle_args<T>::adm_W2_Sij(bssn_args& args, const derivative_data& d)
+{
+    return (pow(args.W, 5) / max(args.gA, 0.01f)) * this->get_Sij(d.pos, d.dim);
+}
+```
+
+#### Fixed point rounding
+
+You might notice that the fixed point scaling is handled as follows:
+
+```c++
+auto scale = [&](valuef in)
+{
+    valued in_d = (valued)in;
+    valued in_scaled = in_d * fixed_scale.get();
+
+    return (valuei64)round((valuef)in_scaled);
+};
+```
+
+There's an extra intermediate rounding to `float` (`valuef`) which may seem strange. Its unfortunately a significant performance win to do this (I don't know why - possibly because amd's handling of library arithmetic functions is poor), which means that we have to check if this step is rigorously well founded. The calculation of the scale factor for fixed point is therefore critical for accuracy
+
+#### Fixed point scale factor
+
+There are two primary concerns with calculating the fixed point scale factor:
+
+1. As much accuracy as possible is good
+2. The simulation must be able to tolerate a significant overlap of particle contributions without overflowing
+
+The largest, most significant term is $E$, which has the form `mass * lorentz * dirac`. Given that `dirac` maxes out at $1$, and `lorentz` $\approx 1$, I assume that the maximum contribution of a particle to a cell is roughtly `mass`
+
+That means that for a single particle, if you set the fixed point to be $F = \frac{K}{mass}$, the resulting integral value will have a value of approximately $K$. So in total, this means that you can easily define:
+
+```c++
+double get_fixed_scale(double total_mass, int64_t particle_count)
+{
+    double approx_total_mass = total_mass;
+    double fixed_scale = ((double)particle_count / approx_total_mass) * pow(10., 7.);
+    return fixed_scale;
+}
+```
+
+This means that each particle gets $10^7 \approx 2^{12}$ bits of precision per cell, and each cell can hold $\approx 2^{64-12}$ dirac samples. This also gives a lot of headroom, while providing adequate precision. Note that the number of dirac samples far exceeds the number of particles, as each particle overlaps multiple cells
+
+I list a transparent performance improvement to this scheme at the end of this article
+
+#### Fixed point -> Float
+
+To actually consume the data in the BSSN kernel, I convert the 64-bit fixed point back into floats as a separate pass via a simple division. This uses a bit more memory, and could probably be eliminated or done in place
+
+# Test Cases / Results
+
+## Binary orbit
+
+## Black hole formation
+
+## Cluster collapse
 
 # Discussion
 
 # Appendix
 
 ## Comparison of other formalisms
+
+## Other stress energy tensor techniques
+
+## An optional performance improvement
+
+Particles have their properties stored in a big linear buffer. This means that, assuming particles are distributed randomly, memory is accessed randomly when accumulating particle data and performing the evolution kernels
+
+One fix for this is to perform a partial sorting, to group particles in the same cell together in memory. I do this via a simple slab allocator, which has excellent performance characteristics
+
+```c++
+
+void count_particles_per_cell(execution_context& ectx, std::array<buffer<valuef>, 3> pos, buffer_mut<valuei> cell_counts, literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count)
+{
+    using namespace single_source;
+
+    value<size_t> id = value_impl::get_global_id_us(0);
+    pin(id);
+
+    if_e(id >= particle_count.get(), [&]{
+        return_e();
+    });
+
+    v3f world_pos = {pos[0][id], pos[1][id], pos[2][id]};
+    pin(world_pos);
+
+    v3f grid_posf = world_to_grid(world_pos, dim.get(), scale.get());
+    pin(grid_posf);
+    v3i grid_pos = (v3i)floor(grid_posf);
+
+    grid_pos = clamp(grid_pos, (v3i){0,0,0}, dim.get() - 1);
+
+    valuei idx = grid_pos.z() * dim.get().x() * dim.get().y() + grid_pos.y() * dim.get().x() + grid_pos.x();
+
+    cell_counts.atom_add_e(idx, 1);
+}
+
+void memory_allocate(execution_context& ectx, buffer_mut<valuei> counts, buffer_mut<valuei> memory_ptrs, buffer_mut<valuei> memory_allocator, literal<valuei> work_size)
+{
+    using namespace single_source;
+
+    valuei id = value_impl::get_global_id(0);
+    pin(id);
+
+    if_e(id >= work_size.get(), [&]{
+        return_e();
+    });
+
+    valuei my_count = counts[id];
+
+    mut<valuei> my_memory = declare_mut_e(valuei(0));
+
+    if_e(my_count > 0, [&]{
+        as_ref(my_memory) = memory_allocator.atom_add_e(valuei(0), my_count);
+    });
+
+    as_ref(memory_ptrs[id]) = declare_e(my_memory);
+    as_ref(counts[id]) = valuei(0);
+}
+
+void permute_memory(execution_context& ectx, particle_base_args<buffer<valuef>> in, particle_base_args<buffer_mut<valuef>> out, buffer_mut<valuei> memory_ptrs, buffer_mut<valuei> cell_counts, literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count)
+{
+    using namespace single_source;
+
+    value<size_t> id = value_impl::get_global_id_us(0);
+    pin(id);
+
+    if_e(id >= particle_count.get(), [&]{
+        return_e();
+    });
+
+    v3f world_pos = in.get_position(id);
+    pin(world_pos);
+
+    v3f grid_posf = world_to_grid(world_pos, dim.get(), scale.get());
+    pin(grid_posf);
+    v3i grid_pos = (v3i)floor(grid_posf);
+
+    grid_pos = clamp(grid_pos, (v3i){0,0,0}, dim.get() - 1);
+
+    valuei idx = grid_pos.z() * dim.get().x() * dim.get().y() + grid_pos.y() * dim.get().x() + grid_pos.x();
+
+    valuei my_offset = cell_counts.atom_add_e(idx, 1);
+    valuei cell_offset = memory_ptrs[idx];
+    pin(cell_offset);
+
+    valuei idx_out = my_offset + cell_offset;
+
+    for(int i=0; i < 3; i++)
+    {
+        as_ref(out.positions[i][idx_out]) = in.positions[i][id];
+        as_ref(out.velocities[i][idx_out]) = in.velocities[i][id];
+    }
+
+    as_ref(out.masses[idx_out]) = in.masses[id];
+}
+```
+
+These three kernels are run sequentially, and this provides a significant speedup
 
 Old
 

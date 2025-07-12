@@ -33,7 +33,7 @@ T dirac_delta(const T& frac_0_1, const T& full_world_radius)
 
 template<typename T>
 inline
-T get_dirac(auto&& func, tensor<T, 3> cell_pos, tensor<T, 3> dirac_location, T radius_cells, T scale)
+T integrate_dirac_cpu(auto&& func, tensor<T, 3> cell_pos, tensor<T, 3> dirac_location, T radius_cells, T scale)
 {
     //#define GET_DIRAC1_STANDARD
     #ifdef GET_DIRAC1_STANDARD
@@ -59,7 +59,7 @@ T get_dirac(auto&& func, tensor<T, 3> cell_pos, tensor<T, 3> dirac_location, T r
 }
 
 inline
-valuef get_dirac3(auto&& func, const v3f& cell_pos, const v3f& dirac_location, const valuef& radius_cells, const valuef& scale)
+valuef integrate_dirac_gpu(auto&& func, const v3f& cell_pos, const v3f& dirac_location, const valuef& radius_cells, const valuef& scale)
 {
     using namespace single_source;
 
@@ -122,46 +122,41 @@ valuef get_dirac3(auto&& func, const v3f& cell_pos, const v3f& dirac_location, c
 //E = m u0 a W^3 dirac
 //hamiltonian = -2 pi E^-1
 
-void for_each_dirac(v3i cell, v3i dim, valuef scale, v3f dirac_pos, int radius_cells, auto&& func)
+void for_each_dirac(v3i dim, valuef scale, v3f dirac_pos, int radius_cells, auto&& func)
 {
+    using namespace single_source;
+    assert(radius_cells > 0);
+
     v3f fpos = world_to_grid(dirac_pos, dim, scale);
 
-    using namespace single_source;
+    v3i cell = (v3i)floor(fpos);
+    pin(cell);
 
-    ///minimum perf floor is 190, and that's achieved with radius_cells = 0
+    //The appropriate modification is rightwards + 1, leftwards + 0
+    int spread = radius_cells + 1;
 
-    if(radius_cells > 0)
-    {
-        //The appropriate modification is rightwards + 1, leftwards + 0
-        int spread = radius_cells + 1;
+    mut<valuei> z = declare_mut_e(valuei(-radius_cells));
 
-        mut<valuei> z = declare_mut_e(valuei(-radius_cells));
+    for_e(z <= spread, assign_b(z, z+1), [&]{
+        mut<valuei> y = declare_mut_e(valuei(-radius_cells));
 
-        for_e(z <= spread, assign_b(z, z+1), [&]{
-            mut<valuei> y = declare_mut_e(valuei(-radius_cells));
+        for_e(y <= spread, assign_b(y, y+1), [&]{
+            mut<valuei> x = declare_mut_e(valuei(-radius_cells));
 
-            for_e(y <= spread, assign_b(y, y+1), [&]{
-                mut<valuei> x = declare_mut_e(valuei(-radius_cells));
+            for_e(x <= spread, assign_b(x, x+1), [&]{
+                v3i offset = {declare_e(x), declare_e(y), declare_e(z)};
+                offset += cell;
+                pin(offset);
 
-                for_e(x <= spread, assign_b(x, x+1), [&]{
-                    v3i offset = {declare_e(x), declare_e(y), declare_e(z)};
-                    offset += cell;
-                    pin(offset);
+                valuef dirac = integrate_dirac_gpu(dirac_delta<valuef>, (v3f)offset, fpos, radius_cells, scale);
+                pin(dirac);
 
-                    valuef dirac = get_dirac3(dirac_delta<valuef>, (v3f)offset, fpos, radius_cells, scale);
-                    pin(dirac);
-
-                    if_e(dirac > 0, [&]{
-                        func(offset, dirac);
-                    });
+                if_e(dirac > 0, [&]{
+                    func(offset, dirac);
                 });
             });
         });
-    }
-    else
-    {
-        func((v3i)floor(fpos), 1.f / pow(scale, 3.f));
-    }
+    });
 }
 
 //https://arxiv.org/pdf/1611.07906 16
@@ -192,12 +187,7 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
     valuef lorentz = 1 / sqrt(1 - v2);
     pin(lorentz);
 
-    //lorentz = 1;
-
-    v3i cell = (v3i)floor(world_to_grid(pos, dim.get(), scale.get()));
-    pin(cell);
-
-    for_each_dirac(cell, dim.get(), scale.get(), pos, radius_cells, [&](v3i offset, valuef dirac)
+    for_each_dirac(dim.get(), scale.get(), pos, radius_cells, [&](v3i offset, valuef dirac)
     {
         valuef fin_E = mass * lorentz * dirac;
 
@@ -480,16 +470,11 @@ void calculate_particle_intermediates(execution_context& ectx,
         return_e();
     });
 
-    v3f fcell = world_to_grid(pos, dim.get(), scale.get());
-    v3i cell = (v3i)floor(fcell);
-    pin(cell);
-
-    for_each_dirac(cell, dim.get(), scale.get(), pos, radius_cells, [&](v3i offset, valuef dirac) {
+    for_each_dirac(dim.get(), scale.get(), pos, radius_cells, [&](v3i offset, valuef dirac) {
         valuef E = mass * lorentz * dirac;
         v3f Ji = mass * vel * dirac;
 
         //print("Dirac %f offset %i %i %i fpos %f %f %f scale %f\n", dirac, offset.x(), offset.y(), offset.z(), fcell.x(), fcell.y(), fcell.z(), scale.get());
-
         //print("Standard E %f\n", E);
 
         tensor<valuef, 3, 3> Sij;
@@ -1321,7 +1306,7 @@ void dirac_test()
 
                 #ifdef WORLD
 
-                float dirac = get_dirac(dirac_delta_f, wpos, dirac_location, 1.f, scale);
+                float dirac = integrate_dirac_cpu(dirac_delta_f, wpos, dirac_location, 1.f, scale);
                 #else
                 t3f dirac_grid = w2g(dirac_location);
                 float radius_cells = 1.432;
@@ -1330,7 +1315,7 @@ void dirac_test()
 
                 //printf("Dpos %f %f\n", d1 / 1.f, d2 / radius_cells);
 
-                float dirac = get_dirac(dirac_delta<float>, (t3f)gpos, dirac_grid, radius_cells, scale);
+                float dirac = integrate_dirac_cpu(dirac_delta<float>, (t3f)gpos, dirac_grid, radius_cells, scale);
 
                 #endif
 
@@ -1486,9 +1471,6 @@ particle_plugin::particle_plugin(cl::context ctx, uint64_t _particle_count, int 
 template struct full_particle_args<buffer<valuef>>;
 template struct full_particle_args<buffer_mut<valuef>>;
 
-//going to evaluate the metric at the cell centre
-//so: to do this, we need to discretise everything onto a grid, which means: fixed point
-//may or may not benefit from downscaling to floats
 template<typename T>
 valuef full_particle_args<T>::adm_p(bssn_args& args, const derivative_data& d)
 {
