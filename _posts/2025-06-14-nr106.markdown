@@ -799,7 +799,7 @@ void for_each_dirac(v3i dim, valuef scale, v3f dirac_pos, int radius_cells, auto
 The interesting parts here are:
 
 1. `dirac_pos` is just the particle position
-2. The cells that the dirac delta function covers must be offset by one in the *rightwards* direction only, as its origin can take fractional positions
+2. The cells that the dirac delta function covers must be offset by one in the *rightwards* direction, as its origin can take fractional positions
 3. These loops are not unrolled on the GPU, as it causes very bad performance issues
 4. Many of the cells are simply skipped. It would be a lot more efficient to somehow directly iterate over a sphere, than a cube
 
@@ -864,7 +864,7 @@ void calculate_particle_intermediates(execution_context& ectx,
 
         valuei64 E_scaled = scale(E);
 
-        tensor<valuei64, 3> Si_scaled;
+        std::array<valuei64, 3> Si_scaled;
 
         for(int i=0; i < 3; i++)
             Si_scaled[i] = scale(Ji[i]);

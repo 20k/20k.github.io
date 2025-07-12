@@ -501,7 +501,7 @@ void calculate_particle_intermediates(execution_context& ectx,
 
         valuei64 E_scaled = scale(E);
 
-        tensor<valuei64, 3> Si_scaled;
+        std::array<valuei64, 3> Si_scaled;
 
         for(int i=0; i < 3; i++)
             Si_scaled[i] = scale(Ji[i]);
