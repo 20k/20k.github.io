@@ -894,7 +894,7 @@ void calculate_particle_intermediates(execution_context& ectx,
 
 #### Stripping out the BSSN parts
 
-I've dropped all the BSSN terms from the accumulation step, as they are constant-per-cell. These are deferred to the actual BSSN evolution kernel stage, as follows:
+I've dropped all the BSSN terms from the accumulation step, as they are constant-per-cell, and it eases the numerical analysis. These are deferred to the actual BSSN evolution kernel stage, as follows:
 
 ```c++
 
@@ -947,8 +947,7 @@ That means that for a single particle, if you set the fixed point to be $F = \fr
 ```c++
 double get_fixed_scale(double total_mass, int64_t particle_count)
 {
-    double fixed_scale = ((double)particle_count / total_mass) * pow(10., 7.);
-    return fixed_scale;
+    return ((double)particle_count / total_mass) * pow(10., 7.);
 }
 ```
 
@@ -962,7 +961,11 @@ To actually consume the data in the BSSN kernel, I convert the 64-bit fixed poin
 
 # Test Cases / Results
 
+Finding good test cases is tricky. Here's a few good ones you can have a go with
+
 ## Binary orbit
+
+In the weak field limit, GR should decay to newtonian physics. This means that for two relatively light particles, we can calculate their initial velocity for a circular orbit
 
 ## Black hole formation
 

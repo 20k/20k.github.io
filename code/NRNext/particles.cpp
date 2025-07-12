@@ -1169,8 +1169,7 @@ void boot_particle_kernels(cl::context ctx, int particle_radius_cells)
 
 double get_fixed_scale(double total_mass, int64_t particle_count)
 {
-    double fixed_scale = ((double)particle_count / total_mass) * pow(10., 7.);
-    return fixed_scale;
+    return ((double)particle_count / total_mass) * pow(10., 7.);
 }
 
 //so. I need to calculate E, without the conformal factor
