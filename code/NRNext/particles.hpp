@@ -85,6 +85,7 @@ struct particle_params
 
 struct particle_data
 {
+    double min_mass = 0;
     double total_mass = 0;
     int64_t count = 0;
     std::array<cl::buffer, 3> positions;
@@ -109,6 +110,11 @@ struct particle_data
 
         masses.alloc(sizeof(cl_float) * params.masses.size());
         masses.write(cqueue, params.masses);
+
+        min_mass = DBL_MAX;
+
+        for(double m : params.masses)
+            min_mass = std::min(m, min_mass);
     }
 };
 
@@ -241,6 +247,7 @@ struct particle_plugin : plugin
 
     double total_mass = 0;
     uint64_t particle_count = 0;
+    float mass_cutoff = 0;
 
     particle_plugin(cl::context ctx, uint64_t _particle_count, int _particle_radius_cells);
 

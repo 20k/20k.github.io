@@ -965,9 +965,57 @@ Finding good test cases is tricky. Here's a few good ones you can have a go with
 
 ## Binary orbit
 
-In the weak field limit, GR should decay to newtonian physics. This means that for two relatively light particles, we can calculate their initial velocity for a circular orbit
+In the weak field limit, GR should decay to newtonian physics. This means that for two relatively light particles, you can calculate their initial velocity for a circular orbit:
+
+$$\begin{align}
+v_1 &= \sqrt{\frac{(m_2)^2}{R(m_1 + m_2)}}\\
+v_2 &= \sqrt{\frac{(m_1)^2}{R(m_1 + m_2)}}
+\end{align}
+$$
+
+Where $R$ is the distance between them, and $m$ is the mass of each body. Truly weak field physics is a bit out of scope, so we're going to try a test case with the following parameters:
+
+|Variable | Value |
+|-|-|
+|$m_1$ | $0.01$ |
+|$m_2$ | $0.01$ |
+|$R$| $18.5$ |
+|Dirac size in cells| $5$
+
+This gives something that looks like this (with tricubic symmetric interpolation):
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/sihIgbl4DZM?si=mZJZQbHNVWQaje8J" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+The initial conditions are approximate with a slight eccentricity, and there's also a gradual inspiral as they likely emit gravitational waves. They're still comparatively massive particles compared to what's valid in newtonian physics, so this isn't surprising
 
 ## Black hole formation
+
+Its time to build a black hole out of particles. We should be able to spawn a bunch of particles in a sphere, and watch them collapse into a black hole
+
+The neat thing about this is we can compare this against a black hole of a known mass[^compare], to check how accurately everything has gone
+
+[^compare]: This series has gone on for too a bit too long without rigorous diagnostics. The next article will be on gravitational waves, where I'll introduce proper mass calculations
+
+|Variable | Value |
+|-|-|
+|$M$ (total mass)|$1$|
+|$N$ (number of particles)|$10000$|
+|Simulation Size| $74$ |
+|Resolution|$199^3$|
+
+With these parameters, the collapse proceeds as follows:
+
+<iframe width="560" height="315" src="https://www.youtube.com/embed/oXcC2FOR5Ew?si=Ha-_j6LyjSfyi-71" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+We can compare the direct end result of the particle collapse:
+
+![bhp](/assets/nr6_bh_particle_fin.PNG)
+
+With a black hole of mass M=1:
+
+![bha](/assets/nr6_particle_bh_ref.PNG)
+
+These are identical, which shows that this collapse appears to have created a correct looking black hole
 
 ## Cluster collapse
 

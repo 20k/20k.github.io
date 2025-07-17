@@ -932,7 +932,8 @@ void evolve_particles(execution_context& ctx,
                       literal<value<size_t>> count,
                       literal<v3i> dim,
                       literal<valuef> scale,
-                      literal<valuef> timestep, bool first_step)
+                      literal<valuef> timestep,
+                      literal<valuef> mass_cutoff, bool first_step)
 {
     using namespace single_source;
 
@@ -1110,6 +1111,10 @@ void evolve_particles(execution_context& ctx,
     valuei dist = distance_to_boundary((v3i)round(grid_next), dim.get());
 
     if_e(dist <= 10 || gA < 0.15f, [&]{
+        as_ref(p_out.masses[id]) = p_base.masses[id] + timestep.get() * -p_in.masses[id];
+    });
+
+    if_e(dist <= 5 || p_in.masses[id] <= mass_cutoff.get(), [&]{
         as_ref(p_out.masses[id]) = valuef(0.f);
     });
 
@@ -1603,6 +1608,7 @@ void particle_plugin::init(cl::context ctx, cl::command_queue cqueue, bssn_buffe
 {
     assert(pack.gpu_particles);
     total_mass = pack.gpu_particles->total_mass;
+    mass_cutoff = pack.gpu_particles->min_mass * 0.1;
 
     lorentz_storage.alloc(sizeof(cl_float) * particle_count);
     lorentz_storage.set_to_zero(cqueue);
@@ -1754,6 +1760,7 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
         args.push_back(sdata.dim);
         args.push_back(sdata.scale);
         args.push_back(sdata.timestep);
+        args.push_back(mass_cutoff);
 
         if(sdata.in_idx == sdata.base_idx)
             cqueue.exec("evolve_particles_base", args, {count}, {128});

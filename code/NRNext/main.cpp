@@ -1864,8 +1864,10 @@ initial_params get_initial_params()
     }
     #endif
 
-    #define TWO_BODY
+    //#define TWO_BODY
     #ifdef TWO_BODY
+    printf("Radial pos %f\n", radial_pos);
+
     float m1 = 0.01;
     float m2 = 0.01;
     float R = radial_pos;
@@ -1885,9 +1887,9 @@ initial_params get_initial_params()
     init.particle_radius_cells = 5;
     #endif
 
-    //#define BLACK_HOLE
-    #ifdef BLACK_HOLE
-    int N = 1000;
+    #define PARTICLE_BLACK_HOLE_
+    #ifdef PARTICLE_BLACK_HOLE_
+    int N = 10000;
     double M = 1;
 
     for(int i=0; i < N; i++)
@@ -1906,6 +1908,19 @@ initial_params get_initial_params()
 
         part.add(pos, vel, lM);
     }
+
+    init.particle_radius_cells = 1;
+    #endif
+
+    //#define PARTICLE_BLACK_HOLE_REPRO
+    #ifdef PARTICLE_BLACK_HOLE_REPRO
+    black_hole_params p1;
+    p1.bare_mass = 1.;
+    p1.position = {0, 0, 0};
+    p1.linear_momentum = {0, 0, 0};
+
+    init.N = 2;
+    init.add(p1);
     #endif
 
     //#define NEGATIVE_MASS
@@ -1958,7 +1973,8 @@ initial_params get_initial_params()
     init.dim = {199, 199, 199};
     init.simulation_width = radial_pos * 4;
 
-//    init.add(p1);
+    printf("Swidth %f\n", init.simulation_width);
+
     init.add(std::move(part));
 
     init.time_between_snapshots = 15;
