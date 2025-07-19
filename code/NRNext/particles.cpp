@@ -1104,14 +1104,12 @@ void evolve_particles(execution_context& ctx,
 
     as_ref(lorentz_out[id]) = u0;
 
-    valuef sim_width = (valuef)(dim.get().x() - 1) * scale.get();
-
     as_ref(p_out.masses[id]) = p_in.masses[id];
 
     valuei dist = distance_to_boundary((v3i)round(grid_next), dim.get());
 
     if_e(dist <= 10 || gA < 0.15f, [&]{
-        as_ref(p_out.masses[id]) = p_base.masses[id] + timestep.get() * -p_in.masses[id];
+        as_ref(p_out.masses[id]) = max(p_base.masses[id] + timestep.get() * -p_in.masses[id], 0.f);
     });
 
     if_e(dist <= 5 || p_in.masses[id] <= mass_cutoff.get(), [&]{
