@@ -664,9 +664,7 @@ Here, velocity is defined relative to the inertial frame of reference of the par
 
 Firstly, take the following initial slice: $\alpha = 1, \beta^i = 0$. Then, we can construct the metric tensor as follows:
 
-$g_{\mu\nu} =$
-
-||0|1|2|3|
+|$g_{\mu\nu}$|0|1|2|3|
 |-|-|-|-|-|
 |0|-1| | | |
 |1|  |$\gamma_{00}$| | |
@@ -713,7 +711,7 @@ We already know that:
 
 $$\rho_H = \alpha W^3 \sum m u^0 \delta^{(3)}(x^i - x^i_{\mathrm{p}})$$
 
-The only issue is that we don't have a value of $W$ that we can use (we'll implicitly set $\alpha = 1$). To solve this, we know that:
+The only issue is that we don't have a value of $W$ that we can use. To solve this, we know that:
 
 $$\begin{align}
 \bar{\gamma}_{ij} \psi^4 &= \gamma_{ij}\\
@@ -739,7 +737,7 @@ This is actually solvable, aside from $\bar{A}_{ij}$. To figure that out, we'll 
 
 ## $\bar{A}_{ij}$ and the momentum constraint
 
-When our particles are not moving, $\bar{A}_{ij} = 0$ - and bob's your uncle. All particle papers I have looked at use stationary particles, and it seems like nobody wants to touch this problem with a 100ft barge pole. As a professional barge pole toucher, this question has been haunting me for a while
+When our particles are not moving, $\bar{A}_{ij} = 0$ - and Bob's your uncle. All particle papers I have looked at use stationary particles, and it seems like nobody wants to touch this problem with a 100ft barge pole. As a professional barge pole toucher, this question has been haunting me for a while
 
 One approach is to repurpose the [neutron star](https://arxiv.org/pdf/1606.04881) initial conditions paper - set the pressure to $0$, and to model a body without spin. When an object does not have spin, the solution becomes spherically symmetric. The reduced problem is as follows:
 
@@ -767,8 +765,6 @@ This is straightforward to implement. There are only two interesting features he
 1. I use implicit midpoint, as it is symplectic. There's no real reason for an implicit approach, but it fits nicely in with backwards euler
 2. The mass boundary condition
 
-Todo: Go through the two above + Code
-
 ### Main part of the equations
 
 #### Preamble
@@ -776,7 +772,6 @@ Todo: Go through the two above + Code
 The setup for these equations is slightly more complex than you may expect
 
 ```c++
-
 v3f pos_base = p_base.get_position(id);
 v3f pos_next = p_in.get_position(id);
 
@@ -790,32 +785,19 @@ v3f vel;
 v3f pos;
 
 metric<valuef, 3, 3> cY;
-valuef W;
-valuef gA;
-v3f gB;
-
-v3f dW;
-v3f dgA;
-tensor<valuef, 3, 3> dgB;
-tensor<valuef, 3, 3, 3> dcY;
+/*other variables*/
 
 if(!first_step)
 {
     pos = (pos_base + pos_next) * 0.5f;
     vel = (vel_base + vel_next) * 0.5f;
 
+    //performs interpolation
     evolve_vars b_evolve(base, grid_base, dim.get(), scale.get());
     evolve_vars i_evolve(in, grid_next, dim.get(), scale.get());
 
     cY = (b_evolve.cY + i_evolve.cY) * 0.5f;
-    W = (b_evolve.W + i_evolve.W) * 0.5f;
-    gA = (b_evolve.gA + i_evolve.gA) * 0.5f;
-    gB = (b_evolve.gB + i_evolve.gB) * 0.5f;
-
-    dW = (b_evolve.dW + i_evolve.dW) * 0.5f;
-    dgA = (b_evolve.dgA + i_evolve.dgA) * 0.5f;
-    dgB = (b_evolve.dgB + i_evolve.dgB) * 0.5f;
-    dcY = (b_evolve.dcY + i_evolve.dcY) * 0.5f;
+    /*other variables*/
 }
 else
 {
@@ -824,14 +806,7 @@ else
     vel = vel_next;
 
     cY = i_evolve.cY;
-    W = i_evolve.W;
-    gA = i_evolve.gA;
-    gB = i_evolve.gB;
-
-    dW = i_evolve.dW;
-    dgA = i_evolve.dgA;
-    dgB = i_evolve.dgB;
-    dcY = i_evolve.dcY;
+    /*other variables*/
 }
 ```
 
@@ -841,7 +816,7 @@ $$
 y_{n+1} = y_n + h f(\frac{1}{2}(y_n + y_{n+1}))
 $$
 
-When evaluated via fixed point iteration, the first iteration has $y_n == y_{n+1}$. It is a significant performance improvement to manually spell this out in the code to cut the cost of that first iteration
+When evaluated via fixed point iteration, the first iteration gives $y_n == y_{n+1}$. It is a significant performance improvement to manually spell this out in the code to cut the cost of that first iteration
 
 #### The actual equations
 
@@ -916,12 +891,6 @@ v3f dV;
     dV = p1 + p2 + p3;
 }
 
-pin(pos_base);
-pin(vel_base);
-pin(dX);
-pin(dV);
-pin(u0);
-
 for(int i=0; i < 3; i++)
     as_ref(p_out.positions[i][id]) = pos_base[i] + timestep.get() * dX[i];
 
@@ -938,6 +907,8 @@ W^2 \partial_i \tilde{\gamma}^{jk} + 2 W \partial_i W \tilde{\gamma}^{jk}
 $$
 
 And then use dual numbers to evaluate $$\partial_i \tilde{\gamma}^{jk}$$ from $$\partial_i \tilde{\gamma}_{jk}$$
+
+$u^0$ is also cached to use it in the stress-energy tensor calculation
 
 ### The mass boundary condition
 
@@ -963,10 +934,10 @@ if_e(!isfinite(mass) || mass == 0, [&]{
 });
 ```
 
-Instead of a fully hard delete (which can lead to a sudden burst of constraint violations), I use the following approach:
+Instead of an instant delete (which can lead to a sudden burst of constraint violations), I use the following approach:
 
 1. A soft damping in the interior of the black hole, or as the particle approaches the boundary
-2. A strict cutoff when the mass is below a cutoff value, or is close to the boundary
+2. A strict deletion when the mass is below a cutoff value, or is close to the boundary
 
 ```c++
 valuei dist = distance_to_boundary((v3i)round(grid_next), dim.get());
@@ -984,14 +955,12 @@ The mass cutoff is determined as 10% of the mass of the lightest particle's init
 
 ## Calculating the stress-energy tensor
 
-Each particle has a size, and generate a contribution to the stress-energy tensor. We need to - somehow - sum all the contributions from every particle onto the grid. I think I've finally come up with a decent approach here, which is free of the limitations of older methods I've explored in the past
-
-The basic idea is as follows:
+Each particle has a size, and generate a contribution to the stress-energy tensor. We need to - somehow - sum all the contributions from every particle onto the grid. The basic idea for how to implement this is as follows:
 
 1. Loop over the size (in cells) of the particle, determined by the dirac delta size
 2. Accumulate the stress energy tensor on the grid directly, using 64-bit fixed point
 
-This is not my first rodeo at solving this problem, but I think its the best approach so far. While using 64-bit atomics may seem suboptimal, other techniques have downsides which are discussed at the end of the article
+This is not my first rodeo at solving this problem, and there is an extensive discussion on the implementation at the end of this article
 
 ### Looping over the size in cells of the particle
 
@@ -1134,7 +1103,7 @@ void calculate_particle_intermediates(execution_context& ectx,
 }
 ```
 
-#### Stripping out the BSSN parts
+#### The BSSN parts were stripped
 
 I've dropped all the BSSN terms from the accumulation step, as they are constant-per-cell, and it eases the numerical analysis. These are deferred to the actual BSSN evolution kernel stage, as follows:
 
@@ -1205,7 +1174,7 @@ To actually consume the data in the BSSN kernel, I convert the 64-bit fixed poin
 
 # Test Cases / Results
 
-Finding good test cases is tricky. Here's a few good ones you can have a go with
+With this, all the implementation work is done. Finding good test cases is tricky, so here's a few good ones you can have a go with
 
 ## Binary orbit
 
@@ -1229,7 +1198,7 @@ Where $R$ is the distance between them, and $m$ is the mass of each body. Truly 
 |Resolution|$199^3$|
 
 
-This gives something that looks like this (with tricubic symmetric interpolation):
+This gives something that looks like this (with tricubic interpolation):
 
 <iframe width="560" height="315" src="https://www.youtube.com/embed/sihIgbl4DZM?si=mZJZQbHNVWQaje8J" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
