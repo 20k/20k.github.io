@@ -8,7 +8,7 @@ published: false
 
 Hi there! Today we're going to examine how to do N-body particle physics, in general relativity. This is a bit of an underexplored topic compared to Newtonian N-body, and its easy to accidentally pick the wrong formalism or techniques for solving this problem. While the basic theory of what we're doing isn't complicated, there's a few major numerical problems to tackle today
 
-At the end of this topic, we'll have about 10 million particles up and running at a decent speed - you'll also have received a crash course in IEEE floats, and the problems a spec defect in C++ can cause
+At the end of this topic, we'll have about 10 million particles up and running at a decent speed - you'll also have received a crash course in IEEE floats, and the problems a spec oddity in C++ can cause
 
 # What are we doing?
 
@@ -45,7 +45,7 @@ Clearly, we need to transplant this into the ADM formalism and spell out the equ
 
 ## Stress-energy
 
-We need the ADM projections of the stress energy tensor $T_{\mu\nu}$, to calculate the compatible terms for the BSSN equations. These are [(2.14, 2.15, 2.20)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf):
+We need the ADM projections of the [stress energy tensor](https://en.wikipedia.org/wiki/Stress%E2%80%93energy_tensor#Isolated_particle) $T_{\mu\nu}$, to calculate the compatible terms for the BSSN equations. These are [(2.14, 2.15, 2.20)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf):
 
 $$
 \begin{alignat}{2}
@@ -55,7 +55,7 @@ S_{ij} &= \alpha^{-1} W^3 &&\sum m \frac{u_i u_j}{u^0} \delta^{(3)}(x^i - x^i_{\
 \end{alignat}
 $$
 
-These quantities will be evaluated at every cell in our grid - except for $u^0$, which hides a significant amount of interpolation at $x^i$ in its calculation
+These quantities will be evaluated at every cell in our grid - except for $u^0$, which hides a significant amount of interpolation at $x^i_p$ in its calculation
 
 ## The geodesic equation
 
@@ -99,17 +99,25 @@ $$
 
 $$\int^\infty_{-\infty} \delta^{(1)}(x) \; dx = 1$$
 
-This says that the dirac delta function only takes a value at a single point $x=0$, and the area under this point is precisely $1$. No real function actually meets this definition, so we must numerically approximate it somehow. Higher dimensional diracs are denoted by the raised index, eg $\delta^{(3)}(x, y, z) = \delta^{(1)}(x)\delta^{(1)}(y)\delta^{(1)}(z)$
+This says that the dirac delta function only takes a value at a single point $x=0$, and the area under this point is precisely $1$
+
+![dirac1](/assets/nr6_dirac_1.png)
+
+No real function actually meets this definition, so we must numerically approximate it somehow. Higher dimensional diracs are denoted by the raised index, and can be constructed via a product: eg $\delta^{(3)}(x, y, z) = \delta^{(1)}(x)\delta^{(1)}(y)\delta^{(1)}(z)$
 
 ## Numerical approximations
 
-There are an extremely wide variety of approximations we can use - these essentially smear out the function over a small area. We might demand that this new function has a few properties:
+The solution is to essentially smear out the dirac delta function over a small area:
+
+![dirac2](/assets/nr6_dirac_2.png)
+
+There are an extremely wide variety of approximations we can use - we might demand that this new function has a few properties:
 
 1. It is compactly supported, ie it has finite extent
 2. It is smooth-ish
 3. This function has an integral of 1
 
-There isn't a super specific[^okso] reason to use one approximation over another. The Dirac delta function I'll be pilfering today is [this one (20)](https://arxiv.org/pdf/1611.07906), which operates in 3d (though it is a function of radius)
+There isn't a super specific[^okso] reason to use one approximation over another today. The Dirac delta function I'll be pilfering is [this one (20)](https://arxiv.org/pdf/1611.07906), which is a function of radius
 
 [^okso]: One property it would be nice if our dirac could maintain is that the generated effective self force (we'll get back to this) is exactly 0. I'm not sure if its possible to construct such a dirac though
 
@@ -124,7 +132,7 @@ $$
 \end{align}
 $$
 
-Where $r_s$ is the size in world coordinates of your particle, and this function takes values in the range $[0, 2 r_s]$. Many papers make the simple substitution $\delta^{(3)}(x, y, z) \rightarrow \Delta^{(3)}_1(r)$
+Where $r_s$ is the size in world coordinates of your particle, and this function takes values in the range $[0, 2 r_s]$. Many papers make the simple substitution $\delta^{(3)}(x, y, z) \rightarrow \Delta^{(3)}_1(r)$, and leave it at that
 
 ## Improving the numerical approximation
 
@@ -145,6 +153,8 @@ $$\sum_1^n \Delta(x_n) \; h$$
 
 We want that to be precisely $1$. In our discretisation as it stands currently however, there is absolutely no guarantee of it - this is only true in the limit as $h \rightarrow 0$. In fact, with small dirac delta function sizes, this may be significantly wrong!
 
+![dirac3](/assets/nr6_dirac_3.png)
+
 The remedy is to calculate the exact amount of the dirac delta function that intersects with a grid cell. We can do this by integrating:
 
 $$\Delta^{(1)}_{\mathrm{good}} = \frac{\int_{x - \frac{h}{2}}^{x + \frac{h}{2}} \Delta^{(1)}(y) dy}{h}$$
@@ -154,6 +164,8 @@ in one dimension, or in three dimensions:
 $$\Delta^{(3)}_{\mathrm{good}} = \frac{\int_{z - \frac{h}{2}}^{z + \frac{h}{2}} \int_{y - \frac{h}{2}}^{y + \frac{h}{2}} \int_{x - \frac{h}{2}}^{x + \frac{h}{2}} \Delta^{(3)}(\textbf{V}) d\textbf{V}}{h^3}$$
 
 Where $x, y, z$ are the coordinates of a grid cell in world coordinates
+
+![dirac4](/assets/nr6_dirac_4.png)
 
 ## Strange numerical problems
 
@@ -184,7 +196,7 @@ For any correct simulation, that symmetry should be preserved. In virtually all 
 This can be root caused to two similar problems:
 
 1. Floating point arithmetic is not associative
-2. How C++ handles floating point expressions, via a little known loophole in the standard
+2. C++ has special rules for transforming equations involving floats, via a little known loophole in the standard
 
 Asymmetry can sneak in anywhere we look at adjacent grid cells or non central values (eg the dirac integral bounds). A first culprit to look at is differentiation. In general, 4th order numerical derivatives get implemented as follows:
 
@@ -204,7 +216,9 @@ $$\begin{align}
 
 The issue is that after each floating point operation, a rounding step is performed implicitly. This means that these two expressions don't return the same results! This isn't a theoretical problem either, here's an example in [real-world code](https://github.com/GRTLCollaboration/GRChombo/blob/130140afe972701575740685343ea28f6ab8234c/Source/BoxUtils/FourthOrderDerivatives.hpp#L42)
 
-This results in systematic differences in rounding on both sides of the grid, and this error can build up surprisingly fast as we've seen - as we're essentially preferentially discarding the low bits of our floats but biased in a specific direction. Eliminating these systematic errors is important. You might think you can just rewrite this expression like this, by grouping equidistant cells:
+This results in systematic differences in rounding on both sides of the grid, and this error can build up surprisingly fast as we've seen - as we're essentially preferentially discarding the low bits of our floats but biased in a specific direction. So ideally, we'd eliminate all the systematic sources of error in our simulation
+
+You might think you can just rewrite this expression like this, by grouping equidistant cells:
 
 ```c++
 float diff(const std::vector<float>& points, int idx, float scale)
@@ -213,9 +227,9 @@ float diff(const std::vector<float>& points, int idx, float scale)
 }
 ```
 
-But, surprisingly, tests will show that this still returns the wrong answer. What gives?
+While correct in theory, surprisingly, tests will show that this still returns the wrong answer. What gives?
 
-## The C++ loophole
+## The C++ standard loophole
 
 In this piece of code:
 
@@ -226,9 +240,9 @@ float v_mul = a*b;
 float v2 = v_mul + c;
 ```
 
-C++ encourages that $v_1 \neq v_2$. This rather surprising feature is known as floating point contraction, and there is no standardised way to disable it[^pragma]. Within an expression, the compiler is free to turn anything of the form $a*b + c$ into $\mathrm{fma}(a, b, c)$, which may be both faster and more precise. Unfortunately - in our case, it also causes our 'fixed' code to be rewritten as follows:
+C++ encourages that $v_1 \neq v_2$. This rather surprising feature is known as floating point contraction, and there is no standardised way to disable it[^pragma]. *Within an expression*, the compiler is free to turn anything of the form $a*b + c$ into $\mathrm{fma}(a, b, c)$, which may be both faster and more precise. Unfortunately - in our case, it also causes our 'fixed' code to be rewritten as follows:
 
-[^pragma]: There is a non standard pragma inherited from C, but CUDA does not implement this. Given that this article is focused on GPU programming, its a problem
+[^pragma]: There is a non standard pragma inherited from C, but CUDA does not implement this which is a problem. Even then, the pragma is a very blunt force instrument, so you have to be pretty careful in general
 
 ```c++
 float diff(const std::vector<float>& points, int idx, float scale)
@@ -237,7 +251,7 @@ float diff(const std::vector<float>& points, int idx, float scale)
 }
 ```
 
-This reintroduces[^inpractice] the same unfortunately. This can be fixed in a general way by spelling out all the intermediate variables, to create some really very beautiful code:
+This reintroduces[^inpractice] the same issue we just tried to fix unfortunately. This can be fixed in a general way by spelling out all the intermediate variables, to create some really very beautiful code:
 
 [^inpractice]: If you're wondering if this is a more theoretical problem, it isn't. GPU compilers are very aggressive about using this rule to emit FMAs where possible
 
@@ -268,13 +282,18 @@ float diff_concise(const std::vector<float>& points, int idx, float scale)
 
 This only works in our specific case for first derivatives - as the FMA that gets generated does not upset symmetry, and gives a 20% improvement in GPU-land over the long form version[^compiler]
 
-Pairwise summation with explicitly spelt out intermediate variables is the general fix to this problem - and I apply this technique anywhere which involves numerical derivatives (Kreiss-Oliger)
+Pairwise summation with explicitly spelt out intermediate variables is the general fix to this problem - and I apply the 'long form' technique anywhere which involves numerical derivatives (Kreiss-Oliger)
 
 [^compiler]: This is at least partly due to compiler-itus, as compilers are much better at optimising within an expression, than across multiple expressions. Its a big part of the reason why I use code generation in these articles
 
 ## Fixing dirac
 
-Another source of error is the way we've implement the dirac delta function - fixing this function is along the same lines as differentiation. We must ensure that the order of operations is exactly the same between the left side of the grid, and the right side of the grid. At the moment, we're integrating in *world* coordinates in floats, which can lead to representation issues as values are truncated differently. So we're going to swap to cell index based coordinates instead. I've also changed $\Delta$ to take in a fraction in the range $[0, 1]$
+Another source of error is the way we've implement the dirac delta function. There are several sources of error here:
+
+1. The integral bounds are arbitrary floats, which can lead to representation issues
+2. The integration itself between $[-h/2, h/2]$ won't avoid this error out of the box
+
+First off, lets swap everything to cell index based coordinates instead. I've also changed $\Delta$ to take in a fraction in the range $[0, 1]$, because its easier to reason about
 
 $$
 \Delta_2^{(3)}(r_f, r_s) = \frac{1}{\pi (\frac{r_s}{2})^3}
@@ -287,23 +306,25 @@ $$
 \end{align}
 $$
 
-This means that $r_s$ is now the full size of the particle in world coordinates, and $r_f$ is a fraction from 0 to 1. Now we can redefine the integral in 3d from earlier:
+This means that $r_s$ is now the full size of the particle in world coordinates, and $r_f$ is a fraction from 0 to 1. Now we can redefine the integral from earlier:
 
 $$\Delta_{\mathrm{best}}^{(3)} =  \int_{z_c - 0.5}^{z_c + 0.5} \int_{y_c - 0.5}^{y_c + 0.5} \int_{x_c - 0.5}^{x_c + 0.5} \Delta_2\left (\frac{\sqrt{(x - x_c^{\mathrm{idx}})^2 + (y - y_c^{\mathrm{idx}})^2 + (z - z_c^{\mathrm{idx}})^2}}{(\frac{r_s}{h})}, r_s \right ) dx dy dz$$
 
-Where $x_c, y_c, z_c$ represents the integral position of the cell in question in cell-based coordinates, and these half offsets can be represented exactly[^unsuref]. $x_c^{\mathrm{idx}}, y_c^{\mathrm{idx}}, z_c^{\mathrm{idx}}$ is the position of the particle, converted into those same cell based coordinates. This avoids the first set of numerical problems from earlier. Next up, we need to deal with the integration itself
+Where $x_c, y_c, z_c$ represents the integral position of the cell in question in cell-based coordinates, and these half offsets can be represented exactly[^unsuref]. $x_c^{\mathrm{idx}}, y_c^{\mathrm{idx}}, z_c^{\mathrm{idx}}$ is the position of the particle, converted into those same cell based coordinates. This avoids the first set of numerical problems. Next up, we need to deal with the integration itself
 
 [^unsuref]: If you're unsure of why, floating point guarantees the exact representability of whole numbers and fractional powers of $2$ when you have sufficient precision available
 
 ### Trapezoidal integration
 
-Implementing a fully symmetric trapezoidal method would be very tricky. For numerical integration, it has the [following definition](https://en.wikipedia.org/wiki/Trapezoidal_rule):
+Todo: Implement the fully symmetric trapezoidal method
+
+Implementing a fully symmetric trapezoidal method would be a fair bit of work. For numerical integration, it has the [following definition](https://en.wikipedia.org/wiki/Trapezoidal_rule):
 
 $$\int^b_a f(x) dx = \Delta x \left (\frac{f(x_0) + f(x_N)}{2} + \sum^{n-1}_{k=1} f(x_k)\right )$$
 
 Luckily for $N=2$ - which is good enough - this is actually straightforward. As long as we evaluate the right hand side sum, and the left hand side sum separately, then add them together at the end - it'll be symmetric. More iterations would require an outside in iteration scheme with pairwise summation
 
-This is what I implemented (in 1d, just repeat the integral in 3d):
+This is what I implemented (in 1d, just repeat the integral in 3D):
 
 ```c++
 template<typename T, typename U>
@@ -409,25 +430,29 @@ Trilinear interpolation is otherwise a very standard algorithm, and not worth di
 
 Todo: massively simplify this segment
 
-The motion of a particle is largely dictated by the term $\partial_i \alpha$, which I construct by interpolating the derivative. Particles in General Relativity effectively have a kind of *self* force - they distort the metric around them, and this directly modifies $\alpha$ around where they are in an area
+The motion of a particle is largely dictated by the interpolated term $\partial_i \alpha$
 
-A particle's contribution to its own velocity however should be precisely 0 ($\partial_i \alpha = 0$), as particles should not spontaneously self accelerate. But some testing of high mass particles, will show that it is actually easy for this to happen:
+![interp](/assets/nr6_interp.png)
 
-Todo: Video
+Particles in General Relativity effectively have a kind of *self* force - they distort the metric around them, and this directly modifies $\alpha$ around where they are in an area
 
-The issue is that as a particle drifts away from your cell centres, the interpolation becomes increasingly inaccurate relative to how far away it is, causing $\partial_i \alpha \neq 0$. This is bad, because we have a systematic, oscillating error term, that cannot be removed easily, and it will cause very strange issues like the following abrupt failure:
+A particle's contribution to its own velocity however should be precisely 0 ($\partial_i \alpha = 0$), as particles should not spontaneously self accelerate. If we put a relatively massive particle into the simulation, it should remain stationary
 
-Todo: Video
+<iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/g46gswzmTKM?si=uBy-HsxWKC4Sd0OI" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Fixing this involves constructing a higher order interpolation scheme, with the caveat that we still have to deal with all the same floating point rounding issues as before. Its worth noting that this is more of a problem when the mass of the particle is high relative to the spacetime its embedded in
+The fact that a particle can spontaneously self accelerate like this is an alarming error. The issue is that in any interpolation scheme, the error in calculating our interpolated variables is proportional to the distance away from our known data. Here, this can cause $\partial_i \alpha \neq 0$. This is an especially severe error - because it is a systematic, *oscillatory* error term as the particle moves through the grid. It will cause very strange issues like the following abrupt failure:
+
+<iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/GrbXu4fWwiE?si=NttsxU-04JuhlMQE" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Alleviating this involves constructing a higher order interpolation scheme to reduce the error in the interpolation, with the caveat that we still have to deal with all the same floating point rounding issues as before. This is more of a problem when the mass of the particle is high relative to the spacetime its embedded in, so there are many situations in which trilinear is perfectly fine
 
 ## Symmetric tricubic interpolation
 
-The next step up from trilinear interpolation, is tricubic interpolation. Its common to use hermite[^hermite] interpolation - this kind of interpolation guarantees the values of the derivatives at the boundary, but this isn't a useful property for us
+The next step up from trilinear interpolation, is tricubic interpolation. It is common to use hermite[^hermite] interpolation - this kind of interpolation guarantees the values of the derivatives at the boundary, but this isn't a useful property for us
 
-[^hermite]: Wikipedia will direct you to [this](https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.89.7835) paper, which is precisely the wrong approach. Its set up to be able to repeatedly perform hermite interpolation with the same set of values, which is not what we want at all
+[^hermite]: Wikipedia will direct you to [this](https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.89.7835) paper, which is precisely the wrong approach. It's set up to be able to repeatedly perform Hermite interpolation with the same set of values, which is not what we want at all
 
-What we want is tricubic Lagrangian interpolation, via a Lagrange interpolating polynomial. This does not require us to know the values of the derivatives anywhere, and its both faster and more accurate than hermite interpolation. It does have the downside that I now have to do more work though
+What we want is tricubic Lagrangian interpolation, via a Lagrange interpolating polynomial. This does not require us to know the values of the derivatives anywhere, and it is both faster and more accurate than Hermite interpolation. It does have the downside that I now have to do more work though
 
 ### Cubic Lagrangian interpolation
 
@@ -435,7 +460,7 @@ The minimum number of points to do cubic interpolation is $4$. We'll operate in 
 
 | Node label | $x_0$ | $x_1$ | $x_2$ | $x_3$
 |-|-|-|-|-|
-|Value|$-1$|$0$|$1$|$2$|
+|Value (ie the offset)|$-1$|$0$|$1$|$2$|
 
 A cubic interpolating polynomial is constructed as follows (all bounds are inclusive):
 
@@ -451,11 +476,11 @@ A 3d polynomial can be constructed as follows:
 
 $$L(x, y, z) = \sum^3_a \sum^3_b \sum^3_c f_{abc} l_a(x) l_b(y) l_c(z)$$
 
-This is a large sum of 64 values. As you may be about to guess, you can't implement this as written otherwise you end up with massive systematic rounding errors. We instead have to perform a pairwise matched summation of all values, to ensure exactly the same order of operations on both sides of the grid
+This is a large sum of 64 values. As you may be about to guess, you can't implement this as written otherwise you end up with systematic rounding errors. We instead have to perform a pairwise matched summation of all values, to ensure exactly the same order of operations on both sides of the grid
 
 #### Simple but wrong
 
-This is tricubic interpolation without any corrections for floating-point-C++-itus
+This is tricubic interpolation without any corrections for floating-point-and-C++-itus
 
 ```c++
 template<typename T, typename... U>
@@ -623,7 +648,7 @@ auto tricubic_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
 
 One of the reasons I write these articles is to save you from the same pain I have had to experience. There's no way around the fact that this is fairly complicated. The naive implementation of this is simple, but my goodness is this a joy. Even without the systematic numerical issues, pairwise summation has a reduced error term - so its better than just a big linear sum
 
-With this, the floating point nightmare portion of this article is over
+With this, the floating point nightmare portion of this article is finally over
 
 # Initial conditions
 
