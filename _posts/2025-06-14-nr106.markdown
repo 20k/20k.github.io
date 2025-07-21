@@ -1236,9 +1236,28 @@ These are identical, which shows that this collapse appears to have created a bl
 
 # Discussion
 
+Coming into this article, I had two primary goals:
+
+1. Track down the sources of error that plagued previous simulations of this type
+2. Fix the systematic performance problems, and create a good architecture for people to bolt improvements[^obvious] onto
+
+[^obvious]: The most obvious improvement I have not included is decoupling the rate of particle stepping, from the simulation stepping. This would allow you to simulate ~100M particles. There are places where a reasonably significant amount of memory could be saved as well - eg you don't really need to triple buffer mass, and you can likely reduce the precision of the particle's position by assigning them to cells
+
+On both of these fronts, the approach laid out here works great. The performance with 10M particles is todo, which is extremely fast compared to my prior attempts here
+
 # Appendix
 
-## Comparison of other formalisms
+## Comparison to other formalisms
+
+There are a variety of other techniques here for evolving the path of a particle, and in general, they are less good
+
+### The formalism we use for raytracing, $V^i$
+
+See [here](https://arxiv.org/pdf/1208.3927). The primary disadvantage of this formalism is that it uses $K_{ij}$, and so requires a huge amount of extra memory bandwidth to trace the path of a particle. On my todo list is to see if we can replace this formalism entirely with the one described in this article
+
+### A formalism based on the 4-momentum $p^\mu$
+
+See [here (2.27)](https://arxiv.org/pdf/1904.07841). The main problem with this formalism is that it uses the 4-momentum. Because the masses we're dealing with are often extremely small, this leads to very high numerical error. The 4-velocity is a much better evolution variable
 
 ## Other stress energy tensor techniques
 
@@ -1338,3 +1357,4 @@ void permute_memory(execution_context& ectx, particle_base_args<buffer<valuef>> 
 
 These three kernels are run sequentially, and this provides a significant speedup
 
+## I could not for the life of me simulate a galaxy
