@@ -1021,7 +1021,7 @@ void evolve_particles(execution_context& ctx,
     auto iYij = icY * (W*W);
 
     valuef au0_sq = 1 + iYij.dot(vel, vel);
-    valuef u0 = sqrt(au0_sq) / gA;
+    valuef u0 = sqrt(au0_sq) / max(gA, 1e-4f);
     pin(u0);
 
     v3f dX = -gB + iYij.raise(vel) / u0;
