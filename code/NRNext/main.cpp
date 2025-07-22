@@ -1833,12 +1833,12 @@ initial_params get_initial_params()
 
     float radial_pos = geometric_to_msol(1000 * 54.6/2, 1);
 
-    //#define RANDOM_INIT
+    #define RANDOM_INIT
     #ifdef RANDOM_INIT
     int N = 10000000;
     double M = 1/10.f;
 
-    for(int i=0; i < N; i++)
+    while(part.size() < N)
     {
         double lM = M/N;
 
@@ -1887,7 +1887,7 @@ initial_params get_initial_params()
     init.particle_radius_cells = 5;
     #endif
 
-    #define PARTICLE_BLACK_HOLE_
+    //#define PARTICLE_BLACK_HOLE_
     #ifdef PARTICLE_BLACK_HOLE_
     int N = 10000;
     double M = 1;

@@ -1232,7 +1232,9 @@ Regular black hole of mass M=1:
 
 These are identical, which shows that this collapse appears to have created a black hole with the correct mass
 
-## Cluster collapse
+## Cluster simulation
+
+The real goal of this article is to try simulating absolutely loads of particles. So its now time to crank up the number to 10 million, and see what happens. For this test case
 
 # Discussion
 
