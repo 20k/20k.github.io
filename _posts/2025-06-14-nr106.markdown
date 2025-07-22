@@ -1200,7 +1200,7 @@ Where $R$ is the distance between them, and $m$ is the mass of each body. Truly 
 
 This gives something that looks like this (with tricubic interpolation):
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/sihIgbl4DZM?si=mZJZQbHNVWQaje8J" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/sihIgbl4DZM?si=mZJZQbHNVWQaje8J" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 The initial conditions are approximate with a slight eccentricity, and there's also a gradual inspiral as they likely emit gravitational waves. They're still comparatively massive particles compared to what's valid in newtonian physics, so this isn't surprising
 
@@ -1220,7 +1220,7 @@ Its time to build a black hole out of particles. We should be able to spawn a bu
 
 With these parameters, the collapse proceeds as follows:
 
-<iframe width="560" height="315" src="https://www.youtube.com/embed/oXcC2FOR5Ew?si=Ha-_j6LyjSfyi-71" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+<iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/oXcC2FOR5Ew?si=Ha-_j6LyjSfyi-71" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 Particle collapse black hole (in theory, with a mass of M=1):
 
@@ -1234,18 +1234,25 @@ These are identical, which shows that this collapse appears to have created a bl
 
 ## Cluster simulation
 
-The real goal of this article is to try simulating absolutely loads of particles. So its now time to crank up the number to 10 million, and see what happens. For this test case
+The real goal of this article is to try simulating absolutely loads of particles. So its now time to crank up the number to 10 million, and see what happens. For this test case, I generate 10M particles within a circle (+ a small Z parameter) with a uniform distribution, and give each of them a randomised velocity about the origin. For the exact simulation parameters, check the source (this test is a performance test so the exact way the distribution is generated isn't super important)
+
+This gives the following result, with trilinear interpolation for the particles:
+
+<iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/C3C9ZZxr2-s?si=CVU7nZMTxiSfgjuf" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+This is pretty neat, and works surprisingly well. Larger particle counts would work too if I was willing to wait for longer - the total simulation time here was ~3 hours, taking 570ms/tick[^speedup]
+
+[^speedup]: The simulation speeds up a bit as time goes on, as particles are culled. The end tick time is ~480ms/tick
 
 # Discussion
 
 Coming into this article, I had two primary goals:
 
-1. Track down the sources of error that plagued previous simulations of this type
+1. Track down the major sources of error that plagued previous simulations of this type. Especially: Self acceleration, abrupt two-body failures, and gradual centre of mass drift. These are all fully characterised and largely eliminated here
 2. Fix the systematic performance problems, and create a good architecture for people to bolt improvements[^obvious] onto
 
 [^obvious]: The most obvious improvement I have not included is decoupling the rate of particle stepping, from the simulation stepping. This would allow you to simulate ~100M particles. There are places where a reasonably significant amount of memory could be saved as well - eg you don't really need to triple buffer mass, and you can likely reduce the precision of the particle's position by assigning them to cells
 
-On both of these fronts, the approach laid out here works great. The performance with 10M particles is todo, which is extremely fast compared to my prior attempts here
+On both of these fronts, the approach laid out here has gone extremely well in general. The performance is particularly nice - with the only configuration choice being between trilinear, or tricubic interpolation
 
 # Appendix
 
@@ -1255,11 +1262,11 @@ There are a variety of other techniques here for evolving the path of a particle
 
 ### The formalism we use for raytracing, $V^i$
 
-See [here](https://arxiv.org/pdf/1208.3927). The primary disadvantage of this formalism is that it uses $K_{ij}$, and so requires a huge amount of extra memory bandwidth to trace the path of a particle. On my todo list is to see if we can replace this formalism entirely with the one described in this article
+See [here](https://arxiv.org/pdf/1208.3927). The primary disadvantage of this formalism is that it uses $K_{ij}$, and so requires a huge amount of extra memory bandwidth to trace the path of a particle. On my todo list is to see if the formalism used in this article can replace the raytracing
 
 ### A formalism based on the 4-momentum $p^\mu$
 
-See [here (2.27)](https://arxiv.org/pdf/1904.07841). The main problem with this formalism is that it uses the 4-momentum. Because the masses we're dealing with are often extremely small, this leads to very high numerical error. The 4-velocity is a much better evolution variable
+See [here (2.27)](https://arxiv.org/pdf/1904.07841). The main problem with this formalism is that it uses the 4-momentum (ie `mass * 4-velocity`). Because the masses we're dealing with are often extremely small, this leads to very high numerical error during evolution. The 4-velocity is a significantly better evolution variable, as the error is then shifted over into the stress-energy calculation - which we can mitigate with fixed-point by scaling the mass
 
 ## Other stress energy tensor techniques
 

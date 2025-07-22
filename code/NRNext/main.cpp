@@ -1835,6 +1835,8 @@ initial_params get_initial_params()
 
     #define RANDOM_INIT
     #ifdef RANDOM_INIT
+    init.particle_radius_cells = 1;
+
     int N = 10000000;
     double M = 1/10.f;
 
