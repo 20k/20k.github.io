@@ -35,3 +35,7 @@ gem "http_parser.rb", "~> 0.6.0", :platforms => [:jruby]
 
 gem "just-the-docs"
 gem "jekyll-remote-theme"
+gem "csv"
+gem "base64"
+gem "logger"
+gem "fiddle"

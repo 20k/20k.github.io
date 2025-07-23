@@ -3,12 +3,12 @@ layout: post
 title:  "Numerical Relativity 106: There are some particles and we're going to simulate them innit"
 date:   2025-06-14 12:33:23 +0000
 categories: C++
-published: false
+published: true
 ---
 
-Hi there! Today we're going to examine how to do N-body particle physics, in general relativity. This is a bit of an underexplored topic compared to Newtonian N-body, and its easy to accidentally pick the wrong formalism or techniques for solving this problem. While the basic theory of what we're doing isn't complicated, there's a few major numerical problems to tackle today
+Hi there! Today we're going to examine how to do N-body particle physics, in general relativity. This is a bit of an underexplored topic compared to Newtonian N-body, and its easy to accidentally pick the wrong formalism or techniques for solving this problem. While the basic theory of what we're doing isn't complicated, there's a few major numerical problems to tackle
 
-At the end of this topic, we'll have about 10 million particles up and running at a decent speed - you'll also have received a crash course in IEEE floats, and the problems a spec oddity in C++ can cause
+At the end of this topic, we'll have about 10 million particles up and running at a decent speed. You'll also have received a crash course in IEEE floats, and the problems a spec oddity in C++ can cause
 
 # What are we doing?
 
@@ -18,7 +18,9 @@ In Newtonian physics, each particle directly exerts a force on all other particl
 
 $$F = \frac{G m_1 m_2}{r^2}$$
 
-In general relativity, particles act through the (4d) stress energy tensor, and do not *directly* interact. For a single particle [(2.5)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf0):
+In general relativity, particles act through the (4D) stress energy tensor, and do not *directly* interact. For a single particle, the stress energy tensor is defined as follows [(2.5)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf0):
+
+Todo: Mixing tuv and adm is a mistake
 
 $$
 T_{\mu\nu} = m \alpha^{-1} W^3 \delta^{(3)}(x^i - x_{\mathrm{p}}^i)\frac{u_\mu u_\nu}{u^0}\\
@@ -32,7 +34,7 @@ $$
 | $\delta^{(3)}(x)$ | The 3d dirac delta function - this only takes a nonzero value when $x = 0$. This a non trivial term, and we'll have to discretise this |
 | $x^i$ | The current coordinate position you're looking at |
 | $x^i_{\mathrm{p}}$ | The position of the particle |
-| $u_\mu$ | The 4-velocity of a particle, lowered |
+| $u_\mu$ | The (covariant) 4-velocity of a particle |
 | $u^0$ | The lorentz factor |
 
 This is simply summed across all particles. Particles as you'd expect simply move via the geodesic equation, which is:
@@ -83,6 +85,10 @@ At this point, we only have a few things left to solve:
 2. Interpolation
 3. Initial conditions
 4. Implementation
+
+Given just how long this article is, you can probably guess that things start to turn into a mess
+
+Todo: Cat
 
 # The dirac delta function $\delta(x)$
 
@@ -171,11 +177,13 @@ Where $x, y, z$ are the coordinates of a grid cell in world coordinates
 
 If you try and implement this discretisation with a simple test case (two particles orbiting each other), you'll quickly run into a rather odd issue:
 
-Todo: Video
+<iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/-1GiOJhyMP0?si=YrHQiZzjsDmokmkD" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-You're now going to learn more about C++, IEEE floats, and cryptic problems in the literature than you signed up for when you clicked on this article. I also have to present this to you before we do the interpolation step, because its going to get a bit more complex
+The particles drift over to the right, which clearly isn't correct
 
-# IEEE and C++: A joyous combination
+You're now going to learn more about C++, IEEE floats, and cryptic problems in the literature than you signed up for when you clicked on this article. I also have to present this to you before we do the interpolation step, because this is going to get increasingly involved
+
+# IEEE and C++: A great combination
 
 Let's examine the form of a general 1D integration in time problem, spatially discretised onto a grid:
 
@@ -196,7 +204,7 @@ For any correct simulation, that symmetry should be preserved. In virtually all 
 This can be root caused to two similar problems:
 
 1. Floating point arithmetic is not associative
-2. C++ has special rules for transforming equations involving floats, via a little known loophole in the standard
+2. C++ has special rules for transforming expressions involving floats, via a little known loophole in the standard
 
 Asymmetry can sneak in anywhere we look at adjacent grid cells or non central values (eg the dirac integral bounds). A first culprit to look at is differentiation. In general, 4th order numerical derivatives get implemented as follows:
 
@@ -216,7 +224,7 @@ $$\begin{align}
 
 The issue is that after each floating point operation, a rounding step is performed implicitly. This means that these two expressions don't return the same results! This isn't a theoretical problem either, here's an example in [real-world code](https://github.com/GRTLCollaboration/GRChombo/blob/130140afe972701575740685343ea28f6ab8234c/Source/BoxUtils/FourthOrderDerivatives.hpp#L42)
 
-This results in systematic differences in rounding on both sides of the grid, and this error can build up surprisingly fast as we've seen - as we're essentially preferentially discarding the low bits of our floats but biased in a specific direction. So ideally, we'd eliminate all the systematic sources of error in our simulation
+This results in systematic differences in rounding on both sides of the grid, and this error can build up surprisingly fast as we've seen - as we're essentially preferentially discarding the low bits of our floats but biased in a specific direction
 
 You might think you can just rewrite this expression like this, by grouping equidistant cells:
 
@@ -227,7 +235,9 @@ float diff(const std::vector<float>& points, int idx, float scale)
 }
 ```
 
-While correct in theory, surprisingly, tests will show that this still returns the wrong answer. What gives?
+In some programming languages like [Rust](https://github.com/rust-lang/rfcs/pull/2686), you can simply stop here and your code will work. In C++, tests will show that this asymmetry still persists, and your simulation will be wrong
+
+To explain this, we now have to dive into a very strange C++ feature: Floating point contraction
 
 ## The C++ standard loophole
 
@@ -240,7 +250,7 @@ float v_mul = a*b;
 float v2 = v_mul + c;
 ```
 
-C++ encourages that $v_1 \neq v_2$. This rather surprising feature is known as floating point contraction, and there is no standardised way to disable it[^pragma]. *Within an expression*, the compiler is free to turn anything of the form $a*b + c$ into $\mathrm{fma}(a, b, c)$, which may be both faster and more precise. Unfortunately - in our case, it also causes our 'fixed' code to be rewritten as follows:
+C++ encourages that $v_1 \neq v_2$. This rather surprising feature is known as floating point contraction, and there is no standardised way to disable it[^pragma]. Within an *expression*, the compiler is free to turn anything of the form $a*b + c$ into $\mathrm{fma}(a, b, c)$, which may be both faster and more precise. Unfortunately - in our case, it also causes our 'fixed' code to be rewritten as follows:
 
 [^pragma]: There is a non standard pragma inherited from C, but CUDA does not implement this which is a problem. Even then, the pragma is a very blunt force instrument, so you have to be pretty careful in general
 
@@ -271,6 +281,8 @@ float diff_long(const std::vector<float>& points, int idx, float scale)
 }
 ```
 
+![cpp](/assets/cpp_logo.png){:style="display:block; margin-left:auto; margin-right:auto"}
+
 The above ('long form') represents the general form of how to fix this, and shows how to disable this compiler optimisation where necessary. For a specific problem, you may be able to rearrange it to negate this issue, eg:
 
 ```c++
@@ -282,7 +294,7 @@ float diff_concise(const std::vector<float>& points, int idx, float scale)
 
 This only works in our specific case for first derivatives - as the FMA that gets generated does not upset symmetry, and gives a 20% improvement in GPU-land over the long form version[^compiler]
 
-Pairwise summation with explicitly spelt out intermediate variables is the general fix to this problem - and I apply the 'long form' technique anywhere which involves numerical derivatives (Kreiss-Oliger)
+Pairwise summation with explicitly spelt out intermediate variables is the general fix to this problem - and I apply the 'long form' technique anywhere which involves numerical derivatives (Kreiss-Oliger). I've attached some thoughts about floats in C++ in the appendix to avoid derailing the purpose of this article
 
 [^compiler]: This is at least partly due to compiler-itus, as compilers are much better at optimising within an expression, than across multiple expressions. Its a big part of the reason why I use code generation in these articles
 
@@ -637,7 +649,7 @@ auto tricubic_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
                 auto v0 = v00 + v10;
                 auto v1 = v01 + v11;
 
-                as_ref(sum) += (v0 + v1);
+                as_ref(sum) += v0 + v1;
             });
         });
     });
@@ -646,7 +658,7 @@ auto tricubic_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
 }
 ```
 
-One of the reasons I write these articles is to save you from the same pain I have had to experience. There's no way around the fact that this is fairly complicated. The naive implementation of this is simple, but my goodness is this a joy. Even without the systematic numerical issues, pairwise summation has a reduced error term - so its better than just a big linear sum
+One of the reasons I write these articles is to save you from the same pain I have had to experience. There's no way around the fact that this is fairly complicated. The naive implementation of this is simple, but my goodness is this a joy. Even without the asymmetry issues, pairwise summation has a reduced error term - so its better than just a big linear sum
 
 With this, the floating point nightmare portion of this article is finally over
 
@@ -1197,7 +1209,6 @@ Where $R$ is the distance between them, and $m$ is the mass of each body. Truly 
 |Dirac size in cells| $5$|
 |Resolution|$199^3$|
 
-
 This gives something that looks like this (with tricubic interpolation):
 
 <iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/sihIgbl4DZM?si=mZJZQbHNVWQaje8J" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
@@ -1234,14 +1245,15 @@ These are identical, which shows that this collapse appears to have created a bl
 
 ## Cluster simulation
 
-The real goal of this article is to try simulating absolutely loads of particles. So its now time to crank up the number to 10 million, and see what happens. For this test case, I generate 10M particles within a circle (+ a small Z parameter) with a uniform distribution, and give each of them a randomised velocity about the origin. For the exact simulation parameters, check the source (this test is a performance test so the exact way the distribution is generated isn't super important)
+The real goal of this article is to try simulating absolutely loads of particles. So its now time to crank up the number to 10 million, and see what happens. For this test case, I generate 10M particles with a total mass of $0.1$, within a circle (+ a small Z parameter) with a uniform distribution, and give each of them a randomised velocity about the origin. For the exact simulation parameters, check the source (this test is a performance test so the exact way the distribution is generated isn't super important)
 
 This gives the following result, with trilinear interpolation for the particles:
 
 <iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/C3C9ZZxr2-s?si=CVU7nZMTxiSfgjuf" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
-This is pretty neat, and works surprisingly well. Larger particle counts would work too if I was willing to wait for longer - the total simulation time here was ~3 hours, taking 570ms/tick[^speedup]
 
-[^speedup]: The simulation speeds up a bit as time goes on, as particles are culled. The end tick time is ~480ms/tick
+This is pretty neat, and works surprisingly well. Larger particle counts would work too if I was willing to wait for longer - the total simulation time here was ~3 hours, taking 510ms/tick[^speedup]
+
+[^speedup]: The simulation speeds up a bit as time goes on, as particles are culled. The end tick time is ~430ms/tick
 
 # Discussion
 
@@ -1367,3 +1379,6 @@ void permute_memory(execution_context& ectx, particle_base_args<buffer<valuef>> 
 These three kernels are run sequentially, and this provides a significant speedup
 
 ## I could not for the life of me simulate a galaxy
+
+## C++ + Floating point
+

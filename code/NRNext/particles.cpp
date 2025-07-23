@@ -692,7 +692,7 @@ auto interpolate_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
                 auto v0 = v00 + v10;
                 auto v1 = v01 + v11;
 
-                as_ref(sum) += (v0 + v1);
+                as_ref(sum) += v0 + v1;
             });
         });
     });
