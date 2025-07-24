@@ -239,7 +239,7 @@ In some programming languages like [Rust](https://github.com/rust-lang/rfcs/pull
 
 To explain this, we now have to dive into a very strange C++ feature: Floating point contraction
 
-## The C++ standard loophole
+## The C++ loophole
 
 In this piece of code:
 
@@ -261,7 +261,7 @@ float diff(const std::vector<float>& points, int idx, float scale)
 }
 ```
 
-This reintroduces[^inpractice] the same issue we just tried to fix unfortunately. This can be fixed in a general way by spelling out all the intermediate variables, to create some really very beautiful code:
+This reintroduces[^inpractice] the same issue we just tried to fix. This can be fixed in a general way by spelling out all the intermediate variables, to create some really very beautiful code:
 
 [^inpractice]: If you're wondering if this is a more theoretical problem, it isn't. GPU compilers are very aggressive about using this rule to emit FMAs where possible
 
@@ -494,6 +494,8 @@ This is a large sum of 64 values. As you may be about to guess, you can't implem
 
 This is tricubic interpolation without any corrections for floating-point-and-C++-itus
 
+Todo: Clean up the signature
+
 ```c++
 template<typename T, typename... U>
 inline
@@ -560,7 +562,9 @@ auto tricubic_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
 
 #### Complex but correct
 
-This is the pairwise matched summation version of the above. GPU loops are emitted instead of unrolled, as AMD appears to suffer when too many memory accesses are emitted
+This is the pairwise matched summation version of the above. GPU loops are emitted instead of unrolled, as AMD appears to suffer when too many memory accesses are emitted. I also calculate the node location instead of sticking it into an array, to avoid indexing into a stack array with dynamic indices[^gpuland]
+
+[^gpuland]: GPUs don't have a data stack, so dynamic indices can cause the array to be promoted to L2 cache, which is bad
 
 ```c++
 template<typename T, typename... U>
@@ -1245,13 +1249,13 @@ These are identical, which shows that this collapse appears to have created a bl
 
 ## Cluster simulation
 
-The real goal of this article is to try simulating absolutely loads of particles. So its now time to crank up the number to 10 million, and see what happens. For this test case, I generate 10M particles with a total mass of $0.1$, within a circle (+ a small Z parameter) with a uniform distribution, and give each of them a randomised velocity about the origin. For the exact simulation parameters, check the source (this test is a performance test so the exact way the distribution is generated isn't super important)
+The real goal of this article is to try simulating absolutely loads of particles. So its now time to crank up the number to 10 million, and see what happens. For this test case, I generate 10M particles with a total mass of $0.1$, within a circle (+ a small Z parameter) uniformly, with a small velocity. For the exact simulation parameters, check the source (this test is a performance test so the exact way the distribution is generated isn't super important)
 
 This gives the following result, with trilinear interpolation for the particles:
 
 <iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/C3C9ZZxr2-s?si=CVU7nZMTxiSfgjuf" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-This is pretty neat, and works surprisingly well. Larger particle counts would work too if I was willing to wait for longer - the total simulation time here was ~3 hours, taking 510ms/tick[^speedup]
+This is pretty neat, and works surprisingly well. Larger particle counts would work too if I was willing to wait for longer - the total simulation time here was ~3 hours, taking 510ms/tick[^speedup]. The peformance scales roughly linearly with the number of particles
 
 [^speedup]: The simulation speeds up a bit as time goes on, as particles are culled. The end tick time is ~430ms/tick
 
@@ -1259,8 +1263,10 @@ This is pretty neat, and works surprisingly well. Larger particle counts would w
 
 Coming into this article, I had two primary goals:
 
-1. Track down the major sources of error that plagued previous simulations of this type. Especially: Self acceleration, abrupt two-body failures, and gradual centre of mass drift. These are all fully characterised and largely eliminated here
+1. Track down the major sources of error[^wave] that plagued previous simulations of this type. Especially: self acceleration, abrupt two-body failures, and gradual centre of mass drift. These are all fully characterised and largely eliminated here
 2. Fix the systematic performance problems, and create a good architecture for people to bolt improvements[^obvious] onto
+
+[^wave]: Papers tend to handwave away all of the complexity here, which makes me suspect that its not being done super correctly
 
 [^obvious]: The most obvious improvement I have not included is decoupling the rate of particle stepping, from the simulation stepping. This would allow you to simulate ~100M particles. There are places where a reasonably significant amount of memory could be saved as well - eg you don't really need to triple buffer mass, and you can likely reduce the precision of the particle's position by assigning them to cells
 
@@ -1378,7 +1384,35 @@ void permute_memory(execution_context& ectx, particle_base_args<buffer<valuef>> 
 
 These three kernels are run sequentially, and this provides a significant speedup
 
-## I could not for the life of me simulate a galaxy
+## C++ and floating point - a brief overview
 
-## C++ + Floating point
+I've tried to keep this article largely clear of extended discussions around the state of floating point in C++ (or really: C-style languages more broadly). The language is often quite creaky when dealing with floating point, especially for scientific computing
 
+If you've been reading this article, the floating point contraction segment shows how this feature severely complicates getting accurate results in real world use cases, which is a bit unfortunate - more modern languages tend not to go for this approach. Automatic floating point contraction within an expression feels like a very 90s solution to the problem, when compilers were a wild west with floats
+
+For example, there's no portable way to specify that I want floating point contraction in the following code:
+
+```c++
+float v1 = a*b;
+float v2 = v1 + c;
+```
+
+In fact, there's no way to write a `float` replacement class that actually mimics the semantics of `float` in C++, which is an odd byproduct of the floating point contraction rules. On the other hand, one of the major reasons we're using code generation in this article series, is because I *do* want optimisations like the following:
+
+```c++
+float v1 = 0 * a; //-> 0
+float v2 = (a + 1.f) - 1.f //-> a;
+```
+
+where appropriate. C style languages don't really let you do this, so I've had to use code generation to get rather dramatic speedups (up to 100x!). These articles have very heavily relied on the automated application of these transforms for performance on the generated AST
+
+### Modern approaches
+
+There are two approaches I've seen in modern languages
+
+1. A `fast_float` or `algebraic_float` type
+2. Tags like `[[reassoc_on, fp_contract_on, denormals_off]]`, or whatever syntax pops out of the void
+
+#1 is the easiest to implement, but it immediately runs into the non composability of the optimisations you might want to apply, and is too limiting to be all that useful
+
+#2 is a much better approach in general. For the code in these articles, I know *precisely* where I'm allowed to perform various optimisations - and yet there's simply no way to express that to the compiler. There'd likely be a free 20% performance win if I could mark up exactly where the compiler was allowed to go hands off with the optimiser. Hopefully a language will get this right!

@@ -1028,6 +1028,16 @@ namespace value_impl
             return v1;
         }
 
+        friend value<T>& operator*=(value<T>& v1, const value<T>& v2) {
+            v1 = v1 * v2;
+            return v1;
+        }
+
+        friend value<T>& operator/=(value<T>& v1, const value<T>& v2) {
+            v1 = v1 / v2;
+            return v1;
+        }
+
         friend value<bool> operator||(const value<T>& v1, const value<T>& v2) {
             value<bool> result;
             result.type = op::LOR;
@@ -1110,11 +1120,35 @@ namespace value_impl
         }
 
         template<typename V>
-        void operator+= (const V& to_set)
+        void operator+=(const V& to_set)
         {
             auto decl = declare_e(ctx, v);
 
             assign_e(ctx, v, decl + to_set);
+        }
+
+        template<typename V>
+        void operator-=(const V& to_set)
+        {
+            auto decl = declare_e(ctx, v);
+
+            assign_e(ctx, v, decl - to_set);
+        }
+
+        template<typename V>
+        void operator*=(const V& to_set)
+        {
+            auto decl = declare_e(ctx, v);
+
+            assign_e(ctx, v, decl * to_set);
+        }
+
+        template<typename V>
+        void operator/=(const V& to_set)
+        {
+            auto decl = declare_e(ctx, v);
+
+            assign_e(ctx, v, decl / to_set);
         }
     };
 

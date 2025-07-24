@@ -613,25 +613,20 @@ template<typename T, typename... U>
 inline
 auto interpolate_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
 {
-    return function_trilinear2(func, frac, ifloored, args...);
+    //return function_trilinear2(func, frac, ifloored, args...);
 
     using namespace single_source;
 
     using value_v = decltype(func(v3i(), std::forward<U>(args)...));
 
-    auto L_j = [&](valuei j, const valuef& f, mut<valuef>& bottom_out)
+    auto L_j = [&](valuei j, const valuef& f)
     {
         auto apply_for_m = [&](int m)
         {
-            mut<valuef> out = declare_mut_e(valuef(1));
+            valuef bot = (valuef)j - 1.f - (m - 1);
+            valuef top = f - (valuef)(m - 1);
 
-            if_e(m != j, [&]{
-                as_ref(bottom_out) = declare_e(bottom_out) * ((valuef)j - 1.f - ((float)m - 1));
-
-                as_ref(out) = (f - (valuef)(m - 1));
-            });
-
-            return declare_e(out);
+            return ternary(m != j, top / bot, (valuef)1.f);
         };
 
         return (apply_for_m(0) * apply_for_m(3)) * (apply_for_m(1) * apply_for_m(2));
@@ -663,13 +658,7 @@ auto interpolate_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
 
                     auto u = func(ifloored + offset, std::forward<U>(args)...);
 
-                    mut<valuef> bx = declare_mut_e(valuef(1));
-                    mut<valuef> by = declare_mut_e(valuef(1));
-                    mut<valuef> bz = declare_mut_e(valuef(1));
-
-                    auto val = no_opt(u * L_j(x, frac.x(), bx) * L_j(y, frac.y(), by) * L_j(z, frac.z(), bz));
-
-                    return no_opt(val * (1/(declare_e(bx) * declare_e(by) * declare_e(bz))));
+                    return no_opt(u * L_j(x, frac.x()) * L_j(y, frac.y()) * L_j(z, frac.z()));
                 };
 
                 auto v000 = eval_for(xs[0], ys[0], zs[0]);

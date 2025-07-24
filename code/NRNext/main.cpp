@@ -1833,7 +1833,7 @@ initial_params get_initial_params()
 
     float radial_pos = geometric_to_msol(1000 * 54.6/2, 1);
 
-    #define RANDOM_INIT
+    //#define RANDOM_INIT
     #ifdef RANDOM_INIT
     init.particle_radius_cells = 1;
 
@@ -1866,7 +1866,7 @@ initial_params get_initial_params()
     }
     #endif
 
-    //#define TWO_BODY
+    #define TWO_BODY
     #ifdef TWO_BODY
     printf("Radial pos %f\n", radial_pos);
 
