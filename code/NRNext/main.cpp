@@ -2103,6 +2103,12 @@ int main()
     bool progress_camera_time = false;
     float render_size_scale = 1;
     float advance_time_mult = 1;
+    bool capture_to_file = false;
+
+    int capture_frame = 0;
+    bool has_stepped_since_last_capture = true;
+
+    file::mkdir("capture");
 
     vec3f camera_pos = {0, 0, -m.simulation_width/2 - 0.1f};;
     quat camera_quat;
@@ -2224,6 +2230,7 @@ int main()
         ImGui::Checkbox("Render", &render);
         ImGui::Checkbox("Render2", &render2);
         ImGui::Checkbox("Debug Render", &debug_render);
+        ImGui::Checkbox("Capture to File", &capture_to_file);
         ImGui::DragFloat("Pause At", &pause_time, 1, 0, 99999999);
 
         ImGui::Checkbox("Override Camera Time", &lock_camera_to_slider);
@@ -2297,21 +2304,31 @@ int main()
         {
             m.step(ctx, cqueue, timestep);
             rt_bssn.capture_snapshots(ctx, cqueue, timestep, m);
+            has_stepped_since_last_capture = true;
         }
+
+        bool capture = false;
 
         {
             rt_bssn.poll_render_resolution(screen_tex.size<2>().x(), screen_tex.size<2>().y());
 
             tensor<float, 4> camera4 = {m.total_elapsed, camera_pos.x(), camera_pos.y(), camera_pos.z()};
 
+
             if(lock_camera_to_slider || progress_camera_time)
                 camera4.x() = cam_time;
 
             if(render && (render_frame_idx % render_skipping) == 0)
+            {
+                capture = true;
                 rt_bssn.render3(cqueue, camera4, camera_quat, background, screen_tex, simulation_width, render_size_scale, m, lock_camera_to_slider, progress_camera_time);
+            }
 
             if(render2 && (render_frame_idx % render_skipping) == 0)
+            {
+                capture = true;
                 rt_bssn.render4(cqueue, camera4, camera_quat, background, screen_tex, simulation_width, render_size_scale, m, lock_camera_to_slider, progress_camera_time);
+            }
         }
 
         if(debug_render)
@@ -2334,6 +2351,35 @@ int main()
         }
 
         screen_tex.unacquire(cqueue);
+
+        if(capture && has_stepped_since_last_capture)
+        {
+            has_stepped_since_last_capture = false;
+
+            std::string filename = "capture/image" + std::to_string(capture_frame++) + ".png";
+
+            std::vector<vec4f> pixels = tex2.read(0);
+
+            int w = tex2.get_size().x();
+            int h = tex2.get_size().y();
+
+            sf::Image img;
+            img.create(w, h);
+
+            for(int y=0; y < h; y++)
+            {
+                for(int x=0; x < w; x++)
+                {
+                    vec4f col = pixels[y * w + x];
+
+                    sf::Color scol(col.x() * 255, col.y() * 255, col.z() * 255, 255);
+
+                    img.setPixel(x, y, scol);
+                }
+            }
+
+            img.saveToFile(filename);
+        }
 
         ImGui::GetBackgroundDrawList()->AddImage((void*)tex2.handle, ImVec2(0,0), ImVec2(tex2.get_size().x(), tex2.get_size().y()));
         //ImGui::GetBackgroundDrawList()->AddImage((void*)tex.handle, ImVec2(0,0), ImVec2(dim.x() * 3, dim.y() * 3));
