@@ -494,8 +494,6 @@ This is a large sum of 64 values. As you may be about to guess, you can't implem
 
 This is tricubic interpolation without any corrections for floating-point-and-C++-itus
 
-Todo: Clean up the signature
-
 ```c++
 template<typename T, typename... U>
 inline
@@ -1270,7 +1268,16 @@ Coming into this article, I had two primary goals:
 
 [^obvious]: The most obvious improvement I have not included is decoupling the rate of particle stepping, from the simulation stepping. This would allow you to simulate ~100M particles. There are places where a reasonably significant amount of memory could be saved as well - eg you don't really need to triple buffer mass, and you can likely reduce the precision of the particle's position by assigning them to cells
 
-On both of these fronts, the approach laid out here has gone extremely well in general. The performance is particularly nice - with the only configuration choice being between trilinear, or tricubic interpolation
+On both of these fronts, the approach laid out here has gone extremely well in general. The performance is particularly nice - with the only new configuration choice being between trilinear, or tricubic interpolation - with a relatively clear rule[^clear] as to when to pick one or another
+
+[^clear]: If a particle's mass is high relative to the surrounding environment, use tricubic. If its low, use trilinear. If in doubt, use tricubic
+
+This article was significantly delayed by two things:
+
+1. A failure to simulate a galaxy
+2. I spent way too long trying to simulate the Omega Centauri cluster
+
+Both of these are discussed in the appendix
 
 # Appendix
 
@@ -1416,3 +1423,78 @@ There are two approaches I've seen in modern languages
 #1 is the easiest to implement, but it immediately runs into the non composability of the optimisations you might want to apply, and is too limiting to be all that useful
 
 #2 is a much better approach in general. For the code in these articles, I know *precisely* where I'm allowed to perform various optimisations - and yet there's simply no way to express that to the compiler. There'd likely be a free 20% performance win if I could mark up exactly where the compiler was allowed to go hands off with the optimiser. Hopefully a language will get this right!
+
+
+## Things that did not go so well
+
+### Omega Centauri
+
+In general, these simulations handle higher mass to volume structures better - given the way that cluster mass scales, therefore the largest cluster possible is the best
+
+Omega Centauri, being a very large cluster, is therefore a theoretically appealing target. Even better are the following features:
+
+1. Virtually every star in it has been catalogued, and it contains the right number of stars (~10M). This means in theory we could simulate every single **real** star in the cluster
+2. Each star comes with position, and depth (via parallax) information - as well as X and Y velocities, and a line of sight velocity
+3. There are lots of papers which contain useful information for people who have no idea what's going on
+
+In theory, while we may have to fudge mass - position + velocity are fully determined. This is great.. theoretically
+
+#### Nope!
+
+Some very long winded testing made me realise that the parallax data that Gaia provides is, unfortunately, completely unusable. It is so inaccurate that you can only make the broadest possible interpretations about a population of stars, and you absolutely cannot use it to model an individual stars position with any accuracy
+
+Without that depth information, you have to construct a model of the cluster, and guess where a star's location in 3D is based on its velocity through the sky (while estimating its Z velocity). This means no retrograde stars, and is quite approximate
+
+It also somewhat defeats the point of trying to simulate the cluster: All we'd really be doing is seeing how a given model simulates - which isn't super interesting to me personally. The Gaia data is unsalvageable for us, at least with my limited knowledge
+
+So at that point, that brings me onto the next topic: Simulating a galaxy
+
+### Build A Galaxy
+
+I could not for the life of me simulate a galaxy under any circumstances. I have absolutely no clue why. I'm going to list the things I tried, and possible causes of this problem
+
+Todo: Link references
+
+Here's a flat disk galaxy
+
+<iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/MZEF8zZ7G9w?si=CeDUiy-WypAEWE58" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+Here's a galaxy with a Z component:
+
+![galaxyz](/assets/nr6_galaxy.PNG)
+
+<iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/xwGT19CsSqI?si=g5xdRb9LiWSJYTku" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+#### Some things I tried, and ruled out
+
+1. Both alternative particle formulations, ie $V^i$ and $p^\mu$
+2. Various precision settings, tricubic vs trilinear, exact symmetry
+3. Variations on the initial conditions, ie exactly how the initial tetrad is constructed
+4. Minor randomisation of particle velocity, within realistic bounds
+5. Various numbers of particles. The simulation converges, just to a bad result
+6. Alternate integrators for the particles
+7. The mass/velocity distributions were manually inspected to make sure they conformed to the expected distribution. A CDF was integrated in the flat disk case, and the Z disk used variable mass particles to get the correct distribution. They had radically different construction techniques, but exhibit a very similar failure mode
+8. Multiple alternate gauge conditions, and $N$ was varied (as well as testing the variable version)
+9. Different spin speeds, high mass galaxies, low mass galaxies, real galaxy parameters
+10. The wildly slow momentum constraint initial conditions solution, which I actually implemented just to make sure that wasn't the problem
+11. Kreiss-Oliger (more, less, no damping, varying orders)
+12. Improving the weak field precision, including a new algebraic constraint damping scheme
+13. The dirac delta size
+14. Grid resolution
+15. Timestep resolution (+ fixed point iteration count)
+
+The error appeared to be that the velocity of particles in the core is ~30% too high, as none of the above modifications made any difference at all to the error case. It can be manually tamped down, but this makes absolutely no sense
+
+This error also appeared in the project[^oldproject] that is the progenitor to these blog posts, in *precisely* the same form, despite sharing no meaningful code with this article whatsoever. This is a clean-room reimplementation
+
+[^oldproject]: The old project is known bad in some minor ways, and is not a good reference for the BSSN equations. For transparency, it is available over [here](https://github.com/20k/numerical_sim), but I consider it deprecated. It was my first NR project, and this blog post series is intentionally a strict clean-room rewrite. I spent many months trying to chase the galaxy problem down in the older simulation
+
+As far as I can tell, the issue is potentially one of a few things:
+
+1. None of the code I've written in the last few years works at all. I've put a lot of effort into really making these articles tediously correct, so I don't think its that. I do need to put more work into validating these results, which is the next article
+2. There's some kind of fundamental interaction with the dirac discretisation, the cartesian grid discretisation (leading to a limited spatial and angular velocity resolution with systematic errors, which is worsened towards the core), and the nature of a galaxy simulation having a spherical structure
+3. These newtonian models may be inherently unstable within the core, as I've seen purely newtonian simulations exhibit exactly the same fault. It may simply be that these galaxy models are pertubatively unstable, as its a suspiciously similar failure mode
+4. General relativity and newtonian physics may be just incompatible enough at this scales to cause an unstable model to fail in a more dramatic way than a newtonian simulation
+
+I think its likely to be some combination of the above factors. The long running cluster collapse test case shows that it is possible to find a stable end state (ie its not that the simulation has no stable state), so its probably just some instability of the initial conditions
+
