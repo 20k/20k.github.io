@@ -2308,6 +2308,8 @@ int main()
                     if(stepped_since_capturing_debug_params)
                         debug_particles = particles->read(cqueue, m.plugin_buffers[0][i]);
 
+                    stepped_since_capturing_debug_params = false;
+
                     std::vector<std::tuple<t3f, t3f, float, float>> properties;
                     properties.reserve(debug_particles.size());
 
@@ -2315,14 +2317,74 @@ int main()
 
                     for(int kk=0; kk < (int)debug_particles.size(); kk++)
                     {
-                        if((kk % 10) != 0)
-                            continue;
-
                         t3f pos = {debug_particles.positions[0][kk], debug_particles.positions[1][kk], debug_particles.positions[2][kk]};
 
                         avg += pos / debug_particles.size();
                     }
 
+                    float max_radius_sq = 0;
+
+                    for(int kk=0; kk < (int)debug_particles.size(); kk++)
+                    {
+                        t3f pos = {debug_particles.positions[0][kk], debug_particles.positions[1][kk], debug_particles.positions[2][kk]};
+
+                        max_radius_sq = std::max((pos - avg).squared_length(), max_radius_sq);
+                    }
+
+                    constexpr int buckets = 500;
+
+                    std::array<int64_t, buckets> bucketed_counts = {};
+
+                    std::array<float, buckets> avg_velocities = {};
+                    std::array<float, buckets> mass_in_bucket = {};
+
+                    float radius = std::sqrt(max_radius_sq);
+
+                    for(int kk=0; kk < (int)debug_particles.size(); kk++)
+                    {
+                        t3f pos = {debug_particles.positions[0][kk], debug_particles.positions[1][kk], debug_particles.positions[2][kk]};
+                        float my_rad = (pos - avg).length();
+
+                        int bucket = clamp(floor((my_rad / radius) * buckets), 0, buckets - 1);
+
+                        bucketed_counts[bucket]++;
+                    }
+
+                    for(int kk=0; kk < (int)debug_particles.size(); kk++)
+                    {
+                        t3f pos = {debug_particles.positions[0][kk], debug_particles.positions[1][kk], debug_particles.positions[2][kk]};
+                        float my_rad = (pos - avg).length();
+
+                        int bucket = clamp(floor((my_rad / radius) * buckets), 0, buckets - 1);
+
+
+                        //t3f pos = {debug_particles.positions[0][kk], debug_particles.positions[1][kk], debug_particles.positions[2][kk]};
+
+                        t3f vel = {debug_particles.velocities[0][kk], debug_particles.velocities[1][kk], debug_particles.velocities[2][kk]};
+                        float mass = debug_particles.masses[kk];
+
+                        /*std::get<0>(bucketed_properties[bucket]) += pos / bucketed_counts[bucket];
+                        std::get<1>(bucketed_properties[bucket]) += vel / bucketed_counts[bucket];
+                        std::get<2>(bucketed_properties[bucket]) += mass;*/
+
+                        avg_velocities[bucket] += vel.length() / bucketed_counts[bucket];
+                        mass_in_bucket[bucket] += mass;
+                    }
+
+                    double cumulative_mass = 0;
+                    std::array<float, buckets> cumulative_bucket_mass;
+
+                    for(int i=0; i < buckets; i++)
+                    {
+                        cumulative_mass += mass_in_bucket[i];
+                        cumulative_bucket_mass[i] = cumulative_mass;
+                    }
+
+                    ImGui::PlotLines("Velocity", avg_velocities.data(), avg_velocities.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(600, 100));
+                    ImGui::PlotLines("Mass", mass_in_bucket.data(), mass_in_bucket.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(600, 100));
+                    ImGui::PlotLines("CMass", cumulative_bucket_mass.data(), cumulative_bucket_mass.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(600, 100));
+
+                    #if 0
                     for(int kk=0; kk < (int)debug_particles.size(); kk++)
                     {
                         if((kk % 10) != 0)
@@ -2363,8 +2425,8 @@ int main()
                     ImGui::PlotLines("Distance", distances.data(), distances.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(600, 100));
                     ImGui::PlotLines("Velocity", velocities.data(), velocities.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(600, 100));
                     ImGui::PlotLines("CMass", cumulative_mass.data(), cumulative_mass.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(600, 100));
+                    #endif
 
-                    stepped_since_capturing_debug_params = false;
                 }
             }
 
