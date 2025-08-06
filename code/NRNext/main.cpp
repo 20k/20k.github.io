@@ -1837,8 +1837,8 @@ initial_params get_initial_params()
     #ifdef RANDOM_INIT
     init.particle_radius_cells = 1;
 
-    int N = 10000000;
-    double M = 1/10.f;
+    int N = 5000000;
+    double M = 0.8f * 1/10.f;
 
     while(part.size() < N)
     {
@@ -1972,8 +1972,8 @@ initial_params get_initial_params()
     }
     #endif
 
-    init.dim = {199, 199, 199};
-    init.simulation_width = radial_pos * 4;
+    init.dim = {233, 233, 233};
+    init.simulation_width = radial_pos * 4 * 1.2;
 
     printf("Swidth %f\n", init.simulation_width);
 
@@ -2361,9 +2361,9 @@ int main()
                         cumulative_bucket_mass[i] = cumulative_mass;
                     }
 
-                    ImGui::PlotLines("Velocity", avg_velocities.data(), avg_velocities.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(600, 90));
-                    ImGui::PlotLines("Mass", mass_in_bucket.data(), mass_in_bucket.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(600, 90));
-                    ImGui::PlotLines("CMass", cumulative_bucket_mass.data(), cumulative_bucket_mass.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(600, 90));
+                    ImGui::PlotLines("Velocity", avg_velocities.data(), avg_velocities.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 50));
+                    ImGui::PlotLines("Mass", mass_in_bucket.data(), mass_in_bucket.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 50));
+                    ImGui::PlotLines("CMass", cumulative_bucket_mass.data(), cumulative_bucket_mass.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 50));
                 }
             }
 
