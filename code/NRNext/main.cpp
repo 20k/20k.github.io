@@ -1833,7 +1833,7 @@ initial_params get_initial_params()
 
     float radial_pos = geometric_to_msol(1000 * 54.6/2, 1);
 
-    //#define RANDOM_INIT
+    #define RANDOM_INIT
     #ifdef RANDOM_INIT
     init.particle_radius_cells = 1;
 
@@ -1866,7 +1866,7 @@ initial_params get_initial_params()
     }
     #endif
 
-    #define TWO_BODY
+    //#define TWO_BODY
     #ifdef TWO_BODY
     printf("Radial pos %f\n", radial_pos);
 
@@ -2108,6 +2108,9 @@ int main()
     int capture_frame = 0;
     bool has_stepped_since_last_capture = true;
 
+    particle_params debug_particles;
+    bool stepped_since_capturing_debug_params = true;
+
     file::mkdir("capture");
 
     vec3f camera_pos = {0, 0, -m.simulation_width/2 - 0.1f};;
@@ -2280,16 +2283,93 @@ int main()
         #endif
         #endif
 
-        std::vector<float> rest_mass;
+        if(ImGui::TreeNode("Rest Mass Debug"))
+        {
+            std::vector<float> rest_mass;
 
-        for(auto& i : hydro->debug_rest_mass)
-            rest_mass.push_back(i);
+            for(auto& i : hydro->debug_rest_mass)
+                rest_mass.push_back(i);
 
-        if(rest_mass.size() > 0)
-            ImGui::PlotLines("M0", rest_mass.data(), rest_mass.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 100));
+            if(rest_mass.size() > 0)
+            {
+                ImGui::PlotLines("M0", rest_mass.data(), rest_mass.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 100));
+                ImGui::Text("M0: %f\n", rest_mass.back());
+            }
 
-        if(rest_mass.size() > 0)
-            ImGui::Text("M0: %f\n", rest_mass.back());
+            ImGui::TreePop();
+        }
+
+        if(ImGui::TreeNode("Particle Debug"))
+        {
+            for(int i=0; i < (int)m.plugins.size(); i++)
+            {
+                if(m.plugins[i] == (plugin*)particles)
+                {
+                    if(stepped_since_capturing_debug_params)
+                        debug_particles = particles->read(cqueue, m.plugin_buffers[0][i]);
+
+                    std::vector<std::tuple<t3f, t3f, float, float>> properties;
+                    properties.reserve(debug_particles.size());
+
+                    t3f avg;
+
+                    for(int kk=0; kk < (int)debug_particles.size(); kk++)
+                    {
+                        if((kk % 10) != 0)
+                            continue;
+
+                        t3f pos = {debug_particles.positions[0][kk], debug_particles.positions[1][kk], debug_particles.positions[2][kk]};
+
+                        avg += pos / debug_particles.size();
+                    }
+
+                    for(int kk=0; kk < (int)debug_particles.size(); kk++)
+                    {
+                        if((kk % 10) != 0)
+                            continue;
+
+                        t3f pos = {debug_particles.positions[0][kk], debug_particles.positions[1][kk], debug_particles.positions[2][kk]};
+
+                        t3f vel = {debug_particles.velocities[0][kk], debug_particles.velocities[1][kk], debug_particles.velocities[2][kk]};
+                        float mass = debug_particles.masses[kk];
+
+                        properties.push_back({{pos[0], pos[1], pos[2]},
+                                              {vel[0], vel[1], vel[2]},
+                                               mass, (pos - avg).squared_length()});
+                    }
+
+                    std::sort(properties.begin(), properties.end(), [](auto&& i1, auto&& i2)
+                    {
+                        return std::get<3>(i1) < std::get<3>(i2);
+                    });
+
+                    std::vector<float> distances;
+                    std::vector<float> velocities;
+                    std::vector<float> cumulative_mass;
+                    double running_mass = 0;
+
+                    for(int kk=0; kk < (int)properties.size(); kk++)
+                    {
+                        float len = std::get<3>(properties[kk]);
+                        float vel = std::get<1>(properties[kk]).length();
+
+                        running_mass += std::get<2>(properties[kk]);
+
+                        distances.push_back(len);
+                        velocities.push_back(vel);
+                        cumulative_mass.push_back(running_mass);
+                    }
+
+                    ImGui::PlotLines("Distance", distances.data(), distances.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(600, 100));
+                    ImGui::PlotLines("Velocity", velocities.data(), velocities.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(600, 100));
+                    ImGui::PlotLines("CMass", cumulative_mass.data(), cumulative_mass.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(600, 100));
+
+                    stepped_since_capturing_debug_params = false;
+                }
+            }
+
+            ImGui::TreePop();
+        }
 
         ImGui::End();
 
@@ -2305,6 +2385,7 @@ int main()
             m.step(ctx, cqueue, timestep);
             rt_bssn.capture_snapshots(ctx, cqueue, timestep, m);
             has_stepped_since_last_capture = true;
+            stepped_since_capturing_debug_params = true;
         }
 
         bool capture = false;

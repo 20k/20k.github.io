@@ -267,6 +267,8 @@ struct particle_plugin : plugin
     virtual ~particle_plugin(){}
 
     void calculate_intermediates(cl::context ctx, cl::command_queue cqueue, std::vector<cl::buffer> bssn_in, particle_buffers& p_in, particle_utility_buffers& util_out, t3i dim, float scale);
+
+    particle_params read(cl::command_queue& cqueue, buffer_provider* in);
 };
 
 #endif // PARTICLES_HPP_INCLUDED

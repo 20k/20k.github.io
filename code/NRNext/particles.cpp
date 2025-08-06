@@ -1824,3 +1824,19 @@ void particle_plugin::load(cl::command_queue& cqueue, const std::string& directo
     }
 }
 
+particle_params particle_plugin::read(cl::command_queue& cqueue, buffer_provider* in)
+{
+    particle_buffers& particles = *dynamic_cast<particle_buffers*>(in);
+
+    particle_params ret;
+
+    for(int i=0; i < 3; i++)
+    {
+        ret.positions[i] = particles.positions[i].read<float>(cqueue);
+        ret.velocities[i] = particles.velocities[i].read<float>(cqueue);
+    }
+
+    ret.masses = particles.masses.read<float>(cqueue);
+    return ret;
+}
+
