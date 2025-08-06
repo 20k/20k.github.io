@@ -613,7 +613,7 @@ template<typename T, typename... U>
 inline
 auto interpolate_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
 {
-    //return function_trilinear2(func, frac, ifloored, args...);
+    return function_trilinear2(func, frac, ifloored, args...);
 
     using namespace single_source;
 

@@ -81,6 +81,21 @@ struct particle_params
         masses.push_back(mass);
         total_mass += mass;
     }
+
+    t3f get_position(int idx)
+    {
+        return {positions[0][idx], positions[1][idx], positions[2][idx]};
+    }
+
+    t3f get_velocity(int idx)
+    {
+        return {velocities[0][idx], velocities[1][idx], velocities[2][idx]};
+    }
+
+    float get_mass(int idx)
+    {
+        return masses[idx];
+    }
 };
 
 struct particle_data
