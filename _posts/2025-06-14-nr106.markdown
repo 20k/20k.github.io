@@ -1253,9 +1253,13 @@ This gives the following result, with trilinear interpolation for the particles:
 
 <iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/C3C9ZZxr2-s?si=CVU7nZMTxiSfgjuf" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-This is pretty neat, and works surprisingly well. Larger particle counts would work too if I was willing to wait for longer - the total simulation time here was ~3 hours, taking 510ms/tick[^speedup]. The peformance scales roughly linearly with the number of particles
+This is pretty neat, and works surprisingly well. Larger particle counts would work too if I was willing to wait for longer. The total simulation time here was ~3 hours, taking 510ms/tick[^speedup]. The peformance scales linearly with the number of particles
 
 [^speedup]: The simulation speeds up a bit as time goes on, as particles are culled. The end tick time is ~430ms/tick
+
+This is a similar situation with 5 million particles, and a total mass of $0.08$. It contains some extra debugging information, on rotation curves
+
+<iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/UUom9ykTio0?si=X3_esVtQiAZVOBQe" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 # Discussion
 
