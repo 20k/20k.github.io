@@ -1833,8 +1833,42 @@ initial_params get_initial_params()
 
     float radial_pos = geometric_to_msol(1000 * 54.6/2, 1);
 
-    #define RANDOM_INIT
-    #ifdef RANDOM_INIT
+    #define RANDOM_INIT1
+    #ifdef RANDOM_INIT1
+    init.particle_tricubic = false;
+    init.particle_radius_cells = 1;
+
+    int N = 10000000;
+    double M = 1/10.f;
+
+    while(part.size() < N)
+    {
+        double lM = M/N;
+
+        double x = uint64_to_double(xoshiro256ss(st));
+        double y = uint64_to_double(xoshiro256ss(st));
+        double z = uint64_to_double(xoshiro256ss(st));
+
+        t3f pos = {(x - 0.5f) * 2 * radial_pos, (y - 0.5f) * 2 * radial_pos, (z - 0.5f) * 2 * radial_pos};
+        pos.z() = pos.z() * 0.04f;
+
+        float length = pos.xy().length();
+
+        if(length >= radial_pos)
+            continue;
+
+        float frac = length / radial_pos;
+
+        double vm = uint64_to_double(xoshiro256ss(st));
+
+        t3f vel = cross(pos, (t3f){0, 0, 1}).norm() * 0.07 * (vm + 0.5f) * frac;
+
+        part.add(pos, vel, lM);
+    }
+    #endif
+
+    //#define RANDOM_INIT2
+    #ifdef RANDOM_INIT2
     init.particle_tricubic = false;
     init.particle_radius_cells = 1;
 
@@ -1865,6 +1899,9 @@ initial_params get_initial_params()
 
         part.add(pos, vel, lM);
     }
+
+    //this is kind of hacky and i regret using radial_pos
+    radial_pos *= 1.2;
     #endif
 
     //#define TWO_BODY
@@ -1974,7 +2011,7 @@ initial_params get_initial_params()
     #endif
 
     init.dim = {233, 233, 233};
-    init.simulation_width = radial_pos * 4 * 1.2;
+    init.simulation_width = radial_pos * 4;
 
     printf("Swidth %f\n", init.simulation_width);
 
