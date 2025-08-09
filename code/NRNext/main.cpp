@@ -1835,6 +1835,7 @@ initial_params get_initial_params()
 
     #define RANDOM_INIT
     #ifdef RANDOM_INIT
+    init.particle_tricubic = false;
     init.particle_radius_cells = 1;
 
     int N = 5000000;
@@ -2013,7 +2014,7 @@ int main()
     t3i dim = params.dim;
 
     hydrodynamic_plugin* hydro = new hydrodynamic_plugin(ctx, params.linear_viscosity_timescale, params.hydrodynamics_wants_colour(), params.linear_viscosity_strength, params.quadratic_viscosity_strength);
-    particle_plugin* particles = new particle_plugin(ctx, params.particles.size(), params.particle_radius_cells);
+    particle_plugin* particles = new particle_plugin(ctx, params.particles.size(), params.particle_radius_cells, params.particle_tricubic);
 
     std::vector<plugin*> plugins;
 
@@ -2347,6 +2348,8 @@ int main()
 
                         t3f vel = debug_particles.get_velocity(kk);
                         float mass = debug_particles.get_mass(kk);
+
+                        assert(bucketed_counts[bucket] > 0);
 
                         avg_velocities[bucket] += vel.length() / bucketed_counts[bucket];
                         mass_in_bucket[bucket] += mass;

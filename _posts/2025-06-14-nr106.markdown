@@ -1429,19 +1429,17 @@ There are two approaches I've seen in modern languages
 
 ### Omega Centauri
 
-In general, these simulations handle higher mass to volume structures better - given the way that cluster mass scales, therefore the largest cluster possible is the best
-
-Omega Centauri, being a very large cluster, is therefore a theoretically appealing target. Even better are the following features:
+In general, these simulations handle higher mass to volume structures better - given the way that cluster mass scales, the largest cluster possible is the best. Omega Centauri is a theoretically appealing target given its large size. Even better are the following features:
 
 1. Virtually every star in it has been catalogued, and it contains the right number of stars (~10M). This means in theory we could simulate every single **real** star in the cluster
-2. Each star comes with position, and depth (via parallax) information - as well as X and Y velocities, and a line of sight velocity
-3. There are lots of papers which contain useful information for people who have no idea what's going on
+2. Each star comes with full 3d vectors for position and velocity
+3. Its a well studied target, which means there are lots of papers which contain useful information for people who have no idea what's going on
 
 In theory, while we may have to fudge mass - position + velocity are fully determined. This is great.. theoretically
 
 #### Nope!
 
-Some very long winded testing made me realise that the parallax data that Gaia provides is, unfortunately, completely unusable. It is so inaccurate that you can only make the broadest possible interpretations about a population of stars, and you absolutely cannot use it to model an individual stars position with any accuracy
+Some very long winded testing made me realise that the parallax (ie depth) data that Gaia provides is, unfortunately, completely unusable. It is only accurate enough make the broadest possible interpretations about a population of stars, and you absolutely cannot use it to model an individual stars position with any accuracy
 
 Without that depth information, you have to construct a model of the cluster, and guess where a star's location in 3D is based on its velocity through the sky (while estimating its Z velocity). This means no retrograde stars, and is quite approximate
 
@@ -1496,5 +1494,5 @@ As far as I can tell, the issue is potentially one of a few things:
 3. These newtonian models may be inherently unstable within the core, as I've seen purely newtonian simulations exhibit exactly the same fault. It may simply be that these galaxy models are pertubatively unstable, as its a suspiciously similar failure mode
 4. General relativity and newtonian physics may be just incompatible enough at this scales to cause an unstable model to fail in a more dramatic way than a newtonian simulation
 
-I think its likely to be some combination of the above factors. The long running cluster collapse test case shows that it is possible to find a stable end state (ie its not that the simulation has no stable state), so its probably just some instability of the initial conditions
+I think its likely to be some combination of the above factors. The long running cluster collapse test case shows that it is possible to find a stable end state (ie its not that the simulation has no stable state), so its probably some instability of the initial conditions that collapses in an unfortunate way
 

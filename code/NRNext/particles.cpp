@@ -563,7 +563,7 @@ v4f get_timelike_vector(v3f speed, tetrad tet)
 
 template<typename T, typename... U>
 inline
-auto function_trilinear2(T&& func, v3f frac, v3i ipos, U&&... args)
+auto particles_trilinear(T&& func, v3f frac, v3i ipos, U&&... args)
 {
     using namespace single_source;
 
@@ -611,10 +611,8 @@ auto function_trilinear2(T&& func, v3f frac, v3i ipos, U&&... args)
 
 template<typename T, typename... U>
 inline
-auto interpolate_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
+auto particles_tricubic(T&& func, v3f frac, v3i ifloored, U&&... args)
 {
-    return function_trilinear2(func, frac, ifloored, args...);
-
     using namespace single_source;
 
     using value_v = decltype(func(v3i(), std::forward<U>(args)...));
@@ -700,6 +698,16 @@ auto interpolate_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
     return declare_e(sum);
 }
 
+template<typename T, typename... U>
+inline
+auto particles_interpolate(T&& func, v3f frac, v3i ifloored, bool use_tricubic, U&&... args)
+{
+    if(use_tricubic)
+        return particles_tricubic(func, frac, ifloored, args...);
+    else
+        return particles_trilinear(func, frac, ifloored, args...);
+}
+
 struct evolve_vars
 {
     valuef gA;
@@ -714,7 +722,7 @@ struct evolve_vars
     tensor<valuef, 3, 3> dgB;
     tensor<valuef, 3, 3, 3> dcY;
 
-    evolve_vars(bssn_args_mem<buffer<valuef>> in, v3f fpos, v3i dim, valuef scale)
+    evolve_vars(bssn_args_mem<buffer<valuef>> in, v3f fpos, v3i dim, valuef scale, bool uses_tricubic)
     {
         using namespace single_source;
         pin(fpos);
@@ -818,21 +826,21 @@ struct evolve_vars
         pin(frac);
         pin(ifloored);
 
-        gA = interpolate_particles(gA_at, frac, ifloored);
-        gB = interpolate_particles(gB_at, frac, ifloored);
+        gA = particles_interpolate(gA_at, frac, ifloored, uses_tricubic);
+        gB = particles_interpolate(gB_at, frac, ifloored, uses_tricubic);
 
-        cY[0, 0] = interpolate_particles(cY_at, frac, ifloored, 0, 0);
-        cY[1, 1] = interpolate_particles(cY_at, frac, ifloored, 1, 1);
-        cY[2, 2] = interpolate_particles(cY_at, frac, ifloored, 2, 2);
-        cY[1, 0] = interpolate_particles(cY_at, frac, ifloored, 1, 0);
-        cY[2, 0] = interpolate_particles(cY_at, frac, ifloored, 2, 0);
-        cY[2, 1] = interpolate_particles(cY_at, frac, ifloored, 2, 1);
+        cY[0, 0] = particles_interpolate(cY_at, frac, ifloored, uses_tricubic, 0, 0);
+        cY[1, 1] = particles_interpolate(cY_at, frac, ifloored, uses_tricubic, 1, 1);
+        cY[2, 2] = particles_interpolate(cY_at, frac, ifloored, uses_tricubic, 2, 2);
+        cY[1, 0] = particles_interpolate(cY_at, frac, ifloored, uses_tricubic, 1, 0);
+        cY[2, 0] = particles_interpolate(cY_at, frac, ifloored, uses_tricubic, 2, 0);
+        cY[2, 1] = particles_interpolate(cY_at, frac, ifloored, uses_tricubic, 2, 1);
 
         cY[0, 1] = cY[1, 0];
         cY[0, 2] = cY[2, 0];
         cY[1, 2] = cY[2, 1];
 
-        W = interpolate_particles(W_at, frac, ifloored);
+        W = particles_interpolate(W_at, frac, ifloored, uses_tricubic);
 
         pin(gA);
         pin(W);
@@ -852,25 +860,25 @@ struct evolve_vars
         //pin(K);
         pin(W);
 
-        dgA = interpolate_particles(dgA_at, frac, ifloored);
-        dW = interpolate_particles(dW_at, frac, ifloored);
+        dgA = particles_interpolate(dgA_at, frac, ifloored, uses_tricubic);
+        dW = particles_interpolate(dW_at, frac, ifloored, uses_tricubic);
 
         for(int x=0; x < 3; x++)
         {
             for(int y=0; y < 3; y++)
             {
-                dgB[x, y] = interpolate_particles(dgB_at, frac, ifloored, x, y);
+                dgB[x, y] = particles_interpolate(dgB_at, frac, ifloored, uses_tricubic, x, y);
             }
         }
 
         for(int i=0; i < 3; i++)
         {
-            dcY[i, 0, 0] = interpolate_particles(dcY_at, frac, ifloored, i, 0, 0);
-            dcY[i, 1, 1] = interpolate_particles(dcY_at, frac, ifloored, i, 1, 1);
-            dcY[i, 2, 2] = interpolate_particles(dcY_at, frac, ifloored, i, 2, 2);
-            dcY[i, 1, 0] = interpolate_particles(dcY_at, frac, ifloored, i, 1, 0);
-            dcY[i, 2, 0] = interpolate_particles(dcY_at, frac, ifloored, i, 2, 0);
-            dcY[i, 2, 1] = interpolate_particles(dcY_at, frac, ifloored, i, 2, 1);
+            dcY[i, 0, 0] = particles_interpolate(dcY_at, frac, ifloored, uses_tricubic, i, 0, 0);
+            dcY[i, 1, 1] = particles_interpolate(dcY_at, frac, ifloored, uses_tricubic, i, 1, 1);
+            dcY[i, 2, 2] = particles_interpolate(dcY_at, frac, ifloored, uses_tricubic, i, 2, 2);
+            dcY[i, 1, 0] = particles_interpolate(dcY_at, frac, ifloored, uses_tricubic, i, 1, 0);
+            dcY[i, 2, 0] = particles_interpolate(dcY_at, frac, ifloored, uses_tricubic, i, 2, 0);
+            dcY[i, 2, 1] = particles_interpolate(dcY_at, frac, ifloored, uses_tricubic, i, 2, 1);
 
             dcY[i, 0, 1] = dcY[i, 1, 0];
             dcY[i, 0, 2] = dcY[i, 2, 0];
@@ -885,7 +893,8 @@ struct evolve_vars
 };
 
 //screw it. Do the whole tetrad spiel from raytrace_init, I've already done it. Return a tetrad
-void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, std::array<buffer<valuef>, 3> pos_in, std::array<buffer<valuef>, 3> vel_in, buffer<valuef> mass_in, std::array<buffer_mut<valuef>, 3> vel_out, buffer_mut<valuef> lorentz_out, literal<value<size_t>> count, literal<v3i> dim, literal<valuef> scale)
+void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer<valuef>> in, std::array<buffer<valuef>, 3> pos_in, std::array<buffer<valuef>, 3> vel_in, buffer<valuef> mass_in, std::array<buffer_mut<valuef>, 3> vel_out, buffer_mut<valuef> lorentz_out, literal<value<size_t>> count, literal<v3i> dim, literal<valuef> scale,
+                                   bool uses_tricubic)
 {
     using namespace single_source;
 
@@ -900,7 +909,7 @@ void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer
     v3f cell_pos = world_to_grid(world_pos, dim.get(), scale.get());
     pin(cell_pos);
 
-    evolve_vars vars(in, cell_pos, dim.get(), scale.get());
+    evolve_vars vars(in, cell_pos, dim.get(), scale.get(), uses_tricubic);
 
     auto Yij = vars.cY / pow(max(vars.W, 0.01f), 2);
 
@@ -933,7 +942,8 @@ void evolve_particles(execution_context& ctx,
                       literal<v3i> dim,
                       literal<valuef> scale,
                       literal<valuef> timestep,
-                      literal<valuef> mass_cutoff, bool first_step)
+                      literal<valuef> mass_cutoff,
+                      bool first_step, bool uses_tricubic)
 {
     using namespace single_source;
 
@@ -987,8 +997,8 @@ void evolve_particles(execution_context& ctx,
         pos = (pos_base + pos_next) * 0.5f;
         vel = (vel_base + vel_next) * 0.5f;
 
-        evolve_vars b_evolve(base, grid_base, dim.get(), scale.get());
-        evolve_vars i_evolve(in, grid_next, dim.get(), scale.get());
+        evolve_vars b_evolve(base, grid_base, dim.get(), scale.get(), uses_tricubic);
+        evolve_vars i_evolve(in, grid_next, dim.get(), scale.get(), uses_tricubic);
 
         cY = (b_evolve.cY + i_evolve.cY) * 0.5f;
         W = (b_evolve.W + i_evolve.W) * 0.5f;
@@ -1002,7 +1012,7 @@ void evolve_particles(execution_context& ctx,
     }
     else
     {
-        evolve_vars i_evolve(in, grid_next, dim.get(), scale.get());
+        evolve_vars i_evolve(in, grid_next, dim.get(), scale.get(), uses_tricubic);
         pos = pos_next;
         vel = vel_next;
 
@@ -1123,7 +1133,7 @@ void evolve_particles(execution_context& ctx,
     });*/
 }
 
-void boot_particle_kernels(cl::context ctx, int particle_radius_cells)
+void boot_particle_kernels(cl::context ctx, int particle_radius_cells, bool particle_tricubic)
 {
     cl::async_build_and_cache(ctx, [=]{
         return value_impl::make_function(calculate_particle_nonconformal_E, "calculate_particle_nonconformal_E", particle_radius_cells);
@@ -1134,7 +1144,7 @@ void boot_particle_kernels(cl::context ctx, int particle_radius_cells)
     }, {"fixed_to_float"});
 
     cl::async_build_and_cache(ctx, [=]{
-        return value_impl::make_function(calculate_particle_properties, "calculate_particle_properties");
+        return value_impl::make_function(calculate_particle_properties, "calculate_particle_properties", particle_tricubic);
     }, {"calculate_particle_properties"});
 
     cl::async_build_and_cache(ctx, [=]{
@@ -1142,11 +1152,11 @@ void boot_particle_kernels(cl::context ctx, int particle_radius_cells)
     }, {"calculate_particle_intermediates"});
 
     cl::async_build_and_cache(ctx, [=]{
-        return value_impl::make_function(evolve_particles, "evolve_particles", false);
+        return value_impl::make_function(evolve_particles, "evolve_particles", false, particle_tricubic);
     }, {"evolve_particles"});
 
     cl::async_build_and_cache(ctx, [=]{
-        return value_impl::make_function(evolve_particles, "evolve_particles_base", true);
+        return value_impl::make_function(evolve_particles, "evolve_particles_base", true, particle_tricubic);
     }, {"evolve_particles_base"});
 
     cl::async_build_and_cache(ctx, [=]{
@@ -1459,12 +1469,12 @@ buffer_provider* particle_plugin::get_utility_buffer_factory(cl::context ctx)
     return new particle_utility_buffers(ctx);
 }
 
-particle_plugin::particle_plugin(cl::context ctx, uint64_t _particle_count, int _particle_radius_cells) : lorentz_storage(ctx), particle_count(_particle_count), particle_radius_cells(_particle_radius_cells), memory_allocation_count(ctx), memory_ptrs(ctx), memory_counts(ctx)
+particle_plugin::particle_plugin(cl::context ctx, uint64_t _particle_count, int _particle_radius_cells, bool _particle_tricubic) : lorentz_storage(ctx), particle_count(_particle_count), particle_radius_cells(_particle_radius_cells), particle_tricubic(_particle_tricubic), memory_allocation_count(ctx), memory_ptrs(ctx), memory_counts(ctx)
 {
     for(int i=0; i < 10; i++)
         particle_temp.emplace_back(ctx);
 
-    boot_particle_kernels(ctx, particle_radius_cells);
+    boot_particle_kernels(ctx, particle_radius_cells, particle_tricubic);
 }
 
 //consider implementing 3.2 https://arxiv.org/pdf/1905.08890

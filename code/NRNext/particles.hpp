@@ -252,6 +252,7 @@ struct particle_plugin : plugin
     cl::buffer lorentz_storage;
     std::vector<cl::buffer> particle_temp;
     int particle_radius_cells = 0;
+    bool particle_tricubic = true;
 
     //sizeof(cl_int)
     cl::buffer memory_allocation_count;
@@ -264,7 +265,7 @@ struct particle_plugin : plugin
     uint64_t particle_count = 0;
     float mass_cutoff = 0;
 
-    particle_plugin(cl::context ctx, uint64_t _particle_count, int _particle_radius_cells);
+    particle_plugin(cl::context ctx, uint64_t _particle_count, int _particle_radius_cells, bool _particle_tricubic);
 
     ///we get three copies of these
     virtual buffer_provider* get_buffer_factory(cl::context ctx) override;
