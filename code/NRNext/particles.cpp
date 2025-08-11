@@ -9,6 +9,7 @@
 #include <vec/stdmath.hpp>
 #include "init_black_hole.hpp"
 #include <toolkit/fs_helpers.hpp>
+#include <imgui/imgui.h>
 
 template<typename T>
 using dual = dual_types::dual_v<T>;
@@ -1804,6 +1805,8 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
     }
 
     #endif // CHECK_E
+
+    recapture_debugging = true;
 }
 
 void particle_plugin::save(cl::command_queue& cqueue, const std::string& directory, buffer_provider* buf)
@@ -1832,6 +1835,8 @@ void particle_plugin::load(cl::command_queue& cqueue, const std::string& directo
 
         bufs[i].write(cqueue, std::span<char>(data.begin(), data.end()));
     }
+
+    recapture_debugging = true;
 }
 
 particle_params particle_plugin::read(cl::command_queue& cqueue, buffer_provider* in)
@@ -1850,3 +1855,68 @@ particle_params particle_plugin::read(cl::command_queue& cqueue, buffer_provider
     return ret;
 }
 
+void particle_plugin::render_debugging(cl::command_queue& cqueue, buffer_provider* buf, float simulation_width)
+{
+    if(ImGui::TreeNode("Particle Debug"))
+    {
+        if(recapture_debugging)
+        {
+            debug_particles = read(cqueue, buf);
+
+            t3f avg;
+
+            for(int kk=0; kk < (int)debug_particles.size(); kk++)
+                avg += debug_particles.get_position(kk) / debug_particles.size();
+
+            float radius = simulation_width/2;
+
+            std::array<int64_t, buckets> bucketed_counts = {};
+
+            std::array<float, buckets> avg_velocities = {};
+            std::array<float, buckets> mass_in_bucket = {};
+
+            for(int kk=0; kk < (int)debug_particles.size(); kk++)
+            {
+                float my_rad = (debug_particles.get_position(kk) - avg).length();
+                int bucket = clamp(floor((my_rad / radius) * buckets), 0, buckets - 1);
+
+                bucketed_counts[bucket]++;
+            }
+
+            for(int kk=0; kk < (int)debug_particles.size(); kk++)
+            {
+                float my_rad = (debug_particles.get_position(kk) - avg).length();
+                int bucket = clamp(floor((my_rad / radius) * buckets), 0, buckets - 1);
+
+                t3f vel = debug_particles.get_velocity(kk);
+                float mass = debug_particles.get_mass(kk);
+
+                assert(bucketed_counts[bucket] > 0);
+
+                avg_velocities[bucket] += vel.length() / bucketed_counts[bucket];
+                mass_in_bucket[bucket] += mass;
+            }
+
+            double cumulative_mass = 0;
+            std::array<float, buckets> cumulative_bucket_mass = {};
+
+            for(int i=0; i < buckets; i++)
+            {
+                cumulative_mass += mass_in_bucket[i];
+                cumulative_bucket_mass[i] = cumulative_mass;
+            }
+
+            debug_avg_velocities = avg_velocities;
+            debug_mass_in_bucket = mass_in_bucket;
+            debug_cumulative_bucket_mass = cumulative_bucket_mass;
+        }
+
+        recapture_debugging = false;
+
+        ImGui::PlotLines("Velocity", debug_avg_velocities.data(), debug_avg_velocities.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 50));
+        ImGui::PlotLines("Mass", debug_mass_in_bucket.data(), debug_mass_in_bucket.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 50));
+        ImGui::PlotLines("CMass", debug_cumulative_bucket_mass.data(), debug_cumulative_bucket_mass.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 50));
+
+        ImGui::TreePop();
+    }
+}

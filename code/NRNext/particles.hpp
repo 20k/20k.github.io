@@ -285,6 +285,17 @@ struct particle_plugin : plugin
     void calculate_intermediates(cl::context ctx, cl::command_queue cqueue, std::vector<cl::buffer> bssn_in, particle_buffers& p_in, particle_utility_buffers& util_out, t3i dim, float scale);
 
     particle_params read(cl::command_queue& cqueue, buffer_provider* in);
+
+    static constexpr int buckets = 100;
+
+    std::array<float, buckets> debug_avg_velocities = {};
+    std::array<float, buckets> debug_mass_in_bucket = {};
+    std::array<float, buckets> debug_cumulative_bucket_mass = {};
+    particle_params debug_particles;
+
+    bool recapture_debugging = true;
+    void trigger_debugging_recapture();
+    void render_debugging(cl::command_queue& cqueue, buffer_provider* buf, float simulation_width);
 };
 
 #endif // PARTICLES_HPP_INCLUDED

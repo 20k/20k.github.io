@@ -2148,9 +2148,6 @@ int main()
     int capture_frame = 0;
     bool has_stepped_since_last_capture = true;
 
-    particle_params debug_particles;
-    bool stepped_since_capturing_debug_params = true;
-
     file::mkdir("capture");
 
     vec3f camera_pos = {0, 0, -m.simulation_width/2 - 0.1f};;
@@ -2289,10 +2286,7 @@ int main()
         if(ImGui::Button("Save"))
             m.save(cqueue, "./save/");
         if(ImGui::Button("Load"))
-        {
             m.load(cqueue, "./save/");
-            stepped_since_capturing_debug_params = true;
-        }
 
         step = step || running;
 
@@ -2342,79 +2336,13 @@ int main()
             ImGui::TreePop();
         }
 
-        if(ImGui::TreeNode("Particle Debug"))
+        for(int i=0; i < (int)m.plugins.size(); i++)
         {
-            for(int i=0; i < (int)m.plugins.size(); i++)
-            {
-                if(m.plugins[i] == (plugin*)particles)
-                {
-                    if(stepped_since_capturing_debug_params)
-                        debug_particles = particles->read(cqueue, m.plugin_buffers[0][i]);
-
-                    stepped_since_capturing_debug_params = false;
-
-                    t3f avg;
-
-                    for(int kk=0; kk < (int)debug_particles.size(); kk++)
-                        avg += debug_particles.get_position(kk) / debug_particles.size();
-
-                    float max_radius_sq = 0;
-
-                    for(int kk=0; kk < (int)debug_particles.size(); kk++)
-                        max_radius_sq = std::max((debug_particles.get_position(kk) - avg).squared_length(), max_radius_sq);
-
-                    constexpr int buckets = 500;
-
-                    std::array<int64_t, buckets> bucketed_counts = {};
-
-                    std::array<float, buckets> avg_velocities = {};
-                    std::array<float, buckets> mass_in_bucket = {};
-
-                    float radius = std::sqrt(max_radius_sq);
-
-                    for(int kk=0; kk < (int)debug_particles.size(); kk++)
-                    {
-                        float my_rad = (debug_particles.get_position(kk) - avg).length();
-                        int bucket = clamp(floor((my_rad / radius) * buckets), 0, buckets - 1);
-
-                        bucketed_counts[bucket]++;
-                    }
-
-                    for(int kk=0; kk < (int)debug_particles.size(); kk++)
-                    {
-                        float my_rad = (debug_particles.get_position(kk) - avg).length();
-                        int bucket = clamp(floor((my_rad / radius) * buckets), 0, buckets - 1);
-
-                        t3f vel = debug_particles.get_velocity(kk);
-                        float mass = debug_particles.get_mass(kk);
-
-                        assert(bucketed_counts[bucket] > 0);
-
-                        avg_velocities[bucket] += vel.length() / bucketed_counts[bucket];
-                        mass_in_bucket[bucket] += mass;
-                    }
-
-                    double cumulative_mass = 0;
-                    std::array<float, buckets> cumulative_bucket_mass = {};
-
-                    for(int i=0; i < buckets; i++)
-                    {
-                        cumulative_mass += mass_in_bucket[i];
-                        cumulative_bucket_mass[i] = cumulative_mass;
-                    }
-
-                    ImGui::PlotLines("Velocity", avg_velocities.data(), avg_velocities.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 50));
-                    ImGui::PlotLines("Mass", mass_in_bucket.data(), mass_in_bucket.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 50));
-                    ImGui::PlotLines("CMass", cumulative_bucket_mass.data(), cumulative_bucket_mass.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 50));
-                }
-            }
-
-            ImGui::TreePop();
+            if(m.plugins[i] == (plugin*)particles)
+                particles->render_debugging(cqueue, m.plugin_buffers[0].at(i), simulation_width);
         }
 
         ImGui::End();
-
-        steady_timer t;
 
         screen_tex.acquire(cqueue);
 
@@ -2426,7 +2354,6 @@ int main()
             m.step(ctx, cqueue, timestep);
             rt_bssn.capture_snapshots(ctx, cqueue, timestep, m);
             has_stepped_since_last_capture = true;
-            stepped_since_capturing_debug_params = true;
         }
 
         bool capture = false;
@@ -2508,7 +2435,7 @@ int main()
 
         win.display();
 
-        std::cout << "T " << t.get_elapsed_time_s() * 1000. << std::endl;
+        std::cout << "T " << ftime_s * 1000. << std::endl;
 
         render_frame_idx++;
     }
