@@ -1843,15 +1843,28 @@ particle_params particle_plugin::read(cl::command_queue& cqueue, buffer_provider
 {
     particle_buffers& particles = *dynamic_cast<particle_buffers*>(in);
 
+    std::array<cl::read_info2<float>, 3> positions;
+    std::array<cl::read_info2<float>, 3> velocities;
+    cl::read_info2<float> masses;
+
+    for(int i=0; i < 3; i++)
+    {
+        positions[i] = particles.positions[i].read_async<float>(cqueue);
+        velocities[i] = particles.velocities[i].read_async<float>(cqueue);
+    }
+
+    masses = particles.masses.read_async<float>(cqueue);
+
     particle_params ret;
 
     for(int i=0; i < 3; i++)
     {
-        ret.positions[i] = particles.positions[i].read<float>(cqueue);
-        ret.velocities[i] = particles.velocities[i].read<float>(cqueue);
+        ret.positions[i] = positions[i].as_vec();
+        ret.velocities[i] = velocities[i].as_vec();
     }
 
-    ret.masses = particles.masses.read<float>(cqueue);
+    ret.masses = masses.as_vec();
+
     return ret;
 }
 
