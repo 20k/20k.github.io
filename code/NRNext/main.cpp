@@ -1865,6 +1865,8 @@ initial_params get_initial_params()
 
         part.add(pos, vel, lM);
     }
+
+    radial_pos *= 1.2;
     #endif
 
     //#define RANDOM_INIT2
