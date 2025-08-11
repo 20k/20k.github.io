@@ -1859,11 +1859,11 @@ particle_params particle_plugin::read(cl::command_queue& cqueue, buffer_provider
 
     for(int i=0; i < 3; i++)
     {
-        ret.positions[i] = positions[i].as_vec();
-        ret.velocities[i] = velocities[i].as_vec();
+        ret.positions[i] = positions[i].to_vec();
+        ret.velocities[i] = velocities[i].to_vec();
     }
 
-    ret.masses = masses.as_vec();
+    ret.masses = masses.to_vec();
 
     return ret;
 }
