@@ -247,7 +247,6 @@ struct full_particle_args : adm_args_mem, particle_base_args<T>, particle_utilit
     virtual tensor<valuef, 3, 3> adm_W2_Sij(bssn_args& args, const derivative_data& d) override;
 };
 
-
 struct async_particle_debug_data
 {
     static constexpr int buckets = 100;
