@@ -1954,7 +1954,7 @@ void particle_plugin::clear_debugging()
 ///Simulation steps
 ///an async processing dump is initiated
 ///when we hit render, its blocked on
-///there *is* enough time to do it like this, and the buffers are not touched in the meantime (?)
+///there *is* enough time to do it like this, and the buffers are not touched in the meantime
 void particle_plugin::render_debugging(cl::command_queue& cqueue, buffer_provider* buf, float simulation_width)
 {
     if(ImGui::TreeNode("Particle Debug"))
