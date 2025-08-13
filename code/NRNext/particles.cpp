@@ -1873,8 +1873,6 @@ void async_particle_debug_data::launch(cl::command_queue& cqueue, buffer_provide
 
         std::array<int64_t, buckets> bucketed_counts = {};
 
-        steady_timer t2;
-
         for(int kk=0; kk < count; kk++)
         {
             t3f pos = debug_particles.get_position(kk);

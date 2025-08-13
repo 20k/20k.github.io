@@ -1452,7 +1452,7 @@ There are two approaches I've seen in modern languages
 
 ### Other problems
 
-There's some other issues I haven't tried to address in this article: namely that the results of `<cmath>` are not portable. This means that because of C++-itus, you may not be able to get precisely the same results with these initial conditions
+There's some other issues I haven't tried to address in this article: namely that the results of `<cmath>` are not portable. C++ doesn't really constraint their results, and this is another break from IEEE. This means that because of C++-itus, you may not be able to get precisely the same results with these initial conditions
 
 ## Things that did not go so well
 
