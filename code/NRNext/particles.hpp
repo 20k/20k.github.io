@@ -247,6 +247,25 @@ struct full_particle_args : adm_args_mem, particle_base_args<T>, particle_utilit
     virtual tensor<valuef, 3, 3> adm_W2_Sij(bssn_args& args, const derivative_data& d) override;
 };
 
+
+struct async_particle_debug_data
+{
+    static constexpr int buckets = 100;
+
+    std::array<cl::read_info2<float>, 3> positions;
+    std::array<cl::read_info2<float>, 3> velocities;
+    cl::read_info2<float> masses;
+    std::jthread thrd;
+    bool finished = false;
+
+    std::array<float, buckets> avg_velocities = {};
+    std::array<float, buckets> mass_in_bucket = {};
+    std::array<float, buckets> cumulative_bucket_mass = {};
+
+    void launch(cl::command_queue& cqueue, buffer_provider* buf, float simulation_width);
+    void block();
+};
+
 struct particle_plugin : plugin
 {
     cl::buffer lorentz_storage;
@@ -284,16 +303,11 @@ struct particle_plugin : plugin
 
     void calculate_intermediates(cl::context ctx, cl::command_queue cqueue, std::vector<cl::buffer> bssn_in, particle_buffers& p_in, particle_utility_buffers& util_out, t3i dim, float scale);
 
-    particle_params read(cl::command_queue& cqueue, buffer_provider* in);
+    bool is_debugging = false;
+    std::vector<async_particle_debug_data*> debug;
 
-    static constexpr int buckets = 100;
-
-    std::array<float, buckets> debug_avg_velocities = {};
-    std::array<float, buckets> debug_mass_in_bucket = {};
-    std::array<float, buckets> debug_cumulative_bucket_mass = {};
-    particle_params debug_particles;
-
-    bool recapture_debugging = true;
+    void clear_debugging();
+    void push_debug_data(cl::command_queue& cqueue, buffer_provider* buf, float simulation_width);
     void trigger_debugging_recapture();
     void render_debugging(cl::command_queue& cqueue, buffer_provider* buf, float simulation_width);
 };

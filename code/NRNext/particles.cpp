@@ -10,6 +10,7 @@
 #include "init_black_hole.hpp"
 #include <toolkit/fs_helpers.hpp>
 #include <imgui/imgui.h>
+#include <toolkit/clock.hpp>
 
 template<typename T>
 using dual = dual_types::dual_v<T>;
@@ -1740,6 +1741,9 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
         }
 
         std::swap(out, base);
+
+        if(is_debugging)
+            push_debug_data(cqueue, sdata.buffers[sdata.base_idx], (sdata.dim.x() - 1) * sdata.scale);
     }
     #endif
 
@@ -1803,10 +1807,7 @@ void particle_plugin::step(cl::context ctx, cl::command_queue cqueue, const plug
 
         std::cout << "TOTAL E " << (double)found / pow(10., 12.) << std::endl;
     }
-
     #endif // CHECK_E
-
-    recapture_debugging = true;
 }
 
 void particle_plugin::save(cl::command_queue& cqueue, const std::string& directory, buffer_provider* buf)
@@ -1825,6 +1826,8 @@ void particle_plugin::save(cl::command_queue& cqueue, const std::string& directo
 
 void particle_plugin::load(cl::command_queue& cqueue, const std::string& directory, buffer_provider* buf)
 {
+    clear_debugging();
+
     std::vector<cl::buffer> bufs = buf->get_buffers();
     std::vector<buffer_descriptor> decs = buf->get_description();
 
@@ -1835,101 +1838,154 @@ void particle_plugin::load(cl::command_queue& cqueue, const std::string& directo
 
         bufs[i].write(cqueue, std::span<char>(data.begin(), data.end()));
     }
-
-    recapture_debugging = true;
 }
 
-particle_params particle_plugin::read(cl::command_queue& cqueue, buffer_provider* in)
+void async_particle_debug_data::launch(cl::command_queue& cqueue, buffer_provider* buf, float simulation_width)
 {
-    particle_buffers& particles = *dynamic_cast<particle_buffers*>(in);
-
-    std::array<cl::read_info2<float>, 3> positions;
-    std::array<cl::read_info2<float>, 3> velocities;
-    cl::read_info2<float> masses;
+    finished = false;
+    particle_buffers& particles = *dynamic_cast<particle_buffers*>(buf);
 
     for(int i=0; i < 3; i++)
-    {
         positions[i] = particles.positions[i].read_async<float>(cqueue);
+
+    for(int i=0; i < 3; i++)
         velocities[i] = particles.velocities[i].read_async<float>(cqueue);
-    }
 
     masses = particles.masses.read_async<float>(cqueue);
 
-    particle_params ret;
+    thrd = std::jthread([this, simulation_width]{
+        particle_params debug_particles;
 
-    for(int i=0; i < 3; i++)
-    {
-        ret.positions[i] = positions[i].to_vec();
-        ret.velocities[i] = velocities[i].to_vec();
-    }
+        for(int i=0; i < 3; i++)
+            debug_particles.positions[i] = positions[i].to_vec();
 
-    ret.masses = masses.to_vec();
+        int count = debug_particles.size();
 
-    return ret;
+        t3f avg;
+
+        for(int kk=0; kk < count; kk++)
+            avg += debug_particles.get_position(kk) / count;
+
+        float radius = simulation_width/2;
+
+        std::vector<int> particles_to_bucket;
+        particles_to_bucket.reserve(count);
+
+        std::array<int64_t, buckets> bucketed_counts = {};
+
+        steady_timer t2;
+
+        for(int kk=0; kk < count; kk++)
+        {
+            t3f pos = debug_particles.get_position(kk);
+
+            float my_rad = (pos - avg).length();
+            int bucket = clamp(floor((my_rad / radius) * buckets), 0, buckets - 1);
+
+            particles_to_bucket.push_back(bucket);
+        }
+
+        for(int kk=0; kk < count; kk++)
+        {
+            int bucket = particles_to_bucket[kk];
+            bucketed_counts[bucket]++;
+        }
+
+        for(int i=0; i < 3; i++)
+            debug_particles.velocities[i] = velocities[i].to_vec();
+
+        for(int kk=0; kk < count; kk++)
+        {
+            int bucket = particles_to_bucket[kk];
+
+            t3f vel = debug_particles.get_velocity(kk);
+
+            avg_velocities[bucket] += vel.length() / bucketed_counts[bucket];
+        }
+
+        debug_particles.masses = masses.to_vec();
+
+        for(int kk=0; kk < count; kk++)
+        {
+            float mass = debug_particles.get_mass(kk);
+            int bucket = particles_to_bucket[kk];
+            mass_in_bucket[bucket] += mass;
+        }
+
+        double cumulative_mass = 0;
+
+        for(int i=0; i < buckets; i++)
+        {
+            cumulative_mass += mass_in_bucket[i];
+            cumulative_bucket_mass[i] = cumulative_mass;
+        }
+    });
 }
 
+void async_particle_debug_data::block()
+{
+    if(finished)
+        return;
+
+    thrd.join();
+    finished = true;
+}
+
+void particle_plugin::push_debug_data(cl::command_queue& cqueue, buffer_provider* buf, float simulation_width)
+{
+    async_particle_debug_data* dbg = new async_particle_debug_data;
+
+    dbg->launch(cqueue, buf, simulation_width);
+    debug.push_back(dbg);
+}
+
+void particle_plugin::clear_debugging()
+{
+    for(auto& i : debug)
+    {
+        i->block();
+        delete i;
+    }
+
+    debug.clear();
+}
+
+///The flow that I want is:
+///Simulation steps
+///an async processing dump is initiated
+///when we hit render, its blocked on
+///there *is* enough time to do it like this, and the buffers are not touched in the meantime (?)
 void particle_plugin::render_debugging(cl::command_queue& cqueue, buffer_provider* buf, float simulation_width)
 {
     if(ImGui::TreeNode("Particle Debug"))
     {
-        if(recapture_debugging)
+        is_debugging = true;
+
+        if(debug.size() == 0)
+            push_debug_data(cqueue, buf, simulation_width);
+
+        assert(debug.size() > 0);
+
+        while(debug.size() > 1)
         {
-            debug_particles = read(cqueue, buf);
-
-            t3f avg;
-
-            for(int kk=0; kk < (int)debug_particles.size(); kk++)
-                avg += debug_particles.get_position(kk) / debug_particles.size();
-
-            float radius = simulation_width/2;
-
-            std::array<int64_t, buckets> bucketed_counts = {};
-
-            std::array<float, buckets> avg_velocities = {};
-            std::array<float, buckets> mass_in_bucket = {};
-
-            for(int kk=0; kk < (int)debug_particles.size(); kk++)
-            {
-                float my_rad = (debug_particles.get_position(kk) - avg).length();
-                int bucket = clamp(floor((my_rad / radius) * buckets), 0, buckets - 1);
-
-                bucketed_counts[bucket]++;
-            }
-
-            for(int kk=0; kk < (int)debug_particles.size(); kk++)
-            {
-                float my_rad = (debug_particles.get_position(kk) - avg).length();
-                int bucket = clamp(floor((my_rad / radius) * buckets), 0, buckets - 1);
-
-                t3f vel = debug_particles.get_velocity(kk);
-                float mass = debug_particles.get_mass(kk);
-
-                assert(bucketed_counts[bucket] > 0);
-
-                avg_velocities[bucket] += vel.length() / bucketed_counts[bucket];
-                mass_in_bucket[bucket] += mass;
-            }
-
-            double cumulative_mass = 0;
-            std::array<float, buckets> cumulative_bucket_mass = {};
-
-            for(int i=0; i < buckets; i++)
-            {
-                cumulative_mass += mass_in_bucket[i];
-                cumulative_bucket_mass[i] = cumulative_mass;
-            }
-
-            debug_avg_velocities = avg_velocities;
-            debug_mass_in_bucket = mass_in_bucket;
-            debug_cumulative_bucket_mass = cumulative_bucket_mass;
+            debug.front()->block();
+            auto ptr = debug.front();
+            debug.erase(debug.begin());
+            delete ptr;
         }
 
-        recapture_debugging = false;
+        auto& data = *debug[0];
+        data.block();
 
-        ImGui::PlotLines("Velocity", debug_avg_velocities.data(), debug_avg_velocities.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 50));
-        ImGui::PlotLines("Mass", debug_mass_in_bucket.data(), debug_mass_in_bucket.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 50));
-        ImGui::PlotLines("CMass", debug_cumulative_bucket_mass.data(), debug_cumulative_bucket_mass.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 50));
+        ImGui::PlotLines("Velocity", data.avg_velocities.data(), data.avg_velocities.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 50));
+        ImGui::PlotLines("Mass", data.mass_in_bucket.data(), data.mass_in_bucket.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 50));
+        ImGui::PlotLines("CMass", data.cumulative_bucket_mass.data(), data.cumulative_bucket_mass.size(), 0, nullptr, FLT_MAX, FLT_MAX, ImVec2(400, 50));
 
         ImGui::TreePop();
+    }
+    else
+    {
+        is_debugging = false;
+        clear_debugging();
     }
 }
