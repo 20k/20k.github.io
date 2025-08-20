@@ -565,16 +565,57 @@ v4f get_timelike_vector(v3f speed, tetrad tet)
 
 template<typename T, typename... U>
 inline
-auto particles_tricubic(T&& func, v3f fpos, U&&... args)
+auto particles_trilinear(T&& func, v3f frac, v3i ipos, U&&... args)
 {
     using namespace single_source;
 
-    v3f floored = floor(fpos);
-    v3i ifloored = (v3i)floored;
-    v3f frac = fpos - floored;
+    auto c000 = func(ipos + (v3i){0,0,0}, std::forward<U>(args)...);
+    auto c100 = func(ipos + (v3i){1,0,0}, std::forward<U>(args)...);
 
-    pin(frac);
-    pin(ifloored);
+    auto c010 = func(ipos + (v3i){0,1,0}, std::forward<U>(args)...);
+    auto c110 = func(ipos + (v3i){1,1,0}, std::forward<U>(args)...);
+
+    auto c001 = func(ipos + (v3i){0,0,1}, std::forward<U>(args)...);
+    auto c101 = func(ipos + (v3i){1,0,1}, std::forward<U>(args)...);
+
+    auto c011 = func(ipos + (v3i){0,1,1}, std::forward<U>(args)...);
+    auto c111 = func(ipos + (v3i){1,1,1}, std::forward<U>(args)...);
+
+    //https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2018/p0811r2.html
+    auto lmix = [&](auto& a, auto& b, auto& t)
+    {
+        auto imx = 1-t;
+        pin(imx);
+        auto imimx = 1-imx;
+        pin(imimx);
+
+        auto p1 = imx * a;
+        pin(p1);
+        auto p2 = imimx * b;
+        pin(p2);
+
+        auto out = p1 + p2;
+        pin(out);
+        return out;
+    };
+
+    auto c00 = lmix(c000, c100, frac.x());
+    auto c01 = lmix(c010, c110, frac.x());
+
+    auto c10 = lmix(c001, c101, frac.x());
+    auto c11 = lmix(c011, c111, frac.x());
+
+    auto c0 = lmix(c00, c01, frac.y());
+    auto c1 = lmix(c10, c11, frac.y());
+
+    return lmix(c0, c1, frac.z());
+}
+
+template<typename T, typename... U>
+inline
+auto particles_tricubic(T&& func, v3f frac, v3i ifloored, U&&... args)
+{
+    using namespace single_source;
 
     using value_v = decltype(func(v3i(), std::forward<U>(args)...));
 
@@ -661,12 +702,12 @@ auto particles_tricubic(T&& func, v3f fpos, U&&... args)
 
 template<typename T, typename... U>
 inline
-auto particles_interpolate(T&& func, v3f fpos, bool use_tricubic, U&&... args)
+auto particles_interpolate(T&& func, v3f frac, v3i ifloored, bool use_tricubic, U&&... args)
 {
     if(use_tricubic)
-        return particles_tricubic(func, fpos, args...);
+        return particles_tricubic(func, frac, ifloored, args...);
     else
-        return function_trilinear(func, fpos, args...);
+        return particles_trilinear(func, frac, ifloored, args...);
 }
 
 struct evolve_vars
@@ -780,21 +821,28 @@ struct evolve_vars
             return v;
         };
 
-        gA = particles_interpolate(gA_at, fpos, uses_tricubic);
-        gB = particles_interpolate(gB_at, fpos, uses_tricubic);
+        v3f floored = floor(fpos);
+        v3i ifloored = (v3i)floored;
+        v3f frac = fpos - floored;
 
-        cY[0, 0] = particles_interpolate(cY_at, fpos, uses_tricubic, 0, 0);
-        cY[1, 1] = particles_interpolate(cY_at, fpos, uses_tricubic, 1, 1);
-        cY[2, 2] = particles_interpolate(cY_at, fpos, uses_tricubic, 2, 2);
-        cY[1, 0] = particles_interpolate(cY_at, fpos, uses_tricubic, 1, 0);
-        cY[2, 0] = particles_interpolate(cY_at, fpos, uses_tricubic, 2, 0);
-        cY[2, 1] = particles_interpolate(cY_at, fpos, uses_tricubic, 2, 1);
+        pin(frac);
+        pin(ifloored);
+
+        gA = particles_interpolate(gA_at, frac, ifloored, uses_tricubic);
+        gB = particles_interpolate(gB_at, frac, ifloored, uses_tricubic);
+
+        cY[0, 0] = particles_interpolate(cY_at, frac, ifloored, uses_tricubic, 0, 0);
+        cY[1, 1] = particles_interpolate(cY_at, frac, ifloored, uses_tricubic, 1, 1);
+        cY[2, 2] = particles_interpolate(cY_at, frac, ifloored, uses_tricubic, 2, 2);
+        cY[1, 0] = particles_interpolate(cY_at, frac, ifloored, uses_tricubic, 1, 0);
+        cY[2, 0] = particles_interpolate(cY_at, frac, ifloored, uses_tricubic, 2, 0);
+        cY[2, 1] = particles_interpolate(cY_at, frac, ifloored, uses_tricubic, 2, 1);
 
         cY[0, 1] = cY[1, 0];
         cY[0, 2] = cY[2, 0];
         cY[1, 2] = cY[2, 1];
 
-        W = particles_interpolate(W_at, fpos, uses_tricubic);
+        W = particles_interpolate(W_at, frac, ifloored, uses_tricubic);
 
         pin(gA);
         pin(W);
@@ -814,25 +862,25 @@ struct evolve_vars
         //pin(K);
         pin(W);
 
-        dgA = particles_interpolate(dgA_at, fpos, uses_tricubic);
-        dW = particles_interpolate(dW_at, fpos, uses_tricubic);
+        dgA = particles_interpolate(dgA_at, frac, ifloored, uses_tricubic);
+        dW = particles_interpolate(dW_at, frac, ifloored, uses_tricubic);
 
         for(int x=0; x < 3; x++)
         {
             for(int y=0; y < 3; y++)
             {
-                dgB[x, y] = particles_interpolate(dgB_at, fpos, uses_tricubic, x, y);
+                dgB[x, y] = particles_interpolate(dgB_at, frac, ifloored, uses_tricubic, x, y);
             }
         }
 
         for(int i=0; i < 3; i++)
         {
-            dcY[i, 0, 0] = particles_interpolate(dcY_at, fpos, uses_tricubic, i, 0, 0);
-            dcY[i, 1, 1] = particles_interpolate(dcY_at, fpos, uses_tricubic, i, 1, 1);
-            dcY[i, 2, 2] = particles_interpolate(dcY_at, fpos, uses_tricubic, i, 2, 2);
-            dcY[i, 1, 0] = particles_interpolate(dcY_at, fpos, uses_tricubic, i, 1, 0);
-            dcY[i, 2, 0] = particles_interpolate(dcY_at, fpos, uses_tricubic, i, 2, 0);
-            dcY[i, 2, 1] = particles_interpolate(dcY_at, fpos, uses_tricubic, i, 2, 1);
+            dcY[i, 0, 0] = particles_interpolate(dcY_at, frac, ifloored, uses_tricubic, i, 0, 0);
+            dcY[i, 1, 1] = particles_interpolate(dcY_at, frac, ifloored, uses_tricubic, i, 1, 1);
+            dcY[i, 2, 2] = particles_interpolate(dcY_at, frac, ifloored, uses_tricubic, i, 2, 2);
+            dcY[i, 1, 0] = particles_interpolate(dcY_at, frac, ifloored, uses_tricubic, i, 1, 0);
+            dcY[i, 2, 0] = particles_interpolate(dcY_at, frac, ifloored, uses_tricubic, i, 2, 0);
+            dcY[i, 2, 1] = particles_interpolate(dcY_at, frac, ifloored, uses_tricubic, i, 2, 1);
 
             dcY[i, 0, 1] = dcY[i, 1, 0];
             dcY[i, 0, 2] = dcY[i, 2, 0];
