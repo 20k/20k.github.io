@@ -136,6 +136,7 @@
 		<Unit filename="init_general.hpp" />
 		<Unit filename="init_neutron_star.cpp" />
 		<Unit filename="init_neutron_star.hpp" />
+		<Unit filename="integration.hpp" />
 		<Unit filename="interpolation.hpp" />
 		<Unit filename="kreiss_oliger.cpp" />
 		<Unit filename="kreiss_oliger.hpp" />
