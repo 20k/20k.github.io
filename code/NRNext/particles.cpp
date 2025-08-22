@@ -68,6 +68,9 @@ valuef integrate_dirac_gpu(auto&& func, const v3f& cell_pos, const v3f& dirac_lo
     //#define GET_DIRAC_STANDARD
     #ifdef GET_DIRAC_STANDARD
     valuef r = (cell_pos - dirac_location).length();
+
+    //print("R %f cp %f dl %f\n", r, cell_pos[0], dirac_location[0]);
+
     //pin(r);
     return func(r / radius_cells, radius_cells * scale);
     #endif // GET_DIRAC_STANDARD
@@ -129,10 +132,9 @@ void for_each_dirac(v3i dim, valuef scale, v3f dirac_pos, int radius_cells, auto
     using namespace single_source;
     assert(radius_cells > 0);
 
-    v3f fpos = world_to_grid(dirac_pos, dim, scale);
-
-    v3i cell = (v3i)floor(fpos);
+    auto [cell, fpos] = world_to_grid_by_parts(dirac_pos, dim, scale);
     pin(cell);
+    pin(fpos);
 
     //The appropriate modification is rightwards + 1, leftwards + 0
     int spread = radius_cells + 1;
@@ -147,14 +149,12 @@ void for_each_dirac(v3i dim, valuef scale, v3f dirac_pos, int radius_cells, auto
 
             for_e(x <= spread, assign_b(x, x+1), [&]{
                 v3i offset = {declare_e(x), declare_e(y), declare_e(z)};
-                offset += cell;
-                pin(offset);
 
                 valuef dirac = integrate_dirac_gpu(dirac_delta<valuef>, (v3f)offset, fpos, radius_cells, scale);
                 pin(dirac);
 
                 if_e(dirac > 0, [&]{
-                    func(offset, dirac);
+                    func(offset + cell, dirac);
                 });
             });
         });
@@ -369,9 +369,7 @@ void count_particles_per_cell(execution_context& ectx, std::array<buffer<valuef>
     v3f world_pos = {pos[0][id], pos[1][id], pos[2][id]};
     pin(world_pos);
 
-    v3f grid_posf = world_to_grid(world_pos, dim.get(), scale.get());
-    pin(grid_posf);
-    v3i grid_pos = (v3i)floor(grid_posf);
+    auto [grid_pos, _] = world_to_grid_by_parts(world_pos, dim.get(), scale.get());
 
     grid_pos = clamp(grid_pos, (v3i){0,0,0}, dim.get() - 1);
 
@@ -419,9 +417,7 @@ void permute_memory(execution_context& ectx, particle_base_args<buffer<valuef>> 
     v3f world_pos = in.get_position(id);
     pin(world_pos);
 
-    v3f grid_posf = world_to_grid(world_pos, dim.get(), scale.get());
-    pin(grid_posf);
-    v3i grid_pos = (v3i)floor(grid_posf);
+    auto [grid_pos, _] = world_to_grid_by_parts(world_pos, dim.get(), scale.get());
 
     grid_pos = clamp(grid_pos, (v3i){0,0,0}, dim.get() - 1);
 
@@ -724,13 +720,11 @@ struct evolve_vars
     tensor<valuef, 3, 3> dgB;
     tensor<valuef, 3, 3, 3> dcY;
 
-    evolve_vars(bssn_args_mem<buffer<valuef>> in, v3f fpos, v3i dim, valuef scale, bool uses_tricubic)
+    evolve_vars(bssn_args_mem<buffer<valuef>> in, v3f world_pos, v3i dim, valuef scale, bool uses_tricubic)
     {
         using namespace single_source;
-        pin(fpos);
 
-        fpos = clamp(fpos, (v3f){3,3,3}, (v3f)dim - 4.);
-        pin(fpos);
+        pin(world_pos);
 
         auto gA_at = [&](v3i pos)
         {
@@ -821,12 +815,10 @@ struct evolve_vars
             return v;
         };
 
-        v3f floored = floor(fpos);
-        v3i ifloored = (v3i)floored;
-        v3f frac = fpos - floored;
-
-        pin(frac);
+        auto [ifloored, frac] = world_to_grid_by_parts(world_pos, dim, scale);
+        ifloored = clamp(ifloored, (v3i){3,3,3}, dim - 4);
         pin(ifloored);
+        pin(frac);
 
         gA = particles_interpolate(gA_at, frac, ifloored, uses_tricubic);
         gB = particles_interpolate(gB_at, frac, ifloored, uses_tricubic);
@@ -862,6 +854,8 @@ struct evolve_vars
         //pin(K);
         pin(W);
 
+        //print("Frac %.23f\n", frac.x());
+
         dgA = particles_interpolate(dgA_at, frac, ifloored, uses_tricubic);
         dW = particles_interpolate(dW_at, frac, ifloored, uses_tricubic);
 
@@ -891,6 +885,8 @@ struct evolve_vars
         pin(dgB);
         pin(dcY);
         pin(dW);
+
+        print("Frac %.23f dgA raw %.23f Pos %.23f\n", frac[0], dgA[0], world_pos[0]);
     }
 };
 
@@ -908,10 +904,7 @@ void calculate_particle_properties(execution_context& ectx, bssn_args_mem<buffer
 
     v3f world_pos = {pos_in[0][id], pos_in[1][id], pos_in[2][id]};
 
-    v3f cell_pos = world_to_grid(world_pos, dim.get(), scale.get());
-    pin(cell_pos);
-
-    evolve_vars vars(in, cell_pos, dim.get(), scale.get(), uses_tricubic);
+    evolve_vars vars(in, world_pos, dim.get(), scale.get(), uses_tricubic);
 
     auto Yij = vars.cY / pow(max(vars.W, 0.01f), 2);
 
@@ -962,9 +955,6 @@ void evolve_particles(execution_context& ctx,
     v3f vel_base = p_base.get_velocity(id);
     v3f vel_next = p_in.get_velocity(id);
 
-    v3f grid_next = world_to_grid(pos_next, dim.get(), scale.get());
-    v3f grid_base = world_to_grid(pos_base, dim.get(), scale.get());
-
     valuef mass = p_in.get_mass(id);
     pin(mass);
 
@@ -999,8 +989,8 @@ void evolve_particles(execution_context& ctx,
         pos = (pos_base + pos_next) * 0.5f;
         vel = (vel_base + vel_next) * 0.5f;
 
-        evolve_vars b_evolve(base, grid_base, dim.get(), scale.get(), uses_tricubic);
-        evolve_vars i_evolve(in, grid_next, dim.get(), scale.get(), uses_tricubic);
+        evolve_vars b_evolve(base, pos_base, dim.get(), scale.get(), uses_tricubic);
+        evolve_vars i_evolve(in, pos_next, dim.get(), scale.get(), uses_tricubic);
 
         cY = (b_evolve.cY + i_evolve.cY) * 0.5f;
         W = (b_evolve.W + i_evolve.W) * 0.5f;
@@ -1014,7 +1004,7 @@ void evolve_particles(execution_context& ctx,
     }
     else
     {
-        evolve_vars i_evolve(in, grid_next, dim.get(), scale.get(), uses_tricubic);
+        evolve_vars i_evolve(in, pos_next, dim.get(), scale.get(), uses_tricubic);
         pos = pos_next;
         vel = vel_next;
 
@@ -1096,7 +1086,7 @@ void evolve_particles(execution_context& ctx,
             p3[i] = sum;
         }
 
-        //print("dV %.23f %.23f %.23f dgA %.23f\n", p1[2], p2[2], p3[2], dgA[2]);
+        print("dV %.23f %.23f %.23f dgA %.23f gA %.23f u0 %.23f\n", p1[0], p2[0], p3[0], dgA[0], gA, u0);
         //print("dV %.23f %.23f %.23f dgA %.23f gA %.23f u0 %.23f\n", p1[2], p2[2], p3[2], dgA[2], gA, u0);
 
         dV = p1 + p2 + p3;
@@ -1118,7 +1108,7 @@ void evolve_particles(execution_context& ctx,
 
     as_ref(p_out.masses[id]) = p_in.masses[id];
 
-    valuei dist = distance_to_boundary((v3i)round(grid_next), dim.get());
+    valuei dist = distance_to_boundary((v3i)round(world_to_grid(pos_next, dim.get(), scale.get())), dim.get());
 
     if_e(dist <= 10 || gA < 0.15f, [&]{
         as_ref(p_out.masses[id]) = max(p_base.masses[id] + timestep.get() * -p_in.masses[id], 0.f);
@@ -1128,7 +1118,7 @@ void evolve_particles(execution_context& ctx,
         as_ref(p_out.masses[id]) = valuef(0.f);
     });
 
-    //print("Pos %.23f %.23f %.23f vel %.23f %.23f %.23f\n", pos.x(), pos.y(), pos.z(), vel.x(), vel.y(), vel.z());
+    print("Pos %.23f %.23f %.23f vel %.23f %.23f %.23f\n", pos.x(), pos.y(), pos.z(), vel.x(), vel.y(), vel.z());
 
     /*if_e(id == value<size_t>(718182), [&]{
         print("Pos %f %f %f vel %f %f %f\n", pos.x(), pos.y(), pos.z(), vel.x(), vel.y(), vel.z());

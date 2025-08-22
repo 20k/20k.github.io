@@ -1116,6 +1116,8 @@ auto check_symmetry_kernel(execution_context&, buffer<valuef> in, literal<v3i> i
     v3i pos = get_coordinate_including_boundary(lid, dim);
     pin(pos);
 
+    #define Z_SYMM
+    #ifdef Z_SYMM
     valuei mirrored_z = dim.z() - pos.z() - 1;
 
     valuef v_in = in[pos, dim];
@@ -1125,6 +1127,21 @@ auto check_symmetry_kernel(execution_context&, buffer<valuef> in, literal<v3i> i
     {
         print("Failure in symmetry at %i %i %i base %.23f found %.23f symm pos %i %i %i\n", pos.x(), pos.y(), pos.z(), v_in, v_mirrored, pos.x(), pos.y(), mirrored_z);
     });
+    #endif
+
+    //#define TRIPLE_SYMM
+    #ifdef TRIPLE_SYMM
+    v3i mirrored = dim - pos - (v3i){1,1,1};
+
+    valuef v_in = in[pos, dim];
+    valuef v_mirrored = in[mirrored, dim];
+
+    if_e(v_in != v_mirrored && v_in != -v_mirrored, [&]
+    {
+        print("Failure in symmetry at %i %i %i base %.23f found %.23f symm pos %i %i %i\n", pos.x(), pos.y(), pos.z(), v_in, v_mirrored, pos.x(), pos.y(), mirrored.x());
+    });
+
+    #endif // TRIPLE_SYMM
 }
 
 ///https://arxiv.org/pdf/0709.3559 tested, appendix a.2

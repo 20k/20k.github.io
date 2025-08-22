@@ -284,9 +284,20 @@ template<typename T, typename U, typename V>
 inline
 tensor<T, 3> world_to_grid(const tensor<T, 3>& pos, const tensor<V, 3>& dim, const U& scale)
 {
-    tensor<T, 3> centre = (tensor<T, 3>{(T)dim.x(), (T)dim.y(), (T)dim.z()} - 1) / 2;
+    tensor<T, 3> centre = (tensor<T, 3>)((dim - 1) / 2);
 
     return (pos / scale) + centre;
+}
+
+inline
+std::pair<v3i, v3f> world_to_grid_by_parts(v3f pos, v3i dim, valuef scale)
+{
+    v3i centre = (dim - 1) / 2;
+    v3f scaled = pos / scale;
+    v3f frac = scaled - floor(scaled);
+    v3i index = (v3i)floor(scaled) + centre;
+
+    return {index, frac};
 }
 
 template<typename T>
