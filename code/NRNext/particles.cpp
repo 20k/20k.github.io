@@ -69,7 +69,7 @@ valuef integrate_dirac_gpu(auto&& func, const v3f& cell_pos, const v3f& dirac_lo
     #ifdef GET_DIRAC_STANDARD
     valuef r = (cell_pos - dirac_location).length();
 
-    //print("R %f cp %f dl %f\n", r, cell_pos[0], dirac_location[0]);
+    //print("R %f cp %f dl %f dirac %.23f\n", r, cell_pos[0], dirac_location[0], func(r / radius_cells, radius_cells * scale));
 
     //pin(r);
     return func(r / radius_cells, radius_cells * scale);
@@ -471,6 +471,10 @@ void calculate_particle_intermediates(execution_context& ectx,
     for_each_dirac(dim.get(), scale.get(), pos, radius_cells, [&](v3i offset, valuef dirac) {
         valuef E = mass * lorentz * dirac;
         v3f Ji = mass * vel * dirac;
+
+        /*if_e((offset.x() == 79  && offset.y() == 104 && offset.z() == 102) || (offset.x() == 133 && offset.y() == 108 && offset.z() == 110), [&]{
+            print("Dirac %.23f E %.23f pos %.23f %.23f %.23f\n", dirac, E, pos.x(), pos.y(), pos.z());
+        });*/
 
         //print("Dirac %f offset %i %i %i fpos %f %f %f scale %f\n", dirac, offset.x(), offset.y(), offset.z(), fcell.x(), fcell.y(), fcell.z(), scale.get());
         //print("Standard E %f\n", E);
@@ -886,7 +890,7 @@ struct evolve_vars
         pin(dcY);
         pin(dW);
 
-        print("Frac %.23f dgA raw %.23f Pos %.23f\n", frac[0], dgA[0], world_pos[0]);
+        //print("Frac %.23f dgA raw %.23f Pos %.23f\n", frac[1], dgA[1], world_pos[1]);
     }
 };
 
@@ -1086,7 +1090,8 @@ void evolve_particles(execution_context& ctx,
             p3[i] = sum;
         }
 
-        print("dV %.23f %.23f %.23f dgA %.23f gA %.23f u0 %.23f\n", p1[0], p2[0], p3[0], dgA[0], gA, u0);
+        //print("dV %.23f %.23f %.23f dgA %.23f gA %.23f u0 %.23f dW %.23f\n", p1[1], p2[1], p3[1], dgA[1], gA, u0, dW[1]);
+        //print("dV %.23f %.23f %.23f dgA %.23f gA %.23f u0 %.23f dgB %.23f %.23f %.23f\n", p1[1], p2[1], p3[1], dgA[1], gA, u0, dgB[1, 0], dgB[1, 1], dgB[1, 2]);
         //print("dV %.23f %.23f %.23f dgA %.23f gA %.23f u0 %.23f\n", p1[2], p2[2], p3[2], dgA[2], gA, u0);
 
         dV = p1 + p2 + p3;

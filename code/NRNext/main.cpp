@@ -2012,7 +2012,7 @@ initial_params get_initial_params()
     }
     #endif
 
-    init.dim = {233, 233, 233};
+    init.dim = {213, 213, 213};
     init.simulation_width = radial_pos * 4;
 
     printf("Swidth %f\n", init.simulation_width);

@@ -292,12 +292,16 @@ tensor<T, 3> world_to_grid(const tensor<T, 3>& pos, const tensor<V, 3>& dim, con
 inline
 std::pair<v3i, v3f> world_to_grid_by_parts(v3f pos, v3i dim, valuef scale)
 {
+    using namespace single_source;
+
     v3i centre = (dim - 1) / 2;
     v3f scaled = pos / scale;
     v3f frac = scaled - floor(scaled);
     v3i index = (v3i)floor(scaled) + centre;
 
-    return {index, frac};
+    v3f one = {1,1,1};
+
+    return {index, no_opt(one-no_opt(one-frac))};
 }
 
 template<typename T>
