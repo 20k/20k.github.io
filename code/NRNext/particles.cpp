@@ -67,12 +67,7 @@ valuef integrate_dirac_gpu(auto&& func, const v3f& cell_pos, const v3f& dirac_lo
 
     //#define GET_DIRAC_STANDARD
     #ifdef GET_DIRAC_STANDARD
-    valuef r = (cell_pos - dirac_location).length();
-
-    //print("R %f cp %f dl %f dirac %.23f\n", r, cell_pos[0], dirac_location[0], func(r / radius_cells, radius_cells * scale));
-
-    //pin(r);
-    return func(r / radius_cells, radius_cells * scale);
+    return func((cell_pos - dirac_location).length() / radius_cells, radius_cells * scale);
     #endif // GET_DIRAC_STANDARD
 
     #define GET_DIRAC_CORRECTED
@@ -176,7 +171,6 @@ void calculate_particle_nonconformal_E(execution_context& ectx, particle_base_ar
         return_e();
     });
 
-    //valuef lorentz = 1;
     valuef mass = particles_in.get_mass(id);
     v3f pos = particles_in.get_position(id);
     v3f vel = particles_in.get_velocity(id);
@@ -395,8 +389,6 @@ void memory_allocate(execution_context& ectx, buffer_mut<valuei> counts, buffer_
 
     if_e(my_count > 0, [&]{
         as_ref(my_memory) = memory_allocator.atom_add_e(valuei(0), my_count);
-
-        //print("My memory %i\n", declare_e(my_memory));
     });
 
     as_ref(memory_ptrs[id]) = declare_e(my_memory);
@@ -809,8 +801,6 @@ struct evolve_vars
         //pin(K);
         pin(W);
 
-        //print("Frac %.23f\n", frac.x());
-
         dgA = particles_interpolate(dgA_at, frac, ifloored, uses_tricubic);
         dW = particles_interpolate(dW_at, frac, ifloored, uses_tricubic);
 
@@ -1183,8 +1173,6 @@ void particle_initial_conditions(cl::context& ctx, cl::command_queue& cqueue, di
                       literal<valuei> work_size)*/
         cl_ulong p_start = 0;
 
-        //for(int i=0; i < 1; i++)
-
         int its = 0;
 
         while(1)
@@ -1215,7 +1203,6 @@ void particle_initial_conditions(cl::context& ctx, cl::command_queue& cqueue, di
             args.push_back(p_end);
 
             cqueue.exec("sum_particle_aIJ", args, {size}, {128});
-            //cqueue.block();
 
             its++;
 
@@ -1466,7 +1453,6 @@ void particle_utility_buffers::allocate(cl::context ctx, cl::command_queue cqueu
     }
 }
 
-//hmm
 std::vector<buffer_descriptor> particle_utility_buffers::get_description()
 {
     buffer_descriptor bE;
