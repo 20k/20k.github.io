@@ -14,6 +14,7 @@ T symmetric_sum(const std::vector<T>& in)
     if(in.size() == 2)
         return in[0] + in[1];
 
+    //odd
     if((in.size() % 2) != 0)
     {
         int middle = (in.size() - 1) / 2;
@@ -30,6 +31,7 @@ T symmetric_sum(const std::vector<T>& in)
 
         return (symmetric_sum(left) + symmetric_sum(right)) + in[middle];
     }
+    //even
     else
     {
         int middle = in.size() / 2;

@@ -6,11 +6,11 @@ categories: C++
 published: true
 ---
 
-Hi there! Today we're going to examine how to do N-body particle physics, in general relativity. We want to take a fixed set of particles, and example how they move under their mutual gravitational influence
+Hi there! Today we're going to examine how to do N-body particle physics, in general relativity. We want to take a fixed set of particles, and simulate how they move under their mutual gravitational influence
 
 This is a bit of an underexplored topic compared to Newtonian physics and traditional N-body simulations, and its easy to accidentally pick the wrong formalism or techniques for solving this problem. The basic theory of what we're doing is - for once - fairly straightforward, and most of the issues will be numerical ones
 
-At the end of this topic, we'll have about 10 million particles up and running at a decent speed. You'll also have received a crash course in IEEE floats, and some of the unique numerical problems that using C/C++ presents
+At the end of this topic, we'll have about 10 million particles up and running at a decent speed. You'll also have received an unexpected crash course in IEEE floats, and some of the unique numerical problems that using C/C++ presents
 
 # What are we doing?
 
@@ -50,11 +50,27 @@ $$u^\mu \nabla_\mu u_\nu = 0$$
 
 This equation isn't super helpful directly - we'll have to rework it a bit to figure out what's going on, and transplant it into the ADM formalism. But for once, there simply isn't that much general relativity to dig through
 
+# Quick refresher course
+
+Today we're working in the ADM formalism. This is a method of breaking up a 4D spacetime into 3 spatial dimensions, and 1 timelike dimension
+
+The 4D metric tensor of general relativity $g_{\mu\nu}$ gets split up into the following quantities:
+
+|Symbol|Description|
+|-|-|
+|$\gamma_{ij}$|The 3D metric tensor|
+|$K_{ij}$| The extrinsic curvature|
+|$n^\mu$| The hypersurface normal, normally broken up into $\alpha$ (lapse) and $\beta^i$ (shift)|
+
+Greek indices $\mu\nu$ run from 0-4 inclusive, latin indices $ijk$ run from 1-3 inclusive
+
+The BSSN formalism is a further decomposition of the above variables, for numerical stability reasons. Today, because of the low complexity of the general relativity parts, I'll be skipping most of this
+
 # These equations in the ADM formalism
 
 ## Stress-energy
 
-We need the ADM projections of the [stress energy tensor](https://en.wikipedia.org/wiki/Stress%E2%80%93energy_tensor#Isolated_particle) $T_{\mu\nu}$, to calculate the compatible terms for the BSSN equations. These are [(2.14, 2.15, 2.20)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf):
+We need the ADM projections of the [stress energy tensor](https://en.wikipedia.org/wiki/Stress%E2%80%93energy_tensor#Isolated_particle) $T_{\mu\nu}$, to calculate the source terms for our equations in the ADM formalism. These are [(2.14, 2.15, 2.20)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf):
 
 $$
 \begin{alignat}{2}
@@ -64,7 +80,7 @@ S_{ij} &= \alpha^{-1} W^3 &&\sum m \frac{u_i u_j}{u^0} \delta^{(3)}(x^i - x^i_{\
 \end{alignat}
 $$
 
-These quantities will be evaluated at every cell in our grid - except for $u^0$, which is interpolated at $x^i_p$ in its calculation
+These quantities will be evaluated at every cell in our grid - except for $u^0$, which calculated from interpolated quantities at $x^i_p$
 
 ## The geodesic equation
 
@@ -101,7 +117,7 @@ At this point, we only have a few things left to solve:
 3. Initial conditions
 4. Implementation
 
-You've probably noticed the suspiciously long scrollbar on this article at this point, so you can likely guess that things are about to turn into a gigantic mess. Our first major problem is the Dirac delta function
+You've probably noticed the *suspiciously* long scrollbar on this article at this point, so you can likely guess that things are about to turn into a gigantic mess. Our first major problem customer is the Dirac delta function
 
 Todo: Cat
 
@@ -120,11 +136,11 @@ $$
 
 $$\int^\infty_{-\infty} \delta^{(1)}(x) \; dx = 1$$
 
-This says that the dirac delta function only takes a value at a single point $x=0$, and the area under this point is precisely $1$
+This says that the dirac delta function only takes a value at a single point $x=0$, and the area under this point is precisely $1$. This function is used because the particles we're dealing with are pointlike
 
 ![dirac1](/assets/nr6_dirac_1.png)
 
-No real function actually meets this definition, so we must numerically approximate it somehow. Higher dimensional diracs are denoted by the raised index, and can be constructed via a product: eg $\delta^{(3)}(x, y, z) = \delta^{(1)}(x)\delta^{(1)}(y)\delta^{(1)}(z)$
+No computable function actually meets this definition, so we must numerically approximate it somehow. Higher dimensional diracs are denoted by the raised index, and can be constructed via a product: eg $\delta^{(3)}(x, y, z) = \delta^{(1)}(x)\delta^{(1)}(y)\delta^{(1)}(z)$
 
 ## Numerical approximations
 
@@ -157,7 +173,7 @@ Where $r_s$ is the size in world coordinates of your particle, and this function
 
 ## Improving the numerical approximation
 
-There's a bit of problem with making this simple substitution. To examine this, lets step back into 1D, and imagine a very basic dirac delta function $\Delta^{(1)}$ (the form doesn't matter):
+There's a bit of problem with this straightforward approach. To examine this, lets step back into 1D, and imagine a very basic dirac delta function $\Delta^{(1)}$ (the form doesn't matter):
 
 $$\Delta^{(1)}(x) =
 \begin{align}
@@ -176,7 +192,7 @@ We want that to be precisely $1$. In our discretisation as it stands currently h
 
 ![dirac3](/assets/nr6_dirac_3.png)
 
-The remedy is to calculate the exact amount of the dirac delta function that intersects with a grid cell. We can do this by integrating:
+The remedy is to calculate the exact amount of the dirac delta function that intersects with a grid cell. You can do this by integrating:
 
 $$\Delta^{(1)}_{\mathrm{good}} = \frac{\int_{x - \frac{h}{2}}^{x + \frac{h}{2}} \Delta^{(1)}(y) dy}{h}$$
 
@@ -216,12 +232,13 @@ For any correct simulation, that symmetry should be preserved. In virtually all 
 
 ## Root causing the problems
 
-This can be root caused to two similar problems:
+This can be root caused to three similar problems:
 
 1. Floating point arithmetic is not associative
-2. C++ has special rules for transforming expressions involving floats, via a little known loophole in the standard that breaks with the IEEE spec for reasons™
+2. C++ has special rules for transforming expressions involving floats, via a loophole in the standard that breaks with the IEEE spec for reasons™
+3. The precision for floats is non uniform
 
-Asymmetry can sneak in anywhere we look at adjacent grid cells or non central values (eg the dirac integral bounds). A first culprit to look at is differentiation. In general, 4th order numerical derivatives get implemented as follows:
+To start off, asymmetry can sneak in anywhere we look at adjacent grid cells or non central values (eg the dirac integral bounds). A first culprit to look at is differentiation. In general, 4th order numerical derivatives get implemented as follows:
 
 ```c++
 float diff(const std::vector<float>& points, int idx, float scale)
@@ -250,7 +267,7 @@ float diff(const std::vector<float>& points, int idx, float scale)
 }
 ```
 
-In some more modern programming languages like [Rust](https://github.com/rust-lang/rfcs/pull/2686), you can simply stop here and your code will work. In C++, tests will show that this asymmetry still persists, and your simulation will be wrong
+In some more modern programming languages like [Rust](https://github.com/rust-lang/rfcs/pull/2686), you can simply stop here and this function will work. In C++, tests will show that this asymmetry still persists, and your simulation will be wrong
 
 To explain this, we now have to dive into a very strange C++ feature: Floating point contraction
 
@@ -278,7 +295,7 @@ float diff(const std::vector<float>& points, int idx, float scale)
 }
 ```
 
-This reintroduces[^inpractice] the same issue we just tried to fix. This can be fixed in a general way by spelling out all the intermediate variables, to create some really very beautiful code:
+This reintroduces[^inpractice] the same issue we just tried to fix. This can be fixed in a general way by spelling out all the intermediate variables:
 
 [^inpractice]: If you're wondering if this is a more theoretical problem, it isn't. GPU compilers are very aggressive about using this rule to emit FMAs where possible
 
@@ -320,7 +337,7 @@ Pairwise summation with explicitly spelt out intermediate variables is the gener
 Another source of error is the way we've implement the dirac delta function. There are several sources of error here:
 
 1. The integral bounds are arbitrary floats, which can lead to representation issues
-2. The integration itself between $[-h/2, h/2]$ won't avoid this error out of the box
+2. The integration itself contains errors
 
 First off, lets swap everything to cell index based coordinates instead. I've also changed $\Delta$ to take in a fraction in the range $[0, 1]$, because its easier to reason about
 
@@ -345,45 +362,92 @@ Where $x_c, y_c, z_c$ represents the integral position of the cell in question i
 
 ### Trapezoidal integration
 
-Todo: Implement the fully symmetric trapezoidal method
-
-Implementing a fully symmetric trapezoidal method would be a fair bit of work. For numerical integration, it has the [following definition](https://en.wikipedia.org/wiki/Trapezoidal_rule):
+I use trapezoidal integration to implement the integration above, which has the [following definition](https://en.wikipedia.org/wiki/Trapezoidal_rule):
 
 $$\int^b_a f(x) dx = \Delta x \left (\frac{f(x_0) + f(x_N)}{2} + \sum^{n-1}_{k=1} f(x_k)\right )$$
 
-Luckily for $N=2$ - which is good enough - this is actually straightforward. As long as we evaluate the right hand side sum, and the left hand side sum separately, then add them together at the end - it'll be symmetric. More iterations would require an outside in iteration scheme with pairwise summation
+Evaluated naively, the running sum on the right hand side can cause asymmetry to sneak back in. For $N=2$, you can ignore this problem - as long as you evaluate the left terms ($\frac{f(x_0) + f(x_N)}{2}$) and right sum separately
 
-This is what I implemented (in 1d, just repeat the integral in 3D):
+Because this article is intended to save you existential pain, I've implemented a scheme that works for any value of $N$ - by using pairwise summation[^worthit] on the sum to avoid any kind of mismatched summmation
+
+[^worthit]: If you're wondering, is this really worth it? This kind of pairwise summation has a reduced error term over a simple running sum, so we may as well
 
 ```c++
+template<typename T>
+inline
+T symmetric_sum(const std::vector<T>& in)
+{
+    if(in.size() == 0)
+        return T{};
+
+    if(in.size() == 1)
+        return in.front();
+
+    if(in.size() == 2)
+        return in[0] + in[1];
+
+    //odd
+    if((in.size() % 2) != 0)
+    {
+        int middle = (in.size() - 1) / 2;
+
+        std::vector<T> left;
+
+        for(int i=0; i < middle; i++)
+            left.push_back(in[i]);
+
+        std::vector<T> right;
+
+        for(int i=middle + 1; i < (int)in.size(); i++)
+            right.push_back(in[i]);
+
+        return (symmetric_sum(left) + symmetric_sum(right)) + in[middle];
+    }
+    //even
+    else
+    {
+        int middle = in.size() / 2;
+
+        std::vector<T> left;
+
+        for(int i=0; i < middle; i++)
+            left.push_back(in[i]);
+
+        std::vector<T> right;
+
+        for(int i=middle; i < (int)in.size(); i++)
+            right.push_back(in[i]);
+
+        return symmetric_sum(left) + symmetric_sum(right);
+    }
+}
+
 template<typename T, typename U>
 inline
 auto integrate_1d_trapezoidal(const T& func, int n, const U& upper, const U& lower)
 {
     using variable_type = decltype(func(U()));
 
-    variable_type sum = 0;
+    std::vector<variable_type> sum;
 
     for(int k=1; k < n; k++)
     {
         auto coordinate = lower + k * (upper - lower) / n;
 
-        auto val = func(coordinate);
-
-        sum += val;
+        sum.push_back(func(coordinate));
     }
 
-    return ((upper - lower) / n) * (0.5f * (func(lower) + func(upper)) + sum);
+    return ((upper - lower) / n) * (0.5f * (func(lower) + func(upper)) + symmetric_sum(sum));
 }
 ```
 
-Note that the returned value is carefully written to avoid problems
+For 3D, simply repeat the integration
 
 ## Dirac: The end
 
 This section has been one of the more complicated things I've had to implement. I do not know if I've ever seen a tediously correct implementation of the dirac delta function: most papers simply stop after the initial discretisation, which leads to an overall inaccuracy in the mass of a few % for small dirac sizes. More importantly, the mass oscillates with a naive discretisation as a particle moves through the grid, and it introduces systematic errors
 
-There are about ~10 points in total in this article where its possible to implement things incorrectly, which can rapidly lead to multiple rounding errors per-cell per-tick. This is the reason why its so important - if you do it wrong *everywhere*, then everything on one side of your grid will experience multiple non random bits of error relative to the other side of your grid every tick, which can lead to very unexpected results over time
+There are about ~10 points in total in this article where its possible to implement things incorrectly, which can rapidly lead to multiple rounding errors per-cell per-tick. This is the reason why its so important - if you do it wrong *everywhere*, then the error terms can lead to very unexpected results over time
 
 We now need to step into our final hard problem: Interpolation
 
@@ -453,13 +517,15 @@ Note that `no_opt` in the scheme I'm using forces a variable declaration, to dis
 
 $$\mathrm{lmix}(a, b, t) == \mathrm{lmix}(b, a, 1-t)$$
 
+To understand how, first off: notice that floating point values $< 0.5$ and $>0.5$ have different amounts of precision available to them, ie the precision is non uniform. Essentially, we want to force these ranges to have the *same* precision. This can be done by essentially doing $1-(1-\mathrm{value})$, to create an extra rounding step, and ensures that everything has effectively the same precision in the range
+
 Trilinear interpolation is otherwise a very standard algorithm, and not worth diving into. In many situations, trilinear interpolation is perfectly fine, but we'll have to go into when it is not
 
 ## Trilinear Interpolation can be a problem
 
 Todo: massively simplify this segment
 
-The motion of a particle is largely governed by the interpolated term $\partial_i \alpha$
+The motion of a particle here is largely governed by the interpolated term $\partial_i \alpha$, ie the derivative of the lapse
 
 ![interp](/assets/nr6_interp.png)
 
@@ -469,11 +535,13 @@ A particle's contribution to its own velocity however should be precisely 0 ($\p
 
 <iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/g46gswzmTKM?si=uBy-HsxWKC4Sd0OI" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-The fact that a particle can spontaneously self accelerate like this is an alarming error. The issue is that in any interpolation scheme, the error in calculating our interpolated variables is proportional to the distance away from our known data. Here, this can cause $\partial_i \alpha \neq 0$. This is an especially severe error - because it is a systematic, *oscillatory* error term as the particle moves through the grid. It will cause very strange issues like the following abrupt failure:
+The fact that a particle can spontaneously self accelerate like this is an alarming error!
+
+Diagnosing this boils the issue down to something straigthforward: When we perform any kind of interpolation, the accuracy goes down the further away you interpolate from your known data. In our case, this can cause $\partial_i \alpha \neq 0$ at the position of the particle. This is an especially severe error - you can see it is clearly both systematic and oscillatory. It will also cause *very* strange issues like the following abrupt failure:
 
 <iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/GrbXu4fWwiE?si=NttsxU-04JuhlMQE" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Alleviating this involves constructing a higher order interpolation scheme to reduce the error in the interpolation, with the caveat that we still have to deal with all the same floating point rounding issues as before. This is more of a problem when the mass of the particle is high relative to the spacetime its embedded in, so there are many situations in which trilinear is perfectly fine
+Alleviating this involves constructing a higher order interpolation scheme to reduce the error in the interpolation, with the caveat that we still have to deal with all the same floating point rounding issues as before
 
 ## Tricubic interpolation
 
@@ -481,7 +549,7 @@ The next step up from trilinear interpolation, is tricubic interpolation. It is 
 
 [^hermite]: Wikipedia will direct you to [this](https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.89.7835) paper, which is precisely the wrong approach. It's set up to be able to repeatedly perform Hermite interpolation with the same set of values, which is not what we want at all
 
-What we want is tricubic Lagrangian interpolation, via a [Lagrange interpolating polynomial](https://en.wikipedia.org/wiki/Lagrange_polynomial). This does not require us to know the values of the derivatives anywhere, and it is both faster and more accurate than Hermite interpolation. It does have the downside that I now have to do more work though
+What we actually want is tricubic Lagrangian interpolation, via a [Lagrange interpolating polynomial](https://en.wikipedia.org/wiki/Lagrange_polynomial). This does not require us to know the values of the derivatives anywhere, and it is both faster and more accurate than Hermite interpolation
 
 ### Cubic Lagrangian interpolation
 
@@ -491,7 +559,7 @@ The minimum number of points to do cubic interpolation is $4$. We'll operate in 
 |-|-|-|-|-|
 |Value (ie the offset)|$-1$|$0$|$1$|$2$|
 
-A cubic interpolating polynomial is constructed as follows (all bounds are inclusive):
+We're looking to interpolate data that lies between $x_1$, and $x_2$. A cubic interpolating polynomial is constructed as follows (all bounds are inclusive):
 
 $$\begin{align}
 l_j = \prod_{m=0, m \neq j}^3 \frac{x - x_m}{x_j - x_m}\\
@@ -679,6 +747,8 @@ auto tricubic_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
 
 One of the reasons I write these articles is to save you from the same pain I have had to experience. There's no way around the fact that this is fairly complicated. The naive implementation of this is simple, but my goodness is this a joy. Even without the asymmetry issues, pairwise summation has a reduced error term - so its better than just a big linear sum
 
+There are many situations in which trilinear interpolation is perfectly fine: Tricubic is only important when the mass of the particle is high relative to the ambient environment it is embedded in, as that is when precise interpolation at the particle's position is very important
+
 With this, the floating point nightmare portion of this article is finally over
 
 # Initial conditions
@@ -691,9 +761,9 @@ There are three components to the initial conditions:
 
 ## 4-velocity
 
-Here, velocity is defined relative to the inertial frame of reference of the particle. This means that to calculate the 4-velocity, we need to first construct a tetrad. While in the general case you'll need to [Gram-Schidt](https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process) the metric to find a set of tetrads (eg see [here](https://20k.github.io/c++/2024/06/19/tetrads.html)), our initial conditions will always produce a diagonal metric - which makes tetrad construction straightforward
+Here, velocity is defined relative to the inertial frame of reference of the particle when stationary. This means that to calculate the 4-velocity, we need to first construct a tetrad. While in the general case you'll need to [Gram-Schidt](https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process) the metric to find a set of tetrads (eg see [here](https://20k.github.io/c++/2024/06/19/tetrads.html)), our initial conditions will always produce a diagonal metric - which makes tetrad construction straightforward
 
-Firstly, take the following initial slice: $\alpha = 1, \beta^i = 0$. Then, we can construct the metric tensor as follows:
+Firstly, take the following initial slice: $\alpha = 1, \beta^i = 0$. Then, construct the metric tensor as follows:
 
 |$g_{\mu\nu}$|0|1|2|3|
 |-|-|-|-|-|
@@ -728,13 +798,13 @@ Note that the $i$ index runs from $0$ to $4$ contrary to the rest of this articl
 Its important to solve the hamiltonian constraint as part of the initial conditions, because errors here are quite sticky, and can leave visual 'welts' on your simulation that are very noticeable. The hamiltonian constraint that we'll be using can be derived from [2.11](https://arxiv.org/pdf/1905.08890), and with the standard set of constraints looks like this:
 
 $$
-\nabla \psi = - \psi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \psi^5 \rho_H
+\nabla \psi = - \frac{1}{8} \psi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \psi^5 \rho_H
 $$
 
 $\rho_H$ is the source term for the stress-energy tensor, and I'm keeping the same notation from the matter article. To keep solving, we need two things:
 
 1. $\rho_H$: the scalar source term for the stress-energy tensor
-2. $\bar{A}_{ij}$: the extrinsic curvature
+2. $\bar{A}_{ij}$: the conformal extrinsic curvature
 
 ### $\rho_H$
 
@@ -762,15 +832,17 @@ $$
 
 Lets now define $\bar{\rho}_H = \sum m u^0 \delta^{(3)}(x^i - x^i_{\mathrm{p}})$, ie dropping the conformal factor (and setting $\alpha=1$). This means you may rewrite the hamiltonian constraint as this:
 
-$$\nabla \psi = - \psi^{-7} \bar{A} _{ij} \bar{A}^{ij} - 2 \pi \psi^{-1} \bar{\rho}_H$$
+$$\nabla \psi = - \frac{1}{8} \psi^{-7} \bar{A} _{ij} \bar{A}^{ij} - 2 \pi \psi^{-1} \bar{\rho}_H$$
 
-This is actually solvable, aside from $\bar{A}_{ij}$. To figure that out, we'll dip into the momentum constraint
+This is actually solvable. Setting aside $\bar{A}_{ij}$ for a moment, the procedure for solving this is detailed [here](https://20k.github.io/c++/2025/01/12/nr102.html#solving-for-u)
+
+To figure $\bar{A}_{ij}$ out, its time to dip into the momentum constraint
 
 ## $\bar{A}_{ij}$ and the momentum constraint
 
-When our particles are not moving, $\bar{A}_{ij} = 0$ - and Bob's your uncle. All particle papers I have looked at use stationary particles, and it seems like nobody wants to touch this problem with a 100ft barge pole. As a professional barge pole toucher, this question has been haunting me for a while
+When our particles are not moving, $\bar{A}_{ij} = 0$, which makes this rather easy. All particle papers I have looked at use stationary particles, and it seems like nobody wants to touch this problem with a 100ft barge pole. As a professional barge pole toucher, this question has been haunting me for a while
 
-One approach is to repurpose the [neutron star](https://arxiv.org/pdf/1606.04881) initial conditions paper - set the pressure to $0$, and to model a body without spin. When an object does not have spin, the solution becomes spherically symmetric. The reduced problem is as follows:
+One exploratory approach is to repurpose the [neutron star](https://arxiv.org/pdf/1606.04881) initial conditions paper that was the focus of [this](https://20k.github.io/c++/2025/04/15/nr104.html) article - set the pressure to $0$, and to model a body without spin. When an object does not have spin, the solution becomes spherically symmetric. The reduced problem is as follows:
 
 $$\begin{align}
 \bar{A}^{ij} &= \frac{3Q}{2r^2}(P^i l^j + P^j l^i - (\eta^{ij} - l^i l^j) P_i l^i)\\
@@ -785,7 +857,7 @@ Strictly speaking, this is approximate - as it assumes that $W$ is constant with
 2. All formalisms are momentum constraint damped, so errors disappear quickly
 3. It involves summing across all particles over all points of the grid, which is astonishingly terrible for performance. In general you'll likely want to merge nearby particles, and perform other grouping approximations which are non trivial
 
-I've bundled an implementation of this in with the article, but its switched off by default. Because it has minimal value, I'm not going to dig into this more
+I've bundled an implementation of this in with the article, but its switched off by default
 
 # Implementation
 
@@ -793,7 +865,7 @@ I've bundled an implementation of this in with the article, but its switched off
 
 This is straightforward to implement. There are only two interesting features here:
 
-1. I use implicit midpoint, as it is symplectic. There's no real reason for an implicit approach, but it fits nicely in with backwards euler
+1. I use implicit midpoint, as it is symplectic - meaning it should preserve the energy of the particles well. There's no real reason for an implicit approach, but it fits nicely in with backwards euler
 2. The mass boundary condition
 
 ### Main part of the equations
@@ -809,9 +881,6 @@ v3f pos_next = p_in.get_position(id);
 v3f vel_base = p_base.get_velocity(id);
 v3f vel_next = p_in.get_velocity(id);
 
-v3f grid_next = world_to_grid(pos_next, dim.get(), scale.get());
-v3f grid_base = world_to_grid(pos_base, dim.get(), scale.get());
-
 v3f vel;
 v3f pos;
 
@@ -824,15 +893,15 @@ if(!first_step)
     vel = (vel_base + vel_next) * 0.5f;
 
     //performs interpolation
-    evolve_vars b_evolve(base, grid_base, dim.get(), scale.get());
-    evolve_vars i_evolve(in, grid_next, dim.get(), scale.get());
+    evolve_vars b_evolve(base, pos_base, dim.get(), scale.get());
+    evolve_vars i_evolve(in, pos_next, dim.get(), scale.get());
 
     cY = (b_evolve.cY + i_evolve.cY) * 0.5f;
     /*other variables*/
 }
 else
 {
-    evolve_vars i_evolve(in, grid_next, dim.get(), scale.get());
+    evolve_vars i_evolve(in, pos_next, dim.get(), scale.get());
     pos = pos_next;
     vel = vel_next;
 
@@ -931,7 +1000,7 @@ for(int i=0; i < 3; i++)
 as_ref(lorentz_out[id]) = u0;
 ```
 
-The only complex part is evaluating $\partial_i \gamma^{jk}$. I Leibnitz this to get it into the following form:
+The only complex part is evaluating $\partial_i \gamma^{jk}$, aka $\partial_i (W^2 \tilde{\gamma}^{jk})$. I Leibnitz this to get it into the following form:
 
 $$
 W^2 \partial_i \tilde{\gamma}^{jk} + 2 W \partial_i W \tilde{\gamma}^{jk}
@@ -986,7 +1055,7 @@ The mass cutoff is determined as 10% of the mass of the lightest particle's init
 
 ## Calculating the stress-energy tensor
 
-Each particle has a size, and generate a contribution to the stress-energy tensor. We need to - somehow - sum all the contributions from every particle onto the grid. The basic idea for how to implement this is as follows:
+Each particle has a size, and generates a contribution to the stress-energy tensor. We need to - somehow - sum all the contributions from every particle onto the grid. The basic idea for how to implement this is as follows:
 
 1. Loop over the size (in cells) of the particle, determined by the dirac delta size
 2. Accumulate the stress energy tensor on the grid directly, using 64-bit fixed point
@@ -995,7 +1064,7 @@ This is not my first rodeo at solving this problem, and there is an extensive di
 
 ### Looping over the size in cells of the particle
 
-I define the size of a particle in cells instead of in world coordinate, as this is easy to work with. This gets plugged into the dirac delta function (which remember: we modified the definition of to take a unit fraction)
+I define the size of a particle in cells, as this is easy to work with. This gets plugged into the dirac delta function (which remember: we modified the definition of to take a unit fraction)
 
 This gives a simple loop procedure:
 
@@ -1005,10 +1074,9 @@ void for_each_dirac(v3i dim, valuef scale, v3f dirac_pos, int radius_cells, auto
     using namespace single_source;
     assert(radius_cells > 0);
 
-    v3f fpos = world_to_grid(dirac_pos, dim, scale);
-
-    v3i cell = (v3i)floor(fpos);
+    auto [cell, frac] = world_to_grid_by_parts(dirac_pos, dim, scale);
     pin(cell);
+    pin(frac);
 
     //The appropriate modification is rightwards + 1, leftwards + 0
     int spread = radius_cells + 1;
@@ -1023,14 +1091,12 @@ void for_each_dirac(v3i dim, valuef scale, v3f dirac_pos, int radius_cells, auto
 
             for_e(x <= spread, assign_b(x, x+1), [&]{
                 v3i offset = {declare_e(x), declare_e(y), declare_e(z)};
-                offset += cell;
-                pin(offset);
 
-                valuef dirac = integrate_dirac_gpu(dirac_delta<valuef>, (v3f)offset, fpos, radius_cells, scale);
+                valuef dirac = integrate_dirac_gpu(dirac_delta<valuef>, (v3f)offset, frac, radius_cells, scale);
                 pin(dirac);
 
                 if_e(dirac > 0, [&]{
-                    func(offset, dirac);
+                    func(offset + cell, dirac);
                 });
             });
         });
@@ -1044,6 +1110,7 @@ The interesting parts here are:
 2. The cells that the dirac delta function covers must be offset by one in the *rightwards* direction, as its origin can take fractional positions
 3. These loops are not unrolled on the GPU, as it causes very bad performance issues
 4. Many of the cells are simply skipped. It would be a lot more efficient to directly iterate over a sphere, than a cube
+5. `world_to_grid_by_parts` returns the cell index, and offset within that cell separately - to avoid float representation issues. `frac` has the $1-1-\mathrm{value}$ trick applied to it from the trilinear interpolation segment
 
 ### Accumulation
 
@@ -1173,7 +1240,9 @@ auto scale = [&](valuef in)
 };
 ```
 
-There's an extra intermediate rounding to `float` (aka `valuef`) which may seem strange. Its unfortunately a significant performance win to do this (I don't know why - possibly because AMD's handling of the maths library can be odd), which means that we have to check if this step is well motivated
+There's an extra intermediate rounding to `float` (aka `valuef`) which may seem strange. Its unfortunately a significant performance win to do this[^whoknowswhy], which means that we have to check if this step is well motivated
+
+[^whoknowswhy]: I don't know why - possibly because AMD's handling of the maths library can be odd
 
 Either way, the calculation of the scale factor for fixed point is clearly critical for accuracy - so its time to dig into it
 
@@ -1282,6 +1351,8 @@ And a further (20%) zoomed out version of the original test case:
 
 <iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/LzkAR8tzCkk?si=pSXrBpypvrOUp9vF" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
+## Particle orbiting a black hole
+
 # Discussion
 
 Coming into this article, I had two primary goals:
@@ -1316,7 +1387,7 @@ See [here](https://arxiv.org/pdf/1208.3927). The primary disadvantage of this fo
 
 ### A formalism based on the 4-momentum $p^\mu$
 
-See [here (2.27)](https://arxiv.org/pdf/1904.07841). The main problem with this formalism is that it uses the 4-momentum (ie `mass * 4-velocity`). Because the masses we're dealing with are often extremely small, this leads to very high numerical error during evolution. The 4-velocity is a significantly better evolution variable, as the error is then shifted over into the stress-energy calculation - which we can mitigate with fixed-point by scaling the mass. The simulation's error can actually be made largely invariant to the individual particle mass, but tied instead to the total mass per cell - which is a much larger number
+See [here (2.27)](https://arxiv.org/pdf/1904.07841). The main problem with this formalism is that it uses the 4-momentum (ie `mass * 4-velocity`). Because the masses we're dealing with are often extremely small, this leads to very high numerical error during evolution. The 4-velocity is a significantly better evolution variable, as the error is then shifted over into the stress-energy calculation - which we can mitigate with fixed-point by scaling the mass. The simulation's error can actually be made largely invariant to the individual particle mass, but tied instead to the total mass per cell - which is a much larger value
 
 ## Other stress energy tensor techniques
 
@@ -1436,7 +1507,7 @@ float v1 = 0 * a; //-> 0
 float v2 = (a + 1.f) - 1.f //-> a;
 ```
 
-where appropriate. C style languages don't really let you do this, so I've had to use code generation to get rather dramatic speedups (up to 100x!). These articles have very heavily relied on the automated application of these transforms for performance on the generated AST
+where appropriate. C style languages don't really let you do this, so I've had to use code generation to get rather dramatic speedups (up to 100x!). These articles very heavily rely on the automated application of these transforms for performance on the generated AST - it would be an absolute nightmare to replicate the performance via hand written code (I've tried)
 
 ### Modern approaches
 
@@ -1447,12 +1518,32 @@ There are two approaches I've seen in modern languages
 
 #1 is the easiest to implement, but it immediately runs into the non composability of the optimisations you might want to apply, and is too limiting to be all that useful
 
-#2 is a much better approach in general. For the code in these articles, I know *precisely* where I'm allowed to perform various optimisations - and yet there's simply no way to express that to the compiler. There'd likely be a free 20% performance win if I could mark up exactly where the compiler was allowed to go hands off with the optimiser. Hopefully a language will get this right!
+#2 is a much better approach in general, but its still too limiting. For example, lets take the following code:
 
+```c++
+float v1 = a * b;
+float v2 = v1 + c + d * b + e;
+```
+
+For some ungodly reason, I want the compiler to generate `fma(a, b, c) + d*b + e`. The issue with most approaches like compiler pragmas, custom types, and ``[[]]``'s is that they are too coarse: they only operate at a very crude level of granularity
+
+What I'd really like is this:
+
+```c++
+fp_configure("one", fp_contract_on);
+fp_configure("two", fp_contract_off);
+
+float v1 = fp_region(a*b, "one");
+float v2 = fp_region(v1 + c, "one") + fp_region(d*b + e, "two");
+```
+
+Or the moral equivalent of that. For the code in these articles, I know *precisely* where I'm allowed to perform various optimisations - and yet there's simply no way to express that to the compiler. There'd likely be a free 20% performance win if I could mark up exactly where the compiler was allowed to go hands off with the optimiser
+
+Hopefully a language will get this right someday, because there's a tonne of performance *and* correctness being left on the table in all mainstream languages as of today
 
 ### Other problems
 
-There's some other issues I haven't tried to address in this article: namely that the results of `<cmath>` are not portable. C++ doesn't really constraint their results, and this is another break from IEEE. This means that because of C++-itus, you may not be able to get precisely the same results with these initial conditions
+There's some other issues I haven't tried to address in this article: namely that the results of `<cmath>` are not portable. C++ doesn't really constrain their results, and this is another break from IEEE. This means that purely because of C++-itus, you may not be able to get precisely the same results with these initial conditions
 
 ## Things that did not go so well
 
