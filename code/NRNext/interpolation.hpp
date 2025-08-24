@@ -3,30 +3,23 @@
 
 #include "../common/single_source.hpp"
 
-template<typename T>
+template<typename T, typename... U>
 inline
-auto function_trilinear(T&& func, v3f pos)
+auto function_trilinear_interior(T&& func, v3f frac, v3i ipos, U&&... args)
 {
     using namespace single_source;
 
-    v3f floored = floor(pos);
-    pin(floored);
-    v3f frac = pos - floored;
-    pin(frac);
+    auto c000 = func(ipos + (v3i){0,0,0}, std::forward<U>(args)...);
+    auto c100 = func(ipos + (v3i){1,0,0}, std::forward<U>(args)...);
 
-    v3i ipos = (v3i)floored;
+    auto c010 = func(ipos + (v3i){0,1,0}, std::forward<U>(args)...);
+    auto c110 = func(ipos + (v3i){1,1,0}, std::forward<U>(args)...);
 
-    auto c000 = func(ipos + (v3i){0,0,0});
-    auto c100 = func(ipos + (v3i){1,0,0});
+    auto c001 = func(ipos + (v3i){0,0,1}, std::forward<U>(args)...);
+    auto c101 = func(ipos + (v3i){1,0,1}, std::forward<U>(args)...);
 
-    auto c010 = func(ipos + (v3i){0,1,0});
-    auto c110 = func(ipos + (v3i){1,1,0});
-
-    auto c001 = func(ipos + (v3i){0,0,1});
-    auto c101 = func(ipos + (v3i){1,0,1});
-
-    auto c011 = func(ipos + (v3i){0,1,1});
-    auto c111 = func(ipos + (v3i){1,1,1});
+    auto c011 = func(ipos + (v3i){0,1,1}, std::forward<U>(args)...);
+    auto c111 = func(ipos + (v3i){1,1,1}, std::forward<U>(args)...);
 
     auto lmix = [&](auto& a, auto& b, auto& t)
     {
@@ -49,6 +42,23 @@ auto function_trilinear(T&& func, v3f pos)
     auto c1 = lmix(c10, c11, frac.y());
 
     return lmix(c0, c1, frac.z());
+}
+
+template<typename T, typename... U>
+inline
+auto function_trilinear(T&& func, v3f pos)
+{
+    using namespace single_source;
+
+    v3f floored = floor(pos);
+    pin(floored);
+    v3f frac = pos - floored;
+    pin(frac);
+
+    v3i ipos = (v3i)floored;
+    pin(ipos);
+
+    return function_trilinear_interior(std::forward<T>(func), frac, ipos);
 }
 
 #if 0
