@@ -30,7 +30,7 @@ float get_scale(float simulation_width, t3i dim)
 
 float get_cfl()
 {
-    return 0.2975;
+    return 0.2075;
 }
 
 struct mesh
@@ -1906,7 +1906,7 @@ initial_params get_initial_params()
     radial_pos *= 1.2;
     #endif
 
-    #define TWO_BODY
+    //#define TWO_BODY
     #ifdef TWO_BODY
     printf("Radial pos %f\n", radial_pos);
 
@@ -1927,6 +1927,30 @@ initial_params get_initial_params()
     part.add(p2, vv2, m2);
 
     init.particle_radius_cells = 5;
+    #endif
+
+    #define SCHWARZS_ORBIT
+    #ifdef SCHWARZS_ORBIT
+    init.particle_radius_cells = 5;
+
+    float M = 0.483;
+
+    black_hole_params p1;
+    p1.bare_mass = M;
+    p1.position = {0, 0, 0};
+    p1.linear_momentum = {0, 0, 0};
+
+    init.N = 2;
+    init.add(p1);
+
+    float R = 9;
+
+    //https://physics.stackexchange.com/questions/761407/orbital-velocity-formula-in-schwarzschild-metric
+    float V = sqrt(M/R);
+
+    part.add({R,0,0}, {0, V, 0}, 0.001f);
+
+    radial_pos /= 2 * 1.2f;
     #endif
 
     //#define PARTICLE_BLACK_HOLE_
@@ -2012,7 +2036,7 @@ initial_params get_initial_params()
     }
     #endif
 
-    init.dim = {213, 213, 213};
+    init.dim = {255, 255, 255};
     init.simulation_width = radial_pos * 4;
 
     printf("Swidth %f\n", init.simulation_width);
@@ -2020,7 +2044,7 @@ initial_params get_initial_params()
     init.add(std::move(part));
 
     init.time_between_snapshots = 15;
-    init.lapse_damp_timescale = 20;
+    init.lapse_damp_timescale = 10;
     #endif // PARTICLE_TESTS
 
     return init;

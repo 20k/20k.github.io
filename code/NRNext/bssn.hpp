@@ -93,8 +93,8 @@ struct bssn_args
             cY[1, 1] += 1;
             cY[2, 2] += 1;
 
-            W = max(in.W[pos, dim] + 1, valuef(1e-4f));
-            gA = max(in.gA[pos, dim] + 1, valuef(1e-4f));
+            W = clamp(in.W[pos, dim] + 1, valuef(1e-6f), valuef(1.f));
+            gA = clamp(in.gA[pos, dim] + 1, valuef(1e-6f), valuef(1.f));
         }
         else
         {

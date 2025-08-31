@@ -1364,14 +1364,14 @@ Coming into this article, I had two primary goals:
 
 [^obvious]: The most obvious improvement I have not included is decoupling the rate of particle stepping, from the simulation stepping. This would allow you to simulate ~100M particles. There are places where a reasonably significant amount of memory could be saved as well - eg you don't really need to triple buffer mass, and you can likely reduce the precision of the particle's position by assigning them to cells
 
-On both of these fronts, the approach laid out here has gone extremely well in general. The performance is particularly nice - with the only new configuration choice being between trilinear, or tricubic interpolation - with a relatively clear rule[^clear] as to when to pick one or another
+On both of these fronts, the approach laid out here has gone extremely well in general. The performance is particularly nice - with the only new configuration choice being between trilinear, or tricubic interpolation - with a relatively clear rule[^clear] as to when to pick one or another. I'm also particularly happy with the formalism used here - its a new discovery for me, and it contains several major advantages over the alternatives
 
 [^clear]: If a particle's mass is high relative to the surrounding environment, use tricubic. If its low, use trilinear. If in doubt, use tricubic
 
 This article was significantly delayed by two things:
 
-1. A failure to simulate a galaxy
-2. I spent way too long trying to simulate the Omega Centauri cluster
+1. I spent way too long trying to simulate the Omega Centauri cluster
+2. A failure to simulate a galaxy
 
 Both of these are discussed in the appendix, but overall I'm pretty happy with how well this simulation has gone this time round
 
