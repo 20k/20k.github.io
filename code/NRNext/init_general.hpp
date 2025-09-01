@@ -150,6 +150,7 @@ struct initial_params
     float quadratic_viscosity_strength = 0.1f;
     int particle_radius_cells = 1;
     bool particle_tricubic = true;
+    float timestep_modifier = 1;
 
     t3i dim = {155, 155, 155};
     float simulation_width = 40;

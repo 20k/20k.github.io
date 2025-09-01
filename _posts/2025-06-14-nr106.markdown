@@ -1353,6 +1353,22 @@ And a further (20%) zoomed out version of the original test case:
 
 ## Particle orbiting a black hole
 
+We should be able to simulate a particle orbiting a black hole nearly exactly
+
+|Parameter | Value |
+|-|-|
+|Black Hole Mass ($M$) | $0.483$ |
+|Particle Mass ($m$) | $0.001$|
+|Simulation width | $30$ |
+|Simulation Resolution | $255^3$ |
+|Distance of particle away from black hole ($R$) | $9$ |
+
+The particle's initial velocity is calculated as $V=\sqrt{\frac{M}{R}}$
+
+<iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/iI4Znjf7Jcs?si=RJETisGbgm96R6vo" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
+
+This appears to work as expected. The initial conditions are slightly approximate, due to the particle having some mass and tugging the black hole around, as well as the black hole itself being approximate initially
+
 # Discussion
 
 Coming into this article, I had two primary goals:

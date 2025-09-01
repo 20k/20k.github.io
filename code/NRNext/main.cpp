@@ -30,7 +30,7 @@ float get_scale(float simulation_width, t3i dim)
 
 float get_cfl()
 {
-    return 0.2075;
+    return 0.2975;
 }
 
 struct mesh
@@ -732,11 +732,11 @@ struct mesh
     }
 };
 
-float get_timestep(float simulation_width, t3i size)
+float get_timestep(float simulation_width, t3i size, float timestep_mod)
 {
     float scale = get_scale(simulation_width, size);
 
-    return get_cfl() * scale;
+    return get_cfl() * scale * timestep_mod;
 }
 
 #define MIP_LEVELS 10
@@ -1932,6 +1932,7 @@ initial_params get_initial_params()
     #define SCHWARZS_ORBIT
     #ifdef SCHWARZS_ORBIT
     init.particle_radius_cells = 5;
+    init.timestep_modifier = 0.8f;
 
     float M = 0.483;
 
@@ -2154,7 +2155,7 @@ int main()
     printf("Start\n");
 
     //float timestep = 0.001f;
-    float timestep = get_timestep(simulation_width, dim);
+    float timestep = get_timestep(simulation_width, dim, params.timestep_modifier);
     bool step = false;
     bool running = false;
     bool pause = false;
