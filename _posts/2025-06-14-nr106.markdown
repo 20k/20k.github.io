@@ -14,6 +14,8 @@ This is a bit of an underexplored topic compared to Newtonian physics and tradit
 
 At the end of this topic, we'll have about 10 million particles up and running at a decent speed. You'll also have received an unexpected crash course in IEEE floats, and some of the unique numerical problems that using C/C++ presents
 
+Todo: Cat
+
 # What are we doing?
 
 In both General Relativity, and Newtonian physics, we deal with pointlike particles when doing N-body dynamics. Each particle is fully described by its mass, position, and velocity in both formalisms - there's no spin here
@@ -22,13 +24,13 @@ In Newtonian physics, each particle directly exerts a force on all other particl
 
 $$F = \frac{G m_1 m_2}{r^2}$$
 
-In general relativity, particles act through the stress energy tensor, and do not *directly* interact. For a single particle, the stress energy tensor is defined as follows [(2.5)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf) + [here](https://physics.stackexchange.com/questions/644402/deriving-the-energy-momentum-tensor-of-a-point-particle):
+In general relativity, particles act interact through the stress-energy tensor $T_{\mu\nu}$, and do not *directly* interact. For a single particle, the stress-energy tensor is defined as follows [(2.5)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf) + [here](https://physics.stackexchange.com/questions/644402/deriving-the-energy-momentum-tensor-of-a-point-particle):
 
 $$
 T_{\mu\nu} = \frac{m}{\sqrt{-g}}\delta^{(3)}(x^i - x^i_p) \frac{u_\mu u_\nu}{u^0}
 $$
 
-Or in ADM quantities
+Or in ADM quantities (there's a quick refresher afterwards)
 
 $$
 T_{\mu\nu} = m \alpha^{-1} W^3 \delta^{(3)}(x^i - x_{\mathrm{p}}^i)\frac{u_\mu u_\nu}{u^0}\\
@@ -46,11 +48,13 @@ $$
 | $u^0$ | The lorentz factor |
 | $g$ | The determinant of the 4-metric |
 
-This is simply summed across all particles. Particles in general relativity follow geodesics, and their motion is defined by the geodesic equation:
+$T_{\mu\nu}$ is summed across all particles. This fully defines how particles mutually interact
+
+As for how they move, particles in general relativity follow (timelike) geodesics, and their motion is defined by the geodesic equation:
 
 $$u^\mu \nabla_\mu u_\nu = 0$$
 
-This equation isn't super helpful directly - we'll have to rework it a bit to figure out what's going on, and transplant it into the ADM formalism. But for once, there simply isn't that much general relativity to dig through
+We'll have to rework this equation a bit and transplant it into the ADM formalism, but for once there simply isn't that much general relativity to dig through
 
 # Quick refresher course
 
@@ -66,13 +70,13 @@ The 4D metric tensor of general relativity $g_{\mu\nu}$ gets split up into the f
 
 Greek indices $\mu\nu$ run from 0-4 inclusive, latin indices $ijk$ run from 1-3 inclusive
 
-The BSSN formalism is a further decomposition of the above variables, for numerical stability reasons. Today, because of the low complexity of the general relativity parts, I'll be skipping most of this
+The BSSN formalism is a further decomposition of the above variables, for numerical stability reasons. Today, because of the low complexity of the general relativity portion of this article, we'll mostly be skipping over it
 
 # These equations in the ADM formalism
 
 ## Stress-energy
 
-We need the ADM projections of the [stress energy tensor](https://en.wikipedia.org/wiki/Stress%E2%80%93energy_tensor#Isolated_particle) $T_{\mu\nu}$, to calculate the source terms for our equations in the ADM formalism. These are [(2.14, 2.15, 2.20)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf):
+We need the ADM projections ('source terms') of $T_{\mu\nu}$, to get quantities we can actually plug into our equations. These are [(2.14, 2.15, 2.20)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf):
 
 $$
 \begin{alignat}{2}
@@ -82,15 +86,15 @@ S_{ij} &= \alpha^{-1} W^3 &&\sum m \frac{u_i u_j}{u^0} \delta^{(3)}(x^i - x^i_{\
 \end{alignat}
 $$
 
-These quantities will be evaluated at every cell in our grid - except for $u^0$, which calculated from interpolated quantities at $x^i_p$
+These quantities will be evaluated at every cell in our grid $x^i$ - except for $u^0$, which is calculated from interpolated quantities at $x^i_p$
 
 ## The geodesic equation
 
-Given a 4-velocity $u^\mu = \frac{dx^\mu}{d\tau}$, the 4D geodesic equation that governs a particle's motion is as follows:
+Given a 4-velocity $u^\mu = \frac{dx^\mu}{d\tau}$ (where $\tau$ is proper time), the 4D geodesic equation that governs a particle's motion is as follows:
 
 $$u^\mu \nabla_\mu u_\nu = 0$$
 
-Timelike geodesics have the property that $g_{\mu\nu} u^\mu u^\nu = -1$, and so all 4 components are *not* independent. This means we can actually calculate the timelike[^onlyinadm] component $u^0$ from the spatial components $u^i$[^deriv]. With this in mind, the three spatial components (now $u_i$) are evolved as follows [(2.9)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf) in the ADM formalism:
+Timelike geodesics have the property that $g_{\mu\nu} u^\mu u^\nu = -1$, and so their 4 components are *not* independent. This means we can actually calculate the timelike[^onlyinadm] component $u^0$ from the spatial components $u^i$[^deriv]. With this in mind, the three spatial components (now $u_i$) are evolved as follows [(2.9)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf) in the ADM formalism:
 
 [^onlyinadm]: This component is only timelike in the ADM formalism with the coordinate convention $t, x, y, z$
 
@@ -138,15 +142,15 @@ $$
 
 $$\int^\infty_{-\infty} \delta^{(1)}(x) \; dx = 1$$
 
-This says that the dirac delta function only takes a value at a single point $x=0$, and the area under this point is precisely $1$. This function is used because the particles we're dealing with are pointlike
+This says that the dirac delta function only takes a value at a single point $x=0$, and the area under this point is precisely $1$. This function is used because the particles we're dealing with are pointlike, and only contribute to the stress energy tensor at an infinitesimally sized area
 
 ![dirac1](/assets/nr6_dirac_1.png)
 
-No computable function actually meets this definition, so we must numerically approximate it somehow. Higher dimensional diracs are denoted by the raised index, and can be constructed via a product: eg $\delta^{(3)}(x, y, z) = \delta^{(1)}(x)\delta^{(1)}(y)\delta^{(1)}(z)$
+No computable function (or particle) actually meets this definition, so we must numerically approximate it somehow. Higher dimensional diracs are denoted by the raised index, and can be constructed via a product: eg in 3D $\delta^{(3)}(x, y, z) = \delta^{(1)}(x)\delta^{(1)}(y)\delta^{(1)}(z)$
 
 ## Numerical approximations
 
-The solution is to essentially smear out the dirac delta function over a small area:
+The solution is to essentially smear out the dirac delta function over a small area. This discretised dirac delta function is called $\Delta$:
 
 ![dirac2](/assets/nr6_dirac_2.png)
 
@@ -196,11 +200,11 @@ We want that to be precisely $1$. In our discretisation as it stands currently h
 
 The remedy is to calculate the exact amount of the dirac delta function that intersects with a grid cell. You can do this by integrating:
 
-$$\Delta^{(1)}_{\mathrm{good}} = \frac{\int_{x - \frac{h}{2}}^{x + \frac{h}{2}} \Delta^{(1)}(y) dy}{h}$$
+$$\Delta^{(1)}_{\mathrm{good}}(x) = \frac{\int_{x - \frac{h}{2}}^{x + \frac{h}{2}} \Delta^{(1)}(y) dy}{h}$$
 
 in one dimension, or in three dimensions:
 
-$$\Delta^{(3)}_{\mathrm{good}} = \frac{\int_{z - \frac{h}{2}}^{z + \frac{h}{2}} \int_{y - \frac{h}{2}}^{y + \frac{h}{2}} \int_{x - \frac{h}{2}}^{x + \frac{h}{2}} \Delta^{(3)}(\textbf{V}) d\textbf{V}}{h^3}$$
+$$\Delta^{(3)}_{\mathrm{good}}(x, y, z) = \frac{\int_{z - \frac{h}{2}}^{z + \frac{h}{2}} \int_{y - \frac{h}{2}}^{y + \frac{h}{2}} \int_{x - \frac{h}{2}}^{x + \frac{h}{2}} \Delta^{(3)}(\textbf{V}) d\textbf{V}}{h^3}$$
 
 Where $x, y, z$ are the coordinates of a grid cell in world coordinates
 
@@ -212,9 +216,11 @@ If you try and implement this discretisation with a simple test case (two partic
 
 <iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/-1GiOJhyMP0?si=YrHQiZzjsDmokmkD" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-The particles drift over to the right, which clearly isn't correct
+The particles drift over to the right, which clearly isn't correct. Clearly, somewhere in our fictitious implementation, some *asymmetry* has crept in from our perfectly symmetric initial conditions
 
-To implement this correctly, you're now going to learn more about C++, IEEE floats, and cryptic problems in the literature than you signed up for when you clicked on this article. I also have to present this to you before we do the interpolation step, because this is going to get increasingly involved
+To implement this correctly, you're now going to learn more about C++, IEEE floats, and cryptic problems in the literature than you signed up for when you clicked on this article. Things are going to get increasingly involved from here on out, so here's a picture of a cat:
+
+Todo: Wesley
 
 # IEEE and C++: A great combination
 
@@ -232,7 +238,7 @@ I've set up the initial conditions such that they're symmetric about the index $
 
 For any correct simulation, that symmetry should be preserved. In virtually all simulations however, you'll very immediately notice that this property does not hold up - and the two sides of the grid start to *increasingly* diverge. This is despite having the same initial conditions on both sides!
 
-## Root causing the problems
+## Root causing where asymmetry originates from
 
 This can be root caused to three similar problems:
 
@@ -260,7 +266,7 @@ The issue is that after each floating point operation, a rounding step is perfor
 
 This results in systematic differences in rounding on both sides of the grid, and this error can build up surprisingly fast as we've seen - as we're essentially preferentially discarding the low bits of our floats but biased in a specific direction
 
-You might think you can just rewrite this expression like this, by grouping equidistant cells:
+You might think you can just rewrite this as follows, by grouping equidistant cells:
 
 ```c++
 float diff(const std::vector<float>& points, int idx, float scale)
@@ -356,7 +362,7 @@ $$
 
 This means that $r_s$ is now the full size of the particle in world coordinates, and $r_f$ is a fraction from 0 to 1. Now we can redefine the integral from earlier:
 
-$$\Delta_{\mathrm{best}}^{(3)} =  \int_{z_c - 0.5}^{z_c + 0.5} \int_{y_c - 0.5}^{y_c + 0.5} \int_{x_c - 0.5}^{x_c + 0.5} \Delta_2\left (\frac{\sqrt{(x - x_c^{\mathrm{idx}})^2 + (y - y_c^{\mathrm{idx}})^2 + (z - z_c^{\mathrm{idx}})^2}}{(\frac{r_s}{h})}, r_s \right ) dx dy dz$$
+$$\Delta_{\mathrm{best}}^{(3)}(x_c, y_c, z_c) =  \int_{z_c - 0.5}^{z_c + 0.5} \int_{y_c - 0.5}^{y_c + 0.5} \int_{x_c - 0.5}^{x_c + 0.5} \Delta_2\left (\frac{\sqrt{(x - x_c^{\mathrm{idx}})^2 + (y - y_c^{\mathrm{idx}})^2 + (z - z_c^{\mathrm{idx}})^2}}{(\frac{r_s}{h})}, r_s \right ) dx dy dz$$
 
 Where $x_c, y_c, z_c$ represents the integral position of the cell in question in cell-based coordinates, and these half offsets can be represented exactly[^unsuref]. $x_c^{\mathrm{idx}}, y_c^{\mathrm{idx}}, z_c^{\mathrm{idx}}$ is the position of the particle, converted into those same cell based coordinates. This avoids the first set of numerical problems. Next up, we need to deal with the integration itself
 
@@ -370,7 +376,7 @@ $$\int^b_a f(x) dx = \Delta x \left (\frac{f(x_0) + f(x_N)}{2} + \sum^{n-1}_{k=1
 
 Evaluated naively, the running sum on the right hand side can cause asymmetry to sneak back in. For $N=2$, you can ignore this problem - as long as you evaluate the left terms ($\frac{f(x_0) + f(x_N)}{2}$) and right sum separately
 
-Because this article is intended to save you existential pain, I've implemented a scheme that works for any value of $N$ - by using pairwise summation[^worthit] on the sum to avoid any kind of mismatched summmation
+Because this article is intended to save you existential pain, I've implemented a scheme that works for any value of $N$ - by using pairwise summation[^worthit]
 
 [^worthit]: If you're wondering, is this really worth it? This kind of pairwise summation has a reduced error term over a simple running sum, so we may as well
 
@@ -519,13 +525,11 @@ Note that `no_opt` in the scheme I'm using forces a variable declaration, to dis
 
 $$\mathrm{lmix}(a, b, t) == \mathrm{lmix}(b, a, 1-t)$$
 
-To understand how, first off: notice that floating point values $< 0.5$ and $>0.5$ have different amounts of precision available to them, ie the precision is non uniform. Essentially, we want to force these ranges to have the *same* precision. This can be done by essentially doing $1-(1-\mathrm{value})$, to create an extra rounding step, and ensures that everything has effectively the same precision in the range
+To understand how, first off: notice that floating point values $< 0.5$ and $>0.5$ have different amounts of precision available to them, ie the precision is non uniform. Essentially, we want to force these ranges to have the *same* precision. This can be done by doing $1-(1-\mathrm{value})$, to create an extra rounding step, and ensures that everything has the same precision in the range
 
 Trilinear interpolation is otherwise a very standard algorithm, and not worth diving into. In many situations, trilinear interpolation is perfectly fine, but we'll have to go into when it is not
 
 ## Trilinear Interpolation can be a problem
-
-Todo: massively simplify this segment
 
 The motion of a particle here is largely governed by the interpolated term $\partial_i \alpha$, ie the derivative of the lapse
 
@@ -533,21 +537,21 @@ The motion of a particle here is largely governed by the interpolated term $\par
 
 Particles in General Relativity effectively have a kind of *self* force - they distort the metric around them, and this directly modifies $\alpha$ around where they are in an area
 
-A particle's contribution to its own velocity however should be precisely 0 ($\partial_i \alpha = 0$), as particles should not spontaneously self accelerate. If we put a relatively massive particle into the simulation, it should remain stationary. This is an easy sanity check:
+A particle's contribution to its own velocity however should be precisely 0 ($\partial_i \alpha = 0$), as particles should not spontaneously self accelerate. If we put a stationary particle into the simulation, it should remain stationary. This is an easy sanity check:
 
 <iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/g46gswzmTKM?si=uBy-HsxWKC4Sd0OI" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-The fact that a particle can spontaneously self accelerate like this is an alarming error!
+The fact that a particle can spontaneously self accelerate like this clearly indicates the presence of a major error
 
-Diagnosing this boils the issue down to something straigthforward: When we perform any kind of interpolation, the accuracy goes down the further away you interpolate from your known data. In our case, this can cause $\partial_i \alpha \neq 0$ at the position of the particle. This is an especially severe error - you can see it is clearly both systematic and oscillatory. It will also cause *very* strange issues like the following abrupt failure:
+Diagnosing this boils the issue down to something straightforward: When we perform any kind of interpolation, the accuracy goes down the further away you interpolate from your known data. In our case, this can cause $\partial_i \alpha \neq 0$ at the position of the particle. This is an especially severe error - as a moving particle will experience periodic error terms as it drifts further away from your known data - which is why it wobbles back and forth above. It will also cause *very* strange issues like the following abrupt failure:
 
 <iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/GrbXu4fWwiE?si=NttsxU-04JuhlMQE" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Alleviating this involves constructing a higher order interpolation scheme to reduce the error in the interpolation, with the caveat that we still have to deal with all the same floating point rounding issues as before
+Alleviating this involves constructing a higher order interpolation scheme to reduce the error in the interpolation, with the caveat that we still have to deal with all the same floating point rounding issues as before. There's no way to *entirely* eliminate this problem, and reconstruction error is one of the fundamental downsides of a particle based technique
 
 ## Tricubic interpolation
 
-The next step up from trilinear interpolation, is tricubic interpolation. It is common to use hermite[^hermite] interpolation - this kind of interpolation guarantees the values of the derivatives at the boundary, but this isn't a useful property for us
+The next step up from trilinear interpolation, is tricubic interpolation. It is common to use Hermite[^hermite] interpolation - this kind of interpolation guarantees the values of the derivatives at the boundary, but this isn't a useful property for us
 
 [^hermite]: Wikipedia will direct you to [this](https://citeseerx.ist.psu.edu/viewdoc/summary?doi=10.1.1.89.7835) paper, which is precisely the wrong approach. It's set up to be able to repeatedly perform Hermite interpolation with the same set of values, which is not what we want at all
 
@@ -832,7 +836,7 @@ det(\bar{\gamma}_{ij} \psi^4) &= det(\gamma_{ij}) = det(\tilde{\gamma}_{ij} W^{-
 \end{align}
 $$
 
-Lets now define $\bar{\rho}_H = \sum m u^0 \delta^{(3)}(x^i - x^i_{\mathrm{p}})$, ie dropping the conformal factor (and setting $\alpha=1$). This means you may rewrite the hamiltonian constraint as this:
+Lets now define $$\bar{\rho}_H = \sum m u^0 \delta^{(3)}(x^i - x^i_{\mathrm{p}})$$, ie dropping the conformal factor (and setting $\alpha=1$). This means you may rewrite the hamiltonian constraint as this:
 
 $$\nabla \psi = - \frac{1}{8} \psi^{-7} \bar{A} _{ij} \bar{A}^{ij} - 2 \pi \psi^{-1} \bar{\rho}_H$$
 
@@ -1057,10 +1061,10 @@ The mass cutoff is determined as 10% of the mass of the lightest particle's init
 
 ## Calculating the stress-energy tensor
 
-Each particle has a size, and generates a contribution to the stress-energy tensor. We need to - somehow - sum all the contributions from every particle onto the grid. The basic idea for how to implement this is as follows:
+Each particle has a size, and generates a contribution to the stress-energy tensor. We now need to loop over every cell that each particle overlaps, and sum that contribution. The basic idea for how to implement this is as follows:
 
 1. Loop over the size (in cells) of the particle, determined by the dirac delta size
-2. Accumulate the stress energy tensor on the grid directly, using 64-bit fixed point
+2. Accumulate the stress energy tensor on the grid directly, using 64-bit atomics on fixed point integers
 
 This is not my first rodeo at solving this problem, and this represents by far the best technique I've found so far for how to implement this
 
