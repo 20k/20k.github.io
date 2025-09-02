@@ -8,6 +8,8 @@ published: true
 
 Hi there! Today we're going to examine how to do N-body particle physics, in general relativity. We want to take a fixed set of particles, and simulate how they move under their mutual gravitational influence
 
+Todo: Video
+
 This is a bit of an underexplored topic compared to Newtonian physics and traditional N-body simulations, and its easy to accidentally pick the wrong formalism or techniques for solving this problem. The basic theory of what we're doing is - for once - fairly straightforward, and most of the issues will be numerical ones
 
 At the end of this topic, we'll have about 10 million particles up and running at a decent speed. You'll also have received an unexpected crash course in IEEE floats, and some of the unique numerical problems that using C/C++ presents
@@ -808,11 +810,11 @@ $\rho_H$ is the source term for the stress-energy tensor, and I'm keeping the sa
 
 ### $\rho_H$
 
-We already know that:
+We already know from earlier:
 
 $$\rho_H = \alpha W^3 \sum m u^0 \delta^{(3)}(x^i - x^i_{\mathrm{p}})$$
 
-The only issue is that we don't have a value of $W$ that we can use. To solve this, we know that:
+The only issue is that we don't have a value of $W$ that we can use. To solve this, we can re-express the BSSN $W$ conformal factor, into the $\psi$ conformal factor for our initial conditions given the following definitions:
 
 $$\begin{align}
 \bar{\gamma}_{ij} \psi^4 &= \gamma_{ij}\\
@@ -866,7 +868,7 @@ I've bundled an implementation of this in with the article, but its switched off
 This is straightforward to implement. There are only two interesting features here:
 
 1. I use implicit midpoint, as it is symplectic - meaning it should preserve the energy of the particles well. There's no real reason for an implicit approach, but it fits nicely in with backwards euler
-2. The mass boundary condition
+2. Setting a boundary condition for the mass: At the edge of the simulation, and in the interior of black holes
 
 ### Main part of the equations
 
@@ -1060,7 +1062,7 @@ Each particle has a size, and generates a contribution to the stress-energy tens
 1. Loop over the size (in cells) of the particle, determined by the dirac delta size
 2. Accumulate the stress energy tensor on the grid directly, using 64-bit fixed point
 
-This is not my first rodeo at solving this problem, and there is an extensive discussion on the implementation at the end of this article
+This is not my first rodeo at solving this problem, and this represents by far the best technique I've found so far for how to implement this
 
 ### Looping over the size in cells of the particle
 
@@ -1074,6 +1076,7 @@ void for_each_dirac(v3i dim, valuef scale, v3f dirac_pos, int radius_cells, auto
     using namespace single_source;
     assert(radius_cells > 0);
 
+    //returns the cell location, and the offset within that cell
     auto [cell, frac] = world_to_grid_by_parts(dirac_pos, dim, scale);
     pin(cell);
     pin(frac);
@@ -1110,7 +1113,7 @@ The interesting parts here are:
 2. The cells that the dirac delta function covers must be offset by one in the *rightwards* direction, as its origin can take fractional positions
 3. These loops are not unrolled on the GPU, as it causes very bad performance issues
 4. Many of the cells are simply skipped. It would be a lot more efficient to directly iterate over a sphere, than a cube
-5. `world_to_grid_by_parts` returns the cell index, and offset within that cell separately - to avoid float representation issues. `frac` has the $1-1-\mathrm{value}$ trick applied to it from the trilinear interpolation segment
+5. `world_to_grid_by_parts` returns the cell index, and offset within that cell separately - to avoid float representation issues. `frac` has the $1-(1-\mathrm{value})$ trick applied to it from the trilinear interpolation segment, to fix representation issues
 
 ### Accumulation
 
@@ -1240,7 +1243,7 @@ auto scale = [&](valuef in)
 };
 ```
 
-There's an extra intermediate rounding to `float` (aka `valuef`) which may seem strange. Its unfortunately a significant performance win to do this[^whoknowswhy], which means that we have to check if this step is well motivated
+The extra truncation to `float` (aka `valuef`) improves the performance significantly[^whoknowswhy], but does mean we have to be more careful with accuracy
 
 [^whoknowswhy]: I don't know why - possibly because AMD's handling of the maths library can be odd
 
@@ -1250,10 +1253,10 @@ Either way, the calculation of the scale factor for fixed point is clearly criti
 
 There are two primary concerns with calculating the fixed point scale factor:
 
-1. We'd like as much accuracy as possible
+1. We'd like as much precision as possible
 2. The simulation must be able to tolerate a significant overlap of particle contributions without overflowing
 
-The largest, most significant term is $E$, which has the form `mass * lorentz * dirac`. Given that `dirac` maxes out at $1$, and `lorentz` $\stackrel{^{vaguely}}{\approx} 1$, I assume that the maximum contribution of a particle to a cell is roughtly `mass`
+The largest, most significant term is $E$, which has the form `mass * lorentz * dirac`. Given that `dirac` maxes out at $1$, and `lorentz` $\stackrel{^{vaguely}}{\approx} 1$, I assume that the maximum contribution of a particle to a cell is roughly `mass`
 
 That means that for a single particle, if you set the fixed point to be $F = \frac{K}{mass}$, the resulting integral value will have a value of approximately $K$. So in total, this means that you can easily define:
 
@@ -1305,7 +1308,7 @@ The initial conditions are approximate with a slight eccentricity, and there's a
 
 ## Black hole formation
 
-Its time to build a black hole out of particles. We should be able to spawn a bunch of particles in a sphere, and watch them collapse into a black hole. The neat thing about this is we can compare this against a black hole of a known mass[^compare], to check how accurately everything has gone
+Its time to build a black hole out of particles. We should be able to spawn a bunch of particles in a sphere, and watch them collapse into a black hole. The neat thing about this is that we can compare this against a black hole of a known mass[^compare], to check how accurately everything has gone
 
 [^compare]: This series has gone on for too a bit too long without rigorous diagnostics. The next article will be on gravitational waves, where I'll introduce proper mass calculations
 
@@ -1367,13 +1370,13 @@ The particle's initial velocity is calculated as $V=\sqrt{\frac{M}{R}}$
 
 <iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/iI4Znjf7Jcs?si=RJETisGbgm96R6vo" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-This appears to work as expected. The initial conditions are slightly approximate, due to the particle having some mass and tugging the black hole around, as well as the black hole itself being approximate initially
+This appears to work as expected. The initial conditions are slightly approximate, due to the particle having some mass and dragging the black hole around, as well as the black hole itself being approximate initially
 
 # Discussion
 
 Coming into this article, I had two primary goals:
 
-1. Track down the major sources of error[^wave] that plagued previous simulations of this type. Especially: self acceleration, abrupt two-body failures, and gradual centre of mass drift. These are all fully characterised and largely eliminated here
+1. Track down the major sources of error[^wave] that plagued previous simulations of this type. Especially: self acceleration, abrupt two-body failures, and gradual centre of mass drift. These are all fully characterised and eliminated here to the best of my knowledge
 2. Fix the systematic performance problems, and create a good architecture for people to bolt improvements[^obvious] onto
 
 [^wave]: Papers tend to handwave away all of the complexity here, which makes me suspect that its not being done super correctly
@@ -1523,7 +1526,7 @@ float v1 = 0 * a; //-> 0
 float v2 = (a + 1.f) - 1.f //-> a;
 ```
 
-where appropriate. C style languages don't really let you do this, so I've had to use code generation to get rather dramatic speedups (up to 100x!). These articles very heavily rely on the automated application of these transforms for performance on the generated AST - it would be an absolute nightmare to replicate the performance via hand written code (I've tried)
+where appropriate. C style languages don't really let you pick and choose your optimisations like this, so I've had to use code generation to get rather dramatic speedups (up to 100x!). These articles very heavily rely on the automated application of these transforms for performance on the generated AST - it would be an absolute nightmare to replicate the performance via hand written code (I've tried)
 
 ### Modern approaches
 
@@ -1541,7 +1544,7 @@ float v1 = a * b;
 float v2 = v1 + c + d * b + e;
 ```
 
-For some ungodly reason, I want the compiler to generate `fma(a, b, c) + d*b + e`. The issue with most approaches like compiler pragmas, custom types, and ``[[]]``'s is that they are too coarse: they only operate at a very crude level of granularity
+Let's say for some reason, I want the compiler to generate `maybe_fma(a, b, c) + d*b + e`. The issue with most approaches like compiler pragmas, custom types, and ``[[]]``'s is that they are far too coarse in terms of the regions they denote to apply optimisations to
 
 What I'd really like is this:
 
@@ -1559,7 +1562,7 @@ Hopefully a language will get this right someday, because there's a tonne of per
 
 ### Other problems
 
-There's some other issues I haven't tried to address in this article: namely that the results of `<cmath>` are not portable. C++ doesn't really constrain their results, and this is another break from IEEE. This means that purely because of C++-itus, you may not be able to get precisely the same results with these initial conditions
+There's some other issues I haven't tried to address in this article: namely that the results of `<cmath>` are not portable. C++ doesn't really constrain their results, and this is another break from IEEE for inadequate reasons
 
 ## Things that did not go so well
 
@@ -1571,7 +1574,7 @@ In general, these simulations handle higher mass to volume structures better - g
 2. Each star comes with full 3d vectors for position and velocity
 3. Its a well studied target, which means there are lots of papers which contain useful information for people who have no idea what's going on
 
-In theory, while we may have to fudge mass - position + velocity are fully determined. This is great.. theoretically
+In theory, while we may have to fudge mass - the position + velocity are fully determined. This is great.. theoretically
 
 #### Nope!
 
