@@ -757,17 +757,21 @@ There are many situations in which trilinear interpolation is perfectly fine: Tr
 
 With this, the floating point nightmare portion of this article is finally over
 
+Todo: Cat
+
 # Initial conditions
 
-There are three components to the initial conditions:
+There are three non trivial components to the initial conditions:
 
 1. Define the particle's 4-velocity
-2. Solve the hamiltonian constraint
-3. Possibly solve the momentum constraint
+2. Solve the Hamiltonian constraint - via a laplacian
+3. Possibly solve the momentum constraint - this is uncharted waters
+
+The Hamiltonian and momentum constraints are the two physical constraints that we must satisfy for our initial conditions to be valid. On top of this, you'll obviously need to set up a particle with mass, and set its position
 
 ## 4-velocity
 
-Here, velocity is defined relative to the inertial frame of reference of the particle when stationary. This means that to calculate the 4-velocity, we need to first construct a tetrad. While in the general case you'll need to [Gram-Schidt](https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process) the metric to find a set of tetrads (eg see [here](https://20k.github.io/c++/2024/06/19/tetrads.html)), our initial conditions will always produce a diagonal metric - which makes tetrad construction straightforward
+Here, velocity is defined relative to the inertial frame of reference of the particle when stationary TODO: IS THIS TRUE? ITS DEPENDENT ON THE SLICING. This means that to calculate the 4-velocity, we need to first construct a tetrad. While in the general case you'll need to [Gram-Schidt](https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process) the metric to find a set of tetrads (eg see [here](https://20k.github.io/c++/2024/06/19/tetrads.html)), our initial conditions will always produce a diagonal metric - which makes tetrad construction straightforward
 
 Firstly, take the following initial slice: $\alpha = 1, \beta^i = 0$. Then, construct the metric tensor as follows:
 
@@ -801,16 +805,20 @@ Note that the $i$ index runs from $0$ to $4$ contrary to the rest of this articl
 
 ## Hamiltonian constraint solving
 
-Its important to solve the hamiltonian constraint as part of the initial conditions, because errors here are quite sticky, and can leave visual 'welts' on your simulation that are very noticeable. The hamiltonian constraint that we'll be using can be derived from [2.11](https://arxiv.org/pdf/1905.08890), and with the standard set of constraints looks like this:
+Its important to solve the hamiltonian constraint as part of the initial conditions (see [here](https://20k.github.io/c++/2025/01/12/nr102.html#solving-for-u) for exact details), because errors here are quite sticky, and can leave visual 'welts' on your simulation that are very noticeable. The hamiltonian constraint that we'll be using can be derived from [2.11](https://arxiv.org/pdf/1905.08890), and with the standard set of constraints looks like this:
 
 $$
 \nabla \psi = - \frac{1}{8} \psi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \psi^5 \rho_H
 $$
 
-$\rho_H$ is the source term for the stress-energy tensor, and I'm keeping the same notation from the matter article. To keep solving, we need two things:
+Which means we only need two things to solve this now
 
 1. $\rho_H$: the scalar source term for the stress-energy tensor
 2. $\bar{A}_{ij}$: the conformal extrinsic curvature
+
+Once we have both of these, the ADM + BSSN variables are constructed [as usual](https://20k.github.io/c++/2025/01/12/nr102.html#finishing-up)[^technical]
+
+[^technical]: One thing I've ensured in general is that these articles are all compatible with each other. All conformal decompositions and notation is the same unless specifically stated otherwise
 
 ### $\rho_H$
 
@@ -818,7 +826,7 @@ We already know from earlier:
 
 $$\rho_H = \alpha W^3 \sum m u^0 \delta^{(3)}(x^i - x^i_{\mathrm{p}})$$
 
-The only issue is that we don't have a value of $W$ that we can use. To solve this, we can re-express the BSSN $W$ conformal factor, into the $\psi$ conformal factor for our initial conditions given the following definitions:
+The only issue is that we don't have a value of $W$ that we can use. To solve this, we just need to convert $W$ (the BSSN conformal factor) to $\psi$ (the initial conditions conformal factor). This works as follows:
 
 $$\begin{align}
 \bar{\gamma}_{ij} \psi^4 &= \gamma_{ij}\\
@@ -826,7 +834,7 @@ $$\begin{align}
 \end{align}
 $$
 
-Apply the rules of determinants:
+Then apply the rules of determinants:
 
 $$\begin{align}
 det(\bar{\gamma}_{ij} \psi^4) &= det(\gamma_{ij}) = det(\tilde{\gamma}_{ij} W^{-2})\\
@@ -860,8 +868,9 @@ Q &= \int^r_0 4 \pi \sigma(x) x^2 dx\\
 Strictly speaking, this is approximate - as it assumes that $W$ is constant within the body, and so disappears in the normalisation factor $\mathcal{M}$. Tests show that this reduces the momentum constraint violations significantly. This isn't worth solving for the following reasons:
 
 1. Generally we're dealing with relatively low velocity particles, so $\bar{A}_{ij} \approx 0$ anyway
-2. All formalisms are momentum constraint damped, so errors disappear quickly
+2. All real-world formalisms are momentum constraint damped, so errors disappear quickly
 3. It involves summing across all particles over all points of the grid, which is astonishingly terrible for performance. In general you'll likely want to merge nearby particles, and perform other grouping approximations which are non trivial
+4. It made no actual difference to any simulation, for a lot of extra complexity
 
 I've bundled an implementation of this in with the article, but its switched off by default
 
@@ -1070,7 +1079,7 @@ This is not my first rodeo at solving this problem, and this represents by far t
 
 ### Looping over the size in cells of the particle
 
-I define the size of a particle in cells, as this is easy to work with. This gets plugged into the dirac delta function (which remember: we modified the definition of to take a unit fraction)
+I define the size of a particle in cells, as this is easy to work with. This gets plugged into the dirac delta function (which we modified the definition of to take a unit fraction)
 
 This gives a simple loop procedure:
 
@@ -1117,7 +1126,9 @@ The interesting parts here are:
 2. The cells that the dirac delta function covers must be offset by one in the *rightwards* direction, as its origin can take fractional positions
 3. These loops are not unrolled on the GPU, as it causes very bad performance issues
 4. Many of the cells are simply skipped. It would be a lot more efficient to directly iterate over a sphere, than a cube
-5. `world_to_grid_by_parts` returns the cell index, and offset within that cell separately - to avoid float representation issues. `frac` has the $1-(1-\mathrm{value})$ trick applied to it from the trilinear interpolation segment, to fix representation issues
+5. `world_to_grid_by_parts` returns the cell index, and offset within that cell separately - to avoid float representation issues. `frac` also has the $1-(1-\mathrm{value})$ trick applied to it from the trilinear interpolation segment
+
+Todo: Maybe remove world_to_grid_by_parts, and apply representation trick to world coordinates
 
 ### Accumulation
 
@@ -1235,7 +1246,7 @@ tensor<valuef, 3, 3> full_particle_args<T>::adm_W2_Sij(bssn_args& args, const de
 
 #### Fixed point conversion
 
-You might notice that the fixed point scaling is handled as follows:
+The fixed point scaling is handled as follows:
 
 ```c++
 auto scale = [&](valuef in)
@@ -1277,7 +1288,7 @@ I list a transparent performance improvement to this scheme at the end of this a
 
 #### Fixed point -> Float
 
-To actually consume the data in the BSSN kernel, I convert the 64-bit fixed point back into floats as a separate pass via a simple division. This uses a bit more memory, and could probably be eliminated or done in place
+To actually consume the data in the BSSN kernel, I convert the 64-bit fixed point back to `float` as a separate pass, dividing by the scale. This uses a bit more memory, and could probably be eliminated or done in place
 
 # Test Cases / Results
 
@@ -1346,7 +1357,7 @@ This gives the following result, with trilinear interpolation for the particles:
 
 <iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/C3C9ZZxr2-s?si=CVU7nZMTxiSfgjuf" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-This is pretty neat, and works surprisingly well. Larger particle counts would work too if I was willing to wait for longer. The total simulation time here was ~3 hours, taking 510ms/tick[^speedup]. The peformance scales linearly with the number of particles
+This is pretty neat, and works surprisingly well. Larger particle counts would work too if I was willing to wait for longer. The total simulation time here was ~3 hours, taking 510ms/tick[^speedup] - scaling linearly with the number of particles
 
 [^speedup]: The simulation speeds up a bit as time goes on, as particles are culled. The end tick time is ~430ms/tick
 
@@ -1368,7 +1379,7 @@ We should be able to simulate a particle orbiting a black hole nearly exactly
 |Particle Mass ($m$) | $0.001$|
 |Simulation width | $30$ |
 |Simulation Resolution | $255^3$ |
-|Distance of particle away from black hole ($R$) | $9$ |
+|Distance of the particle away from black hole ($R$) | $9$ |
 
 The particle's initial velocity is calculated as $V=\sqrt{\frac{M}{R}}$
 
