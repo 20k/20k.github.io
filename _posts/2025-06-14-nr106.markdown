@@ -6,15 +6,17 @@ categories: C++
 published: true
 ---
 
-Hi there! Today we're going to examine how to do N-body particle physics, in general relativity. We want to take a fixed set of particles, and simulate how they move under their mutual gravitational influence
+Hi there! Today we're going to examine how to do N-body particle physics, in general relativity. This involves taking a fixed set of particles, and simulating how they move under their mutual gravitational influence:
 
-Todo: Video
+<iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/C3C9ZZxr2-s?si=CVU7nZMTxiSfgjuf" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-This is a bit of an underexplored topic compared to Newtonian physics and traditional N-body simulations, and its easy to accidentally pick the wrong formalism or techniques for solving this problem. The basic theory of what we're doing is - for once - fairly straightforward, and most of the issues will be numerical ones
+This is a bit of an underexplored topic compared to Newtonian physics and traditional N-body simulations, and its easy to accidentally pick the wrong approach. The basic theory of what we're doing is - for once - fairly straightforward, and at the end of this topic we'll have about 10 million particles up and running at a decent speed
 
-At the end of this topic, we'll have about 10 million particles up and running at a decent speed. You'll also have received an unexpected crash course in IEEE floats, and some of the unique numerical problems that using C/C++ presents
+While the title might be about general relativity - this article is actually secretly an unexpected crash course in IEEE floats and accuracy in numerical algorithms, as well as running through some of the unique numerical problems that using C/C++ presents
 
 Todo: Cat
+
+But first up: Some background
 
 # What are we doing?
 
@@ -24,7 +26,7 @@ In Newtonian physics, each particle directly exerts a force on all other particl
 
 $$F = \frac{G m_1 m_2}{r^2}$$
 
-In general relativity, particles act interact through the stress-energy tensor $T_{\mu\nu}$, and do not *directly* interact. For a single particle, the stress-energy tensor is defined as follows [(2.5)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf) + [here](https://physics.stackexchange.com/questions/644402/deriving-the-energy-momentum-tensor-of-a-point-particle):
+In general relativity, particles instead act interact through the stress-energy tensor $T_{\mu\nu}$, and do not *directly* interact. For a single particle, the stress-energy tensor is defined as follows [(2.5)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf) + [here](https://physics.stackexchange.com/questions/644402/deriving-the-energy-momentum-tensor-of-a-point-particle):
 
 $$
 T_{\mu\nu} = \frac{m}{\sqrt{-g}}\delta^{(3)}(x^i - x^i_p) \frac{u_\mu u_\nu}{u^0}
@@ -39,18 +41,18 @@ $$
 |Symbol | Meaning |
 |-|-|
 |$m$ | The rest mass of a particle |
-|$\alpha$ | Lapse, evaluated at $x^i$ |
-| $W$ | Conformal factor, evaluated at $x^i$ |
-| $\delta^{(3)}(x)$ | The 3d dirac delta function - this only takes a nonzero value when $x = 0$. This a non trivial term, and we'll have to discretise this |
-| $x^i$ | The current coordinate position you're looking at |
+|$\alpha$ | The lapse, evaluated at $x^i$ |
+| $W$ | The conformal factor, evaluated at $x^i$ |
+| $\delta^{(3)}(x)$ | The 3d dirac delta function - this only takes a nonzero value when $x = 0$. This a very non trivial term that we'll get back to |
+| $x^i$ | The current coordinate position you're looking at in the world |
 | $x^i_{\mathrm{p}}$ | The position of the particle |
 | $u_\mu$ | The (covariant) 4-velocity of a particle |
-| $u^0$ | The lorentz factor |
-| $g$ | The determinant of the 4-metric |
+| $u^0$ | The Lorentz factor |
+| $g$ | The determinant of the metric tensor $g_{\mu\nu}$ |
 
 $T_{\mu\nu}$ is summed across all particles. This fully defines how particles mutually interact
 
-As for how they move, particles in general relativity follow (timelike) geodesics, and their motion is defined by the geodesic equation:
+As for how they move, particles follow (timelike) geodesics, and their motion is defined by the geodesic equation:
 
 $$u^\mu \nabla_\mu u_\nu = 0$$
 
@@ -58,7 +60,7 @@ We'll have to rework this equation a bit and transplant it into the ADM formalis
 
 # Quick refresher course
 
-Today we're working in the ADM formalism. This is a method of breaking up a 4D spacetime into 3 spatial dimensions, and 1 timelike dimension
+Today we're working in the ADM formalism. This is a method of breaking up a 4D spacetime into 3 spatial dimensions, and 1 timelike dimension. The ADM formalism give us an actual set of equations that we can integrate forwards in time
 
 The 4D metric tensor of general relativity $g_{\mu\nu}$ gets split up into the following quantities:
 
@@ -68,9 +70,9 @@ The 4D metric tensor of general relativity $g_{\mu\nu}$ gets split up into the f
 |$K_{ij}$| The extrinsic curvature|
 |$n^\mu$| The hypersurface normal, normally broken up into $\alpha$ (lapse) and $\beta^i$ (shift)|
 
-Greek indices $\mu\nu$ run from 0-4 inclusive, latin indices $ijk$ run from 1-3 inclusive
+Greek indices $\mu\nu$ run from 0-4 inclusive, and latin indices $ijk$ run from 1-3 inclusive
 
-The BSSN formalism is a further decomposition of the above variables, for numerical stability reasons. Today, because of the low complexity of the general relativity portion of this article, we'll mostly be skipping over it
+The BSSN formalism is a further decomposition of the above variables and is what we actually use here. This article's numerical problems are unrelated to anything to do with the BSSN or ADM formalisms, so I'll be skipping over them
 
 # These equations in the ADM formalism
 
@@ -90,13 +92,13 @@ These quantities will be evaluated at every cell in our grid $x^i$ - except for 
 
 ## The geodesic equation
 
-Given a 4-velocity $u^\mu = \frac{dx^\mu}{d\tau}$ (where $\tau$ is proper time), the 4D geodesic equation that governs a particle's motion is as follows:
+Given a 4-velocity $u^\mu = \frac{dx^\mu}{d\tau}$ (where $\tau$ is proper time), the geodesic equation defines how that velocity evolves in time:
 
 $$u^\mu \nabla_\mu u_\nu = 0$$
 
-Timelike geodesics have the property that $g_{\mu\nu} u^\mu u^\nu = -1$, and so their 4 components are *not* independent. This means we can actually calculate the timelike[^onlyinadm] component $u^0$ from the spatial components $u^i$[^deriv]. With this in mind, the three spatial components (now $u_i$) are evolved as follows [(2.9)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf) in the ADM formalism:
+Before we go breaking this down, timelike geodesics actually have the property that $g_{\mu\nu} u^\mu u^\nu = -1$, and so their 4 components are *not* independent. This means we can calculate the timelike[^onlyinadm] $u^0$ component from the spatial components $u^i$[^deriv]. With this in mind, the three spatial components (now $u_i$) are evolved as follows [(2.9)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf) in the ADM formalism:
 
-[^onlyinadm]: This component is only timelike in the ADM formalism with the coordinate convention $t, x, y, z$
+[^onlyinadm]: This component is only timelike in the ADM formalism with the coordinate convention $t, x, y, z$. The timelike component is the best to eliminate, as it also eliminates the most difficult to calculate timelike derivatives
 
 [^deriv]: $g_{00} u^0 u^0 = -1 - g_{ij} u^i u^j$
 
@@ -116,7 +118,7 @@ Note that all the quantities evaluated here need to be interpolated from the gri
 
 # Outstanding problems
 
-At this point, we only have a few things left to solve:
+At this point, we've essentially run out of general relativity to dig through entirely, and only have a few things left to solve:
 
 1. What is $\delta(x)$?
 2. Interpolation
@@ -194,7 +196,7 @@ When discretising, we create cells which are separated by a space of $h$. Our gr
 
 $$\sum_1^n \Delta(x_n) \; h$$
 
-We want that to be precisely $1$. In our discretisation as it stands currently however, there is absolutely no guarantee of it - this is only true in the limit as $h \rightarrow 0$. In fact, with small dirac delta function sizes, this may be significantly wrong!
+We want that to be precisely $1$ - meaning that whatever quantity we put onto the grid via the Dirac delta function is exactly conserved. In our discretisation as it stands currently however, there is absolutely no guarantee of it - this is only true in the limit as $h \rightarrow 0$. In fact, with small dirac delta function sizes, this may be significantly wrong!
 
 ![dirac3](/assets/nr6_dirac_3.png)
 
@@ -216,7 +218,7 @@ If you try and implement this discretisation with a simple test case (two partic
 
 <iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/-1GiOJhyMP0?si=YrHQiZzjsDmokmkD" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-The particles drift over to the right, which clearly isn't correct. Clearly, somewhere in our fictitious implementation, some *asymmetry* has crept in from our perfectly symmetric initial conditions
+The particles drift over to the right, which is clearly incorrect. Clearly, somewhere in this fictitious implementation, some *asymmetry* has crept in from our perfectly symmetric initial conditions
 
 To implement this correctly, you're now going to learn more about C++, IEEE floats, and cryptic problems in the literature than you signed up for when you clicked on this article. Things are going to get increasingly involved from here on out, so here's a picture of a cat:
 
@@ -238,7 +240,7 @@ I've set up the initial conditions such that they're symmetric about the index $
 
 For any correct simulation, that symmetry should be preserved. In virtually all simulations however, you'll very immediately notice that this property does not hold up - and the two sides of the grid start to *increasingly* diverge. This is despite having the same initial conditions on both sides!
 
-## Root causing where asymmetry originates from
+## Root causing the asymmetry
 
 This can be root caused to three similar problems:
 
@@ -255,11 +257,11 @@ float diff(const std::vector<float>& points, int idx, float scale)
 }
 ```
 
-This is evaluated from left to right. Lets check what we get for indices $2$, and $4$ - which should return exactly the same result:
+This is evaluated from left to right. Let's check what we get for $\mathrm{idx} = 2$, and $\mathrm{idx} = 4$ - which should return exactly the same result:
 
 $$\begin{align}
-\mathrm{diff}_2 &= ((a_0 - (8 b_0)) + (8 d_1)) - c_1\\
-\mathrm{diff}_4 &= ((c_0 - (8 d_0)) + (8 b_1)) - a_1\\
+\mathrm{diff}_2 &= ((a_0 - (8 b_0)) + (8 d_0)) - c_0\\
+\mathrm{diff}_4 &= ((c_0 - (8 d_0)) + (8 b_0)) - a_0\\
 \end{align}$$
 
 The issue is that after each floating point operation, a rounding step is performed implicitly. This means that these two expressions don't return the same results! This isn't a theoretical problem either, here's an example in [real-world code](https://github.com/GRTLCollaboration/GRChombo/blob/130140afe972701575740685343ea28f6ab8234c/Source/BoxUtils/FourthOrderDerivatives.hpp#L42)
@@ -290,11 +292,13 @@ float v_mul = a*b;
 float v2 = v_mul + c;
 ```
 
-C++ encourages that $v_1 \neq v_2$. This rather surprising[^surprising] feature is known as floating point contraction, and there is no standardised way to disable it[^pragma]. Within an *expression*, the compiler is free to turn anything of the form $a*b + c$ into $\mathrm{fma}(a, b, c)$, which may be both faster and more precise. Unfortunately - in our case, it also causes our 'fixed' code to be rewritten as follows:
+C++[^cpp] encourages that $v_1 \neq v_2$. This rather surprising[^surprising] feature is known as floating point contraction, and there is no standardised way to disable it in C++[^pragma]. Within an *expression*, the compiler is free to turn anything of the form $a*b + c$ into $\mathrm{fma}(a, b, c)$, which may be both faster and more precise. Unfortunately - in our case, it also causes our 'fixed' code to be rewritten as follows:
+
+[^cpp]: This article series compiles to OpenCL as a backend, which suffers from the same problem due to inheriting C/C++ semantics. CUDA, which I imagine most people would be using, strongly suffers with this
 
 [^surprising]: This is a violation of the IEEE spec, which explicitly bans this. C++ does not follow IEEE particularly closely in other aspects as well, which is truly bizarre for a numerical language. There's an extended discussion at the end of this article
 
-[^pragma]: There is a non standard pragma inherited from C, but CUDA does not implement this which is a problem. Even then, the pragma is a very blunt force instrument, so you have to be pretty careful in general
+[^pragma]: There is a pragma in C that is available in OpenCL, but CUDA does not implement this which is a problem (I've checked). C++ does not mandate its availability, which makes this uniquely more of a C++ problem than a C problem
 
 ```c++
 float diff(const std::vector<float>& points, int idx, float scale)
@@ -315,7 +319,7 @@ float diff_long(const std::vector<float>& points, int idx, float scale)
     float vm1 = -8 * points[idx - 1];
     float vp1 = 8 * points[idx + 1];
 
-    float v2 = lm2 + lp2;
+    float v2 = vm2 + vp2;
     float v1 = vm1 + vp1;
     float top = v1 + v2;
 
@@ -336,13 +340,13 @@ float diff_concise(const std::vector<float>& points, int idx, float scale)
 
 This only works in our specific case for first derivatives. The FMA that gets generated does not upset symmetry, and gives a 20% improvement in GPU-land over the long form version[^compiler]
 
-Pairwise summation with explicitly spelt out intermediate variables is the general fix to this problem - and I apply the 'long form' technique anywhere which involves numerical derivatives (Kreiss-Oliger). I've attached some thoughts about floats in C++ in the appendix to avoid derailing the purpose of this article
+Pairwise summation - matching equivalently far away values from the centre together - with explicitly spelt out intermediate variables is the general fix to this problem. I apply the 'long form' technique anywhere which involves numerical derivatives (Kreiss-Oliger). I've attached some thoughts about floats in C++ in the appendix to avoid derailing the purpose of this article
 
 [^compiler]: This is at least partly due to compiler-itus, as compilers are much better at optimising within an expression, than across multiple expressions. Its a big part of the reason why I use code generation in these articles, and one of the reasons why floating point contraction is often an anti performance feature. Forcing code to be written in the style of `diff_long` is a significant pessimisation, even in the total absence of floating point contraction
 
 ## Fixing dirac
 
-Another source of error is the way we've implement the dirac delta function. There are several sources of error here:
+Another source of error is the way we've implemented the dirac delta function. There are several sources of error here:
 
 1. The integral bounds are arbitrary floats, which can lead to representation issues
 2. The integration itself contains errors
@@ -383,7 +387,7 @@ Because this article is intended to save you existential pain, I've implemented 
 ```c++
 template<typename T>
 inline
-T symmetric_sum(const std::vector<T>& in)
+T symmetric_sum(std::span<T> in)
 {
     if(in.size() == 0)
         return T{};
@@ -399,32 +403,18 @@ T symmetric_sum(const std::vector<T>& in)
     {
         int middle = (in.size() - 1) / 2;
 
-        std::vector<T> left;
+        std::span left = in.subspan(0, middle);
+        std::span right = in.subspan(middle + 1);
 
-        for(int i=0; i < middle; i++)
-            left.push_back(in[i]);
-
-        std::vector<T> right;
-
-        for(int i=middle + 1; i < (int)in.size(); i++)
-            right.push_back(in[i]);
-
-        return (symmetric_sum(left) + symmetric_sum(right)) + in[middle];
+        return symmetric_sum(left) + symmetric_sum(right) + in[middle];
     }
     //even
     else
     {
         int middle = in.size() / 2;
 
-        std::vector<T> left;
-
-        for(int i=0; i < middle; i++)
-            left.push_back(in[i]);
-
-        std::vector<T> right;
-
-        for(int i=middle; i < (int)in.size(); i++)
-            right.push_back(in[i]);
+        std::span left = in.subspan(0, middle);
+        std::span right = in.subspan(middle);
 
         return symmetric_sum(left) + symmetric_sum(right);
     }
@@ -445,7 +435,7 @@ auto integrate_1d_trapezoidal(const T& func, int n, const U& upper, const U& low
         sum.push_back(func(coordinate));
     }
 
-    return ((upper - lower) / n) * (0.5f * (func(lower) + func(upper)) + symmetric_sum(sum));
+    return ((upper - lower) / n) * (0.5f * (func(lower) + func(upper)) + symmetric_sum(std::span{sum}));
 }
 ```
 
@@ -469,7 +459,13 @@ u^0 &= \frac{\sqrt{1 + \widehat{\gamma^{ij}} u_i u_j}}{\widehat{\alpha}}\\
 \end{align}
 $$
 
-I've put hats over the variables that need to be interpolated at the particle's position $x^i_p$. A naive trilinear interpolation will lead to the same issues talked about above: Luckily, this is quite easily fixable:
+With the position being evolved like this:
+
+$$
+\frac{dx^i}{dt} = -\widehat{\beta^i} + \frac{\widehat{\gamma^{ij}} u_j}{u^0}
+$$
+
+I've put hats over the variables that need to be interpolated at the particle's position $x^i$. A naive trilinear interpolation will lead to the same precision issues talked about above: Luckily, this is quite easily fixable:
 
 ```c++
 template<typename T
@@ -541,9 +537,9 @@ A particle's contribution to its own velocity however should be precisely 0 ($\p
 
 <iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/g46gswzmTKM?si=uBy-HsxWKC4Sd0OI" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-The fact that a particle can spontaneously self accelerate like this clearly indicates the presence of a major error
+Alarmingly, an initially stationary particle actually wobbles slightly back and forth. The fact that a particle can spontaneously self accelerate like this clearly indicates the presence of a major error
 
-Diagnosing this boils the issue down to something straightforward: When we perform any kind of interpolation, the accuracy goes down the further away you interpolate from your known data. In our case, this can cause $\partial_i \alpha \neq 0$ at the position of the particle. This is an especially severe error - as a moving particle will experience periodic error terms as it drifts further away from your known data - which is why it wobbles back and forth above. It will also cause *very* strange issues like the following abrupt failure:
+This ends up being a straightforward problem: When we perform any kind of interpolation, the accuracy goes down the further away you interpolate from your known data. In our case, this can cause $\partial_i \alpha \neq 0$ at the position of the particle. This is an especially severe error - as a moving particle will experience periodic error terms as it drifts between cells - which is why it wobbles back and forth above. It will also cause *very* strange issues like the following abrupt failure:
 
 <iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/GrbXu4fWwiE?si=NttsxU-04JuhlMQE" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
@@ -1411,6 +1407,20 @@ Both of these are discussed in the appendix, but overall I'm pretty happy with h
 
 # Appendix
 
+## The literature
+
+### Particle dynamics
+
+One feature you might notice in this article is the lack of extensive references to papers, or astrophysics related 3rd party material. In general, prior articles to this one are largely me mashing together different papers and sources into a cohesive whole. These articles are frequently just plumbing, with a helping of converting technical language and notation into something more approachable
+
+Unusually, the majority of this article is original work, and the literature in this area makes virtually no mention of any of the issues I ran into when implementing this. Papers tend to noticeably gloss over implementation details - especially interpolation - with one paper saying that they simply use 'appropriate' order interpolation. I've never seen a single paper discuss any of these issues, despite the fact that at least some of them should crop up in any implementation which has been tested - regardless of if you use single or double precision! Discussing numerical problems is very common in papers dealing with black hole/matter dynamics, so its odd to see
+
+If I had to put my speculation hat on, I'd guess that one of the reasons why particle dynamics hasn't taken off in numerical relativity is because it will fail basic sanity testing without a very careful implementation. This article took many *many* months of simulations and testing to figure things out, and it isn't my first crack at it either
+
+### Binary black holes
+
+In an earlier segment, I mentioned cryptic problems in the literature: One feature of binary black hole simulations is that it was noticed in the earlier days that some modifications were only stable with octant symmetry. This is when you take your simulation grid, and only simulate one corner of that cube - implicitly mirroring your simulation across the boundary, when you have symmetric initial conditions. If you're wondering if the asymmetry introduced by derivatives, and Kreiss-Oliger, being implemented in the naive way might be the cause of this - then I've been wondering the same thing as well
+
 ## Comparison to other formalisms
 
 There are a variety of other techniques here for evolving the path of a particle, and in general, they are less good
@@ -1424,6 +1434,8 @@ See [here](https://arxiv.org/pdf/1208.3927). The primary disadvantage of this fo
 See [here (2.27)](https://arxiv.org/pdf/1904.07841). The main problem with this formalism is that it uses the 4-momentum (ie `mass * 4-velocity`). Because the masses we're dealing with are often extremely small, this leads to very high numerical error during evolution. The 4-velocity is a significantly better evolution variable, as the error is then shifted over into the stress-energy calculation - which we can mitigate with fixed-point by scaling the mass. The simulation's error can actually be made largely invariant to the individual particle mass, but tied instead to the total mass per cell - which is a much larger value
 
 ## Other stress energy tensor techniques
+
+Todo:
 
 ## An optional performance improvement
 
@@ -1523,7 +1535,7 @@ These three kernels are run sequentially, and this provides a significant speedu
 
 ## C++ and floating point - a brief overview
 
-I've tried very hard to keep this article largely clear of extended discussions around the state of floating point in C++ (or really: C-style languages more broadly). The language is very creaky compared to modern alternatives when dealing with floating point
+I've tried very hard to keep this article largely clear of extended discussions around the state of floating point in C++ (and C-style languages more broadly). The language is very creaky compared to modern alternatives when dealing with floating point
 
 If you've been reading this article, the floating point contraction segment shows how this feature severely complicates getting accurate results in real world use cases, which is a bit unfortunate - more modern languages tend not to go for this approach. Automatic floating point contraction within an expression feels like a very 90s solution to the problem, when compilers were a wild west with floats
 
@@ -1577,7 +1589,7 @@ Hopefully a language will get this right someday, because there's a tonne of per
 
 ### Other problems
 
-There's some other issues I haven't tried to address in this article: namely that the results of `<cmath>` are not portable. C++ doesn't really constrain their results, and this is another break from IEEE for inadequate reasons
+There's some other issues I haven't tried to address in this article: namely that the results of `<cmath>` are not portable. C++ doesn't really constrain their results, and this is another break from IEEE
 
 ## Things that did not go so well
 
@@ -1601,7 +1613,7 @@ It also somewhat defeats the point of trying to simulate the cluster: All we'd r
 
 So at that point, that brings me onto the next topic: Simulating a galaxy
 
-### Build A Galaxy
+### Simulating A Galaxy
 
 I could not for the life of me simulate a galaxy under any circumstances. I have absolutely no clue why. I'm going to list the things I tried, and possible causes of this problem
 

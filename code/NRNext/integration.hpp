@@ -1,9 +1,11 @@
 #ifndef INTEGRATION_HPP_INCLUDED
 #define INTEGRATION_HPP_INCLUDED
 
+#include <span>
+
 template<typename T>
 inline
-T symmetric_sum(const std::vector<T>& in)
+T symmetric_sum(std::span<T> in)
 {
     if(in.size() == 0)
         return T{};
@@ -19,32 +21,18 @@ T symmetric_sum(const std::vector<T>& in)
     {
         int middle = (in.size() - 1) / 2;
 
-        std::vector<T> left;
+        std::span left = in.subspan(0, middle);
+        std::span right = in.subspan(middle + 1);
 
-        for(int i=0; i < middle; i++)
-            left.push_back(in[i]);
-
-        std::vector<T> right;
-
-        for(int i=middle + 1; i < (int)in.size(); i++)
-            right.push_back(in[i]);
-
-        return (symmetric_sum(left) + symmetric_sum(right)) + in[middle];
+        return symmetric_sum(left) + symmetric_sum(right) + in[middle];
     }
     //even
     else
     {
         int middle = in.size() / 2;
 
-        std::vector<T> left;
-
-        for(int i=0; i < middle; i++)
-            left.push_back(in[i]);
-
-        std::vector<T> right;
-
-        for(int i=middle; i < (int)in.size(); i++)
-            right.push_back(in[i]);
+        std::span left = in.subspan(0, middle);
+        std::span right = in.subspan(middle);
 
         return symmetric_sum(left) + symmetric_sum(right);
     }
@@ -66,7 +54,7 @@ auto integrate_1d_trapezoidal(const T& func, int n, const U& upper, const U& low
         sum.push_back(func(coordinate));
     }
 
-    return ((upper - lower) / n) * (0.5f * (func(lower) + func(upper)) + symmetric_sum(sum));
+    return ((upper - lower) / n) * (0.5f * (func(lower) + func(upper)) + symmetric_sum(std::span{sum}));
 }
 
 template<typename T, typename U>
