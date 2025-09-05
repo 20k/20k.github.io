@@ -14,9 +14,9 @@ This is a bit of an underexplored topic compared to Newtonian physics and tradit
 
 While the title might be about general relativity - this article is actually secretly an unexpected crash course in IEEE floats and accuracy in numerical algorithms, as well as running through some of the unique numerical problems that using C/C++ presents
 
-Todo: Cat
-
 But first up: Some background
+
+![wes1](/assets/nr6_open.jpg)
 
 # What are we doing?
 
@@ -125,7 +125,7 @@ At this point, we've essentially run out of general relativity to dig through en
 
 You've probably noticed the *suspiciously* long scrollbar on this article at this point, so you can likely guess that things are about to turn into a gigantic mess. Our first major problem customer is the Dirac delta function
 
-Todo: Cat
+![dog1](/assets/nr6_dog1.jpeg)
 
 # The Dirac delta function $\delta(x)$
 
@@ -158,7 +158,7 @@ There are an extremely wide variety of approximations we can use - we might dema
 
 1. It is compactly supported, ie it has finite extent
 2. It is smooth-ish
-3. This function has an integral of 1
+3. The function has an integral of 1
 
 There isn't a super specific[^okso] reason to use one approximation over another today. The Dirac delta function I'll be pilfering is [this one (20)](https://arxiv.org/pdf/1611.07906), which is a function of radius
 
@@ -190,7 +190,7 @@ $$\Delta^{(1)}(x) =
 \end{align}
 $$
 
-When discretising, we create cells which are separated by a space of $h$. Our grid structure *samples* this function at eg $x-2h, x-h, x, x+h, x+2h$. If we evaluate the quantity:
+When discretising, we create cells which are separated by a space of $h$. Our grid structure *samples* this function at eg $x-2h, x-h, x, x+h, x+2h$. If we sum up the amount of the dirac delta function that's been placed in each cell:
 
 $$\sum_1^n \Delta(x_n) \; h$$
 
@@ -198,7 +198,7 @@ We want that to be precisely $1$ - meaning that whatever quantity we put onto th
 
 ![dirac3](/assets/nr6_dirac_3.png)
 
-The remedy is to calculate the exact amount of the dirac delta function that intersects with a grid cell. You can do this by integrating:
+The remedy is to calculate the exact amount of the Dirac delta function that intersects with a grid cell. You can do this by integrating the Dirac delta function within the bounds of the cell in question:
 
 $$\Delta^{(1)}_{\mathrm{good}}(x) = \frac{\int_{x - \frac{h}{2}}^{x + \frac{h}{2}} \Delta^{(1)}(y) dy}{h}$$
 
@@ -220,7 +220,7 @@ The particles drift over to the right, which is clearly incorrect. Clearly, some
 
 To implement this correctly, you're now going to learn more about C++, IEEE floats, and cryptic problems in the literature than you signed up for when you clicked on this article. Things are going to get increasingly involved from here on out, so here's a picture of a cat:
 
-Todo: Wesley
+![catbreak](/assets/nr6_cat_break.jpg)
 
 # IEEE and C++: A great combination
 
@@ -230,13 +230,15 @@ Let's examine the form of a general 1D integration in time problem, spatially di
 |-|-|-|-|-|-|-|-|
 |Value|$a_0$|$b_0$|$c_0$|$d_0$|$c_0$|$b_0$|$a_0$|
 
-I've set up the initial conditions such that they're symmetric about the index $3$. After a single timestep into the future, we might expect our initial conditions to evolve to a new state:
+I've set up the initial conditions such that they're symmetric about the index $3$. After a single timestep into the future, we want our state to evolve as follows:
 
 |Cell Index|0|1|2|3|4|5|6|
 |-|-|-|-|-|-|-|-|
 |Value|$a_1$|$b_1$|$c_1$|$d_1$|$c_1$|$b_1$|$a_1$|
 
-For any correct simulation, that symmetry should be preserved. In virtually all simulations however, you'll very immediately notice that this property does not hold up - and the two sides of the grid start to *increasingly* diverge. This is despite having the same initial conditions on both sides!
+Ie, for any correct simulation, that initial symmetry should be preserved. In virtually all simulations however, you'll very immediately notice that this property does not hold up - and the two sides of the grid start to *increasingly*[^increasingly] diverge. This is despite having the same initial conditions on both sides!
+
+[^increasingly]: At least for chaotic problems, which this is
 
 ## Root causing the asymmetry
 
@@ -344,7 +346,7 @@ Pairwise summation - matching equivalently far away values from the centre toget
 
 ## Fixing dirac
 
-Another source of error is the way we've implemented the dirac delta function. There are several sources of error here:
+Another source of error is the way we've implemented the dirac delta function. There are several issues here:
 
 1. The integral bounds are arbitrary floats, which can lead to representation issues
 2. The integration itself contains errors
@@ -449,18 +451,13 @@ We now need to step into our final hard problem: Interpolation
 
 # Interpolation
 
-The geodesic equation we want to implement is as follows:
+This is the full set of equations to evolve a particle:
 
 $$\begin{align}
 \frac{d u_i}{dt} &= - \widehat{\alpha} u^0 \widehat{\partial_i \alpha} + u_j \widehat{\partial_i \beta^j} - \frac{u_j u_k}{2 u^0} \widehat{\partial_i \gamma^{jk}}\\
 u^0 &= \frac{\sqrt{1 + \widehat{\gamma^{ij}} u_i u_j}}{\widehat{\alpha}}\\
+\frac{dx^i}{dt} &= -\widehat{\beta^i} + \frac{\widehat{\gamma^{ij}} u_j}{u^0}
 \end{align}
-$$
-
-With the position being evolved like this:
-
-$$
-\frac{dx^i}{dt} = -\widehat{\beta^i} + \frac{\widehat{\gamma^{ij}} u_j}{u^0}
 $$
 
 I've put hats over the variables that need to be interpolated at the particle's position $x^i$. A naive trilinear interpolation will lead to the same precision issues talked about above: Luckily, this is quite easily fixable:
