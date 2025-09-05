@@ -96,11 +96,9 @@ Given a 4-velocity $u^\mu = \frac{dx^\mu}{d\tau}$ (where $\tau$ is proper time),
 
 $$u^\mu \nabla_\mu u_\nu = 0$$
 
-Before we go breaking this down, timelike geodesics actually have the property that $g_{\mu\nu} u^\mu u^\nu = -1$, and so their 4 components are *not* independent. This means we can calculate the timelike[^onlyinadm] $u^0$ component from the spatial components $u^i$[^deriv]. With this in mind, the three spatial components (now $u_i$) are evolved as follows [(2.9)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf) in the ADM formalism:
+Before we go breaking this down, timelike geodesics actually have the property that $g_{\mu\nu} u^\mu u^\nu = -1$, and so their 4 components are *not* independent. This means we can calculate the timelike[^onlyinadm] $u^0$ component from the spatial components $u^i$. With this in mind, the three spatial components (now $u_i$) are evolved as follows [(2.9)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf):
 
 [^onlyinadm]: This component is only timelike in the ADM formalism with the coordinate convention $t, x, y, z$. The timelike component is the best to eliminate, as it also eliminates the most difficult to calculate timelike derivatives
-
-[^deriv]: $g_{00} u^0 u^0 = -1 - g_{ij} u^i u^j$
 
 $$\begin{align}
 \frac{d u_i}{dt} &= - \alpha u^0 \partial_i \alpha + u_j \partial_i \beta^j - \frac{u_j u_k}{2 u^0} \partial_i \gamma^{jk}\\
