@@ -451,7 +451,7 @@ We now need to step into our final hard problem: Interpolation
 
 # Interpolation
 
-As a reminder, our geodesic equation is as follows:
+The geodesic equation we want to implement is as follows:
 
 $$\begin{align}
 \frac{d u_i}{dt} &= - \widehat{\alpha} u^0 \widehat{\partial_i \alpha} + u_j \widehat{\partial_i \beta^j} - \frac{u_j u_k}{2 u^0} \widehat{\partial_i \gamma^{jk}}\\
@@ -537,7 +537,7 @@ A particle's contribution to its own velocity however should be precisely 0 ($\p
 
 <iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/g46gswzmTKM?si=uBy-HsxWKC4Sd0OI" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Alarmingly, an initially stationary particle actually wobbles slightly back and forth. The fact that a particle can spontaneously self accelerate like this clearly indicates the presence of a major error
+For everyone who doesn't want to squint at a video, the particle wobbles back and forth around a fixed spot. The fact that a particle can spontaneously self accelerate like this clearly indicates the presence of a major error
 
 This ends up being a straightforward problem: When we perform any kind of interpolation, the accuracy goes down the further away you interpolate from your known data. In our case, this can cause $\partial_i \alpha \neq 0$ at the position of the particle. This is an especially severe error - as a moving particle will experience periodic error terms as it drifts between cells - which is why it wobbles back and forth above. It will also cause *very* strange issues like the following abrupt failure:
 
@@ -595,8 +595,6 @@ auto tricubic_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
         2
     };
 
-    using value_v = decltype(func(v3i(), std::forward<U>(args)...));
-
     auto L_j = [&](int j, const valuef& f, float& bottom_out)
     {
         int bottom = 1;
@@ -618,6 +616,7 @@ auto tricubic_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
         return out;
     };
 
+    using value_v = decltype(func(v3i(), std::forward<U>(args)...));
     value_v sum = {};
 
     for(int z=0; z < 4; z++)
@@ -763,7 +762,7 @@ There are three non trivial components to the initial conditions:
 2. Solve the Hamiltonian constraint - via a laplacian
 3. Possibly solve the momentum constraint - this is uncharted waters
 
-The Hamiltonian and momentum constraints are the two physical constraints that we must satisfy for our initial conditions to be valid. On top of this, you'll obviously need to set up a particle with mass, and set its position
+The Hamiltonian and momentum constraints are the two physical constraints that we must satisfy for our initial conditions to be valid. On top of this, you'll need to set up a particle with a rest mass, and set its position
 
 ## 4-velocity
 
@@ -801,13 +800,13 @@ Note that the $i$ index runs from $0$ to $4$ contrary to the rest of this articl
 
 ## Hamiltonian constraint solving
 
-Its important to solve the hamiltonian constraint as part of the initial conditions (see [here](https://20k.github.io/c++/2025/01/12/nr102.html#solving-for-u) for exact details), because errors here are quite sticky, and can leave visual 'welts' on your simulation that are very noticeable. The hamiltonian constraint that we'll be using can be derived from [2.11](https://arxiv.org/pdf/1905.08890), and with the standard set of constraints looks like this:
+Its important to solve the hamiltonian constraint as part of the initial conditions (see [here](https://20k.github.io/c++/2025/01/12/nr102.html#solving-for-u) for exact details), because errors here are quite sticky, and can leave visual 'welts' on your simulation that are very noticeable. The hamiltonian constraint that we'll be using can be derived from [2.11](https://arxiv.org/pdf/1905.08890), and with the standard set of constraints gives us a laplacian:
 
 $$
 \nabla \psi = - \frac{1}{8} \psi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \psi^5 \rho_H
 $$
 
-Which means we only need two things to solve this now
+We only need two things to solve this:
 
 1. $\rho_H$: the scalar source term for the stress-energy tensor
 2. $\bar{A}_{ij}$: the conformal extrinsic curvature
@@ -844,7 +843,7 @@ Lets now define $$\bar{\rho}_H = \sum m u^0 \delta^{(3)}(x^i - x^i_{\mathrm{p}})
 
 $$\nabla \psi = - \frac{1}{8} \psi^{-7} \bar{A} _{ij} \bar{A}^{ij} - 2 \pi \psi^{-1} \bar{\rho}_H$$
 
-This is actually solvable. Setting aside $\bar{A}_{ij}$ for a moment, the procedure for solving this is detailed [here](https://20k.github.io/c++/2025/01/12/nr102.html#solving-for-u)
+This is actually solvable. Setting aside $\bar{A}_{ij}$ for a moment, the procedure for solving this is detailed [here](https://20k.github.io/c++/2025/01/12/nr102.html#solving-for-u), but it is a bog standard laplacian
 
 To figure $\bar{A}_{ij}$ out, its time to dip into the momentum constraint
 
@@ -1411,15 +1410,11 @@ Both of these are discussed in the appendix, but overall I'm pretty happy with h
 
 ### Particle dynamics
 
-One feature you might notice in this article is the lack of extensive references to papers, or astrophysics related 3rd party material. In general, prior articles to this one are largely me mashing together different papers and sources into a cohesive whole. These articles are frequently just plumbing, with a helping of converting technical language and notation into something more approachable
-
-Unusually, the majority of this article is original work, and the literature in this area makes virtually no mention of any of the issues I ran into when implementing this. Papers tend to noticeably gloss over implementation details - especially interpolation - with one paper saying that they simply use 'appropriate' order interpolation. I've never seen a single paper discuss any of these issues, despite the fact that at least some of them should crop up in any implementation which has been tested - regardless of if you use single or double precision! Discussing numerical problems is very common in papers dealing with black hole/matter dynamics, so its odd to see
-
-If I had to put my speculation hat on, I'd guess that one of the reasons why particle dynamics hasn't taken off in numerical relativity is because it will fail basic sanity testing without a very careful implementation. This article took many *many* months of simulations and testing to figure things out, and it isn't my first crack at it either
+This article contains an usually high proportion of original work for me, and I've seen virtually no mention of any of these problems in the literature. These should crop up in most implementations - regardless of if you use single or double precision. If I had to put my speculation hat on, I'd guess that one of the reasons why particle dynamics hasn't taken off in numerical relativity is because it will fail basic testing without a lot of work
 
 ### Binary black holes
 
-In an earlier segment, I mentioned cryptic problems in the literature: One feature of binary black hole simulations is that it was noticed in the earlier days that some modifications were only stable with octant symmetry. This is when you take your simulation grid, and only simulate one corner of that cube - implicitly mirroring your simulation across the boundary, when you have symmetric initial conditions. If you're wondering if the asymmetry introduced by derivatives, and Kreiss-Oliger, being implemented in the naive way might be the cause of this - then I've been wondering the same thing as well
+In an earlier segment, I mentioned cryptic problems in the literature: One feature of binary black hole simulations is that it was noticed in the earlier days that some modifications were *only* stable with octant symmetry. This is when you take your simulation grid, and only simulate one corner of that cube - implicitly mirroring your simulation across the boundary, when you have symmetric initial conditions. If you're wondering if the potential asymmetry introduced by derivatives, and Kreiss-Oliger might be the cause of this discrepancy - then I've been wondering the same thing as well
 
 ## Comparison to other formalisms
 

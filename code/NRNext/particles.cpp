@@ -560,8 +560,6 @@ auto particles_tricubic(T&& func, v3f frac, v3i ifloored, U&&... args)
 {
     using namespace single_source;
 
-    using value_v = decltype(func(v3i(), std::forward<U>(args)...));
-
     auto L_j = [&](valuei j, const valuef& f, mut<valuef>& bottom_out)
     {
         auto apply_for_m = [&](int m)
@@ -580,6 +578,7 @@ auto particles_tricubic(T&& func, v3f frac, v3i ifloored, U&&... args)
         return (apply_for_m(0) * apply_for_m(3)) * (apply_for_m(1) * apply_for_m(2));
     };
 
+    using value_v = decltype(func(v3i(), std::forward<U>(args)...));
     auto sum = declare_mut_e(value_v());
 
     auto fetch_indices = [](valuei what)
