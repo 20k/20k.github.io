@@ -788,13 +788,16 @@ The Hamiltonian and momentum constraints are the two physical constraints that w
 
 ## 4-velocity
 
-When you have a particle, the natural way to define a velocity is as a direction, and magnitude as a fraction of the speed of light - a pure 3D vector. The question we have to answer to create a 4-velocity is: what is that velocity relative to in a strongly curved gravitational field?
+The natural way to define a particle's velocity is as a 3D vector, with its magnitude being some fraction of the speed of light. To turn this into a 4-velocity, we'll need a frame of reference, defining an observer. Doing this correctly involves the following sequence of steps:
 
-In the ADM formalism, an observer is defined by the gauge conditions: the lapse $\alpha$, and shift $\beta^i$. Universally, this observer is implicitly set to $\alpha = 1$, $\beta^i = 0$ during the construction of the initial conditions. This is a geodesic slicing - which means that the observer is in free fall
+1. In the ADM formalism, the observer is defined by the gauge variables: $\alpha$, and $\beta^i$
+2. These are universally[^universally] set to $\alpha = 1$, and $\beta^i=0$, representing an observer in free fall. This is called a geodesic slicing
+3. We can then create a frame of reference (tetrad) from our metric tensor, and it will represent this free-falling observer
+4. This tetrad links a 4-velocity in a local minkowski spacetime (built from our 3D velocity), to a 4-velocity in the surrounding curved spacetime
 
-A frame of reference (here, a tetrad) created from our metric will therefore represent an observer in free fall. We can then turn a 3D velocity *locally* into a 4-velocity in that frame of reference, and then the tetrad basis will correctly convert it into a 4-velocity in our globally curved spacetime
+[^universally]: I've noticed in several papers that this step seems to be performed implicitly. I do **not** know if it is well motivated, only that it *is* being done implicitly. For example, consider [this](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf) paper. $E$ (2.14) contains an $\alpha$ term, which means under a maximal slicing, in theory you have to solve for $\alpha$ and $\psi$ simultaneously. However, they simply compute $\psi$ first, despite it having the form $-2 \pi E \psi^5$, which contains an $\alpha$ term. The only way this is computable is if $\alpha = 1$. [This](https://arxiv.org/pdf/1611.07906) paper (24) also simply drops $\alpha$, though their eq (16) is incorrect so this may simply be an error. Also note in [this](https://arxiv.org/pdf/1606.04881) paper, (6) is only correct if $\alpha = 1$ and $\beta^i = 0$. I would love to know what's going on here - my understanding is that under maximal slicing $\alpha \neq 1$, but it seems that during the construction of the initial conditions in the CTT formalism you don't need to worry about this. Perhaps $\alpha$ is only fixed if $\partial_t K=0$ - I'm going to assume that I'm missing something here and that its correct to use a geodesic slicing here
 
-First: We need to construct a tetrad. While in the general case you'll need to [Gram-Schmidt](https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process) the metric to find a set of tetrads (see [here](https://20k.github.io/c++/2024/06/19/tetrads.html)), our initial conditions will always produce a diagonal metric - which makes tetrad construction straightforward. The metric tensor for us with a geodesic slicing is as follows:
+First off: We need to construct a tetrad. While in the general case you'll need to [Gram-Schmidt](https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process) the metric to find a set of tetrads (see [here](https://20k.github.io/c++/2024/06/19/tetrads.html)), our initial conditions will always produce a diagonal metric - which makes tetrad construction straightforward. The metric tensor for us with a geodesic slicing is as follows:
 
 |$g_{\mu\nu}$|0|1|2|3|
 |-|-|-|-|-|
@@ -826,7 +829,7 @@ Note that the $i$ index runs from $0$ to $4$ contrary to the rest of this articl
 
 ## Hamiltonian constraint solving
 
-The hamiltonian constraint is as follows (derived from [2.11](https://arxiv.org/pdf/1905.08890)):
+The next thing we have to solve is the hamiltonian constraint, which is as follows (derived from [2.11](https://arxiv.org/pdf/1905.08890)):
 
 $$
 \nabla \psi = - \frac{1}{8} \psi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \psi^5 \rho_H
@@ -837,7 +840,7 @@ We only need two things to solve this:
 1. $\rho_H$: the scalar source term for the stress-energy tensor
 2. $\bar{A}_{ij}$: the conformal extrinsic curvature
 
-Once we have both of these, the ADM + BSSN variables are constructed [as usual](https://20k.github.io/c++/2025/01/12/nr102.html#finishing-up)[^technical]. See [here](https://20k.github.io/c++/2025/01/12/nr102.html#solving-for-u) for a prior discussion on how to solve laplacians of this form - there's nothing new here
+Once we have both of these, the ADM + BSSN variables are constructed [as usual](https://20k.github.io/c++/2025/01/12/nr102.html#finishing-up)[^technical]. See [here](https://20k.github.io/c++/2025/01/12/nr102.html#solving-for-u) for a prior discussion on how to solve laplacians of this form
 
 [^technical]: One thing I've ensured in general is that these articles are all compatible with each other. All conformal decompositions and notation is the same unless specifically stated otherwise
 
@@ -888,17 +891,18 @@ Strictly speaking, this is approximate - as it assumes that $W$ is constant with
 1. Generally we're dealing with relatively low velocity particles, so $\bar{A}_{ij} \approx 0$, and that choice works well enough
 2. All real-world formalisms are momentum constraint damped, so errors disappear quickly
 3. It involves summing across all particles over all points of the grid, which is astonishingly terrible for performance. In general you'll likely want to merge nearby particles, and perform other grouping approximations which are non trivial
-4. It made no actual difference to any simulation, for a lot of extra complexity
 
 I've bundled an implementation of this in with the article, but it is switched off by default
 
 # Implementation
 
+There's only a small handful of things left to implement now, so let's get to it
+
 ## The geodesic equation
 
 This is straightforward to implement. There are only two interesting features here:
 
-1. I use implicit midpoint, as it is symplectic - meaning it should preserve the energy of the particles well. There's no real reason for an implicit approach, but it fits nicely in with backwards euler
+1. I use implicit midpoint with fixed point iteration, as it is symplectic - meaning it should preserve the energy of the particles well. There's no real reason for an implicit approach, but it fits nicely in with backwards euler
 2. Particles need to be dissipated away and removed in two cases: At the edge of the simulation, and in the interior of a black hole
 
 ### Main part of the equations
@@ -1145,8 +1149,6 @@ The interesting parts here are:
 3. These loops are not unrolled on the GPU, as it causes very bad performance issues
 4. Many of the cells are simply skipped. It would be a lot more efficient to directly iterate over a sphere, than a cube
 5. `world_to_grid_by_parts` returns the cell index, and offset within that cell separately - to avoid float representation issues. `frac` also has the $1-(1-\mathrm{value})$ trick applied to it from the trilinear interpolation segment
-
-Todo: Maybe remove world_to_grid_by_parts, and apply representation trick to world coordinates
 
 ### Accumulation
 
