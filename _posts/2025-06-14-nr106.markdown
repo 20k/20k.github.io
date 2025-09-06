@@ -872,7 +872,7 @@ I've bundled an implementation of this in with the article, but it is switched o
 This is straightforward to implement. There are only two interesting features here:
 
 1. I use implicit midpoint, as it is symplectic - meaning it should preserve the energy of the particles well. There's no real reason for an implicit approach, but it fits nicely in with backwards euler
-2. Setting a boundary condition for the mass: At the edge of the simulation, and in the interior of black holes
+2. Particles need to be dissipated away and removed in two cases: At the edge of the simulation, and in the interior of a black hole
 
 ### Main part of the equations
 
@@ -1012,7 +1012,7 @@ $$
 W^2 \partial_i \tilde{\gamma}^{jk} + 2 W \partial_i W \tilde{\gamma}^{jk}
 $$
 
-And then use dual numbers to evaluate $$\partial_i \tilde{\gamma}^{jk}$$ from $$\partial_i \tilde{\gamma}_{jk}$$
+And then use dual numbers to evaluate $$\partial_i \tilde{\gamma}^{jk}$$ from $$\partial_i \tilde{\gamma}_{jk}$$. There's almost certainly a more direct way to relate the two
 
 $u^0$ is also cached to use it in the stress-energy tensor calculation
 
@@ -1163,12 +1163,8 @@ void calculate_particle_intermediates(execution_context& ectx,
         tensor<valuef, 3, 3> Sij;
 
         for(int i=0; i < 3; i++)
-        {
             for(int j=0; j < 3; j++)
-            {
                 Sij[i, j] = (mass * vel[i] * vel[j] / lorentz) * dirac;
-            }
-        }
 
         std::array<valuef, 6> Sij_sym = extract_symmetry(Sij);
 
@@ -1314,7 +1310,7 @@ This gives something that looks like this (with tricubic interpolation):
 
 <iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/sihIgbl4DZM?si=mZJZQbHNVWQaje8J" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-The initial conditions are approximate with a slight eccentricity, and there's also a gradual inspiral as they likely emit gravitational waves. They're still comparatively massive particles compared to what's valid in newtonian physics, so this isn't surprising
+The initial conditions are approximate with a slight eccentricity, and there's also a gradual inspiral as they likely emit gravitational waves. They're still massive particles compared to what's valid in newtonian physics, so this isn't surprising
 
 ## Black hole formation
 
@@ -1366,7 +1362,7 @@ And a further (20%) zoomed out version of the original test case:
 
 ## Particle orbiting a black hole
 
-We should be able to simulate a particle orbiting a black hole nearly exactly
+It should be possible to simulate a particle orbiting a black hole nearly exactly
 
 |Parameter | Value |
 |-|-|
@@ -1393,9 +1389,9 @@ Coming into this article, I had two primary goals:
 
 [^obvious]: The most obvious improvement I have not included is decoupling the rate of particle stepping, from the simulation stepping. This would allow you to simulate ~100M particles. There are places where a reasonably significant amount of memory could be saved as well - eg you don't really need to triple buffer mass, and you can likely reduce the precision of the particle's position by assigning them to cells
 
-On both of these fronts, the approach laid out here has gone extremely well in general. The performance is particularly nice - with the only new configuration choice being between trilinear, or tricubic interpolation - with a relatively clear rule[^clear] as to when to pick one or another. I'm also particularly happy with the formalism used here - its a new discovery for me, and it contains several major advantages over the alternatives
+On both of these fronts, the approach laid out here has gone extremely well in general. The performance is particularly nice - with the only new configuration choice being between trilinear, or tricubic interpolation[^clear]. I'm also particularly happy with the formalism used here - its a new discovery for me, and it contains several major advantages over the alternatives
 
-[^clear]: If a particle's mass is high relative to the surrounding environment, use tricubic. If its low, use trilinear. If in doubt, use tricubic
+[^clear]: If a particle's mass is high relative to the surrounding environment, use tricubic. If it is low, use trilinear. If in doubt, use tricubic
 
 This article was significantly delayed by two things:
 
@@ -1405,6 +1401,8 @@ This article was significantly delayed by two things:
 Both of these are discussed in the appendix, but overall I'm pretty happy with how well this simulation has gone this time round
 
 ![catend](/assets/nr6_ending.jpg)
+
+Next time around we'll be pulling out gravitational waves from these simulations, at last!
 
 # Appendix
 
