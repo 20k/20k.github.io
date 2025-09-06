@@ -1511,7 +1511,7 @@ There are a variety of other techniques here for evolving the path of a particle
 
 ### The formalism we use for raytracing, $V^i$
 
-See [here](https://arxiv.org/pdf/1208.3927). The primary disadvantage of this formalism is that it uses $K_{ij}$, and so requires a huge amount of extra memory bandwidth to trace the path of a particle. On my todo list is to see if the formalism used in this article can replace the raytracing
+See [here](https://arxiv.org/pdf/1208.3927). The primary disadvantage of this formalism is that it uses $K_{ij}$, and so requires a huge amount of extra memory bandwidth to trace the path of a particle. On my to do list is to see if the formalism used in this article can replace the raytracing
 
 ### A formalism based on the 4-momentum $p^\mu$
 
@@ -1664,13 +1664,11 @@ So at that point, that brings me onto the next topic: Simulating a galaxy
 
 I could not for the life of me simulate a galaxy under any circumstances. I have absolutely no clue why. I'm going to list the things I tried, and possible causes of this problem
 
-Todo: Link references
-
-Here's a flat disk galaxy
+Here's a [flat disk galaxy](https://galaxiesbook.org/chapters/II-01.-Gravitation-in-Galactic-Disks_2-Simple-gravitational-potentials-for-flattened-mass-distributions.html#Razor-thin-disk:-The-Kuzmin-model)
 
 <iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/MZEF8zZ7G9w?si=CeDUiy-WypAEWE58" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-Here's a galaxy with a Z component:
+Here's a galaxy with a [Z component](https://galaxiesbook.org/chapters/II-01.-Gravitation-in-Galactic-Disks_2-Simple-gravitational-potentials-for-flattened-mass-distributions.html#Thickened-disk:-the-Miyamoto-Nagai-model). [This](https://ned.ipac.caltech.edu/level5/Sept16/Sofue/Sofue4.html) link contains a lot of useful information as well
 
 ![galaxyz](/assets/nr6_galaxy.PNG)
 
