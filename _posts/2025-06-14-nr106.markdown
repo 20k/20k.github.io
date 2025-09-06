@@ -747,7 +747,7 @@ There are many situations in which trilinear interpolation is perfectly fine: Tr
 
 With this, the floating point nightmare portion of this article is finally over
 
-Todo: Cat
+![happydoge](/assets/nr6_doge.jpeg)
 
 # Initial conditions
 
@@ -761,7 +761,7 @@ The Hamiltonian and momentum constraints are the two physical constraints that w
 
 ## 4-velocity
 
-Here, velocity is defined relative to the inertial frame of reference of the particle when stationary TODO: IS THIS TRUE? ITS DEPENDENT ON THE SLICING. This means that to calculate the 4-velocity, we need to first construct a tetrad. While in the general case you'll need to [Gram-Schidt](https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process) the metric to find a set of tetrads (eg see [here](https://20k.github.io/c++/2024/06/19/tetrads.html)), our initial conditions will always produce a diagonal metric - which makes tetrad construction straightforward
+Here, velocity is defined relative to the inertial frame of reference of the particle when stationary TODO: IS THIS TRUE? ITS DEPENDENT ON THE SLICING. This means that to calculate the 4-velocity, we need to first construct a tetrad. While in the general case you'll need to [Gram-Schmidt](https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process) the metric to find a set of tetrads (eg see [here](https://20k.github.io/c++/2024/06/19/tetrads.html)), our initial conditions will always produce a diagonal metric - which makes tetrad construction straightforward
 
 Firstly, take the following initial slice: $\alpha = 1, \beta^i = 0$. Then, construct the metric tensor as follows:
 
@@ -1282,7 +1282,11 @@ To actually consume the data in the BSSN kernel, I convert the 64-bit fixed poin
 
 # Test Cases / Results
 
-With this, all the implementation work is done. Finding good test cases is tricky, so here's a few good ones you can have a go with
+With this, all the implementation work is done. Hooray!
+
+![cat_bag](/assets/nr6_wes_bag.jpg)
+
+Finding good test cases is tricky, so here's a few good ones you can have a go with
 
 ## Binary orbit
 
@@ -1398,6 +1402,8 @@ This article was significantly delayed by two things:
 2. A failure to simulate a galaxy
 
 Both of these are discussed in the appendix, but overall I'm pretty happy with how well this simulation has gone this time round
+
+![catend](/assets/nr6_ending.jpg)
 
 # Appendix
 
