@@ -14,13 +14,17 @@ This is a bit of an underexplored topic compared to Newtonian physics and tradit
 
 While the title might be about general relativity - this article is actually secretly an unexpected crash course in IEEE floats and accuracy in numerical algorithms, as well as running through some of the unique numerical problems that using C/C++ presents
 
-But first up: Some background
+As always, the code for this article is available over [here](https://github.com/20k/20k.github.io/blob/master/code/NR6). If you’re looking for someone with a lot of enthusiasm for GPU programming, and who’d rather love to do a PhD in numerical relativity - please give me a shout![^contact]
+
+[^contact]: My email is icedshot@gmail.com, or if you’d like - follow my bluesky at [@spacejames.bsky.social](https://bsky.app/profile/spacejames.bsky.social). Please feel free to contact me for any reason at all, even if you want to just chit chat or nerd out about space
 
 ![wes1](/assets/nr6_open.jpg)
 
+First up: Some background
+
 # What are we doing?
 
-In both General Relativity, and Newtonian physics, we deal with pointlike particles when doing N-body dynamics. Each particle is fully described by its mass, position, and velocity in both formalisms - there's no spin here
+In both General Relativity, and Newtonian physics, we deal with pointlike particles when doing N-body dynamics. Each particle is fully described by its mass, position, and velocity in both formalisms - we'll be ignoring spin here
 
 In Newtonian physics, each particle directly exerts a force on all other particles, which is famously:
 
