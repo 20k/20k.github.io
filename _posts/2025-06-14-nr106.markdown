@@ -1406,6 +1406,66 @@ Next time around we'll be pulling out gravitational waves from these simulations
 
 # Appendix
 
+
+## C++ and floating point - a brief overview
+
+I've tried very hard to keep this article largely clear of extended discussions around the state of floating point in C++ (and C-style languages more broadly). The language is very creaky compared to modern alternatives when dealing with floating point
+
+If you've been reading this article, the floating point contraction segment shows how this feature severely complicates getting accurate results in real world use cases, which is a bit unfortunate - more modern languages tend not to go for this approach. Automatic floating point contraction within an expression feels like a very 90s solution to the problem, when compilers were a wild west with floats
+
+For example, there's no portable way to specify that I want floating point contraction in the following code:
+
+```c++
+float v1 = a*b;
+float v2 = v1 + c;
+```
+
+In fact, there's no way to write a `float` replacement class that actually mimics the semantics of `float` in C++, which is an odd byproduct of the floating point contraction rules. On the other hand, one of the major reasons we're using code generation in this article series, is because I *do* want optimisations like the following:
+
+```c++
+float v1 = 0 * a; //-> 0
+float v2 = (a + 1.f) - 1.f //-> a;
+```
+
+where appropriate. C style languages don't really let you pick and choose your optimisations like this, so I've had to use code generation to get rather dramatic speedups (up to 100x!). These articles very heavily rely on the automated application of these transforms for performance on the generated AST - it would be an absolute nightmare to replicate the performance via hand written code (I've tried)
+
+### Modern approaches
+
+There are two approaches I've seen in modern languages
+
+1. A `fast_float` or `algebraic_float` type
+2. Tags like `[[reassoc_on, fp_contract_on, denormals_off]]`, or whatever syntax pops out of the void
+
+#1 is the easiest to implement, but it immediately runs into the non composability of the optimisations you might want to apply, and is too limiting to be all that useful
+
+#2 is a much better approach in general, but its still too limiting. For example, lets take the following code:
+
+```c++
+float v1 = a * b;
+float v2 = v1 + c + d * b + e;
+```
+
+Let's say for some reason, I want the compiler to generate `maybe_fma(a, b, c) + d*b + e`. The issue with most approaches like compiler pragmas, custom types, and ``[[]]``'s is that they are far too coarse in terms of the regions they denote to apply optimisations to
+
+What I'd really like is this:
+
+```c++
+fp_configure("one", fp_contract_on);
+fp_configure("two", fp_contract_off);
+
+float v1 = fp_region(a*b, "one");
+float v2 = fp_region(v1 + c, "one") + fp_region(d*b + e, "two");
+```
+
+Or the moral equivalent of that. For the code in these articles, I know *precisely* where I'm allowed to perform various optimisations - and yet there's simply no way to express that to the compiler. There'd likely be a free 20% performance win if I could mark up exactly where the compiler was allowed to go hands off with the optimiser
+
+Hopefully a language will get this right someday, because there's a tonne of performance *and* correctness being left on the table in all mainstream languages as of today
+
+### Other problems
+
+There's some other issues I haven't tried to address in this article: namely that the results of `<cmath>` are not portable. C++ doesn't really constrain their results, and this is another break from IEEE
+
+
 ## The literature
 
 ### Particle dynamics
@@ -1430,7 +1490,28 @@ See [here (2.27)](https://arxiv.org/pdf/1904.07841). The main problem with this 
 
 ## Other stress energy tensor techniques
 
-Todo:
+This is probably my 5th full reimplementation of particle dynamics in numerical relativity. One thing I was very aware of going into this is that I'd never come up with a good system for dealing with the accumulation step - GPUs aren't especially well suited to the structure of the accumulation step. I'd steered clear of atomics in the past because I thought that the performance of 64-bit atomics would be very bad, but its been a surprisingly good solution
+
+Here's some other ideas that didn't work so well:
+
+### Sorting particles into cells
+
+The optional performance improvement listed slightly later was originally a core part of the particle algorithm. The idea is that you can assign each particle to a cell, and then a single thread can iterate over the possible Dirac sample locations for all particles in that grid cell, and accumulate them. This seems nice as it saves on atomics, but it is slower than the current scheme for the following reasons:
+
+1. The amount of work per-cell varies significantly depending on the particle distribution. Particles can and do end up very concentrated in certain parts of the grid, leading to pathological performance issues
+2. The memory layout of where particles live is bad, as the particles that occupy a cell are laid out *sequentially* in memory - which does not map well to how GPUs prefer memory access. Because the number of particles per-cell is variable, this is unfixable
+3. The local summation still has to be in fixed point instead of floats, as the particles per-cell is random. Either that, or you have to sort the particles
+
+Its a nice idea to chop down on atomics, but it doesn't really work. The potential upside is that you can use 32-bit fixed point, rather than 64-bit fixed point, as you've already performed a significant amount of summation in advance locally - this may be good on platforms that lack 64-bit atomics
+
+### Sorting Dirac samples into cells
+
+Similar to the above, you can use a slab allocator to push individual Dirac samples into cells. This has the advantage that the final accumulation step requires no atomics whatsoever. The primary issues are as follows:
+
+1. The number of Dirac samples is absolutely massive, and requires gigabytes worth of a slab allocator
+2. The slab allocation technique is fundamentally a two pass method. Iterating over every particle is quick, but iterating over every Dirac sample is slow due to their vast number
+3. The workload per-cell is extremely variable
+4. The memory overhead is cubic with the size of a Dirac particle
 
 ## An optional performance improvement
 
@@ -1527,64 +1608,6 @@ void permute_memory(execution_context& ectx, particle_base_args<buffer<valuef>> 
 ```
 
 These three kernels are run sequentially, and this provides a significant speedup
-
-## C++ and floating point - a brief overview
-
-I've tried very hard to keep this article largely clear of extended discussions around the state of floating point in C++ (and C-style languages more broadly). The language is very creaky compared to modern alternatives when dealing with floating point
-
-If you've been reading this article, the floating point contraction segment shows how this feature severely complicates getting accurate results in real world use cases, which is a bit unfortunate - more modern languages tend not to go for this approach. Automatic floating point contraction within an expression feels like a very 90s solution to the problem, when compilers were a wild west with floats
-
-For example, there's no portable way to specify that I want floating point contraction in the following code:
-
-```c++
-float v1 = a*b;
-float v2 = v1 + c;
-```
-
-In fact, there's no way to write a `float` replacement class that actually mimics the semantics of `float` in C++, which is an odd byproduct of the floating point contraction rules. On the other hand, one of the major reasons we're using code generation in this article series, is because I *do* want optimisations like the following:
-
-```c++
-float v1 = 0 * a; //-> 0
-float v2 = (a + 1.f) - 1.f //-> a;
-```
-
-where appropriate. C style languages don't really let you pick and choose your optimisations like this, so I've had to use code generation to get rather dramatic speedups (up to 100x!). These articles very heavily rely on the automated application of these transforms for performance on the generated AST - it would be an absolute nightmare to replicate the performance via hand written code (I've tried)
-
-### Modern approaches
-
-There are two approaches I've seen in modern languages
-
-1. A `fast_float` or `algebraic_float` type
-2. Tags like `[[reassoc_on, fp_contract_on, denormals_off]]`, or whatever syntax pops out of the void
-
-#1 is the easiest to implement, but it immediately runs into the non composability of the optimisations you might want to apply, and is too limiting to be all that useful
-
-#2 is a much better approach in general, but its still too limiting. For example, lets take the following code:
-
-```c++
-float v1 = a * b;
-float v2 = v1 + c + d * b + e;
-```
-
-Let's say for some reason, I want the compiler to generate `maybe_fma(a, b, c) + d*b + e`. The issue with most approaches like compiler pragmas, custom types, and ``[[]]``'s is that they are far too coarse in terms of the regions they denote to apply optimisations to
-
-What I'd really like is this:
-
-```c++
-fp_configure("one", fp_contract_on);
-fp_configure("two", fp_contract_off);
-
-float v1 = fp_region(a*b, "one");
-float v2 = fp_region(v1 + c, "one") + fp_region(d*b + e, "two");
-```
-
-Or the moral equivalent of that. For the code in these articles, I know *precisely* where I'm allowed to perform various optimisations - and yet there's simply no way to express that to the compiler. There'd likely be a free 20% performance win if I could mark up exactly where the compiler was allowed to go hands off with the optimiser
-
-Hopefully a language will get this right someday, because there's a tonne of performance *and* correctness being left on the table in all mainstream languages as of today
-
-### Other problems
-
-There's some other issues I haven't tried to address in this article: namely that the results of `<cmath>` are not portable. C++ doesn't really constrain their results, and this is another break from IEEE
 
 ## Things that did not go so well
 
