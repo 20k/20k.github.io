@@ -844,15 +844,16 @@ To figure $\bar{A}_{ij}$ out, its time to dip into the momentum constraint
 
 ## $\bar{A}_{ij}$ and the momentum constraint
 
-When our particles are not moving, $\bar{A}_{ij} = 0$, which makes this rather easy. All particle papers I have looked at use stationary particles, and it seems like nobody wants to touch this problem with a 100ft barge pole. As a professional barge pole toucher, this question has been haunting me for a while
+When a particles is not moving, $\bar{A}_{ij} = 0$, which makes this rather easy. All particle papers I have looked at use stationary particles, and it seems like nobody wants to touch this problem with a 100ft barge pole. As a professional barge pole toucher, this question has been haunting me for a while
 
-One exploratory approach is to repurpose the [neutron star](https://arxiv.org/pdf/1606.04881) initial conditions paper that was the focus of [this](https://20k.github.io/c++/2025/04/15/nr104.html) article - set the pressure to $0$, and to model a body without spin. When an object does not have spin, the solution becomes spherically symmetric. The reduced problem is as follows:
+One approach is to repurpose the [neutron star](https://arxiv.org/pdf/1606.04881) initial conditions paper that was the focus of [this](https://20k.github.io/c++/2025/04/15/nr104.html) article - set the pressure to $0$, and to model a body without spin. When an object does not have spin, the solution becomes spherically symmetric. The reduced problem is as follows:
 
 $$\begin{align}
-\bar{A}^{ij} &= \frac{3Q}{2r^2}(P^i l^j + P^j l^i - (\eta^{ij} - l^i l^j) P_i l^i)\\
+\bar{A}^{ij}_p &= \frac{3Q}{2r^2}(P^i l^j + P^j l^i - (\eta^{ij} - l^i l^j) P_i l^i)\\
 Q &= \int^r_0 4 \pi \sigma(x) x^2 dx\\
 \sigma(x) &= \frac{\tilde{\rho}_H}{\mathcal{M}}\\
 \mathcal{M} &= 4 \pi \int^{r_0}_0 \tilde{\rho}_H r^2 dr\\
+\bar{A}^{ij} &= \sum^N_{p=1} \bar{A}^{ij}_p\\
 \end{align}$$
 
 Strictly speaking, this is approximate - as it assumes that $W$ is constant within the body, and so disappears in the normalisation factor $\mathcal{M}$. Tests show that this reduces the momentum constraint violations significantly. This isn't worth solving for the following reasons:
