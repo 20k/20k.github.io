@@ -1,6 +1,6 @@
 ---
 layout: post
-title:  "Numerical Relativity 106: There are some particles and we're going to simulate them innit"
+title:  "Numerical Relativity 106: Relativistic N-body physics with millions of particles"
 date:   2025-06-14 12:33:23 +0000
 categories: C++
 published: true
