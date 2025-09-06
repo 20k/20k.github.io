@@ -32,7 +32,7 @@ $$
 T_{\mu\nu} = \frac{m}{\sqrt{-g}}\delta^{(3)}(x^i - x^i_p) \frac{u_\mu u_\nu}{u^0}
 $$
 
-Or in ADM quantities (there's a quick refresher afterwards)
+Or in ADM quantities (there's a quick refresher afterwards):
 
 $$
 T_{\mu\nu} = m \alpha^{-1} W^3 \delta^{(3)}(x^i - x_{\mathrm{p}}^i)\frac{u_\mu u_\nu}{u^0}\\
@@ -76,7 +76,7 @@ The BSSN formalism is a further decomposition of the above variables and is what
 
 # These equations in the ADM formalism
 
-## Stress-energy
+## Stress-energy $T_{\mu\nu}$
 
 We need the ADM projections ('source terms') of $T_{\mu\nu}$, to get quantities we can actually plug into our equations. These are [(2.14, 2.15, 2.20)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf):
 
@@ -88,7 +88,7 @@ S_{ij} &= \alpha^{-1} W^3 &&\sum m \frac{u_i u_j}{u^0} \delta^{(3)}(x^i - x^i_{\
 \end{alignat}
 $$
 
-These quantities will be evaluated at every cell in our grid $x^i$ - except for $u^0$, which is calculated from interpolated quantities at $x^i_p$
+These quantities will be evaluated at every cell in our grid $x^i$
 
 ## The geodesic equation
 
@@ -198,7 +198,7 @@ We want that to be precisely $1$ - meaning that whatever quantity we put onto th
 
 ![dirac3](/assets/nr6_dirac_3.png)
 
-The remedy is to calculate the exact amount of the Dirac delta function that intersects with a grid cell. You can do this by integrating the Dirac delta function within the bounds of the cell in question:
+The remedy is to calculate the exact amount of the Dirac delta function that intersects a grid cell. You can do this by integrating the Dirac delta function within the bounds of the cell in question:
 
 $$\Delta^{(1)}_{\mathrm{good}}(x) = \frac{\int_{x - \frac{h}{2}}^{x + \frac{h}{2}} \Delta^{(1)}(y) dy}{h}$$
 
@@ -212,13 +212,13 @@ Where $x, y, z$ are the coordinates of a grid cell in world coordinates
 
 ## Strange numerical problems
 
-If you try and implement this discretisation with a simple test case (two particles orbiting each other), you'll quickly run into a rather odd issue:
+Before we get to any concrete implementation details, I'm now going to skip forwards a little, and pretend that you've written an implementation of this particle dynamics based on all the theory presented so far. A simple test case is two particles orbiting each other - but if you try this, you'll quickly run into a rather odd issue:
 
 <iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/-1GiOJhyMP0?si=YrHQiZzjsDmokmkD" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
 The particles drift over to the right, which is clearly incorrect. Clearly, somewhere in this fictitious implementation, some *asymmetry* has crept in from our perfectly symmetric initial conditions
 
-To implement this correctly, you're now going to learn more about C++, IEEE floats, and cryptic problems in the literature than you signed up for when you clicked on this article. Things are going to get increasingly involved from here on out, so here's a picture of a cat:
+To implement this correctly, you're now going to learn more about C++, IEEE floats, and cryptic problems in the literature than you signed up for when you clicked on this article. Things are going to get increasingly involved from here on out, so here's a picture of the numerical stability emotional support cat:
 
 ![catbreak](/assets/nr6_cat_break.jpg)
 
@@ -230,7 +230,7 @@ Let's examine the form of a general 1D integration in time problem, spatially di
 |-|-|-|-|-|-|-|-|
 |Value|$a_0$|$b_0$|$c_0$|$d_0$|$c_0$|$b_0$|$a_0$|
 
-I've set up the initial conditions such that they're symmetric about the index $3$. After a single timestep into the future, we want our state to evolve as follows:
+I've set up the initial conditions such that they're symmetric about the index $3$, with the lower index representing how many steps we've taken so far. After a single timestep into the future, we want our state to evolve as follows:
 
 |Cell Index|0|1|2|3|4|5|6|
 |-|-|-|-|-|-|-|-|
@@ -244,7 +244,7 @@ Ie, for any correct simulation, that initial symmetry should be preserved. In vi
 
 This can be root caused to three similar problems:
 
-1. Floating point arithmetic is not associative
+1. Floating point arithmetic is not distributive
 2. C++ has special rules for transforming expressions involving floats, via a loophole in the standard that breaks with the IEEE spec for reasons™
 3. The precision for floats is non uniform
 
@@ -268,7 +268,7 @@ The issue is that after each floating point operation, a rounding step is perfor
 
 This results in systematic differences in rounding on both sides of the grid, and this error can build up surprisingly fast as we've seen - as we're essentially preferentially discarding the low bits of our floats but biased in a specific direction
 
-You might think you can just rewrite this as follows, by grouping equidistant cells:
+The correct theoretical solution is to group equidistant cells together when performing this calculation, and you can check that this results in exactly the same rounding:
 
 ```c++
 float diff(const std::vector<float>& points, int idx, float scale)
@@ -368,9 +368,36 @@ This means that $r_s$ is now the full size of the particle in world coordinates,
 
 $$\Delta_{\mathrm{best}}^{(3)}(x_c, y_c, z_c) =  \int_{z_c - 0.5}^{z_c + 0.5} \int_{y_c - 0.5}^{y_c + 0.5} \int_{x_c - 0.5}^{x_c + 0.5} \Delta_2\left (\frac{\sqrt{(x - x_c^{\mathrm{idx}})^2 + (y - y_c^{\mathrm{idx}})^2 + (z - z_c^{\mathrm{idx}})^2}}{(\frac{r_s}{h})}, r_s \right ) dx dy dz$$
 
-Where $x_c, y_c, z_c$ represents the integral position of the cell in question in cell-based coordinates, and these half offsets can be represented exactly[^unsuref]. $x_c^{\mathrm{idx}}, y_c^{\mathrm{idx}}, z_c^{\mathrm{idx}}$ is the position of the particle, converted into those same cell based coordinates. This avoids the first set of numerical problems. Next up, we need to deal with the integration itself
+Where $x_c, y_c, z_c$ represents the integral position of the cell in question in cell-based coordinates, and these half offsets can be represented exactly[^unsuref]. $x_c^{\mathrm{idx}}, y_c^{\mathrm{idx}}, z_c^{\mathrm{idx}}$ is the position of the particle, converted into those same cell based coordinates
 
 [^unsuref]: If you're unsure of why, floating point guarantees the exact representability of whole numbers and fractional powers of $2$ when you have sufficient precision available
+
+```c++
+valuef integrate_dirac_gpu(auto&& func, v3f cell_pos, v3f dirac_location, valuef radius_cells, valuef scale)
+{
+    using namespace single_source;
+
+    auto im1 = cell_pos - (v3f){1,1,1} / 2;
+    auto ip1 = cell_pos + (v3f){1,1,1} / 2;
+    pin(im1);
+    pin(ip1);
+
+    return integrate_3d_trapezoidal([&](const valuef& x, const valuef& y, const valuef& z)
+    {
+        tensor<valuef, 3> pos = {x, y, z};
+        pin(pos);
+
+        valuef r = (pos - dirac_location).length();
+        pin(r);
+
+        valuef out = func(r / radius_cells, radius_cells * scale);
+        pin(out);
+        return out;
+    }, 2, ip1, im1);
+}
+```
+
+Next up, we need to deal with the integration itself
 
 ### Trapezoidal integration
 
@@ -451,7 +478,7 @@ We now need to step into our final hard problem: Interpolation
 
 # Interpolation
 
-This is the full set of equations to evolve a particle:
+This is the full set of equations to evolve a particle's properties:
 
 $$\begin{align}
 \frac{d u_i}{dt} &= - \widehat{\alpha} u^0 \widehat{\partial_i \alpha} + u_j \widehat{\partial_i \beta^j} - \frac{u_j u_k}{2 u^0} \widehat{\partial_i \gamma^{jk}}\\
@@ -641,7 +668,7 @@ auto tricubic_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
 
 #### Complex but correct
 
-This is the pairwise matched summation version of the above. GPU loops are emitted instead of unrolled, as AMD appears to suffer when too many memory accesses are emitted. I also calculate the node location instead of sticking it into an array, to avoid indexing into a stack array with dynamic indices[^gpuland]
+This is the pairwise matched summation version of the above. GPU loops are emitted instead of unrolled, as AMD appears to suffer when too many memory accesses are emitted. I also calculate the node location instead of putting it into an array, to avoid indexing into a stack array with dynamic indices[^gpuland]
 
 [^gpuland]: GPUs don't have a data stack, so dynamic indices can cause the array to be promoted to L2 cache, which is bad
 
@@ -741,29 +768,33 @@ auto tricubic_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
 }
 ```
 
-One of the reasons I write these articles is to save you from the same pain I have had to experience. There's no way around the fact that this is fairly complicated. The naive implementation of this is simple, but my goodness is this a joy. Even without the asymmetry issues, pairwise summation has a reduced error term - so its better than just a big linear sum
+The naive implementation of this is simple, but there's no way around the fact that this is quite complex. Even without the asymmetry issues, pairwise summation has a reduced error term - so its better than just a big linear sum
 
 There are many situations in which trilinear interpolation is perfectly fine: Tricubic is only important when the mass of the particle is high relative to the ambient environment it is embedded in, as that is when precise interpolation at the particle's position is very important
 
-With this, the floating point nightmare portion of this article is finally over
+![happydoge](/assets/nr6_doge.png)
 
-![happydoge](/assets/nr6_doge.jpeg)
+With this, the floating point nightmare portion of this article is finally over
 
 # Initial conditions
 
 There are three non trivial components to the initial conditions:
 
-1. Define the particle's 4-velocity
-2. Solve the Hamiltonian constraint - via a laplacian
-3. Possibly solve the momentum constraint - this is uncharted waters
+1. The particle's 4-velocity
+2. Solving the Hamiltonian constraint - via a laplacian
+3. Possibly solving the momentum constraint - this is uncharted waters
 
 The Hamiltonian and momentum constraints are the two physical constraints that we must satisfy for our initial conditions to be valid. On top of this, you'll need to set up a particle with a rest mass, and set its position
 
 ## 4-velocity
 
-Here, velocity is defined relative to the inertial frame of reference of the particle when stationary TODO: IS THIS TRUE? ITS DEPENDENT ON THE SLICING. This means that to calculate the 4-velocity, we need to first construct a tetrad. While in the general case you'll need to [Gram-Schmidt](https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process) the metric to find a set of tetrads (eg see [here](https://20k.github.io/c++/2024/06/19/tetrads.html)), our initial conditions will always produce a diagonal metric - which makes tetrad construction straightforward
+When you have a particle, the natural way to define a velocity is as a direction, and magnitude as a fraction of the speed of light - a pure 3D vector. The question we have to answer to create a 4-velocity is: what is that velocity relative to in a strongly curved gravitational field?
 
-Firstly, take the following initial slice: $\alpha = 1, \beta^i = 0$. Then, construct the metric tensor as follows:
+In the ADM formalism, an observer is defined by the gauge conditions: the lapse $\alpha$, and shift $\beta^i$. Universally, this observer is implicitly set to $\alpha = 1$, $\beta^i = 0$ during the construction of the initial conditions. This is a geodesic slicing - which means that the observer is in free fall
+
+A frame of reference (here, a tetrad) created from our metric will therefore represent an observer in free fall. We can then turn a 3D velocity *locally* into a 4-velocity in that frame of reference, and then the tetrad basis will correctly convert it into a 4-velocity in our globally curved spacetime
+
+First: We need to construct a tetrad. While in the general case you'll need to [Gram-Schmidt](https://en.wikipedia.org/wiki/Gram%E2%80%93Schmidt_process) the metric to find a set of tetrads (see [here](https://20k.github.io/c++/2024/06/19/tetrads.html)), our initial conditions will always produce a diagonal metric - which makes tetrad construction straightforward. The metric tensor for us with a geodesic slicing is as follows:
 
 |$g_{\mu\nu}$|0|1|2|3|
 |-|-|-|-|-|
@@ -781,7 +812,7 @@ e_2^2 &= \frac{1}{\sqrt{\gamma_{11}}}\\
 e_3^3 &= \frac{1}{\sqrt{\gamma_{22}}}\\
 \end{align}$$
 
-The lower index labels the tetrad vector, and the upper index labels the coordinate. From here, you first construct a 4-velocity locally, and then use the tetrad to find the global 4-velocity:
+The lower index labels the tetrad vector, and the upper index labels the coordinate. From here, you first construct a 4-velocity locally (from our 3D velocity $v$), and then use the tetrad to find the global 4-velocity:
 
 $$\begin{align}
 \gamma &= \frac{1}{\sqrt{1 - \mid v \mid^2}}\\
@@ -795,7 +826,7 @@ Note that the $i$ index runs from $0$ to $4$ contrary to the rest of this articl
 
 ## Hamiltonian constraint solving
 
-Its important to solve the hamiltonian constraint as part of the initial conditions (see [here](https://20k.github.io/c++/2025/01/12/nr102.html#solving-for-u) for exact details), because errors here are quite sticky, and can leave visual 'welts' on your simulation that are very noticeable. The hamiltonian constraint that we'll be using can be derived from [2.11](https://arxiv.org/pdf/1905.08890), and with the standard set of constraints gives us a laplacian:
+The hamiltonian constraint is as follows (derived from [2.11](https://arxiv.org/pdf/1905.08890)):
 
 $$
 \nabla \psi = - \frac{1}{8} \psi^{-7} \bar{A}_{ij} \bar{A}^{ij} - 2 \pi \psi^5 \rho_H
@@ -806,7 +837,7 @@ We only need two things to solve this:
 1. $\rho_H$: the scalar source term for the stress-energy tensor
 2. $\bar{A}_{ij}$: the conformal extrinsic curvature
 
-Once we have both of these, the ADM + BSSN variables are constructed [as usual](https://20k.github.io/c++/2025/01/12/nr102.html#finishing-up)[^technical]
+Once we have both of these, the ADM + BSSN variables are constructed [as usual](https://20k.github.io/c++/2025/01/12/nr102.html#finishing-up)[^technical]. See [here](https://20k.github.io/c++/2025/01/12/nr102.html#solving-for-u) for a prior discussion on how to solve laplacians of this form - there's nothing new here
 
 [^technical]: One thing I've ensured in general is that these articles are all compatible with each other. All conformal decompositions and notation is the same unless specifically stated otherwise
 
@@ -816,21 +847,17 @@ We already know from earlier:
 
 $$\rho_H = \alpha W^3 \sum m u^0 \delta^{(3)}(x^i - x^i_{\mathrm{p}})$$
 
-The only issue is that we don't have a value of $W$ that we can use. To solve this, we just need to convert $W$ (the BSSN conformal factor) to $\psi$ (the initial conditions conformal factor). This works as follows:
+The only issue is that we don't have a value of $W$ that we can use. To solve this, we just need to convert $W$ (the BSSN conformal factor) to $\psi$ (the initial conditions conformal factor). This is derived from the following relation:
 
 $$\begin{align}
-\bar{\gamma}_{ij} \psi^4 &= \gamma_{ij}\\
-\tilde{\gamma}_{ij} &= W^2 \gamma_{ij}\\
+\bar{\gamma}_{ij} \psi^4 = \gamma_{ij} = W^{-2} \tilde{\gamma}_{ij}\\
 \end{align}
 $$
 
-Then apply the rules of determinants:
+Which gives:
 
 $$\begin{align}
-det(\bar{\gamma}_{ij} \psi^4) &= det(\gamma_{ij}) = det(\tilde{\gamma}_{ij} W^{-2})\\
-(\psi^4)^3 &= (W^{-2})^3\\
-\psi^{12} &= W^{-6}\\
-\psi^{-6} &= W^3\\
+W^3 = \psi^{-6}
 \end{align}
 $$
 
@@ -838,7 +865,7 @@ Lets now define $$\bar{\rho}_H = \sum m u^0 \delta^{(3)}(x^i - x^i_{\mathrm{p}})
 
 $$\nabla \psi = - \frac{1}{8} \psi^{-7} \bar{A} _{ij} \bar{A}^{ij} - 2 \pi \psi^{-1} \bar{\rho}_H$$
 
-This is actually solvable. Setting aside $\bar{A}_{ij}$ for a moment, the procedure for solving this is detailed [here](https://20k.github.io/c++/2025/01/12/nr102.html#solving-for-u), but it is a bog standard laplacian
+This is actually solvable. Setting aside $\bar{A}_{ij}$ for a moment, the procedure for solving this is detailed [here](https://20k.github.io/c++/2025/01/12/nr102.html#solving-for-u), and it is a bog standard laplacian
 
 To figure $\bar{A}_{ij}$ out, its time to dip into the momentum constraint
 
@@ -856,7 +883,7 @@ Q &= \int^r_0 4 \pi \sigma(x) x^2 dx\\
 \bar{A}^{ij} &= \sum^N_{\mathrm{idx}=1} \bar{A}^{ij}_{\mathrm{idx}}\\
 \end{align}$$
 
-I'm not going to dig into this much, because there's nothing new here. Strictly speaking, this is approximate - as it assumes that $W$ is constant within the body, and so disappears in the normalisation factor $\mathcal{M}$. Tests show that this reduces the initial momentum constraint violations significantly. This isn't worth solving for the following reasons:
+Strictly speaking, this is approximate - as it assumes that $W$ is constant within the body, and so disappears in the normalisation factor $\mathcal{M}$. Tests show that this reduces the initial momentum constraint violations significantly. This isn't worth solving for the following reasons:
 
 1. Generally we're dealing with relatively low velocity particles, so $\bar{A}_{ij} \approx 0$, and that choice works well enough
 2. All real-world formalisms are momentum constraint damped, so errors disappear quickly

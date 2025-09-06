@@ -61,7 +61,7 @@ T integrate_dirac_cpu(auto&& func, tensor<T, 3> cell_pos, tensor<T, 3> dirac_loc
 }
 
 inline
-valuef integrate_dirac_gpu(auto&& func, const v3f& cell_pos, const v3f& dirac_location, const valuef& radius_cells, const valuef& scale)
+valuef integrate_dirac_gpu(auto&& func, v3f cell_pos, v3f dirac_location, valuef radius_cells, valuef scale)
 {
     using namespace single_source;
 
@@ -72,10 +72,8 @@ valuef integrate_dirac_gpu(auto&& func, const v3f& cell_pos, const v3f& dirac_lo
 
     #define GET_DIRAC_CORRECTED
     #ifdef GET_DIRAC_CORRECTED
-    tensor<valuef, 3> scale3 = {1, 1, 1};
-
-    auto im1 = cell_pos - scale3 / 2;
-    auto ip1 = cell_pos + scale3 / 2;
+    auto im1 = cell_pos - (v3f){1,1,1} / 2;
+    auto ip1 = cell_pos + (v3f){1,1,1} / 2;
     pin(im1);
     pin(ip1);
 
@@ -87,9 +85,7 @@ valuef integrate_dirac_gpu(auto&& func, const v3f& cell_pos, const v3f& dirac_lo
         valuef r = (pos - dirac_location).length();
         pin(r);
 
-        valuef frac = r / radius_cells;
-
-        valuef out = func(frac, radius_cells * scale);
+        valuef out = func(r / radius_cells, radius_cells * scale);
         pin(out);
         return out;
     }, 2, ip1, im1);
