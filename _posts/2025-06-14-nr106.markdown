@@ -72,7 +72,8 @@ The 4D metric tensor of general relativity $g_{\mu\nu}$ gets split up into the f
 |-|-|
 |$\gamma_{ij}$|The 3D metric tensor|
 |$K_{ij}$| The extrinsic curvature|
-|$n^\mu$| The hypersurface normal, normally broken up into $\alpha$ (lapse) and $\beta^i$ (shift)|
+|$\alpha$| The lapse, a gauge variable|
+|$\beta^i$| The shift, a gauge variable|
 
 Greek indices $\mu\nu$ run from 0-4 inclusive, and latin indices $ijk$ run from 1-3 inclusive
 
@@ -116,7 +117,7 @@ $$
 \frac{dx^i}{dt} = -\beta^i + \frac{\gamma^{ij} u_j}{u^0}
 $$
 
-Note that all the quantities evaluated here need to be interpolated from the grid at the particle's position $x^i_\mathrm{p}$ - keep this in mind for $u^0$. I precalculate $u^0$ in the evolution step, and re-use that in the stress-energy calculation
+Note that all the quantities evaluated here need to be interpolated from the grid at the particle's position $x^i_\mathrm{p}$
 
 # Outstanding problems
 
@@ -127,9 +128,11 @@ At this point, we've essentially run out of general relativity to dig through en
 3. Initial conditions
 4. Implementation
 
-You've probably noticed the *suspiciously* long scrollbar on this article at this point, so you can likely guess that things are about to turn into a gigantic mess. Our first major problem customer is the Dirac delta function
+You've probably noticed the *suspiciously* long scrollbar on this article at this point, so you can likely guess that things are about to turn into a gigantic mess
 
 ![dog1](/assets/nr6_dog1.jpeg)
+
+Our first major problem customer is the Dirac delta function
 
 # The Dirac delta function $\delta(x)$
 
@@ -216,7 +219,7 @@ Where $x, y, z$ are the coordinates of a grid cell in world coordinates
 
 ## Strange numerical problems
 
-Before we get to any concrete implementation details, I'm now going to skip forwards a little, and pretend that you've written an implementation of this particle dynamics based on all the theory presented so far. A simple test case is two particles orbiting each other - but if you try this, you'll quickly run into a rather odd issue:
+Before we get to any concrete implementation details, I'm now going to skip forwards a little, and pretend that you've written an implementation based on all the theory presented so far. A simple test case is two particles orbiting each other - but if you try this, you'll quickly run into a rather odd issue:
 
 <iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/-1GiOJhyMP0?si=YrHQiZzjsDmokmkD" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
@@ -248,7 +251,7 @@ Ie, for any correct simulation, that initial symmetry should be preserved. In vi
 
 This can be root caused to three similar problems:
 
-1. Floating point arithmetic is not distributive
+1. Floating point arithmetic is not distributive: $(a + b) + c \neq a + (b + c)$
 2. C++ has special rules for transforming expressions involving floats, via a loophole in the standard that breaks with the IEEE spec for reasons™
 3. The precision for floats is non uniform
 
