@@ -348,8 +348,6 @@ Another source of error is the way we've implemented the dirac delta function. T
 1. The integral is over arbitrary floats, which can lead to representation issues
 2. The integration itself contains errors
 
-Todo: This implementation I think is overly complicated. I'm not sure the cell based coordinates aspect is at all necessary
-
 First off, lets swap everything to cell index based coordinates instead. I've also changed $\Delta$ to take in a fraction in the range $[0, 1]$ - because its easier to reason about
 
 $$
@@ -374,8 +372,7 @@ There are several important features here:
 
 1. $x_c, y_c, z_c$ represents the integral position of the cell in question in cell-based coordinates
 2. $x_c^{\mathrm{idx}}, y_c^{\mathrm{idx}}, z_c^{\mathrm{idx}}$ is the position of the particle, converted into cell based coordinates
-3. The subtraction $x_c - x_c^{\mathrm{idx}}$ can be done without ever actually calculating the grid cell explicitly, as we only need the fractional *offset*
-4. It is now much easier to reason about the accuracy of the integration bounds
+3. The integration bounds cannot contain errors
 
 ```c++
 valuef integrate_dirac_gpu(auto&& func, v3f cell_pos, v3f dirac_location, valuef radius_cells, valuef scale)
@@ -394,44 +391,14 @@ valuef integrate_dirac_gpu(auto&& func, v3f cell_pos, v3f dirac_location, valuef
         return func(r / radius_cells, radius_cells * scale);
     }, 2, ip1, im1);
 }
-
-void for_each_dirac(v3i dim, valuef scale, v3f dirac_pos, int radius_cells, auto&& func)
-{
-    using namespace single_source;
-    assert(radius_cells > 0);
-
-    //returns the cell location, and the offset within that cell
-    auto [cell, frac] = world_to_grid_by_parts(dirac_pos, dim, scale);
-    pin(cell);
-    pin(frac);
-
-    //The appropriate modification is rightwards + 1, leftwards + 0
-    int spread = radius_cells + 1;
-
-    mut<valuei> z = declare_mut_e(valuei(-radius_cells));
-
-    for_e(z <= spread, assign_b(z, z+1), [&]{
-        mut<valuei> y = declare_mut_e(valuei(-radius_cells));
-
-        for_e(y <= spread, assign_b(y, y+1), [&]{
-            mut<valuei> x = declare_mut_e(valuei(-radius_cells));
-
-            for_e(x <= spread, assign_b(x, x+1), [&]{
-                v3i offset = {declare_e(x), declare_e(y), declare_e(z)};
-
-                valuef dirac = integrate_dirac_gpu(dirac_delta<valuef>, (v3f)offset, frac, radius_cells, scale);
-                pin(dirac);
-
-                if_e(dirac > 0, [&]{
-                    func(offset + cell, dirac);
-                });
-            });
-        });
-    });
-}
 ```
 
-Next up, we need to deal with the integration itself
+Evaluated naively in grid cells where $(0,0,0)$ is the top left cell, this still runs into representation issues with lopsided precision. To fix this, you either need to:
+
+1. Use a scheme where your grid cell indices span the range [dim/2, dim/2]
+2. Treat the current cell of the particle as having index $(0,0,0)$, which turns `dirac_location` into a fraction, and `cell_pos` becomes an offset
+
+I use the second. Next up, we need to deal with the integration itself
 
 ### Trapezoidal integration
 
