@@ -30,23 +30,15 @@ In Newtonian physics, each particle directly exerts a force on all other particl
 
 $$F = \frac{G m_1 m_2}{r^2}$$
 
-In general relativity, particles instead act interact through the stress-energy tensor $T_{\mu\nu}$, and do not *directly* interact. For a single particle, the stress-energy tensor is defined as follows [(2.5)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf) + [here](https://physics.stackexchange.com/questions/644402/deriving-the-energy-momentum-tensor-of-a-point-particle):
+In general relativity, particles instead act interact through the stress-energy tensor $T_{\mu\nu}$, and do not *directly* interact. For a single particle, the stress-energy tensor is defined as follows [(here)](https://physics.stackexchange.com/questions/644402/deriving-the-energy-momentum-tensor-of-a-point-particle):
 
 $$
 T_{\mu\nu} = \frac{m}{\sqrt{-g}}\delta^{(3)}(x^i - x^i_p) \frac{u_\mu u_\nu}{u^0}
 $$
 
-Or in ADM quantities (there's a quick refresher afterwards):
-
-$$
-T_{\mu\nu} = m \alpha^{-1} W^3 \delta^{(3)}(x^i - x_{\mathrm{p}}^i)\frac{u_\mu u_\nu}{u^0}\\
-$$
-
 |Symbol | Meaning |
 |-|-|
 |$m$ | The rest mass of a particle |
-|$\alpha$ | The lapse, evaluated at $x^i$ |
-| $W$ | The conformal factor, evaluated at $x^i$ |
 | $\delta^{(3)}(x)$ | The 3d dirac delta function - this only takes a nonzero value when $x = 0$. This a very non trivial term that we'll get back to |
 | $x^i$ | The current coordinate position you're looking at in the world |
 | $x^i_{\mathrm{p}}$ | The position of the particle |
@@ -60,30 +52,28 @@ As for how they move, particles follow (timelike) geodesics, and their motion is
 
 $$u^\mu \nabla_\mu u_\nu = 0$$
 
-We'll have to rework this equation a bit and transplant it into the ADM formalism, but for once there simply isn't that much general relativity to dig through
-
-# Quick refresher course
-
-Today we're working in the ADM formalism. This is a method of breaking up a 4D spacetime into 3 spatial dimensions, and 1 timelike dimension. The ADM formalism give us an actual set of equations that we can integrate forwards in time
-
-The 4D metric tensor of general relativity $g_{\mu\nu}$ gets split up into the following quantities:
-
-|Symbol|Description|
-|-|-|
-|$\gamma_{ij}$|The 3D metric tensor|
-|$K_{ij}$| The extrinsic curvature|
-|$\alpha$| The lapse, a gauge variable|
-|$\beta^i$| The shift, a gauge variable|
-
-Greek indices $\mu\nu$ run from 0-4 inclusive, and latin indices $ijk$ run from 1-3 inclusive
-
-The BSSN formalism is a further decomposition of the above variables and is what we actually use here. This article's numerical problems are unrelated to anything to do with the BSSN or ADM formalisms, so I'll be skipping over them
+We'll have to rework these equations a bit and transplant them into the ADM formalism, but for once there simply isn't that much general relativity to dig through
 
 # These equations in the ADM formalism
 
+In the ADM formalism, we split spacetime up into three spatial dimensions, and one timelike dimension. The metric tensor $g_{\mu\nu}$ is also split up into a variety of components: for a full look at the formalism and why its necessary to do all of this, check out [this](https://20k.github.io/c++/2024/07/31/nr101.html#the-adm-arnowittdesermisner-formalism) link
+
+For today, you only need to keep in mind two things:
+
+1. The ADM formalism defines a timelike vector $n^\mu$ at each point in space, which defines the concept of forwards in time. The variables that make up $n^\mu$ are the lapse $\alpha$, and shift $\beta^i$. These are our gauge variables
+2. $\gamma_{ij}$, $$\tilde{\gamma}_{ij}$$, $$K_{ij}$$, $$\tilde{A}_{ij}$$, $W$ are all derived in different ways from $g_{\mu\nu}$, and represent some piece of information about spacetime
+
+There's surprisingly little general relativity in this article after the end of this segment, so I'm not going to be running through this in detail
+
 ## Stress-energy $T_{\mu\nu}$
 
-We need the ADM projections ('source terms') of $T_{\mu\nu}$, to get quantities we can actually plug into our equations. These are [(2.14, 2.15, 2.20)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf):
+The stress energy tensor in the ADM formalism is as follows [(2.5)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf):
+
+$$
+T_{\mu\nu} = m \alpha^{-1} W^3 \delta^{(3)}(x^i - x_{\mathrm{p}}^i)\frac{u_\mu u_\nu}{u^0}\\
+$$
+
+Where $W$ is the BSSN conformal factor, and $\alpha$ is the lapse. We need the ADM projections ('source terms') of $T_{\mu\nu}$, to get the quantities we can actually plug into our equations. These are [(2.14, 2.15, 2.20)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf):
 
 $$
 \begin{alignat}{2}
@@ -93,7 +83,7 @@ S_{ij} &= \alpha^{-1} W^3 &&\sum m \frac{u_i u_j}{u^0} \delta^{(3)}(x^i - x^i_{\
 \end{alignat}
 $$
 
-These quantities will be evaluated at every cell in our grid $x^i$
+So far so good. These quantities will be evaluated at every cell in our grid $x^i$
 
 ## The geodesic equation
 
@@ -126,9 +116,9 @@ At this point, we've essentially run out of general relativity to dig through en
 1. What is $\delta(x)$?
 2. Interpolation
 3. Initial conditions
-4. Implementation
+4. Implementing everything
 
-You've probably noticed the *suspiciously* long scrollbar on this article at this point, so you can likely guess that things are about to turn into a gigantic mess
+You've probably noticed the *suspiciously* long scrollbar at this point, so you can likely guess that things are about to turn into a gigantic mess
 
 ![dog1](/assets/nr6_dog1.jpeg)
 
@@ -386,20 +376,14 @@ valuef integrate_dirac_gpu(auto&& func, v3f cell_pos, v3f dirac_location, valuef
 
     auto im1 = cell_pos - (v3f){1,1,1} / 2;
     auto ip1 = cell_pos + (v3f){1,1,1} / 2;
-    pin(im1);
-    pin(ip1);
 
     return integrate_3d_trapezoidal([&](const valuef& x, const valuef& y, const valuef& z)
     {
         tensor<valuef, 3> pos = {x, y, z};
-        pin(pos);
 
         valuef r = (pos - dirac_location).length();
-        pin(r);
 
-        valuef out = func(r / radius_cells, radius_cells * scale);
-        pin(out);
-        return out;
+        return func(r / radius_cells, radius_cells * scale);
     }, 2, ip1, im1);
 }
 ```
@@ -494,67 +478,56 @@ u^0 &= \frac{\sqrt{1 + \widehat{\gamma^{ij}} u_i u_j}}{\widehat{\alpha}}\\
 \end{align}
 $$
 
-I've put hats over the variables that need to be interpolated at the particle's position $x^i$. A naive trilinear interpolation will lead to the same precision issues talked about above: Luckily, this is quite easily fixable:
+I've put hats over the variables that need to be interpolated at the particle's position $x^i$. A good starting point here is [trilinear interpolation](https://en.wikipedia.org/wiki/Trilinear_interpolation)
+
+## Trilinear Interpolation
+
+In every trilinear interpolation scheme, you linearly interpolate between values in two grid cells - we might imagine a simple `mix` function that performs this operation:
 
 ```c++
-template<typename T
-inline
-auto function_trilinear(T&& func, v3f pos)
+float mix(float a, float b, float t)
 {
-    using namespace single_source;
-
-    v3f floored = floor(pos);
-    pin(floored);
-    v3f frac = pos - floored;
-    pin(frac);
-
-    v3i ipos = (v3i)floored;
-
-    auto c000 = func(ipos + (v3i){0,0,0});
-    auto c100 = func(ipos + (v3i){1,0,0});
-
-    auto c010 = func(ipos + (v3i){0,1,0});
-    auto c110 = func(ipos + (v3i){1,1,0});
-
-    auto c001 = func(ipos + (v3i){0,0,1});
-    auto c101 = func(ipos + (v3i){1,0,1});
-
-    auto c011 = func(ipos + (v3i){0,1,1});
-    auto c111 = func(ipos + (v3i){1,1,1});
-
-    auto lmix = [&](auto& a, auto& b, auto& t)
-    {
-        auto imx = no_opt(1-t);
-        auto imimx = no_opt(1-imx);
-
-        auto p1 = no_opt(imx * a);
-        auto p2 = no_opt(imimx * b);
-
-        return no_opt(p1 + p2);
-    };
-
-    auto c00 = lmix(c000, c100, frac.x());
-    auto c01 = lmix(c010, c110, frac.x());
-
-    auto c10 = lmix(c001, c101, frac.x());
-    auto c11 = lmix(c011, c111, frac.x());
-
-    auto c0 = lmix(c00, c01, frac.y());
-    auto c1 = lmix(c10, c11, frac.y());
-
-    return lmix(c0, c1, frac.z());
+    return a * (1 - t) + b * t;
 }
 ```
 
-Note that `no_opt` in the scheme I'm using forces a variable declaration, to disable floating point contraction. `lmix` guarantees the property:
+As-written, this won't work! To avoid the two sides of our grid from diverging, we need the following property to be true:
 
-$$\mathrm{lmix}(a, b, t) == \mathrm{lmix}(b, a, 1-t)$$
+$$ mix(a, b, t) = mix(b, a, 1-t) $$
 
-To understand how, first off: notice that floating point values $< 0.5$ and $>0.5$ have different amounts of precision available to them, ie the precision is non uniform. Essentially, we want to force these ranges to have the *same* precision. This can be done by doing $1-(1-\mathrm{value})$, to create an extra rounding step, and ensures that everything has the same precision in the range
+You can probably already spot that we'll have to work around floating point contraction, but there's actually a second problem here: $t > 0.5$ and $t < 0.5$ have different amounts of precision available to them, due to the variable precision of floats. This breaks the symmetry we need, by introducing different rounding on both sides of $0.5$
 
-Trilinear interpolation is otherwise a very standard algorithm, and not worth diving into. In many situations, trilinear interpolation is perfectly fine, but we'll have to go into when it is not
+To fix this, you can force $t$ and $1-t$ to have the same precision. Written in a modern[^contraction] language this looks as follows:
 
-## Trilinear Interpolation can be a problem
+[^contraction]: I am strongly not a fan of floating point contraction
+
+```rust
+f32 mix(f32 a, f32 b, f32 t)
+{
+    return a * (1 - t) + b * (1-(1-t));
+}
+```
+
+Or in C++:
+
+```c++
+float mix(float a, float b, float t)
+{
+    float imx = 1-t;
+    float imimx = 1-imx;
+
+    float left = a * imx;
+    float right = b * imimx;
+
+    return left + right;
+}
+```
+
+We'll be using this trick again later, and I discovered it due to a helpful [stack exchange](https://cs.stackexchange.com/questions/59625/numerical-stability-of-linear-interpolation#comment193740_59650) comment
+
+Trilinear interpolation is otherwise a very standard algorithm, and there is nothing else special we have to do. In many situations, trilinear interpolation is perfectly fine, but we'll have to go into when it is not
+
+### Trilinear Interpolation can be a problem
 
 The motion of a particle here is largely governed by the interpolated term $\partial_i \alpha$, ie the derivative of the lapse
 
@@ -566,7 +539,7 @@ A particle's contribution to its own velocity however should be precisely 0 ($\p
 
 <iframe loading="lazy" width="560" height="315" src="https://www.youtube.com/embed/g46gswzmTKM?si=uBy-HsxWKC4Sd0OI" title="YouTube video player" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture; web-share" referrerpolicy="strict-origin-when-cross-origin" allowfullscreen></iframe>
 
-For everyone who doesn't want to squint at a video, the particle wobbles back and forth around a fixed spot. The fact that a particle can spontaneously self accelerate like this clearly indicates the presence of a major error
+For everyone who doesn't want to squint at a video, the particle wobbles back and forth around a fixed spot. The fact that a particle can spontaneously self accelerate like this means that something is clearly wrong
 
 This ends up being a straightforward problem: When we perform any kind of interpolation, the accuracy goes down the further away you interpolate from your known data. In our case, this can cause $\partial_i \alpha \neq 0$ at the position of the particle. This is an especially severe error - as a moving particle will experience periodic error terms as it drifts between cells - which is why it wobbles back and forth above. It will also cause *very* strange issues like the following abrupt failure:
 
@@ -574,7 +547,7 @@ This ends up being a straightforward problem: When we perform any kind of interp
 
 Alleviating this involves constructing a higher order interpolation scheme to reduce the error in the interpolation, with the caveat that we still have to deal with all the same floating point rounding issues as before. There's no way to *entirely* eliminate this problem, and reconstruction error is one of the fundamental downsides of a particle based technique
 
-## Tricubic interpolation
+## Tricubic Interpolation
 
 The next step up from trilinear interpolation, is tricubic interpolation. It is common to use Hermite[^hermite] interpolation - this kind of interpolation guarantees the values of the derivatives at the boundary, but this isn't a useful property for us
 
@@ -582,7 +555,7 @@ The next step up from trilinear interpolation, is tricubic interpolation. It is 
 
 What we actually want is tricubic Lagrangian interpolation, via a [Lagrange interpolating polynomial](https://en.wikipedia.org/wiki/Lagrange_polynomial). This does not require us to know the values of the derivatives anywhere, and it is both faster and more accurate than Hermite interpolation
 
-### Cubic Lagrangian interpolation
+### Cubic Lagrangian Interpolation
 
 The minimum number of points to do cubic interpolation is $4$. We'll operate in grid cells, which means that we have the following node structure:
 
@@ -800,7 +773,7 @@ The natural way to define a particle's velocity is as a 3D vector, with its magn
 1. In the ADM formalism, the observer is defined by the gauge variables: $\alpha$, and $\beta^i$
 2. These are universally[^universally] set to $\alpha = 1$, and $\beta^i=0$, representing an observer in free fall. This is called a geodesic slicing
 3. We can then create a frame of reference (tetrad) from our metric tensor, and it will represent this free-falling observer
-4. This tetrad links a 4-velocity in a local minkowski spacetime (built from our 3D velocity), to a 4-velocity in the surrounding curved spacetime
+4. This tetrad links a 4-velocity in a locally flat spacetime (built from our 3D velocity), to a 4-velocity in the surrounding curved spacetime
 
 [^universally]: I've noticed in several papers that this step seems to be performed implicitly. I do **not** know if it is well motivated, only that it *is* being done implicitly. For example, consider [this](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf) paper. $E$ (2.14) contains an $\alpha$ term, which means under a maximal slicing, in theory you have to solve for $\alpha$ and $\psi$ simultaneously. However, they simply compute $\psi$ first, despite it having the form $-2 \pi E \psi^5$, which contains an $\alpha$ term. The only way this is computable is if $\alpha = 1$. [This](https://arxiv.org/pdf/1611.07906) paper (24) also simply drops $\alpha$ implicitly in (11), as $\Gamma = \frac{u^0}{\alpha}$, and can only be $1$ if $\alpha = 1$. Also note in [this](https://arxiv.org/pdf/1606.04881) paper, (6) is only correct if $\alpha = 1$ and $\beta^i = 0$. I would love to know what's going on here - my understanding is that under maximal slicing $\alpha \neq 1$, but it seems that during the construction of the initial conditions in the CTT formalism you don't need to worry about this. Perhaps $\alpha$ is only fixed if $\partial_t K=0$ - I'm going to assume that I'm missing something here and that its correct to use a geodesic slicing here
 
@@ -813,7 +786,7 @@ First off: We need to construct a tetrad. While in the general case you'll need 
 |2|  |  |  $\gamma_{11}$| |
 |3|  |  |  | $\gamma_{22}$ |
 
-This gives the tetrads via the usual relation for diagonal metrics (ie [1.4.21](https://arxiv.org/pdf/0904.4184)):
+This gives the tetrads via the usual relation for diagonal metrics (see [1.4.21](https://arxiv.org/pdf/0904.4184)):
 
 $$\begin{align}
 e_0^0 &= 1\\
@@ -881,7 +854,7 @@ To figure $\bar{A}_{ij}$ out, its time to dip into the momentum constraint
 
 ## $\bar{A}_{ij}$ and the momentum constraint
 
-When a particle is not moving, $\bar{A}_{ij} = 0$. All particle papers I have looked at use stationary particles, and it seems like nobody wants to touch this problem with a 100ft barge pole. As a professional barge pole toucher, this question has been haunting me for a while
+When a particle is not moving, $\bar{A}_{ij} = 0$. Most particle papers I have looked at use stationary particles, and it seems like nobody wants to touch the general form of this problem with a 100ft barge pole. As a professional barge pole toucher, this question has been haunting me for a while
 
 One approach is to repurpose the [neutron star](https://arxiv.org/pdf/1606.04881) initial conditions paper that was the focus of [this](https://20k.github.io/c++/2025/04/15/nr104.html) article - set the pressure to $0$, and to model a body without spin. When an object does not have spin, the solution becomes spherically symmetric. The reduced problem is as follows:
 
@@ -1061,23 +1034,6 @@ There are two case in which we need to delete particles:
 1. As they approach the boundary of the simulation
 2. In the event horizon of a black hole, to avoid the simulation blowing up
 
-Firstly, particles with no mass are simply not evolved (nor do they contribute to the stress-energy tensor)
-
-```c++
-if_e(!isfinite(mass) || mass == 0, [&]{
-    for(int i=0; i < 3; i++)
-        as_ref(p_out.positions[i][id]) = pos_base[i];
-
-    for(int i=0; i < 3; i++)
-        as_ref(p_out.velocities[i][id]) = vel_base[i];
-
-    as_ref(lorentz_out[id]) = valuef(1.f);
-    as_ref(p_out.masses[id]) = mass;
-
-    return_e();
-});
-```
-
 Instead of an instant delete (which can lead to a sudden burst of constraint violations), I use the following approach:
 
 1. A soft damping in the interior of the black hole, or as the particle approaches the boundary
@@ -1095,7 +1051,7 @@ if_e(dist <= 5 || p_in.masses[id] <= mass_cutoff.get(), [&]{
 });
 ```
 
-The mass cutoff is determined as 10% of the mass of the lightest particle's initial mass, which is a number derived entirely by vibes
+The mass cutoff is determined as 10% of the mass of the lightest particle's initial mass, which is a number derived entirely by vibes. Particles without mass are not evolved, nor do they contribute to the stress-energy tensor
 
 ## Calculating the stress-energy tensor
 
@@ -1162,84 +1118,67 @@ The interesting parts here are:
 This is one of the most critical kernels in the entire program, so I'm going to parse out the interesting bits here:
 
 ```c++
-void calculate_particle_intermediates(execution_context& ectx,
-                                      particle_base_args<buffer<valuef>> particles_in,
-                                      buffer<valuef> lorentz_in,
-                                      particle_utility_args<buffer_mut<valuei64>> out,
-                                      literal<v3i> dim, literal<valuef> scale, literal<value<size_t>> particle_count,
-                                      literal<valued> fixed_scale, int radius_cells)
-{
-    using namespace single_source;
+valuef lorentz = lorentz_in[id];
+valuef mass = particles_in.get_mass(id);
+v3f pos = particles_in.get_position(id);
+v3f vel = particles_in.get_velocity(id);
 
-    value<size_t> id = value_impl::get_global_id_us(0);
-    pin(id);
+pin(pos);
+pin(vel);
+pin(mass);
+pin(lorentz);
 
-    if_e(id >= particle_count.get(), [&]{
-        return_e();
+if_e(!isfinite(mass) || mass == 0, [&]{
+    return_e();
+});
+
+for_each_dirac(dim.get(), scale.get(), pos, radius_cells, [&](v3i offset, valuef dirac) {
+    valuef E = mass * lorentz * dirac;
+    v3f Ji = mass * vel * dirac;
+
+    tensor<valuef, 3, 3> Sij;
+
+    for(int i=0; i < 3; i++)
+        for(int j=0; j < 3; j++)
+            Sij[i, j] = (mass * vel[i] * vel[j] / lorentz) * dirac;
+
+    std::array<valuef, 6> Sij_sym = extract_symmetry(Sij);
+
+    auto scale = [&](valuef in)
+    {
+        valued in_d = (valued)in;
+        valued in_scaled = in_d * fixed_scale.get();
+
+        return (valuei64)round((valuef)in_scaled);
+    };
+
+    valuei64 E_scaled = scale(E);
+
+    std::array<valuei64, 3> Si_scaled;
+
+    for(int i=0; i < 3; i++)
+        Si_scaled[i] = scale(Ji[i]);
+
+    std::array<valuei64, 6> Sij_scaled;
+
+    for(int i=0; i < 6; i++)
+        Sij_scaled[i] = scale(Sij_sym[i]);
+
+    valuei idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
+
+    valuei64 val = out.E.atom_add_e(idx, E_scaled);
+
+    //basic overflow detection, as E > 0
+    if_e(val < 0, [&]{
+        print("Error in particle dynamics\n");
     });
 
-    valuef lorentz = lorentz_in[id];
-    valuef mass = particles_in.get_mass(id);
-    v3f pos = particles_in.get_position(id);
-    v3f vel = particles_in.get_velocity(id);
+    for(int i=0; i < 3; i++)
+        out.Si_raised[i].atom_add_e(idx, Si_scaled[i]);
 
-    pin(pos);
-    pin(vel);
-    pin(mass);
-    pin(lorentz);
-
-    if_e(!isfinite(mass) || mass == 0, [&]{
-        return_e();
-    });
-
-    for_each_dirac(dim.get(), scale.get(), pos, radius_cells, [&](v3i offset, valuef dirac) {
-        valuef E = mass * lorentz * dirac;
-        v3f Ji = mass * vel * dirac;
-
-        tensor<valuef, 3, 3> Sij;
-
-        for(int i=0; i < 3; i++)
-            for(int j=0; j < 3; j++)
-                Sij[i, j] = (mass * vel[i] * vel[j] / lorentz) * dirac;
-
-        std::array<valuef, 6> Sij_sym = extract_symmetry(Sij);
-
-        auto scale = [&](valuef in)
-        {
-            valued in_d = (valued)in;
-            valued in_scaled = in_d * fixed_scale.get();
-
-            return (valuei64)round((valuef)in_scaled);
-        };
-
-        valuei64 E_scaled = scale(E);
-
-        std::array<valuei64, 3> Si_scaled;
-
-        for(int i=0; i < 3; i++)
-            Si_scaled[i] = scale(Ji[i]);
-
-        std::array<valuei64, 6> Sij_scaled;
-
-        for(int i=0; i < 6; i++)
-            Sij_scaled[i] = scale(Sij_sym[i]);
-
-        valuei idx = offset.z() * dim.get().y() * dim.get().x() + offset.y() * dim.get().x() + offset.x();
-
-        valuei64 val = out.E.atom_add_e(idx, E_scaled);
-
-        //basic overflow detection, as E > 0
-        if_e(val < 0, [&]{
-            print("Error in particle dynamics\n");
-        });
-
-        for(int i=0; i < 3; i++)
-            out.Si_raised[i].atom_add_e(idx, Si_scaled[i]);
-
-        for(int i=0; i < 6; i++)
-            out.Sij_raised[i].atom_add_e(idx, Sij_scaled[i]);
-    });
-}
+    for(int i=0; i < 6; i++)
+        out.Sij_raised[i].atom_add_e(idx, Sij_scaled[i]);
+});
 ```
 
 #### The BSSN parts were stripped
@@ -1523,6 +1462,8 @@ See [here](https://arxiv.org/pdf/1208.3927). The primary disadvantage of this fo
 ### A formalism based on the 4-momentum $p^\mu$
 
 See [here (2.27)](https://arxiv.org/pdf/1904.07841). The main problem with this formalism is that it uses the 4-momentum (ie `mass * 4-velocity`). Because the masses we're dealing with are often extremely small, this leads to very high numerical error during evolution. The 4-velocity is a significantly better evolution variable, as the error is then shifted over into the stress-energy calculation - which we can mitigate with fixed-point by scaling the mass. The simulation's error can actually be made largely invariant to the individual particle mass, but tied instead to the total mass per cell - which is a much larger value
+
+For concrete examples: Calculating $E_a$ in (A.5) requires squaring tiny values, and (A.7)-(A.8) requires dividing by very small values after the previous inaccurate step. There's no upside to this formalism
 
 ## Other stress energy tensor techniques
 

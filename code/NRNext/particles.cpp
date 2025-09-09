@@ -7,7 +7,6 @@
 #include "interpolation.hpp"
 #include "../common/vec/dual.hpp"
 #include <vec/stdmath.hpp>
-#include "init_black_hole.hpp"
 #include <toolkit/fs_helpers.hpp>
 #include <imgui/imgui.h>
 #include <toolkit/clock.hpp>
