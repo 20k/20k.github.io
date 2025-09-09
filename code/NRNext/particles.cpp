@@ -45,14 +45,14 @@ T integrate_dirac_cpu(auto&& func, tensor<T, 3> cell_pos, tensor<T, 3> dirac_loc
     #ifdef GET_DIRAC1_CORRECTED
     tensor<T, 3> scale3 = {1, 1, 1};
 
-    auto im1 = cell_pos - scale3 / 2;
-    auto ip1 = cell_pos + scale3 / 2;
+    auto im1 = -scale3 / 2;
+    auto ip1 = scale3 / 2;
 
     return integrate_3d_trapezoidal([&](T x, T y, T z)
     {
         tensor<T, 3> pos = {x, y, z};
 
-        T frac = (pos - dirac_location).length() / radius_cells;
+        T frac = (pos + (cell_pos - dirac_location)).length() / radius_cells;
 
         return func(frac, radius_cells * scale);
     }, 2, ip1, im1);
@@ -71,8 +71,8 @@ valuef integrate_dirac_gpu(auto&& func, v3f cell_pos, v3f dirac_location, valuef
 
     #define GET_DIRAC_CORRECTED
     #ifdef GET_DIRAC_CORRECTED
-    auto im1 = cell_pos - (v3f){1,1,1} / 2;
-    auto ip1 = cell_pos + (v3f){1,1,1} / 2;
+    auto im1 = -(v3f){1,1,1} / 2;
+    auto ip1 = (v3f){1,1,1} / 2;
     pin(im1);
     pin(ip1);
 
@@ -81,7 +81,7 @@ valuef integrate_dirac_gpu(auto&& func, v3f cell_pos, v3f dirac_location, valuef
         tensor<valuef, 3> pos = {x, y, z};
         pin(pos);
 
-        valuef r = (pos - dirac_location).length();
+        valuef r = (pos + (cell_pos - dirac_location)).length();
         pin(r);
 
         valuef out = func(r / radius_cells, radius_cells * scale);

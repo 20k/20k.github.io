@@ -60,7 +60,7 @@ In the ADM formalism, we split spacetime up into three spatial dimensions, and o
 
 For today, you only need to keep in mind two things:
 
-1. The ADM formalism defines a timelike vector $n^\mu$ at each point in space, which defines the concept of forwards in time. The variables that make up $n^\mu$ are the lapse $\alpha$, and shift $\beta^i$. These are our gauge variables
+1. Our two key variables are the lapse $\alpha$, and shift $\beta^i$. These are gauge variables, and can be chosen relatively arbitrarily (in theory)
 2. $\gamma_{ij}$, $$\tilde{\gamma}_{ij}$$, $$K_{ij}$$, $$\tilde{A}_{ij}$$, $W$ are all derived in different ways from $g_{\mu\nu}$, and represent some piece of information about spacetime
 
 There's surprisingly little general relativity in this article after the end of this segment, so I'm not going to be running through this in detail
@@ -73,7 +73,7 @@ $$
 T_{\mu\nu} = m \alpha^{-1} W^3 \delta^{(3)}(x^i - x_{\mathrm{p}}^i)\frac{u_\mu u_\nu}{u^0}\\
 $$
 
-Where $W$ is the BSSN conformal factor, and $\alpha$ is the lapse. We need the ADM projections ('source terms') of $T_{\mu\nu}$, to get the quantities we can actually plug into our equations. These are [(2.14, 2.15, 2.20)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf):
+Where $W$ is the BSSN conformal factor, and $\alpha$ is the lapse. We need the ADM projections ('source terms') of $T_{\mu\nu}$, to get quantities we can actually plug into our equations. These are [(2.14, 2.15, 2.20)](https://scispace.com/pdf/3d-numerical-simulation-of-black-hole-formation-using-43u5c2u959.pdf):
 
 $$
 \begin{alignat}{2}
@@ -345,10 +345,12 @@ Pairwise summation - matching equivalently far away values from the centre toget
 
 Another source of error is the way we've implemented the dirac delta function. There are several issues here:
 
-1. The integral bounds are arbitrary floats, which can lead to representation issues
+1. The integral is over arbitrary floats, which can lead to representation issues
 2. The integration itself contains errors
 
-First off, lets swap everything to cell index based coordinates instead. I've also changed $\Delta$ to take in a fraction in the range $[0, 1]$, because its easier to reason about
+Todo: This implementation I think is overly complicated. I'm not sure the cell based coordinates aspect is at all necessary
+
+First off, lets swap everything to cell index based coordinates instead. I've also changed $\Delta$ to take in a fraction in the range $[0, 1]$ - because its easier to reason about
 
 $$
 \Delta_2^{(3)}(r_f, r_s) = \frac{1}{\pi (\frac{r_s}{2})^3}
@@ -363,28 +365,69 @@ $$
 
 This means that $r_s$ is now the full size of the particle in world coordinates, and $r_f$ is a fraction from 0 to 1. Now we can redefine the integral from earlier:
 
-$$\Delta_{\mathrm{best}}^{(3)}(x_c, y_c, z_c) =  \int_{z_c - 0.5}^{z_c + 0.5} \int_{y_c - 0.5}^{y_c + 0.5} \int_{x_c - 0.5}^{x_c + 0.5} \Delta_2\left (\frac{\sqrt{(x - x_c^{\mathrm{idx}})^2 + (y - y_c^{\mathrm{idx}})^2 + (z - z_c^{\mathrm{idx}})^2}}{(\frac{r_s}{h})}, r_s \right ) dx dy dz$$
+$$
+\begin{align}
+\Delta_{\mathrm{best}}^{(3)}(x_c, y_c, z_c) &=  \int_{-0.5}^{0.5} \int_{-0.5}^{0.5} \int_{-0.5}^{0.5} \\&\Delta_2\left (\frac{\sqrt{(x + (x_c - x_c^{\mathrm{idx}}))^2 + (y + (y_c - y_c^{\mathrm{idx}}))^2 + (z + (z_c - z_c^{\mathrm{idx}}))^2}}{(\frac{r_s}{h})}, r_s \right ) dx dy dz
+\end{align}$$
 
-Where $x_c, y_c, z_c$ represents the integral position of the cell in question in cell-based coordinates, and these half offsets can be represented exactly[^unsuref]. $x_c^{\mathrm{idx}}, y_c^{\mathrm{idx}}, z_c^{\mathrm{idx}}$ is the position of the particle, converted into those same cell based coordinates
+There are several important features here:
 
-[^unsuref]: If you're unsure of why, floating point guarantees the exact representability of whole numbers and fractional powers of $2$ when you have sufficient precision available
+1. $x_c, y_c, z_c$ represents the integral position of the cell in question in cell-based coordinates
+2. $x_c^{\mathrm{idx}}, y_c^{\mathrm{idx}}, z_c^{\mathrm{idx}}$ is the position of the particle, converted into cell based coordinates
+3. The subtraction $x_c - x_c^{\mathrm{idx}}$ can be done without ever actually calculating the grid cell explicitly, as we only need the fractional *offset*
+4. It is now much easier to reason about the accuracy of the integration bounds
 
 ```c++
 valuef integrate_dirac_gpu(auto&& func, v3f cell_pos, v3f dirac_location, valuef radius_cells, valuef scale)
 {
     using namespace single_source;
 
-    auto im1 = cell_pos - (v3f){1,1,1} / 2;
-    auto ip1 = cell_pos + (v3f){1,1,1} / 2;
+    auto im1 = -(v3f){1,1,1} / 2;
+    auto ip1 = (v3f){1,1,1} / 2;
 
     return integrate_3d_trapezoidal([&](const valuef& x, const valuef& y, const valuef& z)
     {
         tensor<valuef, 3> pos = {x, y, z};
 
-        valuef r = (pos - dirac_location).length();
+        valuef r = (pos + (cell_pos - dirac_location)).length();
 
         return func(r / radius_cells, radius_cells * scale);
     }, 2, ip1, im1);
+}
+
+void for_each_dirac(v3i dim, valuef scale, v3f dirac_pos, int radius_cells, auto&& func)
+{
+    using namespace single_source;
+    assert(radius_cells > 0);
+
+    //returns the cell location, and the offset within that cell
+    auto [cell, frac] = world_to_grid_by_parts(dirac_pos, dim, scale);
+    pin(cell);
+    pin(frac);
+
+    //The appropriate modification is rightwards + 1, leftwards + 0
+    int spread = radius_cells + 1;
+
+    mut<valuei> z = declare_mut_e(valuei(-radius_cells));
+
+    for_e(z <= spread, assign_b(z, z+1), [&]{
+        mut<valuei> y = declare_mut_e(valuei(-radius_cells));
+
+        for_e(y <= spread, assign_b(y, y+1), [&]{
+            mut<valuei> x = declare_mut_e(valuei(-radius_cells));
+
+            for_e(x <= spread, assign_b(x, x+1), [&]{
+                v3i offset = {declare_e(x), declare_e(y), declare_e(z)};
+
+                valuef dirac = integrate_dirac_gpu(dirac_delta<valuef>, (v3f)offset, frac, radius_cells, scale);
+                pin(dirac);
+
+                if_e(dirac > 0, [&]{
+                    func(offset + cell, dirac);
+                });
+            });
+        });
+    });
 }
 ```
 
@@ -396,64 +439,29 @@ I use trapezoidal integration to implement the integration above, which has the 
 
 $$\int^b_a f(x) dx = \Delta x \left (\frac{f(x_0) + f(x_N)}{2} + \sum^{n-1}_{k=1} f(x_k)\right )$$
 
-Evaluated naively, the running sum on the right hand side can cause asymmetry to sneak back in. For $N=2$, you can ignore this problem - as long as you evaluate the left terms ($\frac{f(x_0) + f(x_N)}{2}$) and right sum separately
+The running sum on the right hand side can cause asymmetry to sneak back in, as well as causing representation issues for the interpolated coordinate position. For $N=2$ however, you can simply ignore[^ignore] this, and this is more than enough accuracy for our problem
 
-Because this article is intended to save you existential pain, I've implemented a scheme that works for any value of $N$ - by using pairwise summation[^worthit]
-
-[^worthit]: If you're wondering, is this really worth it? This kind of pairwise summation has a reduced error term over a simple running sum, so we may as well
+[^ignore]: Fixing this would involve seriously disrupting the article flow for no benefit. With that in mind, if do you want a generic routine here, you need to use the `lmix` function presented later to calculate the coordinate, as well as using grid coordinates that are in the range [-dim/2, dim/2]. Additionally, you need to perform a pairwise summation of the interior sum - the easiest way to do this is to recursively break your problem into halves, and sum when you have two elements
 
 ```c++
-template<typename T>
-inline
-T symmetric_sum(std::span<T> in)
-{
-    if(in.size() == 0)
-        return T{};
-
-    if(in.size() == 1)
-        return in.front();
-
-    if(in.size() == 2)
-        return in[0] + in[1];
-
-    //odd
-    if((in.size() % 2) != 0)
-    {
-        int middle = (in.size() - 1) / 2;
-
-        std::span left = in.subspan(0, middle);
-        std::span right = in.subspan(middle + 1);
-
-        return symmetric_sum(left) + symmetric_sum(right) + in[middle];
-    }
-    //even
-    else
-    {
-        int middle = in.size() / 2;
-
-        std::span left = in.subspan(0, middle);
-        std::span right = in.subspan(middle);
-
-        return symmetric_sum(left) + symmetric_sum(right);
-    }
-}
-
 template<typename T, typename U>
 inline
 auto integrate_1d_trapezoidal(const T& func, int n, const U& upper, const U& lower)
 {
     using variable_type = decltype(func(U()));
 
-    std::vector<variable_type> sum;
+    variable_type sum = 0;
 
     for(int k=1; k < n; k++)
     {
         auto coordinate = lower + k * (upper - lower) / n;
 
-        sum.push_back(func(coordinate));
+        auto val = func(coordinate);
+
+        sum += val;
     }
 
-    return ((upper - lower) / n) * (0.5f * (func(lower) + func(upper)) + symmetric_sum(std::span{sum}));
+    return ((upper - lower) / n) * (0.5f * (func(lower) + func(upper)) + sum);
 }
 ```
 
