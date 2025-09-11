@@ -1,17 +1,40 @@
 #ifndef INTEGRATION_HPP_INCLUDED
 #define INTEGRATION_HPP_INCLUDED
 
+inline
+float no_opt(float v)
+{
+    return v;
+}
+
 template<typename T, typename U>
 inline
 auto integrate_1d_trapezoidal(const T& func, int n, const U& upper, const U& lower)
 {
+    using namespace single_source;
+
     using variable_type = decltype(func(U()));
 
     variable_type sum = 0;
 
+    auto lmix = [&](auto& a, auto& b, auto& t)
+    {
+        auto imx = no_opt(1-t);
+        auto imimx = no_opt(1-imx);
+
+        auto p1 = no_opt(imx * a);
+        auto p2 = no_opt(imimx * b);
+
+        return no_opt(p1 + p2);
+    };
+
     for(int k=1; k < n; k++)
     {
-        auto coordinate = lower + k * (upper - lower) / n;
+        float frac = (float)k/n;
+
+        auto coordinate = lmix(lower, upper, frac);
+
+        //auto coordinate = lower + k * (upper - lower) / n;
 
         auto val = func(coordinate);
 

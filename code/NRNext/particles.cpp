@@ -71,8 +71,8 @@ valuef integrate_dirac_gpu(auto&& func, v3f cell_pos, v3f dirac_location, valuef
 
     #define GET_DIRAC_CORRECTED
     #ifdef GET_DIRAC_CORRECTED
-    auto im1 = -(v3f){1,1,1} / 2;
-    auto ip1 = (v3f){1,1,1} / 2;
+    auto im1 =  - (v3f){scale, scale, scale}/2;
+    auto ip1 = (v3f){scale, scale, scale}/2;
     pin(im1);
     pin(ip1);
 
@@ -84,10 +84,10 @@ valuef integrate_dirac_gpu(auto&& func, v3f cell_pos, v3f dirac_location, valuef
         valuef r = (pos + (cell_pos - dirac_location)).length();
         pin(r);
 
-        valuef out = func(r / radius_cells, radius_cells * scale);
+        valuef out = func(r / (radius_cells * scale), radius_cells * scale);
         pin(out);
         return out;
-    }, 2, ip1, im1);
+    }, 2, ip1, im1) / (scale*scale*scale);
     #endif // GET_DIRAC_CORRECTED
 }
 
@@ -140,7 +140,12 @@ void for_each_dirac(v3i dim, valuef scale, v3f dirac_pos, int radius_cells, auto
             for_e(x <= spread, assign_b(x, x+1), [&]{
                 v3i offset = {declare_e(x), declare_e(y), declare_e(z)};
 
-                valuef dirac = integrate_dirac_gpu(dirac_delta<valuef>, (v3f)offset, frac, radius_cells, scale);
+                //v3f pos = grid_to_world((v3f)(offset + cell), dim, scale);
+
+                v3i ipos = (offset + cell) - ((dim - 1) / 2);
+                v3f pos = (v3f)ipos * scale;
+
+                valuef dirac = integrate_dirac_gpu(dirac_delta<valuef>, pos, dirac_pos, radius_cells, scale);
                 pin(dirac);
 
                 if_e(dirac > 0, [&]{
