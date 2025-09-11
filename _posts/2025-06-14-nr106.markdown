@@ -341,14 +341,21 @@ Pairwise summation - matching equivalently far away values from the centre toget
 
 [^compiler]: This is at least partly due to compiler-itus, as compilers are much better at optimising within an expression, than across multiple expressions. Its a big part of the reason why I use code generation in these articles, and one of the reasons why floating point contraction is often an anti performance feature. Forcing code to be written in the style of `diff_long` is a significant pessimisation, even in the total absence of floating point contraction
 
-## Fixing dirac
+## Fixing Dirac
+
+Todo: the 1-1- trick is key to all of this
+Todo: This inherently needs a rewrite, which upsets article flow
+Todo: I could use the dim-dim-x trick
+Todo: Delete the dirac conclusion segment, move the loop over cells section up here. Have a new numerical conclusion segment
 
 Another source of error is the way we've implemented the dirac delta function. There are several issues here:
 
 1. The integral is over arbitrary floats, which can lead to representation issues
 2. The integration itself contains errors
 
-First off, lets swap everything to cell index based coordinates instead. I've also changed $\Delta$ to take in a fraction in the range $[0, 1]$ - because its easier to reason about
+First off, lets swap everything to cell index based coordinates, because we can operate over integral[^integral] values much more easily. I've also changed $\Delta$ to take in a fraction in the range $[0, 1]$ - because its easier to reason about
+
+[^integral]: If floats weren't much faster on the GPU, I likely rewrite a lot of this to use integers
 
 $$
 \Delta_2^{(3)}(r_f, r_s) = \frac{1}{\pi (\frac{r_s}{2})^3}
@@ -393,7 +400,7 @@ valuef integrate_dirac_gpu(auto&& func, v3f cell_pos, v3f dirac_location, valuef
 }
 ```
 
-Evaluated naively in grid cells where $(0,0,0)$ is the top left cell, this still runs into representation issues with lopsided precision. To fix this, you either need to:
+Evaluated naively in grid cells where $(0,0,0)$ is the top left cell, this still runs into representation issues with lopsided precision. Eg with a grid width of $255$, cells $1.x$ and $254.(1-x)$ will have different precision. To fix this, you either need to:
 
 1. Use a scheme where your grid cell indices span the range [dim/2, dim/2]
 2. Treat the current cell of the particle as having index $(0,0,0)$, which turns `dirac_location` into a fraction, and `cell_pos` becomes an offset
