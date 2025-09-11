@@ -341,14 +341,14 @@ Pairwise summation - matching equivalently far away values from the centre toget
 
 [^compiler]: This is at least partly due to compiler-itus, as compilers are much better at optimising within an expression, than across multiple expressions. Its a big part of the reason why I use code generation in these articles, and one of the reasons why floating point contraction is often an anti performance feature. Forcing code to be written in the style of `diff_long` is a significant pessimisation, even in the total absence of floating point contraction
 
-## Fixing Dirac
+# Dirac: Take three
 
 The Dirac delta function as written so far has two major problems with it:
 
 1. The integration is over arbitrary floats, which introduces asymmetry
 2. The representation of the fractional part of a particle's position is difficult to get right
 
-First off, we need to swap everything to using cell coordinates. We're also going to rewrite $\Delta$ to take a fraction in the range $[0, 1]$, because its easier to work with:
+First off, we need to swap everything to grid coordinates. This means instead of integrating in the range $[x-h/2, x+h/2]$, we now integrate over the range $[x_c - 0.5, x_c + 0.5]$. We're also going to rewrite $\Delta$ to take a fraction in the range $[0, 1]$, because its easier to work with:
 
 $$
 \Delta_2^{(3)}(r_f, r_s) = \frac{1}{\pi (\frac{r_s}{2})^3}
@@ -361,14 +361,14 @@ $$
 \end{align}
 $$
 
-This means that $r_s$ is now the full size of the particle in world coordinates, and $r_f$ is a fraction from 0 to 1. In cell coordinates, we can rework the dirac integral to be as follows:
+This means that $r_s$ is now the full size of the particle in world coordinates, and $r_f$ is a fraction from 0 to 1. In grid coordinates, we can rework the dirac integral to be as follows:
 
 $$
 \begin{align}
 \Delta_{\mathrm{best}}^{(3)}(x_c, y_c, z_c) &=  \int_{-0.5}^{0.5} \int_{-0.5}^{0.5} \int_{-0.5}^{0.5} \\&\Delta_2\left (\frac{\sqrt{(x + (x_c - x_c^{\mathrm{idx}}))^2 + (y + (y_c - y_c^{\mathrm{idx}}))^2 + (z + (z_c - z_c^{\mathrm{idx}}))^2}}{(\frac{r_s}{h})}, r_s \right ) dx dy dz
 \end{align}$$
 
-$x_c, y_c, z_c$ is notionally the integral position of the current grid cell, and $x_c^{\mathrm{idx}}, y_c^{\mathrm{idx}}, z_c^{\mathrm{idx}}$ is notionally the position of the particle, converted into cell based coordinates. We'll get back to this very shortly, but the implementation is as follows:
+$x_c, y_c, z_c$ is the integral position of the current grid cell, and $x_c^{\mathrm{idx}}, y_c^{\mathrm{idx}}, z_c^{\mathrm{idx}}$ is the position of the particle, converted into grid coordinates. The implementation is as follows:
 
 ```c++
 valuef integrate_dirac_gpu(auto&& func, v3f cell_pos, v3f dirac_location, valuef radius_cells, valuef scale)
@@ -391,9 +391,9 @@ valuef integrate_dirac_gpu(auto&& func, v3f cell_pos, v3f dirac_location, valuef
 
 The trapezoidal integration is only used with N=2, and so does not pose any numerical problems. This is discussed in the appendix
 
-### Looping over our particle's size
+## Looping over our particle's size
 
-I mentioned that the positions are only notional, this is because its important to only use *offsets*. This is shown below, when looping over the full size of a particle:
+In the above integration, its important to note that we must carefully calculate the quantity $x_c - x_c^{mathrm{idx}}$ in a way that avoids problems. Its important to only use *offsets*, instead of using the full variables as you'd expect. This is shown below, when looping over the full size of a particle:
 
 ```c++
 void for_each_dirac(v3i dim, valuef scale, v3f dirac_pos, int radius_cells, auto&& func)
@@ -432,7 +432,7 @@ void for_each_dirac(v3i dim, valuef scale, v3f dirac_pos, int radius_cells, auto
 }
 ```
 
-`dirac_pos` is the particle's position, and `frac` is the fraction within the cell that a particle is at. Here, `frac` is treated as the particle's position, and the offset of the grid cell in question from particle's containing cell is treated as the position. This avoids representation issues
+`dirac_pos` is the particle's position, and `frac` is the fraction within the grid cell that a particle is at. Here, `frac` is treated as the particle's position, and the offset of the grid cell in question from particle's containing cell is treated as the cell's position. This avoids representation issues
 
 Note that `frac` has the $(1-(1-value))$ trick applied to it, which is described in the interpolation section below
 
