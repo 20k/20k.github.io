@@ -122,9 +122,9 @@ void for_each_dirac(v3i dim, valuef scale, v3f dirac_pos, int radius_cells, auto
     using namespace single_source;
     assert(radius_cells > 0);
 
-    auto [cell, frac] = world_to_grid_by_parts(dirac_pos, dim, scale);
-    pin(cell);
-    pin(frac);
+    //auto [cell, frac] = world_to_grid_by_parts(dirac_pos, dim, scale);
+    //pin(cell);
+    //pin(frac);
 
     //The appropriate modification is rightwards + 1, leftwards + 0
     int spread = radius_cells + 1;
@@ -140,11 +140,15 @@ void for_each_dirac(v3i dim, valuef scale, v3f dirac_pos, int radius_cells, auto
             for_e(x <= spread, assign_b(x, x+1), [&]{
                 v3i offset = {declare_e(x), declare_e(y), declare_e(z)};
 
-                valuef dirac = integrate_dirac_gpu(dirac_delta<valuef>, (v3f)offset, frac, radius_cells, scale);
+                v3f half_pos = no_opt(dirac_pos / scale);
+                v3i half_cell = no_opt((v3i)(half_pos - floor(half_pos)));
+
+
+                valuef dirac = integrate_dirac_gpu(dirac_delta<valuef>, (v3f)(half_cell + offset), half_pos, radius_cells, scale);
                 pin(dirac);
 
                 if_e(dirac > 0, [&]{
-                    func(offset + cell, dirac);
+                    func(offset + half_cell + (dim-1)/2, dirac);
                 });
             });
         });
