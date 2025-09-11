@@ -343,19 +343,12 @@ Pairwise summation - matching equivalently far away values from the centre toget
 
 ## Fixing Dirac
 
-Todo: the 1-1- trick is key to all of this
-Todo: This inherently needs a rewrite, which upsets article flow
-Todo: I could use the dim-dim-x trick
-Todo: Delete the dirac conclusion segment, move the loop over cells section up here. Have a new numerical conclusion segment
+The Dirac delta function as written so far has two major problems with it:
 
-Another source of error is the way we've implemented the dirac delta function. There are several issues here:
+1. The integration is over arbitrary floats, which introduces asymmetry
+2. The representation of the fractional part of a particle's position is difficult to get right
 
-1. The integral is over arbitrary floats, which can lead to representation issues
-2. The integration itself contains errors
-
-First off, lets swap everything to cell index based coordinates, because we can operate over integral[^integral] values much more easily. I've also changed $\Delta$ to take in a fraction in the range $[0, 1]$ - because its easier to reason about
-
-[^integral]: If floats weren't much faster on the GPU, I likely rewrite a lot of this to use integers
+First off, we need to swap everything to using cell coordinates. We're also going to rewrite $\Delta$ to take a fraction in the range $[0, 1]$, because its easier to work with:
 
 $$
 \Delta_2^{(3)}(r_f, r_s) = \frac{1}{\pi (\frac{r_s}{2})^3}
@@ -368,18 +361,14 @@ $$
 \end{align}
 $$
 
-This means that $r_s$ is now the full size of the particle in world coordinates, and $r_f$ is a fraction from 0 to 1. Now we can redefine the integral from earlier:
+This means that $r_s$ is now the full size of the particle in world coordinates, and $r_f$ is a fraction from 0 to 1. In cell coordinates, we can rework the dirac integral to be as follows:
 
 $$
 \begin{align}
 \Delta_{\mathrm{best}}^{(3)}(x_c, y_c, z_c) &=  \int_{-0.5}^{0.5} \int_{-0.5}^{0.5} \int_{-0.5}^{0.5} \\&\Delta_2\left (\frac{\sqrt{(x + (x_c - x_c^{\mathrm{idx}}))^2 + (y + (y_c - y_c^{\mathrm{idx}}))^2 + (z + (z_c - z_c^{\mathrm{idx}}))^2}}{(\frac{r_s}{h})}, r_s \right ) dx dy dz
 \end{align}$$
 
-There are several important features here:
-
-1. $x_c, y_c, z_c$ represents the integral position of the cell in question in cell-based coordinates
-2. $x_c^{\mathrm{idx}}, y_c^{\mathrm{idx}}, z_c^{\mathrm{idx}}$ is the position of the particle, converted into cell based coordinates
-3. The integration bounds cannot contain errors
+$x_c, y_c, z_c$ is notionally the integral position of the current grid cell, and $x_c^{\mathrm{idx}}, y_c^{\mathrm{idx}}, z_c^{\mathrm{idx}}$ is notionally the position of the particle, converted into cell based coordinates. We'll get back to this very shortly, but the implementation is as follows:
 
 ```c++
 valuef integrate_dirac_gpu(auto&& func, v3f cell_pos, v3f dirac_location, valuef radius_cells, valuef scale)
@@ -400,52 +389,52 @@ valuef integrate_dirac_gpu(auto&& func, v3f cell_pos, v3f dirac_location, valuef
 }
 ```
 
-Evaluated naively in grid cells where $(0,0,0)$ is the top left cell, this still runs into representation issues with lopsided precision. Eg with a grid width of $255$, cells $1.x$ and $254.(1-x)$ will have different precision. To fix this, you either need to:
+The trapezoidal integration is only used with N=2, and so does not pose any numerical problems. This is discussed in the appendix
 
-1. Use a scheme where your grid cell indices span the range [dim/2, dim/2]
-2. Treat the current cell of the particle as having index $(0,0,0)$, which turns `dirac_location` into a fraction, and `cell_pos` becomes an offset
+### Looping over our particle's size
 
-I use the second. Next up, we need to deal with the integration itself
-
-### Trapezoidal integration
-
-I use trapezoidal integration to implement the integration above, which has the [following definition](https://en.wikipedia.org/wiki/Trapezoidal_rule):
-
-$$\int^b_a f(x) dx = \Delta x \left (\frac{f(x_0) + f(x_N)}{2} + \sum^{n-1}_{k=1} f(x_k)\right )$$
-
-The running sum on the right hand side can cause asymmetry to sneak back in, as well as causing representation issues for the interpolated coordinate position. For $N=2$ however, you can simply ignore[^ignore] this, and this is more than enough accuracy for our problem
-
-[^ignore]: Fixing this would involve seriously disrupting the article flow for no benefit. With that in mind, if do you want a generic routine here, you need to use the `lmix` function presented later to calculate the coordinate, as well as using grid coordinates that are in the range [-dim/2, dim/2]. Additionally, you need to perform a pairwise summation of the interior sum - the easiest way to do this is to recursively break your problem into halves, and sum when you have two elements
+I mentioned that the positions are only notional, this is because its important to only use *offsets*. This is shown below, when looping over the full size of a particle:
 
 ```c++
-template<typename T, typename U>
-inline
-auto integrate_1d_trapezoidal(const T& func, int n, const U& upper, const U& lower)
+void for_each_dirac(v3i dim, valuef scale, v3f dirac_pos, int radius_cells, auto&& func)
 {
-    using variable_type = decltype(func(U()));
+    using namespace single_source;
+    assert(radius_cells > 0);
 
-    variable_type sum = 0;
+    //returns the cell location, and the offset within that cell
+    auto [cell, frac] = world_to_grid_by_parts(dirac_pos, dim, scale);
+    pin(cell);
+    pin(frac);
 
-    for(int k=1; k < n; k++)
-    {
-        auto coordinate = lower + k * (upper - lower) / n;
+    //The range to loop over is [radius_cells, radius_cells + 1]
+    int spread = radius_cells + 1;
 
-        auto val = func(coordinate);
+    mut<valuei> z = declare_mut_e(valuei(-radius_cells));
 
-        sum += val;
-    }
+    for_e(z <= spread, assign_b(z, z+1), [&]{
+        mut<valuei> y = declare_mut_e(valuei(-radius_cells));
 
-    return ((upper - lower) / n) * (0.5f * (func(lower) + func(upper)) + sum);
+        for_e(y <= spread, assign_b(y, y+1), [&]{
+            mut<valuei> x = declare_mut_e(valuei(-radius_cells));
+
+            for_e(x <= spread, assign_b(x, x+1), [&]{
+                v3i offset = {x, y, z};
+
+                valuef dirac = integrate_dirac_gpu(dirac_delta<valuef>, (v3f)offset, frac, radius_cells, scale);
+                pin(dirac);
+
+                if_e(dirac > 0, [&]{
+                    func(offset + cell, dirac);
+                });
+            });
+        });
+    });
 }
 ```
 
-For 3D, simply repeat the integration
+`dirac_pos` is the particle's position, and `frac` is the fraction within the cell that a particle is at. Here, `frac` is treated as the particle's position, and the offset of the grid cell in question from particle's containing cell is treated as the position. This avoids representation issues
 
-## Dirac: The end
-
-This section has been one of the more complicated things I've had to implement. I do not know if I've ever seen a tediously correct implementation of the dirac delta function: most papers simply stop after the initial discretisation, which leads to an overall inaccuracy in the mass of a few % for small dirac sizes. More importantly, the mass oscillates with a naive discretisation as a particle moves through the grid, and it introduces systematic errors
-
-There are about ~10 points in total in this article where its possible to implement things incorrectly, which can rapidly lead to multiple rounding errors per-cell per-tick. This is the reason why its so important - if you do it wrong *everywhere*, then the error terms can lead to very unexpected results over time
+Note that `frac` has the $(1-(1-value))$ trick applied to it, which is described in the interpolation section below
 
 We now need to step into our final hard problem: Interpolation
 
@@ -733,6 +722,12 @@ auto tricubic_particles(T&& func, v3f frac, v3i ifloored, U&&... args)
 The naive implementation of this is simple, but there's no way around the fact that this is quite complex. Even without the asymmetry issues, pairwise summation has a reduced error term - so its better than just a big linear sum
 
 There are many situations in which trilinear interpolation is perfectly fine: Tricubic is only important when the mass of the particle is high relative to the ambient environment it is embedded in, as that is when precise interpolation at the particle's position is very important
+
+## Numerical Stability: The End
+
+This section has been one of the more complicated things I've had to implement. I do not know if I've ever seen a tediously correct implementation of the Dirac delta function: most papers simply stop after the initial discretisation, which leads to an overall inaccuracy in the mass of a few % for small dirac sizes. More importantly, the mass oscillates with a naive discretisation as a particle moves through the grid, and it introduces systematic errors
+
+There are about ~10 points in total in this article where its possible to implement things incorrectly, which can rapidly lead to multiple rounding errors per-cell per-tick. This is the reason why its so important - if you do it wrong *everywhere*, then the error terms can lead to very unexpected results over time
 
 ![happydoge](/assets/nr6_doge.png)
 
@@ -1039,61 +1034,10 @@ The mass cutoff is determined as 10% of the mass of the lightest particle's init
 
 Each particle has a size, and generates a contribution to the stress-energy tensor. We now need to loop over every cell that each particle overlaps, and sum that contribution. The basic idea for how to implement this is as follows:
 
-1. Loop over the size (in cells) of the particle, determined by the dirac delta size
+1. Loop over the size (in cells) of the particle, determined by the Dirac delta size (which we've already covered)
 2. Accumulate the stress energy tensor on the grid directly, using 64-bit atomics on fixed point integers
 
 This is not my first rodeo at solving this problem, and this represents by far the best technique I've found so far for how to implement this
-
-### Looping over the size in cells of the particle
-
-I define the size of a particle in cells, as this is easy to work with. This gets plugged into the dirac delta function (which we modified the definition of to take a unit fraction)
-
-This gives a simple loop procedure:
-
-```c++
-void for_each_dirac(v3i dim, valuef scale, v3f dirac_pos, int radius_cells, auto&& func)
-{
-    using namespace single_source;
-    assert(radius_cells > 0);
-
-    //returns the cell location, and the offset within that cell
-    auto [cell, frac] = world_to_grid_by_parts(dirac_pos, dim, scale);
-    pin(cell);
-    pin(frac);
-
-    //The appropriate modification is rightwards + 1, leftwards + 0
-    int spread = radius_cells + 1;
-
-    mut<valuei> z = declare_mut_e(valuei(-radius_cells));
-
-    for_e(z <= spread, assign_b(z, z+1), [&]{
-        mut<valuei> y = declare_mut_e(valuei(-radius_cells));
-
-        for_e(y <= spread, assign_b(y, y+1), [&]{
-            mut<valuei> x = declare_mut_e(valuei(-radius_cells));
-
-            for_e(x <= spread, assign_b(x, x+1), [&]{
-                v3i offset = {declare_e(x), declare_e(y), declare_e(z)};
-
-                valuef dirac = integrate_dirac_gpu(dirac_delta<valuef>, (v3f)offset, frac, radius_cells, scale);
-                pin(dirac);
-
-                if_e(dirac > 0, [&]{
-                    func(offset + cell, dirac);
-                });
-            });
-        });
-    });
-}
-```
-
-The interesting parts here are:
-
-1. `dirac_pos` is just the particle position
-2. The cells that the dirac delta function covers must be offset by one in the *rightwards* direction, as its origin can take fractional positions
-3. These loops are not unrolled on the GPU, as it causes very bad performance issues
-4. Many of the cells are simply skipped. It would be a lot more efficient to directly iterate over a sphere, than a cube
-5. `world_to_grid_by_parts` returns the cell index, and offset within that cell separately - to avoid float representation issues. `frac` also has the $1-(1-\mathrm{value})$ trick applied to it from the trilinear interpolation segment
 
 ### Accumulation
 
@@ -1422,7 +1366,6 @@ Hopefully a language will get this right someday, because there's a tonne of per
 
 There's some other issues I haven't tried to address in this article: namely that the results of `<cmath>` are not portable. C++ doesn't really constrain their results, and this is another break from IEEE
 
-
 ## The literature
 
 ### Particle dynamics
@@ -1471,6 +1414,38 @@ Similar to the above, you can use a slab allocator to push individual Dirac samp
 2. The slab allocation technique is fundamentally a two pass method. Iterating over every particle is quick, but iterating over every Dirac sample is slow due to their vast number
 3. The workload per-cell is extremely variable
 4. The memory overhead is cubic with the size of a Dirac particle
+
+## Trapezoidal integration
+
+I use trapezoidal integration here, which has the [following definition](https://en.wikipedia.org/wiki/Trapezoidal_rule):
+
+$$\int^b_a f(x) dx = \Delta x \left (\frac{f(x_0) + f(x_N)}{2} + \sum^{n-1}_{k=1} f(x_k)\right )$$
+
+The running sum on the right hand side can cause asymmetry to sneak back in, as well as causing representation issues for the interpolated coordinate position. For $N=2$ however, you can simply ignore this, and this is more than enough accuracy for our problem
+
+```c++
+template<typename T, typename U>
+inline
+auto integrate_1d_trapezoidal(const T& func, int n, const U& upper, const U& lower)
+{
+    using variable_type = decltype(func(U()));
+
+    variable_type sum = 0;
+
+    for(int k=1; k < n; k++)
+    {
+        auto coordinate = lower + k * (upper - lower) / n;
+
+        auto val = func(coordinate);
+
+        sum += val;
+    }
+
+    return ((upper - lower) / n) * (0.5f * (func(lower) + func(upper)) + sum);
+}
+```
+
+For 3D, simply repeat the integration. To have a generically correct trapezoidal integration scheme suitable for the particle dynamics, you'd need to swap `coordiante`'s calculation to use `lmix`, and use a pairwise summation scheme for the interior sum
 
 ## An optional performance improvement
 

@@ -126,7 +126,7 @@ void for_each_dirac(v3i dim, valuef scale, v3f dirac_pos, int radius_cells, auto
     pin(cell);
     pin(frac);
 
-    //The appropriate modification is rightwards + 1, leftwards + 0
+    //The range to loop over is [radius_cells, radius_cells + 1]
     int spread = radius_cells + 1;
 
     mut<valuei> z = declare_mut_e(valuei(-radius_cells));
