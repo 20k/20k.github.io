@@ -1,8 +1,227 @@
 ---
 layout: post
-title:  "Letters of Marque: A sailing game"
+title:  "Letters of Marque: An 1800s sailing MMO"
 date:   2025-10-18 12:33:23 +0000
 categories: Sailing
 published: true
 ---
 
+# Dev blog one
+
+Hi there! I've been getting a lot of questions about a game I'm developing called Letters of Marque - a free roaming, open world PvP sailing game set in the Mediterranean, with a player driven economy. This post is part explanation, part dev blog - to help people understand what it is, how far along the game as come, and where its going
+
+The year is 1812, and Napolean is attempting to conquer Spain. With the British, Portuguese, and Spanish on one side, and France + its client states on the other, there's a lot of fighting going on everywhere. In the meantime, the United States is also at war with the British, and the Barbary states - while the Ottoman empire is in control of much of the Mediterranean with its own navy
+
+All in all: Everyone hated each other as per usual, and it makes this a ripe period for a sailing game. Its time to start digging into the current state of the game, and what its going to be
+
+The trello which is used to organise the game's development is over here:
+
+[https://trello.com/b/70ASx4OE/letters-of-marque](https://trello.com/b/70ASx4OE/letters-of-marque)
+
+## Combat
+
+There are two parts to this game: The open world, and battles - which are instanced. Getting combat right, and making it fun is a top priority
+
+In its current state, combat works. You can sail around, shoot ships, and sink them. There are leaks, bouncing, directional hull damage - taking onboard water, and sinking into the sea. Sails can be chained down for a speed penalty, and yards can be adjusted to help you turn faster or tack through the wind. Demasting and crew damage are unimplemented, but will exist
+
+All of this is physically modelled: Ships have a mass, and sail by forces being applied to them. This generates a heel, pushing a ship over in the wind
+
+Todo: Video
+
+The game is fully multiplayer. Here's what shredding sails looks like currently:
+
+Todo: Piccy
+
+## Combat's future
+
+Combat is coming along well. The following things are the next item on the priority list:
+
+1. A boarding + crew system, which I'll go into more detail on
+2. Improving the gameplay feel - tightening up the controls, and making it more fun
+3. Fixing up the UI
+4. Repairs
+5. Graphical improvements, especially to water, and impact effects
+6. More SFX, mast creaking, crew noises, more sailing sounds etc
+
+## The Overworld
+
+The multiplayer overworld is up and running. You can:
+
+1. Dock and undock from ports
+2. Tag enemy players and AI
+
+Todo: ToD Video
+
+Todo: Video
+
+## The Overworld's future
+
+The overworld has a lot of work ahead of it, and is the current priority for development. The priority at the moment is as follows:
+
+1. The ability to 3rd party fights
+2. Improving the graphics
+3. Implementing the item market
+4. Implementing the game's economy + crafting system - which I'll go into more detail on
+5. Making the overworld fun
+6. Port battles
+7. AI
+
+The game's been in development for just over a month, so I'm extremely happy with how far its come in such a short space of time
+
+That's the basic overview of the game's current state, just so you can judge how things are going. Let's talk about some of the things I get frequently asked about
+
+# The Economy
+
+This is everyone's #1 question. The intent is to make engaging with the game's economy rewarding and fun for people enjoy logistics and crafting, but allow people who primarily want to engage in PvP and/or PvE the ability to still participate. One of the core goals is to open up ship customisation: Ships that fulfil different roles in combat. To give some examples:
+
+1. Long range snipers
+2. Brawlers
+3. Boarders
+4. Support ships for logistics
+5. Transport vessels
+6. Ships suited for piracy
+7. Ships with thick armour, for deflecting shots
+8. Ships built around HP tanking
+9. Glass cannons
+
+All of this, constrained by plausible realism and balance, will be in the game. There will be consumable items, more on that soon
+
+The key to enabling this to be fun is three things:
+
+1. Having a robust collection of different goods, spread out across the map
+2. Enabling ships to be build out of a wide variety of components, that determine the ship's final stats
+3. Enabling crafting ships to be profitable in bulk, and affordable to players doing both PvP and PvP
+4. Using consumables more as a balance check in terms of how much you can bring into a series of fights, rather than as a wealth check to see if you can fight at all
+
+As an example, building a ship out of lighter materials will reduce the draft at the expense of its health, allowing some ships to venture into shallower areas. Building it out of heavier materials, might make it slower: but with much more HP
+
+Ships will be made out of a series of components. For example, a ship may have the following build:
+
+1. A wide, pine deck: More crew available for boarding, less HP, reduced crew damage from splintering because of the lightweight damage
+2. A thin, live oak hull: Faster, while maintaining health due to using more dense woods
+3. A thin, pine frame: Faster, and lightweight, to maximise speed at the expense of survivability
+4. Thin, pine masts: For maximum speed
+5. French crew: For melee damage
+
+There will be constraints on exactly what can go into a ship, similar to CPU/powergrid limitations from Eve, to balance all of this and stop ships from becoming crazy while still enabling flexibility. Rarer, more specialised hull pieces, will be made out of exotic materials localised in certain parts of the map. There will be a very wide variety of these, each doing something different. A specific rare resource may be hard to come by, but getting access to some rare resources will be achievable by solo players and small groups
+
+Getting a route 1, generic ship will be very easy for most rates of ship. Getting a specific ship build well optimised for a specific use case will involve a lot of work - and attacking or raiding enemy ports to capture the resources you need. The most specialised ships will likely involve trade agreements, and owning a significant number of ports, which brings us neatly onto:
+
+# Trade
+
+Historically, trading was very boring. This is true both for real life trading, and for videogames - where it is a very common source of complaints, being forced to trade resources for hours and hours to play the game
+
+Some people find a zen in trading, which I understand. There will be manual trading based gameplay, where you can shift goods around and sell them for a profit. For short haul trades, this will be a great way to shift things around
+
+For larger, industrial quantities of trade, we have trade convoys, a good idea proposed by Enigma
+
+## Trade convoys
+
+Buy some ships, put some supplies in them, and set the AI off with them to your destination in the open world. With all of the risk implied with that, bulk long haul trading will be less about testing your patience, and whether or not you can defend your ships between here and your destination. Optionally, you'll be able to enable other players to rent space on your trade convoys, or pay players who choose to defend those convoys. There will be a bounty system, where you can put a price on the head of people who attack you, which ties neatly into all of this as well
+
+All in all: The goal is to make the *warfare* the primary goal here, instead of incentivising people to make hundreds of alt accounts to ship goods around
+
+# Player focusing
+
+With all of this said, the most important factor of the game is getting people into fights, and getting to the meat of the game. The overworld should fundamentally be in service of this, getting people to shoot cannonballs at each other until they sink - providing a fun meaningful structure and context as to *why*. There's several key elements to enabling players to find, and want to sink each other
+
+## Rumours
+
+If a fleet of 1st rates leaves a port, a group of 4th rates passed by your home town, or a large trade convoy makes way, its safe to say that people would spot it. Word of mouth information of this kind tended to propagate at various speeds historically, and made up a significant way in which fleets were tracked, and spotted
+
+Depending on the size, and composition of a fleet, rumours will spread that will be visible to each faction. They'll spread quickly in friendly areas, and slowly through hostile ones - with clans being able to specify whether or not they want to exchange information quicker. Large fleets will pop up quickly, and are difficult to hide, but a small group of sloops is unlikely to draw any attention for a while
+
+This should enable players to find PvP content. Failing that..
+
+## Shared, and global missions
+
+There will be two kinds of PvP oriented quests/events
+
+1. Missions with a goal, eg go here and destroy an AI, salvage a wreck, rescue some sailors, bring supplies to a ship at sea
+2. Global events, like treasure fleets hauling silver
+
+With missions, players from different factions may be given the *same* quest, to incentivise PvP. This creates a nice structure, where quests gives rewards, and some risk at the same time - which is a tweakable that I can adjust to make sure nobody gets too screwed, or too bored
+
+Large scale events like treasure fleets will involve major fights, for huge rewards. There will also be smaller scale announced content of this form, aimed at groups of smaller sizes - including solo players
+
+In general, there will be content designed for every size of group, and incentivisation to fight other players at any level of server activity. Avoiding fights will be discouraged, because you'll lose out on the rewards from doing the event itself
+
+# RvR
+
+This is the most structured form of content: Declaring that you're going to take someone's holdings
+
+There are several goals here. RvR should be fun, engaging, and worthwhile doing. Capturing resources, getting territory, and map painting will be the primary reasons for engaging in RvR. Ports will give clans an income based on their economic activity or innate characteristics, and be worthwhile to hold. A clan holding a port will have first purchasing rights on rare resources, but won't be able to lock other faction members out
+
+Line battles are always fun, but I'd like to open up other kinds of objective structure in port battles. Ports will have variable win conditions, with some ports being more objective based, and requiring more agile or specialised fleet compositions to take. For example, physically landing troops to capture defensive towers, moving troops to land on the shore, sinking harboured ships, bombarding towns and destroying structures, and a variety of other objects should keep things feeling fresh
+
+Capturing ports will be available to all groups of ~6+. That isn't the only kind of battle however
+
+## Raids
+
+The organised nature of a declared, 8v8-20v20 fight, is great. The consequences for not showing up for a defender however are steep - loss of the port. We need a fun, lighter, intermediate format which requires less investment on both sides, with correspondingly smaller rewards
+
+On this front, the halfway house is called *raids*. You will be able to show up, and declare that you're going to attack a port - with a short timer on when the actual raid will execute. This is essentially a declaration that you're spoiling for a fight
+
+Similar to RvR, fights will be balanced in terms of how much can be brought on both sides, and special attention will be given to enabling defenders to quickly organise: clans will have a warehouse, where ships can be flagged for use in raid defence, by clan members with the appropriate permissions. A successful raid defence will involve sinking most or all of the attackers, and create a cooldown timer until you can be raided again. Losing the raid will allow the attackers to make off with some of the economic activity of the town, gaining a significant amount of wealth, or rare resources in the process
+
+Raids will vary in intensity from single ships, to potentially up to full scale port battle size (depending on playtesting) - chosen by the attacker and limited by the port - as a way to complement port battles, that doesn't force defenders to become overly-harassed. Correspondingly, port battles will require investment to trigger, as I expect raids of varying sizes will be much more common than port battles
+
+This will create a fun dynamic where players can go out and attack enemy towns, grabbing loot until there's enough of an organised defence to stop them
+
+# "Admiral Suffren condemned naval tactics as being little better than so many excuses for avoiding a real fight"
+
+One of the biggest challenges with any PvP game like this is to make people *want* to fight. There's absolutely no point forcing combat - if you have to make people play your game you've failed - but instead you have to make it so that the rewards for combat are very appealing
+
+In LoM, undocking a ship means that you're willing to risk losing it in a fight. While there are good reasons to want to avoid that fight (eg you're trading), let's look at why you might want to fight someone - especially as an absolute beginner to PvP combat games that needs a solid motivation for it:
+
+1. You will be given a currency for sinking and damaging enemy players, that can be redeemed at your faction shop for quality rewards, like ships, ship upgrades, cosmetics, cash, or xp
+2. There will be faction warfare zones, where players and enemies alike can pile into regulated skirmishes alongside AI. These will provide good rewards, in the form of upgrades, faction standing, and XP
+3. Doing damage to enemy players will improve your standing with your faction, which will do something (undecided)
+4. Very early game players will have little to lose, and will be provided with a very cheap or free consumable type and ships that are effectively infinite
+5. There will be structured PvP content (port battles, raids) within the safe zone for players to dip their toes into
+
+The goal is not to force people out of safe zones into the PvP world, its for them to make a meaningful risk/reward evaluation of why they'd do PvP, and have even a cautious player make the choice that its worth their time to try it - even if they sink a tonne - because they want the rewards. You'll be incentivised to largely stick fights out to the end, rather than running away
+
+## Ganking
+
+One issue with any open world PvP game is ganks. To some degree, this is just the nature of things. LoM will contain a few features that should make them more bearable
+
+1. How you move in an instanced battle, will affect where you pop out into the overworld. This means that battle camping will be difficult
+2. PvP rewards will be scaled, so that gankers get a little less profit
+3. There will be incentivisation to go and do content more appropriate for your group size via readily available content with good rewards, instead of attacking smaller players
+4. Ganks will trigger the rumour system to alert the gankee's faction, aiding a response by friendly players (assuming they're near friendly territory)
+
+# Monetisation
+
+Letters of Marque will almost certainly be free to play. In the short term, you'll be able to support development via patreon if you're interested in this coming to fruition. In the long term, you'll be able to purchase cosmetics
+
+I am not an artist, so members of the community with art skills will be able to submit art for a revenue split. Todo: get artist perms
+
+I don't want this to go overboard with being silly: the game should fit a vibe of feeling historical, and look authentic. There will also be free options as well, once there's enough money to purchase cosmetics for the game directly
+
+That's the fundamental tradeoff here: more personalised ship expression in exchange for money. The only other monetisation scheme may be *some* kind of pay-to-get-a-full-account typed deal, if (and **only** if) it becomes necessary to keep the game stable with a significant playerbase due to rampant abuse of f2p mechanics. It seems very unlikely though
+
+# Viability
+
+This project started off as a prototype, when I realised I knew in advance what the technical problems were going to be, and that I already had the tools to solve them. I suspected more issues would crop up in development - the terrain rendering was a big issue - but the hard technical problems are now solved
+
+I'm a long term C++ programmer, with a published [graphics](https://www.open-std.org/jtc1/sc22/wg21/docs/papers/2020/p2005r0.html) paper for the C++ committee, and [extensive](https://20k.github.io/c++/2025/05/07/nr105.html) experience programming (and GPU programming). I've always built random [games](https://dcpu16.pages.dev/) for friends in the past as a hobby, and I've done some contracting work in the games industry, and application work. I was also on a [podcast](https://cpp.chat/guests/james_berrow/) about C++, and colour management. I became very unwell 6-7 years ago so my traditional work experience CV is a meme, and this project is currently my primary focus
+
+The MMO backend is something that I've been developing for many years as a hobby, and has been tested on several games for friends - with a few dozen concurrent real players, and 10k+ players under stress testing on low powered hardware. This project is actually partially derived from an eve-like I built called "Pyxis"[^further] that was intended to have a large player count, and shares a common implementation of the tricky[^tricky] parts with it - that's been extensively tested to work. Its using a very standard boost::beast implementation with an LMDB backend, and it is extremely fast. I am not going to pretend that there's anything special going on here at all, it just works well based on proven technologies
+
+This dev blog was specifically delayed until *after* the following critical technical problems were fully solved:
+
+1. Can the multiplayer work?
+2. Is fun sailing combat feasible to implement quickly?
+3. Can I render large scale terrain, and deal with the precision issues that result from having a map which is 100s of km wide?
+4. Is godot any good for game development?
+
+The answer to all these is yes, albeit the terrain rendering was a gigantic pain to solve. Godot has some limitations, but most of the graphical problems are my own fault now
+
+In short: This will work. The main thing I do not have is the resources to buy ship models, and given the state of my finances after being ill for so long - even a small patreon donation will go a long way. There are enough high quality ship models floating around in the $50-200 price range to make developing this game viable, and that's where I'll need your help especially
+
+So all in all: That's the gist of where I'm going with this
+
+[^further]: Which in turn is derived from an old game called net\_code\_, a niche scripting sandbox MMO which had a small playerbase for a while
+
+[^tricky]: And a few other things as well, it was a similar concept
