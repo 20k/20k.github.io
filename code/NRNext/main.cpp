@@ -1906,7 +1906,7 @@ initial_params get_initial_params()
     radial_pos *= 1.2;
     #endif
 
-    #define TWO_BODY
+    //#define TWO_BODY
     #ifdef TWO_BODY
     printf("Radial pos %f\n", radial_pos);
 
@@ -2250,7 +2250,7 @@ int main()
                 camera_quat = q * camera_quat;
             }
 
-            vec3f up = {0, 0, -1};
+            vec3f up = {0, 1, 0};
             vec3f right = rot_quat({1, 0, 0}, camera_quat);
             vec3f forward_axis = rot_quat({0, 0, 1}, camera_quat);
 

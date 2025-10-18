@@ -241,7 +241,7 @@ Ie, for any correct simulation, that initial symmetry should be preserved. In vi
 
 This can be root caused to three similar problems:
 
-1. Floating point arithmetic is not distributive: $(a + b) + c \neq a + (b + c)$
+1. Floating point arithmetic is not associative: $(a + b) + c \neq a + (b + c)$
 2. C++ has special rules for transforming expressions involving floats, via a loophole in the standard that breaks with the IEEE spec for reasons™
 3. The precision for floats is non uniform
 
