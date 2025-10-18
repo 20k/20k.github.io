@@ -1,0 +1,8 @@
+---
+layout: post
+title:  "Letters of Marque: A sailing game"
+date:   2025-10-18 12:33:23 +0000
+categories: Sailing
+published: true
+---
+
