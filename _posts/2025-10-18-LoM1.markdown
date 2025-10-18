@@ -24,7 +24,7 @@ There are two parts to this game: The open world, and battles - which are instan
 
 In its current state, combat works. You can sail around, shoot ships, and sink them. There are leaks, bouncing, directional hull damage - taking onboard water, and sinking into the sea. Sails can be chained down for a speed penalty, and yards can be adjusted to help you turn faster or tack through the wind. Demasting and crew damage are unimplemented, but will exist
 
-All of this is physically modelled: Ships have a mass, and sail by forces being applied to them. This generates a heel, pushing a ship over in the wind
+All of this is physically modelled: Ships have a mass, and sail by forces being applied to them. This generates a heel, pushing a ship over in the wind - counteracted by the ships weight pulling it back. Tacking works due to a torque being applied on the ship from differential sail forces, and the stay sails use a wind tunnel model
 
 Todo: Video
 
