@@ -82,7 +82,7 @@ cl::image load_background(cl::context ctx, cl::command_queue cqueue, const std::
     {
         for(int x=0; x < background.getSize().x; x++)
         {
-            sf::Color col = background.getPixel(x, y);
+            sf::Color col = background.getPixel(sf::Vector2u(x, y));
 
             tensor<float, 3> tcol = {col.r, col.g, col.b};
 
@@ -124,7 +124,7 @@ int main()
     int screen_width = 1920/2;
     int screen_height = 1080/2;
 
-    sf::VideoMode mode(screen_width, screen_height);
+    sf::VideoMode mode(sf::Vector2u(screen_width, screen_height));
     sf::RenderWindow win(mode, "I am a black hole");
 
     cl::context ctx;
@@ -171,8 +171,8 @@ int main()
     int background_width = background.size<2>().x();
     int background_height = background.size<2>().y();
 
-    sf::Texture tex;
-    tex.create(screen_width, screen_height);
+    sf::Texture tex(sf::Vector2u(screen_width, screen_height));
+    //tex.create(screen_width, screen_height);
 
     unsigned int handle = tex.getNativeHandle();
 
@@ -249,17 +249,13 @@ int main()
 
     //std::cout << "C " << cart.x() << " " << cart.y() << " " << cart.z() << std::endl;
 
-    sf::Keyboard key;
-
     sf::Clock elapsed;
 
     while(win.isOpen())
     {
-        sf::Event evt;
-
-        while(win.pollEvent(evt))
+        while(auto evt = win.pollEvent())
         {
-            if(evt.type == sf::Event::Closed)
+            if(evt->is<sf::Event::Closed>())
                 win.close();
         }
 
@@ -267,68 +263,68 @@ int main()
 
         float ptime_diff = 0;
 
-        if(key.isKeyPressed(sf::Keyboard::Num1))
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Num1))
             ptime_diff += 0.1f;
 
-        if(key.isKeyPressed(sf::Keyboard::Num2))
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Num2))
             ptime_diff -= 0.1f;
 
-        if(key.isKeyPressed(sf::Keyboard::Num3))
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Num3))
             ptime_diff += 1.f;
 
-        if(key.isKeyPressed(sf::Keyboard::Num4))
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Num4))
             ptime_diff -= 1.f;
 
-        if(key.isKeyPressed(sf::Keyboard::Num5))
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Num5))
             ptime_diff += 10.f;
 
-        if(key.isKeyPressed(sf::Keyboard::Num6))
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Num6))
             ptime_diff -= 10.f;
 
-        if(key.isKeyPressed(sf::Keyboard::LControl))
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LControl))
             ptime_diff *= 0.1f;
 
-        if(key.isKeyPressed(sf::Keyboard::LAlt))
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::LAlt))
             ptime_diff *= 0.1f;
 
-        //if(key.isKeyPressed(sf::Keyboard::Num0))
+        //if(sf::Keyboard::isKeyPressed(sf::Keyboard::Num0))
         //    desired_proper_time = 96.824f;
 
-        if(key.isKeyPressed(sf::Keyboard::Num0))
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Num0))
             desired_proper_time = 96.9f;
 
         desired_proper_time += ptime_diff;
 
         printf("DPT %f\n", desired_proper_time);
 
-        if(key.isKeyPressed(sf::Keyboard::J))
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::J))
             cam.rotate({0.1f, 0.f});
-        if(key.isKeyPressed(sf::Keyboard::L))
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::L))
             cam.rotate({-0.1f, 0.f});
 
-        if(key.isKeyPressed(sf::Keyboard::I))
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::I))
             cam.rotate({0.f, 0.1f});
-        if(key.isKeyPressed(sf::Keyboard::K))
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::K))
             cam.rotate({0.f, -0.1f});
 
         float kspeed = 0.1f;
 
-        if(key.isKeyPressed(sf::Keyboard::A))
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::A))
             cam.move({-kspeed, 0, 0});
 
-        if(key.isKeyPressed(sf::Keyboard::D))
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::D))
             cam.move({kspeed, 0, 0});
 
-        if(key.isKeyPressed(sf::Keyboard::W))
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::W))
             cam.move({0, kspeed, 0});
 
-        if(key.isKeyPressed(sf::Keyboard::S))
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::S))
             cam.move({0, -kspeed, 0});
 
-        if(key.isKeyPressed(sf::Keyboard::Q))
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::Q))
             cam.move({0, 0, kspeed});
 
-        if(key.isKeyPressed(sf::Keyboard::E))
+        if(sf::Keyboard::isKeyPressed(sf::Keyboard::Key::E))
             cam.move({0, 0, -kspeed});
 
         sf::Clock clk;

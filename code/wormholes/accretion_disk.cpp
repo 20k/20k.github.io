@@ -266,8 +266,8 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
     //purely for article purposes, img is never used
     {
-        sf::Image img;
-        img.create(tex_size, tex_size);
+        sf::Image img(sf::Vector2u(tex_size, tex_size));
+        //img.create(tex_size, tex_size);
 
         ///generate a texture
         for(int j=0; j < tex_size; j++)
@@ -287,7 +287,7 @@ accretion_disk make_accretion_disk_kerr(float mass, float a)
 
                 tensor<float, 3> srgb = linear_to_srgb(my_brightness * my_linear_rgb);
                 sf::Color col(255 * srgb.x(), 255 * srgb.y(), 255 * srgb.z(), 255);
-                img.setPixel(i, j, col);
+                img.setPixel(sf::Vector2u(i, j), col);
             }
         }
 
