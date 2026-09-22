@@ -54,11 +54,11 @@ void make_hamiltonian_error(cl::context ctx)
 
 void make_cG_error(cl::context ctx, int idx)
 {
-    auto func = [idx](execution_context&,
+    auto func = [](execution_context&,
                    bssn_args_mem<buffer<valuef>> args_in,
                    bssn_derivatives_mem<buffer<derivative_t>> derivatives,
                    buffer_mut<valuef> out,
-                   literal<v3i> ldim, literal<valuef> scale) {
+                   literal<v3i> ldim, literal<valuef> scale, int idx) {
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);
@@ -115,17 +115,17 @@ void make_cG_error(cl::context ctx, int idx)
     std::string name = "calculate_cGi" + std::to_string(idx);
 
     cl::async_build_and_cache(ctx, [=] {
-        return value_impl::make_function(func, name);
+        return value_impl::make_function(func, name, idx);
     }, {name});
 }
 
 void make_momentum_error(cl::context ctx, int idx)
 {
-    auto func = [idx](execution_context&,
+    auto func = [](execution_context&,
                     bssn_args_mem<buffer<valuef>> args_in,
                     bssn_derivatives_mem<buffer<derivative_t>> derivatives,
                     buffer_mut<valuef> out,
-                    literal<v3i> ldim, literal<valuef> scale) {
+                    literal<v3i> ldim, literal<valuef> scale, int idx) {
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);
@@ -163,7 +163,7 @@ void make_momentum_error(cl::context ctx, int idx)
     std::string name = "calculate_Mi" + std::to_string(idx);
 
     cl::async_build_and_cache(ctx, [=] {
-        return value_impl::make_function(func, name);
+        return value_impl::make_function(func, name, idx);
     }, {name});
 }
 

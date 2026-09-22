@@ -62,10 +62,10 @@ valuef get_conformal_guess(v3f world_pos, v3f bh_pos, valuef bare_mass)
     return bare_mass / (2 * (world_pos - bh_pos).length());
 }
 
-template<typename Type, typename Func>
-cl::buffer discretise(cl::context& ctx, cl::command_queue& cqueue, Func&& func, tensor<int, 3> cdim, float scale)
+template<typename Type>
+cl::buffer discretise(cl::context& ctx, cl::command_queue& cqueue, std::function<value<Type>(v3i)> func, tensor<int, 3> cdim, float scale)
 {
-    auto kern = [func](execution_context& ctx, buffer_mut<value<Type>> out, literal<v3i> dim)
+    auto kern = [](execution_context& ctx, buffer_mut<value<Type>> out, literal<v3i> dim, std::function<value<Type>(v3i)> func)
     {
         using namespace single_source;
 
@@ -82,7 +82,7 @@ cl::buffer discretise(cl::context& ctx, cl::command_queue& cqueue, Func&& func, 
         as_ref(out[pos, dim.get()]) = func(pos);
     };
 
-    std::string str = value_impl::make_function(kern, "discretise");
+    std::string str = value_impl::make_function(kern, "discretise", func);
 
     cl::program prog = cl::build_program_with_cache(ctx, {str}, false);
 
