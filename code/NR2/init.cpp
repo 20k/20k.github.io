@@ -156,7 +156,7 @@ adm_variables make_adm_variables(T&& func, v4f position)
 
 std::string make_initial_conditions()
 {
-    auto init = [&](execution_context&, bssn_args_mem<buffer_mut<valuef>> to_fill, literal<v3i> ldim, literal<valuef> scale) {
+    auto init = [](execution_context&, bssn_args_mem<buffer_mut<valuef>> to_fill, literal<v3i> ldim, literal<valuef> scale) {
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);
@@ -207,7 +207,7 @@ std::string make_initial_conditions()
 
 std::string init_christoffel()
 {
-     auto init = [&](execution_context&, bssn_args_mem<buffer_mut<valuef>> to_fill, literal<v3i> ldim, literal<valuef> scale) {
+     auto init = [](execution_context&, bssn_args_mem<buffer_mut<valuef>> to_fill, literal<v3i> ldim, literal<valuef> scale) {
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);

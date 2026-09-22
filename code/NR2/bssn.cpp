@@ -155,7 +155,7 @@ tensor<valuef, 3> calculate_momentum_constraint(bssn_args& args, const derivativ
 
 std::string make_derivatives()
 {
-    auto differentiate = [&](execution_context&, buffer<valuef> in, std::array<buffer_mut<derivative_t>, 3> out, literal<v3i> ldim, literal<valuef> scale)
+    auto differentiate = [](execution_context&, buffer<valuef> in, std::array<buffer_mut<derivative_t>, 3> out, literal<v3i> ldim, literal<valuef> scale)
     {
         using namespace single_source;
 
@@ -942,7 +942,7 @@ valuef apply_evolution(const valuef& base, const valuef& dt, valuef timestep)
 
 std::string make_momentum_constraint()
 {
-    auto cst = [&](execution_context&, bssn_args_mem<buffer<valuef>> in,
+    auto cst = [](execution_context&, bssn_args_mem<buffer<valuef>> in,
                                        std::array<buffer_mut<momentum_t>, 3> momentum_constraint,
                                        literal<v3i> ldim,
                                        literal<valuef> scale
@@ -1101,7 +1101,7 @@ std::string make_bssn(const tensor<int, 3>& idim)
 
 std::string enforce_algebraic_constraints()
 {
-    auto func = [&](execution_context&, std::array<buffer_mut<valuef>, 6> mcY, std::array<buffer_mut<valuef>, 6> mcA, literal<v3i> idim)
+    auto func = [](execution_context&, std::array<buffer_mut<valuef>, 6> mcY, std::array<buffer_mut<valuef>, 6> mcA, literal<v3i> idim)
     {
         using namespace single_source;
 
@@ -1173,7 +1173,7 @@ std::string enforce_algebraic_constraints()
 
 std::string init_debugging()
 {
-    auto dbg = [&](execution_context&, bssn_args_mem<buffer_mut<valuef>> to_fill, literal<v3i> ldim, literal<valuef> scale, write_only_image<2> write) {
+    auto dbg = [](execution_context&, bssn_args_mem<buffer_mut<valuef>> to_fill, literal<v3i> ldim, literal<valuef> scale, write_only_image<2> write) {
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);
@@ -1212,7 +1212,7 @@ std::string init_debugging()
 
 std::string make_sommerfeld()
 {
-    auto func = [&](execution_context&, buffer<valuef> base, buffer<valuef> in, buffer_mut<valuef> out, literal<valuef> timestep,
+    auto func = [](execution_context&, buffer<valuef> base, buffer<valuef> in, buffer_mut<valuef> out, literal<valuef> timestep,
                     literal<v3i> ldim,
                     literal<valuef> scale,
                     literal<valuef> wave_speed,
