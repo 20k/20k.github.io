@@ -5,7 +5,7 @@
 
 std::string make_hamiltonian_error()
 {
-    auto func = [&](execution_context&,
+    auto func = [](execution_context&,
                     bssn_args_mem<buffer<valuef>> args_in,
                     bssn_derivatives_mem<buffer<derivative_t>> derivatives,
                     buffer_mut<valuef> out,
@@ -37,11 +37,11 @@ std::string make_hamiltonian_error()
 
 std::string make_momentum_error(int idx)
 {
-    auto func = [&](execution_context&,
+    auto func = [](execution_context&,
                     bssn_args_mem<buffer<valuef>> args_in,
                     bssn_derivatives_mem<buffer<derivative_t>> derivatives,
                     buffer_mut<valuef> out,
-                    literal<v3i> ldim, literal<valuef> scale) {
+                    literal<v3i> ldim, literal<valuef> scale, int idx) {
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);
@@ -63,12 +63,12 @@ std::string make_momentum_error(int idx)
         as_ref(out[pos, dim]) = Mi[idx];
     };
 
-    return value_impl::make_function(func, "calculate_Mi" + std::to_string(idx));
+    return value_impl::make_function(func, "calculate_Mi" + std::to_string(idx), idx);
 }
 
 std::string make_global_sum()
 {
-     auto func = [&](execution_context&,
+     auto func = [](execution_context&,
                      buffer<valuef> in,
                      buffer_mut<value<std::int64_t>> sum,
                      literal<valuei> num) {

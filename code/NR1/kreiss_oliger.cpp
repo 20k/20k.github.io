@@ -28,7 +28,7 @@ valuef kreiss_oliger_interior(valuef in, valuef scale)
 
 std::string make_kreiss_oliger()
 {
-     auto func = [&](execution_context&, buffer<valuef> in, buffer_mut<valuef> out, literal<valuef> timestep, literal<v3i> ldim, literal<valuef> scale, literal<valuef> eps) {
+     auto func = [](execution_context&, buffer<valuef> in, buffer_mut<valuef> out, literal<valuef> timestep, literal<v3i> ldim, literal<valuef> scale, literal<valuef> eps) {
         using namespace single_source;
 
         valuei lid = value_impl::get_global_id(0);
