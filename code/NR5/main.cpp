@@ -1089,7 +1089,7 @@ cl::image load_background(cl::context ctx, cl::command_queue cqueue, const std::
 neutron_star::colour_aux_data default_texture_mapping(std::string file)
 {
     sf::Image img;
-    img.loadFromFile(file);
+    (void)img.loadFromFile(file);
 
     std::vector<t3f> cols;
     cols.resize(img.getSize().x * img.getSize().y);
@@ -1098,7 +1098,7 @@ neutron_star::colour_aux_data default_texture_mapping(std::string file)
     {
         for(int i=0; i < img.getSize().x; i++)
         {
-            sf::Color col = img.getPixel(i, j);
+            sf::Color col = img.getPixel(sf::Vector2u(i, j));
 
             cols[j * img.getSize().x + i] = (t3f){col.r / 255.f, col.g / 255.f, col.b / 255.f};
         }

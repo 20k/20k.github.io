@@ -165,9 +165,9 @@ struct laplace_solver
 
         kernel_name = kname;
 
-        auto laplace_rb_mg = [get_rhs](execution_context& ectx, buffer_mut<valuef> inout, U pack,
+        auto laplace_rb_mg = [](execution_context& ectx, buffer_mut<valuef> inout, U pack,
                                        literal<valuef> lscale, literal<v3i> ldim, literal<valuei> iteration,
-                                       buffer_mut<valuei> still_going, literal<valuef> relax)
+                                       buffer_mut<valuei> still_going, literal<valuef> relax, T get_rhs)
         {
             using namespace single_source;
 
@@ -243,7 +243,7 @@ struct laplace_solver
         };
 
         cl::async_build_and_cache(ctx, [=] {
-            return value_impl::make_function(laplace_rb_mg, kname);
+            return value_impl::make_function(laplace_rb_mg, kname, get_rhs);
         }, {kname});
     }
 

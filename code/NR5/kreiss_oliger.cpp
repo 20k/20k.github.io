@@ -40,7 +40,7 @@ void make_kreiss_oliger(cl::context ctx)
 {
     for(int Order = 1; Order <= 5; Order++)
     {
-        auto func = [Order](execution_context&, buffer<valuef> in, buffer_mut<valuef> out, buffer<valuef> W, literal<v3i> ldim, literal<valuef> eps) {
+        auto func = [](execution_context&, buffer<valuef> in, buffer_mut<valuef> out, buffer<valuef> W, literal<v3i> ldim, literal<valuef> eps, int Order) {
             using namespace single_source;
 
             valuei lid = value_impl::get_global_id(0);
@@ -100,7 +100,7 @@ void make_kreiss_oliger(cl::context ctx)
         };
 
         cl::async_build_and_cache(ctx, [=] {
-            return value_impl::make_function(func, "kreiss_oliger" + std::to_string(Order));
+            return value_impl::make_function(func, "kreiss_oliger" + std::to_string(Order), Order);
         }, {"kreiss_oliger" + std::to_string(Order)});
     }
 }

@@ -148,8 +148,8 @@ struct all_adm_args_mem : value_impl::single_source::argument_pack
 
 struct buffer_provider
 {
-    virtual std::vector<buffer_descriptor> get_description(){assert(false);}
-    virtual std::vector<cl::buffer> get_buffers() {assert(false);}
+    virtual std::vector<buffer_descriptor> get_description(){assert(false); return std::vector<buffer_descriptor>();}
+    virtual std::vector<cl::buffer> get_buffers() {assert(false); return std::vector<cl::buffer>();}
     virtual void allocate(cl::context ctx, cl::command_queue cqueue, t3i size){assert(false);}
 };
 

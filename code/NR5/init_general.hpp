@@ -6,12 +6,13 @@
 #include "laplace.hpp"
 #include "init_neutron_star.hpp"
 #include "plugin.hpp"
+#include <functional>
 
-template<typename Type, typename Func>
+template<typename Type>
 inline
-cl::buffer discretise(cl::context& ctx, cl::command_queue& cqueue, Func&& func, tensor<int, 3> cdim, float cscale)
+cl::buffer discretise(cl::context& ctx, cl::command_queue& cqueue, std::function<value<Type>(v3i, v3i, valuef)> func, tensor<int, 3> cdim, float cscale)
 {
-    auto kern = [func](execution_context& ctx, buffer_mut<value<Type>> out, literal<v3i> dim, literal<valuef> scale)
+    auto kern = [](execution_context& ctx, buffer_mut<value<Type>> out, literal<v3i> dim, literal<valuef> scale, std::function<value<Type>(v3i, v3i, valuef)> func)
     {
         using namespace single_source;
 
@@ -28,7 +29,7 @@ cl::buffer discretise(cl::context& ctx, cl::command_queue& cqueue, Func&& func, 
         as_ref(out[pos, dim.get()]) = func(pos, dim.get(), scale.get());
     };
 
-    std::string str = value_impl::make_function(kern, "discretise");
+    std::string str = value_impl::make_function(kern, "discretise", func);
 
     cl::program prog = cl::build_program_with_cache(ctx, {str}, false);
 

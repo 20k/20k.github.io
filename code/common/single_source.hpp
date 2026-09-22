@@ -1301,6 +1301,7 @@ namespace value_impl
 
             virtual bool is_read_only() const {
                 assert(false);
+                return false;
             }
 
             virtual bool is_image_array() const {
@@ -1716,7 +1717,7 @@ namespace value_impl
         return std::pair<T, std::tuple<Args...>>();
     }
 
-    template<typename R, typename Type, typename T, typename... Args>
+    /*template<typename R, typename Type, typename T, typename... Args>
     inline
     auto split_args_lambda(R(Type::*func)(T&, Args...))
     {
@@ -1742,7 +1743,7 @@ namespace value_impl
     auto split_args(Lambda&& l)
     {
         return split_args_lambda(&l.operator());
-    }
+    }*/
 
     template<typename Callable, typename... U>
     inline
@@ -1750,7 +1751,7 @@ namespace value_impl
     {
         //todo: need to only split a certain amount... keep splitting until
         //there are concrete_args remaining
-        auto [ctx_type, args] = split_args(func);
+        auto [ctx_type, args] = split_args(+func);
 
         constexpr std::size_t num = std::tuple_size_v<decltype(args)>;
         constexpr std::size_t concrete_argc = sizeof...(concrete_args);

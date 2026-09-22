@@ -548,11 +548,13 @@ void neutron_star::data::add_to_solution(cl::context& ctx, cl::command_queue& cq
     }
 }
 
+using colour_func = std::function<v3f(v3i, v3i, valuef, read_only_image<2>)>;
+
 void neutron_star::data::finalise(cl::context& ctx, cl::command_queue& cqueue, discretised_initial_data& dsol, tensor<int, 3> dim, float scale)
 {
     if(params.colour_aux.has_value())
     {
-        auto discretise2 = [&]<typename Func>(cl::context& ctx, cl::command_queue& cqueue, Func&& func)
+        auto discretise2 = [&](cl::context& ctx, cl::command_queue& cqueue, colour_func func)
         {
             vec<3, size_t> origin = {0, 0, 0};
             vec<3, size_t> region = {std::max(params.colour_aux->width, 1), std::max(params.colour_aux->height, 1), 1};
@@ -571,7 +573,7 @@ void neutron_star::data::finalise(cl::context& ctx, cl::command_queue& cqueue, d
             img.alloc((vec3i){region[0], region[1], 1}, {CL_RGBA, CL_UNORM_INT8}, cl::image_flags::NONE);
             img.write(cqueue, (char*)to_write.data(), origin, region);
 
-            auto kern = [func](execution_context& ctx, buffer_mut<valuef> out_r, buffer_mut<valuef> out_g, buffer_mut<valuef> out_b, literal<v3i> dim, literal<valuef> scale, read_only_image<2> colours)
+            auto kern = [](execution_context& ctx, buffer_mut<valuef> out_r, buffer_mut<valuef> out_g, buffer_mut<valuef> out_b, literal<v3i> dim, literal<valuef> scale, read_only_image<2> colours, colour_func func)
             {
                 using namespace single_source;
 
@@ -592,7 +594,7 @@ void neutron_star::data::finalise(cl::context& ctx, cl::command_queue& cqueue, d
                 as_ref(out_b[pos, dim.get()]) = val.z();
             };
 
-            std::string str = value_impl::make_function(kern, "discretise");
+            std::string str = value_impl::make_function(kern, "discretise", func);
 
             cl::program prog = cl::build_program_with_cache(ctx, {str}, false);
 

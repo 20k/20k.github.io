@@ -1038,13 +1038,13 @@ valuef apply_evolution(const valuef& base, const valuef& dt, valuef timestep)
 
 void make_momentum_constraint(cl::context ctx, const std::vector<plugin*>& plugins)
 {
-    auto func = [plugins](execution_context&,
+    auto func = [](execution_context&,
                           bssn_args_mem<buffer<valuef>> in,
                           value_impl::builder::placeholder plugin_ph,
                           std::array<buffer_mut<momentum_t>, 3> momentum_constraint,
                           literal<v3i> ldim,
                           literal<valuef> scale,
-                          literal<valuei> positions_length) {
+                          literal<valuei> positions_length, std::vector<plugin*> plugins) {
         using namespace single_source;
 
         all_adm_args_mem plugin_data = make_arg_provider(plugins);
@@ -1086,14 +1086,14 @@ void make_momentum_constraint(cl::context ctx, const std::vector<plugin*>& plugi
 
     cl::async_build_and_cache(ctx, [=]
     {
-        return value_impl::make_function(func, "momentum_constraint");
+        return value_impl::make_function(func, "momentum_constraint", plugins);
     }, {"momentum_constraint"});
 }
 
 ///https://arxiv.org/pdf/0709.3559 tested, appendix a.2
 void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, const initial_params& cfg)
 {
-    auto bssn_function = [plugins, cfg]
+    auto bssn_function = []
             (execution_context&, bssn_args_mem<buffer<valuef>> base,
             bssn_args_mem<buffer<valuef>> in,
             bssn_args_mem<buffer_mut<valuef>> out,
@@ -1104,7 +1104,8 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, const initi
             literal<valuef> scale,
             literal<valuef> total_elapsed,
             literal<v3i> idim,
-            literal<valuei> positions_length) {
+            literal<valuei> positions_length,
+            std::vector<plugin*> plugins, initial_params cfg) {
         using namespace single_source;
 
         all_adm_args_mem plugin_data = make_arg_provider(plugins);
@@ -1223,7 +1224,7 @@ void make_bssn(cl::context ctx, const std::vector<plugin*>& plugins, const initi
 
     cl::async_build_and_cache(ctx, [=]
     {
-        return value_impl::make_function(bssn_function, "evolve");
+        return value_impl::make_function(bssn_function, "evolve", plugins, cfg);
     }, {"evolve"});
 }
 
@@ -1304,7 +1305,7 @@ void enforce_algebraic_constraints(cl::context ctx)
 
 void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
 {
-    auto func = [plugins](execution_context&, bssn_args_mem<buffer<valuef>> in, bssn_derivatives_mem<buffer<derivative_t>> derivs_in, value_impl::builder::placeholder plugin_ph, literal<v3i> ldim, literal<valuef> scale, write_only_image<2> write) {
+    auto func = [](execution_context&, bssn_args_mem<buffer<valuef>> in, bssn_derivatives_mem<buffer<derivative_t>> derivs_in, value_impl::builder::placeholder plugin_ph, literal<v3i> ldim, literal<valuef> scale, write_only_image<2> write, std::vector<plugin*> plugins) {
         using namespace single_source;
 
         all_adm_args_mem plugin_data = make_arg_provider(plugins);
@@ -1414,7 +1415,7 @@ void init_debugging(cl::context ctx, const std::vector<plugin*>& plugins)
     };
 
     cl::async_build_and_cache(ctx, [=] {
-        return value_impl::make_function(func, "debug");
+        return value_impl::make_function(func, "debug", plugins);
     }, {"debug"});
 }
 
